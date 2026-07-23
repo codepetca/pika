@@ -77,7 +77,8 @@ function createSupabaseMock(options: {
   completionFailure?: boolean
   corruptSource?: boolean
   corruptReadBack?: boolean
-  finalizationMismatch?: boolean
+    finalizationMismatch?: boolean
+    formatVersion?: number
   preloadExtract?: boolean
   removeThrows?: boolean
   wrongStoragePath?: boolean
@@ -196,7 +197,7 @@ function createSupabaseMock(options: {
       classroom_id: CLASSROOM_ID,
       teacher_id: TEACHER_ID,
       format: 'pika.classroom-archive',
-      format_version: 1,
+      format_version: options.formatVersion ?? 1,
       storage_bucket: 'classroom-archives',
       storage_path: ARCHIVE_PATH,
       artifact_sha256: archive.artifactSha256,
@@ -362,16 +363,29 @@ describe('classroom Gradex runtime coordinator', () => {
     )
   })
 
-  it('returns a completed replay without reading archive or storage data', async () => {
+  it('returns a completed replay after checking versioned archive metadata', async () => {
     const mock = createSupabaseMock({ completedReplay: true })
     const result = await createClassroomGradexExtract(operationArgs(mock))
 
     expect(result).toEqual(expect.objectContaining({ ok: true, replayed: true }))
-    expect(mock.from).not.toHaveBeenCalled()
+    expect(mock.from).toHaveBeenCalledWith('classroom_archives')
     expect(mock.storageFrom).not.toHaveBeenCalled()
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_gradex_extract',
     ])
+  })
+
+  it('rejects disabled archive versions before opening an operation or storage', async () => {
+    const mock = createSupabaseMock({ formatVersion: 2 })
+    const result = await createClassroomGradexExtract(operationArgs(mock))
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'gradex_source_archive_version_not_enabled',
+      retryable: false,
+    }))
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.storageFrom).not.toHaveBeenCalled()
   })
 
   it('rejects a structurally valid RPC response bound to the wrong storage path', async () => {

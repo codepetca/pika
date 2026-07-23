@@ -85,10 +85,12 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_CONTRACTS[1]).toMatchObject({
       exportEnabled: true,
       restoreEnabled: true,
+      gradexEnabled: true,
     })
     expect(CLASSROOM_ARCHIVE_CONTRACTS[2]).toMatchObject({
       exportEnabled: false,
       restoreEnabled: false,
+      gradexEnabled: false,
     })
     expect(v2Tables).toEqual(expect.arrayContaining([
       'classroom_retired_assessment_records',

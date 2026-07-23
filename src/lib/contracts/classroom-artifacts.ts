@@ -214,6 +214,7 @@ export const CLASSROOM_ARCHIVE_CONTRACTS = {
     manifestSchema: classroomArchiveManifestV1Schema,
     exportEnabled: true,
     restoreEnabled: true,
+    gradexEnabled: true,
   },
   [CLASSROOM_ARCHIVE_V2_VERSION]: {
     version: CLASSROOM_ARCHIVE_V2_VERSION,
@@ -221,6 +222,7 @@ export const CLASSROOM_ARCHIVE_CONTRACTS = {
     manifestSchema: classroomArchiveManifestV2Schema,
     exportEnabled: false,
     restoreEnabled: false,
+    gradexEnabled: false,
   },
 } as const
 

@@ -1,54 +1,33 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import { canonicalJsonStringify } from '@/lib/server/classroom-archive-format'
 import { LEGACY_QUIZ_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import { canonicalJsonStringify } from '@/lib/server/classroom-archive-canonical'
+import {
+  LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
+  LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS,
+  RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+  retiredAssessmentPayloadChecksum,
+  retiredAssessmentRecordActorSchema,
+  retiredAssessmentRecordSchema,
+  validateRetiredAssessmentEnvelopeGraph,
+  type RetiredAssessmentRecord,
+  type RetiredAssessmentRecordActor,
+} from '@/lib/server/classroom-retired-assessment-contract'
 
 const uuidSchema = z.string().uuid()
-const jsonObjectSchema = z.record(z.string(), z.unknown())
-export const LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT =
-  'pika.classroom-archive@1/legacy-quiz' as const
-export const RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM =
-  'sha256-canonical-json-v1' as const
 const sourceResourceSchema = z.enum([
   ...LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
   'assessment_drafts',
 ])
+type SourceResource = z.infer<typeof sourceResourceSchema>
 
-const sourceActorColumns = {
-  quizzes: ['created_by'],
-  quiz_questions: [],
-  quiz_responses: ['student_id'],
-  quiz_student_scores: ['student_id'],
-  assessment_drafts: ['created_by', 'updated_by'],
-} as const satisfies Record<z.infer<typeof sourceResourceSchema>, readonly string[]>
-
-export const retiredAssessmentRecordSchema = z.object({
-  id: uuidSchema,
-  classroom_id: uuidSchema,
-  source_contract: z.literal(LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT),
-  source_contract_version: z.literal(1),
-  source_resource: sourceResourceSchema,
-  source_row_id: uuidSchema,
-  parent_source_resource: sourceResourceSchema.nullable(),
-  parent_source_row_id: uuidSchema.nullable(),
-  payload: jsonObjectSchema,
-  payload_sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  checksum_algorithm: z.literal(RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM),
-  source_created_at: z.string().datetime({ offset: true }).nullable(),
-  source_updated_at: z.string().datetime({ offset: true }).nullable(),
-}).strict()
-
-export const retiredAssessmentRecordActorSchema = z.object({
-  id: uuidSchema,
-  record_id: uuidSchema,
-  actor_id: uuidSchema,
-  source_column: z.string().min(1),
-}).strict()
-
-export type RetiredAssessmentRecord = z.infer<typeof retiredAssessmentRecordSchema>
-export type RetiredAssessmentRecordActor = z.infer<
-  typeof retiredAssessmentRecordActorSchema
->
+export {
+  LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
+  RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+  retiredAssessmentRecordActorSchema,
+  retiredAssessmentRecordSchema,
+}
+export type { RetiredAssessmentRecord, RetiredAssessmentRecordActor }
 
 type JsonObject = Record<string, unknown>
 
@@ -83,10 +62,10 @@ function optionalTimestamp(row: JsonObject, key: 'created_at' | 'updated_at'): s
 }
 
 function parentIdentity(
-  resource: z.infer<typeof sourceResourceSchema>,
+  resource: SourceResource,
   row: JsonObject,
 ): {
-  parent_source_resource: z.infer<typeof sourceResourceSchema> | null
+  parent_source_resource: SourceResource | null
   parent_source_row_id: string | null
 } {
   if (resource === 'quiz_questions' || resource === 'quiz_student_scores') {
@@ -101,6 +80,12 @@ function parentIdentity(
       parent_source_row_id: uuidSchema.parse(row.question_id),
     }
   }
+  if (resource === 'assessment_drafts') {
+    return {
+      parent_source_resource: 'quizzes',
+      parent_source_row_id: uuidSchema.parse(row.assessment_id),
+    }
+  }
   return {
     parent_source_resource: null,
     parent_source_row_id: null,
@@ -110,7 +95,7 @@ function parentIdentity(
 function sourceRows(
   resources: Record<string, JsonObject[]>,
 ): Array<{
-  resource: z.infer<typeof sourceResourceSchema>
+  resource: SourceResource
   row: JsonObject
 }> {
   const rows = LEGACY_QUIZ_ARCHIVE_V1_RESOURCES.flatMap((resource) =>
@@ -172,13 +157,21 @@ function validateRelationships(
 export function adaptLegacyQuizArchiveResources(args: {
   classroomId: string
   resources: Record<string, JsonObject[]>
+  actors: readonly { id: string }[]
 }): AdaptedLegacyQuizArchiveResources {
   const classroomId = uuidSchema.parse(args.classroomId)
   const clonedResources = cloneJson(args.resources)
+  const archiveActorIds = args.actors.map((actor) => uuidSchema.parse(actor.id))
+  const existing = validateRetiredAssessmentEnvelopeGraph({
+    classroomId,
+    records: clonedResources.classroom_retired_assessment_records || [],
+    recordActors: clonedResources.classroom_retired_assessment_record_actors || [],
+    archiveActorIds,
+  })
   const rows = sourceRows(clonedResources)
   validateRelationships(classroomId, rows)
 
-  const records = rows.map(({ resource, row }) => {
+  const convertedRecords = rows.map(({ resource, row }) => {
     const sourceRowId = uuidSchema.parse(row.id)
     const payload = cloneJson(row)
     const parent = parentIdentity(resource, row)
@@ -194,9 +187,7 @@ export function adaptLegacyQuizArchiveResources(args: {
       source_row_id: sourceRowId,
       ...parent,
       payload,
-      payload_sha256: createHash('sha256')
-        .update(canonicalJsonStringify(payload))
-        .digest('hex'),
+      payload_sha256: retiredAssessmentPayloadChecksum(payload),
       checksum_algorithm: RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
       source_created_at: optionalTimestamp(row, 'created_at'),
       source_updated_at: optionalTimestamp(row, 'updated_at'),
@@ -206,8 +197,10 @@ export function adaptLegacyQuizArchiveResources(args: {
     compareStable(left.source_row_id, right.source_row_id),
   )
 
-  const actors = records.flatMap((record) =>
-    sourceActorColumns[record.source_resource].flatMap((sourceColumn) => {
+  const convertedActors = convertedRecords.flatMap((record) =>
+    LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS[
+      record.source_resource as SourceResource
+    ].flatMap((sourceColumn) => {
       const actorId = record.payload[sourceColumn]
       if (actorId === null || actorId === undefined) return []
       const parsedActorId = uuidSchema.parse(actorId)
@@ -219,6 +212,38 @@ export function adaptLegacyQuizArchiveResources(args: {
       })]
     }),
   ).sort((left, right) => compareStable(left.id, right.id))
+
+  const recordsById = new Map(existing.records.map((record) => [record.id, record]))
+  for (const record of convertedRecords) {
+    const prior = recordsById.get(record.id)
+    if (prior && canonicalJsonStringify(prior) !== canonicalJsonStringify(record)) {
+      throw new Error(`Retired assessment record identity collision: ${record.id}`)
+    }
+    recordsById.set(record.id, record)
+  }
+  const actorsById = new Map(existing.recordActors.map((actor) => [actor.id, actor]))
+  for (const actor of convertedActors) {
+    const prior = actorsById.get(actor.id)
+    if (prior && canonicalJsonStringify(prior) !== canonicalJsonStringify(actor)) {
+      throw new Error(`Retired assessment actor identity collision: ${actor.id}`)
+    }
+    actorsById.set(actor.id, actor)
+  }
+  const records = [...recordsById.values()].sort((left, right) =>
+    compareStable(left.source_contract, right.source_contract) ||
+    left.source_contract_version - right.source_contract_version ||
+    compareStable(left.source_resource, right.source_resource) ||
+    compareStable(left.source_row_id, right.source_row_id),
+  )
+  const actors = [...actorsById.values()].sort((left, right) =>
+    compareStable(left.id, right.id),
+  )
+  validateRetiredAssessmentEnvelopeGraph({
+    classroomId,
+    records,
+    recordActors: actors,
+    archiveActorIds,
+  })
 
   for (const resource of LEGACY_QUIZ_ARCHIVE_V1_RESOURCES) {
     delete clonedResources[resource]

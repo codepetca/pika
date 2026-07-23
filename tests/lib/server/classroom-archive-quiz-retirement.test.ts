@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { canonicalJsonStringify } from '@/lib/server/classroom-archive-format'
 import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
+import {
+  RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+  retiredAssessmentPayloadChecksum,
+} from '@/lib/server/classroom-retired-assessment-contract'
 
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000001'
 const TEACHER_ID = '00000000-0000-4000-8000-000000000002'
@@ -76,6 +80,8 @@ function resources() {
   }
 }
 
+const archiveActors = [{ id: TEACHER_ID }, { id: STUDENT_ID }]
+
 describe('legacy Quiz archive retirement adapter', () => {
   it('converts all four Quiz resources and Quiz drafts into opaque v2 envelopes', () => {
     const source = resources()
@@ -83,6 +89,7 @@ describe('legacy Quiz archive retirement adapter', () => {
     const adapted = adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: source,
+      actors: archiveActors,
     })
 
     expect(source).toEqual(sourceBefore)
@@ -112,12 +119,16 @@ describe('legacy Quiz archive retirement adapter', () => {
     const adapted = adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: resources(),
+      actors: archiveActors,
     })
     const response = adapted.records.find((record) =>
       record.source_resource === 'quiz_responses',
     )
     const score = adapted.records.find((record) =>
       record.source_resource === 'quiz_student_scores',
+    )
+    const draft = adapted.records.find((record) =>
+      record.source_resource === 'assessment_drafts',
     )
 
     expect(response).toMatchObject({
@@ -131,6 +142,10 @@ describe('legacy Quiz archive retirement adapter', () => {
       },
     })
     expect(score?.payload.manual_override_score).toBe(9)
+    expect(draft).toMatchObject({
+      parent_source_resource: 'quizzes',
+      parent_source_row_id: QUIZ_ID,
+    })
     expect(adapted.actors).toEqual(expect.arrayContaining([
       expect.objectContaining({ actor_id: TEACHER_ID, source_column: 'created_by' }),
       expect.objectContaining({ actor_id: TEACHER_ID, source_column: 'updated_by' }),
@@ -145,21 +160,62 @@ describe('legacy Quiz archive retirement adapter', () => {
     }
   })
 
-  it('is deterministic and idempotent for the same immutable v1 graph', () => {
+  it('is deterministic and preserves the adapted envelope on replay', () => {
     const first = adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: resources(),
+      actors: archiveActors,
     })
     const second = adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: resources(),
+      actors: archiveActors,
     })
 
     expect(second).toEqual(first)
+    expect(adaptLegacyQuizArchiveResources({
+      classroomId: CLASSROOM_ID,
+      resources: first.resources,
+      actors: archiveActors,
+    })).toEqual(first)
     expect(new Set(first.records.map((record) => record.id)).size)
       .toBe(first.records.length)
     expect(new Set(first.actors.map((actor) => actor.id)).size)
       .toBe(first.actors.length)
+  })
+
+  it('preserves unrelated pre-existing retired assessment records', () => {
+    const source = resources() as ReturnType<typeof resources> & {
+      classroom_retired_assessment_records: Record<string, unknown>[]
+      classroom_retired_assessment_record_actors: Record<string, unknown>[]
+    }
+    const payload = { id: '90000000-0000-4000-8000-000000000001', kind: 'survey' }
+    const existing = {
+      id: '90000000-0000-4000-8000-000000000002',
+      classroom_id: CLASSROOM_ID,
+      source_contract: 'pika.example@1/retired-survey',
+      source_contract_version: 1,
+      source_resource: 'surveys',
+      source_row_id: payload.id,
+      parent_source_resource: null,
+      parent_source_row_id: null,
+      payload,
+      payload_sha256: retiredAssessmentPayloadChecksum(payload),
+      checksum_algorithm: RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+      source_created_at: null,
+      source_updated_at: null,
+    }
+    source.classroom_retired_assessment_records = [existing]
+    source.classroom_retired_assessment_record_actors = []
+
+    const adapted = adaptLegacyQuizArchiveResources({
+      classroomId: CLASSROOM_ID,
+      resources: source,
+      actors: archiveActors,
+    })
+
+    expect(adapted.records).toContainEqual(existing)
+    expect(adapted.records).toHaveLength(6)
   })
 
   it('fails closed on missing or inconsistent Quiz parents', () => {
@@ -168,6 +224,7 @@ describe('legacy Quiz archive retirement adapter', () => {
     expect(() => adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: missingQuestion,
+      actors: archiveActors,
     })).toThrow('source parent is missing')
 
     const inconsistentQuiz = resources()
@@ -176,7 +233,17 @@ describe('legacy Quiz archive retirement adapter', () => {
     expect(() => adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: inconsistentQuiz,
+      actors: archiveActors,
     })).toThrow('inconsistent quiz identity')
+
+    const missingDraftQuiz = resources()
+    missingDraftQuiz.assessment_drafts[0].assessment_id =
+      '30000000-0000-4000-8000-000000000001'
+    expect(() => adaptLegacyQuizArchiveResources({
+      classroomId: CLASSROOM_ID,
+      resources: missingDraftQuiz,
+      actors: archiveActors,
+    })).toThrow('source parent is missing')
   })
 
   it('fails closed when a root row belongs to another classroom', () => {
@@ -186,6 +253,15 @@ describe('legacy Quiz archive retirement adapter', () => {
     expect(() => adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: source,
+      actors: archiveActors,
     })).toThrow('belongs to another classroom')
+  })
+
+  it('fails closed when a referenced actor is absent from the archive snapshot', () => {
+    expect(() => adaptLegacyQuizArchiveResources({
+      classroomId: CLASSROOM_ID,
+      resources: resources(),
+      actors: [{ id: TEACHER_ID }],
+    })).toThrow('actor is missing from archive snapshots')
   })
 })

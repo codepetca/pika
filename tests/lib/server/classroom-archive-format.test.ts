@@ -14,6 +14,16 @@ import {
 } from '@/lib/server/classroom-archive-format'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import type { ClassroomArchiveManifest } from '@/lib/contracts/classroom-artifacts'
+import {
+  buildClassroomArchiveV2Fixture,
+  V2_CLASSROOM_ID,
+  V2_TEACHER_ID,
+} from '../../fixtures/classroom-archive-v2'
+import {
+  LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
+  RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+  retiredAssessmentPayloadChecksum,
+} from '@/lib/server/classroom-retired-assessment-contract'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
@@ -186,8 +196,8 @@ describe('classroom archive format', () => {
 
     expect(Buffer.from(first.archive).equals(Buffer.from(second.archive))).toBe(true)
     expect(first.artifactSha256).toBe(second.artifactSha256)
-    expect(first.artifactSha256).toBe(
-      '4b75a513c8ccfb4d1f71b665852cfac5c053fafe5f657ce039d140780fc14eee',
+    expect(sha256Bytes(gunzipSync(first.archive))).toBe(
+      '4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093',
     )
 
     const verification = verifyClassroomArchiveBundle(first.archive)
@@ -198,6 +208,131 @@ describe('classroom archive format', () => {
       `${canonicalJsonStringify({ title: 'A', classroom_id: CLASSROOM_ID, id: '00000000-0000-4000-8000-000000000010' })}\n` +
       `${canonicalJsonStringify({ id: '00000000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, title: 'B' })}\n`,
     )
+  })
+
+  it('strictly verifies the inactive v2 envelope graph', () => {
+    const sourceRowId = '72000000-0000-4000-8000-000000000001'
+    const recordId = '72000000-0000-4000-8000-000000000002'
+    const actorId = '72000000-0000-4000-8000-000000000003'
+    const payload = {
+      id: sourceRowId,
+      title: 'Retired assessment',
+      created_by: V2_TEACHER_ID,
+    }
+    const record = {
+      id: recordId,
+      classroom_id: V2_CLASSROOM_ID,
+      source_contract: LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
+      source_contract_version: 1,
+      source_resource: 'quizzes',
+      source_row_id: sourceRowId,
+      parent_source_resource: null,
+      parent_source_row_id: null,
+      payload,
+      payload_sha256: retiredAssessmentPayloadChecksum(payload),
+      checksum_algorithm: RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+      source_created_at: null,
+      source_updated_at: null,
+    }
+    const actor = {
+      id: actorId,
+      record_id: recordId,
+      actor_id: V2_TEACHER_ID,
+      source_column: 'created_by',
+    }
+    const built = buildClassroomArchiveV2Fixture({
+      resources: {
+        classroom_retired_assessment_records: [record],
+        classroom_retired_assessment_record_actors: [actor],
+      },
+    })
+    const verified = verifyClassroomArchiveBundle(built.archive)
+
+    expect(verified.ok).toBe(true)
+    if (!verified.ok) throw new Error(verified.error)
+    expect(decodeClassroomArchiveData(verified).resources)
+      .toMatchObject({
+        classroom_retired_assessment_records: [record],
+        classroom_retired_assessment_record_actors: [actor],
+      })
+  })
+
+  it('rejects invalid v2 envelope checksums, relationships, actors, and credentials', () => {
+    const sourceRowId = '73000000-0000-4000-8000-000000000001'
+    const recordId = '73000000-0000-4000-8000-000000000002'
+    const payload = { id: sourceRowId }
+    const baseRecord = {
+      id: recordId,
+      classroom_id: V2_CLASSROOM_ID,
+      source_contract: LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
+      source_contract_version: 1,
+      source_resource: 'quiz_questions',
+      source_row_id: sourceRowId,
+      parent_source_resource: 'quizzes',
+      parent_source_row_id: '73000000-0000-4000-8000-000000000009',
+      payload,
+      payload_sha256: retiredAssessmentPayloadChecksum(payload),
+      checksum_algorithm: RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
+      source_created_at: null,
+      source_updated_at: null,
+    }
+    const verifyRecords = (
+      records: Record<string, unknown>[],
+      actors: Record<string, unknown>[] = [],
+    ) => verifyClassroomArchiveBundle(buildClassroomArchiveV2Fixture({
+      resources: {
+        classroom_retired_assessment_records: records,
+        classroom_retired_assessment_record_actors: actors,
+      },
+    }).archive)
+
+    expect(verifyRecords([{ ...baseRecord, payload_sha256: '0'.repeat(64) }]))
+      .toEqual(expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining('payload checksum mismatch'),
+      }))
+    expect(verifyRecords([{ ...baseRecord, source_contract: undefined }])).toEqual(expect.objectContaining({
+      ok: false,
+    }))
+    expect(verifyRecords([baseRecord])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('parent is missing'),
+    }))
+
+    const root = {
+      ...baseRecord,
+      source_resource: 'quizzes',
+      parent_source_resource: null,
+      parent_source_row_id: null,
+    }
+    const actorPayload = { id: sourceRowId, created_by: V2_TEACHER_ID }
+    expect(verifyRecords([{
+      ...root,
+      payload: actorPayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(actorPayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('actor reference is missing'),
+    }))
+    expect(verifyRecords([root], [{
+      id: '73000000-0000-4000-8000-000000000003',
+      record_id: recordId,
+      actor_id: '73000000-0000-4000-8000-000000000004',
+      source_column: 'created_by',
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('missing from archive snapshots'),
+    }))
+
+    const credentialPayload = { id: sourceRowId, password_hash: 'forbidden' }
+    expect(verifyRecords([{
+      ...root,
+      payload: credentialPayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(credentialPayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('forbidden credential field'),
+    }))
   })
 
   it('rejects a bundle whose decompressed content was modified', () => {

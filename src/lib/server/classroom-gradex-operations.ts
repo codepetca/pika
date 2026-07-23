@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   GRADEX_EXTRACT_FORMAT,
   GRADEX_EXTRACT_VERSION,
+  getClassroomArchiveContract,
 } from '@/lib/contracts/classroom-artifacts'
 import { GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
 import {
@@ -99,7 +100,7 @@ const sourceArchiveMetadataSchema = z.object({
   classroom_id: uuidSchema,
   teacher_id: uuidSchema,
   format: z.literal('pika.classroom-archive'),
-  format_version: z.literal(1),
+  format_version: z.number().int().positive(),
   storage_bucket: z.literal('classroom-archives'),
   storage_path: z.string().min(1),
   artifact_sha256: sha256Schema,
@@ -487,6 +488,43 @@ export async function createClassroomGradexExtract(args: {
   let uploadedByThisAttempt = false
   let storagePath: string | null = null
   let finalizationMayHaveCommitted = false
+  let metadata: z.infer<typeof sourceArchiveMetadataSchema>
+
+  try {
+    metadata = await loadSourceArchiveMetadata({
+      supabase: args.supabase,
+      archiveId: sourceArchiveId,
+      classroomId,
+      teacherId,
+    })
+    if (!getClassroomArchiveContract(metadata.format_version).gradexEnabled) {
+      throw new ClassroomGradexExtractError(
+        'gradex_source_archive_version_not_enabled',
+        `Classroom archive version ${metadata.format_version} is not enabled for Gradex`,
+        409,
+        false,
+      )
+    }
+  } catch (error) {
+    const gradexError = error instanceof ClassroomGradexExtractError
+      ? error
+      : new ClassroomGradexExtractError(
+          'gradex_source_archive_contract_invalid',
+          'Verified source archive metadata returned an unsupported contract',
+          409,
+          false,
+        )
+    const result: ClassroomGradexExtractResult = {
+      ok: false,
+      status: gradexError.status,
+      operation_id: operationId,
+      error_code: gradexError.code,
+      error: gradexError.message,
+      retryable: gradexError.retryable,
+    }
+    emitGradexMetric(result, startedAt)
+    return result
+  }
 
   try {
     const beginResponse = await args.supabase.rpc('begin_classroom_gradex_extract', {
@@ -539,12 +577,6 @@ export async function createClassroomGradexExtract(args: {
 
     const snapshot = parsedBegin.data
     storagePath = snapshot.storage_path
-    const metadata = await loadSourceArchiveMetadata({
-      supabase: args.supabase,
-      archiveId: sourceArchiveId,
-      classroomId,
-      teacherId,
-    })
     if (
       metadata.id !== snapshot.source_archive_id ||
       metadata.artifact_sha256 !== snapshot.source_archive_sha256
@@ -582,7 +614,8 @@ export async function createClassroomGradexExtract(args: {
     if (
       verifiedArchive.manifest.archive_id !== sourceArchiveId ||
       verifiedArchive.manifest.classroom_id !== classroomId ||
-      verifiedArchive.manifest.teacher_id !== teacherId
+      verifiedArchive.manifest.teacher_id !== teacherId ||
+      verifiedArchive.manifest.version !== metadata.format_version
     ) {
       throw new ClassroomGradexExtractError(
         'gradex_source_archive_identity_mismatch',

@@ -9,6 +9,19 @@ import {
   type ClassroomArchiveManifest,
   type ClassroomArchiveManifestV1,
 } from '@/lib/contracts/classroom-artifacts'
+import {
+  canonicalizeJson,
+  canonicalJsonStringify,
+  compareCanonicalStrings,
+  sha256Bytes,
+} from '@/lib/server/classroom-archive-canonical'
+import { validateRetiredAssessmentEnvelopeGraph } from '@/lib/server/classroom-retired-assessment-contract'
+
+export {
+  canonicalizeJson,
+  canonicalJsonStringify,
+  sha256Bytes,
+} from '@/lib/server/classroom-archive-canonical'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder('utf-8', { fatal: true })
@@ -61,10 +74,6 @@ type BuildClassroomArchiveBundleInput = {
   storageObjects: ClassroomArchiveStorageObject[]
 }
 
-function compareCanonicalStrings(left: string, right: string): number {
-  return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
-}
-
 // The original v1 writer used host-locale ordering; verification retains that recovery adapter.
 function compareLegacyV1Strings(left: string, right: string): number {
   return left.localeCompare(right)
@@ -90,34 +99,19 @@ export type DecodedClassroomArchiveData = {
   actors: Array<ReturnType<typeof classroomArchiveActorSnapshotSchema.parse>>
 }
 
-function canonicalizeJsonWith(
-  value: unknown,
-  compare: (left: string, right: string) => number,
-): unknown {
-  if (Array.isArray(value)) return value.map((item) => canonicalizeJsonWith(item, compare))
+function legacyV1CanonicalizeJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(legacyV1CanonicalizeJson)
   if (!value || typeof value !== 'object') return value
 
   return Object.fromEntries(
     Object.entries(value as JsonObject)
-      .sort(([left], [right]) => compare(left, right))
-      .map(([key, item]) => [key, canonicalizeJsonWith(item, compare)]),
+      .sort(([left], [right]) => compareLegacyV1Strings(left, right))
+      .map(([key, item]) => [key, legacyV1CanonicalizeJson(item)]),
   )
 }
 
-export function canonicalizeJson(value: unknown): unknown {
-  return canonicalizeJsonWith(value, compareCanonicalStrings)
-}
-
 function legacyV1CanonicalJsonStringify(value: unknown): string {
-  return JSON.stringify(canonicalizeJsonWith(value, compareLegacyV1Strings))
-}
-
-export function canonicalJsonStringify(value: unknown): string {
-  return JSON.stringify(canonicalizeJson(value))
-}
-
-export function sha256Bytes(value: Uint8Array): string {
-  return createHash('sha256').update(value).digest('hex')
+  return JSON.stringify(legacyV1CanonicalizeJson(value))
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
@@ -565,7 +559,18 @@ export function verifyClassroomArchiveBundle(
     if (!contentChecksumMatches) {
       return { ok: false, error: 'Archive content checksum mismatch' }
     }
-    return { ok: true, manifest, files }
+    const verified = { ok: true as const, manifest, files }
+    const decoded = decodeClassroomArchiveData(verified)
+    if (manifest.version === 2) {
+      validateRetiredAssessmentEnvelopeGraph({
+        classroomId: manifest.classroom_id,
+        records: decoded.resources.classroom_retired_assessment_records || [],
+        recordActors:
+          decoded.resources.classroom_retired_assessment_record_actors || [],
+        archiveActorIds: decoded.actors.map((actor) => actor.id),
+      })
+    }
+    return verified
   } catch (error) {
     return {
       ok: false,

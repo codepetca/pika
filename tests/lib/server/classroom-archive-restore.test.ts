@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import {
@@ -11,6 +13,7 @@ import {
   classroomArchiveRestoreObjectPath,
   CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
+import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
@@ -24,8 +27,8 @@ function emptyResources() {
   )
 }
 
-function verifiedFixture() {
-  const bundle = buildClassroomArchiveBundle({
+function buildFixtureBundle() {
+  return buildClassroomArchiveBundle({
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -144,6 +147,10 @@ function verifiedFixture() {
       },
     ],
   })
+}
+
+function verifiedFixture() {
+  const bundle = buildFixtureBundle()
   const verified = verifyClassroomArchiveBundle(bundle.archive)
   if (!verified.ok) throw new Error(verified.error)
   return verified
@@ -188,7 +195,10 @@ describe('classroom archive restore planning', () => {
   })
 
   it('adapts a verified non-empty v1 Quiz graph without mutating its bytes', () => {
-    const verified = verifiedFixture()
+    const built = buildFixtureBundle()
+    const verification = verifyClassroomArchiveBundle(built.archive)
+    if (!verification.ok) throw new Error(verification.error)
+    const verified = verification
     const manifestBefore = structuredClone(verified.manifest)
     const quizBytesBefore = Buffer.from(
       verified.files.get('data/quizzes.ndjson') || Buffer.alloc(0),
@@ -197,6 +207,7 @@ describe('classroom archive restore planning', () => {
     const adapted = adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
       resources: decoded.resources,
+      actors: decoded.actors,
     })
 
     expect(adapted.records.map((record) => record.source_resource)).toEqual([
@@ -209,6 +220,32 @@ describe('classroom archive restore planning', () => {
     expect(adapted.records.find((record) =>
       record.source_resource === 'quiz_student_scores',
     )?.payload.manual_override_score).toBe(9)
+    expect(adapted.records.find((record) =>
+      record.source_resource === 'assessment_drafts',
+    )).toMatchObject({
+      parent_source_resource: 'quizzes',
+      parent_source_row_id: '60000000-0000-4000-8000-000000000001',
+    })
+    expect(createHash('sha256').update(gunzipSync(built.archive)).digest('hex')).toBe(
+      '32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58',
+    )
+    expect(verified.manifest.content_sha256).toBe(
+      '0b64d44066ce1cd0ece4521e72a1d36a4102957995ddd1cfe3fac3d8e63311f3',
+    )
+    expect(Object.fromEntries(
+      verified.manifest.resources
+        .filter((resource) =>
+          resource.table.startsWith('quiz') ||
+          resource.table === 'assessment_drafts',
+        )
+        .map((resource) => [resource.table, resource.sha256]),
+    )).toEqual({
+      assessment_drafts: '814711ca0ceddbaae9ef119cfb578e6f4df10b67b5a99c9633e3df60ad874476',
+      quiz_questions: '7d331d13169e5d2db7c455c50577db4330d1ec6ae540cefde90da09efbe14bc9',
+      quiz_responses: '248a87527a97d253d5777e44ec7ccfc141db52881e76f97386d347e5a384482e',
+      quiz_student_scores: '3cd9246d1b240fa3fc27d13872db9a2ea494086dfff249907f93574c429623b3',
+      quizzes: '1a389ea66ae9aad4ffded2cb6e2484b9c8faab2ee6afde60e87239abe302ff10',
+    })
     expect(adapted.resources.assessment_drafts).toEqual([])
     expect(verified.manifest).toEqual(manifestBefore)
     expect(verified.files.get('data/quizzes.ndjson')).toEqual(quizBytesBefore)
@@ -225,11 +262,14 @@ describe('classroom archive restore planning', () => {
   })
 
   it('keeps verified v2 input disabled until persistence is activated', () => {
-    const verified = verifiedFixture()
-    Object.assign(verified.manifest, { version: 2 })
+    const verification = verifyClassroomArchiveBundle(
+      buildClassroomArchiveV2Fixture().archive,
+    )
+    expect(verification.ok).toBe(true)
+    if (!verification.ok) throw new Error(verification.error)
 
     expect(() => buildClassroomArchiveRestorePlan({
-      verified,
+      verified: verification,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
       currentActors,

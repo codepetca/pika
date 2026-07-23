@@ -1056,21 +1056,31 @@ future persistence shape without enabling unapproved schema behavior.
   canonical SHA-256 evidence without mapping retired data into Tests.
 - Expanded the verified non-empty v1 fixture to include all four Quiz resources,
   a manual score override, and a Quiz draft.
-- Proved the refactor retains the pre-pass v1 artifact SHA exactly.
+- Froze portable v1 tar-content, manifest-content, and per-resource hashes so
+  the non-empty contract cannot be regenerated with silent Quiz drift.
+- Tightened independent-review findings: Quiz drafts retain and validate their
+  Quiz parent; adapter replay preserves existing envelopes; archived actor
+  references must resolve; and strict v2 verification rejects malformed,
+  checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
+- Added an explicit Gradex capability gate and moved source archive metadata
+  validation before operation creation so disabled v2 causes zero RPC or
+  storage writes.
 - Updated the retirement plan and cleanup guide to distinguish the completed
   application foundation from the approval-gated database/v2 activation work.
 - Created no migration and performed no production write.
 
 **Validation:**
-- Focused archive contract, format, restore, adapter, and docs suites (6 files /
-  45 tests)
-- Full repository suite (411 files / 3,683 tests)
+- Focused archive contract, format, restore, adapter, Gradex, and docs suites
+  (7 files / 58 tests)
+- Full repository suite after review fixes (411 files / 3,689 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (624 modules / 0 allowances)
 - `pnpm build`
-- Pre-pass and post-pass golden v1 artifact SHA:
-  `4b75a513c8ccfb4d1f71b665852cfac5c053fafe5f657ce039d140780fc14eee`
+- Portable empty-v1 tar SHA:
+  `4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093`
+- Non-empty Quiz-v1 tar SHA:
+  `32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58`
 
 **Remaining:**
 - Require changed-file audit, independent PR review, and exact-head CI before merge.
