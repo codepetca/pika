@@ -30,7 +30,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -61,7 +60,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
       />
     )
@@ -84,7 +82,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -127,7 +124,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -177,7 +173,6 @@ describe('StudentTestForm preview mode', () => {
             selected_option: 1,
           },
         }}
-        assessmentType="test"
         enableDraftAutosave
         onSubmitted={onSubmitted}
       />
@@ -209,7 +204,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -242,7 +236,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -274,7 +267,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         apiBasePath="/api/student/tests"
         onAvailabilityLoss={onAvailabilityLoss}
         onSubmitted={onSubmitted}

@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
+import { fetchJSON } from '@/lib/request-cache'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
@@ -25,6 +26,14 @@ interface AllowedDocItem {
   source: 'link' | 'upload' | 'text'
   url?: string
   content?: string
+}
+
+interface TestPreviewPayload {
+  test?: {
+    title?: string
+    documents?: unknown
+  } | null
+  questions?: TestAssessmentQuestion[]
 }
 
 function isFullscreenActive(): boolean {
@@ -85,6 +94,7 @@ export function TeacherTestPreviewPage({
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
   const fullscreenActiveRef = useRef(false)
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
+  const loadRequestIdRef = useRef(0)
 
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
@@ -209,23 +219,31 @@ export function TeacherTestPreviewPage({
   }, [])
 
   const loadPreviewData = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     setLoading(true)
     setError('')
     try {
-      const response = await fetch(`/api/teacher/tests/${testId}`, { cache: 'no-store' })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data?.error || 'Failed to load preview')
-      }
+      const data = await fetchJSON<TestPreviewPayload>(
+        `/api/teacher/tests/${testId}`,
+        {
+          init: { cache: 'no-store' },
+          errorMessage: 'Failed to load preview',
+        },
+      )
+      if (requestId !== loadRequestIdRef.current) return
 
       const responseTest = readTestFromPayload<{ title?: string; documents?: unknown }>(data)
       setTitle(responseTest?.title || 'Test Preview')
-      setQuestions((data?.questions || []) as TestAssessmentQuestion[])
+      setQuestions(data.questions || [])
       setDocuments(normalizeTestDocuments(responseTest?.documents))
     } catch (err: any) {
+      if (requestId !== loadRequestIdRef.current) return
       setError(err?.message || 'Failed to load preview')
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false)
+      }
     }
   }, [testId])
 
@@ -525,7 +543,6 @@ export function TeacherTestPreviewPage({
                 <StudentTestForm
                   testId={testId}
                   questions={questions}
-                  assessmentType="test"
                   previewMode
                   onSubmitted={() => {}}
                 />

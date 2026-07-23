@@ -88,6 +88,11 @@ Component and automation aliases are retired:
 
 - Test components and `useDraftMode` require current `test`, `testId`,
   `assessmentId`, `assessmentTitle`, and `onTestUpdate` props.
+- Student and teacher Test components no longer accept an assessment-mode
+  switch or render alternate quiz submission, results, authoring, preview, or
+  grading branches.
+- The orphaned quiz-only multiple-choice editor and individual-response panel
+  have been removed; current grading uses the dedicated Test grading surface.
 - The student test action footer uses the current
   `student-test-action-footer` automation id.
 - Exam-mode E2E setup reads only the current Tests API response keys.
@@ -244,13 +249,21 @@ For each implementation pass:
 ## Next Implementation Pass
 
 The API response-key window, gradebook/course-package decisions, dead draft
-aliases, UI compatibility wrappers, and standalone quiz markdown retirement
-are complete. The next safe pass is unreachable quiz-mode UI retirement:
+aliases, UI compatibility wrappers, standalone quiz markdown, and unreachable
+quiz-mode rendering are complete. Active application surfaces now use only the
+Tests contract.
 
-- prove active callers always use Tests mode;
-- remove quiz-only rendering branches and wording from current Test components;
+The next pass is migration design and production evidence, not another cosmetic
+rename:
+
+- inventory production row counts for the four legacy quiz tables, quiz drafts,
+  blueprint assessments, and stored archive manifests using read-only checks;
+- design a versioned archive adapter that preserves existing archive-v1 quiz
+  resources and proves non-empty restore round trips;
+- specify deterministic data backfill/archive handling, compatibility readers,
+  rollback, and package/gradebook deprecation timing;
 - retain `tab=quizzes` as a URL tombstone and keep database-shaped `quiz_id`
-  fields wherever persistence still requires them.
+  fields until an explicitly approved migration replaces them.
 
 Schema removal remains blocked on archive-format support and production
 verification. Gradebook tombstones and course package compatibility fields

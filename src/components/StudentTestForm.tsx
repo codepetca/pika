@@ -15,7 +15,7 @@ import {
   isQuestionFlagged,
   toggleFlaggedQuestion,
 } from '@/lib/flag-questions'
-import type { TestAssessmentType, TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
+import type { TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
   testId: string
@@ -24,7 +24,6 @@ interface Props {
   enableDraftAutosave?: boolean
   previewMode?: boolean
   isInteractionLocked?: boolean
-  assessmentType?: TestAssessmentType
   apiBasePath?: string
   onAvailabilityLoss?: () => void
   onSubmitted: () => void
@@ -49,7 +48,6 @@ export function StudentTestForm({
   enableDraftAutosave = false,
   previewMode = false,
   isInteractionLocked = false,
-  assessmentType,
   apiBasePath = '/api/student/tests',
   onAvailabilityLoss,
   onSubmitted,
@@ -62,13 +60,6 @@ export function StudentTestForm({
   const OPEN_RESPONSE_TAB_SIZE = 4
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
-  const isTestMode =
-    assessmentType === 'test' ||
-    apiBasePath.includes('/tests') ||
-    enableDraftAutosave ||
-    questions.some((question) => question.question_type === 'open_response')
-  const isTestAssessment = assessmentType === 'test' || apiBasePath.includes('/tests')
-
   const [responses, setResponses] = useState<TestResponses>(
     normalizeTestResponses(initialResponses)
   )
@@ -103,11 +94,7 @@ export function StudentTestForm({
   const submitActions = (
     <div
       data-testid="student-test-action-footer"
-      className={
-        isTestAssessment
-          ? 'rounded-xl border border-border bg-surface p-4 shadow-sm'
-          : 'sticky bottom-0 z-10 mt-auto rounded-lg border border-border bg-surface p-3 shadow-sm'
-      }
+      className="rounded-xl border border-border bg-surface p-4 shadow-sm"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
@@ -240,16 +227,6 @@ export function StudentTestForm({
       }
     }, waitMs)
   }, [AUTOSAVE_MIN_INTERVAL_MS, saveDraft, shouldAutosave])
-
-  function toQuizSubmissionPayload(nextResponses: TestResponses): Record<string, number> {
-    const payload: Record<string, number> = {}
-    for (const [questionId, response] of Object.entries(nextResponses)) {
-      if (response.question_type === 'multiple_choice') {
-        payload[questionId] = response.selected_option
-      }
-    }
-    return payload
-  }
 
   function handleOptionSelect(questionId: string, optionIndex: number) {
     if (isInteractionLocked) return
@@ -417,7 +394,7 @@ export function StudentTestForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          responses: isTestMode ? responses : toQuizSubmissionPayload(responses),
+          responses,
         }),
       })
       const data = await res.json()
@@ -482,7 +459,7 @@ export function StudentTestForm({
                         <div className="flex-1">
                           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                             Q{index + 1}
-                            {isTestMode && typeof question.points === 'number'
+                            {typeof question.points === 'number'
                               ? ` · ${question.points} pts`
                               : ''}
                           </p>
@@ -587,10 +564,8 @@ export function StudentTestForm({
             </div>
           )}
 
-          {isTestAssessment ? submitActions : null}
+          {submitActions}
         </div>
-
-        {isTestAssessment ? null : submitActions}
       </div>
 
       <ConfirmDialog

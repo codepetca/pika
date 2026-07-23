@@ -7,11 +7,6 @@ import {
   MultipleChoiceOptionReview,
   normalizeMultipleChoiceOptionIndex,
 } from '@/components/MultipleChoiceOptionReview'
-import type {
-  TestAssessmentType,
-  TestResultsAggregate,
-  TestResponseDraftValue,
-} from '@/types'
 
 interface TestQuestionResult {
   question_id: string
@@ -38,31 +33,18 @@ interface TestResultSummary {
 }
 
 interface ResultsPayload {
-  results?: TestResultsAggregate[]
   question_results?: TestQuestionResult[]
   summary?: TestResultSummary
 }
 
-function selectedOptionFromResponse(
-  value: number | TestResponseDraftValue | undefined
-): number | null {
-  if (typeof value === 'number') return value
-  if (value?.question_type === 'multiple_choice') return value.selected_option
-  return null
-}
-
 interface Props {
   testId: string
-  myResponses: Record<string, number | TestResponseDraftValue>
-  assessmentType?: TestAssessmentType
   apiBasePath?: string
   showSubmissionBanner?: boolean
 }
 
 export function StudentTestResults({
   testId,
-  myResponses,
-  assessmentType,
   apiBasePath = '/api/student/tests',
   showSubmissionBanner = true,
 }: Props) {
@@ -74,8 +56,6 @@ export function StudentTestResults({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const requestIdRef = useRef(0)
-  const isTestsView =
-    assessmentType === 'test' || apiBasePath.includes('/tests')
 
   useEffect(() => {
     const requestId = requestIdRef.current + 1
@@ -123,19 +103,10 @@ export function StudentTestResults({
     )
   }
 
-  const results = payload?.results || []
   const questionResults = payload?.question_results || []
   const summary = payload?.summary || null
 
-  if (isTestsView && questionResults.length === 0) {
-    return (
-      <div className="text-center py-8 text-text-muted">
-        No results available.
-      </div>
-    )
-  }
-
-  if (!isTestsView && results.length === 0) {
+  if (questionResults.length === 0) {
     return (
       <div className="text-center py-8 text-text-muted">
         No results available.
@@ -151,11 +122,7 @@ export function StudentTestResults({
         </div>
       )}
 
-      {!isTestsView && (
-        <h3 className="font-semibold text-text-default">Results</h3>
-      )}
-
-      {isTestsView && summary && (
+      {summary && (
         <div className="rounded-lg border border-border bg-surface p-4">
           <p className="text-sm text-text-muted">Score</p>
           <p className="text-lg font-semibold text-text-default">
@@ -169,116 +136,67 @@ export function StudentTestResults({
         </div>
       )}
 
-      {isTestsView
-        ? questionResults.map((result, index) => {
-            const possible = Number(result.points || 0)
-            const earned = result.score
-            const selectedOption =
-              result.question_type === 'multiple_choice'
-                ? normalizeMultipleChoiceOptionIndex(result.selected_option, result.options.length)
-                : null
+      {questionResults.map((result, index) => {
+        const possible = Number(result.points || 0)
+        const earned = result.score
+        const selectedOption =
+          result.question_type === 'multiple_choice'
+            ? normalizeMultipleChoiceOptionIndex(result.selected_option, result.options.length)
+            : null
 
-            return (
-              <div
-                key={result.question_id}
-                className="space-y-2 rounded-lg border border-border bg-surface p-4"
-              >
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Q{index + 1} · {possible} pts
-                    {result.question_type === 'multiple_choice' && selectedOption == null
-                      ? ' · No answer'
-                      : ''}
-                  </p>
-                  <QuestionMarkdown content={result.question_text} />
-                </div>
+        return (
+          <div
+            key={result.question_id}
+            className="space-y-2 rounded-lg border border-border bg-surface p-4"
+          >
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                Q{index + 1} · {possible} pts
+                {result.question_type === 'multiple_choice' && selectedOption == null
+                  ? ' · No answer'
+                  : ''}
+              </p>
+              <QuestionMarkdown content={result.question_text} />
+            </div>
 
-                {result.question_type === 'multiple_choice' ? (
-                  <MultipleChoiceOptionReview
-                    options={result.options}
-                    selectedOption={selectedOption}
-                    correctOption={result.correct_option}
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <p className="whitespace-pre-wrap rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
-                      {result.response_text || '—'}
+            {result.question_type === 'multiple_choice' ? (
+              <MultipleChoiceOptionReview
+                options={result.options}
+                selectedOption={selectedOption}
+                correctOption={result.correct_option}
+              />
+            ) : (
+              <div className="space-y-2">
+                <p className="whitespace-pre-wrap rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
+                  {result.response_text || '—'}
+                </p>
+                {result.response_monospace && result.sample_solution ? (
+                  <div className="rounded-md bg-surface-2 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                      Sample solution
                     </p>
-                    {result.response_monospace && result.sample_solution ? (
-                      <div className="rounded-md bg-surface-2 px-3 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                          Sample solution
-                        </p>
-                        <pre className="mt-2 whitespace-pre-wrap font-mono text-sm leading-6 text-text-default">
-                          {result.sample_solution}
-                        </pre>
-                      </div>
-                    ) : null}
+                    <pre className="mt-2 whitespace-pre-wrap font-mono text-sm leading-6 text-text-default">
+                      {result.sample_solution}
+                    </pre>
                   </div>
-                )}
-
-                <p className="text-sm text-text-default">
-                  Score:{' '}
-                  {earned == null
-                    ? 'Pending grading'
-                    : `${earned.toFixed(2).replace(/\.00$/, '')} / ${possible.toFixed(2).replace(/\.00$/, '')}`}
-                </p>
-                {result.feedback && (
-                  <p className="rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
-                    {result.feedback}
-                  </p>
-                )}
+                ) : null}
               </div>
-            )
-          })
-        : results.map((result, index) => {
-            const myAnswer = selectedOptionFromResponse(myResponses[result.question_id])
+            )}
 
-            return (
-              <div key={result.question_id} className="space-y-2">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Q{index + 1}
-                  </p>
-                  <QuestionMarkdown content={result.question_text} />
-                </div>
-                <div className="space-y-1.5">
-                  {result.options.map((option, optionIndex) => {
-                    const count = result.counts[optionIndex]
-                    const percent = result.total_responses > 0
-                      ? (count / result.total_responses) * 100
-                      : 0
-                    const isMyAnswer = myAnswer === optionIndex
-
-                    return (
-                      <div key={optionIndex} className="space-y-0.5">
-                        <div className="flex justify-between text-sm">
-                          <span className={isMyAnswer ? 'text-primary font-medium' : 'text-text-default'}>
-                            {option}
-                            {isMyAnswer && ' (your answer)'}
-                          </span>
-                          <span className="text-text-muted">
-                            {count} ({percent.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="h-4 bg-surface-2 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              isMyAnswer ? 'bg-primary' : 'bg-text-muted/30'
-                            }`}
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <p className="text-xs text-text-muted">
-                  {result.total_responses} response{result.total_responses !== 1 ? 's' : ''}
-                </p>
-              </div>
-            )
-          })}
+            <p className="text-sm text-text-default">
+              Score:{' '}
+              {earned == null
+                ? 'Pending grading'
+                : `${earned.toFixed(2).replace(/\.00$/, '')} / ${possible.toFixed(2).replace(/\.00$/, '')}`}
+            </p>
+            {result.feedback && (
+              <p className="rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
+                {result.feedback}
+              </p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

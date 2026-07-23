@@ -32,24 +32,19 @@ import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
-import { TestMultipleChoiceQuestionEditor } from '@/components/TestMultipleChoiceQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
-import { TestIndividualResponses } from '@/components/TestIndividualResponses'
-import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import { TeacherWorkSurfaceModeBar, type TeacherWorkSurfaceMode } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
-import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   AssessmentEditorSummaryUpdate,
-  JsonPatchOperation,
   TestAssessmentQuestion,
   TestAssessmentWithStats,
   TestResultsAggregate,
@@ -67,7 +62,6 @@ interface Props {
   onPendingMarkdownImportChange?: (pending: boolean) => void
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   showInlineDeleteAction?: boolean
-  assessmentQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
   showResultsTab?: boolean
@@ -88,8 +82,6 @@ type AssessmentRequestScope = {
   testId: string
   classroomId: string
   apiBasePath: string
-  assessmentType: TestAssessmentWithStats['assessment_type']
-  isTestsView: boolean
 }
 
 type DraftSaveContext = {
@@ -105,7 +97,7 @@ type SaveDraftOptions = {
   saveContext?: DraftSaveContext
 }
 
-type AssessmentViewMode = 'questions' | 'documents' | 'markdown' | 'preview' | 'results'
+type AssessmentViewMode = 'questions' | 'documents' | 'markdown' | 'results'
 
 const TEST_SUMMARY_DETAIL_LAYOUT = {
   defaultMarkdownWidth: 50,
@@ -171,7 +163,6 @@ export function TestDetailPanel({
   onPendingMarkdownImportChange,
   onSaveStatusChange,
   showInlineDeleteAction = true,
-  assessmentQuestionLayout,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
   showResultsTab,
@@ -190,9 +181,8 @@ export function TestDetailPanel({
 
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
-  const isTestsView = testAssessment.assessment_type === 'test' || apiBasePath.includes('/tests')
   const { showMarkdown } = useMarkdownPreference()
-  const questionLayout = assessmentQuestionLayout ?? testQuestionLayout
+  const questionLayout = testQuestionLayout
   const [questions, setQuestions] = useState<TestAssessmentQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>(
     () => normalizeTestDocuments((testAssessment as { documents?: unknown }).documents)
@@ -254,8 +244,6 @@ export function TestDetailPanel({
     testId: testAssessment.id,
     classroomId,
     apiBasePath,
-    assessmentType: testAssessment.assessment_type,
-    isTestsView,
   })
   const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
@@ -266,8 +254,6 @@ export function TestDetailPanel({
     testId: testAssessment.id,
     classroomId,
     apiBasePath,
-    assessmentType: testAssessment.assessment_type,
-    isTestsView,
   }
 
   const updateSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
@@ -286,9 +272,7 @@ export function TestDetailPanel({
     return (
       currentScope.testId === scope.testId &&
       currentScope.classroomId === scope.classroomId &&
-      currentScope.apiBasePath === scope.apiBasePath &&
-      currentScope.assessmentType === scope.assessmentType &&
-      currentScope.isTestsView === scope.isTestsView
+      currentScope.apiBasePath === scope.apiBasePath
     )
   }, [])
 
@@ -435,16 +419,12 @@ export function TestDetailPanel({
               questions: nextQuestions,
               documents: documentsRef.current,
             })
-      const shouldTrackSourceMarkdown =
-        isTestsView ||
-        draft.content.source_format === 'markdown' ||
-        typeof draft.content.source_markdown === 'string'
       const nextSnapshot = {
         title: nextTitle,
         show_results: nextShowResults,
         questions: nextQuestions,
-        ...(shouldTrackSourceMarkdown ? { source_format: 'markdown' as const } : {}),
-        ...(shouldTrackSourceMarkdown ? { source_markdown: nextSourceMarkdown } : {}),
+        source_format: 'markdown' as const,
+        source_markdown: nextSourceMarkdown,
       }
 
       setEditTitle(nextTitle)
@@ -463,7 +443,7 @@ export function TestDetailPanel({
       setError('')
       setConflictDraft(null)
     },
-    [isTestsView, normalizeDraftQuestions, testAssessment.id, updateSaveStatus]
+    [normalizeDraftQuestions, testAssessment.id, updateSaveStatus]
   )
 
   // Reset local draft state only when the selected test/assessment changes.
@@ -486,7 +466,7 @@ export function TestDetailPanel({
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [apiBasePath, classroomId, isTestsView, testAssessment.assessment_type, testAssessment.id])
+  }, [apiBasePath, classroomId, testAssessment.id])
 
   useEffect(() => {
     setDocuments(normalizeTestDocuments((testAssessment as { documents?: unknown }).documents))
@@ -540,14 +520,14 @@ export function TestDetailPanel({
       : isMarkdownEditing
         ? 'Editing markdown'
         : 'Markdown mirror'
-  const usesSummaryDetailQuestions = isTestsView && showMarkdown && questionLayout === 'summary-detail'
+  const usesSummaryDetailQuestions = showMarkdown && questionLayout === 'summary-detail'
   const usesEditorOnlyQuestions = questionLayout === 'editor-only'
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
   const { width: viewportWidth } = useWindowSize()
-  const hasInlineDocumentsCard = isTestsView && (usesSummaryDetailQuestions || usesEditorOnlyQuestions)
-  const resolvedShowResultsTab = showResultsTab ?? !isTestsView
+  const hasInlineDocumentsCard = usesSummaryDetailQuestions || usesEditorOnlyQuestions
+  const resolvedShowResultsTab = showResultsTab ?? false
   const totalQuestionPoints = useMemo(
     () =>
       questions.reduce(
@@ -583,7 +563,7 @@ export function TestDetailPanel({
         TEST_SUMMARY_DETAIL_LAYOUT.minEditorWidthPx +
           TEST_SUMMARY_DETAIL_LAYOUT.minMarkdownWidthPx +
           48)
-  const hasCollapsibleEditorSections = isTestsView && (questions.length > 0 || hasInlineDocumentsCard)
+  const hasCollapsibleEditorSections = questions.length > 0 || hasInlineDocumentsCard
   const areAllEditorSectionsExpanded =
     (questions.length === 0 || areAllQuestionsExpanded) &&
     (!hasInlineDocumentsCard || isDocumentsCardExpanded)
@@ -595,19 +575,13 @@ export function TestDetailPanel({
       },
     ]
 
-    if (isTestsView) {
-      modes.push({
-        id: 'documents',
-        label: documents.length > 0 ? `Documents (${documents.length})` : 'Documents',
-      })
-    }
+    modes.push({
+      id: 'documents',
+      label: documents.length > 0 ? `Documents (${documents.length})` : 'Documents',
+    })
 
     if (showMarkdown) {
       modes.push({ id: 'markdown', label: 'Markdown' })
-    }
-
-    if (!isTestsView) {
-      modes.push({ id: 'preview', label: 'Preview' })
     }
 
     if (resolvedShowResultsTab) {
@@ -615,7 +589,7 @@ export function TestDetailPanel({
     }
 
     return modes
-  }, [documents.length, isTestsView, questions.length, testAssessment.stats.responded, resolvedShowResultsTab, showMarkdown])
+  }, [documents.length, questions.length, testAssessment.stats.responded, resolvedShowResultsTab, showMarkdown])
   const assessmentModeTabId = useCallback(
     (mode: AssessmentViewMode) => `assessment-${testAssessment.id}-${mode}-tab`,
     [testAssessment.id],
@@ -680,8 +654,6 @@ export function TestDetailPanel({
         testId: testAssessment.id,
         classroomId,
         apiBasePath,
-        assessmentType: testAssessment.assessment_type,
-        isTestsView,
       }
       const saveRevision = draftMutationRevisionRef.current
       const canPersistSave = Boolean(saveContext) || isCurrentAssessmentScope(saveScope)
@@ -692,26 +664,18 @@ export function TestDetailPanel({
       if (!canPersistSave) {
         return false
       }
-      const shouldPersistMarkdownSource =
-        isTestsView ||
-        isMarkdownSurfaceEnabled ||
-        typeof options?.sourceMarkdown === 'string' ||
-        nextDraft.source_format === 'markdown'
-      const contentDraft =
-        shouldPersistMarkdownSource
-          ? {
-              ...nextDraft,
-              source_format: 'markdown' as const,
-              source_markdown:
-                options?.sourceMarkdown ??
-                testToMarkdown({
-                  title: nextDraft.title,
-                  show_results: nextDraft.show_results,
-                  questions: nextDraft.questions,
-                  documents: options?.documents ?? documents,
-                }),
-            }
-          : nextDraft
+      const contentDraft = {
+        ...nextDraft,
+        source_format: 'markdown' as const,
+        source_markdown:
+          options?.sourceMarkdown ??
+          testToMarkdown({
+            title: nextDraft.title,
+            show_results: nextDraft.show_results,
+            questions: nextDraft.questions,
+            documents: options?.documents ?? documents,
+          }),
+      }
       const nextSerialized = JSON.stringify(contentDraft)
       const baseSerialized = saveContext?.lastSavedDraft ?? lastSavedDraftRef.current
       const draftVersion = saveContext?.draftVersion ?? draftVersionRef.current
@@ -727,35 +691,13 @@ export function TestDetailPanel({
       }
       lastSaveAttemptAtRef.current = Date.now()
 
-      let baseDraft = contentDraft
-      try {
-        if (baseSerialized) {
-          baseDraft = JSON.parse(baseSerialized) as AssessmentEditorDraft
-        }
-      } catch {
-        baseDraft = contentDraft
-      }
-
-      const patch = createJsonPatch(baseDraft, contentDraft)
-      const shouldSendPatch =
-        !isTestsView &&
-        !options?.forceFull &&
-        patch.length > 0 &&
-        !shouldStoreSnapshot(patch as JsonPatchOperation[], nextDraft)
-
       const body: {
         version: number
-        patch?: JsonPatchOperation[]
-        content?: AssessmentEditorDraft
+        content: AssessmentEditorDraft
         documents?: TestDocument[]
       } = {
         version: draftVersion,
-      }
-
-      if (shouldSendPatch) {
-        body.patch = patch as JsonPatchOperation[]
-      } else {
-        body.content = contentDraft
+        content: contentDraft,
       }
       if (options?.documents) {
         body.documents = options.documents
@@ -852,11 +794,8 @@ export function TestDetailPanel({
       classroomId,
       documents,
       isCurrentAssessmentScope,
-      isMarkdownSurfaceEnabled,
-      isTestsView,
       normalizeDraftQuestions,
       notifyTestUpdate,
-      testAssessment.assessment_type,
       testAssessment.id,
       updateSaveStatus,
     ]
@@ -921,8 +860,6 @@ export function TestDetailPanel({
       testId: testAssessment.id,
       classroomId,
       apiBasePath,
-      assessmentType: testAssessment.assessment_type,
-      isTestsView,
     }
     const requestId = loadRequestIdRef.current + 1
     loadRequestIdRef.current = requestId
@@ -949,15 +886,13 @@ export function TestDetailPanel({
 
       applyServerDraft(normalizedDraft)
 
-      if (isTestsView) {
-        // Bypass fetchJSONWithCache so test documents always follow the selected assessment.
-        const detailRes = await fetch(`${apiBasePath}/${testAssessment.id}`)
-        if (detailRes?.ok) {
-          const detailData = await detailRes.json()
-          if (!isCurrentLoadRequest(requestId, scope)) return
-          const responseTest = readTestFromPayload<{ documents?: unknown }>(detailData)
-          setDocuments(normalizeTestDocuments(responseTest?.documents))
-        }
+      // Bypass fetchJSONWithCache so test documents always follow the selected test.
+      const detailRes = await fetch(`${apiBasePath}/${testAssessment.id}`)
+      if (detailRes?.ok) {
+        const detailData = await detailRes.json()
+        if (!isCurrentLoadRequest(requestId, scope)) return
+        const responseTest = readTestFromPayload<{ documents?: unknown }>(detailData)
+        setDocuments(normalizeTestDocuments(responseTest?.documents))
       }
 
       if (hasResponses) {
@@ -986,8 +921,6 @@ export function TestDetailPanel({
     classroomId,
     hasResponses,
     isCurrentLoadRequest,
-    isTestsView,
-    testAssessment.assessment_type,
     testAssessment.id,
   ])
 
@@ -996,8 +929,6 @@ export function TestDetailPanel({
   }, [loadTestDetails])
 
   useEffect(() => {
-    if (!isTestsView) return
-
     const staleDoc = normalizeTestDocuments(documents).find((doc) => {
       if (!isLinkDocumentSnapshotStale(doc)) return false
       const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
@@ -1036,13 +967,7 @@ export function TestDetailPanel({
     return () => {
       isCancelled = true
     }
-  }, [apiBasePath, documents, isTestsView, testAssessment.id])
-
-  useEffect(() => {
-    if (!isTestsView) return
-    if (viewMode !== 'preview') return
-    setViewMode('questions')
-  }, [isTestsView, viewMode])
+  }, [apiBasePath, documents, testAssessment.id])
 
   useEffect(() => {
     const currentQuestionIds = questions.map((question) => question.id)
@@ -1123,7 +1048,7 @@ export function TestDetailPanel({
   async function handleTitleSave(nextTitle: string) {
     const trimmed = nextTitle.trim()
     const fallbackTitle = getCurrentDraftTitleFallback()
-    const generatedPlaceholderTitle = generatedTitleLabel ?? (isTestsView ? 'Untitled Test' : 'Untitled')
+    const generatedPlaceholderTitle = generatedTitleLabel ?? 'Untitled Test'
 
     if (
       !trimmed ||
@@ -1176,45 +1101,35 @@ export function TestDetailPanel({
   function handleAddQuestion(questionType: 'multiple_choice' | 'open_response' = 'multiple_choice') {
     if (!isEditable) return
 
-    const nextQuestion: TestAssessmentQuestion = isTestsView
-      ? questionType === 'open_response'
-        ? {
-            id: crypto.randomUUID(),
-            quiz_id: testAssessment.id,
-            question_type: 'open_response',
-            question_text: '',
-            options: [],
-            correct_option: null,
-            answer_key: null,
-            sample_solution: null,
-            points: DEFAULT_OPEN_RESPONSE_POINTS,
-            response_max_chars: 5000,
-            response_monospace: false,
-            position: questions.length,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-        : {
-            id: crypto.randomUUID(),
-            quiz_id: testAssessment.id,
-            question_type: 'multiple_choice',
-            question_text: '',
-            options: ['Option 1', 'Option 2'],
-            correct_option: 0,
-            answer_key: null,
-            sample_solution: null,
-            points: DEFAULT_MULTIPLE_CHOICE_POINTS,
-            response_max_chars: 5000,
-            response_monospace: false,
-            position: questions.length,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
+    const nextQuestion: TestAssessmentQuestion = questionType === 'open_response'
+      ? {
+          id: crypto.randomUUID(),
+          quiz_id: testAssessment.id,
+          question_type: 'open_response',
+          question_text: '',
+          options: [],
+          correct_option: null,
+          answer_key: null,
+          sample_solution: null,
+          points: DEFAULT_OPEN_RESPONSE_POINTS,
+          response_max_chars: 5000,
+          response_monospace: false,
+          position: questions.length,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
       : {
           id: crypto.randomUUID(),
           quiz_id: testAssessment.id,
-          question_text: 'New question',
+          question_type: 'multiple_choice',
+          question_text: '',
           options: ['Option 1', 'Option 2'],
+          correct_option: 0,
+          answer_key: null,
+          sample_solution: null,
+          points: DEFAULT_MULTIPLE_CHOICE_POINTS,
+          response_max_chars: 5000,
+          response_monospace: false,
           position: questions.length,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -1481,7 +1396,7 @@ export function TestDetailPanel({
 
   async function handleApplyMarkdown() {
     if (!isEditable) {
-      setMarkdownError(`This ${isTestsView ? 'test' : 'quiz'} cannot be edited after students have responded.`)
+      setMarkdownError('This test cannot be edited after students have responded.')
       return
     }
 
@@ -1568,8 +1483,6 @@ export function TestDetailPanel({
   }
 
   const handleOpenTestPreview = useCallback(async () => {
-    if (!isTestsView) return
-
     const previewUrl = `/classrooms/${classroomId}/tests/${testAssessment.id}/preview`
     let previewWindow: Window | null = null
 
@@ -1617,7 +1530,6 @@ export function TestDetailPanel({
     documents,
     draftShowResults,
     editTitle,
-    isTestsView,
     openMaximizedTestPreviewWindow,
     onRequestTestPreview,
     questions,
@@ -1627,13 +1539,12 @@ export function TestDetailPanel({
   ])
 
   useEffect(() => {
-    if (!isTestsView) return
     if (previousPreviewRequestTokenRef.current === previewRequestToken) return
     previousPreviewRequestTokenRef.current = previewRequestToken
     if (previewRequestToken === 0) return
 
     void handleOpenTestPreview()
-  }, [handleOpenTestPreview, isTestsView, previewRequestToken])
+  }, [handleOpenTestPreview, previewRequestToken])
 
   const testsMarkdownPanel = (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -1683,7 +1594,7 @@ export function TestDetailPanel({
       </div>
       {!isEditable && (
         <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-          This {isTestsView ? 'test' : 'quiz'} is locked because students have responded.
+          This test is locked because students have responded.
         </div>
       )}
       {markdownInfo && (
@@ -1697,8 +1608,8 @@ export function TestDetailPanel({
         </div>
       )}
       <textarea
-        data-testid={isTestsView ? 'test-markdown-editor' : 'quiz-markdown-editor'}
-        aria-label={isTestsView ? 'Test markdown editor' : 'Assessment markdown editor'}
+        data-testid="test-markdown-editor"
+        aria-label="Test markdown editor"
         value={markdownContent}
         readOnly={!isMarkdownEditable}
         onChange={(event) => handleMarkdownChange(event.target.value)}
@@ -1823,8 +1734,8 @@ export function TestDetailPanel({
     </div>
   )
 
-  const titleLabel = isTestsView ? 'Test' : 'Assessment'
-  const titleGeneratedLabel = generatedTitleLabel ?? (isTestsView ? 'Untitled Test' : 'Untitled')
+  const titleLabel = 'Test'
+  const titleGeneratedLabel = generatedTitleLabel ?? 'Untitled Test'
   const renderEditableTitle = ({
     className,
     rowClassName,
@@ -1878,7 +1789,7 @@ export function TestDetailPanel({
 
   const testQuestionEditorPane = (
     <div
-      data-testid={isTestsView ? 'test-question-editor-pane' : 'quiz-question-editor-pane'}
+      data-testid="test-question-editor-pane"
       className="flex h-full min-h-0 flex-col"
     >
       <div className="border-b border-border px-3 py-3">
@@ -1890,29 +1801,27 @@ export function TestDetailPanel({
             <span aria-hidden="true">•</span>
             <span data-testid="test-question-editor-header-summary">
               {questions.length} question{questions.length === 1 ? '' : 's'}
-              {isTestsView ? ` • ${totalQuestionPoints} pts` : ''}
+              {` • ${totalQuestionPoints} pts`}
             </span>
           </div>
-          {isTestsView ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
-              onClick={handleToggleAllQuestions}
-              disabled={!hasCollapsibleEditorSections}
-              className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
-            >
-              {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
+            onClick={handleToggleAllQuestions}
+            disabled={!hasCollapsibleEditorSections}
+            className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
+          >
+            {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
         </div>
       </div>
       <div className="relative min-h-0 flex-1">
         <div className={cn('flex h-full min-h-0 flex-col', hasPendingMarkdownImport && 'opacity-60')}>
           <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="test-question-accordion-list">
             <div className="space-y-3">
-              {isTestsView ? testsInlineDocumentsCard : null}
+              {testsInlineDocumentsCard}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -1923,31 +1832,20 @@ export function TestDetailPanel({
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-3">
-                    {questions.map((question, index) =>
-                      isTestsView ? (
-                        <TestQuestionEditor
-                          key={question.id}
-                          question={question}
-                          questionNumber={index + 1}
-                          isEditable={isEditable}
-                          onChange={handleQuestionChange}
-                          onDuplicate={handleDuplicateQuestion}
-                          onDelete={handleQuestionDelete}
-                          variant="accordion"
-                          isExpanded={expandedQuestionIds.includes(question.id)}
-                          onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
-                        />
-                      ) : (
-                        <TestMultipleChoiceQuestionEditor
-                          key={question.id}
-                          question={question}
-                          questionNumber={index + 1}
-                          isEditable={isEditable}
-                          onChange={handleQuestionChange}
-                          onDelete={handleQuestionDelete}
-                        />
-                      )
-                    )}
+                    {questions.map((question, index) => (
+                      <TestQuestionEditor
+                        key={question.id}
+                        question={question}
+                        questionNumber={index + 1}
+                        isEditable={isEditable}
+                        onChange={handleQuestionChange}
+                        onDuplicate={handleDuplicateQuestion}
+                        onDelete={handleQuestionDelete}
+                        variant="accordion"
+                        isExpanded={expandedQuestionIds.includes(question.id)}
+                        onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
+                      />
+                    ))}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -1956,20 +1854,7 @@ export function TestDetailPanel({
 
           {isEditable ? (
             <div className="border-t border-border p-3">
-              {isTestsView ? (
-                renderTestAddQuestionSplitButton()
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleAddQuestion('multiple_choice')}
-                  className="w-full gap-1.5"
-                  disabled={hasPendingMarkdownImport}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Question
-                </Button>
-              )}
+              {renderTestAddQuestionSplitButton()}
             </div>
           ) : null}
         </div>
@@ -2043,7 +1928,7 @@ export function TestDetailPanel({
             ariaLabel={`${titleLabel} workspace modes`}
             trailing={
               <>
-                {isTestsView && showPreviewButton ? (
+                {showPreviewButton ? (
                   <Button
                     type="button"
                     variant="secondary"
@@ -2058,7 +1943,7 @@ export function TestDetailPanel({
                     {openingTestPreview ? 'Opening Preview...' : 'Preview'}
                   </Button>
                 ) : null}
-                {isTestsView && onRequestDelete && showInlineDeleteAction ? (
+                {onRequestDelete && showInlineDeleteAction ? (
                   <Button
                     type="button"
                     variant="danger"
@@ -2118,7 +2003,7 @@ export function TestDetailPanel({
 
         {usesEditorOnlyQuestions ? (
           <div
-            data-testid={isTestsView ? 'test-editor-only-layout' : 'quiz-editor-only-layout'}
+            data-testid="test-editor-only-layout"
             className="flex h-full min-h-0 flex-col bg-surface-2"
           >
             {editorOnlyTitleHeader}
@@ -2128,7 +2013,7 @@ export function TestDetailPanel({
           </div>
         ) : usesMarkdownOnlyQuestions ? (
           <div
-            data-testid={isTestsView ? 'test-markdown-only-layout' : 'quiz-markdown-only-layout'}
+            data-testid="test-markdown-only-layout"
             className="flex h-full min-h-0 flex-col p-4"
           >
             {testsMarkdownPanel}
@@ -2154,45 +2039,20 @@ export function TestDetailPanel({
                     strategy={verticalListSortingStrategy}
                   >
                     {questions.map((question, index) => (
-                      isTestsView ? (
-                        <TestQuestionEditor
-                          key={question.id}
-                          question={question}
-                          questionNumber={index + 1}
-                          isEditable={isEditable}
-                          onChange={handleQuestionChange}
-                          onDuplicate={handleDuplicateQuestion}
-                          onDelete={handleQuestionDelete}
-                        />
-                      ) : (
-                        <TestMultipleChoiceQuestionEditor
-                          key={question.id}
-                          question={question}
-                          questionNumber={index + 1}
-                          isEditable={isEditable}
-                          onChange={handleQuestionChange}
-                          onDelete={handleQuestionDelete}
-                        />
-                      )
+                      <TestQuestionEditor
+                        key={question.id}
+                        question={question}
+                        questionNumber={index + 1}
+                        isEditable={isEditable}
+                        onChange={handleQuestionChange}
+                        onDuplicate={handleDuplicateQuestion}
+                        onDelete={handleQuestionDelete}
+                      />
                     ))}
                   </SortableContext>
                 </DndContext>
 
-                {isEditable && (
-                  isTestsView ? (
-                    renderTestAddQuestionSplitButton()
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleAddQuestion('multiple_choice')}
-                      className="w-full gap-1.5"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Question
-                    </Button>
-                  )
-                )}
+                {isEditable && renderTestAddQuestionSplitButton()}
               </div>
               {hasPendingMarkdownImport ? (
                 <div
@@ -2207,7 +2067,7 @@ export function TestDetailPanel({
             </div>
 
           </div>
-        ) : viewMode === 'documents' && isTestsView ? (
+        ) : viewMode === 'documents' ? (
           <div className="space-y-3">
             <TestDocumentsEditor
               testId={testAssessment.id}
@@ -2221,28 +2081,13 @@ export function TestDetailPanel({
           </div>
         ) : viewMode === 'markdown' && isMarkdownSurfaceEnabled ? (
           testsMarkdownPanel
-        ) : viewMode === 'preview' ? (
-          <AssessmentPreview questions={questions} isTestsView={isTestsView} />
         ) : (
           <div className="space-y-6">
-            {!isTestsView && <TestResultsView results={results} />}
-            {isTestsView && (
-              <div>
-                <h4 className="text-sm font-semibold text-text-default mb-2">Multiple-choice distribution</h4>
-                <TestResultsView results={results} />
-              </div>
-            )}
-            {hasResponses && !isTestsView && (
-              <div className="pt-4 border-t border-border">
-                <TestIndividualResponses
-                  testId={testAssessment.id}
-                  apiBasePath={apiBasePath}
-                  assessmentType={isTestsView ? 'test' : 'quiz'}
-                  onUpdated={loadTestDetails}
-                />
-              </div>
-            )}
-            {hasResponses && isTestsView && (
+            <div>
+              <h4 className="text-sm font-semibold text-text-default mb-2">Multiple-choice distribution</h4>
+              <TestResultsView results={results} />
+            </div>
+            {hasResponses && (
               <p className="pt-4 text-xs text-text-muted border-t border-border">
                 Use Grading mode to review individual student responses.
               </p>
@@ -2250,95 +2095,6 @@ export function TestDetailPanel({
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-/** Read-only preview of the assessment as students see it */
-function AssessmentPreview({ questions, isTestsView }: { questions: TestAssessmentQuestion[]; isTestsView: boolean }) {
-  const [selected, setSelected] = useState<Record<string, number | string>>({})
-
-  if (questions.length === 0) {
-    return (
-      <p className="text-sm text-text-muted py-4 text-center">
-        No questions to preview.
-      </p>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {!isTestsView && (
-        <p className="text-xs text-text-muted italic">
-          This is how students will see the quiz. Selections are not saved.
-        </p>
-      )}
-      {questions.map((question, index) => (
-        <div key={question.id} className="space-y-2">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Q{index + 1}
-              {isTestsView && (
-                <span className="ml-1 font-normal normal-case tracking-normal">
-                  ({question.points ?? (question.question_type === 'open_response' ? DEFAULT_OPEN_RESPONSE_POINTS : DEFAULT_MULTIPLE_CHOICE_POINTS)} pts)
-                </span>
-              )}
-            </p>
-            <QuestionMarkdown content={question.question_text} />
-          </div>
-          {question.question_type === 'open_response' ? (
-            <div className="space-y-2">
-              <textarea
-                value={typeof selected[question.id] === 'string' ? (selected[question.id] as string) : ''}
-                onChange={(event) => setSelected((prev) => ({ ...prev, [question.id]: event.target.value }))}
-                maxLength={question.response_max_chars ?? 5000}
-                className={`w-full min-h-[120px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary ${
-                  question.response_monospace ? 'font-mono leading-6' : ''
-                }`}
-                style={question.response_monospace ? { tabSize: 4 } : undefined}
-                placeholder="Student enters response here"
-              />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {question.options.map((option, optionIndex) => {
-                const isSelected = selected[question.id] === optionIndex
-                return (
-                  <div
-                    key={optionIndex}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:bg-surface-hover'
-                    }`}
-                    onClick={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
-                  >
-                    <input
-                      type="radio"
-                      name={`preview-${question.id}`}
-                      checked={isSelected}
-                      aria-label={option}
-                      onChange={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
-                      className="sr-only"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        isSelected ? 'border-primary' : 'border-border'
-                      }`}
-                    >
-                      {isSelected && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                      )}
-                    </span>
-                    <QuestionMarkdown content={option} className="min-w-0 flex-1" />
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      ))}
     </div>
   )
 }
