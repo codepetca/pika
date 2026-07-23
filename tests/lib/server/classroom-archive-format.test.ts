@@ -7,6 +7,7 @@ import {
   decodeClassroomArchiveData,
   discoverClassroomStorageReferences,
   encodeTar,
+  parseAndValidateNdjson,
   parseTar,
   sha256Bytes,
   verifyClassroomArchiveBundle,
@@ -168,12 +169,26 @@ describe('classroom archive format', () => {
     })
   })
 
+  it('limits locale-canonical NDJSON recovery to explicitly identified v1 data', () => {
+    const bytes = Buffer.from(`${legacyV1Stringify({ 'é': 3, z: 1, 'ä': 2 })}\n`)
+
+    expect(() => parseAndValidateNdjson(bytes)).toThrow(
+      'NDJSON resource is not canonically serialized',
+    )
+    expect(parseAndValidateNdjson(bytes, undefined, {
+      allowLegacyV1Canonicalization: true,
+    })).toEqual([{ 'é': 3, z: 1, 'ä': 2 }])
+  })
+
   it('builds deterministic gzip archives and sorts resource rows by primary key', () => {
     const first = buildFixture()
     const second = buildFixture()
 
     expect(Buffer.from(first.archive).equals(Buffer.from(second.archive))).toBe(true)
     expect(first.artifactSha256).toBe(second.artifactSha256)
+    expect(first.artifactSha256).toBe(
+      '4b75a513c8ccfb4d1f71b665852cfac5c053fafe5f657ce039d140780fc14eee',
+    )
 
     const verification = verifyClassroomArchiveBundle(first.archive)
     expect(verification.ok).toBe(true)

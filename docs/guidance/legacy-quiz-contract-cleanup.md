@@ -262,8 +262,12 @@ rename:
   deterministic envelope backfill, compatibility, validation, and rollback
   sequence in
   [`legacy-quiz-schema-retirement-plan.md`](./legacy-quiz-schema-retirement-plan.md);
-- next: implement the additive retired-resource envelope and archive-v2/v1
-  adapter pass, but only after explicit approval to create its named migration;
+- completed: froze the application-side v1 contract, added inactive v2 manifest
+  dispatch, and proved a deterministic v1 Quiz-to-retired-envelope adapter with
+  a non-empty compatibility fixture;
+- next: create the additive envelope tables and versioned database archive
+  registry, then activate v2 export/restore, but only after explicit approval
+  to create its named migration;
 - retain `tab=quizzes` as a URL tombstone and keep database-shaped `quiz_id`
   fields until an explicitly approved migration replaces them.
 

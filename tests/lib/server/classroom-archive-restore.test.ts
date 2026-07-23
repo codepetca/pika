@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import {
   buildClassroomArchiveBundle,
+  decodeClassroomArchiveData,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
+import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
 import {
   buildClassroomArchiveRestorePlan,
   classroomArchiveRestoreObjectPath,
@@ -87,6 +89,16 @@ function verifiedFixture() {
         quiz_id: '60000000-0000-4000-8000-000000000001',
         student_id: STUDENT_ID,
         manual_override_score: 9,
+      }],
+      assessment_drafts: [{
+        id: '60000000-0000-4000-8000-000000000005',
+        assessment_type: 'quiz',
+        assessment_id: '60000000-0000-4000-8000-000000000001',
+        classroom_id: CLASSROOM_ID,
+        content: { title: 'Historical Quiz draft' },
+        version: 2,
+        created_by: TEACHER_ID,
+        updated_by: TEACHER_ID,
       }],
     },
     actors: [
@@ -175,6 +187,33 @@ describe('classroom archive restore planning', () => {
     ]))
   })
 
+  it('adapts a verified non-empty v1 Quiz graph without mutating its bytes', () => {
+    const verified = verifiedFixture()
+    const manifestBefore = structuredClone(verified.manifest)
+    const quizBytesBefore = Buffer.from(
+      verified.files.get('data/quizzes.ndjson') || Buffer.alloc(0),
+    )
+    const decoded = decodeClassroomArchiveData(verified)
+    const adapted = adaptLegacyQuizArchiveResources({
+      classroomId: CLASSROOM_ID,
+      resources: decoded.resources,
+    })
+
+    expect(adapted.records.map((record) => record.source_resource)).toEqual([
+      'assessment_drafts',
+      'quiz_questions',
+      'quiz_responses',
+      'quiz_student_scores',
+      'quizzes',
+    ])
+    expect(adapted.records.find((record) =>
+      record.source_resource === 'quiz_student_scores',
+    )?.payload.manual_override_score).toBe(9)
+    expect(adapted.resources.assessment_drafts).toEqual([])
+    expect(verified.manifest).toEqual(manifestBefore)
+    expect(verified.files.get('data/quizzes.ndjson')).toEqual(quizBytesBefore)
+  })
+
   it('requires explicit outer artifact checksum evidence', () => {
     expect(() => buildClassroomArchiveRestorePlan({
       verified: verifiedFixture(),
@@ -183,6 +222,19 @@ describe('classroom archive restore planning', () => {
       currentActors,
       supabaseUrl: 'https://project.supabase.co',
     })).toThrow('artifact checksum was not verified')
+  })
+
+  it('keeps verified v2 input disabled until persistence is activated', () => {
+    const verified = verifiedFixture()
+    Object.assign(verified.manifest, { version: 2 })
+
+    expect(() => buildClassroomArchiveRestorePlan({
+      verified,
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors,
+      supabaseUrl: 'https://project.supabase.co',
+    })).toThrow('version 2 is verified but not enabled for restore')
   })
 
   it('selects the version adapter, reconciles actors, and rewrites managed object references', () => {
