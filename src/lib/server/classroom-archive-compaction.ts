@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { CLASSROOM_ARCHIVE_V1_RESTORE_ORDER } from '@/lib/contracts/classroom-archive-resources'
 import { classroomArchiveCompactionVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
-import { getClassroomResourceOrder } from '@/lib/contracts/classroom-data'
 import {
   canonicalJsonStringify,
   decodeClassroomArchiveData,
@@ -501,7 +501,7 @@ async function stageRestorePreflight(args: {
   teacherId: string
   resources: ClassroomArchiveRestorePlan['resources']
 }) {
-  for (const table of getClassroomResourceOrder('restore')) {
+  for (const table of CLASSROOM_ARCHIVE_V1_RESTORE_ORDER) {
     for (const rows of rowBatches(args.resources[table] || [])) {
       const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {
         p_operation_id: args.operationId,

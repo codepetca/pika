@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import {
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
+} from '@/lib/contracts/classroom-archive-resources'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
   CLASSROOM_ARCHIVE_COMPACTION_OBJECT_BATCH_SIZE,
@@ -430,6 +433,14 @@ describe('classroom archive cold-compaction coordinator', () => {
           source_object_cleanup_staged: true,
         }),
       }),
+    )
+    const stagedTables = mock.rpc.mock.calls
+      .filter(([name]) => name === 'stage_classroom_archive_restore_rows')
+      .map(([, args]) => args.p_table_name)
+    expect(stagedTables).toEqual(
+      CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.filter((table) =>
+        table === 'classrooms' || table === 'assignment_submission_artifacts',
+      ),
     )
   })
 

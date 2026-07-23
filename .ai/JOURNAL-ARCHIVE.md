@@ -14872,3 +14872,21 @@
 
 **Remaining:**
 - Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.
+
+<!-- pika-session-log-archive-batch:10540813a02fe082312fa8ead54de1cfb96c996be8fd76655a3f2154238d9882 -->
+## 2026-07-18 — Enforce chronological session-log retention
+
+**Completed:**
+- Updated the session-log trimmer to order ISO-dated entries chronologically before retaining or archiving them while preserving source order for same-day entries.
+- Made check mode reject chronological drift so CI catches future merge-order mistakes.
+- Made archive appends idempotent with deterministic path-normalized per-trim batch markers so failed output writes can be retried without duplicating history or collapsing identical entries; added forced-failure, duplicate-entry, and equivalent-path recovery coverage after independent review.
+- Made trim and check modes reject undated or invalid entry headings instead of guessing whether they belong in the latest retention window; aligned startup guidance after independent review.
+- Repaired the rolling log's existing July 13-15 ordering drift and added focused regression coverage.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 41 tests)
+- `pnpm lint`
+- `node --check scripts/trim-session-log.mjs`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
