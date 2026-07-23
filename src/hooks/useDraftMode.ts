@@ -21,11 +21,9 @@ export type ConflictDraft = {
   content: DraftContent
 } | null
 
-type DraftModeAssessmentIdentity =
-  | { assessmentId: string; assessmentTitle: string; quizId?: string; quizTitle?: string }
-  | { assessmentId?: string; assessmentTitle?: string; quizId: string; quizTitle: string }
-
-type UseDraftModeOptions = DraftModeAssessmentIdentity & {
+type UseDraftModeOptions = {
+  assessmentId: string
+  assessmentTitle: string
   showResults: boolean
   apiBasePath: string
   /** Called after a successful save so the parent can refresh assessment metadata. */
@@ -80,14 +78,14 @@ export interface UseDraftModeReturn {
  */
 export function useDraftMode(options: UseDraftModeOptions): UseDraftModeReturn {
   const {
+    assessmentId,
+    assessmentTitle,
     showResults,
     apiBasePath,
     onUpdate,
     onError,
     onQuestionsChange,
   } = options
-  const assessmentId = options.assessmentId ?? options.quizId
-  const assessmentTitle = options.assessmentTitle ?? options.quizTitle
   if (!assessmentId || !assessmentTitle) {
     throw new Error('useDraftMode requires assessmentId/assessmentTitle')
   }

@@ -55,7 +55,7 @@ async function loadTeacherTestWithStudent(page: Page, classroomId: string): Prom
   testRecord: AssessmentRecord
   student: TestGradingStudentRecord
 }> {
-  const data = await loadJson<{ quizzes?: AssessmentRecord[]; tests?: AssessmentRecord[] }>(
+  const data = await loadJson<{ tests?: AssessmentRecord[] }>(
     page,
     `/api/teacher/tests?classroom_id=${encodeURIComponent(classroomId)}`,
   )

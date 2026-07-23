@@ -52,8 +52,7 @@ function selectedOptionFromResponse(
 }
 
 interface Props {
-  testId?: string
-  quizId?: string
+  testId: string
   myResponses: Record<string, number | TestResponseDraftValue>
   assessmentType?: TestAssessmentType
   apiBasePath?: string
@@ -61,18 +60,15 @@ interface Props {
 }
 
 export function StudentTestResults({
-  testId: testIdProp,
-  quizId,
+  testId,
   myResponses,
   assessmentType,
   apiBasePath = '/api/student/tests',
   showSubmissionBanner = true,
 }: Props) {
-  const resolvedTestId = testIdProp ?? quizId
-  if (!resolvedTestId) {
+  if (!testId) {
     throw new Error('StudentTestResults requires testId')
   }
-  const testId: string = resolvedTestId
 
   const [payload, setPayload] = useState<ResultsPayload | null>(null)
   const [loading, setLoading] = useState(true)

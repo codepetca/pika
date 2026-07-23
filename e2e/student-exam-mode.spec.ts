@@ -115,12 +115,12 @@ async function createActiveOpenResponseTest(
   classroomId: string,
   title: string,
 ): Promise<AssessmentRecord> {
-  const created = await sendJson<{ quiz: AssessmentRecord }>(teacherPage, 'POST', '/api/teacher/tests', {
+  const created = await sendJson<{ test: AssessmentRecord }>(teacherPage, 'POST', '/api/teacher/tests', {
     classroom_id: classroomId,
     title,
   })
 
-  const testRecord = created.quiz
+  const testRecord = created.test
   const draft = await loadJson<{ draft: AssessmentDraftRecord }>(
     teacherPage,
     `/api/teacher/tests/${testRecord.id}/draft`,

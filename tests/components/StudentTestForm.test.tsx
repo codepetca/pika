@@ -15,31 +15,6 @@ describe('StudentTestForm preview mode', () => {
     localStorage.clear()
   })
 
-  it('accepts legacy quizId as a compatibility alias', () => {
-    render(
-      <StudentTestForm
-        quizId="legacy-test-id"
-        questions={[
-          createMockTestQuestion({
-            id: 'q1',
-            question_text: 'Which option is correct?',
-            options: ['A', 'B'],
-            question_type: 'multiple_choice',
-            position: 0,
-          }),
-        ]}
-        assessmentType="test"
-        previewMode
-        onSubmitted={vi.fn()}
-      />
-    )
-
-    const titleArea = screen.getByText('Q1').closest('[data-question-title-id="q1"]')!
-    fireEvent.click(titleArea)
-
-    expect(JSON.parse(localStorage.getItem('pika:flagged-questions:legacy-test-id') || '[]')).toContain('q1')
-  })
-
   it('simulates submit without saving data', async () => {
     const onSubmitted = vi.fn()
 
@@ -208,7 +183,7 @@ describe('StudentTestForm preview mode', () => {
       />
     )
 
-    const actionPanel = screen.getByTestId('student-quiz-action-footer')
+    const actionPanel = screen.getByTestId('student-test-action-footer')
     const questionsStack = screen.getByText('Question 2?').closest('[data-question-id="q2"]')
       ?.parentElement
 

@@ -49,46 +49,6 @@ describe('useDraftMode', () => {
       expect(result.current.editTitle).toBe('My Test')
     })
 
-    it('accepts legacy quizId and quizTitle option aliases', async () => {
-      const fetchSpy = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({ version: 2 }),
-      })
-      vi.stubGlobal('fetch', fetchSpy)
-
-      const { result } = renderHook(() =>
-        useDraftMode({
-          quizId: 'legacy-test-1',
-          quizTitle: 'Legacy Test',
-          showResults: false,
-          apiBasePath: '/api/teacher/tests',
-          onUpdate: vi.fn(),
-          onError: vi.fn(),
-          onQuestionsChange: vi.fn(),
-        })
-      )
-
-      expect(result.current.editTitle).toBe('Legacy Test')
-
-      await act(async () => {
-        await result.current.saveDraft({
-          title: 'Updated Title',
-          show_results: false,
-          questions: [],
-        })
-      })
-
-      await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/teacher/tests/legacy-test-1/draft'),
-          expect.objectContaining({ method: 'PATCH' })
-        )
-      })
-
-      vi.unstubAllGlobals()
-    })
-
     it('initialises saveStatus as "saved"', () => {
       const { result } = renderHook(() => useDraftMode(makeOptions()))
       expect(result.current.saveStatus).toBe('saved')

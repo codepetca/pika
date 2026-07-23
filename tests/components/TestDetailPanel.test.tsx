@@ -116,25 +116,6 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
-  it('accepts legacy quiz and onQuizUpdate as compatibility aliases', async () => {
-    mockFetchForTest(sampleQuestions)
-    const legacyTest = makeTestWithStats({ title: 'Legacy Alias Test' })
-    const legacyOnQuizUpdate = vi.fn()
-
-    render(
-      <TestDetailPanel
-        quiz={legacyTest}
-        classroomId="classroom-1"
-        onQuizUpdate={legacyOnQuizUpdate}
-      />,
-      { wrapper: Wrapper }
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Legacy Alias Test')).toBeInTheDocument()
-    })
-  })
-
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()

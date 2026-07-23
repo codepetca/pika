@@ -85,23 +85,23 @@ Architecture and route regressions protect those boundaries.
 
 ### UI Compatibility Wrappers
 
-Retain until their callers are removed:
+Component and automation aliases are retired:
 
-- Component props such as `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate`
-  when paired with explicit compatibility tests.
-- `student-quiz-action-footer` test ids while component tests still use the old
-  identifier.
-- Legacy `tab=quizzes` route fallback tests, which prove old URLs fall back to
-  the supported tab instead of exposing a removed product surface.
+- Test components and `useDraftMode` require current `test`, `testId`,
+  `assessmentId`, `assessmentTitle`, and `onTestUpdate` props.
+- The student test action footer uses the current
+  `student-test-action-footer` automation id.
+- Exam-mode E2E setup reads only the current Tests API response keys.
 
-The UI no longer accepts quiz-keyed API response payloads. Remaining wrappers
-are component/URL/automation contracts and should be retired independently.
+Retain the legacy `tab=quizzes&quizId=...` route fallback tests. They prove old
+URLs fall back to the supported tab instead of exposing a removed product
+surface. This URL tombstone is separate from component and API contracts.
 
 ### Tests
 
 Remaining quiz references usually fall into one of these groups:
 
-- Compatibility regressions for legacy props, route params, or persisted data.
+- Compatibility regressions for legacy route params or persisted data.
 - Database-shaped mocks that must still use `quiz_id` or legacy table names.
 - Gradebook tests that prove legacy quiz response fields remain inert and the
   active server never queries quiz tables.
@@ -180,9 +180,11 @@ Requires a follow-up design and approval:
    - Completed: removed unused `Quiz*` types, quiz-named assessment helper
      aliases, and dead server/re-export modules after proving they had no
      application callers.
-   - Keep legacy component prop aliases until their UI compatibility window is
-     explicitly closed and visually verified.
-   - Rename remaining test ids if no external automation depends on them.
+   - Completed: removed quiz-named component prop aliases after proving they had
+     no production callers.
+   - Completed: renamed the internal student action-footer test id and updated
+     repository automation.
+   - Retain the old `tab=quizzes&quizId=...` URL tombstone independently.
    - Rollback: restore aliases; no data rollback required.
 
 5. **Gradebook and course package decision**
@@ -242,16 +244,16 @@ For each implementation pass:
 
 ## Next Implementation Pass
 
-The API response-key window, gradebook/course-package decisions, and dead draft
-alias retirement are complete. The next safe pass is UI compatibility-wrapper
-retirement:
+The API response-key window, gradebook/course-package decisions, dead draft
+aliases, and UI compatibility wrappers are complete. The next safe pass is
+unreachable quiz-mode UI and markdown retirement:
 
-- remove `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` props when their
-  current callers and explicit compatibility tests are gone;
-- rename `student-quiz-action-footer` after checking external automation;
-- retain `tab=quizzes` as a URL tombstone until the old-link window is closed;
-- keep database-shaped `quiz_id` fields wherever persistence still requires
-  them.
+- prove active callers always use Tests mode;
+- remove quiz-only rendering branches and wording from current Test components;
+- remove `src/lib/quiz-markdown.ts` and its compatibility test if no package,
+  import, or persisted-data reader depends on it;
+- retain `tab=quizzes` as a URL tombstone and keep database-shaped `quiz_id`
+  fields wherever persistence still requires them.
 
 Schema removal remains blocked on archive-format support and production
 verification. Gradebook tombstones and course package compatibility fields

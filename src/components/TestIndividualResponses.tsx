@@ -37,8 +37,7 @@ interface Responder {
 }
 
 interface Props {
-  testId?: string
-  quizId?: string
+  testId: string
   apiBasePath?: string
   assessmentType?: 'quiz' | 'test'
   onUpdated?: () => void
@@ -91,17 +90,14 @@ function toTestAnswerDetail(answer: number | TestAnswerDetail | undefined): Test
 }
 
 export function TestIndividualResponses({
-  testId: testIdProp,
-  quizId,
+  testId,
   apiBasePath = '/api/teacher/tests',
   assessmentType = 'test',
   onUpdated,
 }: Props) {
-  const resolvedTestId = testIdProp ?? quizId
-  if (!resolvedTestId) {
+  if (!testId) {
     throw new Error('TestIndividualResponses requires testId')
   }
-  const testId: string = resolvedTestId
 
   const isTestsView = assessmentType === 'test'
   const scope = `${assessmentType}:${apiBasePath}:${testId}`
