@@ -14605,3 +14605,31 @@
 - `pnpm check:architecture` (599 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:f00a1076562bba010bb5ab76936668500ccf32287de5b65aa8af7fd02063eb70 -->
+## 2026-07-15 — Classroom archive source ownership fence
+
+**Completed:**
+- Added migration 096 to make assignment-artifact source deletion require a bounded, transactional ownership verification and a permanent SHA-256 path reservation.
+- Serialized verification against artifact references, Storage writes, cleanup-ledger staging, and stale-worker deletion; reset pre-fence leases and rejected unreconciled historical deletions.
+- Restricted cleanup claims, lease transitions, and exact Storage presence checks to service-owned database contracts with explicit privilege tests.
+- Kept source cleanup manual, default-off, unscheduled, operation-scoped, and limited to one object per invocation; submission images and test documents remain preserved until they have authoritative relational registries.
+- Expanded the database harness with live multi-session races and the recovery drill with exact export, cleanup, byte-identical restore, replay, and deidentified-fence retention checks.
+- Completed repeated runtime and database review/fix rounds. No production state was read or modified by this phase.
+
+**Deployment obligation:**
+- Apply migration 096 before deploying this app version.
+- Run hosted catalog audit and named canaries read-only before enabling any source cleanup; keep cleanup disabled unless both explicit gates and an exact completed operation ID are supplied.
+
+**Validation:**
+- Classroom archive source-cleanup route/server/migration suites (33 tests)
+- `pnpm vitest run` (362 files / 3,317 tests)
+- Classroom archive compaction database contract harness, including concurrent verifier/reference/Storage/staging races
+- Classroom archive full recovery drill (42 resource tables; exact restore and replay)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm db:types:check`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
