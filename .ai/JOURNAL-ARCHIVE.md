@@ -14722,3 +14722,27 @@
 - Named production export/compact/immediate-restore runner final evidence
 - Independent Management API read-only lifecycle, operation, cleanup, reservation, and staging verification
 - Source and Gradex cleanup remained disabled throughout
+
+<!-- pika-session-log-archive-batch:35df78d0385f4258a9bef9177949ba54e6a3f425520e0efe481157b8c491afe7 -->
+## 2026-07-16 — Product experience audit and phased architecture backlog
+
+**Completed:**
+- Audited the complete teacher/student product topology against the current UI canon, API/domain boundaries, database contracts, tests, accessibility behavior, and error states. Added explicit maps for authentication, classroom workflows, teacher utility routes, student utility history, Gradex, blueprints, and archive lifecycle.
+- Captured 53 seeded-local product screenshots and 52 DOM/accessibility snapshots at desktop/mobile widths, plus two Open Design board-QA pairs. Committed 22 representative product pairs and two board-QA pairs after removing a credential-bearing local login capture during review.
+- Used only local Supabase data. Temporarily set the seeded classroom to hot-archived to capture Restore/Delete, restored `archived_at` to `null`, and verified the fixture. No production system was read or modified.
+- Built the Open Design project `Pika Product Experience Audit` (`ec89fd79-1229-4143-8f69-cf24842c6584`) through generation run `879efda2-651b-4b5c-aeba-111e43e0cab4` and review run `b503a4ba-f0c0-41df-85a5-6b349588c7e7`. Corrected its evidence model after review and browser-verified the final board at `1440x900` and `390x844`; mobile client and scroll width both measured 375px.
+- Ranked data integrity first: unsafe hot-archive deletion, stale assignment submission after failed save, broken dashboard entry authorization, blueprint v2/v3 contract drift, and invalid active-classroom Delete commands on teacher utility routes.
+- Added measurable exit evidence for all six phases, including shared UI contracts, vertical workflow slices, Gradex deidentification/ingestion/retention, end-of-course blueprint rollover, archive eligibility/restore equality, production authorization, and evidence-based legacy retirement.
+- Resolved independent architecture and evidence reviews. Verified that blueprint v2/v3 drift is real: runtime/package guidance uses v3 while `COURSE_BLUEPRINT_TRANSFER_CONTRACT` and lifecycle guidance still declare v2. Registered the six-phase program as the active incomplete epic.
+
+**Next:**
+- Review and merge the Phase 1 audit PR.
+- Start the first Safety Wave PR: disable the legacy permanent classroom Delete endpoint and UI. Any future hot-data removal must use only the archive compaction state machine.
+
+**Validation:**
+- Open Design static checks and browser review at desktop/mobile widths
+- Representative screenshot visual inspection
+- `pnpm lint`
+- `pnpm run test:coverage` (366 files, 3349 tests)
+- Pika pre-commit audit (no TypeScript files changed)
+- `git diff --check`
