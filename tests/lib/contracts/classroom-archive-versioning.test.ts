@@ -13,6 +13,7 @@ import {
   CLASSROOM_ARCHIVE_V1_RESOURCES,
   CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
   LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
 } from '@/lib/contracts/classroom-archive-resources'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
@@ -96,6 +97,9 @@ describe('versioned classroom archive contracts', () => {
 
   it('stages a v2 graph without making it the current export version', () => {
     const v2Tables = CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table)
+    const restorePositions = new Map(
+      CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.map((table, index) => [table, index]),
+    )
 
     expect(CLASSROOM_ARCHIVE_CONTRACTS[1]).toMatchObject({
       exportEnabled: true,
@@ -112,6 +116,26 @@ describe('versioned classroom archive contracts', () => {
       'classroom_retired_assessment_record_actors',
     ]))
     expect(v2Tables).toEqual(expect.not.arrayContaining(LEGACY_QUIZ_ARCHIVE_V1_RESOURCES))
+    expect(CLASSROOM_ARCHIVE_V2_RESTORE_ORDER).toEqual([
+      ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.filter((table) =>
+        !LEGACY_QUIZ_ARCHIVE_V1_RESOURCES.includes(
+          table as typeof LEGACY_QUIZ_ARCHIVE_V1_RESOURCES[number],
+        ),
+      ),
+      'classroom_retired_assessment_records',
+      'classroom_retired_assessment_record_actors',
+    ])
+    for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
+      const childPosition = restorePositions.get(resource.table)
+      if (childPosition === undefined) continue
+      for (const parent of resource.restore_after) {
+        const parentPosition = restorePositions.get(parent)
+        if (parentPosition !== undefined) {
+          expect(parentPosition, `${parent} must restore before ${resource.table}`)
+            .toBeLessThan(childPosition)
+        }
+      }
+    }
   })
 
   it('dispatches exact schemas and rejects cross-version resource graphs', () => {

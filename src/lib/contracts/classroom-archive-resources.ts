@@ -128,9 +128,9 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
 ] as const satisfies readonly ClassroomArchiveResourceDefinition[]
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
-  ...CLASSROOM_ARCHIVE_V1_RESOURCES
-    .map((resource) => resource.table)
-    .filter((table) => !legacyQuizTables.has(table)),
+  ...CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.filter((table) =>
+    !legacyQuizTables.has(table),
+  ),
   'classroom_retired_assessment_records',
   'classroom_retired_assessment_record_actors',
 ] as const
