@@ -1270,7 +1270,7 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     const detailPane = screen.getByTestId('student-test-detail-pane')
-    const actionFooter = within(detailPane).getByTestId('student-quiz-action-footer')
+    const actionFooter = within(detailPane).getByTestId('student-test-action-footer')
     const questionsStack = screen.getByText('Question 12?').closest('[data-question-id="q12"]')
       ?.parentElement
 

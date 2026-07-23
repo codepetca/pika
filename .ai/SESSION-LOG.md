@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Production archive canary timeout hardening
-
-**Completed:**
-- Verified production migrations 001-097, released the reviewed archive recovery changes, and prepared a fresh named canary against the exact production deployment.
-- Completed the approved production export for one archived-hot classroom: 42 relational resources and 20 source objects were captured in a 2,489,962-byte compressed archive with independent evidence.
-- Kept the classroom hot after two same-operation compaction attempts rolled back atomically. No source or Gradex cleanup ran; all 20 source cleanup rows remain staged and no ownership verification or deletion attempt was recorded.
-- Correlated both failures with PostgreSQL SQLSTATE `57014` in hosted logs: `complete_classroom_archive_compaction` exceeded the default statement timeout while finalizing the transition.
-- Added migration 098 to set `statement_timeout = '60s'` only on the service-only compaction finalizer. Added source and replayed-database assertions that reject role- or database-wide timeout changes.
-- Left migration application and the existing canary resume to a human. Independent subagent review was unavailable due to the account usage limit; local SQL review found no additional issue.
-
-**Deployment obligation:**
-- Apply migration 098 before resuming the existing fixed canary operation from its approved runner commit.
-- Keep source cleanup and Gradex cleanup disabled. Resume the same plan; do not prepare a replacement operation or release a different runner before the round trip completes.
-
-**Validation:**
-- Focused archive timeout/compaction/migration suites (3 files / 11 tests)
-- `pnpm vitest run` (365 files / 3,346 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- Bash syntax validation for the compaction database contract harness
-- Pika pre-commit audit (no TypeScript files changed)
-- `git diff --check`
-- Database replay deferred to PR CI because local database history remains at 097 and AI did not apply migration 098
-
 ## 2026-07-15 — Explicit AI migration authorization policy
 
 **Completed:**
@@ -1004,3 +979,33 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
 - Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.
+
+## 2026-07-23 — Retired legacy Quiz UI wrappers
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses shared Test component contracts, draft identity, exam-mode E2E setup, and the legacy retirement ratchet without changing rendered behavior.
+
+**Completed:**
+- Removed unused `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` component and hook aliases after confirming no production callers remained.
+- Made current Test identity and update props explicit and required.
+- Renamed the internal student action-footer automation id from `student-quiz-action-footer` to `student-test-action-footer`.
+- Updated student and teacher exam-mode E2E setup to decode the current `test` API response key.
+- Removed the final quiz-keyed Tests list payload type from assessment URL-state E2E setup after independent review.
+- Added an architecture ratchet preventing retired UI aliases and the old automation id from returning.
+- Preserved the `tab=quizzes&quizId=...` old-link tombstone, persisted `quiz_id` fields, schema, archives, gradebook tombstones, and course package compatibility.
+
+**Validation:**
+- Focused wrapper and component suites (7 files / 115 tests)
+- Full repository suite (408 files / 3,670 tests)
+- Exam-mode Playwright discovery (10 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.

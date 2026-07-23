@@ -58,12 +58,10 @@ import type {
 } from '@/types'
 
 interface Props {
-  test?: TestAssessmentWithStats
-  quiz?: TestAssessmentWithStats
+  test: TestAssessmentWithStats
   classroomId: string
   apiBasePath?: string
-  onTestUpdate?: (update?: AssessmentEditorSummaryUpdate) => void
-  onQuizUpdate?: (update?: AssessmentEditorSummaryUpdate) => void
+  onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onDraftSummaryChange?: (update: AssessmentEditorSummaryUpdate) => void
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
@@ -165,11 +163,9 @@ function summarizeDraftContent(
 
 export function TestDetailPanel({
   test,
-  quiz: legacyQuiz,
   classroomId,
   apiBasePath = '/api/teacher/tests',
   onTestUpdate,
-  onQuizUpdate: legacyOnQuizUpdate,
   onDraftSummaryChange,
   onRequestDelete,
   onRequestTestPreview,
@@ -184,16 +180,14 @@ export function TestDetailPanel({
   titlePortalTarget = null,
   generatedTitleLabel,
 }: Props) {
-  const resolvedTest = test ?? legacyQuiz
-  const resolvedOnTestUpdate = onTestUpdate ?? legacyOnQuizUpdate
-  if (!resolvedTest) {
+  if (!test) {
     throw new Error('TestDetailPanel requires test')
   }
-  if (!resolvedOnTestUpdate) {
+  if (!onTestUpdate) {
     throw new Error('TestDetailPanel requires onTestUpdate')
   }
-  const testAssessment: TestAssessmentWithStats = resolvedTest
-  const notifyTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void = resolvedOnTestUpdate
+  const testAssessment: TestAssessmentWithStats = test
+  const notifyTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void = onTestUpdate
 
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000

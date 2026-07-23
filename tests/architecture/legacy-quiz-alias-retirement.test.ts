@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
@@ -96,6 +97,27 @@ describe('legacy quiz alias retirement', () => {
       ...retiredDraftAliases,
     ]) {
       expect(exportedLocations(alias), `${alias} is exported`).toEqual([])
+    }
+  })
+
+  it('does not restore retired quiz-named UI compatibility contracts', () => {
+    const retiredContractsByFile = {
+      'src/hooks/useDraftMode.ts': ['quizId', 'quizTitle'],
+      'src/components/StudentTestForm.tsx': ['quizId', 'student-quiz-action-footer'],
+      'src/components/StudentTestResults.tsx': ['quizId'],
+      'src/components/TestIndividualResponses.tsx': ['quizId'],
+      'src/components/TestDetailPanel.tsx': [
+        'onQuizUpdate',
+        'quiz?: TestAssessmentWithStats',
+      ],
+      'e2e/teacher-assessment-url-state.spec.ts': ['quizzes?: AssessmentRecord[]'],
+    }
+
+    for (const [fileName, retiredContracts] of Object.entries(retiredContractsByFile)) {
+      const source = fs.readFileSync(path.join(root, fileName), 'utf8')
+      for (const retiredContract of retiredContracts) {
+        expect(source, `${retiredContract} restored in ${fileName}`).not.toContain(retiredContract)
+      }
     }
   })
 })

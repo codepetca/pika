@@ -95,20 +95,6 @@ describe('TestIndividualResponses', () => {
     vi.restoreAllMocks()
   })
 
-  it('accepts legacy quizId as a compatibility alias', async () => {
-    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse({
-      questions: [],
-      responders: [],
-    })))
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(<TestIndividualResponses quizId="legacy-test-id" />)
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/legacy-test-id/results')
-    })
-  })
-
   it('ignores stale result responses after selected test changes', async () => {
     const staleResults = createDeferred<Response>()
     const currentResults = createDeferred<Response>()

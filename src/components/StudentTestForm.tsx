@@ -18,8 +18,7 @@ import {
 import type { TestAssessmentType, TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
-  testId?: string
-  quizId?: string
+  testId: string
   questions: TestAssessmentQuestion[]
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
@@ -44,8 +43,7 @@ function isAssessmentAvailabilityError(message: string): boolean {
 }
 
 export function StudentTestForm({
-  testId: testIdProp,
-  quizId,
+  testId,
   questions,
   initialResponses,
   enableDraftAutosave = false,
@@ -56,11 +54,9 @@ export function StudentTestForm({
   onAvailabilityLoss,
   onSubmitted,
 }: Props) {
-  const resolvedTestId = testIdProp ?? quizId
-  if (!resolvedTestId) {
+  if (!testId) {
     throw new Error('StudentTestForm requires testId')
   }
-  const testId: string = resolvedTestId
 
   const OPEN_RESPONSE_TAB_INDENT = '\t'
   const OPEN_RESPONSE_TAB_SIZE = 4
@@ -106,7 +102,7 @@ export function StudentTestForm({
 
   const submitActions = (
     <div
-      data-testid="student-quiz-action-footer"
+      data-testid="student-test-action-footer"
       className={
         isTestAssessment
           ? 'rounded-xl border border-border bg-surface p-4 shadow-sm'
