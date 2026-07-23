@@ -1163,6 +1163,7 @@ export type Database = {
       classroom_archive_operations: {
         Row: {
           adapter_chain: Json | null
+          archive_format_version: number
           archive_id: string | null
           artifact_sha256: string | null
           attempt_count: number
@@ -1175,12 +1176,15 @@ export type Database = {
           operation_type: string
           request_sha256: string
           resource_counts: Json
+          restore_contract_version: number
           retention: Json
           retryable: boolean | null
           snapshot_created_at: string
           snapshot_expires_at: string
           source_app_commit: string
+          source_contract_version: number
           source_object_cleanup_staged_at: string | null
+          source_resource_counts: Json
           source_revision: number
           source_schema_migration: string
           status: string
@@ -1195,6 +1199,7 @@ export type Database = {
         }
         Insert: {
           adapter_chain?: Json | null
+          archive_format_version?: number
           archive_id?: string | null
           artifact_sha256?: string | null
           attempt_count?: number
@@ -1207,12 +1212,15 @@ export type Database = {
           operation_type?: string
           request_sha256: string
           resource_counts?: Json
+          restore_contract_version?: number
           retention: Json
           retryable?: boolean | null
           snapshot_created_at: string
           snapshot_expires_at: string
           source_app_commit: string
+          source_contract_version?: number
           source_object_cleanup_staged_at?: string | null
+          source_resource_counts?: Json
           source_revision: number
           source_schema_migration: string
           status: string
@@ -1227,6 +1235,7 @@ export type Database = {
         }
         Update: {
           adapter_chain?: Json | null
+          archive_format_version?: number
           archive_id?: string | null
           artifact_sha256?: string | null
           attempt_count?: number
@@ -1239,12 +1248,15 @@ export type Database = {
           operation_type?: string
           request_sha256?: string
           resource_counts?: Json
+          restore_contract_version?: number
           retention?: Json
           retryable?: boolean | null
           snapshot_created_at?: string
           snapshot_expires_at?: string
           source_app_commit?: string
+          source_contract_version?: number
           source_object_cleanup_staged_at?: string | null
+          source_resource_counts?: Json
           source_revision?: number
           source_schema_migration?: string
           status?: string
@@ -1289,6 +1301,47 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_archive_resource_contract_versions: {
+        Row: {
+          actor_columns: string[]
+          export_position: number
+          format_version: number
+          parent_column: string | null
+          parent_table: string | null
+          primary_key_columns: string[]
+          restore_after: string[]
+          table_name: string
+        }
+        Insert: {
+          actor_columns?: string[]
+          export_position: number
+          format_version: number
+          parent_column?: string | null
+          parent_table?: string | null
+          primary_key_columns: string[]
+          restore_after: string[]
+          table_name: string
+        }
+        Update: {
+          actor_columns?: string[]
+          export_position?: number
+          format_version?: number
+          parent_column?: string | null
+          parent_table?: string | null
+          primary_key_columns?: string[]
+          restore_after?: string[]
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_archive_resource_versions_parent_fkey"
+            columns: ["format_version", "parent_table"]
+            isOneToOne: false
+            referencedRelation: "classroom_archive_resource_contract_versions"
+            referencedColumns: ["format_version", "table_name"]
+          },
+        ]
+      }
       classroom_archive_restore_expected_objects: {
         Row: {
           expected_byte_size: number
@@ -1324,6 +1377,7 @@ export type Database = {
       classroom_archive_restore_staging: {
         Row: {
           operation_id: string
+          restore_contract_version: number
           row_data: Json
           row_id: string
           staged_at: string
@@ -1331,6 +1385,7 @@ export type Database = {
         }
         Insert: {
           operation_id: string
+          restore_contract_version?: number
           row_data: Json
           row_id: string
           staged_at?: string
@@ -1338,6 +1393,7 @@ export type Database = {
         }
         Update: {
           operation_id?: string
+          restore_contract_version?: number
           row_data?: Json
           row_id?: string
           staged_at?: string
@@ -1352,11 +1408,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "classroom_archive_restore_staging_table_name_fkey"
-            columns: ["table_name"]
+            foreignKeyName: "classroom_archive_restore_staging_versioned_resource_fkey"
+            columns: ["restore_contract_version", "table_name"]
             isOneToOne: false
-            referencedRelation: "classroom_archive_resource_contract"
-            referencedColumns: ["table_name"]
+            referencedRelation: "classroom_archive_resource_contract_versions"
+            referencedColumns: ["format_version", "table_name"]
           },
         ]
       }
@@ -1408,16 +1464,19 @@ export type Database = {
         Row: {
           operation_id: string
           row_id: string
+          source_contract_version: number
           table_name: string
         }
         Insert: {
           operation_id: string
           row_id: string
+          source_contract_version?: number
           table_name: string
         }
         Update: {
           operation_id?: string
           row_id?: string
+          source_contract_version?: number
           table_name?: string
         }
         Relationships: [
@@ -1429,11 +1488,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "classroom_archive_snapshot_resources_table_name_fkey"
-            columns: ["table_name"]
+            foreignKeyName: "classroom_archive_snapshot_resources_versioned_resource_fkey"
+            columns: ["source_contract_version", "table_name"]
             isOneToOne: false
-            referencedRelation: "classroom_archive_resource_contract"
-            referencedColumns: ["table_name"]
+            referencedRelation: "classroom_archive_resource_contract_versions"
+            referencedColumns: ["format_version", "table_name"]
           },
         ]
       }
@@ -1943,6 +2002,117 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classroom_retired_assessment_record_actors: {
+        Row: {
+          actor_id: string
+          id: string
+          record_id: string
+          source_column: string
+        }
+        Insert: {
+          actor_id: string
+          id: string
+          record_id: string
+          source_column: string
+        }
+        Update: {
+          actor_id?: string
+          id?: string
+          record_id?: string
+          source_column?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_retired_assessment_record_actors_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_retired_assessment_record_actors_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_retired_assessment_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classroom_retired_assessment_records: {
+        Row: {
+          checksum_algorithm: string
+          classroom_id: string
+          id: string
+          parent_source_resource: string | null
+          parent_source_row_id: string | null
+          payload: Json
+          payload_sha256: string
+          source_contract: string
+          source_contract_version: number
+          source_created_at: string | null
+          source_resource: string
+          source_row_id: string
+          source_updated_at: string | null
+        }
+        Insert: {
+          checksum_algorithm: string
+          classroom_id: string
+          id: string
+          parent_source_resource?: string | null
+          parent_source_row_id?: string | null
+          payload: Json
+          payload_sha256: string
+          source_contract: string
+          source_contract_version: number
+          source_created_at?: string | null
+          source_resource: string
+          source_row_id: string
+          source_updated_at?: string | null
+        }
+        Update: {
+          checksum_algorithm?: string
+          classroom_id?: string
+          id?: string
+          parent_source_resource?: string | null
+          parent_source_row_id?: string | null
+          payload?: Json
+          payload_sha256?: string
+          source_contract?: string
+          source_contract_version?: number
+          source_created_at?: string | null
+          source_resource?: string
+          source_row_id?: string
+          source_updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_retired_assessment__classroom_id_source_contract_fkey"
+            columns: [
+              "classroom_id",
+              "source_contract",
+              "source_contract_version",
+              "parent_source_resource",
+              "parent_source_row_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "classroom_retired_assessment_records"
+            referencedColumns: [
+              "classroom_id",
+              "source_contract",
+              "source_contract_version",
+              "source_resource",
+              "source_row_id",
+            ]
+          },
+          {
+            foreignKeyName: "classroom_retired_assessment_records_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
             referencedColumns: ["id"]
           },
         ]
@@ -4007,6 +4177,20 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_classroom_archive_export_v2: {
+        Args: {
+          p_archive_format_version: number
+          p_classroom_id: string
+          p_operation_id: string
+          p_request_sha256: string
+          p_retention: Json
+          p_source_app_commit: string
+          p_source_contract_version: number
+          p_source_schema_migration: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       begin_classroom_archive_restore: {
         Args: {
           p_adapter_chain: Json
@@ -4016,6 +4200,24 @@ export type Database = {
           p_operation_id: string
           p_request_sha256: string
           p_resource_counts: Json
+          p_storage_objects: Json
+          p_target_schema_migration: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      begin_classroom_archive_restore_v2: {
+        Args: {
+          p_adapter_chain: Json
+          p_archive_id: string
+          p_classroom_id: string
+          p_database_budget_bytes: number
+          p_operation_id: string
+          p_request_sha256: string
+          p_resource_counts: Json
+          p_restore_contract_version: number
+          p_source_contract_version: number
+          p_source_resource_counts: Json
           p_storage_objects: Json
           p_target_schema_migration: string
           p_teacher_id: string
@@ -4305,6 +4507,24 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_classroom_archive_export_v2: {
+        Args: {
+          p_archive_format_version: number
+          p_archive_resource_counts: Json
+          p_artifact_sha256: string
+          p_compressed_byte_size: number
+          p_content_sha256: string
+          p_operation_id: string
+          p_resource_counts: Json
+          p_storage_bucket: string
+          p_storage_object_counts: Json
+          p_storage_path: string
+          p_teacher_id: string
+          p_uncompressed_byte_size: number
+          p_verification: Json
+        }
+        Returns: Json
+      }
       complete_classroom_archive_object_upload_cleanup: {
         Args: {
           p_lease_token: string
@@ -4317,6 +4537,15 @@ export type Database = {
       complete_classroom_archive_restore: {
         Args: {
           p_operation_id: string
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
+      complete_classroom_archive_restore_v2: {
+        Args: {
+          p_operation_id: string
+          p_restore_contract_version: number
           p_teacher_id: string
           p_verification: Json
         }
@@ -4714,6 +4943,14 @@ export type Database = {
         Args: { p_row_id: string; p_table_name: string }
         Returns: string
       }
+      resolve_classroom_archive_resource_classroom_id_versioned: {
+        Args: {
+          p_contract_version: number
+          p_row_id: string
+          p_table_name: string
+        }
+        Returns: string
+      }
       return_assignment_docs_atomic: {
         Args: {
           p_assignment_id: string
@@ -4902,9 +5139,31 @@ export type Database = {
         }
         Returns: boolean
       }
+      stage_classroom_archive_object_upload_v2: {
+        Args: {
+          p_archive_format_version: number
+          p_expected_byte_size: number
+          p_expected_sha256: string
+          p_operation_id: string
+          p_storage_bucket: string
+          p_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       stage_classroom_archive_restore_rows: {
         Args: {
           p_operation_id: string
+          p_rows: Json
+          p_table_name: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      stage_classroom_archive_restore_rows_v2: {
+        Args: {
+          p_operation_id: string
+          p_restore_contract_version: number
           p_rows: Json
           p_table_name: string
           p_teacher_id: string

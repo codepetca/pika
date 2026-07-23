@@ -36,6 +36,7 @@ function sourceArchive() {
     archived_at: ARCHIVE_CREATED_AT,
   }]
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,

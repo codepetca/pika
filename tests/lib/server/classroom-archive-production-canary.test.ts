@@ -502,6 +502,7 @@ describe('production classroom archive canary contract', () => {
       metadata: { preserved: true },
     }]
     const bundle = buildClassroomArchiveBundle({
+      version: 1,
       archiveId: plan().operation_ids.export,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,

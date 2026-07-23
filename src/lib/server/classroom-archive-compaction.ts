@@ -394,6 +394,14 @@ async function downloadAndVerifyArchive(args: {
       false,
     )
   }
+  if (verified.manifest.version !== 1) {
+    throw new ClassroomArchiveCompactionError(
+      'archive_compaction_contract_not_supported',
+      'Classroom archive v2 compaction requires the retired-assessment backfill proof',
+      409,
+      false,
+    )
+  }
   if (
     verified.manifest.archive_id !== args.archiveId ||
     verified.manifest.classroom_id !== args.classroomId ||
@@ -456,6 +464,7 @@ async function downloadAndVerifyArchive(args: {
   }
   return {
     restorePlan,
+    compactionResources: decoded.resources,
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
       storage_path: object.source_path,
@@ -490,10 +499,10 @@ async function stageRestorePreflight(args: {
   supabase: SupabaseClient
   operationId: string
   teacherId: string
-  plan: ClassroomArchiveRestorePlan
+  resources: ClassroomArchiveRestorePlan['resources']
 }) {
   for (const table of getClassroomResourceOrder('restore')) {
-    for (const rows of rowBatches(args.plan.resources[table] || [])) {
+    for (const rows of rowBatches(args.resources[table] || [])) {
       const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {
         p_operation_id: args.operationId,
         p_teacher_id: args.teacherId,
@@ -749,7 +758,7 @@ export async function compactClassroomArchive(args: {
       supabase: args.supabase,
       operationId,
       teacherId,
-      plan: verified.restorePlan,
+      resources: verified.compactionResources,
     })
     await stageCleanupObjects({
       supabase: args.supabase,

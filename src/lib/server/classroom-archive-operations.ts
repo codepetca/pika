@@ -1,12 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
+  CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+  CLASSROOM_ARCHIVE_V1_VERSION,
   classroomArchiveRetentionSchema,
 } from '@/lib/contracts/classroom-artifacts'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
   type ClassroomResourceTable,
 } from '@/lib/contracts/classroom-data'
+import {
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+} from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -15,11 +20,12 @@ import {
   verifyClassroomArchiveBundle,
   type ClassroomArchiveStorageObject,
 } from '@/lib/server/classroom-archive-format'
+import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
 export const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
-export const CLASSROOM_ARCHIVE_SOURCE_MIGRATION = '082_verified_classroom_archive_exports' as const
+export const CLASSROOM_ARCHIVE_SOURCE_MIGRATION = '105_classroom_archive_v2_contract' as const
 export const CLASSROOM_ARCHIVE_MAX_BYTES = 50 * 1024 * 1024
 
 const uuidSchema = z.string().uuid()
@@ -58,6 +64,8 @@ const snapshotReadySchema = z.object({
   snapshot_expires_at: z.string().datetime({ offset: true }),
   source_revision: z.number().int().positive(),
   resource_counts: resourceCountsSchema,
+  source_contract_version: z.literal(1),
+  archive_format_version: z.literal(2),
 }).strict()
 
 const completedOperationSchema = z.object({
@@ -79,6 +87,8 @@ const completedOperationSchema = z.object({
   snapshot_created_at: z.string().datetime({ offset: true }).optional(),
   snapshot_expires_at: z.string().datetime({ offset: true }).optional(),
   source_revision: z.number().int().positive().optional(),
+  source_contract_version: z.literal(1),
+  archive_format_version: z.literal(2),
 }).strict()
 
 const beginOperationResultSchema = z.union([
@@ -142,7 +152,7 @@ class ClassroomArchiveExportError extends Error {
 }
 
 function assertExactResourceCounts(counts: Record<string, number>) {
-  const expectedTables = CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)
+  const expectedTables = CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table)
   const actualTables = Object.keys(counts).sort()
   if (
     actualTables.length !== expectedTables.length ||
@@ -197,8 +207,9 @@ export function classroomArchiveStoragePath(args: {
   teacherId: string
   classroomId: string
   archiveId: string
+  version: 1 | 2
 }): string {
-  return `${uuidSchema.parse(args.teacherId)}/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.archiveId)}/classroom-v1.tar.gz`
+  return `${uuidSchema.parse(args.teacherId)}/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.archiveId)}/classroom-v${args.version}.tar.gz`
 }
 
 function isMissingArchiveRpc(error: { code?: string; message?: string } | null | undefined): boolean {
@@ -248,7 +259,7 @@ async function loadResourceRows<Table extends ClassroomResourceTable>(
   table: Table,
   primaryKey: string,
   expectedCount: number,
-): Promise<unknown[]> {
+): Promise<Record<string, unknown>[]> {
   const ids = await loadSnapshotIds(supabase, operationId, table)
   if (ids.length !== expectedCount) {
     throw new ClassroomArchiveExportError(
@@ -310,9 +321,9 @@ async function loadClassroomResources(
   supabase: SupabaseClient,
   operationId: string,
   resourceCounts: Record<string, number>,
-): Promise<Record<string, unknown[]>> {
-  const resources: Record<string, unknown[]> = {}
-  for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
+): Promise<Record<string, Record<string, unknown>[]>> {
+  const resources: Record<string, Record<string, unknown>[]> = {}
+  for (const resource of CLASSROOM_ARCHIVE_V1_RESOURCES) {
     if (resource.primary_key.length !== 1) {
       throw new ClassroomArchiveExportError(
         'archive_composite_key_adapter_required',
@@ -324,7 +335,7 @@ async function loadClassroomResources(
     resources[resource.table] = await loadResourceRows(
       supabase,
       operationId,
-      resource.table,
+      resource.table as ClassroomResourceTable,
       resource.primary_key[0],
       resourceCounts[resource.table],
     )
@@ -540,13 +551,13 @@ export async function exportClassroomArchive(args: {
   const retention = classroomArchiveRetentionSchema.parse(args.retention)
   const requestSha256 = hashClassroomArchiveRequest({
     format: 'pika.classroom-archive',
-    version: 1,
+    version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
     classroom_id: args.classroomId,
     retention,
   })
 
   try {
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_export', {
+    const beginResponse = await args.supabase.rpc('begin_classroom_archive_export_v2', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_classroom_id: args.classroomId,
@@ -554,6 +565,8 @@ export async function exportClassroomArchive(args: {
       p_source_schema_migration: CLASSROOM_ARCHIVE_SOURCE_MIGRATION,
       p_source_app_commit: args.sourceAppCommit,
       p_retention: retention,
+      p_source_contract_version: CLASSROOM_ARCHIVE_V1_VERSION,
+      p_archive_format_version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
     })
     if (beginResponse.error) {
       throw new ClassroomArchiveExportError(
@@ -561,7 +574,7 @@ export async function exportClassroomArchive(args: {
           ? 'classroom_archive_migration_required'
           : 'archive_snapshot_begin_failed',
         isMissingArchiveRpc(beginResponse.error)
-          ? 'Classroom archive export requires migration 082'
+          ? 'Classroom archive export requires migration 105'
           : 'Failed to start classroom archive snapshot',
         503,
         true,
@@ -589,12 +602,26 @@ export async function exportClassroomArchive(args: {
 
     const snapshot = parsedBegin.data
     assertExactResourceCounts(snapshot.resource_counts)
-    const resources = await loadClassroomResources(
+    const sourceResources = await loadClassroomResources(
       args.supabase,
       args.operationId,
       snapshot.resource_counts,
     )
     const actors = await loadActorSnapshots(args.supabase, args.operationId)
+    const resources = adaptLegacyQuizArchiveResources({
+      classroomId: args.classroomId,
+      resources: sourceResources,
+      actors: actors.map((actor) => {
+        const parsed = z.object({ id: uuidSchema }).passthrough().parse(actor)
+        return { id: parsed.id }
+      }),
+    }).resources
+    const archiveResourceCounts = Object.fromEntries(
+      CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
+        resource.table,
+        resources[resource.table]?.length || 0,
+      ]),
+    )
     const storageObjects = await downloadStorageObjects(
       args.supabase,
       resources,
@@ -602,6 +629,7 @@ export async function exportClassroomArchive(args: {
     )
     const storageObjectCounts = summarizeStorageObjects(storageObjects)
     const bundle = buildClassroomArchiveBundle({
+      version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
       archiveId: snapshot.archive_id,
       classroomId: args.classroomId,
       teacherId: args.teacherId,
@@ -628,9 +656,10 @@ export async function exportClassroomArchive(args: {
       teacherId: args.teacherId,
       classroomId: args.classroomId,
       archiveId: snapshot.archive_id,
+      version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
     })
     const uploadIntentResponse = await args.supabase.rpc(
-      'stage_classroom_archive_object_upload',
+      'stage_classroom_archive_object_upload_v2',
       {
         p_operation_id: args.operationId,
         p_teacher_id: args.teacherId,
@@ -638,6 +667,7 @@ export async function exportClassroomArchive(args: {
         p_storage_path: storagePath,
         p_expected_sha256: bundle.artifactSha256,
         p_expected_byte_size: bundle.archive.byteLength,
+        p_archive_format_version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
       },
     )
     const uploadIntent = !uploadIntentResponse.error
@@ -695,7 +725,7 @@ export async function exportClassroomArchive(args: {
       actor_snapshots_verified: true,
       verified_at: new Date().toISOString(),
     })
-    const completeResponse = await args.supabase.rpc('complete_classroom_archive_export', {
+    const completeResponse = await args.supabase.rpc('complete_classroom_archive_export_v2', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_storage_bucket: CLASSROOM_ARCHIVE_BUCKET,
@@ -705,6 +735,8 @@ export async function exportClassroomArchive(args: {
       p_compressed_byte_size: bundle.archive.byteLength,
       p_uncompressed_byte_size: bundle.uncompressedByteSize,
       p_resource_counts: snapshot.resource_counts,
+      p_archive_format_version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+      p_archive_resource_counts: parseDatabaseJson(archiveResourceCounts),
       p_storage_object_counts: parseDatabaseJson(storageObjectCounts),
       p_verification: verificationEvidence,
     })

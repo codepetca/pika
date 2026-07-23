@@ -34,8 +34,19 @@ function resources() {
   }
 }
 
+function archiveV1ResourceCounts() {
+  return Object.fromEntries(
+    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
+      resource.table,
+      ['classrooms', 'assignments', 'assignment_docs', 'assignment_submission_artifacts']
+        .includes(resource.table) ? 1 : 0,
+    ]),
+  )
+}
+
 function fixture() {
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -81,13 +92,7 @@ function createSupabaseMock(options: {
   metadataErrorOnce?: boolean
 } = {}) {
   const bundle = fixture()
-  const counts = Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
-      resource.table,
-      ['classrooms', 'assignments', 'assignment_docs', 'assignment_submission_artifacts']
-        .includes(resource.table) ? 1 : 0,
-    ]),
-  )
+  const counts = archiveV1ResourceCounts()
   const archive = options.corruptArchive
     ? Uint8Array.from([...bundle.archive.slice(0, -1), bundle.archive.at(-1)! ^ 1])
     : bundle.archive
@@ -107,7 +112,7 @@ function createSupabaseMock(options: {
   let postUploadReadFailed = false
   let metadataReads = 0
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === 'begin_classroom_archive_restore') {
+    if (name === 'begin_classroom_archive_restore_v2') {
       if (options.beginError) return { data: null, error: options.beginError }
       return {
         data: {
@@ -118,6 +123,9 @@ function createSupabaseMock(options: {
           operation_status: 'snapshot_ready',
           replayed: false,
           resource_counts: counts,
+          source_contract_version: 1,
+          archive_format_version: 1,
+          restore_contract_version: 2,
           snapshot_expires_at: '2026-07-14T12:00:00.000Z',
           database_size_bytes: 100,
           required_headroom_bytes: 200,
@@ -125,7 +133,7 @@ function createSupabaseMock(options: {
         error: null,
       }
     }
-    if (name === 'stage_classroom_archive_restore_rows') {
+    if (name === 'stage_classroom_archive_restore_rows_v2') {
       if (options.stageRpcThrows) throw new Error('staging transport unavailable')
       if (options.stageFailure) {
         return {
@@ -148,6 +156,7 @@ function createSupabaseMock(options: {
           table_name: args.p_table_name,
           staged_count: 1,
           expected_count: 1,
+          restore_contract_version: 2,
         },
         error: null,
       }
@@ -155,7 +164,7 @@ function createSupabaseMock(options: {
     if (name === 'stage_classroom_archive_object_upload') {
       return { data: true, error: null }
     }
-    if (name === 'complete_classroom_archive_restore') {
+    if (name === 'complete_classroom_archive_restore_v2') {
       if (options.completeMalformed) {
         return { data: { ok: true, status: 201 }, error: null }
       }
@@ -198,6 +207,7 @@ function createSupabaseMock(options: {
             id: ARCHIVE_ID,
             classroom_id: CLASSROOM_ID,
             teacher_id: TEACHER_ID,
+            format_version: 1,
             storage_bucket: 'classroom-archives',
             storage_path: 'teacher/classroom/archive/classroom-v1.tar.gz',
             artifact_sha256: bundle.artifactSha256,
@@ -285,7 +295,7 @@ describe('classroom archive restore coordinator', () => {
     expect(resolveClassroomArchiveRestoreDatabaseBudget()).toBe(524288000)
   })
 
-  it('verifies, reconciles, stages parent-first, and completes through migration 083', async () => {
+  it('verifies, reconciles, adapts, stages parent-first, and completes through migration 105', async () => {
     const mock = createSupabaseMock()
     const result = await restoreClassroomArchive({
       supabase: mock.client,
@@ -299,14 +309,25 @@ describe('classroom archive restore coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: true, status: 201, replayed: false }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore',
+      'begin_classroom_archive_restore_v2',
       'stage_classroom_archive_object_upload',
-      'stage_classroom_archive_restore_rows',
-      'stage_classroom_archive_restore_rows',
-      'stage_classroom_archive_restore_rows',
-      'stage_classroom_archive_restore_rows',
-      'complete_classroom_archive_restore',
+      'stage_classroom_archive_restore_rows_v2',
+      'stage_classroom_archive_restore_rows_v2',
+      'stage_classroom_archive_restore_rows_v2',
+      'stage_classroom_archive_restore_rows_v2',
+      'complete_classroom_archive_restore_v2',
     ])
+    expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
+      p_source_contract_version: 1,
+      p_restore_contract_version: 2,
+      p_source_resource_counts: archiveV1ResourceCounts(),
+    }))
+    expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
+      p_restore_contract_version: 2,
+    }))
+    expect(mock.rpc.mock.calls[6][1]).toEqual(expect.objectContaining({
+      p_restore_contract_version: 2,
+    }))
     expect(mock.rpc.mock.calls[6][1].p_verification).not.toHaveProperty(
       'referential_integrity_verified',
     )
@@ -351,7 +372,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: true,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore',
+      'begin_classroom_archive_restore_v2',
     ])
   })
 
@@ -372,9 +393,9 @@ describe('classroom archive restore coordinator', () => {
       retryable: false,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore',
+      'begin_classroom_archive_restore_v2',
       'stage_classroom_archive_object_upload',
-      'stage_classroom_archive_restore_rows',
+      'stage_classroom_archive_restore_rows_v2',
       'fail_classroom_archive_restore',
     ])
     expect(mock.stored.size).toBe(0)
@@ -400,7 +421,7 @@ describe('classroom archive restore coordinator', () => {
     expect(mock.stored.size).toBe(1)
     expect(mock.removed).toEqual([])
     expect(mock.rpc.mock.calls.map(([name]) => name).slice(-2)).toEqual([
-      'complete_classroom_archive_restore',
+      'complete_classroom_archive_restore_v2',
       'fail_classroom_archive_restore',
     ])
   })

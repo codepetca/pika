@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
-  getClassroomResourceOrder,
-} from '@/lib/contracts/classroom-data'
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
+} from '@/lib/contracts/classroom-archive-resources'
 import { classroomArchiveRestoreVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
@@ -30,6 +30,7 @@ const archiveMetadataSchema = z.object({
   id: uuidSchema,
   classroom_id: uuidSchema,
   teacher_id: uuidSchema,
+  format_version: z.union([z.literal(1), z.literal(2)]),
   storage_bucket: z.literal(CLASSROOM_ARCHIVE_BUCKET),
   storage_path: z.string().min(1),
   artifact_sha256: sha256Schema,
@@ -60,6 +61,9 @@ const beginRestoreSchema = z.union([
     operation_status: z.literal('snapshot_ready'),
     replayed: z.boolean(),
     resource_counts: resourceCountsSchema,
+    source_contract_version: z.union([z.literal(1), z.literal(2)]),
+    archive_format_version: z.union([z.literal(1), z.literal(2)]),
+    restore_contract_version: z.literal(2),
     snapshot_expires_at: z.string().datetime({ offset: true }),
     database_size_bytes: z.number().int().nonnegative(),
     required_headroom_bytes: z.number().int().nonnegative(),
@@ -73,6 +77,9 @@ const beginRestoreSchema = z.union([
     replayed: z.literal(true),
     resource_counts: resourceCountsSchema,
     verification: z.record(z.string(), z.unknown()),
+    source_contract_version: z.union([z.literal(1), z.literal(2)]),
+    archive_format_version: z.union([z.literal(1), z.literal(2)]),
+    restore_contract_version: z.literal(2),
   }).strict(),
 ])
 
@@ -85,6 +92,7 @@ const stageRestoreSchema = z.union([
     table_name: z.string().min(1),
     staged_count: z.number().int().nonnegative(),
     expected_count: z.number().int().nonnegative(),
+    restore_contract_version: z.literal(2),
   }).strict(),
 ])
 
@@ -202,6 +210,8 @@ function hashRestoreRequest(args: {
   archiveId: string
   classroomId: string
   targetSchemaMigration: string
+  sourceContractVersion: 1 | 2
+  restoreContractVersion: 2
   storageObjects: Array<Record<string, unknown>>
 }): string {
   return createHash('sha256').update(canonicalJsonStringify({
@@ -209,13 +219,15 @@ function hashRestoreRequest(args: {
     archive_id: args.archiveId,
     classroom_id: args.classroomId,
     target_schema_migration: args.targetSchemaMigration,
+    source_contract_version: args.sourceContractVersion,
+    restore_contract_version: args.restoreContractVersion,
     storage_objects: args.storageObjects,
   })).digest('hex')
 }
 
 function exactResourceCounts(plan: ClassroomArchiveRestorePlan): Record<string, number> {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
+    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
       resource.table,
       plan.resources[resource.table]?.length || 0,
     ]),
@@ -238,6 +250,7 @@ async function loadArchiveMetadata(args: {
       'id',
       'classroom_id',
       'teacher_id',
+      'format_version',
       'storage_bucket',
       'storage_path',
       'artifact_sha256',
@@ -474,6 +487,7 @@ export async function restoreClassroomArchive(args: {
       verified.manifest.archive_id !== metadata.id ||
       verified.manifest.classroom_id !== metadata.classroom_id ||
       verified.manifest.teacher_id !== metadata.teacher_id ||
+      verified.manifest.version !== metadata.format_version ||
       verified.manifest.content_sha256 !== metadata.content_sha256
     ) {
       throw new ClassroomArchiveRestoreError(
@@ -505,7 +519,10 @@ export async function restoreClassroomArchive(args: {
       left.storage_bucket.localeCompare(right.storage_bucket)
       || left.storage_path.localeCompare(right.storage_path)
     ))
-    if (canonicalJsonStringify(resourceCounts) !== canonicalJsonStringify(metadata.resource_counts)) {
+    if (
+      canonicalJsonStringify(plan.sourceResourceCounts) !==
+      canonicalJsonStringify(metadata.resource_counts)
+    ) {
       throw new ClassroomArchiveRestoreError(
         'classroom_archive_resource_count_mismatch',
         'Classroom archive resource counts do not match verified metadata',
@@ -513,7 +530,7 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_restore', {
+    const beginResponse = await args.supabase.rpc('begin_classroom_archive_restore_v2', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_classroom_id: args.classroomId,
@@ -522,10 +539,15 @@ export async function restoreClassroomArchive(args: {
         archiveId: args.archiveId,
         classroomId: args.classroomId,
         targetSchemaMigration: plan.targetSchemaMigration,
+        sourceContractVersion: plan.sourceContractVersion,
+        restoreContractVersion: plan.restoreContractVersion,
         storageObjects,
       }),
       p_target_schema_migration: plan.targetSchemaMigration,
       p_adapter_chain: plan.adapterChain,
+      p_source_contract_version: plan.sourceContractVersion,
+      p_restore_contract_version: plan.restoreContractVersion,
+      p_source_resource_counts: parseDatabaseJson(plan.sourceResourceCounts),
       p_resource_counts: resourceCounts,
       p_storage_objects: storageObjects,
       p_database_budget_bytes: args.databaseBudgetBytes,
@@ -536,7 +558,7 @@ export async function restoreClassroomArchive(args: {
           ? 'classroom_archive_restore_migration_required'
           : 'classroom_archive_restore_begin_failed',
         isMissingRestoreRpc(beginResponse.error)
-          ? 'Classroom archive restore requires migration 083'
+          ? 'Classroom archive restore requires migration 105'
           : 'Classroom archive restore could not start',
         503,
         true,
@@ -599,14 +621,15 @@ export async function restoreClassroomArchive(args: {
         uploadedStorageObjects.push({ bucket: object.bucket, path: object.restorePath })
       }
     }
-    for (const table of getClassroomResourceOrder('restore')) {
+    for (const table of CLASSROOM_ARCHIVE_V2_RESTORE_ORDER) {
       const rows = plan.resources[table] || []
       for (const chunk of chunkRestoreRows(rows)) {
-        const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {
+        const response = await args.supabase.rpc('stage_classroom_archive_restore_rows_v2', {
           p_operation_id: args.operationId,
           p_teacher_id: args.teacherId,
           p_table_name: table,
           p_rows: parseDatabaseJson(chunk),
+          p_restore_contract_version: plan.restoreContractVersion,
         })
         if (response.error) {
           throw new ClassroomArchiveRestoreError(
@@ -649,10 +672,11 @@ export async function restoreClassroomArchive(args: {
       adapter_chain: plan.adapterChain,
     })
     finalizationAttempted = true
-    const completeResponse = await args.supabase.rpc('complete_classroom_archive_restore', {
+    const completeResponse = await args.supabase.rpc('complete_classroom_archive_restore_v2', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_verification: verification,
+      p_restore_contract_version: plan.restoreContractVersion,
     })
     if (completeResponse.error) {
       throw new ClassroomArchiveRestoreError(

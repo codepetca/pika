@@ -4,7 +4,7 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 
 ## Current Focus
 
-- Migrations 001-104 and the archive canary are verified; classroom hot-restored; source/Gradex cleanup disabled.
+- Migrations 001-105 locally verified; 105 is not hosted. Archive canary is verified; source/Gradex cleanup remains disabled.
 - Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave and Phase 2 are complete. Phase 3 assignment, Daily/Attendance desktop/accessibility, and Tests list reliability plus authoring/grading separation are complete; mobile UX is deferred, Gradex is owned by a separate session, and standalone test preview hardening is next.
 
 ## Environment

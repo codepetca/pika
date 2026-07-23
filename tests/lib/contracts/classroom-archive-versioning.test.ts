@@ -58,7 +58,7 @@ function manifest(version: 1 | 2, resources: readonly { table: string }[]) {
 
 describe('versioned classroom archive contracts', () => {
   it('freezes v1 independently from the live database resource inventory', () => {
-    expect(CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION).toBe(1)
+    expect(CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION).toBe(2)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
     expect(
@@ -79,7 +79,7 @@ describe('versioned classroom archive contracts', () => {
     )).not.toContain("from '@/lib/contracts/classroom-data'")
   })
 
-  it('defines an inactive v2 graph with retired envelopes and no Quiz tables', () => {
+  it('activates a v2 graph with retired envelopes and no Quiz tables', () => {
     const v2Tables = CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table)
 
     expect(CLASSROOM_ARCHIVE_CONTRACTS[1]).toMatchObject({
@@ -88,8 +88,8 @@ describe('versioned classroom archive contracts', () => {
       gradexEnabled: true,
     })
     expect(CLASSROOM_ARCHIVE_CONTRACTS[2]).toMatchObject({
-      exportEnabled: false,
-      restoreEnabled: false,
+      exportEnabled: true,
+      restoreEnabled: true,
       gradexEnabled: false,
     })
     expect(v2Tables).toEqual(expect.arrayContaining([

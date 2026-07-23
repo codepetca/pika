@@ -200,6 +200,7 @@ function sourceArchive() {
   }]
 
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: 'a0000000-0000-4000-8000-000000000001',
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,

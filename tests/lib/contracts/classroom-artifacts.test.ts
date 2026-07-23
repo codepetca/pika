@@ -7,6 +7,7 @@ import {
   classroomResourceInventorySchema,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   CLASSROOM_ARCHIVE_FORMAT,
   CLASSROOM_ARCHIVE_VERSION,
@@ -28,7 +29,7 @@ const classroomId = '20000000-0000-4000-8000-000000000002'
 const teacherId = '30000000-0000-4000-8000-000000000003'
 
 function archiveResourceFiles() {
-  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+  return CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => ({
     table: resource.table,
     path: `data/${resource.table}.ndjson`,
     row_count: 0,
@@ -246,7 +247,7 @@ describe('classroom artifact contracts', () => {
     expect(CLASSROOM_STORAGE_CONTRACT.sources.every((source) => source.copy_policy === 'referenced_only')).toBe(true)
   })
 
-  it('requires one checksummed file for every relational resource, including empty tables', () => {
+  it('requires one checksummed file for every current archive resource, including empty tables', () => {
     expect(classroomArchiveManifestSchema.safeParse(validArchiveManifest()).success).toBe(true)
 
     const missingResource = validArchiveManifest()

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import {
+  decodeClassroomArchiveData,
+  verifyClassroomArchiveBundle,
+} from '@/lib/server/classroom-archive-format'
 import {
   CLASSROOM_ARCHIVE_BUCKET,
   exportClassroomArchive,
@@ -9,11 +14,21 @@ import {
 const OPERATION_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
 const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
+const STUDENT_ID = '00000000-0000-4000-8000-000000000004'
 const SNAPSHOT_AT = '2026-07-13T12:00:00.000Z'
 
-function resourceCounts() {
+function resourceCounts(rows: Record<string, unknown[]> = {}) {
   return Object.fromEntries(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
+      resource.table,
+      rows[resource.table]?.length || (resource.table === 'classrooms' ? 1 : 0),
+    ]),
+  )
+}
+
+function archiveResourceCounts() {
+  return Object.fromEntries(
+    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
       resource.table,
       resource.table === 'classrooms' ? 1 : 0,
     ]),
@@ -29,11 +44,22 @@ type QueryState = {
 function createSupabaseMock(options: {
   beginError?: { code?: string; message?: string }
   completionFailure?: boolean
+  sourceRows?: Record<string, Array<Record<string, unknown>>>
 } = {}) {
+  const sourceRows: Record<string, Array<Record<string, unknown>>> = {
+    classrooms: [{
+      id: CLASSROOM_ID,
+      teacher_id: TEACHER_ID,
+      title: 'Archive fixture',
+      archived_at: SNAPSHOT_AT,
+    }],
+    ...options.sourceRows,
+  }
+  const counts = resourceCounts(sourceRows)
   const stored = new Map<string, Uint8Array>()
   const removed: string[] = []
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === 'begin_classroom_archive_export') {
+    if (name === 'begin_classroom_archive_export_v2') {
       if (options.beginError) return { data: null, error: options.beginError }
       return {
         data: {
@@ -46,12 +72,14 @@ function createSupabaseMock(options: {
           snapshot_created_at: SNAPSHOT_AT,
           snapshot_expires_at: '2026-07-14T12:00:00.000Z',
           source_revision: 4,
-          resource_counts: resourceCounts(),
+          resource_counts: counts,
+          source_contract_version: 1,
+          archive_format_version: 2,
         },
         error: null,
       }
     }
-    if (name === 'complete_classroom_archive_export') {
+    if (name === 'complete_classroom_archive_export_v2') {
       if (options.completionFailure) {
         return {
           data: {
@@ -79,9 +107,11 @@ function createSupabaseMock(options: {
           content_sha256: args.p_content_sha256,
           compressed_byte_size: args.p_compressed_byte_size,
           uncompressed_byte_size: args.p_uncompressed_byte_size,
-          resource_counts: args.p_resource_counts,
+          resource_counts: args.p_archive_resource_counts,
           storage_object_counts: args.p_storage_object_counts,
           verification: args.p_verification,
+          source_contract_version: 1,
+          archive_format_version: 2,
         },
         error: null,
       }
@@ -92,7 +122,9 @@ function createSupabaseMock(options: {
   function executeQuery(state: QueryState) {
     if (state.table === 'classroom_archive_snapshot_resources') {
       return {
-        data: state.filters.table_name === 'classrooms' ? [{ row_id: CLASSROOM_ID }] : [],
+        data: (sourceRows[String(state.filters.table_name)] || []).map((row) => ({
+          row_id: row.id,
+        })),
         error: null,
       }
     }
@@ -105,18 +137,24 @@ function createSupabaseMock(options: {
             role: 'teacher',
             profile: null,
           },
-        }],
+        }, ...(options.sourceRows
+          ? [{
+              snapshot: {
+                id: STUDENT_ID,
+                email: 'student@example.test',
+                role: 'student',
+                profile: null,
+              },
+            }]
+          : [])],
         error: null,
       }
     }
-    if (state.table === 'classrooms' && state.inFilter?.values.includes(CLASSROOM_ID)) {
+    if (state.inFilter) {
       return {
-        data: [{
-          id: CLASSROOM_ID,
-          teacher_id: TEACHER_ID,
-          title: 'Archive fixture',
-          archived_at: SNAPSHOT_AT,
-        }],
+        data: (sourceRows[state.table] || []).filter((row) =>
+          state.inFilter?.values.includes(String(row[state.inFilter.column])),
+        ),
         error: null,
       }
     }
@@ -216,17 +254,32 @@ describe('classroom archive export coordinator', () => {
 
     expect(result.ok).toBe(true)
     if (!result.ok) throw new Error(result.error)
-    expect(result.resource_counts).toEqual(resourceCounts())
+    expect(result.resource_counts).toEqual(archiveResourceCounts())
     expect(result.verification.read_back_verified).toBe(true)
     expect(result.compressed_byte_size).toBeGreaterThan(0)
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export',
-      'stage_classroom_archive_object_upload',
-      'complete_classroom_archive_export',
+      'begin_classroom_archive_export_v2',
+      'stage_classroom_archive_object_upload_v2',
+      'complete_classroom_archive_export_v2',
     ])
     expect([...mock.stored.keys()]).toEqual([
-      `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v1.tar.gz`,
+      `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v2.tar.gz`,
     ])
+    expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
+      p_source_contract_version: 1,
+      p_archive_format_version: 2,
+    }))
+    expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
+      p_archive_format_version: 2,
+      p_archive_resource_counts: archiveResourceCounts(),
+      p_resource_counts: resourceCounts(),
+    }))
+    expect(mock.rpc.mock.calls[1][1]).toEqual(expect.objectContaining({
+      p_archive_format_version: 2,
+    }))
+    const storedArchive = [...mock.stored.values()][0]
+    const verification = verifyClassroomArchiveBundle(storedArchive)
+    expect(verification.ok && verification.manifest.version).toBe(2)
   })
 
   it('removes a newly uploaded orphan when finalization rejects a changed classroom', async () => {
@@ -250,6 +303,80 @@ describe('classroom archive export coordinator', () => {
     expect(mock.removed).toHaveLength(1)
   })
 
+  it('adapts non-empty Quiz source rows into a v2 envelope archive', async () => {
+    const quizId = '10000000-0000-4000-8000-000000000001'
+    const questionId = '10000000-0000-4000-8000-000000000002'
+    const mock = createSupabaseMock({
+      sourceRows: {
+        quizzes: [{
+          id: quizId,
+          classroom_id: CLASSROOM_ID,
+          created_by: TEACHER_ID,
+          title: 'Retired quiz',
+          created_at: SNAPSHOT_AT,
+          updated_at: SNAPSHOT_AT,
+        }],
+        quiz_questions: [{
+          id: questionId,
+          quiz_id: quizId,
+          question_text: 'Retired question',
+        }],
+        quiz_responses: [{
+          id: '10000000-0000-4000-8000-000000000003',
+          quiz_id: quizId,
+          question_id: questionId,
+          student_id: STUDENT_ID,
+          selected_option: 1,
+        }],
+        quiz_student_scores: [{
+          id: '10000000-0000-4000-8000-000000000004',
+          quiz_id: quizId,
+          student_id: STUDENT_ID,
+          manual_override_score: 9,
+        }],
+        assessment_drafts: [{
+          id: '10000000-0000-4000-8000-000000000005',
+          classroom_id: CLASSROOM_ID,
+          assessment_type: 'quiz',
+          assessment_id: quizId,
+          created_by: TEACHER_ID,
+          updated_by: TEACHER_ID,
+        }],
+      },
+    })
+
+    const result = await exportClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      retention: { mode: 'teacher_managed', delete_after: null },
+      sourceAppCommit: 'abcdef1234567890',
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(result.ok).toBe(true)
+    const verification = verifyClassroomArchiveBundle([...mock.stored.values()][0])
+    expect(verification.ok).toBe(true)
+    if (!verification.ok) throw new Error(verification.error)
+    const decoded = decodeClassroomArchiveData(verification)
+    expect(decoded.resources).not.toHaveProperty('quizzes')
+    expect(decoded.resources).not.toHaveProperty('quiz_questions')
+    expect(decoded.resources).not.toHaveProperty('quiz_responses')
+    expect(decoded.resources).not.toHaveProperty('quiz_student_scores')
+    expect(decoded.resources.assessment_drafts).toEqual([])
+    expect(decoded.resources.classroom_retired_assessment_records).toHaveLength(5)
+    expect(decoded.resources.classroom_retired_assessment_record_actors).toHaveLength(5)
+    expect(decoded.resources.classroom_retired_assessment_records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source_resource: 'quiz_student_scores',
+          payload: expect.objectContaining({ manual_override_score: 9 }),
+        }),
+      ]),
+    )
+  })
+
   it('fails closed with a migration-required result when the begin RPC is unavailable', async () => {
     const mock = createSupabaseMock({ beginError: { code: 'PGRST202', message: 'missing function' } })
     const result = await exportClassroomArchive({
@@ -267,11 +394,11 @@ describe('classroom archive export coordinator', () => {
       status: 503,
       operation_id: OPERATION_ID,
       error_code: 'classroom_archive_migration_required',
-      error: 'Classroom archive export requires migration 082',
+      error: 'Classroom archive export requires migration 105',
       retryable: true,
     })
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export',
+      'begin_classroom_archive_export_v2',
       'fail_classroom_archive_export',
     ])
   })

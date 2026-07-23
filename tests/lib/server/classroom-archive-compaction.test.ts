@@ -33,6 +33,7 @@ function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
     bytes: Buffer.from(`object-${index}`),
   }))
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId,
     teacherId: TEACHER_ID,
