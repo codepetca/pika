@@ -28,14 +28,6 @@ interface AllowedDocItem {
   content?: string
 }
 
-interface TestPreviewPayload {
-  test?: {
-    title?: string
-    documents?: unknown
-  } | null
-  questions?: TestAssessmentQuestion[]
-}
-
 function isFullscreenActive(): boolean {
   return typeof document !== 'undefined' && Boolean(document.fullscreenElement)
 }
@@ -92,9 +84,19 @@ export function TeacherTestPreviewPage({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [allowWindowMaximizedFallback, setAllowWindowMaximizedFallback] = useState(false)
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
+  const [loadedTestId, setLoadedTestId] = useState<string | null>(null)
   const fullscreenActiveRef = useRef(false)
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
-  const loadRequestIdRef = useRef(0)
+  const previewOwnerRef = useRef(testId)
+  const previewRequestIdRef = useRef(0)
+  const backToDocumentsButtonRef = useRef<HTMLButtonElement | null>(null)
+  const documentButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  const returnFocusDocumentIdRef = useRef<string | null>(null)
+
+  if (previewOwnerRef.current !== testId) {
+    previewOwnerRef.current = testId
+    previewRequestIdRef.current += 1
+  }
 
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
@@ -119,6 +121,18 @@ export function TeacherTestPreviewPage({
       return allowedDocs.some((doc) => doc.id === previous.id) ? previous : null
     })
   }, [allowedDocs])
+
+  useEffect(() => {
+    if (activeDoc) {
+      backToDocumentsButtonRef.current?.focus()
+      return
+    }
+
+    const documentId = returnFocusDocumentIdRef.current
+    if (!documentId) return
+    returnFocusDocumentIdRef.current = null
+    documentButtonRefs.current.get(documentId)?.focus()
+  }, [activeDoc])
 
   const requestExamFullscreen = useCallback(async (options?: { allowWindowFallback?: boolean }) => {
     const fullscreenElement = document.documentElement
@@ -219,29 +233,37 @@ export function TeacherTestPreviewPage({
   }, [])
 
   const loadPreviewData = useCallback(async () => {
-    const requestId = loadRequestIdRef.current + 1
-    loadRequestIdRef.current = requestId
+    const requestId = previewRequestIdRef.current + 1
+    previewRequestIdRef.current = requestId
+    const requestTestId = testId
+    const isCurrentRequest = () => (
+      previewOwnerRef.current === requestTestId
+      && previewRequestIdRef.current === requestId
+    )
+
     setLoading(true)
     setError('')
     try {
-      const data = await fetchJSON<TestPreviewPayload>(
-        `/api/teacher/tests/${testId}`,
-        {
-          init: { cache: 'no-store' },
-          errorMessage: 'Failed to load preview',
-        },
-      )
-      if (requestId !== loadRequestIdRef.current) return
+      const data = await fetchJSON<{
+        questions?: TestAssessmentQuestion[]
+        test?: { title?: string; documents?: unknown }
+      }>(`/api/teacher/tests/${testId}`, {
+        init: { cache: 'no-store' },
+        errorMessage: 'Failed to load preview',
+      })
+      if (!isCurrentRequest()) return
 
       const responseTest = readTestFromPayload<{ title?: string; documents?: unknown }>(data)
       setTitle(responseTest?.title || 'Test Preview')
       setQuestions(data.questions || [])
       setDocuments(normalizeTestDocuments(responseTest?.documents))
+      setLoadedTestId(requestTestId)
     } catch (err: any) {
-      if (requestId !== loadRequestIdRef.current) return
+      if (!isCurrentRequest()) return
       setError(err?.message || 'Failed to load preview')
+      setLoadedTestId(requestTestId)
     } finally {
-      if (requestId === loadRequestIdRef.current) {
+      if (isCurrentRequest()) {
         setLoading(false)
       }
     }
@@ -253,6 +275,8 @@ export function TeacherTestPreviewPage({
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
+    returnFocusDocumentIdRef.current = null
+    setActiveDoc(null)
   }, [testId])
 
   useEffect(() => {
@@ -271,6 +295,8 @@ export function TeacherTestPreviewPage({
   }, [classroomId, listenForUpdates, loadPreviewData])
 
   useEffect(() => {
+    if (loadedTestId !== testId) return
+
     const staleDoc = normalizeTestDocuments(documents).find((doc) => {
       if (!isLinkDocumentSnapshotStale(doc)) return false
       const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
@@ -309,7 +335,7 @@ export function TeacherTestPreviewPage({
     return () => {
       isCancelled = true
     }
-  }, [documents, testId])
+  }, [documents, loadedTestId, testId])
 
   function handleClosePreview() {
     if (onClose) {
@@ -325,7 +351,14 @@ export function TeacherTestPreviewPage({
     }, 150)
   }
 
-  if (loading) {
+  function handleCloseDocument() {
+    returnFocusDocumentIdRef.current = activeDoc?.id ?? null
+    setActiveDoc(null)
+  }
+
+  const isLoadingCurrentPreview = loading || loadedTestId !== testId
+
+  if (isLoadingCurrentPreview) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-page px-4">
         <Spinner size="lg" />
@@ -356,7 +389,11 @@ export function TeacherTestPreviewPage({
     : 'h-dvh overflow-hidden bg-page'
 
   return (
-    <div className={`${rootClassName} flex flex-col`}>
+    <div
+      role="region"
+      aria-label="Teacher test preview"
+      className={`${rootClassName} flex flex-col`}
+    >
       {showNotMaximizedWarning && (
         <div
           aria-hidden="true"
@@ -434,7 +471,10 @@ export function TeacherTestPreviewPage({
               showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
             } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
           >
-            <section className="rounded-xl border border-border bg-surface h-full relative overflow-hidden">
+            <section
+              aria-label="Test documents"
+              className="rounded-xl border border-border bg-surface h-full relative overflow-hidden"
+            >
               {/* Doc list — always in DOM so switching back is instant */}
               <div
                 aria-hidden={showDocPanel}
@@ -450,6 +490,13 @@ export function TeacherTestPreviewPage({
                     {allowedDocs.map((doc) => (
                       <Button
                         key={doc.id}
+                        ref={(node) => {
+                          if (node) {
+                            documentButtonRefs.current.set(doc.id, node)
+                          } else {
+                            documentButtonRefs.current.delete(doc.id)
+                          }
+                        }}
                         type="button"
                         variant="secondary"
                         size="sm"
@@ -482,8 +529,9 @@ export function TeacherTestPreviewPage({
                 <div className="flex h-full flex-col bg-surface">
                   <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
                     <button
+                      ref={backToDocumentsButtonRef}
                       type="button"
-                      onClick={() => setActiveDoc(null)}
+                      onClick={handleCloseDocument}
                       aria-label="Back to documents list"
                       className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
                       tabIndex={showDocPanel ? 0 : -1}
@@ -537,7 +585,10 @@ export function TeacherTestPreviewPage({
               </div>
             </section>
 
-            <section className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4">
+            <section
+              aria-label="Test questions"
+              className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4"
+            >
               <h2 className="text-xl font-bold text-text-default">{title}</h2>
               {questions.length > 0 ? (
                 <StudentTestForm
