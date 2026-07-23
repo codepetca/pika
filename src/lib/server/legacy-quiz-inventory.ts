@@ -16,9 +16,12 @@ type LegacyQuizCountTable =
   | 'course_blueprint_assessments'
 
 const exactCountSchema = z.number().int().nonnegative()
+const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 const archiveRowSchema = z.object({
+  id: z.string().uuid(),
   format: z.string().min(1),
   format_version: z.number().int().positive(),
+  artifact_sha256: sha256Schema,
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
 }).strict()
 
@@ -161,11 +164,14 @@ export function createSupabaseLegacyQuizInventoryReader(args: {
 
     async readArchiveRows() {
       const rows: Array<z.infer<typeof archiveRowSchema>> = []
+      const archiveIds = new Set<string>()
       let expectedCount: number | null = null
       while (expectedCount === null || rows.length < expectedCount) {
         const { data, count, error } = await args.supabase
           .from('classroom_archives')
-          .select('format, format_version, resource_counts', { count: 'exact' })
+          .select('id, format, format_version, artifact_sha256, resource_counts', {
+            count: 'exact',
+          })
           .order('id', { ascending: true })
           .range(rows.length, rows.length + 999)
         if (error) throw new Error('Legacy Quiz archive inventory read failed')
@@ -177,6 +183,12 @@ export function createSupabaseLegacyQuizInventoryReader(args: {
         const page = z.array(archiveRowSchema).parse(data)
         if (page.length === 0 && rows.length !== expectedCount) {
           throw new Error('Legacy Quiz archive inventory ended before its exact count')
+        }
+        for (const archive of page) {
+          if (archiveIds.has(archive.id)) {
+            throw new Error('Legacy Quiz archive identity repeated during paginated read')
+          }
+          archiveIds.add(archive.id)
         }
         rows.push(...page)
         if (rows.length > expectedCount) {

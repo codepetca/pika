@@ -1030,13 +1030,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - Focused inventory, archive, package, gradebook, docs, and architecture suites (8 files / 96 tests)
-- Full repository suite (409 files / 3,668 tests)
+- Full repository suite after review remediation (409 files / 3,672 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (622 modules / 0 allowances)
 - `pnpm build`
 - Pika changed-file audit
 - Production inventory completed with two stable snapshots
+
+**Review:**
+- Independent review found that the plan needed an explicit version-keyed
+  TypeScript/database archive transition and an atomic fate for zero-row Quiz
+  blueprint assessments.
+- The same review found that equal-count archive replacement was not part of
+  private snapshot stability evidence.
+- Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
+  and blueprint lock/preflight requirements; added private archive UUID/checksum
+  comparison and concrete duplicate, count-drift, and truncated-page tests.
+- Re-ran the target-pinned production inventory with stable unchanged aggregates.
 
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
