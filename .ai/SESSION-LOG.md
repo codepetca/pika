@@ -1119,18 +1119,16 @@ future persistence shape without enabling unapproved schema behavior.
 **Risk profile:** runtime-platform
 
 **Completed:**
-- Added migration 106 to access-exclusively lock and freeze the four retired
-  Quiz tables plus Quiz drafts, prove blueprint Quiz rows are zero, and narrow
-  the blueprint assessment constraint to Test-only.
+- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
+  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
+  `NOWAIT` locks roll back immediately on live conflicts.
 - Added deterministic SQL envelope IDs and canonical payload checksums matching
   the TypeScript adapter, parent and actor preflights, collision checks, and an
   aggregate-only five-resource parity ledger.
 - Kept every source row intact for the observation window and added no
   dual-write or active Test-table mapping.
-- Added a disposable database rehearsal that runs the existing non-empty v1
-  restore and v2 contracts at migration 105, seeds all five source resources,
-  applies 106 only to that disposable database, verifies the write freeze and
-  ledger, and compares database envelopes with the TypeScript adapter.
+- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
+  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
 - Documented that migration 106 cannot be hosted until direct v2 snapshots,
   version-aware compaction, and v1-to-v2 restore dispatch are current.
 

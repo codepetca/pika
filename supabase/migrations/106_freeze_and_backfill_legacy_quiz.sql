@@ -250,18 +250,19 @@ begin
 end;
 $$;
 
--- The locks serialize the final source snapshot with trigger installation and
--- the blueprint zero-row proof. They remain held through migration commit.
+-- Acquire relations in archive traversal order and fail immediately when any
+-- live transaction conflicts. Retrying a rolled-back migration during a quiet
+-- window is safer than joining an archive/source lock cycle.
 lock table
+  public.classroom_retired_assessment_records,
+  public.classroom_retired_assessment_record_actors,
+  public.assessment_drafts,
   public.quizzes,
   public.quiz_questions,
-  public.quiz_responses,
   public.quiz_student_scores,
-  public.assessment_drafts,
-  public.course_blueprint_assessments,
-  public.classroom_retired_assessment_records,
-  public.classroom_retired_assessment_record_actors
-in access exclusive mode;
+  public.quiz_responses,
+  public.course_blueprint_assessments
+in access exclusive mode nowait;
 
 -- The source rows already contribute to the classroom revision. Moving their
 -- representation into envelopes must not bump that revision or take revision

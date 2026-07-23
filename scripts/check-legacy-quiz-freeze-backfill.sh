@@ -13,22 +13,16 @@ TMP_DB="${LEGACY_QUIZ_BACKFILL_DATABASE_NAME:-pika_quiz_backfill_${RANDOM}_$$}"
 PAYLOAD_FILE="$(mktemp)"
 PREFLIGHT_OUTPUT="$(mktemp)"
 LOCK_OUTPUT="$(mktemp)"
-ARCHIVE_OUTPUT="$(mktemp)"
 MIGRATION_OUTPUT="$(mktemp)"
 cleanup() {
   if [[ -n "${LOCK_HOLDER_PID:-}" ]]; then
     kill "$LOCK_HOLDER_PID" >/dev/null 2>&1 || true
     wait "$LOCK_HOLDER_PID" >/dev/null 2>&1 || true
   fi
-  if [[ -n "${ARCHIVE_READER_PID:-}" ]]; then
-    kill "$ARCHIVE_READER_PID" >/dev/null 2>&1 || true
-    wait "$ARCHIVE_READER_PID" >/dev/null 2>&1 || true
-  fi
   rm -f \
     "$PAYLOAD_FILE" \
     "$PREFLIGHT_OUTPUT" \
     "$LOCK_OUTPUT" \
-    "$ARCHIVE_OUTPUT" \
     "$MIGRATION_OUTPUT"
   if [[ "${KEEP_LEGACY_QUIZ_BACKFILL_DATABASE:-false}" == "true" ]]; then
     echo "Kept disposable legacy Quiz backfill database: $TMP_DB"
@@ -244,56 +238,9 @@ delete from public.course_blueprint_assessments
 where id = '62000000-0000-4000-8000-000000000003';
 SQL
 
-docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
-  -c "begin;
-      lock table public.classroom_retired_assessment_record_actors
-        in access share mode;
-      select pg_sleep(8) /* legacy_quiz_backfill_lock_timeout */;
-      commit;" >"$LOCK_OUTPUT" 2>&1 &
-LOCK_HOLDER_PID=$!
-
-LOCK_READY=0
-for _ in {1..50}; do
-  LOCK_READY="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc \
-    "select count(*)
-     from pg_stat_activity
-     where datname = '$TMP_DB'
-       and pid <> pg_backend_pid()
-       and state = 'active'
-       and query like '%legacy_quiz_backfill_lock_timeout%';")"
-  [[ "$LOCK_READY" -gt 0 ]] && break
-  sleep 0.1
-done
-if [[ "$LOCK_READY" -eq 0 ]]; then
-  cat "$LOCK_OUTPUT" >&2
-  echo "Lock-timeout fixture did not acquire its conflicting lock." >&2
-  exit 1
-fi
-
-LOCK_WAIT_STARTED=$SECONDS
-if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
-  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
-  < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
-  >"$PREFLIGHT_OUTPUT" 2>&1
-then
-  echo "Migration 106 ignored a conflicting final-table lock." >&2
-  exit 1
-fi
-LOCK_WAIT_SECONDS=$((SECONDS - LOCK_WAIT_STARTED))
-if ! grep -q "canceling statement due to lock timeout" "$PREFLIGHT_OUTPUT"; then
-  cat "$PREFLIGHT_OUTPUT" >&2
-  echo "Migration 106 failed for an unexpected lock-timeout reason." >&2
-  exit 1
-fi
-if [[ "$LOCK_WAIT_SECONDS" -lt 4 || "$LOCK_WAIT_SECONDS" -gt 7 ]]; then
-  echo "Migration 106 lock timeout was not bounded near five seconds: ${LOCK_WAIT_SECONDS}s" >&2
-  exit 1
-fi
-wait "$LOCK_HOLDER_PID"
-LOCK_HOLDER_PID=
-
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
-do $timeout_rollback_proof$
+assert_lock_conflict_rolled_back() {
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $lock_conflict_rollback_proof$
 begin
   if to_regclass('private.legacy_quiz_backfill_ledger') is not null
     or exists (
@@ -310,40 +257,120 @@ begin
         and pg_get_constraintdef(oid) like '%quiz%'
     )
   then
-    raise exception 'Lock-timeout migration attempt leaked schema changes';
+    raise exception 'Lock-conflict migration attempt leaked schema changes';
   end if;
 end;
-$timeout_rollback_proof$;
+$lock_conflict_rollback_proof$;
 SQL
+}
 
-docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -qAt -v ON_ERROR_STOP=1 \
-  -c "begin;
-      select revision
-      from public.classroom_archive_revisions
-      where classroom_id = '62000000-0000-4000-8000-000000000001'
-      for update;
-      select pg_sleep(3) /* legacy_quiz_backfill_revision_race */;
-      select count(*)
-      from public.classroom_retired_assessment_records
-      where classroom_id = '62000000-0000-4000-8000-000000000001';
-      commit;" >"$ARCHIVE_OUTPUT" 2>&1 &
-ARCHIVE_READER_PID=$!
+rehearse_no_wait_lock_conflict() {
+  local marker="$1"
+  local fixture_sql="$2"
+  local description="$3"
+  local lock_ready=0
+  local lock_wait_started
+  local lock_wait_seconds
 
-REVISION_LOCK_READY=0
-for _ in {1..50}; do
-  REVISION_LOCK_READY="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc \
-    "select count(*)
-     from pg_stat_activity
-     where datname = '$TMP_DB'
-       and pid <> pg_backend_pid()
-       and state = 'active'
-       and query like '%legacy_quiz_backfill_revision_race%';")"
-  [[ "$REVISION_LOCK_READY" -gt 0 ]] && break
-  sleep 0.1
-done
-if [[ "$REVISION_LOCK_READY" -eq 0 ]]; then
-  cat "$ARCHIVE_OUTPUT" >&2
-  echo "Revision-lock fixture did not acquire its row lock." >&2
+  docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -qAt -v ON_ERROR_STOP=1 \
+    -c "$fixture_sql" >"$LOCK_OUTPUT" 2>&1 &
+  LOCK_HOLDER_PID=$!
+
+  for _ in {1..50}; do
+    lock_ready="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc \
+      "select count(*)
+       from pg_stat_activity
+       where datname = '$TMP_DB'
+         and pid <> pg_backend_pid()
+         and state = 'active'
+         and query like '%$marker%';")"
+    [[ "$lock_ready" -gt 0 ]] && break
+    sleep 0.1
+  done
+  if [[ "$lock_ready" -eq 0 ]]; then
+    cat "$LOCK_OUTPUT" >&2
+    echo "$description fixture did not acquire its conflicting lock." >&2
+    exit 1
+  fi
+
+  lock_wait_started=$SECONDS
+  if docker exec \
+    -e PGOPTIONS='-c client_min_messages=warning -c timezone=America/Toronto' \
+    -i "$DB_CONTAINER" \
+    psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+    < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
+    >"$PREFLIGHT_OUTPUT" 2>&1
+  then
+    echo "Migration 106 ignored the $description conflict." >&2
+    exit 1
+  fi
+  lock_wait_seconds=$((SECONDS - lock_wait_started))
+  if ! grep -q "could not obtain lock on relation" "$PREFLIGHT_OUTPUT"; then
+    cat "$PREFLIGHT_OUTPUT" >&2
+    echo "Migration 106 failed for an unexpected $description reason." >&2
+    exit 1
+  fi
+  if [[ "$lock_wait_seconds" -gt 3 ]]; then
+    echo "Migration 106 did not fail fast for $description: ${lock_wait_seconds}s" >&2
+    exit 1
+  fi
+  if ! wait "$LOCK_HOLDER_PID"; then
+    LOCK_HOLDER_PID=
+    cat "$LOCK_OUTPUT" >&2
+    echo "$description fixture was aborted instead of completing." >&2
+    exit 1
+  fi
+  LOCK_HOLDER_PID=
+  assert_lock_conflict_rolled_back
+}
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_final_table_conflict" \
+  "begin;
+   lock table public.classroom_retired_assessment_record_actors in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_final_table_conflict */;
+   commit;" \
+  "final envelope table"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_drafts_quizzes_conflict" \
+  "begin;
+   lock table public.assessment_drafts in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_drafts_quizzes_conflict */;
+   lock table public.quizzes in access share mode;
+   commit;" \
+  "assessment_drafts-to-quizzes traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_scores_responses_conflict" \
+  "begin;
+   lock table public.quiz_student_scores in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_scores_responses_conflict */;
+   lock table public.quiz_responses in access share mode;
+   commit;" \
+  "quiz_student_scores-to-quiz_responses traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_envelope_source_conflict" \
+  "begin;
+   select revision
+   from public.classroom_archive_revisions
+   where classroom_id = '62000000-0000-4000-8000-000000000001'
+   for update;
+   lock table public.classroom_retired_assessment_records in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_envelope_source_conflict */;
+   lock table public.assessment_drafts in access share mode;
+   lock table public.quizzes in access share mode;
+   select count(*)
+   from public.classroom_retired_assessment_records
+   where classroom_id = '62000000-0000-4000-8000-000000000001';
+   commit;" \
+  "envelope-to-source archive traversal"
+
+ARCHIVE_ENVELOPE_COUNT="$(tail -n 1 "$LOCK_OUTPUT")"
+if [[ "$ARCHIVE_ENVELOPE_COUNT" -ne 0 ]]; then
+  cat "$LOCK_OUTPUT" >&2
+  echo "Concurrent archive reader did not retain the coherent pre-backfill graph." >&2
   exit 1
 fi
 
@@ -354,25 +381,8 @@ if ! docker exec \
   < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
   >"$MIGRATION_OUTPUT" 2>&1
 then
-  wait "$ARCHIVE_READER_PID" || true
-  ARCHIVE_READER_PID=
   cat "$MIGRATION_OUTPUT" >&2
-  cat "$ARCHIVE_OUTPUT" >&2
-  echo "Migration 106 failed during the revision/envelope lock-order race." >&2
-  exit 1
-fi
-if ! wait "$ARCHIVE_READER_PID"; then
-  ARCHIVE_READER_PID=
-  cat "$ARCHIVE_OUTPUT" >&2
-  echo "Archive reader failed during the revision/envelope lock-order race." >&2
-  exit 1
-fi
-ARCHIVE_READER_PID=
-
-ARCHIVE_ENVELOPE_COUNT="$(tail -n 1 "$ARCHIVE_OUTPUT")"
-if [[ "$ARCHIVE_ENVELOPE_COUNT" -ne 5 ]]; then
-  cat "$ARCHIVE_OUTPUT" >&2
-  echo "Concurrent archive reader did not observe one coherent post-backfill graph." >&2
+  echo "Migration 106 failed after all conflicting transactions completed." >&2
   exit 1
 fi
 
