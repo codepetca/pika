@@ -11,6 +11,29 @@ fi
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
+do $compatibility$
+declare
+  v_signature text;
+begin
+  foreach v_signature in array array[
+    'public.begin_classroom_archive_export(uuid,uuid,uuid,text,text,text,jsonb)',
+    'public.stage_classroom_archive_object_upload(uuid,uuid,text,text,text,bigint)',
+    'public.complete_classroom_archive_export(uuid,uuid,text,text,text,text,bigint,bigint,jsonb,jsonb,jsonb)',
+    'public.begin_classroom_archive_restore(uuid,uuid,uuid,uuid,text,text,jsonb,jsonb,jsonb,bigint)',
+    'public.stage_classroom_archive_restore_rows(uuid,uuid,text,jsonb)',
+    'public.complete_classroom_archive_restore(uuid,uuid,jsonb)'
+  ]
+  loop
+    if to_regprocedure(v_signature) is null then
+      raise exception 'Deployed archive-v1 RPC signature is missing: %', v_signature;
+    end if;
+    if not has_function_privilege('service_role', v_signature, 'EXECUTE') then
+      raise exception 'Service role lost archive-v1 RPC execution: %', v_signature;
+    end if;
+  end loop;
+end;
+$compatibility$;
+
 create temporary table expected_archive_v2_rows (
   table_name text not null,
   row_id uuid not null,

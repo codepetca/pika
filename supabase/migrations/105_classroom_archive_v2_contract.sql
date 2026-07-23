@@ -1,7 +1,11 @@
--- Additive classroom archive-v2 database contract.
+-- Additive classroom archive-v2 data contract.
 --
 -- The deployed v1 RPCs continue to use classroom_archive_resource_contract.
 -- New version-aware paths use classroom_archive_resource_contract_versions.
+-- Existing v1 public signatures and service-role grants remain available;
+-- compatibility wrappers strengthen version and envelope safety internally.
+-- Existing foreign keys and the archive format check are broadened in place
+-- because their original definitions admit only the v1 graph.
 -- This migration does not backfill or remove the legacy Quiz source tables.
 
 create table public.classroom_retired_assessment_records (

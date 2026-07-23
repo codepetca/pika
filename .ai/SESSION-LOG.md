@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-18 — Production assignment integrity migration
-
-**Completed:**
-- Applied only migration `099_assignment_submission_integrity_guards.sql` to the linked production Pika project after exact one-time authorization and a clean dry run.
-- Verified production migration history is aligned through 099, both new ledger tables have RLS enabled, the writer-fence columns are present, and the four application RPCs exist with execution granted to `service_role` but denied to `anon` and `authenticated`.
-- No reset, repair, rollback, seed, cleanup, Storage deletion, or application deployment was performed.
-
-**Validation:**
-- `supabase migration list --linked` records migrations 001-099
-- Read-only production catalog checks for RPC signatures, role grants, RLS, save RPC overload count, and assignment document columns
-- PR #891 CI: architecture/database contracts, full test/build, and UI policy checks passed before application
-
-**Remaining:**
-- Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.
-
 ## 2026-07-18 — Enforce chronological session-log retention
 
 **Completed:**
@@ -1019,8 +1004,9 @@ future persistence shape without enabling unapproved schema behavior.
   pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
   preserving every deployed v1 RPC and source table.
 - Validated archive-v2 export through deterministic v1 Quiz adaptation and
-  activated both v1 and v2 restore into the generic envelope graph. Kept the
-  current application writer on v1 because compaction remains v1-only.
+  validated the explicit v1/v2-to-envelope restore path. Kept current
+  application export and restore on v1 because compaction remains v1-only and
+  migration 105 is not hosted.
 - Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
   fail closed until the freeze/backfill pass provides direct v2 snapshots.
 - Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
@@ -1110,4 +1096,36 @@ future persistence shape without enabling unapproved schema behavior.
 **Remaining:**
 - Run final repository checks, integration review, and exact-head CI before
   merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+
+## 2026-07-23 — Preserved pre-105 archive restore rollout
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that the application restore coordinator
+  required migration 105 even though no hosted target has it.
+- Restored the active coordinator and compaction preflight to the deployed v1
+  planner and migration-083 RPCs; current export, compaction, and restore now
+  share the frozen 42-resource v1 contract.
+- Kept a separate explicit v2 planner for compatibility validation without
+  making it reachable from the current application coordinator.
+- Froze the v1 restore order and protected it with a digest and exact resource
+  set regression.
+- Clarified that migration 105 is additive for data and public API surface, but
+  broadens v1-only constraints and wraps selected implementations internally.
+- Added a live database assertion that all six deployed v1 archive RPC
+  signatures and service-role grants survive migration 105.
+
+**Validation:**
+- Active v1 and explicit v2 restore planning tests pass.
+- Local v1 export, restore, compaction, Gradex, and v2 database harnesses pass.
+- Full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay.
+- TypeScript, lint, shell syntax, Pika changed-file audit, and focused tests
+  pass.
+
+**Remaining:**
+- Push the remediation, run the final authorized targeted review, and require
+  exact-head CI before merging PR 927.
 - Migration 105 remains unapplied to every hosted target.

@@ -11,8 +11,10 @@ import {
 import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
 import {
   buildClassroomArchiveRestorePlan,
+  buildClassroomArchiveV2RestorePlan,
   classroomArchiveRestoreObjectPath,
   CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+  CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
 import { retiredAssessmentPayloadChecksum } from '@/lib/server/classroom-retired-assessment-contract'
 import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
@@ -276,7 +278,7 @@ describe('classroom archive restore planning', () => {
       teacherId: TEACHER_ID,
       createdAt: '2026-07-13T12:00:00.000Z',
       source: {
-        schemaMigration: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+        schemaMigration: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
         appCommit: 'abcdef1234567890',
       },
       retention: { mode: 'teacher_managed', delete_after: null },
@@ -293,7 +295,7 @@ describe('classroom archive restore planning', () => {
     expect(verifiedV2.ok).toBe(true)
     if (!verifiedV2.ok) throw new Error(verifiedV2.error)
 
-    const plan = buildClassroomArchiveRestorePlan({
+    const plan = buildClassroomArchiveV2RestorePlan({
       verified: verifiedV2,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -343,7 +345,7 @@ describe('classroom archive restore planning', () => {
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
 
-    const plan = buildClassroomArchiveRestorePlan({
+    const plan = buildClassroomArchiveV2RestorePlan({
       verified: verification,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -358,7 +360,7 @@ describe('classroom archive restore planning', () => {
     expect(plan.adapterChain).toEqual([])
   })
 
-  it('selects the version adapter, reconciles actors, and rewrites managed object references', () => {
+  it('keeps the deployed v1 restore plan on migration 083 and preserves Quiz rows', () => {
     const plan = buildClassroomArchiveRestorePlan({
       verified: verifiedFixture(),
       artifactChecksumVerified: true,
@@ -368,6 +370,26 @@ describe('classroom archive restore planning', () => {
     })
 
     expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION)
+    expect(plan.adapterChain).toEqual(['classroom-archive-v1-082-to-083'])
+    expect(plan.sourceContractVersion).toBe(1)
+    expect(plan.restoreContractVersion).toBe(1)
+    expect(plan.resources.quizzes).toHaveLength(1)
+    expect(plan.resources.quiz_questions).toHaveLength(1)
+    expect(plan.resources.quiz_responses).toHaveLength(1)
+    expect(plan.resources.quiz_student_scores).toHaveLength(1)
+    expect(plan.resources).not.toHaveProperty('classroom_retired_assessment_records')
+  })
+
+  it('selects the v2 adapter, reconciles actors, and rewrites managed object references', () => {
+    const plan = buildClassroomArchiveV2RestorePlan({
+      verified: verifiedFixture(),
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors,
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION)
     expect(plan.adapterChain).toEqual([
       'classroom-archive-schema-082-to-105',
       'classroom-archive-v1-quiz-to-retired-assessment-v1',

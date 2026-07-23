@@ -205,7 +205,7 @@ describe('classroom archive-v2 contract migration', () => {
     )
   })
 
-  it('retains previous RPC signatures behind version dispatchers', () => {
+  it('retains previous public RPC signatures and grants behind version dispatchers', () => {
     expect(migration).toContain(
       'create or replace function public.begin_classroom_archive_export_v2(',
     )
@@ -238,6 +238,12 @@ describe('classroom archive-v2 contract migration', () => {
     )
     expect(migration).toContain(
       'if v_restore_contract_version = 1 then',
+    )
+    expect(migration).toContain(
+      'grant execute on function public.begin_classroom_archive_export(',
+    )
+    expect(migration).toContain(
+      'grant execute on function public.stage_classroom_archive_object_upload(',
     )
     expect(migration).toContain(
       'grant execute on function public.stage_classroom_archive_restore_rows(',

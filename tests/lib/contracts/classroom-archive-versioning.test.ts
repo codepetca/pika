@@ -11,6 +11,7 @@ import {
 } from '@/lib/contracts/classroom-artifacts'
 import {
   CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
   LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
 } from '@/lib/contracts/classroom-archive-resources'
@@ -61,12 +62,21 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION).toBe(1)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
+    expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
     expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(44)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
         .digest('hex'),
     ).toBe('b7fe6fdd6dcbb57a741e13f1d16d3b171fc105d2f945cef48bb3d5791d0f9c5d')
+    expect(
+      createHash('sha256')
+        .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER))
+        .digest('hex'),
+    ).toBe('6fb7182df2484d0169f6ea0ac111d8e212fa4c755e0c1213103c9d5adc88b1f7')
+    expect(new Set(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER)).toEqual(
+      new Set(CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table)),
+    )
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toEqual(
       CLASSROOM_RELATIONAL_RESOURCES
         .filter((resource) =>

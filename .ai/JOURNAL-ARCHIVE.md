@@ -14856,3 +14856,19 @@
 
 **Remaining before merge:**
 - Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.
+
+<!-- pika-session-log-archive-batch:2ffedef537d47baf35c2f8e41e3417ddcf10df1049c786a3622e682a5821f404 -->
+## 2026-07-18 — Production assignment integrity migration
+
+**Completed:**
+- Applied only migration `099_assignment_submission_integrity_guards.sql` to the linked production Pika project after exact one-time authorization and a clean dry run.
+- Verified production migration history is aligned through 099, both new ledger tables have RLS enabled, the writer-fence columns are present, and the four application RPCs exist with execution granted to `service_role` but denied to `anon` and `authenticated`.
+- No reset, repair, rollback, seed, cleanup, Storage deletion, or application deployment was performed.
+
+**Validation:**
+- `supabase migration list --linked` records migrations 001-099
+- Read-only production catalog checks for RPC signatures, role grants, RLS, save RPC overload count, and assignment document columns
+- PR #891 CI: architecture/database contracts, full test/build, and UI policy checks passed before application
+
+**Remaining:**
+- Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.
