@@ -14523,3 +14523,23 @@
 - `pnpm check:architecture` (600 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:fb0c304e9220cbe355e0d542e1835591247d38684c85d746ec014e9e0c43e289 -->
+## 2026-07-15 — Gradebook workflow boundary
+
+**Completed:**
+- Reduced the gradebook API route from 1,127 lines to a transport-only handler backed by a feature-owned server workflow and Zod request contracts.
+- Preserved roster paging, 50-ID chunking, 1,000-row pagination, legacy-column fallbacks, assessment ordering, status calculation, summaries, and response shape while reusing the shared query-chunks infrastructure.
+- Moved `ApiError` into a framework-neutral module so server workflows do not depend on Next transport types; `api-handler` re-exports the same class for compatibility.
+- Tightened assessment weight input to string IDs and integer/decimal-digit weights, retained the intentional legacy-category `410`, and removed the route from the API Zod baseline.
+- Narrowed missing-table detection so partial migrations fail visibly instead of silently hiding tests; added route, validation, migration-compatibility, and architecture regressions.
+- Completed independent behavior/authorization and API/Zod review-fix rounds with no remaining findings. No UI, migration, dependency, or production changes.
+
+**Validation:**
+- Focused gradebook/API/error/architecture suites (5 files / 75 tests)
+- `pnpm check:architecture` (602 modules / 0 allowances)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm vitest run` (361 files / 3,322 tests)
+- `pnpm build`
+- `git diff --check`
