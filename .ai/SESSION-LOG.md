@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Production archive round-trip canary completion
-
-**Completed:**
-- Applied the explicitly authorized migration 098 to the verified production target after a linked dry run proved it was the only pending migration. Production history is 001-098, and a hosted schema read-back confirmed `statement_timeout = '60s'` only on the atomic compaction finalizer.
-- Resumed the existing immutable canary plan from its exact approved production commit and reused all three fixed operation IDs; no replacement plan or operation was created.
-- Replayed the verified export, compacted 42 tables containing 20,184 rows in about 57 seconds, and restored the classroom on the first restore attempt in about 38 seconds. The retained archive contains 20 source objects and is 2,489,962 bytes compressed from 13,359,104 bytes.
-- Passed the runner's independent archive/restored evidence oracle and a separate hosted-state query: one archived-hot classroom, no cold tombstone, one retained verified archive, three completed operations, and no restore residue.
-- Kept all source and Gradex cleanup gates disabled. All 20 source cleanup rows remain pending with zero attempts, ownership verification, reservations, or deletions.
-- Marked `epic-classroom-lifecycle-archives` passing; the feature inventory is now 13/13. A Gradex generation canary remains a separately approved optional rollout action, not an archive-epic completion requirement.
-
-**Validation:**
-- Production migration list and post-application dry run
-- Hosted schema dump verification of the finalizer timeout, security, search path, comment, and service-role grant
-- Named production export/compact/immediate-restore runner final evidence
-- Independent Management API read-only lifecycle, operation, cleanup, reservation, and staging verification
-- Source and Gradex cleanup remained disabled throughout
-
 ## 2026-07-16 — Product experience audit and phased architecture backlog
 
 **Completed:**
@@ -1018,3 +1001,33 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Run full repository validation, independent PR review, and exact-head CI before merge.
 - Next prove and remove unreachable quiz-mode rendering and wording from current Test components.
+
+## 2026-07-23 — Retired unreachable Quiz rendering
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass traces Test-only callers through large teacher and student components, removes dead rendering/contracts, and preserves persistence and compatibility boundaries.
+
+**Completed:**
+- Removed assessment-mode switches and unreachable quiz submission, result, list-badge, authoring, preview, and grading branches from active Test components.
+- Consolidated student Test form submissions and returned results on current structured Test payloads.
+- Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
+- Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
+- Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
+- Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
+- Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
+
+**Validation:**
+- Focused component and architecture suites (6 files / 117 tests)
+- Full repository suite (406 files / 3,661 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (621 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.

@@ -23,7 +23,6 @@ import {
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import type {
   Classroom,
-  TestAssessmentType,
   TestFocusSummary,
   TestAssessmentQuestion,
   StudentTestStatus,
@@ -33,7 +32,6 @@ import type {
 
 interface Props {
   classroom: Classroom
-  assessmentType: TestAssessmentType
   isActive?: boolean
 }
 
@@ -282,21 +280,19 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
   const testsRegionRef = useRef<HTMLDivElement>(null)
-  const assessmentType: TestAssessmentType = 'test'
-  const currentScopeRef = useRef({ classroomId: classroom.id, assessmentType })
-  const isTestsView = true
+  const currentScopeRef = useRef({ classroomId: classroom.id })
   const apiBasePath = '/api/student/tests'
-  const currentTestsScope = `${assessmentType}:${classroom.id}`
+  const currentTestsScope = classroom.id
   const hasCurrentTestsSnapshot = loadedTestsScope === currentTestsScope
   const visibleTests = hasCurrentTestsSnapshot ? tests : []
   const listError = listErrorState?.scope === currentTestsScope ? listErrorState.message : null
-  currentScopeRef.current = { classroomId: classroom.id, assessmentType }
+  currentScopeRef.current = { classroomId: classroom.id }
   const focusEnabled = useMemo(() => {
     if (!selectedTest) return false
     const hasSubmitted = selectedTest.test.student_status !== 'not_started'
     const hasStarted = startedTestId === selectedTest.test.id
-    return isTestsView && isActive && !hasSubmitted && hasStarted
-  }, [isActive, isTestsView, selectedTest, startedTestId])
+    return isActive && !hasSubmitted && hasStarted
+  }, [isActive, selectedTest, startedTestId])
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(selectedTest?.test?.documents).map((doc) => {
       const snapshotUrl =
@@ -317,12 +313,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }, [selectedTest?.questions, selectedTest?.test?.documents, selectedTest?.test?.id])
 
   useEffect(() => {
-    if (!isTestsView) return
     setActiveDoc((previous) => {
       if (!previous) return null
       return allowedDocs.some((doc) => doc.id === previous.id) ? previous : null
     })
-  }, [allowedDocs, isTestsView])
+  }, [allowedDocs])
 
   useEffect(() => {
     selectedTestIdRef.current = selectedTestId
@@ -369,10 +364,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
   const loadTests = useCallback(async (options: { forceRefresh?: boolean } = {}) => {
     const classroomId = classroom.id
-    const viewAssessmentType = assessmentType
     const basePath = apiBasePath
-    const requestScope = `${viewAssessmentType}:${classroomId}`
-    const cacheKey = `student-assessments:${viewAssessmentType}:${classroomId}`
+    const requestScope = classroomId
+    const cacheKey = `student-tests:${classroomId}`
     const requestId = listRequestIdRef.current + 1
     listRequestIdRef.current = requestId
     if (options.forceRefresh) {
@@ -396,8 +390,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       )
       if (
         listRequestIdRef.current !== requestId ||
-        currentScopeRef.current.classroomId !== classroomId ||
-        currentScopeRef.current.assessmentType !== viewAssessmentType
+        currentScopeRef.current.classroomId !== classroomId
       ) {
         return
       }
@@ -407,8 +400,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     } catch (err) {
       if (
         listRequestIdRef.current === requestId &&
-        currentScopeRef.current.classroomId === classroomId &&
-        currentScopeRef.current.assessmentType === viewAssessmentType
+        currentScopeRef.current.classroomId === classroomId
       ) {
         console.error('Error loading tests:', err)
         setListErrorState({
@@ -419,13 +411,12 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     } finally {
       if (
         listRequestIdRef.current === requestId &&
-        currentScopeRef.current.classroomId === classroomId &&
-        currentScopeRef.current.assessmentType === viewAssessmentType
+        currentScopeRef.current.classroomId === classroomId
       ) {
         setLoading(false)
       }
     }
-  }, [apiBasePath, assessmentType, classroom.id])
+  }, [apiBasePath, classroom.id])
 
   const retryTests = useCallback(() => {
     testsRegionRef.current?.focus()
@@ -447,7 +438,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setPendingStartTestId(null)
     setActiveDoc(null)
     setRemoteClosureNotice(null)
-  }, [assessmentType, classroom.id])
+  }, [classroom.id])
 
   const handleRemoteTestClosure = useCallback((options?: {
     studentStatus?: StudentTestStatus
@@ -482,7 +473,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
   async function handleSelectTest(testId: string) {
     const classroomId = classroom.id
-    const viewAssessmentType = assessmentType
     const basePath = apiBasePath
     const requestId = detailRequestIdRef.current + 1
     detailRequestIdRef.current = requestId
@@ -506,8 +496,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       if (
         detailRequestIdRef.current !== requestId ||
         selectedTestIdRef.current !== testId ||
-        currentScopeRef.current.classroomId !== classroomId ||
-        currentScopeRef.current.assessmentType !== viewAssessmentType
+        currentScopeRef.current.classroomId !== classroomId
       ) {
         return
       }
@@ -526,8 +515,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       if (
         detailRequestIdRef.current === requestId &&
         selectedTestIdRef.current === testId &&
-        currentScopeRef.current.classroomId === classroomId &&
-        currentScopeRef.current.assessmentType === viewAssessmentType
+        currentScopeRef.current.classroomId === classroomId
       ) {
         console.error('Error loading test:', err)
       }
@@ -535,8 +523,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       if (
         detailRequestIdRef.current === requestId &&
         selectedTestIdRef.current === testId &&
-        currentScopeRef.current.classroomId === classroomId &&
-        currentScopeRef.current.assessmentType === viewAssessmentType
+        currentScopeRef.current.classroomId === classroomId
       ) {
         setLoadingTest(false)
       }
@@ -544,7 +531,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }
 
   const revalidateActiveTestSession = useCallback(async () => {
-    if (!isTestsView || !focusEnabledRef.current) return
+    if (!focusEnabledRef.current) return
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
 
     const testId = selectedTestIdRef.current
@@ -582,7 +569,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     } finally {
       sessionStatusInFlightRef.current = false
     }
-  }, [apiBasePath, handleRemoteTestClosure, isTestsView])
+  }, [apiBasePath, handleRemoteTestClosure])
 
   const postFocusEvent = useCallback(async (
     eventType: 'away_start' | 'away_end' | 'route_exit_attempt' | 'window_unmaximize_attempt',
@@ -635,20 +622,20 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }, [])
 
   const markAllowedDocInteraction = useCallback(() => {
-    if (!focusEnabledRef.current || !isTestsView) return
+    if (!focusEnabledRef.current) return
     docsInteractionSuppressionUntilRef.current = Date.now() + DOCS_EXIT_SUPPRESSION_WINDOW_MS
-  }, [isTestsView])
+  }, [])
 
   const markExamFormInteraction = useCallback(() => {
-    if (!focusEnabledRef.current || !isTestsView) return
+    if (!focusEnabledRef.current) return
     lastExamFormInteractionAtRef.current = Date.now()
-  }, [isTestsView])
+  }, [])
 
   const shouldSuppressForDocInteraction = useCallback((source?: string) => {
-    if (!focusEnabledRef.current || !isTestsView) return false
+    if (!focusEnabledRef.current) return false
     if (source && UNSUPPRESSED_ROUTE_EXIT_SOURCES.has(source)) return false
     return Date.now() <= docsInteractionSuppressionUntilRef.current
-  }, [isTestsView])
+  }, [])
 
   const handleTextDocPointerUp = useCallback(() => {
     const selectedText = window.getSelection?.()?.toString().trim()
@@ -837,7 +824,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     source: string,
     options?: { logFailures?: boolean }
   ) => {
-    if (!isTestsView) return
     const fullscreenElement = document.documentElement as FullscreenCapableElement
     if (!fullscreenElement?.requestFullscreen) {
       const snapshot = getExamWindowComplianceSnapshot()
@@ -891,7 +877,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }, [
     applyWindowComplianceSnapshot,
     clearPendingNonCompliantTimeout,
-    isTestsView,
     logWindowUnmaximizeAttempt,
   ])
 
@@ -926,9 +911,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
   function handleTestSubmitted() {
     setRemoteClosureNotice(null)
-    if (isTestsView) {
-      notifications?.decrementActiveTestsCount()
-    }
+    notifications?.decrementActiveTestsCount()
     void loadTests({ forceRefresh: true })
 
     // Reload selected assessment details to get updated status/feedback.
@@ -967,7 +950,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }
 
   useEffect(() => {
-    if (!isTestsView) return
     const exitsCount = getTestExitCount(focusSummary)
     const awayTotalSeconds = Math.max(0, focusSummary?.away_total_seconds ?? 0)
 
@@ -998,11 +980,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         })
       )
     }
-  }, [classroom.id, focusEnabled, focusSummary, isTestsView, selectedTest?.test.title])
+  }, [classroom.id, focusEnabled, focusSummary, selectedTest?.test.title])
 
   useEffect(() => {
-    if (!isTestsView) return
-
     const handleRouteExitAttemptEvent = (event: Event) => {
       if (!focusEnabledRef.current) return
       const detail = (event as CustomEvent<RouteExitAttemptDetail>).detail
@@ -1018,7 +998,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     return () => {
       window.removeEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, handleRouteExitAttemptEvent)
     }
-  }, [classroom.id, isTestsView, logRouteExitAttempt])
+  }, [classroom.id, logRouteExitAttempt])
 
   useEffect(() => {
     if (!focusEnabled) return
@@ -1220,44 +1200,22 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     </p>
                   )}
                 </div>
-                {isTestsView ? (
-                  <>
-                    {test.student_status === 'can_view_results' ? (
-                      <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
-                        Returned
-                      </span>
-                    ) : test.status === 'closed' ? (
-                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('closed')}`}>
-                        Closed
-                      </span>
-                    ) : test.student_status === 'responded' ? (
-                      <span className="rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
-                        Submitted
-                      </span>
-                    ) : (
-                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('active')}`}>
-                        New
-                      </span>
-                    )}
-                  </>
+                {test.student_status === 'can_view_results' ? (
+                  <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
+                    Returned
+                  </span>
+                ) : test.status === 'closed' ? (
+                  <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('closed')}`}>
+                    Closed
+                  </span>
+                ) : test.student_status === 'responded' ? (
+                  <span className="rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
+                    Submitted
+                  </span>
                 ) : (
-                  <>
-                    {test.student_status === 'not_started' && (
-                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('active')}`}>
-                        New
-                      </span>
-                    )}
-                    {test.student_status === 'responded' && (
-                      <span className="rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
-                        Submitted
-                      </span>
-                    )}
-                    {test.student_status === 'can_view_results' && (
-                      <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
-                        View Results
-                      </span>
-                    )}
-                  </>
+                  <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('active')}`}>
+                    New
+                  </span>
                 )}
               </div>
             </button>
@@ -1569,10 +1527,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                         ) : hasResponded && selectedTest.test.student_status === 'can_view_results' ? (
                           <StudentTestResults
                             testId={selectedTestId!}
-                            myResponses={selectedTest.studentResponses}
-                            assessmentType={assessmentType}
                             apiBasePath={apiBasePath}
-                            showSubmissionBanner={!(isTestsView && selectedTest.test.student_status === 'can_view_results')}
+                            showSubmissionBanner={false}
                           />
                         ) : hasResponded ? (
                           <div className="p-4 bg-success-bg rounded-lg text-center">
@@ -1594,7 +1550,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                             initialResponses={selectedTest.studentResponses}
                             enableDraftAutosave
                             isInteractionLocked={showNotMaximizedWarning}
-                            assessmentType={assessmentType}
                             apiBasePath={apiBasePath}
                             onAvailabilityLoss={() => {
                               void revalidateActiveTestSession()
@@ -1755,8 +1710,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   ) : hasResponded && selectedTest.test.student_status === 'can_view_results' ? (
                     <StudentTestResults
                       testId={selectedTestId!}
-                      myResponses={selectedTest.studentResponses}
-                      assessmentType={assessmentType}
                       apiBasePath={apiBasePath}
                       showSubmissionBanner={false}
                     />
@@ -1780,7 +1733,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       initialResponses={selectedTest.studentResponses}
                       enableDraftAutosave
                       isInteractionLocked={showNotMaximizedWarning}
-                      assessmentType={assessmentType}
                       apiBasePath={apiBasePath}
                       onSubmitted={handleTestSubmitted}
                     />

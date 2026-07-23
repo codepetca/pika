@@ -7,6 +7,7 @@ import type { Classroom } from '@/types'
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
+const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -316,7 +317,10 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
   },
 }))
 vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
-  StudentTestsTab: () => <div />,
+  StudentTestsTab: (props: any) => {
+    mockStudentTestsTabProps(props)
+    return <div />
+  },
 }))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,
@@ -399,6 +403,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockFetchJSONWithCache.mockReset()
     mockAssignmentsToMarkdown.mockReset()
     mockTeacherTestsTabProps.mockReset()
+    mockStudentTestsTabProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -412,6 +417,20 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockAssignmentsToMarkdown.mockReturnValue({
       markdown: '## Assignment One',
       hasRichContent: false,
+    })
+  })
+
+  it('renders the student Tests tab without a legacy assessment discriminator', async () => {
+    renderStudentClient({
+      initialTab: 'tests',
+      initialSearchParams: { tab: 'tests' },
+    })
+
+    await waitFor(() => {
+      expect(mockStudentTestsTabProps).toHaveBeenLastCalledWith({
+        classroom,
+        isActive: true,
+      })
     })
   })
 

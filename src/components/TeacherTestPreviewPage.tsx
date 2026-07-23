@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
@@ -25,6 +26,14 @@ interface AllowedDocItem {
   source: 'link' | 'upload' | 'text'
   url?: string
   content?: string
+}
+
+interface TestPreviewPayload {
+  test?: {
+    title?: string
+    documents?: unknown
+  } | null
+  questions?: TestAssessmentQuestion[]
 }
 
 function isFullscreenActive(): boolean {
@@ -212,15 +221,19 @@ export function TeacherTestPreviewPage({
     setLoading(true)
     setError('')
     try {
-      const response = await fetch(`/api/teacher/tests/${testId}`, { cache: 'no-store' })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data?.error || 'Failed to load preview')
-      }
+      const data = await fetchCachedJSON<TestPreviewPayload>(
+        `teacher-test-preview:${testId}`,
+        `/api/teacher/tests/${testId}`,
+        {
+          ttlMs: 0,
+          init: { cache: 'no-store' },
+          errorMessage: 'Failed to load preview',
+        },
+      )
 
       const responseTest = readTestFromPayload<{ title?: string; documents?: unknown }>(data)
       setTitle(responseTest?.title || 'Test Preview')
-      setQuestions((data?.questions || []) as TestAssessmentQuestion[])
+      setQuestions(data.questions || [])
       setDocuments(normalizeTestDocuments(responseTest?.documents))
     } catch (err: any) {
       setError(err?.message || 'Failed to load preview')
@@ -525,7 +538,6 @@ export function TeacherTestPreviewPage({
                 <StudentTestForm
                   testId={testId}
                   questions={questions}
-                  assessmentType="test"
                   previewMode
                   onSubmitted={() => {}}
                 />

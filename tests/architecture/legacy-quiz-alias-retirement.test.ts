@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
 const retiredModules = [
+  '@/components/TestIndividualResponses',
+  '@/components/TestMultipleChoiceQuestionEditor',
   '@/lib/quiz-markdown',
   '@/lib/server/assessments',
   '@/lib/server/quizzes',
@@ -108,13 +110,30 @@ describe('legacy quiz alias retirement', () => {
   it('does not restore retired quiz-named UI compatibility contracts', () => {
     const retiredContractsByFile = {
       'src/hooks/useDraftMode.ts': ['quizId', 'quizTitle'],
-      'src/components/StudentTestForm.tsx': ['quizId', 'student-quiz-action-footer'],
-      'src/components/StudentTestResults.tsx': ['quizId'],
-      'src/components/TestIndividualResponses.tsx': ['quizId'],
+      'src/components/StudentTestForm.tsx': [
+        'quizId',
+        'student-quiz-action-footer',
+        'assessmentType',
+        'toQuizSubmissionPayload',
+      ],
+      'src/components/StudentTestResults.tsx': [
+        'quizId',
+        'myResponses',
+        'assessmentType',
+        'selectedOptionFromResponse',
+        'results?: TestResultsAggregate[]',
+      ],
       'src/components/TestDetailPanel.tsx': [
         'onQuizUpdate',
         'quiz?: TestAssessmentWithStats',
+        'isTestsView',
+        'assessmentQuestionLayout',
+        'quiz-question-editor-pane',
+        'quiz-editor-only-layout',
+        'quiz-markdown-only-layout',
+        'AssessmentPreview',
       ],
+      'src/app/classrooms/[classroomId]/StudentTestsTab.tsx': ['assessmentType', 'isTestsView'],
       'e2e/teacher-assessment-url-state.spec.ts': ['quizzes?: AssessmentRecord[]'],
     }
 

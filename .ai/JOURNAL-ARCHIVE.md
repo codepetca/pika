@@ -14704,3 +14704,21 @@
 - `pnpm lint`
 - `pnpm check:architecture` (600 modules / 0 allowances)
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:ddb30b5d157118611bc2a29604aebdb3e189787690b036cb8930b346a8c60cb3 -->
+## 2026-07-15 — Production archive round-trip canary completion
+
+**Completed:**
+- Applied the explicitly authorized migration 098 to the verified production target after a linked dry run proved it was the only pending migration. Production history is 001-098, and a hosted schema read-back confirmed `statement_timeout = '60s'` only on the atomic compaction finalizer.
+- Resumed the existing immutable canary plan from its exact approved production commit and reused all three fixed operation IDs; no replacement plan or operation was created.
+- Replayed the verified export, compacted 42 tables containing 20,184 rows in about 57 seconds, and restored the classroom on the first restore attempt in about 38 seconds. The retained archive contains 20 source objects and is 2,489,962 bytes compressed from 13,359,104 bytes.
+- Passed the runner's independent archive/restored evidence oracle and a separate hosted-state query: one archived-hot classroom, no cold tombstone, one retained verified archive, three completed operations, and no restore residue.
+- Kept all source and Gradex cleanup gates disabled. All 20 source cleanup rows remain pending with zero attempts, ownership verification, reservations, or deletions.
+- Marked `epic-classroom-lifecycle-archives` passing; the feature inventory is now 13/13. A Gradex generation canary remains a separately approved optional rollout action, not an archive-epic completion requirement.
+
+**Validation:**
+- Production migration list and post-application dry run
+- Hosted schema dump verification of the finalizer timeout, security, search path, comment, and service-role grant
+- Named production export/compact/immediate-restore runner final evidence
+- Independent Management API read-only lifecycle, operation, cleanup, reservation, and staging verification
+- Source and Gradex cleanup remained disabled throughout

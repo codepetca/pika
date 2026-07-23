@@ -1390,7 +1390,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
-                      <StudentTestsTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
+                      <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (
