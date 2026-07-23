@@ -14586,3 +14586,22 @@
 - `pnpm check:architecture` (599 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:7bbffd93e1041664d3374efd0afbbe2ea00deb9a1ab9faa3fcf61bd5086d21c2 -->
+## 2026-07-15 — Legacy quiz draft alias retirement
+
+**Completed:**
+- Removed the zero-caller `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` wrapper exports and their identity-only assertions.
+- Preserved persisted `assessment_type = 'quiz'`, assessment-named legacy draft behavior, `quiz_questions`/`quiz_id` synchronization, archive resources, markdown compatibility, API aliases, and UI props.
+- Strengthened the legacy alias architecture regression to inspect resolved exports across every TypeScript module under `src`, preventing aliases from returning through unrelated re-exports.
+- Completed independent behavior and architecture review/fix loops; one guard bypass finding was fixed and final rereviews returned no findings. No UI, schema, dependency, or production changes.
+
+**Validation:**
+- Focused draft/architecture suites (2 files / 16 tests)
+- `pnpm vitest run` (361 files / 3,307 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`

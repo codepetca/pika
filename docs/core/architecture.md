@@ -197,6 +197,7 @@ Before changing remaining `quiz` / `quizzes` names, load
 - **Draft persistence**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading core**: `src/lib/grading/*` owns versioned assignment, test, and repository-review profiles, structured-output execution, provider adapters, bounded provenance contracts, and identity-free teacher-review eval metrics. The architecture gate permits this directory to import only other grading-core modules and external packages; Pika database, server, route, UI, and shared application adapters remain outside it so the core stays extractable.
+- **Canonical grading guide**: read [`docs/guidance/grading-architecture.md`](../guidance/grading-architecture.md) before changing grading profiles, provider egress, provenance, persistence, teacher-review evals, or the Pika/Gradex boundary.
 - **Test grading compatibility adapter**: `src/lib/ai-test-grading.ts` owns roster-aware sanitization, reference-answer SHA-256 caching, score buckets, and pseudonymous batch mapping before invoking the internal core.
 - **Repository-review compatibility adapter**: `src/lib/repo-review-ai.ts` owns evidence sanitization, pseudonymous change references, deterministic fallback feedback, and Pika result formatting before invoking the internal core. GitHub fetching, identity mapping, metrics, run orchestration, and persistence remain Pika-owned.
 
