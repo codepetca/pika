@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Legacy quiz draft alias retirement
-
-**Completed:**
-- Removed the zero-caller `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` wrapper exports and their identity-only assertions.
-- Preserved persisted `assessment_type = 'quiz'`, assessment-named legacy draft behavior, `quiz_questions`/`quiz_id` synchronization, archive resources, markdown compatibility, API aliases, and UI props.
-- Strengthened the legacy alias architecture regression to inspect resolved exports across every TypeScript module under `src`, preventing aliases from returning through unrelated re-exports.
-- Completed independent behavior and architecture review/fix loops; one guard bypass finding was fixed and final rereviews returned no findings. No UI, schema, dependency, or production changes.
-
-**Validation:**
-- Focused draft/architecture suites (2 files / 16 tests)
-- `pnpm vitest run` (361 files / 3,307 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
 ## 2026-07-15 — Classroom archive source ownership fence
 
 **Completed:**
@@ -996,3 +978,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Require targeted remediation review and exact-head PR CI before merge.
 - Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.
+
+## 2026-07-22 — Added canonical grading architecture guide
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a documentation-only reconciliation of implemented grading boundaries and contracts.
+
+**Completed:**
+- Added one canonical guide covering grading layers, assignment/test/repository-review flows, versioning, sanitization, atomic persistence, teacher-review evals, calibration limits, and the Pika/Gradex boundary.
+- Routed grading work to the guide from the AI instruction table and core architecture.
+- Updated current context to reflect verified migrations through 104.
+- Documented current implementation separately from future Gradex and paid replay work; no runtime, schema, provider, grading, or deployment behavior changed.
+
+**Validation:**
+- Verified referenced source paths and relative documentation links.
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Require exact-head PR CI and normal protected merge into `main`.
