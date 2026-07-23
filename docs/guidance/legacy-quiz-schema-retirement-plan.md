@@ -125,19 +125,50 @@ draft through v1 verification and the v1-to-v2 adapter, then export and restore
 the resulting v2 envelope graph. It must also prove v1 bytes and manifest
 checksums are unchanged and both decoders reject the other version's graph.
 
+The application-only foundation is implemented without enabling v2:
+
+- the exact v1 table, primary-key, and actor-reference metadata is frozen
+  independently from the live database inventory and protected by a digest;
+- manifest verification reads the minimal header and dispatches through
+  explicit v1/v2 schemas; v1 remains the only enabled export and restore;
+- v2 verification dispatches each envelope through a source-contract registry
+  that validates payload identity, required parent resource and foreign key,
+  direct classroom binding, cross-parent Quiz identity, actor columns, payload
+  checksums, and credential-field exclusions before treating an artifact as
+  verified;
+- the inactive v2 graph replaces the four Quiz resources with the two retired
+  envelope resources;
+- a pure deterministic adapter converts all four Quiz resources and Quiz drafts
+  into checksummed records and normalized actor references without mutating v1
+  bytes or mapping them into Tests;
+- the non-empty v1 fixture proves manual-score, draft, parent, actor, checksum,
+  deterministic-replay, and cross-version rejection behavior with immutable
+  tar-content, manifest-content, and per-resource SHA-256 values.
+
+The database registry, envelope tables, explicitly versioned v2 writer/export,
+and v2 restore remain unimplemented and approval-gated. Verified v2 input fails
+closed before restore. Gradex downloads, checksums, strictly verifies, and binds
+the source manifest to metadata before any operation is opened.
+
 ## Implementation Passes
 
 ### Pass A: Additive Envelope And Adapter
 
-- Create the two generic retired-assessment tables, constraints, RLS policy,
+- Completed application foundation: immutable v1 and inactive v2 contracts,
+  header dispatch, deterministic adapter, and the non-empty compatibility
+  fixture.
+- Approval-gated: create the two generic retired-assessment tables, constraints, RLS policy,
   indexes, and archive privacy classifications.
-- Add the version-keyed TypeScript and database contract registries, operation
-  version columns, archive metadata allowlist, explicit v1/v2 dispatch, v2
-  export support, and v1-to-current restore adapter described above.
+- Approval-gated: add the version-keyed database contract registry, operation
+  version columns, archive metadata allowlist, v2 export support, and
+  v1-to-current restore activation described above.
 - Keep all four Quiz tables and their archive-v1 contract entries.
-- Add a synthetic v1 fixture with non-empty quiz, question, response, manual
-  score override, and Quiz draft rows.
-- Prove v1 verification, adapter idempotency, v2 export, and v2 restore.
+- Completed: add a synthetic v1 fixture with non-empty quiz, question, response,
+  manual score override, and Quiz draft rows.
+- Completed: prove v1 verification, adapter idempotency, and strict inactive-v2
+  verification.
+- Approval-gated: prove v2 export and v2 restore against the migrated database
+  contract before enabling either capability.
 
 Rollout is additive. The previous application can continue using the unchanged
 tables. Application rollback leaves the new envelope tables unused.

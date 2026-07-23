@@ -13,6 +13,7 @@ import {
   buildGradexExtractFromClassroomArchive,
   verifyGradexExtractBundle,
 } from '@/lib/server/classroom-gradex-extract'
+import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
 
 const TEACHER_ID = '10000000-0000-4000-8000-000000000001'
 const STUDENT_ID = '20000000-0000-4000-8000-000000000001'
@@ -376,6 +377,16 @@ describe('classroom Gradex extract', () => {
       deleteAfter: DELETE_AFTER,
       hmacSecret: 'too-short',
     })).toThrow('at least 32 bytes')
+  })
+
+  it('rejects verified archive versions that are disabled for Gradex', () => {
+    expect(() => buildGradexExtractFromClassroomArchive({
+      archive: buildClassroomArchiveV2Fixture().archive,
+      extractId: EXTRACT_ID,
+      generatedAt: GENERATED_AT,
+      deleteAfter: DELETE_AFTER,
+      hmacSecret: HMAC_SECRET,
+    })).toThrow('version 2 is not enabled for Gradex')
   })
 
   it('rejects checksum-consistent bundles with identifiers or broken pseudonymous relationships', () => {

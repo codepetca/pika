@@ -1,11 +1,27 @@
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import {
-  classroomArchiveManifestSchema,
+  CLASSROOM_ARCHIVE_CONTRACTS,
+  CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
   classroomArchiveActorSnapshotSchema,
+  classroomArchiveManifestV1Schema,
+  parseClassroomArchiveManifest,
   type ClassroomArchiveManifest,
+  type ClassroomArchiveManifestV1,
 } from '@/lib/contracts/classroom-artifacts'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import {
+  canonicalizeJson,
+  canonicalJsonStringify,
+  compareCanonicalStrings,
+  sha256Bytes,
+} from '@/lib/server/classroom-archive-canonical'
+import { validateRetiredAssessmentEnvelopeGraph } from '@/lib/server/classroom-retired-assessment-contract'
+
+export {
+  canonicalizeJson,
+  canonicalJsonStringify,
+  sha256Bytes,
+} from '@/lib/server/classroom-archive-canonical'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder('utf-8', { fatal: true })
@@ -58,10 +74,6 @@ type BuildClassroomArchiveBundleInput = {
   storageObjects: ClassroomArchiveStorageObject[]
 }
 
-function compareCanonicalStrings(left: string, right: string): number {
-  return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
-}
-
 // The original v1 writer used host-locale ordering; verification retains that recovery adapter.
 function compareLegacyV1Strings(left: string, right: string): number {
   return left.localeCompare(right)
@@ -71,7 +83,7 @@ export type BuiltClassroomArchiveBundle = {
   archive: Uint8Array
   artifactSha256: string
   uncompressedByteSize: number
-  manifest: ClassroomArchiveManifest
+  manifest: ClassroomArchiveManifestV1
 }
 
 export type VerifiedClassroomArchiveBundle =
@@ -87,41 +99,30 @@ export type DecodedClassroomArchiveData = {
   actors: Array<ReturnType<typeof classroomArchiveActorSnapshotSchema.parse>>
 }
 
-function canonicalizeJsonWith(
-  value: unknown,
-  compare: (left: string, right: string) => number,
-): unknown {
-  if (Array.isArray(value)) return value.map((item) => canonicalizeJsonWith(item, compare))
+function legacyV1CanonicalizeJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(legacyV1CanonicalizeJson)
   if (!value || typeof value !== 'object') return value
 
   return Object.fromEntries(
     Object.entries(value as JsonObject)
-      .sort(([left], [right]) => compare(left, right))
-      .map(([key, item]) => [key, canonicalizeJsonWith(item, compare)]),
+      .sort(([left], [right]) => compareLegacyV1Strings(left, right))
+      .map(([key, item]) => [key, legacyV1CanonicalizeJson(item)]),
   )
 }
 
-export function canonicalizeJson(value: unknown): unknown {
-  return canonicalizeJsonWith(value, compareCanonicalStrings)
-}
-
 function legacyV1CanonicalJsonStringify(value: unknown): string {
-  return JSON.stringify(canonicalizeJsonWith(value, compareLegacyV1Strings))
-}
-
-export function canonicalJsonStringify(value: unknown): string {
-  return JSON.stringify(canonicalizeJson(value))
-}
-
-export function sha256Bytes(value: Uint8Array): string {
-  return createHash('sha256').update(value).digest('hex')
+  return JSON.stringify(legacyV1CanonicalizeJson(value))
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function canonicalPrimaryKey(row: unknown, columns: string[], table: string): string {
+function canonicalPrimaryKey(
+  row: unknown,
+  columns: readonly string[],
+  table: string,
+): string {
   if (!isJsonObject(row)) {
     throw new Error(`Classroom archive row for ${table} must be an object`)
   }
@@ -136,7 +137,7 @@ function canonicalPrimaryKey(row: unknown, columns: string[], table: string): st
   return canonicalJsonStringify(tuple)
 }
 
-function encodeNdjson(rows: unknown[], primaryKey: string[], table: string): Buffer {
+function encodeNdjson(rows: unknown[], primaryKey: readonly string[], table: string): Buffer {
   const orderedRows = [...rows].sort((left, right) =>
     compareCanonicalStrings(
       canonicalPrimaryKey(left, primaryKey, table),
@@ -326,6 +327,7 @@ export function parseTar(input: Uint8Array): Map<string, Buffer> {
 export function parseAndValidateNdjson(
   bytes: Buffer,
   validate?: (value: unknown) => void,
+  options: { allowLegacyV1Canonicalization?: boolean } = {},
 ): unknown[] {
   if (bytes.byteLength === 0) return []
   const text = textDecoder.decode(bytes)
@@ -333,10 +335,10 @@ export function parseAndValidateNdjson(
   const lines = text.slice(0, -1).split('\n')
   return lines.map((line) => {
     const value = JSON.parse(line)
-    if (
-      canonicalJsonStringify(value) !== line &&
-      legacyV1CanonicalJsonStringify(value) !== line
-    ) {
+    const canonical = canonicalJsonStringify(value) === line
+    const legacyV1Canonical = options.allowLegacyV1Canonicalization === true &&
+      legacyV1CanonicalJsonStringify(value) === line
+    if (!canonical && !legacyV1Canonical) {
       throw new Error('NDJSON resource is not canonically serialized')
     }
     validate?.(value)
@@ -344,15 +346,22 @@ export function parseAndValidateNdjson(
   })
 }
 
-function countAndValidateNdjson(bytes: Buffer, validate?: (value: unknown) => void): number {
-  return parseAndValidateNdjson(bytes, validate).length
+function countAndValidateNdjson(
+  bytes: Buffer,
+  validate: ((value: unknown) => void) | undefined,
+  allowLegacyV1Canonicalization: boolean,
+): number {
+  return parseAndValidateNdjson(bytes, validate, {
+    allowLegacyV1Canonicalization,
+  }).length
 }
 
 export function buildClassroomArchiveBundle(
   input: BuildClassroomArchiveBundleInput,
 ): BuiltClassroomArchiveBundle {
+  const contract = CLASSROOM_ARCHIVE_CONTRACTS[CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION]
   const expectedTables = new Set<string>(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table),
+    contract.resources.map((resource) => resource.table),
   )
   for (const table of expectedTables) {
     if (!Array.isArray(input.resources[table])) {
@@ -364,7 +373,7 @@ export function buildClassroomArchiveBundle(
   }
 
   const entries: Array<{ path: string; bytes: Uint8Array }> = []
-  const resources = CLASSROOM_RELATIONAL_RESOURCES.map((resource) => {
+  const resources = contract.resources.map((resource) => {
     const path = `data/${resource.table}.ndjson`
     const bytes = encodeNdjson(
       input.resources[resource.table] || [],
@@ -417,9 +426,9 @@ export function buildClassroomArchiveBundle(
     duplicateStoragePaths.add(key)
   }
 
-  const manifest = classroomArchiveManifestSchema.parse({
+  const manifest = classroomArchiveManifestV1Schema.parse({
     format: 'pika.classroom-archive',
-    version: 1,
+    version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
     archive_id: input.archiveId,
     classroom_id: input.classroomId,
     teacher_id: input.teacherId,
@@ -471,9 +480,10 @@ export function verifyClassroomArchiveBundle(
     const manifestBytes = files.get('manifest.json')
     if (!manifestBytes) return { ok: false, error: 'Archive manifest is missing' }
 
-    const manifest = classroomArchiveManifestSchema.parse(
+    const manifest = parseClassroomArchiveManifest(
       JSON.parse(textDecoder.decode(manifestBytes)),
     )
+    const allowLegacyV1Canonicalization = manifest.version === 1
     const expectedPaths = new Set<string>([
       'manifest.json',
       ...manifest.resources.map((resource) => resource.path),
@@ -493,7 +503,13 @@ export function verifyClassroomArchiveBundle(
       if (sha256Bytes(bytes) !== resource.sha256) {
         return { ok: false, error: 'Archive resource checksum mismatch' }
       }
-      if (countAndValidateNdjson(bytes) !== resource.row_count) {
+      if (
+        countAndValidateNdjson(
+          bytes,
+          undefined,
+          allowLegacyV1Canonicalization,
+        ) !== resource.row_count
+      ) {
         return { ok: false, error: 'Archive resource row count mismatch' }
       }
     }
@@ -509,6 +525,7 @@ export function verifyClassroomArchiveBundle(
     if (countAndValidateNdjson(
       actorBytes,
       (actor) => classroomArchiveActorSnapshotSchema.parse(actor),
+      allowLegacyV1Canonicalization,
     ) !== manifest.actors.row_count) {
       return { ok: false, error: 'Actor snapshot row count mismatch' }
     }
@@ -533,12 +550,27 @@ export function verifyClassroomArchiveBundle(
         sha256: object.sha256,
       })),
     ]
-    const contentChecksumMatches = contentChecksum(contentDescriptors) === manifest.content_sha256 ||
-      legacyV1ContentChecksum(contentDescriptors) === manifest.content_sha256
+    const contentChecksumMatches =
+      contentChecksum(contentDescriptors) === manifest.content_sha256 ||
+      (
+        manifest.version === 1 &&
+        legacyV1ContentChecksum(contentDescriptors) === manifest.content_sha256
+      )
     if (!contentChecksumMatches) {
       return { ok: false, error: 'Archive content checksum mismatch' }
     }
-    return { ok: true, manifest, files }
+    const verified = { ok: true as const, manifest, files }
+    const decoded = decodeClassroomArchiveData(verified)
+    if (manifest.version === 2) {
+      validateRetiredAssessmentEnvelopeGraph({
+        classroomId: manifest.classroom_id,
+        records: decoded.resources.classroom_retired_assessment_records || [],
+        recordActors:
+          decoded.resources.classroom_retired_assessment_record_actors || [],
+        archiveActorIds: decoded.actors.map((actor) => actor.id),
+      })
+    }
+    return verified
   } catch (error) {
     return {
       ok: false,
@@ -551,12 +583,16 @@ export function decodeClassroomArchiveData(
   verified: Extract<VerifiedClassroomArchiveBundle, { ok: true }>,
 ): DecodedClassroomArchiveData {
   const resources: Record<string, Record<string, unknown>[]> = {}
+  const contract = CLASSROOM_ARCHIVE_CONTRACTS[verified.manifest.version]
+  const allowLegacyV1Canonicalization = verified.manifest.version === 1
 
-  for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
+  for (const resource of contract.resources) {
     const descriptor = verified.manifest.resources.find((item) => item.table === resource.table)
     const bytes = descriptor ? verified.files.get(descriptor.path) : undefined
     if (!descriptor || !bytes) throw new Error(`Archive resource is missing: ${resource.table}`)
-    const rows = parseAndValidateNdjson(bytes)
+    const rows = parseAndValidateNdjson(bytes, undefined, {
+      allowLegacyV1Canonicalization,
+    })
     const parsedRows = rows.map((row) => {
       if (!isJsonObject(row)) {
         throw new Error(`Classroom archive row for ${resource.table} must be an object`)
@@ -575,7 +611,10 @@ export function decodeClassroomArchiveData(
     const legacyOrderValid = keys.every((key, index) => (
       index === 0 || compareLegacyV1Strings(keys[index - 1], key) < 0
     ))
-    if (!currentOrderValid && !legacyOrderValid) {
+    if (
+      !currentOrderValid &&
+      !(allowLegacyV1Canonicalization && legacyOrderValid)
+    ) {
       throw new Error(`Classroom archive resource is not in primary-key order: ${resource.table}`)
     }
     resources[resource.table] = parsedRows
@@ -586,6 +625,7 @@ export function decodeClassroomArchiveData(
   const actors = parseAndValidateNdjson(
     actorBytes,
     (value) => classroomArchiveActorSnapshotSchema.parse(value),
+    { allowLegacyV1Canonicalization },
   ).map((value) => classroomArchiveActorSnapshotSchema.parse(value))
   const actorIds = actors.map((actor) => actor.id)
   if (new Set(actorIds).size !== actorIds.length) {
@@ -597,7 +637,10 @@ export function decodeClassroomArchiveData(
   const legacyActorOrderValid = actorIds.every((id, index) => (
     index === 0 || compareLegacyV1Strings(actorIds[index - 1], id) < 0
   ))
-  if (!currentActorOrderValid && !legacyActorOrderValid) {
+  if (
+    !currentActorOrderValid &&
+    !(allowLegacyV1Canonicalization && legacyActorOrderValid)
+  ) {
     throw new Error('Classroom archive actor snapshots are not in actor-id order')
   }
 

@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-16 — Safety Wave: retire legacy classroom deletion
-
-**Completed:**
-- Removed the classroom-level `DELETE /api/teacher/classrooms/[id]` handler and the archived-index, legacy-dashboard, and top-level-calendar deletion controls. Deleted the orphaned `useDeleteClassroom` hook.
-- Preserved archive, hot restore, cold restore, and verified compaction behavior. Permanent hot-data removal remains exclusive to the archive compaction state machine.
-- Added API and component regressions proving the route exports no `DELETE` handler, archived classrooms are restore-only, and teacher utility surfaces issue no classroom deletion request.
-- Corrected the Pika audit matcher so route-specific tests for generic `page.tsx` files are recognized only through exact static/dynamic imports. Added negative coverage for prefix collisions and line, trailing, and block comments.
-- Browser-verified teacher archived, dashboard, and calendar states plus the student classroom index at desktop/mobile widths and light/dark archived states. Populated legacy utility captures reconfirmed the already-ranked mobile overflow findings; this PR did not broaden into that Phase 2 work. Restored the seeded classroom to active afterward.
-- Completed repeated independent review/fix loops. Both final reviewers reported no actionable findings. No production system was read or modified.
-
-**Validation:**
-- Focused deletion-retirement and audit suites (5 files / 67 tests)
-- `pnpm run test:coverage` (366 files / 3,353 tests)
-- Teacher calendar readiness suite repeated 50 times after CI race hardening
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Bash syntax validation for the Pika audit script
-- Pika pre-commit audit
-- `git diff --check`
-
 ## 2026-07-16 — Phase 2 assignment save and submission integrity
 
 **In progress:**
@@ -1055,3 +1033,62 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
 - Next implement the additive retired-resource envelope and archive-v2/v1 adapter only after explicit approval to create its named migration; do not apply it without separate exact target-and-filename authorization.
+
+## 2026-07-23 — Established versioned Quiz archive compatibility
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5.6 Terra - the pass freezes a historical archive
+contract, adds version dispatch, and converts legacy relational data into a
+future persistence shape without enabling unapproved schema behavior.
+
+**Completed:**
+- Froze the exact 42-resource archive-v1 table, primary-key, and actor-reference
+  contract independently from the live database inventory.
+- Added explicit v1/v2 manifest schemas and registry dispatch while retaining v1
+  as the only enabled export and restore contract.
+- Restricted locale-dependent canonical serialization/checksum recovery to v1;
+  v2 accepts only the current deterministic canonical form.
+- Defined the inactive v2 graph with generic retired-assessment record and actor
+  resources instead of the four Quiz tables.
+- Added a deterministic, non-mutating adapter that preserves complete Quiz and
+  Quiz-draft payloads, parent identities, actor references, timestamps, and
+  canonical SHA-256 evidence without mapping retired data into Tests.
+- Expanded the verified non-empty v1 fixture to include all four Quiz resources,
+  a manual score override, and a Quiz draft.
+- Froze portable v1 tar-content, manifest-content, and per-resource hashes so
+  the non-empty contract cannot be regenerated with silent Quiz drift.
+- Tightened independent-review findings: Quiz drafts retain and validate their
+  Quiz parent; adapter replay preserves existing envelopes; archived actor
+  references must resolve; and strict v2 verification rejects malformed,
+  checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
+- Added an explicit Gradex capability gate and moved source download, checksum,
+  strict verification, identity, and metadata-version binding before operation
+  creation so disabled or mislabeled v2 causes zero RPC or storage writes.
+- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
+  and added a resource registry that enforces payload identity, required
+  parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
+  payload equality, required actor fields/references, and credential-key
+  rejection including client secrets, private keys, and token variants.
+- Updated the retirement plan and cleanup guide to distinguish the completed
+  application foundation from the approval-gated database/v2 activation work.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused archive contract, format, restore, adapter, Gradex, and docs suites
+  (7 files / 59 tests)
+- Full repository suite after review fixes (411 files / 3,690 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Portable empty-v1 tar SHA:
+  `4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093`
+- Non-empty Quiz-v1 tar SHA:
+  `32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58`
+
+**Remaining:**
+- Require changed-file audit, independent PR review, and exact-head CI before merge.
+- Next create the envelope tables and versioned database archive registry, then
+  activate v2 export/restore, only after explicit approval to create the named
+  migration; applying it requires separate exact target-and-filename permission.

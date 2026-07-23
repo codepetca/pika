@@ -23,7 +23,12 @@ describe('legacy Quiz schema retirement docs', () => {
     expect(plan).toContain('retaining both immutable')
     expect(plan).toContain('never replace or')
     expect(plan).toContain('both registry graphs remain present')
-    expect(plan).toContain('non-empty quiz, question, response, manual')
+    expect(plan).toContain('application-only foundation is implemented')
+    expect(plan).toContain('v1 remains the only enabled export and restore')
+    expect(plan).toContain(
+      'database registry, envelope tables, explicitly versioned v2 writer/export,',
+    )
+    expect(plan).toMatch(/non-empty quiz, question, response,\s+manual/)
     expect(plan).toContain('The drop is not rollback-safe')
     expect(plan).toContain('exact migration filename and target approval')
   })

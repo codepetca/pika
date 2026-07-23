@@ -14746,3 +14746,26 @@
 - `pnpm run test:coverage` (366 files, 3349 tests)
 - Pika pre-commit audit (no TypeScript files changed)
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:25b03c48a8c1041e0a1adcdec714004f808ae8c0f73fc8b48d3e9419e6dcf0cd -->
+## 2026-07-16 — Safety Wave: retire legacy classroom deletion
+
+**Completed:**
+- Removed the classroom-level `DELETE /api/teacher/classrooms/[id]` handler and the archived-index, legacy-dashboard, and top-level-calendar deletion controls. Deleted the orphaned `useDeleteClassroom` hook.
+- Preserved archive, hot restore, cold restore, and verified compaction behavior. Permanent hot-data removal remains exclusive to the archive compaction state machine.
+- Added API and component regressions proving the route exports no `DELETE` handler, archived classrooms are restore-only, and teacher utility surfaces issue no classroom deletion request.
+- Corrected the Pika audit matcher so route-specific tests for generic `page.tsx` files are recognized only through exact static/dynamic imports. Added negative coverage for prefix collisions and line, trailing, and block comments.
+- Browser-verified teacher archived, dashboard, and calendar states plus the student classroom index at desktop/mobile widths and light/dark archived states. Populated legacy utility captures reconfirmed the already-ranked mobile overflow findings; this PR did not broaden into that Phase 2 work. Restored the seeded classroom to active afterward.
+- Completed repeated independent review/fix loops. Both final reviewers reported no actionable findings. No production system was read or modified.
+
+**Validation:**
+- Focused deletion-retirement and audit suites (5 files / 67 tests)
+- `pnpm run test:coverage` (366 files / 3,353 tests)
+- Teacher calendar readiness suite repeated 50 times after CI race hardening
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Bash syntax validation for the Pika audit script
+- Pika pre-commit audit
+- `git diff --check`

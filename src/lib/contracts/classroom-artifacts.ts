@@ -1,8 +1,11 @@
 import { z } from 'zod'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
 } from '@/lib/contracts/classroom-data'
+import {
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+} from '@/lib/contracts/classroom-archive-resources'
 import {
   COURSE_BLUEPRINT_PACKAGE_EXTENSION,
   COURSE_BLUEPRINT_PACKAGE_FORMAT,
@@ -11,7 +14,12 @@ import {
 } from '@/lib/contracts/course-blueprint-package'
 
 export const CLASSROOM_ARCHIVE_FORMAT = 'pika.classroom-archive' as const
-export const CLASSROOM_ARCHIVE_VERSION = 1 as const
+export const CLASSROOM_ARCHIVE_V1_VERSION = 1 as const
+export const CLASSROOM_ARCHIVE_V2_VERSION = 2 as const
+export const CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION =
+  CLASSROOM_ARCHIVE_V1_VERSION
+export const CLASSROOM_ARCHIVE_VERSION =
+  CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION
 export const GRADEX_EXTRACT_FORMAT = 'pika.gradex-classroom-extract' as const
 export const GRADEX_EXTRACT_VERSION = 2 as const
 export const GRADEX_EXTRACT_MAX_RETENTION_DAYS = 90 as const
@@ -107,7 +115,6 @@ function requireExactResourceSet(
 
 const classroomArchiveManifestBaseSchema = z.object({
   format: z.literal(CLASSROOM_ARCHIVE_FORMAT),
-  version: z.literal(CLASSROOM_ARCHIVE_VERSION),
   archive_id: z.string().uuid(),
   classroom_id: z.string().uuid(),
   teacher_id: z.string().uuid(),
@@ -125,11 +132,16 @@ const classroomArchiveManifestBaseSchema = z.object({
   storage_objects: z.array(storageObjectSchema),
 }).strict()
 
-export const classroomArchiveManifestSchema = classroomArchiveManifestBaseSchema.superRefine(
-  (manifest, context) => {
+function createClassroomArchiveManifestSchema<const Version extends 1 | 2>(
+  version: Version,
+  expectedTables: string[],
+) {
+  return classroomArchiveManifestBaseSchema.extend({
+    version: z.literal(version),
+  }).superRefine((manifest, context) => {
     requireExactResourceSet(
       manifest.resources,
-      CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table),
+      expectedTables,
       context,
     )
     if (manifest.actors.path !== 'actors.ndjson') {
@@ -177,10 +189,70 @@ export const classroomArchiveManifestSchema = classroomArchiveManifestBaseSchema
         path: ['retention', 'delete_after'],
       })
     }
-  },
+  })
+}
+
+export const classroomArchiveManifestV1Schema = createClassroomArchiveManifestSchema(
+  CLASSROOM_ARCHIVE_V1_VERSION,
+  CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
 )
 
-export type ClassroomArchiveManifest = z.infer<typeof classroomArchiveManifestSchema>
+export const classroomArchiveManifestV2Schema = createClassroomArchiveManifestSchema(
+  CLASSROOM_ARCHIVE_V2_VERSION,
+  CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table),
+)
+
+export const classroomArchiveManifestHeaderSchema = z.object({
+  format: z.literal(CLASSROOM_ARCHIVE_FORMAT),
+  version: z.number().int().positive(),
+}).passthrough()
+
+export const CLASSROOM_ARCHIVE_CONTRACTS = {
+  [CLASSROOM_ARCHIVE_V1_VERSION]: {
+    version: CLASSROOM_ARCHIVE_V1_VERSION,
+    resources: CLASSROOM_ARCHIVE_V1_RESOURCES,
+    manifestSchema: classroomArchiveManifestV1Schema,
+    exportEnabled: true,
+    restoreEnabled: true,
+    gradexEnabled: true,
+  },
+  [CLASSROOM_ARCHIVE_V2_VERSION]: {
+    version: CLASSROOM_ARCHIVE_V2_VERSION,
+    resources: CLASSROOM_ARCHIVE_V2_RESOURCES,
+    manifestSchema: classroomArchiveManifestV2Schema,
+    exportEnabled: false,
+    restoreEnabled: false,
+    gradexEnabled: false,
+  },
+} as const
+
+export const classroomArchiveManifestSchema = classroomArchiveManifestV1Schema
+
+export type ClassroomArchiveManifestV1 = z.infer<
+  typeof classroomArchiveManifestV1Schema
+>
+export type ClassroomArchiveManifestV2 = z.infer<
+  typeof classroomArchiveManifestV2Schema
+>
+export type ClassroomArchiveManifest =
+  | ClassroomArchiveManifestV1
+  | ClassroomArchiveManifestV2
+
+export function getClassroomArchiveContract(version: number) {
+  if (version === CLASSROOM_ARCHIVE_V1_VERSION) {
+    return CLASSROOM_ARCHIVE_CONTRACTS[CLASSROOM_ARCHIVE_V1_VERSION]
+  }
+  if (version === CLASSROOM_ARCHIVE_V2_VERSION) {
+    return CLASSROOM_ARCHIVE_CONTRACTS[CLASSROOM_ARCHIVE_V2_VERSION]
+  }
+  throw new Error(`Unsupported classroom archive version: ${version}`)
+}
+
+export function parseClassroomArchiveManifest(value: unknown): ClassroomArchiveManifest {
+  const header = classroomArchiveManifestHeaderSchema.parse(value)
+  const contract = getClassroomArchiveContract(header.version)
+  return contract.manifestSchema.parse(value)
+}
 
 export const classroomArchiveActorSnapshotSchema = z.object({
   id: z.string().uuid(),

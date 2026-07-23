@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import {
+  CLASSROOM_ARCHIVE_V1_VERSION,
   classroomArchiveRestorePreflightSchema,
   isClassroomArchiveRestoreReady,
   type ClassroomArchiveRestorePreflight,
 } from '@/lib/contracts/classroom-artifacts'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   CLASSROOM_RELATIONAL_RESOURCES,
   getClassroomResourceOrder,
@@ -192,7 +194,7 @@ function validateActorReferences(
   resources: Record<string, JsonObject[]>,
   archivedActorIds: Set<string>,
 ) {
-  for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
+  for (const resource of CLASSROOM_ARCHIVE_V1_RESOURCES) {
     for (const row of resources[resource.table] || []) {
       for (const column of resource.actor_columns) {
         const actorId = row[column]
@@ -219,6 +221,11 @@ export function buildClassroomArchiveRestorePlan(args: {
   }
   const operationId = uuidSchema.parse(args.operationId)
   const manifest = args.verified.manifest
+  if (manifest.version !== CLASSROOM_ARCHIVE_V1_VERSION) {
+    throw new Error(
+      `Classroom archive version ${manifest.version} is verified but not enabled for restore`,
+    )
+  }
   const origin = new URL(args.supabaseUrl).origin
   const decoded = decodeClassroomArchiveData(args.verified)
   const adapters = resolveAdapterChain(
