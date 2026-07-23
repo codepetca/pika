@@ -235,7 +235,6 @@ function makeResultsResponse(overrides?: {
   questions?: Array<Record<string, unknown>>
   testStatus?: TestAssessmentWithStats['status']
   activeRun?: Record<string, unknown> | null
-  legacyQuizKey?: boolean
 }) {
   const testSummary = {
     id: overrides?.testId ?? 'test-1',
@@ -247,7 +246,7 @@ function makeResultsResponse(overrides?: {
   return {
     ok: true,
     json: async () => ({
-      [overrides?.legacyQuizKey ? 'quiz' : 'test']: testSummary,
+      test: testSummary,
       questions:
         overrides?.questions ?? [
           {
@@ -690,19 +689,6 @@ describe('TeacherTestsTab', () => {
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
-  })
-
-  it('reads legacy quiz-keyed test results payloads as a compatibility fallback', async () => {
-    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ legacyQuizKey: true }))
-    renderTab()
-
-    fireEvent.click(await screen.findByText('Unit Test'))
-
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
-    expect(screen.queryByText('Failed to load test results')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
   })
 
   it('opens the edit modal from the selected test edit button', async () => {

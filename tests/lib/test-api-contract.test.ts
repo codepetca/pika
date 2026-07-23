@@ -3,60 +3,25 @@ import {
   readTeacherTestResultsFromPayload,
   readTestFromPayload,
   readTestsFromPayload,
-  withLegacyQuizKey,
-  withLegacyQuizListKey,
 } from '@/lib/test-api-contract'
 
-describe('test API compatibility contract', () => {
-  it('mirrors the current tests list under the legacy quizzes key', () => {
+describe('test API contract', () => {
+  it('reads the tests list and defaults missing lists to empty', () => {
     const tests = [{ id: 'test-1' }, { id: 'test-2' }]
 
-    const payload = withLegacyQuizListKey(tests)
-
-    expect(payload).toEqual({ tests, quizzes: tests })
-    expect(payload.quizzes).toBe(payload.tests)
-  })
-
-  it('mirrors the current test detail under the legacy quiz key', () => {
-    const test = { id: 'test-1' }
-
-    const payload = withLegacyQuizKey(test)
-
-    expect(payload).toEqual({ test, quiz: test })
-    expect(payload.quiz).toBe(payload.test)
-  })
-
-  it('reads the current tests list before the legacy quizzes key', () => {
-    const currentTests = [{ id: 'test-current' }]
-    const legacyTests = [{ id: 'test-legacy' }]
-
-    expect(readTestsFromPayload({ tests: currentTests, quizzes: legacyTests })).toBe(currentTests)
-  })
-
-  it('falls back to the legacy quizzes key for older list payloads', () => {
-    const legacyTests = [{ id: 'test-legacy' }]
-
-    expect(readTestsFromPayload({ quizzes: legacyTests })).toBe(legacyTests)
+    expect(readTestsFromPayload({ tests })).toBe(tests)
     expect(readTestsFromPayload(null)).toEqual([])
   })
 
-  it('reads the current test detail before the legacy quiz key', () => {
-    const currentTest = { id: 'test-current' }
-    const legacyTest = { id: 'test-legacy' }
+  it('reads the test detail and defaults missing details to undefined', () => {
+    const test = { id: 'test-1' }
 
-    expect(readTestFromPayload({ test: currentTest, quiz: legacyTest })).toBe(currentTest)
-  })
-
-  it('falls back to the legacy quiz key for older detail payloads', () => {
-    const legacyTest = { id: 'test-legacy' }
-
-    expect(readTestFromPayload({ quiz: legacyTest })).toBe(legacyTest)
+    expect(readTestFromPayload({ test })).toBe(test)
     expect(readTestFromPayload(undefined)).toBeUndefined()
   })
 
-  it('normalizes teacher test results from the current test key first', () => {
+  it('normalizes teacher test results from the test key', () => {
     const currentTest = { id: 'test-current', status: 'active' } as any
-    const legacyTest = { id: 'test-legacy', status: 'closed' } as any
     const students = [
       {
         student_id: 'student-1',
@@ -79,7 +44,6 @@ describe('test API compatibility contract', () => {
 
     const result = readTeacherTestResultsFromPayload({
       test: currentTest,
-      quiz: legacyTest,
       students,
       questions: [
         { id: 'q-open', question_type: 'open_response', response_monospace: true },
@@ -98,16 +62,11 @@ describe('test API compatibility contract', () => {
     expect(result.activeAiGradingRun).toBe(activeRun)
   })
 
-  it('normalizes teacher test results from the legacy quiz fallback', () => {
-    const legacyTest = { id: 'test-legacy', status: 'closed' } as any
+  it('normalizes a missing teacher test result', () => {
+    const result = readTeacherTestResultsFromPayload({ error: 'No results' })
 
-    const result = readTeacherTestResultsFromPayload({
-      quiz: legacyTest,
-      error: 'No results',
-    })
-
-    expect(result.test).toBe(legacyTest)
-    expect(result.testStatus).toBe('closed')
+    expect(result.test).toBeUndefined()
+    expect(result.testStatus).toBeNull()
     expect(result.students).toEqual([])
     expect(result.questions).toEqual([])
     expect(result.activeAiGradingRun).toBeNull()

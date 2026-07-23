@@ -135,50 +135,6 @@ describe('TestDetailPanel', () => {
     })
   })
 
-  it('reads legacy quiz-keyed test detail payloads as a compatibility fallback', async () => {
-    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/tests/legacy-test/draft')) {
-        return Promise.resolve(jsonResponse({
-          draft: {
-            version: 1,
-            content: {
-              questions: [],
-            },
-          },
-        }))
-      }
-      if (url.endsWith('/api/teacher/tests/legacy-test')) {
-        return Promise.resolve(jsonResponse({
-          quiz: {
-            documents: [
-              { id: 'legacy-doc', title: 'Legacy Reference', source: 'text', content: 'Legacy detail' },
-            ],
-          },
-        }))
-      }
-      throw new Error(`Unexpected fetch: ${url}`)
-    })
-
-    render(
-      <TestDetailPanel
-        test={makeTestWithStats({ id: 'legacy-test', title: 'Legacy-Keyed Detail' })}
-        classroomId="classroom-1"
-        apiBasePath="/api/teacher/tests"
-        onTestUpdate={vi.fn()}
-      />,
-      { wrapper: Wrapper }
-    )
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Documents (1)' })).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Documents (1)' }))
-
-    expect(screen.getByText('Legacy Reference')).toBeInTheDocument()
-  })
-
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()

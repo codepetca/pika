@@ -14633,3 +14633,29 @@
 - `pnpm check:architecture` (599 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:5aeafb31c6794336988914c338c319e2b6ec8d389fbf075c33a722655707b7e6 -->
+## 2026-07-15 — Production archive canary retry and recovery hardening
+
+**Completed:**
+- Hardened restore storage read-back, unexpected transport failures, durable failure recording, and terminal best-effort cleanup so retries retain the fixed operation ID without deleting reused objects.
+- Added an independent archive-to-restored evidence oracle covering all resource rows, nested storage references, canonical public URLs, object identity, byte size, and SHA-256 bindings; the production canary no longer verifies restore output from its own restore plan.
+- Made the canary reconcile thrown restore calls against durable hot/cold state and retry the fixed operation ID up to three times.
+- Added migration 097 to preserve concurrent retryable restore failures and safely rearm exact expired requests. Expiry recovery now fences active cleanup leases, rolls back transient rearm state when delegated begin fails, and recovers a naturally expired snapshot in one call.
+- Expanded the database contract drill for same-ID finalization races, active cleanup leases, delegated-failure rollback, and expiry recovery. Completed repeated independent review/fix loops covering restore safety, equality evidence, SQL concurrency, privilege boundaries, and cleanup ownership.
+- No production canary, source cleanup, Gradex cleanup, or migration application was performed.
+
+**Deployment obligation:**
+- Apply migration 097 before deploying or running the production canary.
+- Keep source cleanup and Gradex cleanup disabled. Prepare a fresh named canary plan after production is on the reviewed commit; do not reuse the obsolete local plan.
+
+**Validation:**
+- Focused archive restore/canary/migration suites (4 files / 37 tests)
+- `pnpm vitest run` (364 files / 3,345 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- Bash syntax validation for the restore database contract drill
+- Pika pre-commit audit
+- `git diff --check`
+- `pnpm db:types:check` intentionally blocked because local database history remains at 096 and AI did not apply migration 097

@@ -80,6 +80,8 @@ describe('legacy quiz alias retirement', () => {
       'getQuizExitCount',
       'emptyQuizFocusSummary',
       'summarizeQuizFocusEvents',
+      'withLegacyQuizKey',
+      'withLegacyQuizListKey',
     ]
     const retiredDraftAliases = [
       'buildQuizDraftContentFromRows',

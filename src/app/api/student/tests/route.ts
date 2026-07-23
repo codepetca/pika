@@ -12,7 +12,6 @@ import { getStudentTestStatus } from '@/lib/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
-import { withLegacyQuizListKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,7 +47,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   if (activeError) {
     if (activeError.code === 'PGRST205') {
-      return NextResponse.json({ ...withLegacyQuizListKey([]), migration_required: true })
+      return NextResponse.json({ tests: [], migration_required: true })
     }
     console.error('Error fetching active tests:', activeError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
@@ -246,5 +245,5 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     }
   })
 
-  return NextResponse.json(withLegacyQuizListKey(testsWithStatus))
+  return NextResponse.json({ tests: testsWithStatus })
 })

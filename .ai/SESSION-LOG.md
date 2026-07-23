@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Production archive canary retry and recovery hardening
-
-**Completed:**
-- Hardened restore storage read-back, unexpected transport failures, durable failure recording, and terminal best-effort cleanup so retries retain the fixed operation ID without deleting reused objects.
-- Added an independent archive-to-restored evidence oracle covering all resource rows, nested storage references, canonical public URLs, object identity, byte size, and SHA-256 bindings; the production canary no longer verifies restore output from its own restore plan.
-- Made the canary reconcile thrown restore calls against durable hot/cold state and retry the fixed operation ID up to three times.
-- Added migration 097 to preserve concurrent retryable restore failures and safely rearm exact expired requests. Expiry recovery now fences active cleanup leases, rolls back transient rearm state when delegated begin fails, and recovers a naturally expired snapshot in one call.
-- Expanded the database contract drill for same-ID finalization races, active cleanup leases, delegated-failure rollback, and expiry recovery. Completed repeated independent review/fix loops covering restore safety, equality evidence, SQL concurrency, privilege boundaries, and cleanup ownership.
-- No production canary, source cleanup, Gradex cleanup, or migration application was performed.
-
-**Deployment obligation:**
-- Apply migration 097 before deploying or running the production canary.
-- Keep source cleanup and Gradex cleanup disabled. Prepare a fresh named canary plan after production is on the reviewed commit; do not reuse the obsolete local plan.
-
-**Validation:**
-- Focused archive restore/canary/migration suites (4 files / 37 tests)
-- `pnpm vitest run` (364 files / 3,345 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- Bash syntax validation for the restore database contract drill
-- Pika pre-commit audit
-- `git diff --check`
-- `pnpm db:types:check` intentionally blocked because local database history remains at 096 and AI did not apply migration 097
-
 ## 2026-07-15 — Production archive canary timeout hardening
 
 **Completed:**
@@ -1002,3 +977,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Complete targeted independent rereview and exact-head PR CI.
 - Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
+
+## 2026-07-23 — Retired legacy Quiz API response aliases
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses student and teacher API producers, client normalizers, component consumers, and contract documentation.
+
+**Completed:**
+- Closed the internal Tests API compatibility window and removed legacy `quiz` / `quizzes` response aliases from active student and teacher Tests routes.
+- Removed quiz-key fallback reads and compatibility fixtures while preserving current `test` / `tests` handling for optional and error payloads.
+- Added route assertions and an architecture ratchet preventing the retired response helpers from returning.
+- Documented the cutoff, older-client risk, code-only rollback, and remaining database, archive, gradebook, package, component, URL, and automation compatibility boundaries.
+- Left schema, migrations, persisted `quiz_id` fields, archive v1 resources, gradebook tombstones, and course package compatibility unchanged.
+
+**Validation:**
+- Focused Tests API/client/component suites (12 files / 208 tests)
+- Full repository suite (408 files / 3,674 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.

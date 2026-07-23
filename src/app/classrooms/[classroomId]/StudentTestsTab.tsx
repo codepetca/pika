@@ -67,7 +67,6 @@ interface StudentTestSessionStatusSummary {
 
 interface StudentTestSessionStatusResponse {
   test?: StudentTestSessionStatusSummary
-  quiz?: StudentTestSessionStatusSummary
   student_status: StudentTestStatus
   returned_at: string | null
   can_continue: boolean
@@ -76,14 +75,10 @@ interface StudentTestSessionStatusResponse {
 
 interface StudentTestListResponse {
   tests?: StudentTestView[]
-  /** Legacy compatibility key emitted during the Tests contract transition. */
-  quizzes?: StudentTestView[]
 }
 
 interface StudentTestDetailResponse {
   test?: StudentTestView
-  /** Legacy compatibility key emitted during the Tests contract transition. */
-  quiz?: StudentTestView
   questions?: TestAssessmentQuestion[]
   student_responses?: Record<string, number | TestResponseDraftValue>
   student_status?: StudentTestStatus
