@@ -14685,3 +14685,22 @@
 - Pika pre-commit audit (no TypeScript files changed)
 - `git diff --check`
 - Database replay deferred to PR CI because local database history remains at 097 and AI did not apply migration 098
+
+<!-- pika-session-log-archive-batch:2f3d985c9c9e6998187d552a5dea91c1f0b28a7f758d34cd6e8ea89f85921549 -->
+## 2026-07-15 — Explicit AI migration authorization policy
+
+**Completed:**
+- Replaced the blanket AI migration-application prohibition with a human-controlled-by-default contract that permits one exact application only after a current-task instruction names the target environment and exact migration.
+- Required target verification, migration-list inspection, an explicit local/linked dry run, approved-set equality, applicable tests, and read-only post-application verification.
+- Kept reset, migration-history repair, rollback/down, seeding, data cleanup, Storage deletion, alternate database URLs, project relinking, and extra push flags outside ordinary migration approval.
+- Made failed or partial application attempts consume the permission and require renewed authorization before retry.
+- Updated active agent, architecture, project, schema, archive, and legacy-contract guidance and added a regression that prevents blanket prohibition or overbroad authorization from returning.
+- No migration or Supabase project state changed. During validation, a shell search expanded an inline command, but the unlinked worktree failed target resolution before preview or application; it was not retried.
+
+**Validation:**
+- Migration authorization and startup guidance suites (2 files / 29 tests)
+- `pnpm vitest run` (366 files / 3,349 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- `git diff --check`

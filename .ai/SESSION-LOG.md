@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Explicit AI migration authorization policy
-
-**Completed:**
-- Replaced the blanket AI migration-application prohibition with a human-controlled-by-default contract that permits one exact application only after a current-task instruction names the target environment and exact migration.
-- Required target verification, migration-list inspection, an explicit local/linked dry run, approved-set equality, applicable tests, and read-only post-application verification.
-- Kept reset, migration-history repair, rollback/down, seeding, data cleanup, Storage deletion, alternate database URLs, project relinking, and extra push flags outside ordinary migration approval.
-- Made failed or partial application attempts consume the permission and require renewed authorization before retry.
-- Updated active agent, architecture, project, schema, archive, and legacy-contract guidance and added a regression that prevents blanket prohibition or overbroad authorization from returning.
-- No migration or Supabase project state changed. During validation, a shell search expanded an inline command, but the unlinked worktree failed target resolution before preview or application; it was not retried.
-
-**Validation:**
-- Migration authorization and startup guidance suites (2 files / 29 tests)
-- `pnpm vitest run` (366 files / 3,349 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- `git diff --check`
-
 ## 2026-07-15 — Production archive round-trip canary completion
 
 **Completed:**
@@ -1009,3 +991,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
 - Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.
+
+## 2026-07-23 — Retired standalone legacy Quiz Markdown
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass removes an isolated compatibility parser/serializer and consolidates the shared editor on its already-current Test Markdown contract.
+
+**Completed:**
+- Removed `src/lib/quiz-markdown.ts` and its dedicated compatibility test after confirming no package, archive, import, or persisted-data reader depended on it.
+- Consolidated `TestDetailPanel` draft serialization, Markdown parsing, document handling, and question-field preservation on `testToMarkdown` / `markdownToTest`.
+- Added an architecture ratchet preventing the retired module and its assessment/quiz Markdown aliases from returning.
+- Updated the cleanup guide to identify unreachable quiz-mode rendering as the next implementation pass.
+- Preserved persisted `quiz_id` fields, schema, archives, gradebook tombstones, course package compatibility, and the `tab=quizzes` URL tombstone.
+
+**Validation:**
+- Focused Markdown, component, and architecture suites (3 files / 53 tests)
+- Full repository suite (407 files / 3,666 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Run full repository validation, independent PR review, and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and wording from current Test components.

@@ -46,7 +46,6 @@ import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { readTestFromPayload } from '@/lib/test-api-contract'
-import { assessmentToMarkdown, markdownToAssessment } from '@/lib/quiz-markdown'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -430,18 +429,12 @@ export function TestDetailPanel({
       const nextSourceMarkdown =
         typeof draft.content.source_markdown === 'string'
           ? draft.content.source_markdown
-          : isTestsView
-            ? testToMarkdown({
-                title: nextTitle,
-                show_results: nextShowResults,
-                questions: nextQuestions,
-                documents: documentsRef.current,
-              })
-            : assessmentToMarkdown({
-                title: nextTitle,
-                show_results: nextShowResults,
-                questions: nextQuestions,
-              })
+          : testToMarkdown({
+              title: nextTitle,
+              show_results: nextShowResults,
+              questions: nextQuestions,
+              documents: documentsRef.current,
+            })
       const shouldTrackSourceMarkdown =
         isTestsView ||
         draft.content.source_format === 'markdown' ||
@@ -527,21 +520,13 @@ export function TestDetailPanel({
   }, [documents])
 
   const currentAssessmentMarkdown = useMemo(() => {
-    if (isTestsView) {
-      return testToMarkdown({
-        title: editTitle,
-        show_results: draftShowResults,
-        questions,
-        documents,
-      })
-    }
-
-    return assessmentToMarkdown({
+    return testToMarkdown({
       title: editTitle,
       show_results: draftShowResults,
       questions,
+      documents,
     })
-  }, [documents, draftShowResults, editTitle, isTestsView, questions])
+  }, [documents, draftShowResults, editTitle, questions])
   const hasResponses = testAssessment.stats.responded > 0
   const isEditable = canEditTestQuestions(testAssessment, hasResponses)
   const usesMarkdownOnlyQuestions = questionLayout === 'markdown-only'
@@ -719,18 +704,12 @@ export function TestDetailPanel({
               source_format: 'markdown' as const,
               source_markdown:
                 options?.sourceMarkdown ??
-                (isTestsView
-                  ? testToMarkdown({
-                      title: nextDraft.title,
-                      show_results: nextDraft.show_results,
-                      questions: nextDraft.questions,
-                      documents: options?.documents ?? documents,
-                    })
-                  : assessmentToMarkdown({
-                      title: nextDraft.title,
-                      show_results: nextDraft.show_results,
-                      questions: nextDraft.questions,
-                    })),
+                testToMarkdown({
+                  title: nextDraft.title,
+                  show_results: nextDraft.show_results,
+                  questions: nextDraft.questions,
+                  documents: options?.documents ?? documents,
+                }),
             }
           : nextDraft
       const nextSerialized = JSON.stringify(contentDraft)
@@ -1513,86 +1492,10 @@ export function TestDetailPanel({
     const existingById = new Map(questions.map((question) => [question.id, question]))
     const now = new Date().toISOString()
 
-    if (isTestsView) {
-      const parsed = markdownToTest(markdownContent, {
-        defaultShowResults: draftShowResults,
-        existingQuestions: questions.map((question) => ({ id: question.id })),
-        existingDocuments: documents,
-      })
-
-      if (parsed.errors.length > 0 || !parsed.draftContent) {
-        setMarkdownError(parsed.errors.join('\n') || 'Invalid markdown')
-        setMarkdownSaving(false)
-        return
-      }
-
-      const nextQuestions = normalizeQuestionPositions(
-        parsed.draftContent.questions.map((question, index) => {
-          const existing = existingById.get(question.id)
-          return {
-            id: question.id,
-            quiz_id: testAssessment.id,
-            question_type: question.question_type,
-            question_text: question.question_text,
-            options: question.options,
-            correct_option: question.correct_option,
-            answer_key: question.answer_key,
-            sample_solution: question.sample_solution,
-            points: question.points,
-            response_max_chars: question.response_max_chars,
-            response_monospace: question.response_monospace,
-            position: index,
-            created_at: existing?.created_at || now,
-            updated_at: now,
-          }
-        })
-      )
-
-      const nextDraft = {
-        title: parsed.draftContent.title,
-        show_results: parsed.draftContent.show_results,
-        questions: nextQuestions,
-      }
-
-      const nextDerivedMarkdown = testToMarkdown({
-        title: parsed.draftContent.title,
-        show_results: parsed.draftContent.show_results,
-        questions: nextQuestions,
-        documents: parsed.documents,
-      })
-
-      setEditTitle(parsed.draftContent.title)
-      setDraftShowResults(parsed.draftContent.show_results)
-      setQuestions(nextQuestions)
-      setDocuments(parsed.documents)
-      emitDraftSummaryChange(nextDraft)
-      setMarkdownContent(nextDerivedMarkdown)
-      savedMarkdownRef.current = nextDerivedMarkdown
-      setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
-      setMarkdownDirty(false)
-      markdownDirtyRef.current = false
-      setMarkdownError('')
-      setMarkdownInfo('')
-      pendingDraftRef.current = nextDraft
-      markDraftUnsaved()
-
-      const saved = await saveDraft(nextDraft, {
-        forceFull: true,
-        documents: parsed.documents,
-        sourceMarkdown: nextDerivedMarkdown,
-      })
-
-      if (saved) {
-        setMarkdownInfo('Markdown applied')
-      }
-
-      setMarkdownSaving(false)
-      return
-    }
-
-    const parsed = markdownToAssessment(markdownContent, {
+    const parsed = markdownToTest(markdownContent, {
       defaultShowResults: draftShowResults,
       existingQuestions: questions.map((question) => ({ id: question.id })),
+      existingDocuments: documents,
     })
 
     if (parsed.errors.length > 0 || !parsed.draftContent) {
@@ -1607,8 +1510,15 @@ export function TestDetailPanel({
         return {
           id: question.id,
           quiz_id: testAssessment.id,
+          question_type: question.question_type,
           question_text: question.question_text,
           options: question.options,
+          correct_option: question.correct_option,
+          answer_key: question.answer_key,
+          sample_solution: question.sample_solution,
+          points: question.points,
+          response_max_chars: question.response_max_chars,
+          response_monospace: question.response_monospace,
           position: index,
           created_at: existing?.created_at || now,
           updated_at: now,
@@ -1622,15 +1532,17 @@ export function TestDetailPanel({
       questions: nextQuestions,
     }
 
-    const nextDerivedMarkdown = assessmentToMarkdown({
+    const nextDerivedMarkdown = testToMarkdown({
       title: parsed.draftContent.title,
       show_results: parsed.draftContent.show_results,
       questions: nextQuestions,
+      documents: parsed.documents,
     })
 
     setEditTitle(parsed.draftContent.title)
     setDraftShowResults(parsed.draftContent.show_results)
     setQuestions(nextQuestions)
+    setDocuments(parsed.documents)
     emitDraftSummaryChange(nextDraft)
     setMarkdownContent(nextDerivedMarkdown)
     savedMarkdownRef.current = nextDerivedMarkdown
@@ -1644,6 +1556,7 @@ export function TestDetailPanel({
 
     const saved = await saveDraft(nextDraft, {
       forceFull: true,
+      documents: parsed.documents,
       sourceMarkdown: nextDerivedMarkdown,
     })
 
