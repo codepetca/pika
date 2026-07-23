@@ -17,6 +17,7 @@ import type { ClassroomArchiveManifest } from '@/lib/contracts/classroom-artifac
 import {
   buildClassroomArchiveV2Fixture,
   V2_CLASSROOM_ID,
+  V2_STUDENT_ID,
   V2_TEACHER_ID,
 } from '../../fixtures/classroom-archive-v2'
 import {
@@ -324,15 +325,44 @@ describe('classroom archive format', () => {
       error: expect.stringContaining('missing from archive snapshots'),
     }))
 
-    const credentialPayload = { id: sourceRowId, password_hash: 'forbidden' }
     expect(verifyRecords([{
       ...root,
-      payload: credentialPayload,
-      payload_sha256: retiredAssessmentPayloadChecksum(credentialPayload),
+      source_contract: 'pika.unsupported@1/example',
     }])).toEqual(expect.objectContaining({
       ok: false,
-      error: expect.stringContaining('forbidden credential field'),
+      error: expect.stringContaining('Unsupported retired assessment source contract'),
     }))
+
+    const mismatchedActorPayload = { id: sourceRowId, created_by: V2_TEACHER_ID }
+    expect(verifyRecords([{
+      ...root,
+      payload: mismatchedActorPayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(mismatchedActorPayload),
+    }], [{
+      id: '73000000-0000-4000-8000-000000000005',
+      record_id: recordId,
+      actor_id: V2_STUDENT_ID,
+      source_column: 'created_by',
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('does not match its payload'),
+    }))
+
+    for (const credentialPayload of [
+      { id: sourceRowId, password_hash: 'forbidden' },
+      { id: sourceRowId, clientSecret: 'forbidden' },
+      { id: sourceRowId, 'private-key': 'forbidden' },
+      { id: sourceRowId, resetToken: 'forbidden' },
+    ]) {
+      expect(verifyRecords([{
+        ...root,
+        payload: credentialPayload,
+        payload_sha256: retiredAssessmentPayloadChecksum(credentialPayload),
+      }])).toEqual(expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining('forbidden credential field'),
+      }))
+    }
   })
 
   it('rejects a bundle whose decompressed content was modified', () => {

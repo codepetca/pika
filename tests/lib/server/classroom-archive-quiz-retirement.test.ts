@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { canonicalJsonStringify } from '@/lib/server/classroom-archive-format'
 import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
 import {
+  LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
   RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
   retiredAssessmentPayloadChecksum,
 } from '@/lib/server/classroom-retired-assessment-contract'
@@ -189,13 +190,13 @@ describe('legacy Quiz archive retirement adapter', () => {
       classroom_retired_assessment_records: Record<string, unknown>[]
       classroom_retired_assessment_record_actors: Record<string, unknown>[]
     }
-    const payload = { id: '90000000-0000-4000-8000-000000000001', kind: 'survey' }
+    const payload = { id: '90000000-0000-4000-8000-000000000001', title: 'Prior quiz' }
     const existing = {
       id: '90000000-0000-4000-8000-000000000002',
       classroom_id: CLASSROOM_ID,
-      source_contract: 'pika.example@1/retired-survey',
+      source_contract: LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
       source_contract_version: 1,
-      source_resource: 'surveys',
+      source_resource: 'quizzes',
       source_row_id: payload.id,
       parent_source_resource: null,
       parent_source_row_id: null,

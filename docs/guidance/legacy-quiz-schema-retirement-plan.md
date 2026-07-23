@@ -132,8 +132,9 @@ The application-only foundation is implemented without enabling v2:
 - manifest verification reads the minimal header and dispatches through
   explicit v1/v2 schemas; v1 remains the only enabled export and restore;
 - v2 verification strictly validates envelope schemas, payload checksums,
-  parent links, actor snapshots, and credential-field exclusions before
-  treating an artifact as verified;
+  supported source contracts, parent links, actor snapshots, normalized actor
+  links, and credential-field exclusions before treating an artifact as
+  verified;
 - the inactive v2 graph replaces the four Quiz resources with the two retired
   envelope resources;
 - a pure deterministic adapter converts all four Quiz resources and Quiz drafts
@@ -145,7 +146,8 @@ The application-only foundation is implemented without enabling v2:
 
 The database registry, envelope tables, explicitly versioned v2 writer/export,
 and v2 restore remain unimplemented and approval-gated. Verified v2 input fails
-closed before restore and before any Gradex operation is opened.
+closed before restore. Gradex downloads, checksums, strictly verifies, and binds
+the source manifest to metadata before any operation is opened.
 
 ## Implementation Passes
 

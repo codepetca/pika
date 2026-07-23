@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES, GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
 import {
   buildClassroomArchiveBundle,
+  sha256Bytes,
 } from '@/lib/server/classroom-archive-format'
 import {
   CLASSROOM_GRADEX_EXTRACT_BUCKET,
@@ -11,6 +12,7 @@ import {
   resolveClassroomGradexHmacSecret,
 } from '@/lib/server/classroom-gradex-operations'
 import { buildGradexExtractFromClassroomArchive } from '@/lib/server/classroom-gradex-extract'
+import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
 
 const OPERATION_ID = '10000000-0000-4000-8000-000000000001'
 const ARCHIVE_ID = '20000000-0000-4000-8000-000000000001'
@@ -77,13 +79,17 @@ function createSupabaseMock(options: {
   completionFailure?: boolean
   corruptSource?: boolean
   corruptReadBack?: boolean
-    finalizationMismatch?: boolean
-    formatVersion?: number
+  finalizationMismatch?: boolean
+  formatVersion?: number
+  mislabeledV2Source?: boolean
   preloadExtract?: boolean
   removeThrows?: boolean
   wrongStoragePath?: boolean
 } = {}) {
   const archive = sourceArchive()
+  const intendedSource = options.mislabeledV2Source
+    ? buildClassroomArchiveV2Fixture().archive
+    : archive.archive
   const expectedExtract = buildGradexExtractFromClassroomArchive({
     archive: archive.archive,
     extractId: OPERATION_ID,
@@ -93,7 +99,7 @@ function createSupabaseMock(options: {
   })
   const stored = new Map<string, Uint8Array>([[
     `classroom-archives/${ARCHIVE_PATH}`,
-    options.corruptSource ? Uint8Array.of(1, 2, 3) : archive.archive,
+    options.corruptSource ? Uint8Array.of(1, 2, 3) : intendedSource,
   ]])
   if (options.preloadExtract) {
     stored.set(`${CLASSROOM_GRADEX_EXTRACT_BUCKET}/${EXTRACT_PATH}`, expectedExtract.extract)
@@ -200,7 +206,7 @@ function createSupabaseMock(options: {
       format_version: options.formatVersion ?? 1,
       storage_bucket: 'classroom-archives',
       storage_path: ARCHIVE_PATH,
-      artifact_sha256: archive.artifactSha256,
+      artifact_sha256: sha256Bytes(intendedSource),
     },
     error: null,
   }))
@@ -369,10 +375,27 @@ describe('classroom Gradex runtime coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: true, replayed: true }))
     expect(mock.from).toHaveBeenCalledWith('classroom_archives')
-    expect(mock.storageFrom).not.toHaveBeenCalled()
+    expect(mock.calls.indexOf(`download:classroom-archives/${ARCHIVE_PATH}`))
+      .toBeLessThan(mock.calls.indexOf('rpc:begin_classroom_gradex_extract'))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_gradex_extract',
     ])
+  })
+
+  it('rejects checksum-valid v2 bytes mislabeled as v1 before opening an operation', async () => {
+    const mock = createSupabaseMock({ mislabeledV2Source: true })
+    const result = await createClassroomGradexExtract(operationArgs(mock))
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'gradex_source_archive_version_not_enabled',
+      retryable: false,
+    }))
+    expect(mock.calls).toEqual([
+      `download:classroom-archives/${ARCHIVE_PATH}`,
+    ])
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.calls.some((call) => call.startsWith('upload:'))).toBe(false)
   })
 
   it('rejects disabled archive versions before opening an operation or storage', async () => {
@@ -386,6 +409,7 @@ describe('classroom Gradex runtime coordinator', () => {
     }))
     expect(mock.rpc).not.toHaveBeenCalled()
     expect(mock.storageFrom).not.toHaveBeenCalled()
+    expect(mock.calls.some((call) => call.startsWith('upload:'))).toBe(false)
   })
 
   it('rejects a structurally valid RPC response bound to the wrong storage path', async () => {
@@ -397,7 +421,7 @@ describe('classroom Gradex runtime coordinator', () => {
       error_code: 'gradex_rpc_contract_invalid',
       retryable: false,
     }))
-    expect(mock.storageFrom).not.toHaveBeenCalled()
+    expect(mock.calls.some((call) => call.startsWith('upload:'))).toBe(false)
   })
 
   it('binds idempotency to the HMAC key without sending the secret', async () => {
@@ -429,7 +453,7 @@ describe('classroom Gradex runtime coordinator', () => {
     )
   })
 
-  it('fails closed before upload when source archive bytes do not match immutable metadata', async () => {
+  it('fails closed before opening an operation when source bytes do not match metadata', async () => {
     const mock = createSupabaseMock({ corruptSource: true })
     const result = await createClassroomGradexExtract(operationArgs(mock))
 
@@ -439,10 +463,7 @@ describe('classroom Gradex runtime coordinator', () => {
       retryable: false,
     }))
     expect(mock.calls.some((call) => call.startsWith('upload:'))).toBe(false)
-    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_gradex_extract',
-      'fail_classroom_gradex_extract',
-    ])
+    expect(mock.rpc).not.toHaveBeenCalled()
   })
 
   it('never finalizes and removes its upload when private read-back bytes differ', async () => {

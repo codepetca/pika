@@ -324,6 +324,67 @@ async function downloadSourceArchive(args: {
   return bytes
 }
 
+async function loadAndVerifySourceArchiveBeforeOperation(args: {
+  supabase: SupabaseClient
+  archiveId: string
+  classroomId: string
+  teacherId: string
+}) {
+  const metadata = await loadSourceArchiveMetadata(args)
+  if (!getClassroomArchiveContract(metadata.format_version).gradexEnabled) {
+    throw new ClassroomGradexExtractError(
+      'gradex_source_archive_version_not_enabled',
+      `Classroom archive version ${metadata.format_version} is not enabled for Gradex`,
+      409,
+      false,
+    )
+  }
+  const archiveBytes = await downloadSourceArchive({
+    supabase: args.supabase,
+    bucket: metadata.storage_bucket,
+    path: metadata.storage_path,
+  })
+  if (sha256Bytes(archiveBytes) !== metadata.artifact_sha256) {
+    throw new ClassroomGradexExtractError(
+      'gradex_source_archive_checksum_mismatch',
+      'Source archive bytes do not match immutable verified metadata',
+      409,
+      false,
+    )
+  }
+  const verifiedArchive = verifyClassroomArchiveBundle(archiveBytes)
+  if (!verifiedArchive.ok) {
+    throw new ClassroomGradexExtractError(
+      'gradex_source_archive_verification_failed',
+      'Source archive failed strict verification',
+      409,
+      false,
+    )
+  }
+  if (!getClassroomArchiveContract(verifiedArchive.manifest.version).gradexEnabled) {
+    throw new ClassroomGradexExtractError(
+      'gradex_source_archive_version_not_enabled',
+      `Classroom archive version ${verifiedArchive.manifest.version} is not enabled for Gradex`,
+      409,
+      false,
+    )
+  }
+  if (
+    verifiedArchive.manifest.archive_id !== args.archiveId ||
+    verifiedArchive.manifest.classroom_id !== args.classroomId ||
+    verifiedArchive.manifest.teacher_id !== args.teacherId ||
+    verifiedArchive.manifest.version !== metadata.format_version
+  ) {
+    throw new ClassroomGradexExtractError(
+      'gradex_source_archive_identity_mismatch',
+      'Source archive identity does not match Gradex metadata',
+      409,
+      false,
+    )
+  }
+  return { archiveBytes, metadata }
+}
+
 async function uploadAndReadBackExtract(args: {
   supabase: SupabaseClient
   operationId: string
@@ -488,23 +549,15 @@ export async function createClassroomGradexExtract(args: {
   let uploadedByThisAttempt = false
   let storagePath: string | null = null
   let finalizationMayHaveCommitted = false
-  let metadata: z.infer<typeof sourceArchiveMetadataSchema>
+  let source: Awaited<ReturnType<typeof loadAndVerifySourceArchiveBeforeOperation>>
 
   try {
-    metadata = await loadSourceArchiveMetadata({
+    source = await loadAndVerifySourceArchiveBeforeOperation({
       supabase: args.supabase,
       archiveId: sourceArchiveId,
       classroomId,
       teacherId,
     })
-    if (!getClassroomArchiveContract(metadata.format_version).gradexEnabled) {
-      throw new ClassroomGradexExtractError(
-        'gradex_source_archive_version_not_enabled',
-        `Classroom archive version ${metadata.format_version} is not enabled for Gradex`,
-        409,
-        false,
-      )
-    }
   } catch (error) {
     const gradexError = error instanceof ClassroomGradexExtractError
       ? error
@@ -578,8 +631,8 @@ export async function createClassroomGradexExtract(args: {
     const snapshot = parsedBegin.data
     storagePath = snapshot.storage_path
     if (
-      metadata.id !== snapshot.source_archive_id ||
-      metadata.artifact_sha256 !== snapshot.source_archive_sha256
+      source.metadata.id !== snapshot.source_archive_id ||
+      source.metadata.artifact_sha256 !== snapshot.source_archive_sha256
     ) {
       throw new ClassroomGradexExtractError(
         'gradex_source_archive_metadata_mismatch',
@@ -589,46 +642,10 @@ export async function createClassroomGradexExtract(args: {
       )
     }
 
-    const archiveBytes = await downloadSourceArchive({
-      supabase: args.supabase,
-      bucket: metadata.storage_bucket,
-      path: metadata.storage_path,
-    })
-    if (sha256Bytes(archiveBytes) !== snapshot.source_archive_sha256) {
-      throw new ClassroomGradexExtractError(
-        'gradex_source_archive_checksum_mismatch',
-        'Source archive bytes do not match immutable verified metadata',
-        409,
-        false,
-      )
-    }
-    const verifiedArchive = verifyClassroomArchiveBundle(archiveBytes)
-    if (!verifiedArchive.ok) {
-      throw new ClassroomGradexExtractError(
-        'gradex_source_archive_verification_failed',
-        'Source archive failed strict verification',
-        409,
-        false,
-      )
-    }
-    if (
-      verifiedArchive.manifest.archive_id !== sourceArchiveId ||
-      verifiedArchive.manifest.classroom_id !== classroomId ||
-      verifiedArchive.manifest.teacher_id !== teacherId ||
-      verifiedArchive.manifest.version !== metadata.format_version
-    ) {
-      throw new ClassroomGradexExtractError(
-        'gradex_source_archive_identity_mismatch',
-        'Source archive identity does not match the Gradex operation',
-        409,
-        false,
-      )
-    }
-
     let bundle: ReturnType<typeof buildGradexExtractFromClassroomArchive>
     try {
       bundle = buildGradexExtractFromClassroomArchive({
-        archive: archiveBytes,
+        archive: source.archiveBytes,
         extractId: snapshot.extract_id,
         generatedAt: snapshot.generated_at,
         deleteAfter: snapshot.delete_after,

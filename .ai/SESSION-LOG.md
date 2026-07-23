@@ -1062,17 +1062,20 @@ future persistence shape without enabling unapproved schema behavior.
   Quiz parent; adapter replay preserves existing envelopes; archived actor
   references must resolve; and strict v2 verification rejects malformed,
   checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
-- Added an explicit Gradex capability gate and moved source archive metadata
-  validation before operation creation so disabled v2 causes zero RPC or
-  storage writes.
+- Added an explicit Gradex capability gate and moved source download, checksum,
+  strict verification, identity, and metadata-version binding before operation
+  creation so disabled or mislabeled v2 causes zero RPC or storage writes.
+- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract,
+  normalized actor-to-payload equality, and normalized credential-key rejection
+  including client secrets, private keys, and token variants.
 - Updated the retirement plan and cleanup guide to distinguish the completed
   application foundation from the approval-gated database/v2 activation work.
 - Created no migration and performed no production write.
 
 **Validation:**
 - Focused archive contract, format, restore, adapter, Gradex, and docs suites
-  (7 files / 58 tests)
-- Full repository suite after review fixes (411 files / 3,689 tests)
+  (7 files / 59 tests)
+- Full repository suite after review fixes (411 files / 3,690 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (624 modules / 0 allowances)

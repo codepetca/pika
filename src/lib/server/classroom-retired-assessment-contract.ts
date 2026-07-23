@@ -47,8 +47,33 @@ export type RetiredAssessmentRecordActor = z.infer<
   typeof retiredAssessmentRecordActorSchema
 >
 
-const forbiddenCredentialKeyPattern =
-  /^(?:password|password_hash|encrypted_password|access_token|refresh_token|session_secret|api_key|secret_key)$/i
+function normalizeSensitiveKey(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase()
+}
+
+function isForbiddenCredentialKey(key: string): boolean {
+  const normalized = normalizeSensitiveKey(key)
+  return (
+    normalized === 'password' ||
+    normalized.endsWith('_password') ||
+    normalized === 'password_hash' ||
+    normalized === 'encrypted_password' ||
+    normalized === 'private_key' ||
+    normalized.endsWith('_private_key') ||
+    normalized === 'api_key' ||
+    normalized.endsWith('_api_key') ||
+    normalized === 'token' ||
+    normalized.endsWith('_token') ||
+    normalized === 'secret' ||
+    normalized.endsWith('_secret') ||
+    normalized === 'secret_key' ||
+    normalized.endsWith('_secret_key')
+  )
+}
 
 function assertNoCredentialFields(value: unknown, path: string) {
   if (Array.isArray(value)) {
@@ -58,7 +83,7 @@ function assertNoCredentialFields(value: unknown, path: string) {
   if (!value || typeof value !== 'object') return
 
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    if (forbiddenCredentialKeyPattern.test(key)) {
+    if (isForbiddenCredentialKey(key)) {
       throw new Error(`Retired assessment payload contains forbidden credential field: ${path}.${key}`)
     }
     assertNoCredentialFields(item, `${path}.${key}`)
@@ -108,6 +133,16 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
       throw new Error(`Retired assessment record belongs to another classroom: ${record.id}`)
     }
     if (
+      record.source_contract !== LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT ||
+      record.source_contract_version !== 1 ||
+      !Object.hasOwn(LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS, record.source_resource)
+    ) {
+      throw new Error(
+        `Unsupported retired assessment source contract: ` +
+        `${record.source_contract}@${record.source_contract_version}/${record.source_resource}`,
+      )
+    }
+    if (
       (record.parent_source_resource === null) !==
       (record.parent_source_row_id === null)
     ) {
@@ -153,27 +188,21 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
       throw new Error(`Duplicate retired assessment actor reference: ${actor.id}`)
     }
     logicalActorRefs.add(logicalRef)
-    if (record.source_contract === LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT) {
-      const columns = LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS[
-        record.source_resource as keyof typeof LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS
-      ]
-      if (!columns || !(columns as readonly string[]).includes(actor.source_column)) {
-        throw new Error(`Retired Quiz actor source column is invalid: ${actor.id}`)
-      }
-      if (record.payload[actor.source_column] !== actor.actor_id) {
-        throw new Error(`Retired Quiz actor does not match its payload: ${actor.id}`)
-      }
+    const columns = LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS[
+      record.source_resource as keyof typeof LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS
+    ]
+    if (!(columns as readonly string[]).includes(actor.source_column)) {
+      throw new Error(`Retired Quiz actor source column is invalid: ${actor.id}`)
+    }
+    if (record.payload[actor.source_column] !== actor.actor_id) {
+      throw new Error(`Retired Quiz actor does not match its payload: ${actor.id}`)
     }
   }
 
   for (const record of records) {
-    if (record.source_contract !== LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT) continue
     const columns = LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS[
       record.source_resource as keyof typeof LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS
     ]
-    if (!columns) {
-      throw new Error(`Retired Quiz source resource is invalid: ${record.source_resource}`)
-    }
     for (const sourceColumn of columns) {
       const actorId = record.payload[sourceColumn]
       if (actorId === null || actorId === undefined) continue
