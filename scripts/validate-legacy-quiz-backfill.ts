@@ -15,24 +15,31 @@ async function readInput(): Promise<Input> {
   return JSON.parse(input) as Input
 }
 
-const input = await readInput()
-const expected = adaptLegacyQuizArchiveResources({
-  classroomId: input.classroomId,
-  resources: input.resources,
-  actors: input.archiveActors,
+async function main() {
+  const input = await readInput()
+  const expected = adaptLegacyQuizArchiveResources({
+    classroomId: input.classroomId,
+    resources: input.resources,
+    actors: input.archiveActors,
+  })
+
+  if (
+    canonicalJsonStringify(expected.records) !==
+    canonicalJsonStringify(input.envelopeRecords)
+  ) {
+    throw new Error('Database backfill records differ from the TypeScript adapter')
+  }
+  if (
+    canonicalJsonStringify(expected.actors) !==
+    canonicalJsonStringify(input.envelopeActors)
+  ) {
+    throw new Error('Database backfill actors differ from the TypeScript adapter')
+  }
+
+  process.stdout.write('Legacy Quiz database backfill matches the TypeScript adapter.\n')
+}
+
+main().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
 })
-
-if (
-  canonicalJsonStringify(expected.records) !==
-  canonicalJsonStringify(input.envelopeRecords)
-) {
-  throw new Error('Database backfill records differ from the TypeScript adapter')
-}
-if (
-  canonicalJsonStringify(expected.actors) !==
-  canonicalJsonStringify(input.envelopeActors)
-) {
-  throw new Error('Database backfill actors differ from the TypeScript adapter')
-}
-
-process.stdout.write('Legacy Quiz database backfill matches the TypeScript adapter.\n')

@@ -9,12 +9,25 @@ const migration = readFileSync(
   ),
   'utf8',
 )
+const databaseHarness = readFileSync(
+  resolve(process.cwd(), 'scripts/check-legacy-quiz-freeze-backfill.sh'),
+  'utf8',
+)
+const adapterValidator = readFileSync(
+  resolve(process.cwd(), 'scripts/validate-legacy-quiz-backfill.ts'),
+  'utf8',
+)
 
 describe('legacy Quiz freeze and backfill migration', () => {
   it('serializes the freeze, blueprint narrowing, and source snapshot', () => {
     expect(migration).toMatch(/^--[\s\S]*\nbegin;\n/)
     expect(migration.trimEnd()).toMatch(/commit;$/)
+    expect(migration).toContain("set local timezone = 'UTC';")
+    expect(migration).toContain("set local lock_timeout = '5s';")
     expect(migration).toContain('in access exclusive mode;')
+    expect(migration).toContain(
+      "set_config('pika.classroom_archive_compaction', 'on', true)",
+    )
     for (const table of [
       'public.quizzes',
       'public.quiz_questions',
@@ -87,5 +100,18 @@ describe('legacy Quiz freeze and backfill migration', () => {
     expect(migration).not.toMatch(
       /\b(?:insert into|update|delete from|drop table)\s+public\.(?:tests|test_questions|test_responses|test_attempts)\b/i,
     )
+  })
+
+  it('rehearses lock timeout, lock ordering, timezone, and adapter parity', () => {
+    expect(databaseHarness).toContain('legacy_quiz_backfill_lock_timeout')
+    expect(databaseHarness).toContain('canceling statement due to lock timeout')
+    expect(databaseHarness).toContain('legacy_quiz_backfill_revision_race')
+    expect(databaseHarness).toContain('pid <> pg_backend_pid()')
+    expect(databaseHarness).toContain('timezone=America/Toronto')
+    expect(databaseHarness).toContain(
+      'pnpm exec tsx scripts/validate-legacy-quiz-backfill.ts',
+    )
+    expect(adapterValidator).toContain('async function main()')
+    expect(adapterValidator).not.toMatch(/^const input = await/m)
   })
 })

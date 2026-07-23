@@ -640,7 +640,8 @@ RACE_READY=0
 for _ in {1..40}; do
   RACE_READY="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from pg_stat_activity
-     where state = 'active'
+     where pid <> pg_backend_pid()
+       and state = 'active'
        and query like '%$RACE_RECORD_ID%pg_sleep(3)%';")"
   [[ "$RACE_READY" -gt 0 ]] && break
   sleep 0.1

@@ -7,6 +7,9 @@
 
 begin;
 
+set local timezone = 'UTC';
+set local lock_timeout = '5s';
+
 create or replace function private.legacy_quiz_deterministic_uuid_v1(
   p_parts text[]
 )
@@ -259,6 +262,11 @@ lock table
   public.classroom_retired_assessment_records,
   public.classroom_retired_assessment_record_actors
 in access exclusive mode;
+
+-- The source rows already contribute to the classroom revision. Moving their
+-- representation into envelopes must not bump that revision or take revision
+-- row locks in the opposite order from an in-flight archive snapshot.
+select set_config('pika.classroom_archive_compaction', 'on', true);
 
 do $blueprint_preflight$
 begin
