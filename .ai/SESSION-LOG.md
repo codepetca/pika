@@ -994,8 +994,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - Pika changed-file audit
 - Composite-widget accessibility checklist: reviewed; keyboard focus return and dialog semantics covered by tests; no remaining manual accessibility follow-up
+- In-app browser visual matrix: teacher Tests grading table plus `Edit Test` and `New Test` dialog states at desktop and mobile breakpoints in light and dark themes; no viewport overflow, clipped controls, or grading-workspace regression observed
+- Keyboard verification: tab focus showed the browser focus outline on `Edit test title`, and closing the dialog returned focus to `Edit Test`
+- The in-app browser capture compositor tiled each screenshot; the repeated rendered tiles and measured DOM bounds agreed, with dialog and document widths contained in every tested viewport
 - `git diff --check`
 
 **Remaining:**
-- Complete independent review and exact-head PR CI. Local screenshot verification was blocked by the in-app browser URL policy after the local server restarted, so no visual-pass claim is recorded.
+- Complete targeted independent rereview and exact-head PR CI.
 - Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
