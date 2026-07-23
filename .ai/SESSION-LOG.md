@@ -1047,6 +1047,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
   and blueprint lock/preflight requirements; added private archive UUID/checksum
   comparison and concrete duplicate, count-drift, and truncated-page tests.
+- Targeted review caught ambiguous destructive-pass wording; clarified that v2
+  becomes current without deleting either immutable registry graph or the v1
+  adapter, and required a post-drop v1 restore fixture.
 - Re-ran the target-pinned production inventory with stable unchanged aggregates.
 
 **Remaining:**

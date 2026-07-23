@@ -180,7 +180,9 @@ rather than adding a new compatibility producer.
 
 Only after Pass C:
 
-- switch the database archive resource contract to v2 resources;
+- make v2 the only current export contract while retaining both immutable
+  versioned registry graphs and the v1 adapter indefinitely; never replace or
+  delete v1 registry rows referenced by historical operations or snapshots;
 - drop `quiz_responses`, `quiz_student_scores`, `quiz_questions`, then
   `quizzes`, plus their policies, indexes, triggers, and update functions;
 - remove the Quiz branch from `assessment_drafts` after archived Quiz drafts
@@ -190,6 +192,9 @@ Only after Pass C:
   have normalized their input;
 - regenerate database types and remove database-shaped application contracts;
 - retain historical migration files and the archive-v1 adapter.
+
+After the drop, the deployed-code fixture must restore the retained non-empty v1
+archive while v2 is current and assert that both registry graphs remain present.
 
 The drop is not rollback-safe. Recovery is a forward repair migration that
 recreates the old schema and rehydrates it from the envelope ledger if required.
