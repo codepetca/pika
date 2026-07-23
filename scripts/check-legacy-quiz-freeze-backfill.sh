@@ -187,7 +187,7 @@ insert into public.assessment_drafts (
 SQL
 
 if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
-  psql -U postgres -d "$TMP_DB" -X -1 -v ON_ERROR_STOP=1 \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
   < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
   >"$PREFLIGHT_OUTPUT" 2>&1
 then
@@ -229,7 +229,7 @@ where id = '62000000-0000-4000-8000-000000000003';
 SQL
 
 docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
-  psql -U postgres -d "$TMP_DB" -X -1 -v ON_ERROR_STOP=1 \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
   < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" >/dev/null
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'

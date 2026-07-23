@@ -12,6 +12,8 @@ const migration = readFileSync(
 
 describe('legacy Quiz freeze and backfill migration', () => {
   it('serializes the freeze, blueprint narrowing, and source snapshot', () => {
+    expect(migration).toMatch(/^--[\s\S]*\nbegin;\n/)
+    expect(migration.trimEnd()).toMatch(/commit;$/)
     expect(migration).toContain('in access exclusive mode;')
     for (const table of [
       'public.quizzes',

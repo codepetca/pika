@@ -5,6 +5,8 @@
 -- version-aware archive runtime. Backfilled envelopes intentionally make the
 -- legacy v1 export/compaction entry points fail closed.
 
+begin;
+
 create or replace function private.legacy_quiz_deterministic_uuid_v1(
   p_parts text[]
 )
@@ -755,3 +757,5 @@ begin
   end if;
 end;
 $parity_postflight$;
+
+commit;
