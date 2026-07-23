@@ -232,9 +232,10 @@ Application rollback leaves the new registry and envelope tables unused.
   drift.
 - Leave the source tables intact for a compatibility observation window.
 
-Migration 106 acquires its envelope and source relations in archive traversal
-order with `NOWAIT`. Any live archive, restore, or source transaction causes the
-whole migration to roll back immediately; retry it during a quiet window.
+Migration 106 fail-fast locks the `classrooms` and `users` FK parents, then
+acquires its envelope and source relations in archive traversal order with
+`NOWAIT`. Any live archive, restore, parent-write, or source transaction causes
+the whole migration to roll back immediately; retry it during a quiet window.
 
 This pass does not dual-write because there is no active Quiz writer. If the
 preflight finds an unknown writer or changing counts, stop and investigate

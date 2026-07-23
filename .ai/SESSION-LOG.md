@@ -1121,7 +1121,7 @@ future persistence shape without enabling unapproved schema behavior.
 **Completed:**
 - Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
   blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
-  `NOWAIT` locks roll back immediately on live conflicts.
+  parent/child `NOWAIT` locks roll back immediately on live conflicts.
 - Added deterministic SQL envelope IDs and canonical payload checksums matching
   the TypeScript adapter, parent and actor preflights, collision checks, and an
   aggregate-only five-resource parity ledger.

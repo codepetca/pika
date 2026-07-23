@@ -325,6 +325,30 @@ rehearse_no_wait_lock_conflict() {
 }
 
 rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_classroom_parent_conflict" \
+  "begin;
+   select id
+   from public.classrooms
+   where id = '62000000-0000-4000-8000-000000000001'
+   for update;
+   select pg_sleep(4) /* legacy_quiz_backfill_classroom_parent_conflict */;
+   lock table public.classroom_retired_assessment_records in access share mode;
+   commit;" \
+  "classroom-parent-to-envelope-child traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_user_parent_conflict" \
+  "begin;
+   select id
+   from public.users
+   where id = '61000000-0000-4000-8000-000000000001'
+   for update;
+   select pg_sleep(4) /* legacy_quiz_backfill_user_parent_conflict */;
+   lock table public.classroom_retired_assessment_record_actors in access share mode;
+   commit;" \
+  "user-parent-to-envelope-actor traversal"
+
+rehearse_no_wait_lock_conflict \
   "legacy_quiz_backfill_final_table_conflict" \
   "begin;
    lock table public.classroom_retired_assessment_record_actors in access share mode;

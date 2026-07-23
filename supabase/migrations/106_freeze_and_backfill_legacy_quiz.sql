@@ -250,9 +250,17 @@ begin
 end;
 $$;
 
--- Acquire relations in archive traversal order and fail immediately when any
--- live transaction conflicts. Retrying a rolled-back migration during a quiet
--- window is safer than joining an archive/source lock cycle.
+-- Block parent writes and row locks before taking child locks so the envelope
+-- FK checks cannot wait behind a transaction that later needs a child relation.
+-- Ordinary parent reads remain available.
+lock table
+  public.classrooms,
+  public.users
+in exclusive mode nowait;
+
+-- Acquire child relations in archive traversal order and fail immediately when
+-- any live transaction conflicts. Retrying a rolled-back migration during a
+-- quiet window is safer than joining an archive/source lock cycle.
 lock table
   public.classroom_retired_assessment_records,
   public.classroom_retired_assessment_record_actors,

@@ -24,6 +24,9 @@ describe('legacy Quiz freeze and backfill migration', () => {
     expect(migration.trimEnd()).toMatch(/commit;$/)
     expect(migration).toContain("set local timezone = 'UTC';")
     expect(migration).toContain("set local lock_timeout = '5s';")
+    expect(migration).toMatch(
+      /public\.classrooms,[\s\S]*public\.users[\s\S]*in exclusive mode nowait;/,
+    )
     expect(migration).toContain('in access exclusive mode nowait;')
     expect(migration).toContain(
       "set_config('pika.classroom_archive_compaction', 'on', true)",
@@ -107,6 +110,12 @@ describe('legacy Quiz freeze and backfill migration', () => {
 
   it('rehearses fail-fast lock conflicts, ordering, timezone, and adapter parity', () => {
     expect(databaseHarness).toContain('could not obtain lock on relation')
+    expect(databaseHarness).toContain(
+      'legacy_quiz_backfill_classroom_parent_conflict',
+    )
+    expect(databaseHarness).toContain(
+      'legacy_quiz_backfill_user_parent_conflict',
+    )
     expect(databaseHarness).toContain(
       'legacy_quiz_backfill_drafts_quizzes_conflict',
     )
