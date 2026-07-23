@@ -256,12 +256,14 @@ Tests contract.
 The next pass is migration design and production evidence, not another cosmetic
 rename:
 
-- inventory production row counts for the four legacy quiz tables, quiz drafts,
-  blueprint assessments, and stored archive manifests using read-only checks;
-- design a versioned archive adapter that preserves existing archive-v1 quiz
-  resources and proves non-empty restore round trips;
-- specify deterministic data backfill/archive handling, compatibility readers,
-  rollback, and package/gradebook deprecation timing;
+- completed: added a target-pinned read-only inventory for the four legacy Quiz
+  tables, Quiz drafts, blueprint assessments, and verified archive manifests;
+- completed: recorded production counts and designed the versioned archive,
+  deterministic envelope backfill, compatibility, validation, and rollback
+  sequence in
+  [`legacy-quiz-schema-retirement-plan.md`](./legacy-quiz-schema-retirement-plan.md);
+- next: implement the additive retired-resource envelope and archive-v2/v1
+  adapter pass, but only after explicit approval to create its named migration;
 - retain `tab=quizzes` as a URL tombstone and keep database-shaped `quiz_id`
   fields until an explicitly approved migration replaces them.
 

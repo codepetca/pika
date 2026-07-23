@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "verify:classroom-archive-recovery": "bash scripts/check-classroom-archive-recovery-drill.sh",
     "verify:classroom-archive-inventory": "tsx scripts/inventory-classroom-archives.ts",
+    "verify:legacy-quiz-inventory": "tsx scripts/inventory-legacy-quiz-contracts.ts",
     "canary:classroom-archive-production": "tsx scripts/run-classroom-archive-production-canary.ts",
     "db:types:generate": "bash scripts/supabase-types.sh generate",
     "db:types:check": "bash scripts/supabase-types.sh check",
