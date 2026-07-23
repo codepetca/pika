@@ -1065,9 +1065,11 @@ future persistence shape without enabling unapproved schema behavior.
 - Added an explicit Gradex capability gate and moved source download, checksum,
   strict verification, identity, and metadata-version binding before operation
   creation so disabled or mislabeled v2 causes zero RPC or storage writes.
-- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract,
-  normalized actor-to-payload equality, and normalized credential-key rejection
-  including client secrets, private keys, and token variants.
+- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
+  and added a resource registry that enforces payload identity, required
+  parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
+  payload equality, and credential-key rejection including client secrets,
+  private keys, and token variants.
 - Updated the retirement plan and cleanup guide to distinguish the completed
   application foundation from the approval-gated database/v2 activation work.
 - Created no migration and performed no production write.

@@ -217,6 +217,7 @@ describe('classroom archive format', () => {
     const actorId = '72000000-0000-4000-8000-000000000003'
     const payload = {
       id: sourceRowId,
+      classroom_id: V2_CLASSROOM_ID,
       title: 'Retired assessment',
       created_by: V2_TEACHER_ID,
     }
@@ -261,7 +262,8 @@ describe('classroom archive format', () => {
   it('rejects invalid v2 envelope checksums, relationships, actors, and credentials', () => {
     const sourceRowId = '73000000-0000-4000-8000-000000000001'
     const recordId = '73000000-0000-4000-8000-000000000002'
-    const payload = { id: sourceRowId }
+    const parentSourceRowId = '73000000-0000-4000-8000-000000000009'
+    const payload = { id: sourceRowId, quiz_id: parentSourceRowId }
     const baseRecord = {
       id: recordId,
       classroom_id: V2_CLASSROOM_ID,
@@ -270,7 +272,7 @@ describe('classroom archive format', () => {
       source_resource: 'quiz_questions',
       source_row_id: sourceRowId,
       parent_source_resource: 'quizzes',
-      parent_source_row_id: '73000000-0000-4000-8000-000000000009',
+      parent_source_row_id: parentSourceRowId,
       payload,
       payload_sha256: retiredAssessmentPayloadChecksum(payload),
       checksum_algorithm: RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
@@ -305,8 +307,20 @@ describe('classroom archive format', () => {
       source_resource: 'quizzes',
       parent_source_resource: null,
       parent_source_row_id: null,
+      payload: {
+        id: sourceRowId,
+        classroom_id: V2_CLASSROOM_ID,
+      },
+      payload_sha256: retiredAssessmentPayloadChecksum({
+        id: sourceRowId,
+        classroom_id: V2_CLASSROOM_ID,
+      }),
     }
-    const actorPayload = { id: sourceRowId, created_by: V2_TEACHER_ID }
+    const actorPayload = {
+      id: sourceRowId,
+      classroom_id: V2_CLASSROOM_ID,
+      created_by: V2_TEACHER_ID,
+    }
     expect(verifyRecords([{
       ...root,
       payload: actorPayload,
@@ -333,7 +347,11 @@ describe('classroom archive format', () => {
       error: expect.stringContaining('Unsupported retired assessment source contract'),
     }))
 
-    const mismatchedActorPayload = { id: sourceRowId, created_by: V2_TEACHER_ID }
+    const mismatchedActorPayload = {
+      id: sourceRowId,
+      classroom_id: V2_CLASSROOM_ID,
+      created_by: V2_TEACHER_ID,
+    }
     expect(verifyRecords([{
       ...root,
       payload: mismatchedActorPayload,
@@ -349,10 +367,10 @@ describe('classroom archive format', () => {
     }))
 
     for (const credentialPayload of [
-      { id: sourceRowId, password_hash: 'forbidden' },
-      { id: sourceRowId, clientSecret: 'forbidden' },
-      { id: sourceRowId, 'private-key': 'forbidden' },
-      { id: sourceRowId, resetToken: 'forbidden' },
+      { id: sourceRowId, classroom_id: V2_CLASSROOM_ID, password_hash: 'forbidden' },
+      { id: sourceRowId, classroom_id: V2_CLASSROOM_ID, clientSecret: 'forbidden' },
+      { id: sourceRowId, classroom_id: V2_CLASSROOM_ID, 'private-key': 'forbidden' },
+      { id: sourceRowId, classroom_id: V2_CLASSROOM_ID, resetToken: 'forbidden' },
     ]) {
       expect(verifyRecords([{
         ...root,
@@ -363,6 +381,108 @@ describe('classroom archive format', () => {
         error: expect.stringContaining('forbidden credential field'),
       }))
     }
+
+    const payloadWithWrongId = {
+      ...root.payload,
+      id: '73000000-0000-4000-8000-000000000008',
+    }
+    expect(verifyRecords([{
+      ...root,
+      payload: payloadWithWrongId,
+      payload_sha256: retiredAssessmentPayloadChecksum(payloadWithWrongId),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('payload identity does not match'),
+    }))
+
+    const missingParentPayload = {
+      id: sourceRowId,
+      quiz_id: parentSourceRowId,
+    }
+    expect(verifyRecords([{
+      ...baseRecord,
+      parent_source_resource: null,
+      parent_source_row_id: null,
+      payload: missingParentPayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(missingParentPayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('required parent is missing'),
+    }))
+
+    const wrongParentResourcePayload = {
+      id: sourceRowId,
+      quiz_id: parentSourceRowId,
+    }
+    expect(verifyRecords([{
+      ...baseRecord,
+      parent_source_resource: 'quiz_responses',
+      payload: wrongParentResourcePayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(wrongParentResourcePayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('parent resource is invalid'),
+    }))
+
+    const wrongParentForeignKeyPayload = {
+      id: sourceRowId,
+      quiz_id: '73000000-0000-4000-8000-000000000008',
+    }
+    expect(verifyRecords([{
+      ...baseRecord,
+      payload: wrongParentForeignKeyPayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(wrongParentForeignKeyPayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('parent foreign key does not match'),
+    }))
+
+    const otherClassroomPayload = {
+      ...root.payload,
+      classroom_id: '73000000-0000-4000-8000-000000000008',
+    }
+    expect(verifyRecords([{
+      ...root,
+      payload: otherClassroomPayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(otherClassroomPayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('payload belongs to another classroom'),
+    }))
+
+    const questionRecord = {
+      ...baseRecord,
+      id: '73000000-0000-4000-8000-000000000011',
+      parent_source_row_id: root.source_row_id,
+      payload: {
+        id: sourceRowId,
+        quiz_id: root.source_row_id,
+      },
+      payload_sha256: retiredAssessmentPayloadChecksum({
+        id: sourceRowId,
+        quiz_id: root.source_row_id,
+      }),
+    }
+    const responseRowId = '73000000-0000-4000-8000-000000000006'
+    const unrelatedQuizId = '73000000-0000-4000-8000-000000000007'
+    const responsePayload = {
+      id: responseRowId,
+      question_id: questionRecord.source_row_id,
+      quiz_id: unrelatedQuizId,
+    }
+    expect(verifyRecords([root, questionRecord, {
+      ...baseRecord,
+      id: '73000000-0000-4000-8000-000000000010',
+      source_resource: 'quiz_responses',
+      source_row_id: responseRowId,
+      parent_source_resource: 'quiz_questions',
+      parent_source_row_id: questionRecord.source_row_id,
+      payload: responsePayload,
+      payload_sha256: retiredAssessmentPayloadChecksum(responsePayload),
+    }])).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('parent payload relationship is invalid'),
+    }))
   })
 
   it('rejects a bundle whose decompressed content was modified', () => {

@@ -131,9 +131,10 @@ The application-only foundation is implemented without enabling v2:
   independently from the live database inventory and protected by a digest;
 - manifest verification reads the minimal header and dispatches through
   explicit v1/v2 schemas; v1 remains the only enabled export and restore;
-- v2 verification strictly validates envelope schemas, payload checksums,
-  supported source contracts, parent links, actor snapshots, normalized actor
-  links, and credential-field exclusions before treating an artifact as
+- v2 verification dispatches each envelope through a source-contract registry
+  that validates payload identity, required parent resource and foreign key,
+  direct classroom binding, cross-parent Quiz identity, actor columns, payload
+  checksums, and credential-field exclusions before treating an artifact as
   verified;
 - the inactive v2 graph replaces the four Quiz resources with the two retired
   envelope resources;

@@ -11,13 +11,111 @@ export const LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT =
   'pika.classroom-archive@1/legacy-quiz' as const
 export const RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM =
   'sha256-canonical-json-v1' as const
+
+type RetiredAssessmentSourceResourceContract = {
+  payloadIdentityField: string
+  parent: {
+    sourceResource: string
+    payloadForeignKey: string
+    parentPayloadMatches?: readonly {
+      payloadField: string
+      parentPayloadField: string
+    }[]
+  } | null
+  classroomIdField: string | null
+  actorColumns: readonly string[]
+  requiredPayloadValues?: Readonly<Record<string, unknown>>
+}
+
+const LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS = {
+  quizzes: {
+    payloadIdentityField: 'id',
+    parent: null,
+    classroomIdField: 'classroom_id',
+    actorColumns: ['created_by'],
+  },
+  quiz_questions: {
+    payloadIdentityField: 'id',
+    parent: {
+      sourceResource: 'quizzes',
+      payloadForeignKey: 'quiz_id',
+    },
+    classroomIdField: null,
+    actorColumns: [],
+  },
+  quiz_responses: {
+    payloadIdentityField: 'id',
+    parent: {
+      sourceResource: 'quiz_questions',
+      payloadForeignKey: 'question_id',
+      parentPayloadMatches: [{
+        payloadField: 'quiz_id',
+        parentPayloadField: 'quiz_id',
+      }],
+    },
+    classroomIdField: null,
+    actorColumns: ['student_id'],
+  },
+  quiz_student_scores: {
+    payloadIdentityField: 'id',
+    parent: {
+      sourceResource: 'quizzes',
+      payloadForeignKey: 'quiz_id',
+    },
+    classroomIdField: null,
+    actorColumns: ['student_id'],
+  },
+  assessment_drafts: {
+    payloadIdentityField: 'id',
+    parent: {
+      sourceResource: 'quizzes',
+      payloadForeignKey: 'assessment_id',
+    },
+    classroomIdField: 'classroom_id',
+    actorColumns: ['created_by', 'updated_by'],
+    requiredPayloadValues: {
+      assessment_type: 'quiz',
+    },
+  },
+} as const satisfies Record<string, RetiredAssessmentSourceResourceContract>
+
 export const LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS = {
-  quizzes: ['created_by'],
-  quiz_questions: [],
-  quiz_responses: ['student_id'],
-  quiz_student_scores: ['student_id'],
-  assessment_drafts: ['created_by', 'updated_by'],
+  quizzes: LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS.quizzes.actorColumns,
+  quiz_questions: LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS.quiz_questions.actorColumns,
+  quiz_responses: LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS.quiz_responses.actorColumns,
+  quiz_student_scores:
+    LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS.quiz_student_scores.actorColumns,
+  assessment_drafts:
+    LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS.assessment_drafts.actorColumns,
 } as const
+
+function sourceContractRegistryKey(args: {
+  sourceContract: string
+  sourceContractVersion: number
+  sourceResource: string
+}): string {
+  return [
+    args.sourceContract,
+    args.sourceContractVersion,
+    args.sourceResource,
+  ].join('\0')
+}
+
+const RETIRED_ASSESSMENT_SOURCE_CONTRACT_REGISTRY = new Map<
+  string,
+  RetiredAssessmentSourceResourceContract
+>(
+  Object.entries(LEGACY_QUIZ_SOURCE_RESOURCE_CONTRACTS).map(
+    ([sourceResource, contract]) => [
+      sourceContractRegistryKey({
+        sourceContract: LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
+        sourceContractVersion: 1,
+        sourceResource,
+      }),
+      contract,
+    ],
+  ),
+)
 
 export const retiredAssessmentRecordSchema = z.object({
   id: uuidSchema,
@@ -95,12 +193,40 @@ export function retiredAssessmentPayloadChecksum(payload: Record<string, unknown
 }
 
 function sourceIdentity(record: RetiredAssessmentRecord): string {
-  return [
-    record.source_contract,
-    record.source_contract_version,
-    record.source_resource,
-    record.source_row_id,
-  ].join('\0')
+  return sourceContractRegistryKey({
+    sourceContract: record.source_contract,
+    sourceContractVersion: record.source_contract_version,
+    sourceResource: record.source_resource,
+  }) + `\0${record.source_row_id}`
+}
+
+function sourceResourceContract(
+  record: RetiredAssessmentRecord,
+): RetiredAssessmentSourceResourceContract {
+  const contract = RETIRED_ASSESSMENT_SOURCE_CONTRACT_REGISTRY.get(
+    sourceContractRegistryKey({
+      sourceContract: record.source_contract,
+      sourceContractVersion: record.source_contract_version,
+      sourceResource: record.source_resource,
+    }),
+  )
+  if (!contract) {
+    throw new Error(
+      `Unsupported retired assessment source contract: ` +
+      `${record.source_contract}@${record.source_contract_version}/${record.source_resource}`,
+    )
+  }
+  return contract
+}
+
+function payloadUuid(record: RetiredAssessmentRecord, field: string): string {
+  const result = uuidSchema.safeParse(record.payload[field])
+  if (!result.success) {
+    throw new Error(
+      `Retired assessment payload UUID is invalid: ${record.id}/${field}`,
+    )
+  }
+  return result.data
 }
 
 export function validateRetiredAssessmentEnvelopeGraph(args: {
@@ -132,15 +258,28 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
     if (record.classroom_id !== classroomId) {
       throw new Error(`Retired assessment record belongs to another classroom: ${record.id}`)
     }
+    const contract = sourceResourceContract(record)
+    if (payloadUuid(record, contract.payloadIdentityField) !== record.source_row_id) {
+      throw new Error(
+        `Retired assessment payload identity does not match its envelope: ${record.id}`,
+      )
+    }
     if (
-      record.source_contract !== LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT ||
-      record.source_contract_version !== 1 ||
-      !Object.hasOwn(LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS, record.source_resource)
+      contract.classroomIdField &&
+      payloadUuid(record, contract.classroomIdField) !== classroomId
     ) {
       throw new Error(
-        `Unsupported retired assessment source contract: ` +
-        `${record.source_contract}@${record.source_contract_version}/${record.source_resource}`,
+        `Retired assessment payload belongs to another classroom: ${record.id}`,
       )
+    }
+    for (const [field, expectedValue] of Object.entries(
+      contract.requiredPayloadValues || {},
+    )) {
+      if (record.payload[field] !== expectedValue) {
+        throw new Error(
+          `Retired assessment payload contract value is invalid: ${record.id}/${field}`,
+        )
+      }
     }
     if (
       (record.parent_source_resource === null) !==
@@ -157,15 +296,48 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
   }
 
   for (const record of records) {
-    if (!record.parent_source_resource || !record.parent_source_row_id) continue
+    const contract = sourceResourceContract(record)
+    if (!contract.parent) {
+      if (record.parent_source_resource || record.parent_source_row_id) {
+        throw new Error(`Retired assessment root must not have a parent: ${record.id}`)
+      }
+      continue
+    }
+    if (!record.parent_source_resource || !record.parent_source_row_id) {
+      throw new Error(`Retired assessment required parent is missing: ${record.id}`)
+    }
+    if (record.parent_source_resource !== contract.parent.sourceResource) {
+      throw new Error(
+        `Retired assessment parent resource is invalid: ${record.id}`,
+      )
+    }
+    if (
+      payloadUuid(record, contract.parent.payloadForeignKey) !==
+      record.parent_source_row_id
+    ) {
+      throw new Error(
+        `Retired assessment parent foreign key does not match its envelope: ${record.id}`,
+      )
+    }
     const parentIdentity = [
       record.source_contract,
       record.source_contract_version,
       record.parent_source_resource,
       record.parent_source_row_id,
     ].join('\0')
-    if (!recordsBySource.has(parentIdentity)) {
+    const parent = recordsBySource.get(parentIdentity)
+    if (!parent) {
       throw new Error(`Retired assessment parent is missing: ${record.id}`)
+    }
+    for (const match of contract.parent.parentPayloadMatches || []) {
+      if (
+        payloadUuid(record, match.payloadField) !==
+        payloadUuid(parent, match.parentPayloadField)
+      ) {
+        throw new Error(
+          `Retired assessment parent payload relationship is invalid: ${record.id}/${match.payloadField}`,
+        )
+      }
     }
   }
 
@@ -188,10 +360,8 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
       throw new Error(`Duplicate retired assessment actor reference: ${actor.id}`)
     }
     logicalActorRefs.add(logicalRef)
-    const columns = LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS[
-      record.source_resource as keyof typeof LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS
-    ]
-    if (!(columns as readonly string[]).includes(actor.source_column)) {
+    const contract = sourceResourceContract(record)
+    if (!contract.actorColumns.includes(actor.source_column)) {
       throw new Error(`Retired Quiz actor source column is invalid: ${actor.id}`)
     }
     if (record.payload[actor.source_column] !== actor.actor_id) {
@@ -200,10 +370,8 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
   }
 
   for (const record of records) {
-    const columns = LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS[
-      record.source_resource as keyof typeof LEGACY_QUIZ_SOURCE_ACTOR_COLUMNS
-    ]
-    for (const sourceColumn of columns) {
+    const contract = sourceResourceContract(record)
+    for (const sourceColumn of contract.actorColumns) {
       const actorId = record.payload[sourceColumn]
       if (actorId === null || actorId === undefined) continue
       const parsedActorId = uuidSchema.parse(actorId)

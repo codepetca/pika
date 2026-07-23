@@ -190,7 +190,11 @@ describe('legacy Quiz archive retirement adapter', () => {
       classroom_retired_assessment_records: Record<string, unknown>[]
       classroom_retired_assessment_record_actors: Record<string, unknown>[]
     }
-    const payload = { id: '90000000-0000-4000-8000-000000000001', title: 'Prior quiz' }
+    const payload = {
+      id: '90000000-0000-4000-8000-000000000001',
+      classroom_id: CLASSROOM_ID,
+      title: 'Prior quiz',
+    }
     const existing = {
       id: '90000000-0000-4000-8000-000000000002',
       classroom_id: CLASSROOM_ID,
