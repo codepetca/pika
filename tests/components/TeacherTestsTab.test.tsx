@@ -300,6 +300,10 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ error: 'Database unavailable' }),
       })
       .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Still unavailable' }),
+      })
+      .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Recovered Test' })] }),
       })
@@ -311,7 +315,13 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
     expect(await screen.findByText('Recovered Test')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
     expect(screen.queryByText('Tests unavailable')).not.toBeInTheDocument()
   })
 

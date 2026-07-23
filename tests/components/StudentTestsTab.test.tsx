@@ -159,6 +159,7 @@ describe('StudentTestsTab exam mode', () => {
   it('shows a retryable error instead of an empty state when the tests list fails', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ error: 'Database unavailable' }, false))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Still unavailable' }, false))
       .mockResolvedValueOnce(jsonResponse({
         tests: [{
           id: 'test-recovered',
@@ -178,7 +179,13 @@ describe('StudentTestsTab exam mode', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
     expect(await screen.findByText('Recovered Test')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
     expect(screen.queryByText('Tests unavailable')).not.toBeInTheDocument()
   })
 

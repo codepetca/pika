@@ -286,6 +286,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const sessionStatusInFlightRef = useRef(false)
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
+  const testsRegionRef = useRef<HTMLDivElement>(null)
   const assessmentType: TestAssessmentType = 'test'
   const currentScopeRef = useRef({ classroomId: classroom.id, assessmentType })
   const isTestsView = true
@@ -432,6 +433,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }, [apiBasePath, assessmentType, classroom.id])
 
   const retryTests = useCallback(() => {
+    testsRegionRef.current?.focus()
     void loadTests({ forceRefresh: true })
   }, [loadTests])
 
@@ -1351,8 +1353,12 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
             <span role="status" className="sr-only">Refreshing tests</span>
           ) : null}
           <div
+            ref={testsRegionRef}
+            role="region"
+            aria-label="Tests"
+            tabIndex={-1}
             aria-hidden={showNotMaximizedWarning}
-            className={`mx-auto h-full w-full ${
+            className={`mx-auto h-full w-full focus:outline-none ${
               showSplitExamShell || !hasSelectedTest ? 'max-w-none' : 'max-w-3xl'
             }`}
             style={showNotMaximizedWarning ? { visibility: 'hidden' } : undefined}

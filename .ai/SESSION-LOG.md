@@ -978,19 +978,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved the last valid list when refresh fails, rejected non-successful student list responses, and replaced one-off refresh cache keys with canonical invalidation.
 - Scoped rendered list snapshots and errors to the active classroom so another classroom's tests cannot paint during navigation.
 - Kept controlled teacher test URLs intact until a successful list snapshot proves the selected test is invalid.
+- Resolved independent review feedback by moving focus from a replaced Retry button to a stable named Tests region for both failed and successful retries.
 - Preserved the existing desktop list-first composition. Mobile UX, Gradex, schema, migrations, and production state were unchanged.
 
 **Validation:**
 - Focused teacher/student Tests list suites (3 files / 110 tests)
-- Full repository suite (407 files / 3,680 tests)
+- Full repository suite before the focus-only remediation (407 files / 3,680 tests); exact-head PR CI is required
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (623 modules / 0 allowances)
 - `pnpm build`
 - Pika changed-file audit and composite-widget accessibility checklist
 - Playwright desktop matrix for both roles in light/dark across normal, cold-error, and preserved-refresh-error states (12 captures; no horizontal overflow)
+- Post-remediation teacher/student desktop light/dark captures (4 captures; no layout change or horizontal overflow)
 - `git diff --check`
 
 **Remaining:**
-- Require independent review and exact-head PR CI before merge.
+- Require targeted remediation review and exact-head PR CI before merge.
 - Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.

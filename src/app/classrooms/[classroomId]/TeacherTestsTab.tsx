@@ -296,6 +296,7 @@ export function TeacherTestsTab({
   })
   const latestCreateTestRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
+  const testsRegionRef = useRef<HTMLDivElement>(null)
   const previousClassroomIdRef = useRef(classroom.id)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
 
@@ -365,6 +366,10 @@ export function TeacherTestsTab({
     selectedTestDraftSummary,
     apiBasePath,
   })
+  const handleRetryTests = useCallback(() => {
+    testsRegionRef.current?.focus()
+    void retryTests()
+  }, [retryTests])
   const [gradingInfo, setGradingInfo] = useState('')
   const [gradingWarning, setGradingWarning] = useState('')
   const [isBatchAutoGrading, setIsBatchAutoGrading] = useState(false)
@@ -2547,7 +2552,7 @@ export function TeacherTestsTab({
         title="Tests unavailable"
         description="Pika couldn't load this classroom's tests. Nothing was changed."
         compact
-        action={<Button type="button" onClick={() => void retryTests()}>Retry</Button>}
+        action={<Button type="button" onClick={handleRetryTests}>Retry</Button>}
       />
     ) : (
       <PageState kind="loading" title="Loading tests" compact />
@@ -2561,7 +2566,7 @@ export function TeacherTestsTab({
           className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
         >
           <span>Tests could not be refreshed. Showing the last loaded list.</span>
-          <Button type="button" variant="secondary" size="sm" onClick={() => void retryTests()}>
+          <Button type="button" variant="secondary" size="sm" onClick={handleRetryTests}>
             Retry
           </Button>
         </div>
@@ -2596,7 +2601,7 @@ export function TeacherTestsTab({
         title="Tests unavailable"
         description="Pika couldn't load this classroom's tests. Nothing was changed."
         compact
-        action={<Button type="button" onClick={() => void retryTests()}>Retry</Button>}
+        action={<Button type="button" onClick={handleRetryTests}>Retry</Button>}
       />
     ) : (
       <PageState kind="loading" title="Loading tests" compact />
@@ -2637,15 +2642,23 @@ export function TeacherTestsTab({
 
   return (
     <>
-      <TeacherWorkSurfaceShell
-        state={workspaceState === 'selected' ? 'workspace' : 'summary'}
-        primary={primaryContent}
-        feedback={feedback}
-        summary={summaryContent}
-        workspace={workspaceContent}
-        workspaceFrame="standalone"
-        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
-      />
+      <div
+        ref={testsRegionRef}
+        role="region"
+        aria-label="Tests"
+        tabIndex={-1}
+        className="h-full min-h-0 focus:outline-none"
+      >
+        <TeacherWorkSurfaceShell
+          state={workspaceState === 'selected' ? 'workspace' : 'summary'}
+          primary={primaryContent}
+          feedback={feedback}
+          summary={summaryContent}
+          workspace={workspaceContent}
+          workspaceFrame="standalone"
+          workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+        />
+      </div>
 
       <DialogPanel
         isOpen={isTestEditorOpen}
