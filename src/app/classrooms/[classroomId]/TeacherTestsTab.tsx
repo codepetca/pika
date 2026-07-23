@@ -16,15 +16,15 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, RotateCcw, Send, Trash2, Unlock, X } from 'lucide-react'
+import { Check, ClockAlert, Lock, LogOut, Pencil, RotateCcw, Send, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
+import { TeacherTestAuthoringDialog } from '@/components/test-workspace/TeacherTestAuthoringDialog'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import {
   TeacherWorkSurfaceActionCluster,
@@ -38,7 +38,6 @@ import {
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
-import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
 import { fetchJSONWithCache } from '@/lib/request-cache'
@@ -112,8 +111,6 @@ interface Props {
   onRequestDelete?: () => void
 }
 
-type TestEditModalView = 'edit' | 'markdown'
-type TestEditSaveStatus = 'saved' | 'saving' | 'unsaved'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
@@ -307,9 +304,6 @@ export function TeacherTestsTab({
   const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
   const [isCreatingTest, setIsCreatingTest] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
-  const [testEditTitlePortalTarget, setTestEditTitlePortalTarget] = useState<HTMLDivElement | null>(null)
-  const [, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
   const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
   const [isDeletingTest, setIsDeletingTest] = useState(false)
 
@@ -396,7 +390,6 @@ export function TeacherTestsTab({
 
     if (selectedTestMode !== undefined && previousMode === 'authoring' && selectedTestMode !== 'authoring') {
       setShowEditModal(false)
-      setTestEditModalView('edit')
       setHasPendingMarkdownImport(false)
     }
   }, [selectedTestMode])
@@ -529,8 +522,6 @@ export function TeacherTestsTab({
     setIsReorderingTests(false)
     setIsCreatingTest(false)
     setShowEditModal(false)
-    setTestEditModalView('edit')
-    setTestEditSaveStatus('saved')
     setHasPendingMarkdownImport(false)
     setPendingDeleteTest(null)
     setIsDeletingTest(false)
@@ -1213,16 +1204,6 @@ export function TeacherTestsTab({
     clearBatchSelection()
   }
 
-  function handleEditTest(test: TestAssessmentWithStats) {
-    navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
-    setGradingError('')
-    setGradingWarning('')
-    setGradingInfo('')
-    clearBatchSelection()
-    setTestEditModalView('edit')
-    setShowEditModal(true)
-  }
-
   function handleOpenSavedTestPreview(preview: { testId: string; title: string }) {
     if (onRequestTestPreview) {
       onRequestTestPreview(preview)
@@ -1235,10 +1216,6 @@ export function TeacherTestsTab({
     )
     previewWindow?.focus()
   }
-
-  useEffect(() => {
-    setTestEditSaveStatus('saved')
-  }, [selectedTestId])
 
   async function handleNewTest() {
     if (isCreatingTest || isReadOnly || loading) return
@@ -1289,7 +1266,6 @@ export function TeacherTestsTab({
       return [createdTest, ...next]
     })
     navigateTestWorkspace({ testId: createdTest.id, mode: 'authoring', studentId: null }, { replace: true })
-    setTestEditModalView('edit')
     setShowEditModal(true)
     window.dispatchEvent(
       new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
@@ -2235,7 +2211,6 @@ export function TeacherTestsTab({
   const openSelectedTestEditor = () => {
     if (!selectedTestWorkspace) return
     navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
-    setTestEditModalView('edit')
     setHasPendingMarkdownImport(false)
     setShowEditModal(true)
   }
@@ -2394,13 +2369,17 @@ export function TeacherTestsTab({
     >
       <TeacherWorkSurfaceActionCluster>
         <SplitButton {...selectedTestAction} />
-        <TeacherWorkSurfaceIconButton
-          ariaLabel="Edit Test"
-          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
           onClick={openSelectedTestEditor}
           disabled={isReadOnly}
-          tooltip="Edit Test"
-        />
+          className="gap-1.5"
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          Edit Test
+        </Button>
       </TeacherWorkSurfaceActionCluster>
       {workspaceModeStatus}
     </div>
@@ -2587,7 +2566,6 @@ export function TeacherTestsTab({
   const isTestEditorOpen = !!selectedTestWorkspace && (showEditModal || selectedWorkspaceTab === 'authoring')
   const handleCloseTestEditor = useCallback(() => {
     setShowEditModal(false)
-    setTestEditModalView('edit')
     setHasPendingMarkdownImport(false)
     if (selectedTestId && selectedWorkspaceTab === 'authoring') {
       navigateTestWorkspace({ testId: selectedTestId, mode: 'grading', studentId: null }, { replace: true })
@@ -2660,91 +2638,24 @@ export function TeacherTestsTab({
         />
       </div>
 
-      <DialogPanel
+      <TeacherTestAuthoringDialog
         isOpen={isTestEditorOpen}
+        test={selectedTestWorkspace}
+        classroomId={classroom.id}
+        apiBasePath={apiBasePath}
+        hasPendingMarkdownImport={hasPendingMarkdownImport}
         onClose={handleCloseTestEditor}
-        ariaLabelledBy="test-edit-title"
-        maxWidth="max-w-6xl"
-        className="h-[85vh] overflow-hidden p-0"
-      >
-        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-          <div
-            id="test-edit-title"
-            ref={setTestEditTitlePortalTarget}
-            className="min-w-0 basis-full text-base font-semibold text-text-default sm:basis-auto sm:flex-1"
-          >
-            {!testEditTitlePortalTarget && selectedTestWorkspace
-              ? getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')
-              : null}
-          </div>
-          <Tooltip content="Markdown view">
-            <Button
-              type="button"
-              variant={testEditModalView === 'markdown' ? 'subtle' : 'secondary'}
-              size="sm"
-              aria-pressed={testEditModalView === 'markdown'}
-              className="gap-1.5"
-              onClick={() => {
-                setTestEditModalView((current) => (current === 'markdown' ? 'edit' : 'markdown'))
-              }}
-            >
-              <Code className="h-4 w-4" aria-hidden="true" />
-              <span>Code</span>
-            </Button>
-          </Tooltip>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              if (!selectedTestWorkspace) return
-              handleOpenSavedTestPreview({
-                testId: selectedTestWorkspace.id,
-                title: selectedTestWorkspace.title,
-              })
-            }}
-            disabled={hasPendingMarkdownImport || !selectedTestWorkspace}
-            className="gap-1.5"
-          >
-            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            Preview
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleCloseTestEditor}
-          >
-            Close
-          </Button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-hidden">
-          {selectedTestWorkspace ? (
-            <TestDetailPanel
-              test={selectedTestWorkspace}
-              classroomId={classroom.id}
-              apiBasePath={apiBasePath}
-              onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
-              onTestUpdate={(update) => {
-                if (update) {
-                  applySelectedTestDraftSummary(update)
-                  return
-                }
-                void loadTests()
-              }}
-              onPendingMarkdownImportChange={setHasPendingMarkdownImport}
-              onSaveStatusChange={setTestEditSaveStatus}
-              onRequestTestPreview={handleOpenSavedTestPreview}
-              showInlineDeleteAction={false}
-              testQuestionLayout={testEditModalView === 'markdown' ? 'markdown-only' : 'editor-only'}
-              showPreviewButton={false}
-              showResultsTab={false}
-              titlePortalTarget={testEditTitlePortalTarget}
-              generatedTitleLabel="Untitled Test"
-            />
-          ) : null}
-        </div>
-      </DialogPanel>
+        onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
+        onTestUpdate={(update) => {
+          if (update) {
+            applySelectedTestDraftSummary(update)
+            return
+          }
+          void loadTests()
+        }}
+        onPendingMarkdownImportChange={setHasPendingMarkdownImport}
+        onRequestPreview={handleOpenSavedTestPreview}
+      />
 
       <DialogPanel
         isOpen={showBatchGradeModal}

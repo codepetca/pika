@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Classroom archive source ownership fence
-
-**Completed:**
-- Added migration 096 to make assignment-artifact source deletion require a bounded, transactional ownership verification and a permanent SHA-256 path reservation.
-- Serialized verification against artifact references, Storage writes, cleanup-ledger staging, and stale-worker deletion; reset pre-fence leases and rejected unreconciled historical deletions.
-- Restricted cleanup claims, lease transitions, and exact Storage presence checks to service-owned database contracts with explicit privilege tests.
-- Kept source cleanup manual, default-off, unscheduled, operation-scoped, and limited to one object per invocation; submission images and test documents remain preserved until they have authoritative relational registries.
-- Expanded the database harness with live multi-session races and the recovery drill with exact export, cleanup, byte-identical restore, replay, and deidentified-fence retention checks.
-- Completed repeated runtime and database review/fix rounds. No production state was read or modified by this phase.
-
-**Deployment obligation:**
-- Apply migration 096 before deploying this app version.
-- Run hosted catalog audit and named canaries read-only before enabling any source cleanup; keep cleanup disabled unless both explicit gates and an exact completed operation ID are supplied.
-
-**Validation:**
-- Classroom archive source-cleanup route/server/migration suites (33 tests)
-- `pnpm vitest run` (362 files / 3,317 tests)
-- Classroom archive compaction database contract harness, including concurrent verifier/reference/Storage/staging races
-- Classroom archive full recovery drill (42 resource tables; exact restore and replay)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm db:types:check`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
 ## 2026-07-15 — Production archive canary retry and recovery hardening
 
 **Completed:**
@@ -998,3 +971,34 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Require exact-head PR CI and normal protected merge into `main`.
+
+## 2026-07-23 — Separated Tests authoring from grading
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses route-backed workspace mode, dialog accessibility, and a large teacher Tests coordinator while preserving existing grading behavior.
+
+**Completed:**
+- Preserved the grading-first, class-wide Tests table and prior decision not to restore large Authoring/Grading tabs.
+- Replaced the icon-only pencil with a visible `Edit Test` command so teachers can distinguish test construction from student-work review without leaving the selected test.
+- Gave the editor dialog an explicit accessible `Edit test` name and visible mode label.
+- Extracted authoring-only dialog, markdown-view, and title-portal composition into `TeacherTestAuthoringDialog`, reducing state and presentation ownership in `TeacherTestsTab`.
+- Left APIs, grading behavior, schema, migrations, Gradex, production state, student UI, and deferred mobile UX unchanged.
+
+**Validation:**
+- Focused teacher Tests authoring/workspace suites (2 files / 67 tests)
+- Full repository suite (407 files / 3,680 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- Composite-widget accessibility checklist: reviewed; keyboard focus return and dialog semantics covered by tests; no remaining manual accessibility follow-up
+- In-app browser visual matrix: teacher Tests grading table plus `Edit Test` and `New Test` dialog states at desktop and mobile breakpoints in light and dark themes; no viewport overflow, clipped controls, or grading-workspace regression observed
+- Keyboard verification: tab focus showed the browser focus outline on `Edit test title`, and closing the dialog returned focus to `Edit Test`
+- The in-app browser capture compositor tiled each screenshot; the repeated rendered tiles and measured DOM bounds agreed, with dialog and document widths contained in every tested viewport
+- `git diff --check`
+
+**Remaining:**
+- Complete targeted independent rereview and exact-head PR CI.
+- Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.

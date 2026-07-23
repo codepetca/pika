@@ -718,7 +718,9 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit Test' })).toBeEnabled()
+    const editTestButton = screen.getByRole('button', { name: 'Edit Test' })
+    expect(editTestButton).toBeEnabled()
+    expect(within(editTestButton).getByText('Edit Test')).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
@@ -727,9 +729,12 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
     fireEvent.keyDown(window, { key: 'Escape' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Test' }))
+    editTestButton.focus()
+    fireEvent.click(editTestButton)
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByRole('dialog', { name: 'Edit test' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText('Edit test')).toBeVisible()
     expect(updateSearchParams).toHaveBeenCalledTimes(2)
     const params = new URLSearchParams('tab=tests&testId=test-1&testMode=grading&testStudentId=student-1')
     updateSearchParams.mock.calls[1][0](params)
@@ -742,6 +747,11 @@ describe('TeacherTestsTab', () => {
       'aria-pressed',
       'false'
     )
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(editTestButton).toHaveFocus()
+    })
   })
 
   it('closes the edit modal when controlled params return from authoring to grading', async () => {

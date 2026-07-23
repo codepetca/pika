@@ -189,10 +189,11 @@ Tests progress:
 - Teacher and student Tests lists now distinguish loading, cold failure, successful empty, and failed refresh states. Cold failures offer an explicit retry instead of claiming that no tests exist.
 - Failed refreshes retain the last valid list with a compact retry warning, while classroom-scoped snapshots and request guards prevent another classroom's tests from painting in the active view.
 - Teacher controlled test URLs remain intact until a successful list snapshot proves that the selected test is invalid. Existing list-first teacher and student compositions are unchanged.
-- Remaining Tests work is authoring/grading mode separation, standalone preview authorization and framing, accessible flag/save announcements, and the deferred mobile navigation treatment.
+- The selected Tests workspace remains grading-first and preserves the class-wide student table. Test authoring is now an explicit visible `Edit Test` command with a named editor dialog, and authoring-only dialog/view composition lives in `TeacherTestAuthoringDialog` instead of expanding the grading coordinator.
+- Remaining Tests work is standalone preview authorization and framing, accessible flag/save announcements, and the deferred mobile navigation treatment.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
-2. Tests: completed list errors; remaining authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, and accessible flags/save status.
+2. Tests: completed list errors and authoring/grading separation; remaining standalone preview authorization/framing, mobile navigation, and accessible flags/save status.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
 4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
