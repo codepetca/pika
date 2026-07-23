@@ -7,6 +7,7 @@ import {
   classroomResourceInventorySchema,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   CLASSROOM_ARCHIVE_FORMAT,
   CLASSROOM_ARCHIVE_VERSION,
@@ -28,7 +29,7 @@ const classroomId = '20000000-0000-4000-8000-000000000002'
 const teacherId = '30000000-0000-4000-8000-000000000003'
 
 function archiveResourceFiles() {
-  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+  return CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => ({
     table: resource.table,
     path: `data/${resource.table}.ndjson`,
     row_count: 0,
@@ -95,12 +96,33 @@ function validArchiveManifest(): ClassroomArchiveManifest {
 }
 
 describe('classroom data inventory', () => {
-  it('is a valid, complete 42-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(42)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(42)
+  it('is a valid, complete 44-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(44)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(44)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'test_attempts')?.actor_columns)
       .toEqual(CLASSROOM_ACTOR_REFERENCE_COLUMNS.test_attempts)
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
+      resource.table === 'classroom_retired_assessment_records',
+    )).toMatchObject({
+      scope: {
+        kind: 'foreign_key',
+        parent: 'classrooms',
+        column: 'classroom_id',
+      },
+      restore_after: ['classrooms'],
+    })
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
+      resource.table === 'classroom_retired_assessment_record_actors',
+    )).toMatchObject({
+      actor_columns: ['actor_id'],
+      scope: {
+        kind: 'foreign_key',
+        parent: 'classroom_retired_assessment_records',
+        column: 'record_id',
+      },
+      restore_after: ['classroom_retired_assessment_records'],
+    })
   })
 
   it('exports and restores parents first and purges children first', () => {
@@ -142,7 +164,14 @@ describe('classroom data inventory', () => {
   it('detects schema resources that are not represented in the archive graph', () => {
     const relationships = contractRelationships()
 
-    expect(auditClassroomResourceSchema(relationships, contractPrimaryKeys()).ok).toBe(true)
+    expect(auditClassroomResourceSchema([
+      ...relationships,
+      {
+        child_table: 'classroom_retired_assessment_records',
+        parent_table: 'classroom_retired_assessment_records',
+        child_columns: ['parent_source_row_id'],
+      },
+    ], contractPrimaryKeys()).ok).toBe(true)
     expect(auditClassroomResourceSchema([
       ...relationships,
       {
@@ -246,7 +275,7 @@ describe('classroom artifact contracts', () => {
     expect(CLASSROOM_STORAGE_CONTRACT.sources.every((source) => source.copy_policy === 'referenced_only')).toBe(true)
   })
 
-  it('requires one checksummed file for every relational resource, including empty tables', () => {
+  it('requires one checksummed file for every current archive resource, including empty tables', () => {
     expect(classroomArchiveManifestSchema.safeParse(validArchiveManifest()).success).toBe(true)
 
     const missingResource = validArchiveManifest()

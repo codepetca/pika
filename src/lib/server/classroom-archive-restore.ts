@@ -2,23 +2,34 @@ import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import {
   CLASSROOM_ARCHIVE_V1_VERSION,
+  CLASSROOM_ARCHIVE_V2_VERSION,
   classroomArchiveRestorePreflightSchema,
+  getClassroomArchiveContract,
   isClassroomArchiveRestoreReady,
   type ClassroomArchiveRestorePreflight,
 } from '@/lib/contracts/classroom-artifacts'
-import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
-  getClassroomResourceOrder,
-} from '@/lib/contracts/classroom-data'
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
+  type ClassroomArchiveResourceDefinition,
+} from '@/lib/contracts/classroom-archive-resources'
 import {
   decodeClassroomArchiveData,
   discoverClassroomStorageReferences,
   type VerifiedClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
+import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
+import {
+  retiredAssessmentPayloadChecksum,
+  validateRetiredAssessmentEnvelopeGraph,
+} from '@/lib/server/classroom-retired-assessment-contract'
 
 export const CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION =
   '083_resumable_classroom_archive_restore' as const
+export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
+  '105_classroom_archive_v2_contract' as const
 
 const managedUrlPattern = /https?:\/\/[^\s<>"'`]+/gi
 const uuidSchema = z.string().uuid()
@@ -47,12 +58,24 @@ export type ClassroomArchiveRestorePlan = {
   classroomId: string
   teacherId: string
   sourceSchemaMigration: string
+  sourceContractVersion: typeof CLASSROOM_ARCHIVE_V1_VERSION
+  restoreContractVersion: typeof CLASSROOM_ARCHIVE_V1_VERSION
   targetSchemaMigration: typeof CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION
   adapterChain: string[]
+  sourceResourceCounts: Record<string, number>
   resources: Record<string, JsonObject[]>
   actors: CurrentActor[]
   storageObjects: ClassroomArchiveRestoreStorageObject[]
   preflight: ClassroomArchiveRestorePreflight
+}
+
+export type ClassroomArchiveV2RestorePlan = Omit<
+  ClassroomArchiveRestorePlan,
+  'sourceContractVersion' | 'restoreContractVersion' | 'targetSchemaMigration'
+> & {
+  sourceContractVersion: 1 | 2
+  restoreContractVersion: typeof CLASSROOM_ARCHIVE_V2_VERSION
+  targetSchemaMigration: typeof CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION
 }
 
 type RestoreAdapter = {
@@ -67,6 +90,12 @@ const RESTORE_ADAPTERS: RestoreAdapter[] = [
     id: 'classroom-archive-v1-082-to-083',
     source: '082_verified_classroom_archive_exports',
     target: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+    adapt: cloneResources,
+  },
+  {
+    id: 'classroom-archive-schema-082-to-105',
+    source: '082_verified_classroom_archive_exports',
+    target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
     adapt: cloneResources,
   },
 ]
@@ -193,8 +222,9 @@ function rewriteResourceValue(args: {
 function validateActorReferences(
   resources: Record<string, JsonObject[]>,
   archivedActorIds: Set<string>,
+  contractResources: readonly ClassroomArchiveResourceDefinition[],
 ) {
-  for (const resource of CLASSROOM_ARCHIVE_V1_RESOURCES) {
+  for (const resource of contractResources) {
     for (const row of resources[resource.table] || []) {
       for (const column of resource.actor_columns) {
         const actorId = row[column]
@@ -209,31 +239,48 @@ function validateActorReferences(
   }
 }
 
-export function buildClassroomArchiveRestorePlan(args: {
+type BuildClassroomArchiveRestorePlanArgs = {
   verified: VerifiedBundle
   artifactChecksumVerified: boolean
   operationId: string
   currentActors: CurrentActor[]
   supabaseUrl: string
-}): ClassroomArchiveRestorePlan {
+}
+
+function buildClassroomArchiveRestorePlanForVersion(
+  args: BuildClassroomArchiveRestorePlanArgs,
+  restoreContractVersion: 1 | 2,
+): ClassroomArchiveRestorePlan | ClassroomArchiveV2RestorePlan {
   if (!args.artifactChecksumVerified) {
     throw new Error('Classroom archive artifact checksum was not verified')
   }
   const operationId = uuidSchema.parse(args.operationId)
   const manifest = args.verified.manifest
-  if (manifest.version !== CLASSROOM_ARCHIVE_V1_VERSION) {
+  const sourceContract = getClassroomArchiveContract(manifest.version)
+  if (
+    restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION &&
+    manifest.version !== CLASSROOM_ARCHIVE_V1_VERSION
+  ) {
+    throw new Error(
+      `Classroom archive version ${manifest.version} is verified but not enabled for v1 restore`,
+    )
+  }
+  if (!sourceContract.restoreEnabled) {
     throw new Error(
       `Classroom archive version ${manifest.version} is verified but not enabled for restore`,
     )
   }
   const origin = new URL(args.supabaseUrl).origin
   const decoded = decodeClassroomArchiveData(args.verified)
+  const targetSchemaMigration = restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
+    ? CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION
+    : CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION
   const adapters = resolveAdapterChain(
     manifest.source.schema_migration,
-    CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+    targetSchemaMigration,
   )
-  const resources = adapters.adapt(decoded.resources)
-  const classroomRows = resources.classrooms || []
+  const schemaAdaptedResources = adapters.adapt(decoded.resources)
+  const classroomRows = schemaAdaptedResources.classrooms || []
   if (
     classroomRows.length !== 1 ||
     classroomRows[0].id !== manifest.classroom_id ||
@@ -248,7 +295,28 @@ export function buildClassroomArchiveRestorePlan(args: {
     role: actor.role,
   }))
   const archivedActorIds = new Set(archivedActors.map((actor) => actor.id))
-  validateActorReferences(resources, archivedActorIds)
+  validateActorReferences(
+    schemaAdaptedResources,
+    archivedActorIds,
+    sourceContract.resources,
+  )
+  const adapterChain =
+    restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION &&
+    manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
+    ? [...adapters.ids, 'classroom-archive-v1-quiz-to-retired-assessment-v1']
+    : adapters.ids
+  if (
+    restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION &&
+    manifest.version === CLASSROOM_ARCHIVE_V2_VERSION
+  ) {
+    validateRetiredAssessmentEnvelopeGraph({
+      classroomId: manifest.classroom_id,
+      records: schemaAdaptedResources.classroom_retired_assessment_records || [],
+      recordActors:
+        schemaAdaptedResources.classroom_retired_assessment_record_actors || [],
+      archiveActorIds: archivedActors.map((actor) => actor.id),
+    })
+  }
 
   const referencedStorage = discoverClassroomStorageReferences(decoded.resources, args.supabaseUrl)
     .map((reference) => `${reference.bucket}\0${reference.path}`)
@@ -299,8 +367,8 @@ export function buildClassroomArchiveRestorePlan(args: {
       object.restorePath,
     ]),
   )
-  const rewrittenResources = Object.fromEntries(
-    Object.entries(resources).map(([table, rows]) => [
+  const rewrittenSourceResources = Object.fromEntries(
+    Object.entries(schemaAdaptedResources).map(([table, rows]) => [
       table,
       rows.map((row) => rewriteResourceValue({
         value: row,
@@ -310,10 +378,50 @@ export function buildClassroomArchiveRestorePlan(args: {
       }) as JsonObject),
     ]),
   )
+  let rewrittenResources: Record<string, JsonObject[]>
+  if (restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION) {
+    rewrittenResources = rewrittenSourceResources
+  } else if (manifest.version === CLASSROOM_ARCHIVE_V1_VERSION) {
+    rewrittenResources = adaptLegacyQuizArchiveResources({
+      classroomId: manifest.classroom_id,
+      resources: rewrittenSourceResources,
+      actors: archivedActors,
+    }).resources
+  } else {
+    rewrittenResources = {
+      ...rewrittenSourceResources,
+      classroom_retired_assessment_records: (
+        rewrittenSourceResources.classroom_retired_assessment_records || []
+      ).map((record) => {
+        if (!isJsonObject(record.payload)) {
+          throw new Error('Retired assessment envelope payload must be an object')
+        }
+        return {
+          ...record,
+          payload_sha256: retiredAssessmentPayloadChecksum(record.payload),
+        }
+      }),
+    }
+  }
+  if (restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION) {
+    validateRetiredAssessmentEnvelopeGraph({
+      classroomId: manifest.classroom_id,
+      records: rewrittenResources.classroom_retired_assessment_records || [],
+      recordActors: rewrittenResources.classroom_retired_assessment_record_actors || [],
+      archiveActorIds: archivedActors.map((actor) => actor.id),
+    })
+  }
+  validateActorReferences(
+    rewrittenResources,
+    archivedActorIds,
+    restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
+      ? CLASSROOM_ARCHIVE_V1_RESOURCES
+      : CLASSROOM_ARCHIVE_V2_RESOURCES,
+  )
 
   const preflight = classroomArchiveRestorePreflightSchema.parse({
     archive_id: manifest.archive_id,
-    target_schema_migration: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+    target_schema_migration: targetSchemaMigration,
     archive_checksum_verified: args.artifactChecksumVerified,
     manifest_verified: true,
     resource_checksums_verified: true,
@@ -322,25 +430,69 @@ export function buildClassroomArchiveRestorePlan(args: {
     actor_snapshots_verified: unresolvedActorIds.length === 0,
     schema_adapter_available: true,
     unresolved_actor_ids: unresolvedActorIds,
-    adapter_chain: adapters.ids,
+    adapter_chain: adapterChain,
   })
   if (!isClassroomArchiveRestoreReady(preflight)) {
     throw new Error(`Archive restore has unresolved actors: ${unresolvedActorIds.join(',')}`)
   }
 
   const orderedResources = Object.fromEntries(
-    getClassroomResourceOrder('restore').map((table) => [table, rewrittenResources[table] || []]),
+    (
+      restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
+        ? CLASSROOM_ARCHIVE_V1_RESTORE_ORDER
+        : CLASSROOM_ARCHIVE_V2_RESTORE_ORDER
+    ).map(
+      (table) => [table, rewrittenResources[table] || []],
+    ),
   )
-  return {
+  const sourceResourceCounts = Object.fromEntries(
+    sourceContract.resources.map((resource) => [
+      resource.table,
+      decoded.resources[resource.table]?.length || 0,
+    ]),
+  )
+  const basePlan = {
     archiveId: manifest.archive_id,
     classroomId: manifest.classroom_id,
     teacherId: manifest.teacher_id,
     sourceSchemaMigration: manifest.source.schema_migration,
-    targetSchemaMigration: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
-    adapterChain: adapters.ids,
+    sourceContractVersion: manifest.version,
+    adapterChain,
+    sourceResourceCounts,
     resources: orderedResources,
     actors: archivedActors,
     storageObjects,
     preflight,
   }
+  return restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
+    ? {
+        ...basePlan,
+        sourceContractVersion: CLASSROOM_ARCHIVE_V1_VERSION,
+        restoreContractVersion: CLASSROOM_ARCHIVE_V1_VERSION,
+        targetSchemaMigration: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+      }
+    : {
+        ...basePlan,
+        sourceContractVersion: manifest.version,
+        restoreContractVersion: CLASSROOM_ARCHIVE_V2_VERSION,
+        targetSchemaMigration: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+      }
+}
+
+export function buildClassroomArchiveRestorePlan(
+  args: BuildClassroomArchiveRestorePlanArgs,
+): ClassroomArchiveRestorePlan {
+  return buildClassroomArchiveRestorePlanForVersion(
+    args,
+    CLASSROOM_ARCHIVE_V1_VERSION,
+  ) as ClassroomArchiveRestorePlan
+}
+
+export function buildClassroomArchiveV2RestorePlan(
+  args: BuildClassroomArchiveRestorePlanArgs,
+): ClassroomArchiveV2RestorePlan {
+  return buildClassroomArchiveRestorePlanForVersion(
+    args,
+    CLASSROOM_ARCHIVE_V2_VERSION,
+  ) as ClassroomArchiveV2RestorePlan
 }

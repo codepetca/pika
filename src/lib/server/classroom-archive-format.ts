@@ -2,12 +2,10 @@ import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import {
   CLASSROOM_ARCHIVE_CONTRACTS,
-  CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+  getClassroomArchiveContract,
   classroomArchiveActorSnapshotSchema,
-  classroomArchiveManifestV1Schema,
   parseClassroomArchiveManifest,
   type ClassroomArchiveManifest,
-  type ClassroomArchiveManifestV1,
 } from '@/lib/contracts/classroom-artifacts'
 import {
   canonicalizeJson,
@@ -60,6 +58,7 @@ type ArchiveRetention =
   | { mode: 'scheduled'; delete_after: string }
 
 type BuildClassroomArchiveBundleInput = {
+  version: 1 | 2
   archiveId: string
   classroomId: string
   teacherId: string
@@ -83,7 +82,7 @@ export type BuiltClassroomArchiveBundle = {
   archive: Uint8Array
   artifactSha256: string
   uncompressedByteSize: number
-  manifest: ClassroomArchiveManifestV1
+  manifest: ClassroomArchiveManifest
 }
 
 export type VerifiedClassroomArchiveBundle =
@@ -359,7 +358,10 @@ function countAndValidateNdjson(
 export function buildClassroomArchiveBundle(
   input: BuildClassroomArchiveBundleInput,
 ): BuiltClassroomArchiveBundle {
-  const contract = CLASSROOM_ARCHIVE_CONTRACTS[CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION]
+  const contract = getClassroomArchiveContract(input.version)
+  if (!contract.exportEnabled) {
+    throw new Error(`Classroom archive version ${input.version} is not enabled for export`)
+  }
   const expectedTables = new Set<string>(
     contract.resources.map((resource) => resource.table),
   )
@@ -370,6 +372,16 @@ export function buildClassroomArchiveBundle(
   }
   for (const table of Object.keys(input.resources)) {
     if (!expectedTables.has(table)) throw new Error(`Unexpected classroom archive resource: ${table}`)
+  }
+  if (input.version === 2) {
+    validateRetiredAssessmentEnvelopeGraph({
+      classroomId: input.classroomId,
+      records: input.resources.classroom_retired_assessment_records || [],
+      recordActors: input.resources.classroom_retired_assessment_record_actors || [],
+      archiveActorIds: input.actors.map((actor) =>
+        classroomArchiveActorSnapshotSchema.parse(actor).id,
+      ),
+    })
   }
 
   const entries: Array<{ path: string; bytes: Uint8Array }> = []
@@ -426,9 +438,9 @@ export function buildClassroomArchiveBundle(
     duplicateStoragePaths.add(key)
   }
 
-  const manifest = classroomArchiveManifestV1Schema.parse({
+  const manifest = parseClassroomArchiveManifest({
     format: 'pika.classroom-archive',
-    version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+    version: input.version,
     archive_id: input.archiveId,
     classroom_id: input.classroomId,
     teacher_id: input.teacherId,

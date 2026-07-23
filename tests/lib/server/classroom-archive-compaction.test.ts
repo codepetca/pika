@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
   CLASSROOM_ARCHIVE_COMPACTION_OBJECT_BATCH_SIZE,
@@ -18,7 +18,7 @@ const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v1.t
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
@@ -33,6 +33,7 @@ function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
     bytes: Buffer.from(`object-${index}`),
   }))
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId,
     teacherId: TEACHER_ID,

@@ -13,6 +13,7 @@ import {
   GRADEX_RESOURCE_TABLES,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   createTargetBoundFetch,
   hostedSupabasePsqlEnvironment,
@@ -25,21 +26,26 @@ const CLASSROOM_ID = '11111111-1111-4111-8111-111111111111'
 const ASSIGNMENT_ID = '22222222-2222-4222-8222-222222222222'
 
 function remoteArchiveContract() {
+  const v1Tables = new Set<string>(
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
+  )
   const resources = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
-  return getClassroomResourceOrder('export').map((table, exportPosition) => {
-    const resource = resources.get(table)!
-    return {
-      table_name: table,
-      primary_key_columns: [...resource.primary_key],
-      parent_table: resource.scope.kind === 'foreign_key' ? resource.scope.parent : null,
-      parent_column: resource.scope.kind === 'foreign_key' ? resource.scope.column : null,
-      actor_columns: [...resource.actor_columns],
-      restore_after: [...resource.restore_after],
-      export_position: exportPosition,
-    }
-  })
+  return getClassroomResourceOrder('export')
+    .filter((table) => v1Tables.has(table))
+    .map((table, exportPosition) => {
+      const resource = resources.get(table)!
+      return {
+        table_name: table,
+        primary_key_columns: [...resource.primary_key],
+        parent_table: resource.scope.kind === 'foreign_key' ? resource.scope.parent : null,
+        parent_column: resource.scope.kind === 'foreign_key' ? resource.scope.column : null,
+        actor_columns: [...resource.actor_columns],
+        restore_after: [...resource.restore_after],
+        export_position: exportPosition,
+      }
+    })
 }
 
 function openApiDocument() {

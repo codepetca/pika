@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   verifyClassroomArchiveBundle,
@@ -476,7 +477,7 @@ describe('production classroom archive canary contract', () => {
   it('builds the runner archive projection from verified source rows', () => {
     const sourcePath = 'student/evidence.png'
     const resources = Object.fromEntries(
-      CLASSROOM_RELATIONAL_RESOURCES.map(({ table }) => [table, []]),
+      CLASSROOM_ARCHIVE_V1_RESOURCES.map(({ table }) => [table, []]),
     ) as Record<string, Array<Record<string, unknown>>>
     resources.classrooms = [{
       id: CLASSROOM_ID,
@@ -502,6 +503,7 @@ describe('production classroom archive canary contract', () => {
       metadata: { preserved: true },
     }]
     const bundle = buildClassroomArchiveBundle({
+      version: 1,
       archiveId: plan().operation_ids.export,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,

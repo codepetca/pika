@@ -52,6 +52,7 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   assignment_submission_artifacts: ['student_id'],
   assignments: ['created_by'],
   classroom_enrollments: ['student_id'],
+  classroom_retired_assessment_record_actors: ['actor_id'],
   classroom_resources: ['updated_by'],
   classrooms: ['teacher_id'],
   classwork_materials: ['created_by'],
@@ -240,6 +241,8 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('test_questions', 'tests', 'test_id', ['teacher_content'], 'include_structured'),
   resource('test_responses', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_structured', ['test_questions']),
   resource('test_student_availability', 'tests', 'test_id', ['student_identity', 'operations']),
+  resource('classroom_retired_assessment_records', 'classrooms', 'classroom_id', ['teacher_content', 'student_identity', 'student_work', 'grades_and_feedback', 'operations']),
+  resource('classroom_retired_assessment_record_actors', 'classroom_retired_assessment_records', 'record_id', ['student_identity']),
 ] as const satisfies readonly ClassroomResource[]
 
 export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[number]['table']
@@ -308,6 +311,7 @@ export function auditClassroomResourceSchema(
   for (const relationship of relationships) {
     if (
       relationship.child_table === 'classrooms' ||
+      relationship.child_table === relationship.parent_table ||
       !descendants.has(relationship.child_table) ||
       !descendants.has(relationship.parent_table)
     ) {

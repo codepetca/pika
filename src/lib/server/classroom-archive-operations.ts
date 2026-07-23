@@ -1,12 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
+  CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
   classroomArchiveRetentionSchema,
 } from '@/lib/contracts/classroom-artifacts'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
   type ClassroomResourceTable,
 } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -142,7 +143,7 @@ class ClassroomArchiveExportError extends Error {
 }
 
 function assertExactResourceCounts(counts: Record<string, number>) {
-  const expectedTables = CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)
+  const expectedTables = CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table)
   const actualTables = Object.keys(counts).sort()
   if (
     actualTables.length !== expectedTables.length ||
@@ -197,8 +198,9 @@ export function classroomArchiveStoragePath(args: {
   teacherId: string
   classroomId: string
   archiveId: string
+  version: 1 | 2
 }): string {
-  return `${uuidSchema.parse(args.teacherId)}/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.archiveId)}/classroom-v1.tar.gz`
+  return `${uuidSchema.parse(args.teacherId)}/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.archiveId)}/classroom-v${args.version}.tar.gz`
 }
 
 function isMissingArchiveRpc(error: { code?: string; message?: string } | null | undefined): boolean {
@@ -248,7 +250,7 @@ async function loadResourceRows<Table extends ClassroomResourceTable>(
   table: Table,
   primaryKey: string,
   expectedCount: number,
-): Promise<unknown[]> {
+): Promise<Record<string, unknown>[]> {
   const ids = await loadSnapshotIds(supabase, operationId, table)
   if (ids.length !== expectedCount) {
     throw new ClassroomArchiveExportError(
@@ -310,9 +312,9 @@ async function loadClassroomResources(
   supabase: SupabaseClient,
   operationId: string,
   resourceCounts: Record<string, number>,
-): Promise<Record<string, unknown[]>> {
-  const resources: Record<string, unknown[]> = {}
-  for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
+): Promise<Record<string, Record<string, unknown>[]>> {
+  const resources: Record<string, Record<string, unknown>[]> = {}
+  for (const resource of CLASSROOM_ARCHIVE_V1_RESOURCES) {
     if (resource.primary_key.length !== 1) {
       throw new ClassroomArchiveExportError(
         'archive_composite_key_adapter_required',
@@ -324,7 +326,7 @@ async function loadClassroomResources(
     resources[resource.table] = await loadResourceRows(
       supabase,
       operationId,
-      resource.table,
+      resource.table as ClassroomResourceTable,
       resource.primary_key[0],
       resourceCounts[resource.table],
     )
@@ -540,7 +542,7 @@ export async function exportClassroomArchive(args: {
   const retention = classroomArchiveRetentionSchema.parse(args.retention)
   const requestSha256 = hashClassroomArchiveRequest({
     format: 'pika.classroom-archive',
-    version: 1,
+    version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
     classroom_id: args.classroomId,
     retention,
   })
@@ -602,6 +604,7 @@ export async function exportClassroomArchive(args: {
     )
     const storageObjectCounts = summarizeStorageObjects(storageObjects)
     const bundle = buildClassroomArchiveBundle({
+      version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
       archiveId: snapshot.archive_id,
       classroomId: args.classroomId,
       teacherId: args.teacherId,
@@ -628,6 +631,7 @@ export async function exportClassroomArchive(args: {
       teacherId: args.teacherId,
       classroomId: args.classroomId,
       archiveId: snapshot.archive_id,
+      version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
     })
     const uploadIntentResponse = await args.supabase.rpc(
       'stage_classroom_archive_object_upload',

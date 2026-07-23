@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   decodeClassroomArchiveData,
@@ -10,10 +11,17 @@ import {
 import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
 import {
   buildClassroomArchiveRestorePlan,
+  buildClassroomArchiveV2RestorePlan,
   classroomArchiveRestoreObjectPath,
   CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+  CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
+import { retiredAssessmentPayloadChecksum } from '@/lib/server/classroom-retired-assessment-contract'
 import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
+import {
+  V2_STUDENT_ID,
+  V2_TEACHER_ID,
+} from '../../fixtures/classroom-archive-v2'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
@@ -23,12 +31,13 @@ const OPERATION_ID = '00000000-0000-4000-8000-000000000005'
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
 function buildFixtureBundle() {
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -98,7 +107,10 @@ function buildFixtureBundle() {
         assessment_type: 'quiz',
         assessment_id: '60000000-0000-4000-8000-000000000001',
         classroom_id: CLASSROOM_ID,
-        content: { title: 'Historical Quiz draft' },
+        content: {
+          title: 'Historical Quiz draft',
+          image: 'https://project.supabase.co/storage/v1/object/public/submission-images/student/work.png',
+        },
         version: 2,
         created_by: TEACHER_ID,
         updated_by: TEACHER_ID,
@@ -227,10 +239,10 @@ describe('classroom archive restore planning', () => {
       parent_source_row_id: '60000000-0000-4000-8000-000000000001',
     })
     expect(createHash('sha256').update(gunzipSync(built.archive)).digest('hex')).toBe(
-      '32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58',
+      'd56394a78dfd41b0c452d73f6cdf8cd5c95dcc25cb339917bff5b0a1da61ae22',
     )
     expect(verified.manifest.content_sha256).toBe(
-      '0b64d44066ce1cd0ece4521e72a1d36a4102957995ddd1cfe3fac3d8e63311f3',
+      '779c2783f0ccefa885a31badd740985c3e8eccfff12029975e5aebe924c2eab1',
     )
     expect(Object.fromEntries(
       verified.manifest.resources
@@ -240,7 +252,7 @@ describe('classroom archive restore planning', () => {
         )
         .map((resource) => [resource.table, resource.sha256]),
     )).toEqual({
-      assessment_drafts: '814711ca0ceddbaae9ef119cfb578e6f4df10b67b5a99c9633e3df60ad874476',
+      assessment_drafts: '0a2db5337d856b7096a425259868385551b7c19a21979bdaa67d4c3b321ff20d',
       quiz_questions: '7d331d13169e5d2db7c455c50577db4330d1ec6ae540cefde90da09efbe14bc9',
       quiz_responses: '248a87527a97d253d5777e44ec7ccfc141db52881e76f97386d347e5a384482e',
       quiz_student_scores: '3cd9246d1b240fa3fc27d13872db9a2ea494086dfff249907f93574c429623b3',
@@ -249,6 +261,71 @@ describe('classroom archive restore planning', () => {
     expect(adapted.resources.assessment_drafts).toEqual([])
     expect(verified.manifest).toEqual(manifestBefore)
     expect(verified.files.get('data/quizzes.ndjson')).toEqual(quizBytesBefore)
+  })
+
+  it('round-trips a non-empty v1 Quiz graph through a v2 envelope archive', () => {
+    const v1 = verifiedFixture()
+    const decodedV1 = decodeClassroomArchiveData(v1)
+    const adapted = adaptLegacyQuizArchiveResources({
+      classroomId: CLASSROOM_ID,
+      resources: decodedV1.resources,
+      actors: decodedV1.actors,
+    })
+    const v2 = buildClassroomArchiveBundle({
+      version: 2,
+      archiveId: ARCHIVE_ID,
+      classroomId: CLASSROOM_ID,
+      teacherId: TEACHER_ID,
+      createdAt: '2026-07-13T12:00:00.000Z',
+      source: {
+        schemaMigration: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+        appCommit: 'abcdef1234567890',
+      },
+      retention: { mode: 'teacher_managed', delete_after: null },
+      resources: adapted.resources,
+      actors: decodedV1.actors,
+      storageObjects: v1.manifest.storage_objects.map((object) => ({
+        bucket: object.bucket,
+        sourcePath: object.source_path,
+        contentType: object.content_type,
+        bytes: v1.files.get(object.archive_path) || Buffer.alloc(0),
+      })),
+    })
+    const verifiedV2 = verifyClassroomArchiveBundle(v2.archive)
+    expect(verifiedV2.ok).toBe(true)
+    if (!verifiedV2.ok) throw new Error(verifiedV2.error)
+
+    const plan = buildClassroomArchiveV2RestorePlan({
+      verified: verifiedV2,
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors,
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(plan.sourceContractVersion).toBe(2)
+    expect(plan.adapterChain).toEqual([])
+    expect(plan.resources).not.toHaveProperty('quizzes')
+    expect(plan.resources).not.toHaveProperty('quiz_questions')
+    expect(plan.resources).not.toHaveProperty('quiz_responses')
+    expect(plan.resources).not.toHaveProperty('quiz_student_scores')
+    expect(plan.resources.classroom_retired_assessment_records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source_resource: 'quiz_student_scores',
+          payload: expect.objectContaining({ manual_override_score: 9 }),
+        }),
+      ]),
+    )
+    const draftEnvelope = plan.resources.classroom_retired_assessment_records.find(
+      (record) => record.source_resource === 'assessment_drafts',
+    )
+    expect(JSON.stringify(draftEnvelope?.payload)).toContain(
+      `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
+    )
+    expect(draftEnvelope?.payload_sha256).toBe(
+      retiredAssessmentPayloadChecksum(draftEnvelope?.payload as Record<string, unknown>),
+    )
   })
 
   it('requires explicit outer artifact checksum evidence', () => {
@@ -261,23 +338,29 @@ describe('classroom archive restore planning', () => {
     })).toThrow('artifact checksum was not verified')
   })
 
-  it('keeps verified v2 input disabled until persistence is activated', () => {
+  it('restores verified v2 input directly through the envelope contract', () => {
     const verification = verifyClassroomArchiveBundle(
       buildClassroomArchiveV2Fixture().archive,
     )
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
 
-    expect(() => buildClassroomArchiveRestorePlan({
+    const plan = buildClassroomArchiveV2RestorePlan({
       verified: verification,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
-      currentActors,
+      currentActors: [
+        { id: V2_TEACHER_ID, email: 'teacher@example.test', role: 'teacher' },
+        { id: V2_STUDENT_ID, email: 'student@example.test', role: 'student' },
+      ],
       supabaseUrl: 'https://project.supabase.co',
-    })).toThrow('version 2 is verified but not enabled for restore')
+    })
+    expect(plan.sourceContractVersion).toBe(2)
+    expect(plan.restoreContractVersion).toBe(2)
+    expect(plan.adapterChain).toEqual([])
   })
 
-  it('selects the version adapter, reconciles actors, and rewrites managed object references', () => {
+  it('keeps the deployed v1 restore plan on migration 083 and preserves Quiz rows', () => {
     const plan = buildClassroomArchiveRestorePlan({
       verified: verifiedFixture(),
       artifactChecksumVerified: true,
@@ -288,6 +371,29 @@ describe('classroom archive restore planning', () => {
 
     expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION)
     expect(plan.adapterChain).toEqual(['classroom-archive-v1-082-to-083'])
+    expect(plan.sourceContractVersion).toBe(1)
+    expect(plan.restoreContractVersion).toBe(1)
+    expect(plan.resources.quizzes).toHaveLength(1)
+    expect(plan.resources.quiz_questions).toHaveLength(1)
+    expect(plan.resources.quiz_responses).toHaveLength(1)
+    expect(plan.resources.quiz_student_scores).toHaveLength(1)
+    expect(plan.resources).not.toHaveProperty('classroom_retired_assessment_records')
+  })
+
+  it('selects the v2 adapter, reconciles actors, and rewrites managed object references', () => {
+    const plan = buildClassroomArchiveV2RestorePlan({
+      verified: verifiedFixture(),
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors,
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION)
+    expect(plan.adapterChain).toEqual([
+      'classroom-archive-schema-082-to-105',
+      'classroom-archive-v1-quiz-to-retired-assessment-v1',
+    ])
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_session_id')
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_sequence')
     expect(plan.preflight.unresolved_actor_ids).toEqual([])
@@ -308,18 +414,34 @@ describe('classroom archive restore planning', () => {
     expect(JSON.stringify(plan.resources.tests[0].documents)).not.toContain(
       'teacher/test/snapshot.html',
     )
-    expect(plan.resources.quizzes).toEqual([
-      expect.objectContaining({ title: 'Historical quiz' }),
-    ])
-    expect(plan.resources.quiz_questions).toEqual([
-      expect.objectContaining({ question_text: 'Historical question' }),
-    ])
-    expect(plan.resources.quiz_responses).toEqual([
-      expect.objectContaining({ student_id: STUDENT_ID, selected_option: 1 }),
-    ])
-    expect(plan.resources.quiz_student_scores).toEqual([
-      expect.objectContaining({ student_id: STUDENT_ID, manual_override_score: 9 }),
-    ])
+    expect(plan.resources).not.toHaveProperty('quizzes')
+    expect(plan.resources).not.toHaveProperty('quiz_questions')
+    expect(plan.resources).not.toHaveProperty('quiz_responses')
+    expect(plan.resources).not.toHaveProperty('quiz_student_scores')
+    expect(plan.resources.classroom_retired_assessment_records).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source_resource: 'quizzes',
+          payload: expect.objectContaining({ title: 'Historical quiz' }),
+        }),
+        expect.objectContaining({
+          source_resource: 'quiz_student_scores',
+          payload: expect.objectContaining({
+            student_id: STUDENT_ID,
+            manual_override_score: 9,
+          }),
+        }),
+      ]),
+    )
+    const draftEnvelope = plan.resources.classroom_retired_assessment_records.find(
+      (record) => record.source_resource === 'assessment_drafts',
+    )
+    expect(JSON.stringify(draftEnvelope?.payload)).toContain(
+      `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
+    )
+    expect(draftEnvelope?.payload_sha256).toBe(
+      retiredAssessmentPayloadChecksum(draftEnvelope?.payload as Record<string, unknown>),
+    )
   })
 
   it('fails closed when an archived actor cannot be reconciled', () => {

@@ -3,8 +3,10 @@
 This plan retires Quiz as a distinct active domain without deleting historical
 classroom data or making retired assessments appear as active Tests.
 
-No migration is created or applied by this plan. Each future migration requires
-the one-time target-and-filename authorization in the schema rollout checklist.
+Migration `105_classroom_archive_v2_contract.sql` implements the additive
+Pass A contract and has been applied only to the local validation database. It
+has not been applied to staging or production. Every target requires the
+one-time target-and-filename authorization in the schema rollout checklist.
 
 ## Production Evidence
 
@@ -115,9 +117,9 @@ The format transition must be versioned in code and the database:
   RPCs select and validate the operation's declared contract rather than every
   row in the registry;
 - replace `classroom_archives.format_version = 1` with an allowlist for 1 and 2
-  in the same additive migration. Existing metadata remains version 1, new
-  exports become version 2 only after the v2 application is deployed, and a v1
-  restore records source version 1 while staging the adapted v2 graph.
+  in the same additive migration. Existing metadata and current exports remain
+  version 1 until version-aware compaction is deployed; a v1 restore records
+  source version 1 while staging the adapted v2 graph.
 
 The deployed-code contract test must round-trip an immutable non-empty v1
 artifact containing all four Quiz resources, a manual override, and a Quiz
@@ -125,12 +127,14 @@ draft through v1 verification and the v1-to-v2 adapter, then export and restore
 the resulting v2 envelope graph. It must also prove v1 bytes and manifest
 checksums are unchanged and both decoders reject the other version's graph.
 
-The application-only foundation is implemented without enabling v2:
+The previously merged application-only foundation established:
 
 - the exact v1 table, primary-key, and actor-reference metadata is frozen
   independently from the live database inventory and protected by a digest;
 - manifest verification reads the minimal header and dispatches through
-  explicit v1/v2 schemas; v1 remains the only enabled export and restore;
+  explicit v1/v2 schemas, while migration 105 stages the v2 export contract and
+  provides an explicit version-aware restore path that the application does not
+  activate before hosted rollout;
 - v2 verification dispatches each envelope through a source-contract registry
   that validates payload identity, required parent resource and foreign key,
   direct classroom binding, cross-parent Quiz identity, actor columns, payload
@@ -145,10 +149,33 @@ The application-only foundation is implemented without enabling v2:
   deterministic-replay, and cross-version rejection behavior with immutable
   tar-content, manifest-content, and per-resource SHA-256 values.
 
-The database registry, envelope tables, explicitly versioned v2 writer/export,
-and v2 restore remain unimplemented and approval-gated. Verified v2 input fails
-closed before restore. Gradex downloads, checksums, strictly verifies, and binds
-the source manifest to metadata before any operation is opened.
+The additive-data Pass A implementation is prepared in migration 105 and
+application code. Additive means no v1 public RPC signature, source table, or
+source row is removed. Migration 105 broadens the v1-only foreign keys and
+format check, and wraps selected v1 implementations behind the same public
+signatures to enforce version and envelope safety. It is not a byte-for-byte
+preservation of those database definitions.
+
+The application continues to export, compact, and restore v1 archives through
+the deployed v1 RPCs until the hosted target has migration 105 and
+version-aware compaction:
+
+- the version-keyed database registry coexists with the unchanged v1 registry;
+- private retired-assessment envelope tables, operation version pins, and
+  distinct v2 export/restore RPCs are defined;
+- the v2 database path snapshots the unchanged v1 graph and adapts it
+  deterministically, while the current application export remains v1;
+- the explicit v2 database restore path stages either archive version into the
+  v2 graph, while the current application restore remains on the v1 graph;
+- completed export replay remains idempotent, while a new export from a
+  classroom that already contains envelope rows fails closed until direct v2
+  source snapshots are implemented;
+- v2 compaction and Gradex remain disabled until the backfill and production
+  proof passes.
+
+Migration 105, generated database types, legacy v1 export/restore/compaction,
+Gradex compatibility, and a transactional v2 export/restore round trip are
+validated against the local database. No hosted schema was changed.
 
 ## Implementation Passes
 
@@ -157,21 +184,27 @@ the source manifest to metadata before any operation is opened.
 - Completed application foundation: immutable v1 and inactive v2 contracts,
   header dispatch, deterministic adapter, and the non-empty compatibility
   fixture.
-- Approval-gated: create the two generic retired-assessment tables, constraints, RLS policy,
-  indexes, and archive privacy classifications.
-- Approval-gated: add the version-keyed database contract registry, operation
-  version columns, archive metadata allowlist, v2 export support, and
-  v1-to-current restore activation described above.
+- Implemented and locally validated in migration 105: create the two generic
+  retired-assessment tables, constraints, RLS policy, indexes, and archive
+  privacy classifications.
+- Implemented and locally validated in migration 105 and application code: add the
+  version-keyed database contract registry, operation version columns, archive
+  metadata allowlist, staged v2 export support, and explicit v1-to-v2 restore
+  support. Keep the current application export and restore coordinators on v1
+  until migration 105 is hosted and version-aware compaction is complete.
 - Keep all four Quiz tables and their archive-v1 contract entries.
 - Completed: add a synthetic v1 fixture with non-empty quiz, question, response,
   manual score override, and Quiz draft rows.
-- Completed: prove v1 verification, adapter idempotency, and strict inactive-v2
-  verification.
-- Approval-gated: prove v2 export and v2 restore against the migrated database
-  contract before enabling either capability.
+- Completed: prove v1 verification, adapter idempotency, strict v2 verification,
+  and a non-empty v1-to-v2 archive/restore round trip without changing v1 bytes.
+- Completed locally: regenerate database types and run v1 compatibility plus
+  transactional v2 export/restore database validation.
+- Remaining merge gate: clean ephemeral migration replay, independent review,
+  exact-head CI, and separate hosted-target authorization before deployment.
 
-Rollout is additive. The previous application can continue using the unchanged
-tables. Application rollback leaves the new envelope tables unused.
+Rollout preserves the v1 public signatures and source tables. The previous
+application and the current application continue using those v1 RPCs.
+Application rollback leaves the new registry and envelope tables unused.
 
 ### Pass B: Freeze And Backfill
 

@@ -19,7 +19,9 @@ function sqlTextArray(values: string[]) {
 
 describe('verified classroom archive migration', () => {
   it('mirrors the executable resource graph and primary keys exactly', () => {
-    const order = getClassroomResourceOrder('export')
+    const order = getClassroomResourceOrder('export').filter((table) =>
+      !table.startsWith('classroom_retired_assessment_'),
+    )
     for (const [position, table] of order.entries()) {
       const resource = CLASSROOM_RELATIONAL_RESOURCES.find((item) => item.table === table)
       expect(resource).toBeDefined()

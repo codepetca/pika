@@ -80,7 +80,7 @@ export function buildClassroomArchiveV2Fixture(options: {
     teacher_id: V2_TEACHER_ID,
     created_at: '2026-07-23T12:00:00.000Z',
     source: {
-      schema_migration: '082_verified_classroom_archive_exports',
+      schema_migration: '105_classroom_archive_v2_contract',
       app_commit: 'abcdef1',
     },
     compression: 'tar+gzip',

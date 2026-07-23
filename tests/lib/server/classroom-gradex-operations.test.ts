@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES, GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
+import { GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   sha256Bytes,
@@ -27,7 +28,7 @@ const EXTRACT_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/gradex-v2.ta
 
 function sourceArchive() {
   const resources = Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
   )
   resources.classrooms = [{
     id: CLASSROOM_ID,
@@ -36,6 +37,7 @@ function sourceArchive() {
     archived_at: ARCHIVE_CREATED_AT,
   }]
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,

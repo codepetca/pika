@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
   classroomArchiveRestoreObjectPath,
@@ -21,7 +21,7 @@ const ARTIFACT_ID = '10000000-0000-4000-8000-000000000003'
 
 function resources() {
   return {
-    ...Object.fromEntries(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []])),
+    ...Object.fromEntries(CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []])),
     classrooms: [{ id: CLASSROOM_ID, teacher_id: TEACHER_ID, title: 'Restore fixture', archived_at: '2026-07-13T12:00:00.000Z' }],
     assignments: [{ id: ASSIGNMENT_ID, classroom_id: CLASSROOM_ID, created_by: TEACHER_ID }],
     assignment_docs: [{ id: DOC_ID, assignment_id: ASSIGNMENT_ID, student_id: STUDENT_ID }],
@@ -34,8 +34,19 @@ function resources() {
   }
 }
 
+function archiveV1ResourceCounts() {
+  return Object.fromEntries(
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [
+      resource.table,
+      ['classrooms', 'assignments', 'assignment_docs', 'assignment_submission_artifacts']
+        .includes(resource.table) ? 1 : 0,
+    ]),
+  )
+}
+
 function fixture() {
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -81,13 +92,7 @@ function createSupabaseMock(options: {
   metadataErrorOnce?: boolean
 } = {}) {
   const bundle = fixture()
-  const counts = Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
-      resource.table,
-      ['classrooms', 'assignments', 'assignment_docs', 'assignment_submission_artifacts']
-        .includes(resource.table) ? 1 : 0,
-    ]),
-  )
+  const counts = archiveV1ResourceCounts()
   const archive = options.corruptArchive
     ? Uint8Array.from([...bundle.archive.slice(0, -1), bundle.archive.at(-1)! ^ 1])
     : bundle.archive
@@ -285,7 +290,7 @@ describe('classroom archive restore coordinator', () => {
     expect(resolveClassroomArchiveRestoreDatabaseBudget()).toBe(524288000)
   })
 
-  it('verifies, reconciles, stages parent-first, and completes through migration 083', async () => {
+  it('restores v1 through deployed RPCs without requiring migration 105', async () => {
     const mock = createSupabaseMock()
     const result = await restoreClassroomArchive({
       supabase: mock.client,
@@ -307,6 +312,10 @@ describe('classroom archive restore coordinator', () => {
       'stage_classroom_archive_restore_rows',
       'complete_classroom_archive_restore',
     ])
+    expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
+      p_target_schema_migration: '083_resumable_classroom_archive_restore',
+      p_resource_counts: archiveV1ResourceCounts(),
+    }))
     expect(mock.rpc.mock.calls[6][1].p_verification).not.toHaveProperty(
       'referential_integrity_verified',
     )

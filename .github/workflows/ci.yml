@@ -66,6 +66,9 @@ jobs:
       - name: Verify real compaction and resumable restore round trip
         run: bash scripts/check-classroom-archive-restore-database.sh
 
+      - name: Verify classroom archive v2 database contract
+        run: bash scripts/check-classroom-archive-v2-database.sh
+
       - name: Verify Gradex extract operations and retention cleanup
         run: bash scripts/check-classroom-gradex-database.sh
 

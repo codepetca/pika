@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const root = process.cwd()
 
 describe('legacy Quiz schema retirement docs', () => {
-  it('records production evidence and preserves the archive-v1 migration gate', () => {
+  it('records production evidence and the hosted archive-v2 migration gate', () => {
     const plan = readFileSync(
       resolve(root, 'docs/guidance/legacy-quiz-schema-retirement-plan.md'),
       'utf8',
@@ -23,11 +23,14 @@ describe('legacy Quiz schema retirement docs', () => {
     expect(plan).toContain('retaining both immutable')
     expect(plan).toContain('never replace or')
     expect(plan).toContain('both registry graphs remain present')
-    expect(plan).toContain('application-only foundation is implemented')
-    expect(plan).toContain('v1 remains the only enabled export and restore')
+    expect(plan).toContain('previously merged application-only foundation')
+    expect(plan).toContain('migration 105 stages the v2 export contract')
+    expect(plan).toContain('current application export remains v1')
     expect(plan).toContain(
-      'database registry, envelope tables, explicitly versioned v2 writer/export,',
+      'Migration `105_classroom_archive_v2_contract.sql` implements',
     )
+    expect(plan).toContain('applied only to the local validation database')
+    expect(plan).toContain('No hosted schema was changed')
     expect(plan).toMatch(/non-empty quiz, question, response,\s+manual/)
     expect(plan).toContain('The drop is not rollback-safe')
     expect(plan).toContain('exact migration filename and target approval')

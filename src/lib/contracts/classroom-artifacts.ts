@@ -220,8 +220,8 @@ export const CLASSROOM_ARCHIVE_CONTRACTS = {
     version: CLASSROOM_ARCHIVE_V2_VERSION,
     resources: CLASSROOM_ARCHIVE_V2_RESOURCES,
     manifestSchema: classroomArchiveManifestV2Schema,
-    exportEnabled: false,
-    restoreEnabled: false,
+    exportEnabled: true,
+    restoreEnabled: true,
     gradexEnabled: false,
   },
 } as const

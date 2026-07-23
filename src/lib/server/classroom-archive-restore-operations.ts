@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
-  getClassroomResourceOrder,
-} from '@/lib/contracts/classroom-data'
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
+} from '@/lib/contracts/classroom-archive-resources'
 import { classroomArchiveRestoreVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
@@ -215,7 +215,7 @@ function hashRestoreRequest(args: {
 
 function exactResourceCounts(plan: ClassroomArchiveRestorePlan): Record<string, number> {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [
       resource.table,
       plan.resources[resource.table]?.length || 0,
     ]),
@@ -599,7 +599,7 @@ export async function restoreClassroomArchive(args: {
         uploadedStorageObjects.push({ bucket: object.bucket, path: object.restorePath })
       }
     }
-    for (const table of getClassroomResourceOrder('restore')) {
+    for (const table of CLASSROOM_ARCHIVE_V1_RESTORE_ORDER) {
       const rows = plan.resources[table] || []
       for (const chunk of chunkRestoreRows(rows)) {
         const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {

@@ -12,7 +12,7 @@ import {
   sha256Bytes,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import type { ClassroomArchiveManifest } from '@/lib/contracts/classroom-artifacts'
 import {
   buildClassroomArchiveV2Fixture,
@@ -32,12 +32,13 @@ const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
 function buildFixture() {
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -148,6 +149,28 @@ function buildLegacyV1Fixture(): Uint8Array {
 }
 
 describe('classroom archive format', () => {
+  it('writes the explicitly requested v2 envelope graph', () => {
+    const fixture = buildClassroomArchiveV2Fixture()
+    const bundle = buildClassroomArchiveBundle({
+      version: 2,
+      archiveId: fixture.manifest.archive_id,
+      classroomId: fixture.manifest.classroom_id,
+      teacherId: fixture.manifest.teacher_id,
+      createdAt: fixture.manifest.created_at,
+      source: {
+        schemaMigration: fixture.manifest.source.schema_migration,
+        appCommit: fixture.manifest.source.app_commit,
+      },
+      retention: fixture.manifest.retention,
+      resources: fixture.resources,
+      actors: fixture.actors,
+      storageObjects: [],
+    })
+
+    const verification = verifyClassroomArchiveBundle(bundle.archive)
+    expect(verification.ok && verification.manifest.version).toBe(2)
+  })
+
   it('canonicalizes object keys recursively while retaining array order', () => {
     expect(canonicalJsonStringify({ z: 1, a: { y: 2, b: 3 }, items: [{ z: 4, a: 5 }] })).toBe(
       '{"a":{"b":3,"y":2},"items":[{"a":5,"z":4}],"z":1}',
@@ -499,6 +522,7 @@ describe('classroom archive format', () => {
 
   it('rejects resources that do not match the canonical inventory', () => {
     expect(() => buildClassroomArchiveBundle({
+      version: 1,
       archiveId: ARCHIVE_ID,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,
@@ -516,6 +540,7 @@ describe('classroom archive format', () => {
 
   it('rejects actor snapshots containing credential fields', () => {
     expect(() => buildClassroomArchiveBundle({
+      version: 1,
       archiveId: ARCHIVE_ID,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,
@@ -545,6 +570,7 @@ describe('classroom archive format', () => {
       bytes: Buffer.from('same-object'),
     }
     expect(() => buildClassroomArchiveBundle({
+      version: 1,
       archiveId: ARCHIVE_ID,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,

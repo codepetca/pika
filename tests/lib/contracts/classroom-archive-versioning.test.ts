@@ -11,6 +11,7 @@ import {
 } from '@/lib/contracts/classroom-artifacts'
 import {
   CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
   LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
 } from '@/lib/contracts/classroom-archive-resources'
@@ -61,17 +62,31 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION).toBe(1)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
+    expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(44)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
         .digest('hex'),
     ).toBe('b7fe6fdd6dcbb57a741e13f1d16d3b171fc105d2f945cef48bb3d5791d0f9c5d')
+    expect(
+      createHash('sha256')
+        .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER))
+        .digest('hex'),
+    ).toBe('6fb7182df2484d0169f6ea0ac111d8e212fa4c755e0c1213103c9d5adc88b1f7')
+    expect(new Set(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER)).toEqual(
+      new Set(CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table)),
+    )
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toEqual(
-      CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
-        table: resource.table,
-        primary_key: resource.primary_key,
-        actor_columns: resource.actor_columns,
-      })),
+      CLASSROOM_RELATIONAL_RESOURCES
+        .filter((resource) =>
+          !resource.table.startsWith('classroom_retired_assessment_'),
+        )
+        .map((resource) => ({
+          table: resource.table,
+          primary_key: resource.primary_key,
+          actor_columns: resource.actor_columns,
+        })),
     )
     expect(readFileSync(
       resolve(process.cwd(), 'src/lib/contracts/classroom-archive-resources.ts'),
@@ -79,7 +94,7 @@ describe('versioned classroom archive contracts', () => {
     )).not.toContain("from '@/lib/contracts/classroom-data'")
   })
 
-  it('defines an inactive v2 graph with retired envelopes and no Quiz tables', () => {
+  it('stages a v2 graph without making it the current export version', () => {
     const v2Tables = CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table)
 
     expect(CLASSROOM_ARCHIVE_CONTRACTS[1]).toMatchObject({
@@ -88,8 +103,8 @@ describe('versioned classroom archive contracts', () => {
       gradexEnabled: true,
     })
     expect(CLASSROOM_ARCHIVE_CONTRACTS[2]).toMatchObject({
-      exportEnabled: false,
-      restoreEnabled: false,
+      exportEnabled: true,
+      restoreEnabled: true,
       gradexEnabled: false,
     })
     expect(v2Tables).toEqual(expect.arrayContaining([

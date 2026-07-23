@@ -587,6 +587,7 @@ async function readArchiveEvidence(args: {
       teacherId: args.teacherId,
       classroomId: args.classroomId,
       archiveId: args.archiveId,
+      version: 1,
     }) ||
     canonicalJsonStringify(metadata.resource_counts) !== canonicalJsonStringify(manifestResourceCounts) ||
     canonicalJsonStringify(metadata.storage_object_counts) !== canonicalJsonStringify(manifestStorageCounts) ||
@@ -840,6 +841,7 @@ async function verifyFinalEvidence(args: {
         teacherId: args.plan.teacher_id,
         classroomId: args.plan.classroom_id,
         archiveId: args.plan.operation_ids.export,
+        version: 1,
       }) ||
       operation.artifact_sha256 !== args.archive.artifactSha256 ||
       operation.content_sha256 !== args.archive.contentSha256 ||
