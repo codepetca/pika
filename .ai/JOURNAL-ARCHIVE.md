@@ -14834,3 +14834,25 @@
 
 **Remaining before merge:**
 - Push the review fix, wait for PR checks, and rereview PR #891. Migration 099 must still be applied and verified before the application version is deployed.
+
+<!-- pika-session-log-archive-batch:eee8eb76cf4267a67f60a7006ae1e34419ebe5f2fef84f24a6015a4348415a7b -->
+## 2026-07-18 — Assignment submit/recovery race review fixes
+
+**Completed:**
+- Ran independent Sol/high database, client-state, and integration reviews of PR #891 after CI passed. The client review found and fixed four ordering/recovery defects: a conflict catch overwriting a newer durable draft, edits arriving during a successful submit being shown or cleared incorrectly, queued save reconciliation being cleared by a later submit response, and a definitively rejected equal-content recovered operation retaining a stale writer fence.
+- Added a synchronous preserved-draft reference so the submitted server snapshot remains authoritative while newer local content survives save/submit response reordering and can be restored after unsubmit.
+- Replaced stale recovered operations with a fresh mount-local writer identity and refreshed revision while retaining the original metric-session identity and cumulative counters for database deduplication.
+- Added behavior regressions for all four races. Final independent rereviews reported no findings and confirmed the tests fail against the prior implementation.
+- No production data, Storage, migration history, deployment, or visible layout was modified.
+
+**Validation:**
+- `pnpm test` (375 files / 3,487 tests)
+- Focused assignment integrity suites (3 files / 71 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture` (604 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+**Remaining before merge:**
+- Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.

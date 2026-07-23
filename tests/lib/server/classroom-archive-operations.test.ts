@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  CLASSROOM_ARCHIVE_V1_RESOURCES,
-  CLASSROOM_ARCHIVE_V2_RESOURCES,
-} from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   decodeClassroomArchiveData,
   verifyClassroomArchiveBundle,
@@ -24,15 +21,6 @@ function resourceCounts(rows: Record<string, unknown[]> = {}) {
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [
       resource.table,
       rows[resource.table]?.length || (resource.table === 'classrooms' ? 1 : 0),
-    ]),
-  )
-}
-
-function archiveResourceCounts() {
-  return Object.fromEntries(
-    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
-      resource.table,
-      resource.table === 'classrooms' ? 1 : 0,
     ]),
   )
 }
@@ -61,7 +49,7 @@ function createSupabaseMock(options: {
   const stored = new Map<string, Uint8Array>()
   const removed: string[] = []
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === 'begin_classroom_archive_export_v2') {
+    if (name === 'begin_classroom_archive_export') {
       if (options.beginError) return { data: null, error: options.beginError }
       return {
         data: {
@@ -75,13 +63,11 @@ function createSupabaseMock(options: {
           snapshot_expires_at: '2026-07-14T12:00:00.000Z',
           source_revision: 4,
           resource_counts: counts,
-          source_contract_version: 1,
-          archive_format_version: 2,
         },
         error: null,
       }
     }
-    if (name === 'complete_classroom_archive_export_v2') {
+    if (name === 'complete_classroom_archive_export') {
       if (options.completionFailure) {
         return {
           data: {
@@ -109,11 +95,9 @@ function createSupabaseMock(options: {
           content_sha256: args.p_content_sha256,
           compressed_byte_size: args.p_compressed_byte_size,
           uncompressed_byte_size: args.p_uncompressed_byte_size,
-          resource_counts: args.p_archive_resource_counts,
+          resource_counts: args.p_resource_counts,
           storage_object_counts: args.p_storage_object_counts,
           verification: args.p_verification,
-          source_contract_version: 1,
-          archive_format_version: 2,
         },
         error: null,
       }
@@ -256,32 +240,23 @@ describe('classroom archive export coordinator', () => {
 
     expect(result.ok).toBe(true)
     if (!result.ok) throw new Error(result.error)
-    expect(result.resource_counts).toEqual(archiveResourceCounts())
+    expect(result.resource_counts).toEqual(resourceCounts())
     expect(result.verification.read_back_verified).toBe(true)
     expect(result.compressed_byte_size).toBeGreaterThan(0)
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export_v2',
-      'stage_classroom_archive_object_upload_v2',
-      'complete_classroom_archive_export_v2',
+      'begin_classroom_archive_export',
+      'stage_classroom_archive_object_upload',
+      'complete_classroom_archive_export',
     ])
     expect([...mock.stored.keys()]).toEqual([
-      `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v2.tar.gz`,
+      `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v1.tar.gz`,
     ])
-    expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
-      p_source_contract_version: 1,
-      p_archive_format_version: 2,
-    }))
     expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
-      p_archive_format_version: 2,
-      p_archive_resource_counts: archiveResourceCounts(),
       p_resource_counts: resourceCounts(),
-    }))
-    expect(mock.rpc.mock.calls[1][1]).toEqual(expect.objectContaining({
-      p_archive_format_version: 2,
     }))
     const storedArchive = [...mock.stored.values()][0]
     const verification = verifyClassroomArchiveBundle(storedArchive)
-    expect(verification.ok && verification.manifest.version).toBe(2)
+    expect(verification.ok && verification.manifest.version).toBe(1)
   })
 
   it('removes a newly uploaded orphan when finalization rejects a changed classroom', async () => {
@@ -305,7 +280,7 @@ describe('classroom archive export coordinator', () => {
     expect(mock.removed).toHaveLength(1)
   })
 
-  it('adapts non-empty Quiz source rows into a v2 envelope archive', async () => {
+  it('keeps legacy Quiz rows in the current v1 archive contract', async () => {
     const quizId = '10000000-0000-4000-8000-000000000001'
     const questionId = '10000000-0000-4000-8000-000000000002'
     const mock = createSupabaseMock({
@@ -362,21 +337,13 @@ describe('classroom archive export coordinator', () => {
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
     const decoded = decodeClassroomArchiveData(verification)
-    expect(decoded.resources).not.toHaveProperty('quizzes')
-    expect(decoded.resources).not.toHaveProperty('quiz_questions')
-    expect(decoded.resources).not.toHaveProperty('quiz_responses')
-    expect(decoded.resources).not.toHaveProperty('quiz_student_scores')
-    expect(decoded.resources.assessment_drafts).toEqual([])
-    expect(decoded.resources.classroom_retired_assessment_records).toHaveLength(5)
-    expect(decoded.resources.classroom_retired_assessment_record_actors).toHaveLength(5)
-    expect(decoded.resources.classroom_retired_assessment_records).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          source_resource: 'quiz_student_scores',
-          payload: expect.objectContaining({ manual_override_score: 9 }),
-        }),
-      ]),
-    )
+    expect(decoded.resources.quizzes).toHaveLength(1)
+    expect(decoded.resources.quiz_questions).toHaveLength(1)
+    expect(decoded.resources.quiz_responses).toHaveLength(1)
+    expect(decoded.resources.quiz_student_scores).toEqual([
+      expect.objectContaining({ manual_override_score: 9 }),
+    ])
+    expect(decoded.resources).not.toHaveProperty('classroom_retired_assessment_records')
   })
 
   it('fails closed with a migration-required result when the begin RPC is unavailable', async () => {
@@ -396,11 +363,11 @@ describe('classroom archive export coordinator', () => {
       status: 503,
       operation_id: OPERATION_ID,
       error_code: 'classroom_archive_migration_required',
-      error: 'Classroom archive export requires migration 105',
+      error: 'Classroom archive export requires migration 082',
       retryable: true,
     })
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export_v2',
+      'begin_classroom_archive_export',
       'fail_classroom_archive_export',
     ])
   })

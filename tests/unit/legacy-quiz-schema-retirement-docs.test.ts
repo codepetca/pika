@@ -24,7 +24,8 @@ describe('legacy Quiz schema retirement docs', () => {
     expect(plan).toContain('never replace or')
     expect(plan).toContain('both registry graphs remain present')
     expect(plan).toContain('previously merged application-only foundation')
-    expect(plan).toContain('migration 105 and this application pass activate')
+    expect(plan).toContain('migration 105 stages the v2 export contract')
+    expect(plan).toContain('current application export remains v1')
     expect(plan).toContain(
       'Migration `105_classroom_archive_v2_contract.sql` implements',
     )

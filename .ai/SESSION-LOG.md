@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-18 — Assignment submit/recovery race review fixes
-
-**Completed:**
-- Ran independent Sol/high database, client-state, and integration reviews of PR #891 after CI passed. The client review found and fixed four ordering/recovery defects: a conflict catch overwriting a newer durable draft, edits arriving during a successful submit being shown or cleared incorrectly, queued save reconciliation being cleared by a later submit response, and a definitively rejected equal-content recovered operation retaining a stale writer fence.
-- Added a synchronous preserved-draft reference so the submitted server snapshot remains authoritative while newer local content survives save/submit response reordering and can be restored after unsubmit.
-- Replaced stale recovered operations with a fresh mount-local writer identity and refreshed revision while retaining the original metric-session identity and cumulative counters for database deduplication.
-- Added behavior regressions for all four races. Final independent rereviews reported no findings and confirmed the tests fail against the prior implementation.
-- No production data, Storage, migration history, deployment, or visible layout was modified.
-
-**Validation:**
-- `pnpm test` (375 files / 3,487 tests)
-- Focused assignment integrity suites (3 files / 71 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm run check:architecture` (604 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-**Remaining before merge:**
-- Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.
-
 ## 2026-07-18 — Production assignment integrity migration
 
 **Completed:**
@@ -1030,7 +1009,7 @@ future persistence shape without enabling unapproved schema behavior.
   activate v2 export/restore, only after explicit approval to create the named
   migration; applying it requires separate exact target-and-filename permission.
 
-## 2026-07-23 — Activated the additive archive-v2 contract locally
+## 2026-07-23 — Staged the additive archive-v2 contract locally
 
 **Risk profile:** runtime-platform
 
@@ -1039,8 +1018,9 @@ future persistence shape without enabling unapproved schema behavior.
   assessment envelopes, a version-keyed archive registry, operation contract
   pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
   preserving every deployed v1 RPC and source table.
-- Activated archive-v2 export through deterministic v1 Quiz adaptation and
-  activated both v1 and v2 restore into the generic envelope graph.
+- Validated archive-v2 export through deterministic v1 Quiz adaptation and
+  activated both v1 and v2 restore into the generic envelope graph. Kept the
+  current application writer on v1 because compaction remains v1-only.
 - Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
   fail closed until the freeze/backfill pass provides direct v2 snapshots.
 - Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
@@ -1106,3 +1086,28 @@ future persistence shape without enabling unapproved schema behavior.
 - Migration 105 remains unapplied to every hosted target.
 - After merge, implement the separately reviewed atomic Quiz freeze/backfill
   ledger; applying its migration requires a new exact authorization.
+
+## 2026-07-23 — Kept archive v1 current through compaction
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that making v2 the current application export
+  format was incompatible with the still-v1-only compaction path.
+- Kept explicit v2 construction and v1/v2 restore support, but restored v1 as
+  the current application writer and retained the deployed v1 RPC flow.
+- Updated contract and coordinator tests to prove the current writer preserves
+  historical Quiz rows in v1 while the explicit v2 compatibility path remains
+  independently testable.
+- Shortened the continuity summary to restore the startup-document budget.
+
+**Validation:**
+- The full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay with the frozen 42-resource v1 graph.
+- Focused archive and migration suites, startup-document tests, TypeScript, and
+  lint pass.
+
+**Remaining:**
+- Run final repository checks, integration review, and exact-head CI before
+  merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
