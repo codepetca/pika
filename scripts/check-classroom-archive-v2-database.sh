@@ -3,12 +3,13 @@ set -euo pipefail
 
 PROJECT_ID="$(sed -n 's/^project_id = "\(.*\)"/\1/p' supabase/config.toml | head -n 1)"
 DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-supabase_db_${PROJECT_ID}}"
+DB_NAME="${CLASSROOM_ARCHIVE_DATABASE_NAME:-postgres}"
 if [[ "$(docker inspect -f '{{.State.Running}}' "$DB_CONTAINER" 2>/dev/null || true)" != "true" ]]; then
   echo "Supabase database container is not running: $DB_CONTAINER" >&2
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 do $compatibility$
@@ -583,7 +584,7 @@ RACE_OUTPUT="$(mktemp)"
 
 cleanup_race() {
   rm -f "$RACE_OUTPUT"
-  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
     >/dev/null 2>&1 <<SQL || true
 begin;
 delete from public.classroom_archive_snapshot_actors
@@ -601,7 +602,7 @@ SQL
 }
 trap cleanup_race EXIT
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<SQL
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<SQL
 insert into public.users (id, email, role)
 values ('$RACE_TEACHER_ID', 'archive-v2-race@example.test', 'teacher');
 
@@ -616,7 +617,7 @@ insert into public.classrooms (
 );
 SQL
 
-docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "begin;
       select revision from public.classroom_archive_revisions
       where classroom_id = '$RACE_CLASSROOM_ID'::uuid for update;
@@ -637,9 +638,10 @@ RACE_WRITER_PID=$!
 
 RACE_READY=0
 for _ in {1..40}; do
-  RACE_READY="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  RACE_READY="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from pg_stat_activity
-     where state = 'active'
+     where pid <> pg_backend_pid()
+       and state = 'active'
        and query like '%$RACE_RECORD_ID%pg_sleep(3)%';")"
   [[ "$RACE_READY" -gt 0 ]] && break
   sleep 0.1
@@ -651,7 +653,7 @@ if [[ "$RACE_READY" -eq 0 ]]; then
   exit 1
 fi
 
-RACE_RESULT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_RESULT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select public.begin_classroom_archive_export_v2(
     '$RACE_OPERATION_ID'::uuid,
     '$RACE_TEACHER_ID'::uuid,
@@ -671,7 +673,7 @@ if [[ "$RACE_RESULT" != *'"error_code": "archive_v2_envelope_source_not_supporte
   exit 1
 fi
 
-RACE_SNAPSHOT_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_SNAPSHOT_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select count(*) from public.classroom_archive_snapshot_resources
    where operation_id = '$RACE_OPERATION_ID'::uuid;")"
 if [[ "$RACE_SNAPSHOT_COUNT" -ne 0 ]]; then

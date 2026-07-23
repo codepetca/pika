@@ -14890,3 +14890,25 @@
 - `node --check scripts/trim-session-log.mjs`
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:be04f211c2d3e444995c7a12eeaadae53553cbf89b75daf72a759d36d7954a92 -->
+## 2026-07-20 — Migration 099 local seed compatibility
+
+**Completed:**
+- Fixed `pnpm seed` for databases with migration 099 by creating assignment documents as editable, inserting their baseline/autosave/blur history, and only then finalizing submitted documents.
+- Let migration 099's deferred constraint trigger create each authoritative submit snapshot, preserving the database invariant that editable history cannot be written after submission.
+- Aligned the synthetic writing timelines with the existing 4-day and 2-day submission dates so grading fixtures remain chronologically valid.
+- Added unit and source-order regression coverage for history partitioning and seed lifecycle ordering.
+- Derived the earliest returned-feedback timestamp from the generated submission time after review found an early-day chronology edge case.
+- Re-ran `pnpm seed` against the authorized loopback database; the complete classroom, assignment-review, and test fixtures now seed successfully. No production resources were accessed or modified.
+
+**Validation:**
+- `pnpm test` (376 files / 3,495 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm seed` against the loopback Supabase database through migration 099
+- Direct loopback database checks: one submit row per submitted document, matching content snapshots, all editable history before submission, and returned feedback after submission
+- `git diff --check`
+
+**Audit note:**
+- The Pika pre-commit audit reports the existing CLI progress `console.log` calls throughout `scripts/seed.ts` after that file is touched. No new production logging path was introduced; this is a whole-file false positive for the development seed CLI.

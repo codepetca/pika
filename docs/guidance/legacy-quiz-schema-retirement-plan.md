@@ -208,8 +208,16 @@ Application rollback leaves the new registry and envelope tables unused.
 
 ### Pass B: Freeze And Backfill
 
+- Prepared in migration 106, but not applied to the shared local database or
+  any hosted target. The database rehearsal rebuilds a disposable schema
+  through migration 105, proves the non-empty v1/v2 compatibility contracts,
+  seeds all five retired source resources, applies 106 there, and compares the
+  resulting records and actors byte-for-byte with the TypeScript adapter.
 - Reject new writes to the four Quiz tables and Quiz drafts before taking the
-  source snapshot. Active Pika has no legitimate producers.
+  source snapshot. Active product code has no legitimate producers. The
+  retained v1 archive restore/compaction path is a compatibility producer, so
+  its non-empty contract is rehearsed before the freeze and must move to the
+  version-aware runtime before 106 is hosted.
 - In the same transaction, take an access-exclusive lock on
   `course_blueprint_assessments`, fail if any Quiz row exists, and replace its
   `assessment_type` check with a Test-only constraint before releasing the
@@ -224,12 +232,28 @@ Application rollback leaves the new registry and envelope tables unused.
   drift.
 - Leave the source tables intact for a compatibility observation window.
 
+Migration 106 fail-fast locks the `classrooms` and `users` FK parents, then
+acquires its envelope and source relations in archive traversal order with
+`NOWAIT`. Any live archive, restore, parent-write, or source transaction causes
+the whole migration to roll back immediately; retry it during a quiet window.
+
 This pass does not dual-write because there is no active Quiz writer. If the
 preflight finds an unknown writer or changing counts, stop and investigate
 rather than adding a new compatibility producer.
 
+Migration 106 is not independently rollout-ready. Once envelopes exist,
+migration 105 intentionally makes the current v1 export and compaction entry
+points fail closed rather than omit retired data. Before hosted application of
+106, deploy the version-aware archive runtime with direct v2 source snapshots,
+v2 compaction, and v1-to-v2 restore dispatch. Apply 105 first under its own
+authorization; apply 106 only in the coordinated runtime rollout under a new
+target-specific authorization.
+
 ### Pass C: Production Proof
 
+- First complete the version-aware runtime pass required by the migration 106
+  rollout gate; do not use production proof as the first activation of that
+  runtime.
 - Re-run `verify:legacy-quiz-inventory` and compare it with the backfill ledger.
 - Run the database catalog audit and generated-type check.
 - Create and restore a non-empty archive-v2 canary only under separate,
