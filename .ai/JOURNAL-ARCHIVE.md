@@ -14566,3 +14566,23 @@
 - `pnpm check:architecture` (602 modules / 0 allowances)
 - `bash -n scripts/check-classroom-archive-restore-database.sh`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:99346d1f3e24951e57877768ad838147f0e9fceb6ba95bd19413d23321e783f9 -->
+## 2026-07-15 — Legacy quiz alias retirement
+
+**Completed:**
+- Removed unused quiz server access/re-export modules, quiz-named assessment helper aliases, zero-caller `Quiz*` domain/draft/markdown type aliases, and obsolete test factories.
+- Preserved persisted quiz tables/discriminants, archive resources, draft synchronization, markdown behavior, API payload aliases, gradebook tombstones, URLs, and UI compatibility props.
+- Added a TypeScript module-resolution/export-graph regression that prevents retired modules or public aliases from returning through direct exports, re-exports, or replacement index modules.
+- Removed stale Vitest coverage thresholds for deleted quiz modules and API routes, and corrected architecture/cleanup documentation.
+- Completed independent behavior and architecture/config review-fix loops; six findings were fixed and final rereviews returned no findings. No UI, migration, dependency, or production changes.
+
+**Validation:**
+- Focused assessment/access/architecture suites (4 files / 90 tests)
+- `pnpm vitest run` (361 files / 3,308 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`

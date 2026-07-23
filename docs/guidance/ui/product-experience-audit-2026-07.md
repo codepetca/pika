@@ -184,8 +184,15 @@ Daily and attendance progress:
 - Student Daily save status is a polite atomic live region and save failures are announced. Existing Toronto midnight, DST, quick-jump, stale-mounted-save, and API timing tests remain the timestamp evidence.
 - Remaining Daily/Attendance work is limited to the deferred mobile history/table workspace modes.
 
+Tests progress:
+
+- Teacher and student Tests lists now distinguish loading, cold failure, successful empty, and failed refresh states. Cold failures offer an explicit retry instead of claiming that no tests exist.
+- Failed refreshes retain the last valid list with a compact retry warning, while classroom-scoped snapshots and request guards prevent another classroom's tests from painting in the active view.
+- Teacher controlled test URLs remain intact until a successful list snapshot proves that the selected test is invalid. Existing list-first teacher and student compositions are unchanged.
+- Remaining Tests work is authoring/grading mode separation, standalone preview authorization and framing, accessible flag/save announcements, and the deferred mobile navigation treatment.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
-2. Tests: list errors, authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, accessible flags/save status.
+2. Tests: completed list errors; remaining authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, and accessible flags/save status.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
 4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
