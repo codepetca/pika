@@ -191,7 +191,8 @@ Tests progress:
 - Teacher controlled test URLs remain intact until a successful list snapshot proves that the selected test is invalid. Existing list-first teacher and student compositions are unchanged.
 - The selected Tests workspace remains grading-first and preserves the class-wide student table. Test authoring is now an explicit visible `Edit Test` command with a named editor dialog, and authoring-only dialog/view composition lives in `TeacherTestAuthoringDialog` instead of expanding the grading coordinator.
 - Standalone preview route tests now prove unauthenticated, non-teacher, non-owner, and classroom/test mismatch denials. Preview data is owned by `testId`, late requests cannot repaint another test, and opening or closing a document transfers focus predictably.
-- Full-screen teacher preview framing was browser-verified in light and dark at desktop and light at the mobile breakpoint, with no horizontal overflow. A student-authenticated route check rendered only the generic authorization denial.
+- Full-screen teacher preview framing was browser-verified in light/dark at desktop and the mobile breakpoint, including a mobile-dark opened text document with focus on Back and no horizontal overflow. A student-authenticated route check rendered only the generic authorization denial.
+- Link snapshots now validate and pin public DNS addresses across manual redirects before fetching. Migration 105 atomically rechecks ownership, archive state, document identity, and URL under row locks before attaching a unique snapshot; it must be applied before deploying the updated sync route.
 - Remaining Tests work is accessible flag/save announcements and the deferred mobile navigation treatment.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.

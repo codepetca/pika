@@ -1,3 +1,4 @@
+import { startTransition, Suspense } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
@@ -75,6 +76,9 @@ const originalRequestFullscreen = Object.getOwnPropertyDescriptor(
 )
 const originalMoveTo = Object.getOwnPropertyDescriptor(window, 'moveTo')
 const originalResizeTo = Object.getOwnPropertyDescriptor(window, 'resizeTo')
+const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight')
+const originalScreen = Object.getOwnPropertyDescriptor(window, 'screen')
 
 describe('TeacherTestPreviewPage', () => {
   let fullscreenElement: Element | null
@@ -138,6 +142,17 @@ describe('TeacherTestPreviewPage', () => {
       Object.defineProperty(window, 'resizeTo', originalResizeTo)
     } else {
       delete (window as Window & { resizeTo?: Window['resizeTo'] }).resizeTo
+    }
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth)
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight)
+    }
+    if (originalScreen) {
+      Object.defineProperty(window, 'screen', originalScreen)
+    } else {
+      delete (window as Window & { screen?: Window['screen'] }).screen
     }
   })
 
@@ -254,6 +269,64 @@ describe('TeacherTestPreviewPage', () => {
     expect(screen.getByTestId('student-test-form')).toHaveTextContent(
       'test-1:Current question',
     )
+  })
+
+  it('keeps the committed preview request valid when another render is suspended', async () => {
+    const testA = deferred<ReturnType<typeof previewResponse>>()
+    const suspended = new Promise<void>(() => {})
+    const fetchMock = vi.mocked(fetch).mockReturnValue(
+      testA.promise as ReturnType<typeof fetch>,
+    )
+
+    function SuspendRender() {
+      throw suspended
+    }
+
+    function PreviewHarness({
+      suspend,
+      testId,
+    }: {
+      suspend: boolean
+      testId: string
+    }) {
+      return (
+        <Suspense fallback={<div>Suspended preview</div>}>
+          <TeacherTestPreviewPage
+            classroomId="classroom-1"
+            testId={testId}
+            embedded
+          />
+          {suspend ? <SuspendRender /> : null}
+        </Suspense>
+      )
+    }
+
+    const { rerender } = render(
+      <PreviewHarness testId="test-a" suspend={false} />,
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-a', {
+        cache: 'no-store',
+      })
+    })
+
+    act(() => {
+      startTransition(() => {
+        rerender(<PreviewHarness testId="test-b" suspend />)
+      })
+    })
+
+    await act(async () => {
+      testA.resolve(previewResponse({ title: 'Test A', question: 'Question A' }))
+      await testA.promise
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Test A' })).toBeInTheDocument()
+    expect(screen.queryByText('Suspended preview')).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/tests/test-b', {
+      cache: 'no-store',
+    })
   })
 
   it('does not sync the previous test documents under a new test owner', async () => {
@@ -393,5 +466,75 @@ describe('TeacherTestPreviewPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('keeps preview content locked when fullscreen and window resize are blocked', async () => {
+    fullscreenElement = null
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockRejectedValue(new Error('Fullscreen blocked')),
+    })
+    Object.defineProperty(window, 'screen', {
+      configurable: true,
+      value: { availWidth: 1000, availHeight: 900 },
+    })
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 500,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 600,
+    })
+    vi.mocked(fetch).mockResolvedValue(
+      previewResponse({ title: 'Locked Test' }) as Awaited<ReturnType<typeof fetch>>,
+    )
+
+    render(
+      <TeacherTestPreviewPage
+        classroomId="classroom-1"
+        testId="test-1"
+      />,
+    )
+
+    const maximizeButton = await screen.findByRole('button', {
+      name: 'Maximize Window',
+    })
+    fireEvent.click(maximizeButton)
+
+    await waitFor(() => {
+      expect(document.documentElement.requestFullscreen).toHaveBeenCalled()
+      expect(screen.getByTestId('preview-content-obscurer')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('heading', { name: 'Locked Test' })).not.toBeInTheDocument()
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 980,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 850,
+    })
+    fireEvent(window, new Event('resize'))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Locked Test' }),
+    ).toBeInTheDocument()
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 500,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 600,
+    })
+    fireEvent(window, new Event('resize'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preview-content-obscurer')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('heading', { name: 'Locked Test' })).not.toBeInTheDocument()
   })
 })

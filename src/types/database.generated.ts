@@ -4979,6 +4979,18 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_test_document_snapshot_atomic: {
+        Args: {
+          p_document_id: string
+          p_expected_url: string
+          p_snapshot_content_type: string
+          p_snapshot_path: string
+          p_synced_at: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       unsubmit_assignment_doc_atomic: {
         Args: { p_assignment_id: string; p_student_id: string }
         Returns: Json

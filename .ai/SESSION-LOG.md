@@ -996,24 +996,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Full repository suite (408 files / 3,674 tests)
 ## 2026-07-23 — Hardened standalone test preview
 
-**Risk profile:** workspace-state, exam-mode
+**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
 
-**Model recommendation:** GPT-5.6 Terra (high) - this slice crosses teacher authorization, route ownership, asynchronous preview loading, document focus, and the full-screen exam-mode shell.
+**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
 
 **Completed:**
 - Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
-- Made `testId` the preview-data owner and invalidated in-flight requests synchronously when that owner changes.
+- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
 - Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
-- Added an A/B deferred-request regression proving preview B remains visible after preview A resolves late.
+- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
 - Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
-- Preserved the existing full-screen composition. APIs, schema, migrations, production state, Gradex, and deferred mobile layout work were unchanged.
+- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
+- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
+- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
+- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
+- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
 
 **Validation:**
-- Focused preview and related Tests suites (8 files / 164 tests)
-- Full repository suite (410 files / 3,691 tests)
+- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
+- Full repository suite (413 files / 3,712 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm check:architecture` (625 modules / 0 allowances)
 - `pnpm build`
 - Pika changed-file audit
 - `git diff --check`
@@ -1503,11 +1507,15 @@ future persistence shape without enabling unapproved schema behavior.
 
 **Remaining:**
 - None.
+- `pnpm run db:types:check`
 - Pika changed-file audit and composite-widget accessibility checklist
-- Playwright teacher preview captures at desktop light/dark and the mobile breakpoint, plus a student-authenticated denial capture; no horizontal overflow
+- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
 - Component keyboard regression for document focus entry/return and semantic region assertions
+- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
+- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
 - `git diff --check`
 
 **Remaining:**
-- Require independent review, exact-head PR CI, and protected merge.
+- Require targeted security review, final integration review, exact-head CI, and protected merge.
+- Apply migration 105 to each deployment target before deploying the updated sync route.
 - Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.

@@ -93,11 +93,6 @@ export function TeacherTestPreviewPage({
   const documentButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
   const returnFocusDocumentIdRef = useRef<string | null>(null)
 
-  if (previewOwnerRef.current !== testId) {
-    previewOwnerRef.current = testId
-    previewRequestIdRef.current += 1
-  }
-
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
       id: doc.id,
@@ -186,8 +181,8 @@ export function TeacherTestPreviewPage({
 
   const handleRequestMaximizeWindow = useCallback(() => {
     maximizePreviewWindow()
-    setAllowWindowMaximizedFallback(true)
-    void requestExamFullscreen()
+    setAllowWindowMaximizedFallback(isWindowNearMaximized())
+    void requestExamFullscreen({ allowWindowFallback: true })
   }, [maximizePreviewWindow, requestExamFullscreen])
 
   useEffect(() => {
@@ -232,6 +227,19 @@ export function TeacherTestPreviewPage({
     }
   }, [])
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (!isFullscreenActive()) {
+        setAllowWindowMaximizedFallback(isWindowNearMaximized())
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
   const loadPreviewData = useCallback(async () => {
     const requestId = previewRequestIdRef.current + 1
     previewRequestIdRef.current = requestId
@@ -270,8 +278,12 @@ export function TeacherTestPreviewPage({
   }, [testId])
 
   useEffect(() => {
+    previewOwnerRef.current = testId
     void loadPreviewData()
-  }, [loadPreviewData])
+    return () => {
+      previewRequestIdRef.current += 1
+    }
+  }, [loadPreviewData, testId])
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
