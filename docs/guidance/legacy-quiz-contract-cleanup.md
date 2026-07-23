@@ -73,15 +73,14 @@ Retain for compatibility or schema-backed behavior:
 - `src/lib/server/assessment-drafts.ts` assessment-named draft helpers and their
   `quiz_questions` sync behavior for legacy rows. The unused quiz-named wrapper
   exports have been retired.
-- `src/lib/quiz-markdown.ts` and `tests/lib/quiz-markdown.test.ts`, which cover
-  legacy quiz markdown import/export aliases.
 - Gradebook response tombstones for older clients. The active gradebook server
   must never read quiz tables or include quiz rows in calculations.
 
 The active Tests, gradebook, and student-notification workflows do not query
 legacy quiz tables. The unused quiz server access module, re-export shims,
-quiz-named helper/type aliases, and API response aliases have been removed.
-Architecture and route regressions protect those boundaries.
+quiz-named helper/type aliases, API response aliases, and the standalone quiz
+markdown module have been removed. Architecture and route regressions protect
+those boundaries.
 
 ### UI Compatibility Wrappers
 
@@ -245,13 +244,11 @@ For each implementation pass:
 ## Next Implementation Pass
 
 The API response-key window, gradebook/course-package decisions, dead draft
-aliases, and UI compatibility wrappers are complete. The next safe pass is
-unreachable quiz-mode UI and markdown retirement:
+aliases, UI compatibility wrappers, and standalone quiz markdown retirement
+are complete. The next safe pass is unreachable quiz-mode UI retirement:
 
 - prove active callers always use Tests mode;
 - remove quiz-only rendering branches and wording from current Test components;
-- remove `src/lib/quiz-markdown.ts` and its compatibility test if no package,
-  import, or persisted-data reader depends on it;
 - retain `tab=quizzes` as a URL tombstone and keep database-shaped `quiz_id`
   fields wherever persistence still requires them.
 

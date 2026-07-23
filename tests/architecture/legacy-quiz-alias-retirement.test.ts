@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
 const retiredModules = [
+  '@/lib/quiz-markdown',
   '@/lib/server/assessments',
   '@/lib/server/quizzes',
   '@/lib/quizzes',
@@ -83,6 +84,10 @@ describe('legacy quiz alias retirement', () => {
       'summarizeQuizFocusEvents',
       'withLegacyQuizKey',
       'withLegacyQuizListKey',
+      'quizToMarkdown',
+      'markdownToQuiz',
+      'assessmentToMarkdown',
+      'markdownToAssessment',
     ]
     const retiredDraftAliases = [
       'buildQuizDraftContentFromRows',

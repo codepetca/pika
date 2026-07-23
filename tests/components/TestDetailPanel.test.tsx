@@ -1033,7 +1033,7 @@ describe('TestDetailPanel', () => {
       })
     })
 
-    it('keeps the markdown helper available for empty tests in summary-detail mode', async () => {
+    it('applies current test markdown fields and documents to an empty test', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -1045,6 +1045,15 @@ describe('TestDetailPanel', () => {
               show_results: true,
               questions: [],
             },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 2,
+            content: {},
           },
         }),
       })
@@ -1084,12 +1093,64 @@ describe('TestDetailPanel', () => {
 
       fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
       fireEvent.change(markdownEditor, {
-        target: { value: '# Test\nTitle: Empty Markdown Import Test\nShow Results: true\n' },
+        target: {
+          value: `# Test
+Title: Empty Markdown Import Test
+Show Results: true
+
+## Questions
+### Question 1
+ID: ${markdownQuestionId1}
+Type: open_response
+Points: 4
+Code: true
+Max Chars: 1200
+Prompt:
+Explain the implementation.
+Answer Key:
+Identify the relevant tradeoffs.
+Sample Solution:
+Use the current Test Markdown contract.
+
+## Documents
+### Document 1
+ID: 33333333-3333-4333-8333-333333333333
+Source: text
+Title: Reference
+Content:
+Current Test reference material.
+`,
+        },
       })
 
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+
       await waitFor(() => {
-        expect(within(markdownPane).getByRole('button', { name: 'Apply Markdown' })).toBeInTheDocument()
+        expect(fetchMock).toHaveBeenCalledTimes(3)
       })
+
+      const patchCall = fetchMock.mock.calls[2]
+      const patchBody = JSON.parse(String(patchCall?.[1]?.body))
+      expect(patchCall?.[0]).toBe('/api/teacher/tests/test-1/draft')
+      expect(patchCall?.[1]?.method).toBe('PATCH')
+      expect(patchBody.content.questions[0]).toMatchObject({
+        id: markdownQuestionId1,
+        question_type: 'open_response',
+        answer_key: 'Identify the relevant tradeoffs.',
+        sample_solution: 'Use the current Test Markdown contract.',
+        points: 4,
+        response_max_chars: 1200,
+        response_monospace: true,
+      })
+      expect(patchBody.content.source_markdown).toContain('## Documents')
+      expect(patchBody.documents).toEqual([
+        expect.objectContaining({
+          id: '33333333-3333-4333-8333-333333333333',
+          source: 'text',
+          title: 'Reference',
+          content: 'Current Test reference material.',
+        }),
+      ])
     })
 
     it('emits draft summary changes immediately for structured test edits before autosave completes', async () => {
