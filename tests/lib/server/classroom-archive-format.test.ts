@@ -12,7 +12,7 @@ import {
   sha256Bytes,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import type { ClassroomArchiveManifest } from '@/lib/contracts/classroom-artifacts'
 import {
   buildClassroomArchiveV2Fixture,
@@ -32,7 +32,7 @@ const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 

@@ -132,7 +132,16 @@ describe('classroom archive-v2 contract migration', () => {
     expect(begin).toContain('p_source_contract_version <> 1')
     expect(begin).toContain('p_archive_format_version <> 2')
     expect(begin).toContain(
-      'v_result := public.begin_classroom_archive_export(',
+      'v_result := private.begin_classroom_archive_export_v082(',
+    )
+    expect(migration).toContain(
+      ') rename to begin_classroom_archive_export_v082;',
+    )
+    expect(migration).toContain(
+      'create or replace function public.begin_classroom_archive_export(',
+    )
+    expect(migration).toContain(
+      'from public.classroom_archive_revisions\n  where classroom_id = p_classroom_id\n  for update;',
     )
     expect(begin).toContain(
       "'archive_v2_envelope_source_not_supported'",

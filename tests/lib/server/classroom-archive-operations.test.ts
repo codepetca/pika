@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
-import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import {
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+} from '@/lib/contracts/classroom-archive-resources'
 import {
   decodeClassroomArchiveData,
   verifyClassroomArchiveBundle,
@@ -19,7 +21,7 @@ const SNAPSHOT_AT = '2026-07-13T12:00:00.000Z'
 
 function resourceCounts(rows: Record<string, unknown[]> = {}) {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [
       resource.table,
       rows[resource.table]?.length || (resource.table === 'classrooms' ? 1 : 0),
     ]),

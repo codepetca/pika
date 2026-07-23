@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   decodeClassroomArchiveData,
@@ -13,6 +14,7 @@ import {
   classroomArchiveRestoreObjectPath,
   CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
+import { retiredAssessmentPayloadChecksum } from '@/lib/server/classroom-retired-assessment-contract'
 import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
 import {
   V2_STUDENT_ID,
@@ -27,7 +29,7 @@ const OPERATION_ID = '00000000-0000-4000-8000-000000000005'
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
@@ -103,7 +105,10 @@ function buildFixtureBundle() {
         assessment_type: 'quiz',
         assessment_id: '60000000-0000-4000-8000-000000000001',
         classroom_id: CLASSROOM_ID,
-        content: { title: 'Historical Quiz draft' },
+        content: {
+          title: 'Historical Quiz draft',
+          image: 'https://project.supabase.co/storage/v1/object/public/submission-images/student/work.png',
+        },
         version: 2,
         created_by: TEACHER_ID,
         updated_by: TEACHER_ID,
@@ -232,10 +237,10 @@ describe('classroom archive restore planning', () => {
       parent_source_row_id: '60000000-0000-4000-8000-000000000001',
     })
     expect(createHash('sha256').update(gunzipSync(built.archive)).digest('hex')).toBe(
-      '32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58',
+      'd56394a78dfd41b0c452d73f6cdf8cd5c95dcc25cb339917bff5b0a1da61ae22',
     )
     expect(verified.manifest.content_sha256).toBe(
-      '0b64d44066ce1cd0ece4521e72a1d36a4102957995ddd1cfe3fac3d8e63311f3',
+      '779c2783f0ccefa885a31badd740985c3e8eccfff12029975e5aebe924c2eab1',
     )
     expect(Object.fromEntries(
       verified.manifest.resources
@@ -245,7 +250,7 @@ describe('classroom archive restore planning', () => {
         )
         .map((resource) => [resource.table, resource.sha256]),
     )).toEqual({
-      assessment_drafts: '814711ca0ceddbaae9ef119cfb578e6f4df10b67b5a99c9633e3df60ad874476',
+      assessment_drafts: '0a2db5337d856b7096a425259868385551b7c19a21979bdaa67d4c3b321ff20d',
       quiz_questions: '7d331d13169e5d2db7c455c50577db4330d1ec6ae540cefde90da09efbe14bc9',
       quiz_responses: '248a87527a97d253d5777e44ec7ccfc141db52881e76f97386d347e5a384482e',
       quiz_student_scores: '3cd9246d1b240fa3fc27d13872db9a2ea494086dfff249907f93574c429623b3',
@@ -309,6 +314,15 @@ describe('classroom archive restore planning', () => {
           payload: expect.objectContaining({ manual_override_score: 9 }),
         }),
       ]),
+    )
+    const draftEnvelope = plan.resources.classroom_retired_assessment_records.find(
+      (record) => record.source_resource === 'assessment_drafts',
+    )
+    expect(JSON.stringify(draftEnvelope?.payload)).toContain(
+      `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
+    )
+    expect(draftEnvelope?.payload_sha256).toBe(
+      retiredAssessmentPayloadChecksum(draftEnvelope?.payload as Record<string, unknown>),
     )
   })
 
@@ -396,6 +410,15 @@ describe('classroom archive restore planning', () => {
           }),
         }),
       ]),
+    )
+    const draftEnvelope = plan.resources.classroom_retired_assessment_records.find(
+      (record) => record.source_resource === 'assessment_drafts',
+    )
+    expect(JSON.stringify(draftEnvelope?.payload)).toContain(
+      `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
+    )
+    expect(draftEnvelope?.payload_sha256).toBe(
+      retiredAssessmentPayloadChecksum(draftEnvelope?.payload as Record<string, unknown>),
     )
   })
 

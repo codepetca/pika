@@ -61,17 +61,22 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION).toBe(2)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(44)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
         .digest('hex'),
     ).toBe('b7fe6fdd6dcbb57a741e13f1d16d3b171fc105d2f945cef48bb3d5791d0f9c5d')
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toEqual(
-      CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
-        table: resource.table,
-        primary_key: resource.primary_key,
-        actor_columns: resource.actor_columns,
-      })),
+      CLASSROOM_RELATIONAL_RESOURCES
+        .filter((resource) =>
+          !resource.table.startsWith('classroom_retired_assessment_'),
+        )
+        .map((resource) => ({
+          table: resource.table,
+          primary_key: resource.primary_key,
+          actor_columns: resource.actor_columns,
+        })),
     )
     expect(readFileSync(
       resolve(process.cwd(), 'src/lib/contracts/classroom-archive-resources.ts'),

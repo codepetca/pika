@@ -510,6 +510,129 @@ execute function public.bump_classroom_archive_revision_from_versioned_resource(
   'record_id'
 );
 
+alter function public.begin_classroom_archive_export(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  jsonb
+) set schema private;
+alter function private.begin_classroom_archive_export(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  jsonb
+) rename to begin_classroom_archive_export_v082;
+
+revoke all on function private.begin_classroom_archive_export_v082(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  jsonb
+) from public, anon, authenticated, service_role;
+
+-- Preserve the v1 signature while preventing legacy clients from snapshotting
+-- a classroom whose retired assessment envelopes would be omitted.
+create or replace function public.begin_classroom_archive_export(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_request_sha256 text,
+  p_source_schema_migration text,
+  p_source_app_commit text,
+  p_retention jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
+
+  select *
+  into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.id is not null
+    and (
+      v_operation.teacher_id <> p_teacher_id
+      or v_operation.classroom_id <> p_classroom_id
+      or v_operation.operation_type <> 'export'
+      or v_operation.request_sha256 <> p_request_sha256
+      or v_operation.source_contract_version <> 1
+      or v_operation.archive_format_version <> 1
+    )
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'idempotency_conflict',
+      'error', 'Idempotency key was already used for a different archive request',
+      'retryable', false
+    );
+  end if;
+
+  if v_operation.status = 'completed'
+    or (v_operation.status = 'failed' and v_operation.retryable is false)
+  then
+    return private.begin_classroom_archive_export_v082(
+      p_operation_id,
+      p_teacher_id,
+      p_classroom_id,
+      p_request_sha256,
+      p_source_schema_migration,
+      p_source_app_commit,
+      p_retention
+    );
+  end if;
+
+  perform revision
+  from public.classroom_archive_revisions
+  where classroom_id = p_classroom_id
+  for update;
+
+  if exists (
+    select 1
+    from public.classroom_retired_assessment_records
+    where classroom_id = p_classroom_id
+  )
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'archive_v2_envelope_source_not_supported',
+      'error', 'Retired assessment envelopes require a versioned source snapshot',
+      'retryable', false
+    );
+  end if;
+
+  return private.begin_classroom_archive_export_v082(
+    p_operation_id,
+    p_teacher_id,
+    p_classroom_id,
+    p_request_sha256,
+    p_source_schema_migration,
+    p_source_app_commit,
+    p_retention
+  );
+end;
+$$;
+
 -- Opt-in export overload. The source snapshot remains the deployed v1 graph;
 -- the application deterministically adapts it before finalizing archive-v2.
 create or replace function public.begin_classroom_archive_export_v2(
@@ -548,7 +671,11 @@ begin
 
   if v_operation.id is not null
     and (
-      v_operation.source_contract_version <> p_source_contract_version
+      v_operation.teacher_id <> p_teacher_id
+      or v_operation.classroom_id <> p_classroom_id
+      or v_operation.operation_type <> 'export'
+      or v_operation.request_sha256 <> p_request_sha256
+      or v_operation.source_contract_version <> p_source_contract_version
       or v_operation.archive_format_version <> p_archive_format_version
     )
   then
@@ -561,6 +688,11 @@ begin
       'retryable', false
     );
   end if;
+
+  perform revision
+  from public.classroom_archive_revisions
+  where classroom_id = p_classroom_id
+  for update;
 
   -- Pass A snapshots the v1 relational graph and adapts it in the application.
   -- Existing envelope rows are not part of that snapshot, so fail closed rather
@@ -583,7 +715,7 @@ begin
     );
   end if;
 
-  v_result := public.begin_classroom_archive_export(
+  v_result := private.begin_classroom_archive_export_v082(
     p_operation_id,
     p_teacher_id,
     p_classroom_id,
@@ -2048,6 +2180,25 @@ revoke all on function
 grant execute on function
   public.resolve_classroom_archive_resource_classroom_id_versioned(integer, text, uuid)
   to service_role;
+
+revoke all on function public.begin_classroom_archive_export(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  jsonb
+) from public, anon, authenticated;
+grant execute on function public.begin_classroom_archive_export(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  jsonb
+) to service_role;
 
 revoke all on function public.begin_classroom_archive_export_v2(
   uuid,

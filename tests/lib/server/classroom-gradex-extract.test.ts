@@ -1,6 +1,7 @@
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES, GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
+import { GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -33,7 +34,7 @@ const HMAC_SECRET = 'test-only-gradex-hmac-secret-with-more-than-32-bytes'
 
 function sourceArchive() {
   const resources = Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
   )
   resources.assignments = [{
     id: ASSIGNMENT_ID,

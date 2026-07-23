@@ -124,7 +124,7 @@ Test password-based flows:
   origin and allowlisted discovery paths.
 - API tests cover teacher auth boundaries, UUID idempotency keys, retention validation, and
   migration/version fail-closed behavior.
-- Database-backed CI replays every migration, audits the 42-resource ownership graph and actual
+- Database-backed CI replays every migration, audits the 44-resource ownership graph and actual
   primary keys, and proves revision triggers, atomic membership snapshots, idempotent replay,
   stale-source rejection, private buckets, service-role-only RPCs, staging cleanup, and immutable
   verified metadata.

@@ -96,12 +96,33 @@ function validArchiveManifest(): ClassroomArchiveManifest {
 }
 
 describe('classroom data inventory', () => {
-  it('is a valid, complete 42-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(42)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(42)
+  it('is a valid, complete 44-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(44)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(44)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'test_attempts')?.actor_columns)
       .toEqual(CLASSROOM_ACTOR_REFERENCE_COLUMNS.test_attempts)
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
+      resource.table === 'classroom_retired_assessment_records',
+    )).toMatchObject({
+      scope: {
+        kind: 'foreign_key',
+        parent: 'classrooms',
+        column: 'classroom_id',
+      },
+      restore_after: ['classrooms'],
+    })
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
+      resource.table === 'classroom_retired_assessment_record_actors',
+    )).toMatchObject({
+      actor_columns: ['actor_id'],
+      scope: {
+        kind: 'foreign_key',
+        parent: 'classroom_retired_assessment_records',
+        column: 'record_id',
+      },
+      restore_after: ['classroom_retired_assessment_records'],
+    })
   })
 
   it('exports and restores parents first and purges children first', () => {
@@ -143,7 +164,14 @@ describe('classroom data inventory', () => {
   it('detects schema resources that are not represented in the archive graph', () => {
     const relationships = contractRelationships()
 
-    expect(auditClassroomResourceSchema(relationships, contractPrimaryKeys()).ok).toBe(true)
+    expect(auditClassroomResourceSchema([
+      ...relationships,
+      {
+        child_table: 'classroom_retired_assessment_records',
+        parent_table: 'classroom_retired_assessment_records',
+        child_columns: ['parent_source_row_id'],
+      },
+    ], contractPrimaryKeys()).ok).toBe(true)
     expect(auditClassroomResourceSchema([
       ...relationships,
       {

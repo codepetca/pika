@@ -14813,3 +14813,24 @@
 
 **Remaining before merge:**
 - Push the CI compatibility and integration-fixture fixes, wait for PR checks and review, then merge only after the required migration-first deployment obligation is clear.
+
+<!-- pika-session-log-archive-batch:06272ddb36991167f8e63b0ae4e4a89bf9a9018d49b33b44b1f2873288068687 -->
+## 2026-07-17 — Assignment cloned-tab writer-fence review fix
+
+**Completed:**
+- Fixed the PR #891 review finding where a live assignment save-session identity persisted in cloneable `sessionStorage` could be inherited by a duplicated tab. A stale page-exit save from that tab could otherwise be mistaken for a same-editor superseding save and bypass the database revision conflict.
+- Made each mounted student assignment editor use a fresh writer identity and sequence. Exact uncertain operations still retain and replay their original immutable save identity from durable recovery evidence.
+- Replaced the cross-remount identity-reuse test with a regression proving copied writer state is ignored and a remounted editor starts a distinct fence at sequence one.
+- Did not read or modify production, apply migration 099, merge the PR, or advance the broader phased product-experience goal.
+
+**Validation:**
+- `pnpm test` (375 files / 3,484 tests)
+- Focused assignment integrity suites (3 files / 68 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture` (604 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+**Remaining before merge:**
+- Push the review fix, wait for PR checks, and rereview PR #891. Migration 099 must still be applied and verified before the application version is deployed.

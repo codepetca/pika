@@ -19,7 +19,10 @@ import {
   type VerifiedClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
-import { validateRetiredAssessmentEnvelopeGraph } from '@/lib/server/classroom-retired-assessment-contract'
+import {
+  retiredAssessmentPayloadChecksum,
+  validateRetiredAssessmentEnvelopeGraph,
+} from '@/lib/server/classroom-retired-assessment-contract'
 
 export const CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION =
   '105_classroom_archive_v2_contract' as const
@@ -262,23 +265,18 @@ export function buildClassroomArchiveRestorePlan(args: {
     archivedActorIds,
     sourceContract.resources,
   )
-  const resources = manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
-    ? adaptLegacyQuizArchiveResources({
-        classroomId: manifest.classroom_id,
-        resources: schemaAdaptedResources,
-        actors: archivedActors,
-      }).resources
-    : cloneResources(schemaAdaptedResources)
   const adapterChain = manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
     ? [...adapters.ids, 'classroom-archive-v1-quiz-to-retired-assessment-v1']
     : adapters.ids
-  validateRetiredAssessmentEnvelopeGraph({
-    classroomId: manifest.classroom_id,
-    records: resources.classroom_retired_assessment_records || [],
-    recordActors: resources.classroom_retired_assessment_record_actors || [],
-    archiveActorIds: archivedActors.map((actor) => actor.id),
-  })
-  validateActorReferences(resources, archivedActorIds, CLASSROOM_ARCHIVE_V2_RESOURCES)
+  if (manifest.version === CLASSROOM_ARCHIVE_V2_VERSION) {
+    validateRetiredAssessmentEnvelopeGraph({
+      classroomId: manifest.classroom_id,
+      records: schemaAdaptedResources.classroom_retired_assessment_records || [],
+      recordActors:
+        schemaAdaptedResources.classroom_retired_assessment_record_actors || [],
+      archiveActorIds: archivedActors.map((actor) => actor.id),
+    })
+  }
 
   const referencedStorage = discoverClassroomStorageReferences(decoded.resources, args.supabaseUrl)
     .map((reference) => `${reference.bucket}\0${reference.path}`)
@@ -329,8 +327,8 @@ export function buildClassroomArchiveRestorePlan(args: {
       object.restorePath,
     ]),
   )
-  const rewrittenResources = Object.fromEntries(
-    Object.entries(resources).map(([table, rows]) => [
+  const rewrittenSourceResources = Object.fromEntries(
+    Object.entries(schemaAdaptedResources).map(([table, rows]) => [
       table,
       rows.map((row) => rewriteResourceValue({
         value: row,
@@ -339,6 +337,38 @@ export function buildClassroomArchiveRestorePlan(args: {
         restoredPaths,
       }) as JsonObject),
     ]),
+  )
+  const rewrittenResources: Record<string, JsonObject[]> =
+    manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
+      ? adaptLegacyQuizArchiveResources({
+          classroomId: manifest.classroom_id,
+          resources: rewrittenSourceResources,
+          actors: archivedActors,
+        }).resources
+      : {
+          ...rewrittenSourceResources,
+          classroom_retired_assessment_records: (
+            rewrittenSourceResources.classroom_retired_assessment_records || []
+          ).map((record) => {
+            if (!isJsonObject(record.payload)) {
+              throw new Error('Retired assessment envelope payload must be an object')
+            }
+            return {
+              ...record,
+              payload_sha256: retiredAssessmentPayloadChecksum(record.payload),
+            }
+          }),
+        }
+  validateRetiredAssessmentEnvelopeGraph({
+    classroomId: manifest.classroom_id,
+    records: rewrittenResources.classroom_retired_assessment_records || [],
+    recordActors: rewrittenResources.classroom_retired_assessment_record_actors || [],
+    archiveActorIds: archivedActors.map((actor) => actor.id),
+  })
+  validateActorReferences(
+    rewrittenResources,
+    archivedActorIds,
+    CLASSROOM_ARCHIVE_V2_RESOURCES,
   )
 
   const preflight = classroomArchiveRestorePreflightSchema.parse({

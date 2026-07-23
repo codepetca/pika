@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
   classroomArchiveRestoreObjectPath,
@@ -21,7 +21,7 @@ const ARTIFACT_ID = '10000000-0000-4000-8000-000000000003'
 
 function resources() {
   return {
-    ...Object.fromEntries(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []])),
+    ...Object.fromEntries(CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []])),
     classrooms: [{ id: CLASSROOM_ID, teacher_id: TEACHER_ID, title: 'Restore fixture', archived_at: '2026-07-13T12:00:00.000Z' }],
     assignments: [{ id: ASSIGNMENT_ID, classroom_id: CLASSROOM_ID, created_by: TEACHER_ID }],
     assignment_docs: [{ id: DOC_ID, assignment_id: ASSIGNMENT_ID, student_id: STUDENT_ID }],
@@ -36,7 +36,7 @@ function resources() {
 
 function archiveV1ResourceCounts() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [
       resource.table,
       ['classrooms', 'assignments', 'assignment_docs', 'assignment_submission_artifacts']
         .includes(resource.table) ? 1 : 0,

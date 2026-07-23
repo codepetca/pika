@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
-if [[ -z "$DB_CONTAINER" ]]; then
-  echo "Supabase database container is not running." >&2
+PROJECT_ID="$(sed -n 's/^project_id = "\(.*\)"/\1/p' supabase/config.toml | head -n 1)"
+DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-supabase_db_${PROJECT_ID}}"
+if [[ "$(docker inspect -f '{{.State.Running}}' "$DB_CONTAINER" 2>/dev/null || true)" != "true" ]]; then
+  echo "Supabase database container is not running: $DB_CONTAINER" >&2
   exit 2
 fi
 
@@ -97,6 +98,7 @@ declare
   v_export_operation_id constant uuid := '42000000-0000-4000-8000-000000000001';
   v_fenced_operation_id constant uuid := '42000000-0000-4000-8000-000000000002';
   v_restore_operation_id constant uuid := '42000000-0000-4000-8000-000000000003';
+  v_legacy_fenced_operation_id constant uuid := '42000000-0000-4000-8000-000000000004';
   v_archive_id uuid;
   v_source_revision bigint;
   v_source_counts jsonb;
@@ -395,6 +397,26 @@ begin
     raise exception 'Envelope-backed archive-v2 export did not fail closed: %', v_result;
   end if;
 
+  v_result := public.begin_classroom_archive_export(
+    v_legacy_fenced_operation_id,
+    v_teacher_id,
+    v_classroom_id,
+    repeat('b', 64),
+    '105_classroom_archive_v2_contract',
+    'abcdef1234567890',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+  );
+  if v_result->>'error_code' <> 'archive_v2_envelope_source_not_supported'
+    or exists (
+      select 1
+      from public.classroom_archive_snapshot_resources
+      where operation_id = v_legacy_fenced_operation_id
+    )
+  then
+    raise exception 'Legacy export did not fail closed before snapshotting envelopes: %',
+      v_result;
+  end if;
+
   insert into expected_archive_v2_rows (table_name, row_id, row_data)
   select 'classrooms', classroom.id, to_jsonb(classroom)
   from public.classrooms classroom
@@ -528,5 +550,110 @@ $contract$;
 
 rollback;
 SQL
+
+RACE_TEACHER_ID="12000000-0000-4000-8000-000000000011"
+RACE_CLASSROOM_ID="22000000-0000-4000-8000-000000000011"
+RACE_RECORD_ID="52000000-0000-4000-8000-000000000011"
+RACE_SOURCE_ROW_ID="32000000-0000-4000-8000-000000000011"
+RACE_OPERATION_ID="42000000-0000-4000-8000-000000000011"
+RACE_OUTPUT="$(mktemp)"
+
+cleanup_race() {
+  rm -f "$RACE_OUTPUT"
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+    >/dev/null 2>&1 <<SQL || true
+begin;
+delete from public.classroom_archive_snapshot_actors
+where operation_id = '$RACE_OPERATION_ID'::uuid;
+delete from public.classroom_archive_snapshot_resources
+where operation_id = '$RACE_OPERATION_ID'::uuid;
+delete from public.classroom_archive_operations
+where id = '$RACE_OPERATION_ID'::uuid;
+delete from public.classroom_retired_assessment_records
+where id = '$RACE_RECORD_ID'::uuid;
+delete from public.classrooms where id = '$RACE_CLASSROOM_ID'::uuid;
+delete from public.users where id = '$RACE_TEACHER_ID'::uuid;
+commit;
+SQL
+}
+trap cleanup_race EXIT
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<SQL
+insert into public.users (id, email, role)
+values ('$RACE_TEACHER_ID', 'archive-v2-race@example.test', 'teacher');
+
+insert into public.classrooms (
+  id, teacher_id, title, class_code, archived_at
+) values (
+  '$RACE_CLASSROOM_ID',
+  '$RACE_TEACHER_ID',
+  'Archive v2 race classroom',
+  'ARV211',
+  clock_timestamp()
+);
+SQL
+
+docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "begin;
+      select revision from public.classroom_archive_revisions
+      where classroom_id = '$RACE_CLASSROOM_ID'::uuid for update;
+      insert into public.classroom_retired_assessment_records (
+        id, classroom_id, source_contract, source_contract_version,
+        source_resource, source_row_id, payload, payload_sha256,
+        checksum_algorithm
+      ) values (
+        '$RACE_RECORD_ID', '$RACE_CLASSROOM_ID',
+        'pika.classroom-archive@1/legacy-quiz', 1, 'quizzes',
+        '$RACE_SOURCE_ROW_ID',
+        '{\"id\":\"$RACE_SOURCE_ROW_ID\",\"title\":\"Concurrent envelope\"}'::jsonb,
+        repeat('c', 64), 'sha256-canonical-json-v1'
+      );
+      select pg_sleep(3);
+      commit;" >"$RACE_OUTPUT" 2>&1 &
+RACE_WRITER_PID=$!
+
+RACE_READY=0
+for _ in {1..40}; do
+  RACE_READY="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+    "select count(*) from pg_stat_activity
+     where state = 'active'
+       and query like '%$RACE_RECORD_ID%pg_sleep(3)%';")"
+  [[ "$RACE_READY" -gt 0 ]] && break
+  sleep 0.1
+done
+if [[ "$RACE_READY" -eq 0 ]]; then
+  wait "$RACE_WRITER_PID" || true
+  cat "$RACE_OUTPUT" >&2
+  echo "Envelope race writer did not acquire the revision lock." >&2
+  exit 1
+fi
+
+RACE_RESULT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select public.begin_classroom_archive_export_v2(
+    '$RACE_OPERATION_ID'::uuid,
+    '$RACE_TEACHER_ID'::uuid,
+    '$RACE_CLASSROOM_ID'::uuid,
+    repeat('d', 64),
+    '105_classroom_archive_v2_contract',
+    'abcdef1234567890',
+    '{\"mode\":\"teacher_managed\",\"delete_after\":null}'::jsonb,
+    1,
+    2
+  );")"
+wait "$RACE_WRITER_PID"
+
+if [[ "$RACE_RESULT" != *'"error_code": "archive_v2_envelope_source_not_supported"'* ]]; then
+  printf '%s\n' "$RACE_RESULT" >&2
+  echo "Concurrent envelope insert crossed the archive-v2 snapshot fence." >&2
+  exit 1
+fi
+
+RACE_SNAPSHOT_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select count(*) from public.classroom_archive_snapshot_resources
+   where operation_id = '$RACE_OPERATION_ID'::uuid;")"
+if [[ "$RACE_SNAPSHOT_COUNT" -ne 0 ]]; then
+  echo "Concurrent envelope race created incomplete snapshot rows." >&2
+  exit 1
+fi
 
 echo "Classroom archive-v2 database contract passes."
