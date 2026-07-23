@@ -2,12 +2,13 @@
 set -euo pipefail
 
 DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
+DB_NAME="${CLASSROOM_ARCHIVE_DATABASE_NAME:-postgres}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 insert into public.users (id, email, role)

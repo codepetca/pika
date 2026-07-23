@@ -4,7 +4,8 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 
 ## Current Focus
 
-- Migrations 001-105 local; 105 is not hosted. V2 restore is staged; v1 remains current pending version-aware compaction.
+- Local schema: 001-105; 105 is not hosted. Migration 106 is prepared but
+  unapplied pending the version-aware runtime.
 - Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave and Phase 2 are complete. Phase 3 assignment, Daily/Attendance desktop/accessibility, and Tests list reliability plus authoring/grading separation are complete; mobile UX is deferred, Gradex is owned by a separate session, and standalone test preview hardening is next.
 
 ## Environment
