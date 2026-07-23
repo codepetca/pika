@@ -108,54 +108,6 @@ describe('StudentTestsTab exam mode', () => {
     })
   }
 
-  it('reads legacy quiz-keyed test payloads as a compatibility fallback', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      quizzes: [{
-        id: 'legacy-test-1',
-        title: 'Legacy-Keyed Test',
-        assessment_type: 'test',
-        status: 'active',
-        show_results: false,
-        position: 0,
-        student_status: 'not_started',
-      }],
-    }))
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      quiz: {
-        id: 'legacy-test-1',
-        title: 'Legacy-Keyed Test',
-        assessment_type: 'test',
-        status: 'active',
-        show_results: false,
-        position: 0,
-        student_status: 'not_started',
-      },
-      student_status: 'not_started',
-      questions: [
-        {
-          id: 'legacy-question-1',
-          quiz_id: 'legacy-test-1',
-          question_text: 'Legacy-keyed detail question',
-          options: ['A', 'B'],
-          question_type: 'multiple_choice',
-          points: 1,
-          response_max_chars: 5000,
-          position: 0,
-        },
-      ],
-      student_responses: {},
-      focus_summary: null,
-    }))
-
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
-
-    expect(await screen.findByText('Legacy-Keyed Test')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('Legacy-Keyed Test'))
-
-    expect(await screen.findByText('1 question · 1 pt total')).toBeInTheDocument()
-  })
-
   it('shows a retryable error instead of an empty state when the tests list fails', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ error: 'Database unavailable' }, false))

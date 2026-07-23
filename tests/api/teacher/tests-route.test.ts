@@ -185,7 +185,7 @@ describe('GET /api/teacher/tests', () => {
       { column: 'position', ascending: false },
       { column: 'created_at', ascending: false },
     ])
-    expect(data.tests).toEqual(data.quizzes)
+    expect(data).not.toHaveProperty('quizzes')
     expect((data.tests as Array<{ id: string }>).map((test) => test.id)).toEqual(['test-2', 'test-1'])
   })
 
@@ -752,7 +752,7 @@ describe('POST /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.test).toEqual(data.quiz)
+    expect(data).not.toHaveProperty('quiz')
     expect(data.test.position).toBe(3)
     expect(data.test.title).toBe('New Test')
     expect(assessmentDraftInsertSpy).toHaveBeenCalledWith(

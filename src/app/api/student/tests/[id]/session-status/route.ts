@@ -11,7 +11,6 @@ import {
 } from '@/lib/server/tests'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
-import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -146,7 +145,7 @@ export const GET = withErrorHandler('GetStudentTestSessionStatus', async (_reque
   }
 
   return NextResponse.json({
-    ...withLegacyQuizKey(responseTest),
+    test: responseTest,
     student_status: studentStatus,
     returned_at: attempt?.returned_at || null,
     can_continue: canContinue,

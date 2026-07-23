@@ -14,7 +14,6 @@ import {
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
-import { withLegacyQuizKey } from '@/lib/test-api-contract'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
 
@@ -132,7 +131,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
   }
 
   return NextResponse.json({
-    ...withLegacyQuizKey(responseTest),
+    test: responseTest,
     questions: responseQuestions,
     classroom: test.classrooms,
   })
@@ -356,7 +355,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   }
 
   return NextResponse.json({
-    ...withLegacyQuizKey(responseTest),
+    test: responseTest,
   })
 })
 

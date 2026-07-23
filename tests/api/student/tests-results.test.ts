@@ -434,7 +434,7 @@ describe('GET /api/student/tests/[id]/results', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.test).toEqual(data.quiz)
+    expect(data).not.toHaveProperty('quiz')
     expect(data.test.id).toBe('test-1')
     expect(data.test.returned_at).toBe('2026-03-05T11:00:00.000Z')
     expect(data.summary.earned_points).toBe(4)

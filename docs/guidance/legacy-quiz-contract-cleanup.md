@@ -7,8 +7,9 @@ The current product contract is:
 
 - User-facing navigation, labels, and active routes should say **Tests**.
 - Legacy quiz routes/tabs are removed from the product surface.
-- Some database tables, payload aliases, TypeScript aliases, package fields, and
-  tests intentionally still use `quiz` names while compatibility is maintained.
+- Some database tables, persisted discriminants, package fields, component
+  wrappers, and tests intentionally still use `quiz` names while compatibility
+  is maintained.
 - AI agents may create migration files after approval. Application follows the
   one-time authorization contract in the schema rollout checklist.
 
@@ -35,19 +36,22 @@ explicit approval.
 
 ### API Routes And Payload Contracts
 
-Retain during the compatibility window:
+The legacy response-key compatibility window is closed:
 
-- Active Tests APIs emit both current and legacy response keys through
-  `src/lib/test-api-contract.ts`: `{ tests, quizzes }` for lists and
-  `{ test, quiz }` for details.
-- Student and teacher Tests UI reads current keys first and falls back to
-  legacy keys.
-- Tests that assert `data.tests === data.quizzes` or `data.test === data.quiz`
-  protect this compatibility contract.
+- Active `/api/student/tests/**` and `/api/teacher/tests/**` routes emit only
+  `{ tests }` for lists and `{ test }` for details.
+- In-repo Tests consumers read only current keys. Tests reject the retired
+  `quiz` / `quizzes` aliases on representative list and detail routes.
+- `src/lib/test-api-contract.ts` remains a current-contract normalizer for
+  optional or error payloads; it no longer accepts legacy response keys.
 
-Next compatibility decision: choose the deprecation point for legacy response
-keys, then remove fallback readers in the same or next release after clients
-have moved to `test` / `tests`.
+Deprecation decision: the first release containing this contract retirement is
+the cutoff. Pika has no active quiz routes or in-repo quiz-key consumers, and
+the active endpoints are product-internal rather than a separately versioned
+public API. An older independently deployed client that still reads only
+`quiz` / `quizzes` will stop receiving assessment data and must upgrade with
+the server. Rollback is code-only: restore the response helpers and fallback
+readers; no stored data changes are involved.
 
 ### TypeScript Domain Types
 
@@ -75,9 +79,9 @@ Retain for compatibility or schema-backed behavior:
   must never read quiz tables or include quiz rows in calculations.
 
 The active Tests, gradebook, and student-notification workflows do not query
-legacy quiz tables. The unused quiz server access module, re-export shims, and
-quiz-named helper/type aliases have been removed and are protected by an
-architecture regression.
+legacy quiz tables. The unused quiz server access module, re-export shims,
+quiz-named helper/type aliases, and API response aliases have been removed.
+Architecture and route regressions protect those boundaries.
 
 ### UI Compatibility Wrappers
 
@@ -90,14 +94,14 @@ Retain until their callers are removed:
 - Legacy `tab=quizzes` route fallback tests, which prove old URLs fall back to
   the supported tab instead of exposing a removed product surface.
 
-Safe cleanup: rename current-path fixtures and test descriptions from quiz to
-test when they are not exercising a compatibility fallback.
+The UI no longer accepts quiz-keyed API response payloads. Remaining wrappers
+are component/URL/automation contracts and should be retired independently.
 
 ### Tests
 
 Remaining quiz references usually fall into one of these groups:
 
-- Compatibility regressions for legacy response keys, props, or route params.
+- Compatibility regressions for legacy props, route params, or persisted data.
 - Database-shaped mocks that must still use `quiz_id` or legacy table names.
 - Gradebook tests that prove legacy quiz response fields remain inert and the
   active server never queries quiz tables.
@@ -138,7 +142,6 @@ Requires a follow-up design and approval:
 
 - Renaming database tables, columns, functions, indexes, policies, or migration
   history from quiz to test.
-- Removing `quiz` / `quizzes` API response keys.
 - Removing a TypeScript compatibility alias that still has application callers.
 - Changing gradebook quiz category fields, weights, override routes, or report
   payloads.
@@ -167,12 +170,11 @@ Requires a follow-up design and approval:
      `pnpm test`.
 
 3. **Payload deprecation**
-   - Pick a release where active Tests APIs stop emitting legacy `quiz` keys.
-   - First add telemetry or targeted tests that prove all in-repo readers use
-     `test` / `tests`.
-   - Remove `withLegacyQuizKey`, `withLegacyQuizListKey`, and fallback reads in
-     one coordinated PR.
-   - Rollback: restore the helpers and response aliases without data changes.
+   - Completed: active Tests APIs emit only `test` / `tests`.
+   - Completed: removed `withLegacyQuizKey`, `withLegacyQuizListKey`, and
+     quiz-key fallback readers in one coordinated pass.
+   - Route tests prove representative current payloads omit legacy aliases.
+   - Rollback remains code-only; no data rollback is required.
 
 4. **Type and wrapper retirement**
    - Completed: removed unused `Quiz*` types, quiz-named assessment helper
@@ -240,18 +242,17 @@ For each implementation pass:
 
 ## Next Implementation Pass
 
-The gradebook/course-package decision and dead draft alias retirement are
-complete. The next safe pass should decide whether the test-only markdown
-aliases have completed their compatibility window or continue fixture-only
-cleanup where no persisted/API/UI compatibility contract depends on the name.
-Start with:
+The API response-key window, gradebook/course-package decisions, and dead draft
+alias retirement are complete. The next safe pass is UI compatibility-wrapper
+retirement:
 
-- `tests/lib/quiz-markdown.test.ts` only if the test is rewritten to clearly say
-  it covers legacy quiz markdown compatibility.
-- Gradebook tests may remove dead quiz-table mocks, but must retain assertions
-  for null/empty compatibility response fields.
-- Course blueprint tests must retain the version 3 `quizzes: false` package
-  contract.
+- remove `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` props when their
+  current callers and explicit compatibility tests are gone;
+- rename `student-quiz-action-footer` after checking external automation;
+- retain `tab=quizzes` as a URL tombstone until the old-link window is closed;
+- keep database-shaped `quiz_id` fields wherever persistence still requires
+  them.
 
-Payload and schema removal remain blocked until the deprecation window and
-production verification prove the compatibility aliases are no longer needed.
+Schema removal remains blocked on archive-format support and production
+verification. Gradebook tombstones and course package compatibility fields
+remain until their separately documented versioned migrations.

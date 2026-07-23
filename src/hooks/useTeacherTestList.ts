@@ -7,8 +7,6 @@ import type { AssessmentEditorSummaryUpdate, TestAssessmentWithStats } from '@/t
 
 type TeacherTestListResponse = {
   tests?: TestAssessmentWithStats[]
-  /** Legacy compatibility key retained by active Tests APIs during contract migration. */
-  quizzes?: TestAssessmentWithStats[]
 }
 
 type UseTeacherTestListOptions = {
