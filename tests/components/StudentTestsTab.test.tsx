@@ -55,8 +55,8 @@ describe('StudentTestsTab exam mode', () => {
     return { promise, resolve, reject }
   }
 
-  function jsonResponse(body: unknown): Response {
-    return { ok: true, json: async () => body } as Response
+  function jsonResponse(body: unknown, ok = true): Response {
+    return { ok, json: async () => body } as Response
   }
 
   function queueTestList() {
@@ -154,6 +154,93 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent.click(screen.getByText('Legacy-Keyed Test'))
 
     expect(await screen.findByText('1 question · 1 pt total')).toBeInTheDocument()
+  })
+
+  it('shows a retryable error instead of an empty state when the tests list fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ error: 'Database unavailable' }, false))
+      .mockResolvedValueOnce(jsonResponse({
+        tests: [{
+          id: 'test-recovered',
+          title: 'Recovered Test',
+          assessment_type: 'test',
+          status: 'active',
+          show_results: false,
+          position: 0,
+          student_status: 'not_started',
+        }],
+      }))
+
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+
+    expect(await screen.findByText('Tests unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('No tests available.')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Recovered Test')).toBeInTheDocument()
+    expect(screen.queryByText('Tests unavailable')).not.toBeInTheDocument()
+  })
+
+  it('keeps the current list visible when a background refresh fails', async () => {
+    queueTestList()
+    queueTestDetail()
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Refresh failed' }, false))
+
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    expect(await screen.findByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+
+    expect(await screen.findByText('Midterm Test')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tests could not be refreshed. Showing the last loaded list.',
+    )
+    expect(screen.queryByText('No tests available.')).not.toBeInTheDocument()
+  })
+
+  it('does not paint the previous classroom list while the next classroom loads', async () => {
+    const firstClassroom = createMockClassroom({ id: 'classroom-a', title: 'Classroom A' })
+    const secondClassroom = createMockClassroom({ id: 'classroom-b', title: 'Classroom B' })
+    const secondList = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=classroom-a')) {
+        return Promise.resolve(jsonResponse({
+          tests: [{
+            id: 'test-old',
+            title: 'Previous Classroom Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            student_status: 'not_started',
+          }],
+        }))
+      }
+      if (url.includes('/api/student/tests?classroom_id=classroom-b')) return secondList.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const { rerender } = render(
+      <StudentTestsTab classroom={firstClassroom} assessmentType="test" />
+    )
+
+    expect(await screen.findByText('Previous Classroom Test')).toBeInTheDocument()
+
+    rerender(<StudentTestsTab classroom={secondClassroom} assessmentType="test" />)
+
+    expect(screen.queryByText('Previous Classroom Test')).not.toBeInTheDocument()
+    expect(screen.getByText('Loading tests')).toBeInTheDocument()
+
+    await act(async () => {
+      secondList.resolve(jsonResponse({ tests: [] }))
+      await secondList.promise
+    })
+
+    expect(await screen.findByText('No tests available.')).toBeInTheDocument()
   })
 
   it('ignores stale assessment list responses after classroom changes', async () => {

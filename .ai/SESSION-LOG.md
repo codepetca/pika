@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Legacy quiz alias retirement
-
-**Completed:**
-- Removed unused quiz server access/re-export modules, quiz-named assessment helper aliases, zero-caller `Quiz*` domain/draft/markdown type aliases, and obsolete test factories.
-- Preserved persisted quiz tables/discriminants, archive resources, draft synchronization, markdown behavior, API payload aliases, gradebook tombstones, URLs, and UI compatibility props.
-- Added a TypeScript module-resolution/export-graph regression that prevents retired modules or public aliases from returning through direct exports, re-exports, or replacement index modules.
-- Removed stale Vitest coverage thresholds for deleted quiz modules and API routes, and corrected architecture/cleanup documentation.
-- Completed independent behavior and architecture/config review-fix loops; six findings were fixed and final rereviews returned no findings. No UI, migration, dependency, or production changes.
-
-**Validation:**
-- Focused assessment/access/architecture suites (4 files / 90 tests)
-- `pnpm vitest run` (361 files / 3,308 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
 ## 2026-07-15 — Legacy quiz draft alias retirement
 
 **Completed:**
@@ -985,3 +966,31 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Require exact-head PR CI and normal protected merge into `main`.
+
+## 2026-07-22 — Hardened Tests list read states
+
+**Risk profile:** workspace-state
+
+**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses cached teacher/student lists, controlled workspace URLs, classroom transitions, and asynchronous retry boundaries.
+
+**Completed:**
+- Added explicit teacher and student Tests list loading, cold-error, successful-empty, and failed-refresh contracts with retry controls.
+- Preserved the last valid list when refresh fails, rejected non-successful student list responses, and replaced one-off refresh cache keys with canonical invalidation.
+- Scoped rendered list snapshots and errors to the active classroom so another classroom's tests cannot paint during navigation.
+- Kept controlled teacher test URLs intact until a successful list snapshot proves the selected test is invalid.
+- Preserved the existing desktop list-first composition. Mobile UX, Gradex, schema, migrations, and production state were unchanged.
+
+**Validation:**
+- Focused teacher/student Tests list suites (3 files / 110 tests)
+- Full repository suite (407 files / 3,680 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright desktop matrix for both roles in light/dark across normal, cold-error, and preserved-refresh-error states (12 captures; no horizontal overflow)
+- `git diff --check`
+
+**Remaining:**
+- Require independent review and exact-head PR CI before merge.
+- Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.

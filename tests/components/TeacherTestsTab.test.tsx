@@ -293,6 +293,56 @@ describe('TeacherTestsTab', () => {
     })
   }
 
+  it('shows a retryable error instead of an empty state when the tests list fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Database unavailable' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Recovered Test' })] }),
+      })
+
+    renderTab()
+
+    expect(await screen.findByText('Tests unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('No tests yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Recovered Test')).toBeInTheDocument()
+    expect(screen.queryByText('Tests unavailable')).not.toBeInTheDocument()
+  })
+
+  it('keeps the current list visible when a background refresh fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Current Test' })] }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Refresh failed' }),
+      })
+
+    renderTab()
+
+    expect(await screen.findByText('Current Test')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }),
+      )
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tests could not be refreshed. Showing the last loaded list.',
+    )
+    expect(screen.getByText('Current Test')).toBeInTheDocument()
+    expect(screen.queryByText('No tests yet')).not.toBeInTheDocument()
+  })
+
   function renderTab(options?: {
     classroom?: Classroom
     testsTabClickToken?: number
@@ -1695,6 +1745,23 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(0)
+    expect(updateSearchParams).not.toHaveBeenCalled()
+  })
+
+  it('keeps controlled test params intact when the tests list fails', async () => {
+    const updateSearchParams = vi.fn()
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Database unavailable' }),
+    })
+
+    renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'authoring',
+      updateSearchParams,
+    })
+
+    expect(await screen.findByText('Tests unavailable')).toBeInTheDocument()
     expect(updateSearchParams).not.toHaveBeenCalled()
   })
 

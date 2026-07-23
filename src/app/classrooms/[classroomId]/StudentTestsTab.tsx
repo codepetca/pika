@@ -11,10 +11,10 @@ import {
   getTestStatusBadgeClass,
   TEST_EXIT_BURST_WINDOW_MS,
 } from '@/lib/tests'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
-import { Button, ConfirmDialog, EmptyState } from '@/ui'
+import { Button, ConfirmDialog, EmptyState, PageState } from '@/ui'
 import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -251,6 +251,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const notifications = useStudentNotifications()
   const [tests, setTests] = useState<StudentTestView[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedTestsScope, setLoadedTestsScope] = useState<string | null>(null)
+  const [listErrorState, setListErrorState] = useState<{ scope: string; message: string } | null>(null)
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
   const [focusSummary, setFocusSummary] = useState<TestFocusSummary | null>(null)
   const [selectedTest, setSelectedTest] = useState<{
@@ -288,6 +290,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const currentScopeRef = useRef({ classroomId: classroom.id, assessmentType })
   const isTestsView = true
   const apiBasePath = '/api/student/tests'
+  const currentTestsScope = `${assessmentType}:${classroom.id}`
+  const hasCurrentTestsSnapshot = loadedTestsScope === currentTestsScope
+  const visibleTests = hasCurrentTestsSnapshot ? tests : []
+  const listError = listErrorState?.scope === currentTestsScope ? listErrorState.message : null
   currentScopeRef.current = { classroomId: classroom.id, assessmentType }
   const focusEnabled = useMemo(() => {
     if (!selectedTest) return false
@@ -369,19 +375,26 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     const classroomId = classroom.id
     const viewAssessmentType = assessmentType
     const basePath = apiBasePath
+    const requestScope = `${viewAssessmentType}:${classroomId}`
+    const cacheKey = `student-assessments:${viewAssessmentType}:${classroomId}`
     const requestId = listRequestIdRef.current + 1
     listRequestIdRef.current = requestId
+    if (options.forceRefresh) {
+      invalidateCachedJSON(cacheKey)
+    }
     setLoading(true)
+    setListErrorState((current) => current?.scope === requestScope ? null : current)
     try {
       const query = new URLSearchParams({ classroom_id: classroomId })
       const data = await fetchJSONWithCache<StudentTestListResponse>(
-        options.forceRefresh
-          ? `student-assessments:${viewAssessmentType}:${classroomId}:refresh:${requestId}`
-          : `student-assessments:${viewAssessmentType}:${classroomId}`,
+        cacheKey,
         async () => {
-          // fetchJSONWithCache wraps this repeated GET; force refreshes use one-off keys.
           const res = await fetch(`${basePath}?${query.toString()}`)
-          return res.json()
+          const payload = await res.json().catch(() => null) as StudentTestListResponse & { error?: string } | null
+          if (!res.ok) {
+            throw new Error(payload?.error || 'Failed to load tests')
+          }
+          return payload ?? {}
         },
         0,
       )
@@ -393,6 +406,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         return
       }
       setTests(readTestsFromPayload(data))
+      setLoadedTestsScope(requestScope)
+      setListErrorState(null)
     } catch (err) {
       if (
         listRequestIdRef.current === requestId &&
@@ -400,6 +415,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         currentScopeRef.current.assessmentType === viewAssessmentType
       ) {
         console.error('Error loading tests:', err)
+        setListErrorState({
+          scope: requestScope,
+          message: err instanceof Error ? err.message : 'Failed to load tests',
+        })
       }
     } finally {
       if (
@@ -411,6 +430,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       }
     }
   }, [apiBasePath, assessmentType, classroom.id])
+
+  const retryTests = useCallback(() => {
+    void loadTests({ forceRefresh: true })
+  }, [loadTests])
 
   useEffect(() => {
     loadTests()
@@ -1164,16 +1187,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
   }, [logRouteExitAttempt])
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
   const renderAssessmentList = (showSelectionState: boolean) => {
-    if (tests.length === 0) {
+    if (visibleTests.length === 0) {
       return (
         <p className="text-text-muted text-center py-8">
           No tests available.
@@ -1183,7 +1198,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
     return (
       <PageStack>
-        {tests.map((test) => {
+        {visibleTests.map((test) => {
           const isSelected = selectedTestId === test.id
 
           return (
@@ -1332,6 +1347,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         )}
 
         <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
+          {hasCurrentTestsSnapshot && loading ? (
+            <span role="status" className="sr-only">Refreshing tests</span>
+          ) : null}
           <div
             aria-hidden={showNotMaximizedWarning}
             className={`mx-auto h-full w-full ${
@@ -1613,14 +1631,40 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                   </section>
                 </div>
             ) : !hasSelectedTest ? (
-                tests.length === 0 ? (
-                  <EmptyState
-                    title="No tests available."
-                    description="When your teacher publishes a test, it will show up here."
-                  />
+                !hasCurrentTestsSnapshot ? (
+                  listError ? (
+                    <PageState
+                      kind="error"
+                      title="Tests unavailable"
+                      description="Pika couldn't load this classroom's tests. Nothing was changed."
+                      action={<Button type="button" onClick={retryTests}>Retry</Button>}
+                    />
+                  ) : (
+                    <PageState kind="loading" title="Loading tests" />
+                  )
                 ) : (
-                  <div className="min-w-0 h-full flex flex-col max-w-none">
-                    {renderAssessmentList(false)}
+                  <div className="space-y-3">
+                    {listError ? (
+                      <div
+                        role="alert"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+                      >
+                        <span>Tests could not be refreshed. Showing the last loaded list.</span>
+                        <Button type="button" variant="secondary" size="sm" onClick={retryTests}>
+                          Retry
+                        </Button>
+                      </div>
+                    ) : null}
+                    {visibleTests.length === 0 ? (
+                      <EmptyState
+                        title="No tests available."
+                        description="When your teacher publishes a test, it will show up here."
+                      />
+                    ) : (
+                      <div className="min-w-0 h-full flex flex-col max-w-none">
+                        {renderAssessmentList(false)}
+                      </div>
+                    )}
                   </div>
                 )
             ) : selectedTestId && loadingTest ? (

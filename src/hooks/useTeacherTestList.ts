@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
-import { fetchCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { readTestsFromPayload } from '@/lib/test-api-contract'
 import { applyTestSummaryPatchToTest } from '@/lib/test-summary-patch'
 import type { AssessmentEditorSummaryUpdate, TestAssessmentWithStats } from '@/types'
@@ -23,7 +23,10 @@ export type UseTeacherTestListResult = {
   setTests: Dispatch<SetStateAction<TestAssessmentWithStats[]>>
   visibleTests: TestAssessmentWithStats[]
   loading: boolean
+  error: string | null
+  hasLoadedSnapshot: boolean
   loadTests: () => Promise<void>
+  retryTests: () => Promise<void>
 }
 
 export function useTeacherTestList({
@@ -40,10 +43,12 @@ export function useTeacherTestList({
   const [tests, setTests] = useState<TestAssessmentWithStats[]>([])
   const [loadedTestsClassroomId, setLoadedTestsClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorState, setErrorState] = useState<{ classroomId: string; message: string } | null>(null)
 
   currentClassroomIdRef.current = classroomId
 
   const hasCurrentTests = loadedTestsClassroomId === classroomId
+  const error = errorState?.classroomId === classroomId ? errorState.message : null
   const visibleTests = useMemo(
     () => (hasCurrentTests ? tests : []),
     [hasCurrentTests, tests],
@@ -59,6 +64,7 @@ export function useTeacherTestList({
     )
 
     setLoading(true)
+    setErrorState((current) => current?.classroomId === requestedClassroomId ? null : current)
     try {
       const query = new URLSearchParams({ classroom_id: requestedClassroomId })
       const data = await fetchCachedJSON<TeacherTestListResponse>(
@@ -81,17 +87,25 @@ export function useTeacherTestList({
           : loadedTests,
       )
       setLoadedTestsClassroomId(requestedClassroomId)
+      setErrorState(null)
     } catch (error) {
       if (!isCurrentRequest()) return
       console.error('Error loading tests:', error)
-      setTests([])
-      setLoadedTestsClassroomId(requestedClassroomId)
+      setErrorState({
+        classroomId: requestedClassroomId,
+        message: error instanceof Error ? error.message : 'Failed to load tests',
+      })
     } finally {
       if (isCurrentRequest()) {
         setLoading(false)
       }
     }
   }, [apiBasePath, classroomId])
+
+  const retryTests = useCallback(async () => {
+    invalidateCachedJSON(`teacher-tests:${classroomId}`)
+    await loadTests()
+  }, [classroomId, loadTests])
 
   useEffect(() => {
     selectedTestIdRef.current = selectedTestId
@@ -121,6 +135,9 @@ export function useTeacherTestList({
     setTests,
     visibleTests,
     loading,
+    error,
+    hasLoadedSnapshot: hasCurrentTests,
     loadTests,
+    retryTests,
   }
 }

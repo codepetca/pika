@@ -73,6 +73,7 @@ import {
   DialogPanel,
   EmptyState,
   KeyboardNavigableTable,
+  PageState,
   RefreshingIndicator,
   Select,
   SplitButton,
@@ -354,7 +355,10 @@ export function TeacherTestsTab({
     setTests,
     visibleTests,
     loading,
+    error: testsLoadError,
+    hasLoadedSnapshot: hasTestsSnapshot,
     loadTests,
+    retryTests,
   } = useTeacherTestList({
     classroomId: classroom.id,
     selectedTestId,
@@ -814,12 +818,12 @@ export function TeacherTestsTab({
   }, [selectedTestId, selectedWorkspaceTab, workspaceState])
 
   useEffect(() => {
-    if (!selectedTestId || loading) return
+    if (!selectedTestId || !hasTestsSnapshot) return
     if (visibleTests.some((test) => test.id === selectedTestId)) return
 
     clearTestWorkspace({ replace: true })
     clearBatchSelection()
-  }, [clearBatchSelection, clearTestWorkspace, loading, selectedTestId, visibleTests])
+  }, [clearBatchSelection, clearTestWorkspace, hasTestsSnapshot, selectedTestId, visibleTests])
 
   useEffect(() => {
     setSelectedTestDraftSummary(null)
@@ -2501,11 +2505,7 @@ export function TeacherTestsTab({
     </>
   )
 
-  const summaryContent = loading ? (
-    <div className="flex justify-center py-12">
-      <Spinner size="lg" />
-    </div>
-  ) : visibleTests.length === 0 ? (
+  const testListContent = visibleTests.length === 0 ? (
     <EmptyState
       title="No tests yet"
       description="Create a test to get started."
@@ -2540,6 +2540,36 @@ export function TeacherTestsTab({
     </DndContext>
   )
 
+  const summaryContent = !hasTestsSnapshot ? (
+    testsLoadError ? (
+      <PageState
+        kind="error"
+        title="Tests unavailable"
+        description="Pika couldn't load this classroom's tests. Nothing was changed."
+        compact
+        action={<Button type="button" onClick={() => void retryTests()}>Retry</Button>}
+      />
+    ) : (
+      <PageState kind="loading" title="Loading tests" compact />
+    )
+  ) : (
+    <div className="space-y-3">
+      {loading ? <RefreshingIndicator label="Refreshing tests" /> : null}
+      {testsLoadError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+        >
+          <span>Tests could not be refreshed. Showing the last loaded list.</span>
+          <Button type="button" variant="secondary" size="sm" onClick={() => void retryTests()}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+      {testListContent}
+    </div>
+  )
+
   const gradingInspector = selectedTest && selectedStudentId ? (
     <TestStudentGradingPanel
       testId={selectedTest.id}
@@ -2559,7 +2589,19 @@ export function TeacherTestsTab({
     }
   }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
 
-  const workspaceContent = !selectedTest ? (
+  const workspaceContent = !hasTestsSnapshot ? (
+    testsLoadError ? (
+      <PageState
+        kind="error"
+        title="Tests unavailable"
+        description="Pika couldn't load this classroom's tests. Nothing was changed."
+        compact
+        action={<Button type="button" onClick={() => void retryTests()}>Retry</Button>}
+      />
+    ) : (
+      <PageState kind="loading" title="Loading tests" compact />
+    )
+  ) : !selectedTest ? (
     <div className="flex flex-1 justify-center py-12">
       <Spinner size="lg" />
     </div>

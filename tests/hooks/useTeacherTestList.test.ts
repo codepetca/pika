@@ -65,6 +65,71 @@ describe('useTeacherTestList', () => {
     expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Unit Test'])
   })
 
+  it('reports a cold load failure without treating it as an empty snapshot', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Database unavailable' }),
+    })
+
+    const { result } = renderHook(() =>
+      useTeacherTestList({
+        classroomId: 'classroom-1',
+        selectedTestId: null,
+        selectedTestDraftSummary: null,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.error).toBe('Database unavailable')
+    expect(result.current.hasLoadedSnapshot).toBe(false)
+    expect(result.current.visibleTests).toEqual([])
+  })
+
+  it('preserves a valid snapshot when refresh fails and retries explicitly', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Current Test' })] }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Refresh failed' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-2', title: 'Recovered Test' })] }),
+      })
+
+    const { result } = renderHook(() =>
+      useTeacherTestList({
+        classroomId: 'classroom-1',
+        selectedTestId: null,
+        selectedTestDraftSummary: null,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Current Test']))
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: 'classroom-1' } }),
+      )
+    })
+
+    await waitFor(() => expect(result.current.error).toBe('Refresh failed'))
+    expect(result.current.hasLoadedSnapshot).toBe(true)
+    expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Current Test'])
+
+    await act(async () => {
+      await result.current.retryTests()
+    })
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.visibleTests.map((test) => test.title)).toEqual(['Recovered Test'])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it('hides prior classroom tests while the next classroom is loading', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
