@@ -116,7 +116,9 @@ async function main(): Promise<void> {
   if (FULL) {
     const dir = 'scripts/fixtures/dummy-course'
     const files: Record<string, string> = {}
-    for (const name of ['course-overview.md', 'course-outline.md', 'resources.md', 'assignments.md']) {
+    // Includes tests.md: importing a package that contains tests was the
+    // regression fixed in #932, so the smoke test must exercise that path.
+    for (const name of ['course-overview.md', 'course-outline.md', 'resources.md', 'assignments.md', 'tests.md']) {
       files[name] = readFileSync(join(dir, name), 'utf8')
     }
     const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Record<string, unknown>
@@ -143,6 +145,12 @@ async function main(): Promise<void> {
       `/api/teacher/assignments?classroom_id=${created.classroom.id}`
     )
     check('assignments materialized', assignments.length === 3, `${assignments.length}/3`)
+
+    // The #932 regression guard: tests from tests.md must land as real tests.
+    const { tests = [] } = await pikaJson<{ tests: unknown[] }>(
+      `/api/teacher/tests?classroom_id=${created.classroom.id}`
+    )
+    check('tests materialized (#932)', tests.length === 2, `${tests.length}/2`)
   }
 
   console.log(`\n${failures === 0 ? 'PASS' : `FAIL (${failures})`}`)
