@@ -17,12 +17,13 @@
  * Writes are DRY-RUN by default; pass --yes to apply. Targets local dev
  * (localhost:3000) unless PIKA_BASE_URL / E2E_BASE_URL is set.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { join, dirname } from 'node:path'
 import { config } from 'dotenv'
 import { login, loadSession, pikaJson, getBaseUrl } from './pika-api'
 import { testToMarkdown, markdownToTest } from '../src/lib/test-markdown'
 import type { TestMarkdownSerializeInput } from '../src/lib/test-markdown'
+import { COURSE_BLUEPRINT_PACKAGE_VERSION } from '../src/lib/contracts/course-blueprint-package'
 
 config({ path: '.env.local' })
 
@@ -38,22 +39,38 @@ const COURSE_PACKAGE_FILES = [
   'lesson-plans.md',
 ] as const
 
+/**
+ * Flags that never take a value. Without this, `--yes` would greedily consume
+ * the next positional (e.g. `test push --yes <id> file.md` would read the id as
+ * the value of --yes), so flag order would silently break commands.
+ */
+const BOOLEAN_FLAGS = new Set(['yes'])
+
 function parseArgs(argv: string[]): { positional: string[]; flags: Flags } {
   const positional: string[] = []
   const flags: Flags = {}
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg.startsWith('--')) {
-      const key = arg.slice(2)
-      const next = argv[i + 1]
-      if (next !== undefined && !next.startsWith('--')) {
-        flags[key] = next
-        i++
-      } else {
-        flags[key] = true
-      }
-    } else {
+    if (!arg.startsWith('--')) {
       positional.push(arg)
+      continue
+    }
+    const body = arg.slice(2)
+    const eq = body.indexOf('=')
+    if (eq !== -1) {
+      flags[body.slice(0, eq)] = body.slice(eq + 1) // --key=value
+      continue
+    }
+    if (BOOLEAN_FLAGS.has(body)) {
+      flags[body] = true
+      continue
+    }
+    const next = argv[i + 1]
+    if (next !== undefined && !next.startsWith('--')) {
+      flags[body] = next // --key value
+      i++
+    } else {
+      flags[body] = true // bare --key
     }
   }
   return { positional, flags }
@@ -120,6 +137,7 @@ async function cmdTestPull(testId: string, flags: Flags): Promise<void> {
   const detail = await pikaJson<TestDetail>(`/api/teacher/tests/${testId}`)
   const markdown = testToMarkdown(toSerializeInput(detail))
   if (typeof flags.out === 'string') {
+    mkdirSync(dirname(flags.out), { recursive: true })
     writeFileSync(flags.out, markdown.endsWith('\n') ? markdown : markdown + '\n')
     console.log(`Wrote ${detail.questions.length} question(s) → ${flags.out}`)
   } else {
@@ -173,7 +191,7 @@ function readCourseBundle(dir: string): { manifest: Record<string, unknown>; fil
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
   if (!manifest.exported_at) manifest.exported_at = new Date().toISOString()
-  if (!manifest.version) manifest.version = '3'
+  if (!manifest.version) manifest.version = COURSE_BLUEPRINT_PACKAGE_VERSION
 
   const files: Record<string, string> = {}
   for (const name of COURSE_PACKAGE_FILES) {
@@ -252,7 +270,8 @@ function printHelp(): void {
       '  pnpm pika test push <testId> <file.md> [--yes]',
       '  pnpm pika course list',
       '  pnpm pika course push <dir> [--yes]',
-      '  pnpm pika course instantiate <blueprintId> --title <name> [--yes]',
+      '  pnpm pika course instantiate <blueprintId> --title <name>',
+      '      (--semester <semester1|semester2> --year <YYYY>) | (--start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD>) [--yes]',
       '',
       'Writes are dry-run unless --yes is passed.',
       `Target: ${getBaseUrl()} (set PIKA_BASE_URL to override)`,
