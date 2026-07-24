@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-20 — Phase 2 semantic-token contrast contract
-
-**Completed:**
-- Merged PR #895, completing the Product Experience Safety Wave and beginning Phase 2.
-- Added a WCAG AA contract that evaluates semantic foreground/background pairs in both themes, including translucent selected and status surfaces.
-- Split semantic foreground colors from opaque solid action fills, migrated filled controls to the new solid tokens, and corrected failing muted, status, accent, and selected-state combinations.
-- Preserved a persistent selected-row cue in the gradebook after reducing the dark selected-surface opacity.
-- Resolved all findings from two independent reviews, including omitted hover/subtle pairs, solid-fill opacity enforcement, inverse-text bypasses, and missing direct component coverage.
-- Visually verified representative teacher and student routes at desktop/mobile sizes in light/dark themes, plus selected gradebook rows in both themes. No overflow, overlap, console, or page errors were found.
-
-**Validation:**
-- `pnpm test` (378 files / 3,523 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Custom Playwright teacher/student desktop/mobile light/dark matrix and gradebook selected-row checks
-- `git diff --check`
-
-**Remaining:**
-- Review and merge PR #896. Then implement Phase 2's shared modal-layer contract as a separate slice.
-
 ## 2026-07-20 — Phase 2 shared modal-layer contract
 
 **Completed:**
@@ -1181,3 +1158,21 @@ future persistence shape without enabling unapproved schema behavior.
 **Remaining:**
 - Complete PR review/remediation, exact-head CI, and merge. Applying migration
   108 remains separately target-authorized.
+
+## 2026-07-24 — Aligned Claude workflow guidance
+
+**Risk profile:** none
+
+**Completed:**
+- Aligned the Claude session-start and workflow-reset commands with the
+  canonical startup and worktree guidance.
+- Simplified the Claude issue helper to route worktree setup through
+  `docs/dev-workflow.md` instead of hardcoding one named-worktree layout.
+- Added semantic prompt invariants covering both Claude and Codex startup,
+  workflow-reset, and issue-helper surfaces.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts` passes: 31 tests.
+
+**Remaining:**
+- None.
