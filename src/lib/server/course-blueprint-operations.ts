@@ -406,6 +406,30 @@ function normalizeBlueprintAssignment(
   }
 }
 
+// Markdown parsers carry an `id` for matching against existing rows. Creation
+// plans never use it, and the write schemas are strict, so pick only the
+// fields the plan declares.
+function normalizeBlueprintAssessment(assessment: CreateBlueprintWritePlan['assessments'][number]) {
+  return {
+    assessment_type: assessment.assessment_type,
+    title: assessment.title,
+    content: assessment.content,
+    documents: assessment.documents,
+    points_possible: assessment.points_possible,
+    gradebook_weight: assessment.gradebook_weight ?? 10,
+    include_in_final: assessment.include_in_final,
+    position: assessment.position,
+  }
+}
+
+function normalizeBlueprintLessonTemplate(template: CreateBlueprintWritePlan['lesson_templates'][number]) {
+  return {
+    title: template.title,
+    content_markdown: template.content_markdown,
+    position: template.position,
+  }
+}
+
 function normalizeRequirementsForBlueprint(
   requirements: CourseBlueprintAssignment['submission_requirements_json'],
 ) {
@@ -430,8 +454,8 @@ export function buildCreateBlueprintWritePlan(args: {
   return createBlueprintWritePlanSchema.parse({
     blueprint: args.blueprint,
     assignments: args.assignments.map(normalizeBlueprintAssignment),
-    assessments: args.assessments,
-    lesson_templates: args.lessonTemplates,
+    assessments: args.assessments.map(normalizeBlueprintAssessment),
+    lesson_templates: args.lessonTemplates.map(normalizeBlueprintLessonTemplate),
     manifest_version: args.manifestVersion,
     source_package_exported_at: args.sourcePackageExportedAt ?? null,
   })
