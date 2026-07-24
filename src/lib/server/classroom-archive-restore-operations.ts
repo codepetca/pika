@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
-  CLASSROOM_ARCHIVE_V1_RESOURCES,
-  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
 } from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V2_VERSION } from '@/lib/contracts/classroom-artifacts'
 import { classroomArchiveRestoreVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
@@ -12,9 +13,8 @@ import {
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import {
-  buildClassroomArchiveRestorePlan,
-  CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
-  type ClassroomArchiveRestorePlan,
+  buildClassroomArchiveV2RestorePlan,
+  type ClassroomArchiveV2RestorePlan,
 } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
@@ -63,6 +63,9 @@ const beginRestoreSchema = z.union([
     snapshot_expires_at: z.string().datetime({ offset: true }),
     database_size_bytes: z.number().int().nonnegative(),
     required_headroom_bytes: z.number().int().nonnegative(),
+    source_contract_version: z.union([z.literal(1), z.literal(2)]),
+    archive_format_version: z.union([z.literal(1), z.literal(2)]),
+    restore_contract_version: z.literal(2),
   }).strict(),
   z.object({
     ok: z.literal(true),
@@ -73,6 +76,9 @@ const beginRestoreSchema = z.union([
     replayed: z.literal(true),
     resource_counts: resourceCountsSchema,
     verification: z.record(z.string(), z.unknown()),
+    source_contract_version: z.union([z.literal(1), z.literal(2)]),
+    archive_format_version: z.union([z.literal(1), z.literal(2)]),
+    restore_contract_version: z.literal(2),
   }).strict(),
 ])
 
@@ -141,14 +147,8 @@ class ClassroomArchiveRestoreError extends Error {
   }
 }
 
-function isMissingRestoreRpc(error: { code?: string; message?: string } | null): boolean {
-  return Boolean(
-    error && (
-      error.code === 'PGRST202' ||
-      error.code === '42883' ||
-      error.message?.includes('begin_classroom_archive_restore')
-    ),
-  )
+function isMissingRestoreV2Rpc(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(error && (error.code === 'PGRST202' || error.code === '42883'))
 }
 
 function publicFailure(args: {
@@ -213,9 +213,9 @@ function hashRestoreRequest(args: {
   })).digest('hex')
 }
 
-function exactResourceCounts(plan: ClassroomArchiveRestorePlan): Record<string, number> {
+function exactResourceCounts(plan: ClassroomArchiveV2RestorePlan): Record<string, number> {
   return Object.fromEntries(
-    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [
+    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
       resource.table,
       plan.resources[resource.table]?.length || 0,
     ]),
@@ -328,7 +328,7 @@ function chunkRestoreRows(rows: Record<string, unknown>[]): Record<string, unkno
 
 async function uploadAndVerifyRestoreObject(args: {
   supabase: SupabaseClient
-  object: ClassroomArchiveRestorePlan['storageObjects'][number]
+  object: ClassroomArchiveV2RestorePlan['storageObjects'][number]
 }): Promise<boolean> {
   const bucket = args.supabase.storage.from(args.object.bucket)
   let bytes: Uint8Array | null = null
@@ -435,7 +435,7 @@ export async function restoreClassroomArchive(args: {
   const startedAt = Date.now()
   let operationStarted = false
   let finalizationAttempted = false
-  let plan: ClassroomArchiveRestorePlan | null = null
+  let plan: ClassroomArchiveV2RestorePlan | null = null
   const uploadedStorageObjects: Array<{ bucket: string; path: string }> = []
 
   try {
@@ -488,7 +488,7 @@ export async function restoreClassroomArchive(args: {
       args.supabase,
       decoded.actors.map((actor) => actor.id),
     )
-    plan = buildClassroomArchiveRestorePlan({
+    plan = buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified,
       operationId: args.operationId,
@@ -505,7 +505,10 @@ export async function restoreClassroomArchive(args: {
       left.storage_bucket.localeCompare(right.storage_bucket)
       || left.storage_path.localeCompare(right.storage_path)
     ))
-    if (canonicalJsonStringify(resourceCounts) !== canonicalJsonStringify(metadata.resource_counts)) {
+    if (
+      canonicalJsonStringify(plan.sourceResourceCounts) !==
+      canonicalJsonStringify(metadata.resource_counts)
+    ) {
       throw new ClassroomArchiveRestoreError(
         'classroom_archive_resource_count_mismatch',
         'Classroom archive resource counts do not match verified metadata',
@@ -513,7 +516,7 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_restore', {
+    const beginResponse = await args.supabase.rpc('begin_classroom_archive_restore_v2', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_classroom_id: args.classroomId,
@@ -529,15 +532,19 @@ export async function restoreClassroomArchive(args: {
       p_resource_counts: resourceCounts,
       p_storage_objects: storageObjects,
       p_database_budget_bytes: args.databaseBudgetBytes,
+      p_source_contract_version: plan.sourceContractVersion,
+      p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
+      p_source_resource_counts: plan.sourceResourceCounts,
     })
     if (beginResponse.error) {
+      const missingMigration = isMissingRestoreV2Rpc(beginResponse.error)
       throw new ClassroomArchiveRestoreError(
-        isMissingRestoreRpc(beginResponse.error)
+        missingMigration
           ? 'classroom_archive_restore_migration_required'
           : 'classroom_archive_restore_begin_failed',
-        isMissingRestoreRpc(beginResponse.error)
-          ? 'Classroom archive restore requires migration 083'
-          : 'Classroom archive restore could not start',
+        missingMigration
+          ? 'Classroom archive restore requires migration 107'
+          : 'Classroom archive-v2 restore could not start',
         503,
         true,
       )
@@ -547,6 +554,21 @@ export async function restoreClassroomArchive(args: {
       throw new ClassroomArchiveRestoreError(
         'classroom_archive_restore_begin_contract_invalid',
         'Classroom archive restore returned an invalid begin contract',
+        503,
+        true,
+      )
+    }
+    if (
+      parsedBegin.data.ok &&
+      (
+        parsedBegin.data.source_contract_version !== plan.sourceContractVersion ||
+        parsedBegin.data.archive_format_version !== plan.sourceContractVersion ||
+        parsedBegin.data.restore_contract_version !== CLASSROOM_ARCHIVE_V2_VERSION
+      )
+    ) {
+      throw new ClassroomArchiveRestoreError(
+        'classroom_archive_restore_begin_contract_invalid',
+        'Classroom archive-v2 restore returned mismatched contract versions',
         503,
         true,
       )
@@ -599,7 +621,7 @@ export async function restoreClassroomArchive(args: {
         uploadedStorageObjects.push({ bucket: object.bucket, path: object.restorePath })
       }
     }
-    for (const table of CLASSROOM_ARCHIVE_V1_RESTORE_ORDER) {
+    for (const table of CLASSROOM_ARCHIVE_V2_RESTORE_ORDER) {
       const rows = plan.resources[table] || []
       for (const chunk of chunkRestoreRows(rows)) {
         const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {

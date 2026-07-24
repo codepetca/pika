@@ -14912,3 +14912,26 @@
 
 **Audit note:**
 - The Pika pre-commit audit reports the existing CLI progress `console.log` calls throughout `scripts/seed.ts` after that file is touched. No new production logging path was introduced; this is a whole-file false positive for the development seed CLI.
+
+<!-- pika-session-log-archive-batch:4f026ec1fc01f93fa92c17d0ab5c96a4493d2f95708c39f35ad02970749949a7 -->
+## 2026-07-20 — Teacher dashboard entry authorization contract
+
+**Completed:**
+- Replaced the teacher dashboard's unauthorized `/api/student/entries` read with an exact student/day query through the teacher-owned student-history route.
+- Added a named Zod query contract for classroom, student, exact/paged date, and bounded limit inputs while preserving authentication-first handling.
+- Kept classroom ownership and enrollment checks ahead of entry access, and added regressions for foreign classrooms, unenrolled students, exact-date filtering, and the dashboard endpoint choice.
+- Preserved the existing 50-row cap for oversized history limits and rejected ambiguous exact/paged date filters after independent review.
+- Verified the route against local Supabase with a teacher session: the teacher endpoint returned the selected entry and the old student endpoint returned HTTP 403.
+- No schema, migration, production data, or visible UI layout changed.
+
+**Validation:**
+- `pnpm test` (376 files / 3,501 tests)
+- Focused dashboard, teacher entry/history, consumer, and API boundary suites (5 files / 23 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (605 modules / 0 allowances)
+- Live loopback teacher authorization and exact-entry query
+- `git diff --check`
+
+**Remaining:**
+- Independently review PR #894. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.

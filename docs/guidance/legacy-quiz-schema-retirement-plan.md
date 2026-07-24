@@ -1,328 +1,113 @@
 # Legacy Quiz Schema Retirement Plan
 
-This plan retires Quiz as a distinct active domain without deleting historical
-classroom data or making retired assessments appear as active Tests.
+This plan retires Quiz as a distinct active domain. On July 23, 2026, the
+maintainer explicitly classified existing Quiz rows and Quiz-format archive
+payloads as disposable production experiments. Lossless backfill, production
+parity, and Quiz restore compatibility are therefore not release gates.
 
-Migration `105_classroom_archive_v2_contract.sql` implements the additive
-Pass A contract and has been applied only to the local validation database. It
-has not been applied to staging or production. Every target requires the
-one-time target-and-filename authorization in the schema rollout checklist.
+This decision does not authorize applying a migration to any database. Every
+target still requires one-time authorization naming the target and exact
+migration filename under the schema rollout checklist.
+
+## Current State
+
+- The product surface, routes, API aliases, and UI wrappers use Tests.
+- Migration `105_classroom_archive_v2_contract.sql` stages the versioned
+  archive-v2 contract and generic retired-assessment envelope.
+- Migration `106_freeze_and_backfill_legacy_quiz.sql` freezes and copies the
+  legacy graph. It remains useful migration-history evidence, but the copied
+  Quiz payload is no longer retained by the active contract.
+- Migration `107_classroom_archive_v2_direct_source.sql` is the runtime cutover:
+  it deletes Quiz drafts and copied Quiz envelopes, narrows drafts to Tests,
+  promotes the live archive registry to v2, and snapshots source contract 2
+  directly.
+- Application export, restore, and compaction coordinators use v2 only. Missing
+  migration 107 fails closed; there is no runtime fallback to the v1 RPCs.
+- A v1 archive reader remains at the historical artifact boundary. Restoring a
+  v1 artifact discards its Quiz resources and Quiz drafts while retaining its
+  non-Quiz classroom resources.
+
+Migration 105 is present in the shared local database because the local reset
+already applied it. Migrations 106 and 107 have only been replayed in disposable
+validation databases. No migration in this sequence has been applied to a
+hosted target during this work.
 
 ## Production Evidence
 
-The target-pinned read-only inventory ran on July 23, 2026 against Pika project
-`zhioqbapgfcrronyuidm`. Two consecutive aggregate snapshots matched:
+The July 23 read-only inventory found one Quiz, three questions, sixty
+responses, no manual-score rows, and one archive-v1 artifact containing the
+same Quiz graph. This evidence now bounds expected deletion; it is not a parity
+or preservation requirement.
 
-| Contract | Live rows | Verified archive-v1 rows |
-|---|---:|---:|
-| `quizzes` | 1 | 1 |
-| `quiz_questions` | 3 | 3 |
-| `quiz_responses` | 60 | 60 |
-| `quiz_student_scores` | 0 | 0 |
-| Quiz `assessment_drafts` | 0 | not represented separately in manifest counts |
-| Quiz `course_blueprint_assessments` | 0 | not applicable |
+Active Tests use separate `tests`, `test_questions`, `test_responses`, and
+`test_attempts` tables. The destructive pass must prove those relations are not
+drop targets and have no foreign-key dependency on the legacy Quiz graph.
 
-There is one retained `pika.classroom-archive@1` archive. Its verified resource
-counts contain the same non-empty Quiz graph. The July 15 production canary
-restored that archive successfully, so archive-v1 is proven against real Quiz
-rows but not a non-empty manual-score row.
+## Runtime Cutover
 
-Re-run the aggregate evidence without emitting row data:
+Migration 107 and the corresponding application pass establish these
+invariants:
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co" \
-SUPABASE_SECRET_KEY="<service-role-or-secret-key>" \
-pnpm verify:legacy-quiz-inventory -- \
-  --expected-project-ref <project-ref> \
-  --json
-```
+1. New exports request source contract 2 and archive format 2.
+2. Snapshot membership contains the exact v2 registry and no Quiz tables.
+3. Source and archive resource counts are identical; there is no conversion.
+4. Restore always stages the v2 graph.
+5. V1 artifacts discard Quiz rows rather than restoring or adapting them.
+6. Compaction validates and stages the v2 restore graph.
+7. Missing v2 RPCs return migration-required failures instead of invoking v1.
 
-The runner validates the exact hosted origin, rejects redirects and off-origin
-requests through the shared target-bound fetch, reads counts plus archive UUID
-and artifact SHA-256 into a private snapshot, and requires two matching
-snapshots. It emits aggregates only. Do not commit or print the secret key.
+The disposable database harness replays migrations through 106, applies 107,
+proves Quiz drafts/envelopes were removed, captures a 40-resource source-v2
+snapshot, rejects Quiz membership, and finalizes an archive-v2 operation.
 
-## Migration Decision
+## Next Pass: Hard Removal
 
-Do not backfill legacy Quiz rows into active `tests`, `test_questions`,
-`test_responses`, or `test_attempts`.
+Create migration `108_drop_legacy_quiz_schema.sql` and the coordinated
+application cleanup:
 
-That mapping is unsafe:
+- delete any remaining rows in dependency order;
+- drop `quiz_responses`, `quiz_student_scores`, `quiz_questions`, and
+  `quizzes`;
+- remove Quiz policies, triggers, update functions, indexes, and grants;
+- remove obsolete freeze/backfill helpers and the private backfill ledger when
+  no later audit needs it;
+- remove Quiz branches from assessment drafts, gradebook payload tombstones,
+  package/site compatibility fields, domain unions, generated database types,
+  and server helpers;
+- retain Quiz strings only in immutable historical migrations and narrowly
+  labeled v1 artifact tests, if those tests remain necessary;
+- add a catalog assertion that no active public table, function, policy,
+  trigger, generated type, API payload, or application import exposes the
+  legacy domain.
 
-- migrated rows would need a new hidden state to avoid resurfacing removed
-  product data through current Test routes;
-- Quiz scoring scaled correct-answer counts to the container's
-  `points_possible`, while Tests persist per-question points and scores;
-- `quiz_student_scores.manual_override_score` is a whole-assessment override
-  with no lossless current Test-row equivalent;
-- Quiz scheduled-open and response semantics do not map exactly to the current
-  Test lifecycle.
+Do not edit migrations 105 or 106. Migration 108 must be forward-only and
+idempotent only where PostgreSQL object semantics make that explicit.
 
-Instead, preserve retired rows in a generic, non-product envelope:
+## Deployment And Rollback
 
-- `classroom_retired_assessment_records` stores the classroom id, source
-  contract/version, source resource name and row id, parent source identity,
-  the complete JSON payload, checksum algorithm/version, payload SHA-256, and
-  original timestamps;
-- `classroom_retired_assessment_record_actors` stores normalized actor
-  references for archive actor discovery and restore reconciliation;
-- deterministic hash-derived record ids make backfill and archive replay
-  idempotent without assuming UUIDs are unique across the four source tables;
-- no active API, gradebook query, Test component, or package producer reads
-  these tables.
+Deploy the migration-107-aware application before applying migration 107.
+Archive features fail closed until the migration is present. Apply migration
+107 only in a quiet window because it takes archive-operation locks and rejects
+an active export, restore, or compaction.
 
-Literal Quiz names remain only as historical source-contract values and in the
-archive-v1 adapter. They are data provenance, not an active domain.
+After migration 107, Quiz drafts and copied envelopes cannot be recovered from
+the database. That loss is explicitly accepted. Application rollback to a
+v1-only archive runtime is not supported after the registry promotion; use a
+forward fix or restore the entire database from a pre-migration backup.
 
-## Archive Contract
+Migration 108 is independently authorized after its disposable replay and
+catalog audit pass. Its rollback is also backup restoration or a forward schema
+repair, not recreation of deleted Quiz data.
 
-Introduce `pika.classroom-archive` format version 2 before removing any table.
+## Validation
 
-Archive v2:
+For each pass:
 
-- includes the two generic retired-assessment envelope resources;
-- no longer emits the four Quiz relational resources;
-- preserves all other classroom resources and storage objects;
-- records the adapter and checksum algorithm versions in restore evidence.
-
-The restore chain must remain version-aware:
-
-1. Verify archive-v1 bytes, manifest, actors, and all four Quiz resources using
-   the unchanged v1 reader.
-2. Convert every Quiz row and Quiz draft into deterministic retired-assessment
-   records plus normalized actor references.
-3. Remove converted Quiz rows from the active restore graph.
-4. Restore the generic envelope resources under the current schema.
-5. Verify source counts, source-row ids, per-resource aggregate checksums,
-   actor references, and envelope counts before finalization.
-
-Existing archives stay immutable. Do not rewrite v1 objects in place. The v1
-reader remains supported after v2 becomes the only export format.
-
-The format transition must be versioned in code and the database:
-
-- replace the single `CLASSROOM_ARCHIVE_VERSION` decoder path with an explicit
-  `CLASSROOM_ARCHIVE_CONTRACTS` registry keyed by version; preserve the current
-  manifest schema and exact 42-resource graph as immutable v1 definitions, add
-  separate v2 manifest/resource definitions, read the minimal format/version
-  header first, reject unknown versions, then dispatch verification and restore;
-- export dispatch always writes the explicitly requested current contract and
-  never obtains a resource set from a global latest-version constant;
-- replace the database's global `classroom_archive_resource_contract` lookup
-  with a version-keyed contract whose primary key is
-  `(format_version, table_name)`, backfill all current rows as version 1, and
-  seed a separate v2 graph containing the retired-assessment envelope resources;
-- add source and restore contract versions to archive operations and snapshot
-  resources, use composite foreign keys, and make begin/read/finalize/restore
-  RPCs select and validate the operation's declared contract rather than every
-  row in the registry;
-- replace `classroom_archives.format_version = 1` with an allowlist for 1 and 2
-  in the same additive migration. Existing metadata and current exports remain
-  version 1 until version-aware compaction is deployed; a v1 restore records
-  source version 1 while staging the adapted v2 graph.
-
-The deployed-code contract test must round-trip an immutable non-empty v1
-artifact containing all four Quiz resources, a manual override, and a Quiz
-draft through v1 verification and the v1-to-v2 adapter, then export and restore
-the resulting v2 envelope graph. It must also prove v1 bytes and manifest
-checksums are unchanged and both decoders reject the other version's graph.
-
-The previously merged application-only foundation established:
-
-- the exact v1 table, primary-key, and actor-reference metadata is frozen
-  independently from the live database inventory and protected by a digest;
-- manifest verification reads the minimal header and dispatches through
-  explicit v1/v2 schemas, while migration 105 stages the v2 export contract and
-  provides an explicit version-aware restore path that the application does not
-  activate before hosted rollout;
-- v2 verification dispatches each envelope through a source-contract registry
-  that validates payload identity, required parent resource and foreign key,
-  direct classroom binding, cross-parent Quiz identity, actor columns, payload
-  checksums, and credential-field exclusions before treating an artifact as
-  verified;
-- the inactive v2 graph replaces the four Quiz resources with the two retired
-  envelope resources;
-- a pure deterministic adapter converts all four Quiz resources and Quiz drafts
-  into checksummed records and normalized actor references without mutating v1
-  bytes or mapping them into Tests;
-- the non-empty v1 fixture proves manual-score, draft, parent, actor, checksum,
-  deterministic-replay, and cross-version rejection behavior with immutable
-  tar-content, manifest-content, and per-resource SHA-256 values.
-
-The additive-data Pass A implementation is prepared in migration 105 and
-application code. Additive means no v1 public RPC signature, source table, or
-source row is removed. Migration 105 broadens the v1-only foreign keys and
-format check, and wraps selected v1 implementations behind the same public
-signatures to enforce version and envelope safety. It is not a byte-for-byte
-preservation of those database definitions.
-
-The application continues to export, compact, and restore v1 archives through
-the deployed v1 RPCs until the hosted target has migration 105 and
-version-aware compaction:
-
-- the version-keyed database registry coexists with the unchanged v1 registry;
-- private retired-assessment envelope tables, operation version pins, and
-  distinct v2 export/restore RPCs are defined;
-- the v2 database path snapshots the unchanged v1 graph and adapts it
-  deterministically, while the current application export remains v1;
-- the explicit v2 database restore path stages either archive version into the
-  v2 graph, while the current application restore remains on the v1 graph;
-- completed export replay remains idempotent, while a new export from a
-  classroom that already contains envelope rows fails closed until direct v2
-  source snapshots are implemented;
-- v2 compaction and Gradex remain disabled until the backfill and production
-  proof passes.
-
-Migration 105, generated database types, legacy v1 export/restore/compaction,
-Gradex compatibility, and a transactional v2 export/restore round trip are
-validated against the local database. No hosted schema was changed.
-
-## Implementation Passes
-
-### Pass A: Additive Envelope And Adapter
-
-- Completed application foundation: immutable v1 and inactive v2 contracts,
-  header dispatch, deterministic adapter, and the non-empty compatibility
-  fixture.
-- Implemented and locally validated in migration 105: create the two generic
-  retired-assessment tables, constraints, RLS policy, indexes, and archive
-  privacy classifications.
-- Implemented and locally validated in migration 105 and application code: add the
-  version-keyed database contract registry, operation version columns, archive
-  metadata allowlist, staged v2 export support, and explicit v1-to-v2 restore
-  support. Keep the current application export and restore coordinators on v1
-  until migration 105 is hosted and version-aware compaction is complete.
-- Keep all four Quiz tables and their archive-v1 contract entries.
-- Completed: add a synthetic v1 fixture with non-empty quiz, question, response,
-  manual score override, and Quiz draft rows.
-- Completed: prove v1 verification, adapter idempotency, strict v2 verification,
-  and a non-empty v1-to-v2 archive/restore round trip without changing v1 bytes.
-- Completed locally: regenerate database types and run v1 compatibility plus
-  transactional v2 export/restore database validation.
-- Remaining merge gate: clean ephemeral migration replay, independent review,
-  exact-head CI, and separate hosted-target authorization before deployment.
-
-Rollout preserves the v1 public signatures and source tables. The previous
-application and the current application continue using those v1 RPCs.
-Application rollback leaves the new registry and envelope tables unused.
-
-### Pass B: Freeze And Backfill
-
-- Prepared in migration 106, but not applied to the shared local database or
-  any hosted target. The database rehearsal rebuilds a disposable schema
-  through migration 105, proves the non-empty v1/v2 compatibility contracts,
-  seeds all five retired source resources, applies 106 there, and compares the
-  resulting records and actors byte-for-byte with the TypeScript adapter.
-- Reject new writes to the four Quiz tables and Quiz drafts before taking the
-  source snapshot. Active product code has no legitimate producers. The
-  retained v1 archive restore/compaction path is a compatibility producer, so
-  its non-empty contract is rehearsed before the freeze and must move to the
-  version-aware runtime before 106 is hosted.
-- In the same transaction, take an access-exclusive lock on
-  `course_blueprint_assessments`, fail if any Quiz row exists, and replace its
-  `assessment_type` check with a Test-only constraint before releasing the
-  lock. This production-zero contract is narrowed rather than copied into a
-  classroom-scoped envelope.
-- Backfill source rows and Quiz drafts into deterministic envelope records in
-  one transaction.
-- Record a migration ledger with per-resource source/envelope counts and
-  ordered aggregate checksums.
-- Fail the migration on UUID collisions, missing parents, unresolved actors,
-  count/checksum mismatch, a nonzero Quiz blueprint row, or concurrent source
-  drift.
-- Leave the source tables intact for a compatibility observation window.
-
-Migration 106 fail-fast locks the `classrooms` and `users` FK parents, then
-acquires its envelope and source relations in archive traversal order with
-`NOWAIT`. Any live archive, restore, parent-write, or source transaction causes
-the whole migration to roll back immediately; retry it during a quiet window.
-
-This pass does not dual-write because there is no active Quiz writer. If the
-preflight finds an unknown writer or changing counts, stop and investigate
-rather than adding a new compatibility producer.
-
-Migration 106 is not independently rollout-ready. Once envelopes exist,
-migration 105 intentionally makes the current v1 export and compaction entry
-points fail closed rather than omit retired data. Before hosted application of
-106, deploy the version-aware archive runtime with direct v2 source snapshots,
-v2 compaction, and v1-to-v2 restore dispatch. Apply 105 first under its own
-authorization; apply 106 only in the coordinated runtime rollout under a new
-target-specific authorization.
-
-### Pass C: Production Proof
-
-- First complete the version-aware runtime pass required by the migration 106
-  rollout gate; do not use production proof as the first activation of that
-  runtime.
-- Re-run `verify:legacy-quiz-inventory` and compare it with the backfill ledger.
-- Run the database catalog audit and generated-type check.
-- Create and restore a non-empty archive-v2 canary only under separate,
-  target-specific production authorization.
-- Prove that the retained production archive-v1 still adapts and restores.
-- Confirm current Tests, gradebook, course packages, and old-link tombstones do
-  not read the source tables or envelope tables.
-- Prove a Quiz blueprint insert cannot race the zero-row preflight or succeed
-  after the Test-only constraint is installed.
-
-### Pass D: Destructive Retirement
-
-Only after Pass C:
-
-- make v2 the only current export contract while retaining both immutable
-  versioned registry graphs and the v1 adapter indefinitely; never replace or
-  delete v1 registry rows referenced by historical operations or snapshots;
-- drop `quiz_responses`, `quiz_student_scores`, `quiz_questions`, then
-  `quizzes`, plus their policies, indexes, triggers, and update functions;
-- remove the Quiz branch from `assessment_drafts` after archived Quiz drafts
-  are handled by the v1 adapter and live rows are zero;
-- retain the already-narrowed Test-only blueprint constraint and remove
-  database-shaped Quiz blueprint compatibility types after old package readers
-  have normalized their input;
-- regenerate database types and remove database-shaped application contracts;
-- retain historical migration files and the archive-v1 adapter.
-
-After the drop, the deployed-code fixture must restore the retained non-empty v1
-archive while v2 is current and assert that both registry graphs remain present.
-
-The drop is not rollback-safe. Recovery is a forward repair migration that
-recreates the old schema and rehydrates it from the envelope ledger if required.
-Do not use a down migration or mutate retained archive objects.
-
-### Pass E: Independent Compatibility Windows
-
-After schema retirement:
-
-- gradebook: remove `quizzes_weight`, Quiz percentages, arrays, and response
-  tombstones in a separately reviewed payload/schema migration;
-- course packages: introduce version 4 without the `quizzes` site-config key,
-  while version 2/3 readers continue normalizing the old key to `false`;
-- TypeScript: narrow persisted assessment types to Test once no live or restore
-  path emits `assessment_type='quiz'`;
-- URL: keep `tab=quizzes&quizId=...` as an inert old-link tombstone until a
-  separate removal decision.
-
-These windows are not prerequisites for dropping the four source tables, but
-they are prerequisites for eliminating all non-historical Quiz names.
-
-## Validation And Rollback Gates
-
-Before every migration PR answer:
-
-```text
-What widened?
-What fallback exists?
-What breaks before the migration?
-What proves source/envelope parity?
-Which archive versions can still restore?
-Which Quiz references remain and why?
-```
-
-Required evidence:
-
-- migration replay and generated database types;
-- non-empty v1 fixture covering all four Quiz resources and a Quiz draft;
-- deterministic adapter replay;
-- archive-v1 and archive-v2 restore equality at their declared boundaries;
-- production target identity and two stable aggregate snapshots;
-- zero unexplained active Quiz table readers or writers;
-- exact migration filename and target approval before any application.
+- replay all migrations in a disposable database;
+- run the archive export/restore/compaction coordinator suites;
+- run TypeScript, lint, architecture checks, migration policy tests, and the
+  full Vitest suite;
+- run the Pika pre-commit audit;
+- obtain an independent PR review and exact-head green CI;
+- verify the migration was not applied to shared local or hosted targets unless
+  the maintainer issued exact one-time authorization.

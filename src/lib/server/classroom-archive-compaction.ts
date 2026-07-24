@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { CLASSROOM_ARCHIVE_V1_RESTORE_ORDER } from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V2_RESTORE_ORDER } from '@/lib/contracts/classroom-archive-resources'
 import { classroomArchiveCompactionVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
@@ -9,8 +9,8 @@ import {
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import {
-  buildClassroomArchiveRestorePlan,
-  type ClassroomArchiveRestorePlan,
+  buildClassroomArchiveV2RestorePlan,
+  type ClassroomArchiveV2RestorePlan,
 } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
@@ -189,12 +189,14 @@ function hashCompactionRequest(value: unknown): string {
   return createHash('sha256').update(canonicalJsonStringify(value)).digest('hex')
 }
 
-function archiveStoragePath(args: {
+function isArchiveStoragePath(args: {
   teacherId: string
   classroomId: string
   archiveId: string
+  storagePath: string
 }) {
-  return `${args.teacherId}/${args.classroomId}/${args.archiveId}/classroom-v1.tar.gz`
+  const prefix = `${args.teacherId}/${args.classroomId}/${args.archiveId}/classroom-v`
+  return args.storagePath === `${prefix}1.tar.gz` || args.storagePath === `${prefix}2.tar.gz`
 }
 
 function isMissingCompactionRpc(
@@ -250,7 +252,10 @@ function assertOperationIdentity(args: {
   }
   if (
     args.result.operation_status === 'snapshot_ready' &&
-    args.result.storage_path !== archiveStoragePath(args)
+    !isArchiveStoragePath({
+      ...args,
+      storagePath: args.result.storage_path,
+    })
   ) {
     throw new ClassroomArchiveCompactionError(
       'compaction_rpc_contract_invalid',
@@ -394,14 +399,6 @@ async function downloadAndVerifyArchive(args: {
       false,
     )
   }
-  if (verified.manifest.version !== 1) {
-    throw new ClassroomArchiveCompactionError(
-      'archive_compaction_contract_not_supported',
-      'Classroom archive v2 compaction requires the retired-assessment backfill proof',
-      409,
-      false,
-    )
-  }
   if (
     verified.manifest.archive_id !== args.archiveId ||
     verified.manifest.classroom_id !== args.classroomId ||
@@ -445,9 +442,9 @@ async function downloadAndVerifyArchive(args: {
     }
     currentActors.push(...(response.data || []) as typeof currentActors)
   }
-  let restorePlan: ClassroomArchiveRestorePlan
+  let restorePlan: ClassroomArchiveV2RestorePlan
   try {
-    restorePlan = buildClassroomArchiveRestorePlan({
+    restorePlan = buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified: true,
       operationId: args.operationId,
@@ -464,7 +461,7 @@ async function downloadAndVerifyArchive(args: {
   }
   return {
     restorePlan,
-    compactionResources: decoded.resources,
+    compactionResources: restorePlan.resources,
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
       storage_path: object.source_path,
@@ -475,7 +472,7 @@ async function downloadAndVerifyArchive(args: {
   }
 }
 
-function rowBatches(rows: ClassroomArchiveRestorePlan['resources'][string]) {
+function rowBatches(rows: ClassroomArchiveV2RestorePlan['resources'][string]) {
   const batches: typeof rows[] = []
   let batch: typeof rows = []
   for (const row of rows) {
@@ -499,9 +496,9 @@ async function stageRestorePreflight(args: {
   supabase: SupabaseClient
   operationId: string
   teacherId: string
-  resources: ClassroomArchiveRestorePlan['resources']
+  resources: ClassroomArchiveV2RestorePlan['resources']
 }) {
-  for (const table of CLASSROOM_ARCHIVE_V1_RESTORE_ORDER) {
+  for (const table of CLASSROOM_ARCHIVE_V2_RESTORE_ORDER) {
     for (const rows of rowBatches(args.resources[table] || [])) {
       const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {
         p_operation_id: args.operationId,
@@ -690,7 +687,7 @@ export async function compactClassroomArchive(args: {
 
   const requestSha256 = hashCompactionRequest({
     format: 'pika.classroom-archive',
-    version: 1,
+    version: 2,
     transition: 'archived_hot:archived_cold',
     classroom_id: classroomId,
     archive_id: archiveId,

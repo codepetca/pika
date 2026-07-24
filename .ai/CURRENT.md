@@ -4,9 +4,13 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 
 ## Current Focus
 
-- Local schema: 001-105; 105 is not hosted. Migration 106 is prepared but
-  unapplied pending the version-aware runtime.
-- Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave and Phase 2 are complete. Phase 3 assignment, Daily/Attendance desktop/accessibility, and Tests list reliability plus authoring/grading separation are complete; mobile UX is deferred, Gradex is owned by a separate session, and standalone test preview hardening is next.
+- Legacy Quiz retirement: migration 107 and strict archive-v2 runtime are in
+  review. Existing Quiz rows and Quiz-format payloads are explicitly
+  disposable; the next pass is migration 108 hard schema removal.
+- Shared local schema: 001-105. Migrations 106-107 have passed disposable
+  replay only. None of 105-107 is hosted.
+- Product status: `.ai/features.json`; mobile is deferred and Gradex is owned
+  by a separate session.
 
 ## Environment
 

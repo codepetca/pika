@@ -555,3 +555,143 @@ select jsonb_build_object(
 pnpm exec tsx scripts/validate-legacy-quiz-backfill.ts < "$PAYLOAD_FILE"
 
 echo "Legacy Quiz freeze and backfill database contract passes."
+
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/107_classroom_archive_v2_direct_source.sql" >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+begin;
+
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = '62000000-0000-4000-8000-000000000001';
+
+do $direct_v2$
+declare
+  v_operation_id constant uuid := '67000000-0000-4000-8000-000000000001';
+  v_teacher_id constant uuid := '61000000-0000-4000-8000-000000000001';
+  v_classroom_id constant uuid := '62000000-0000-4000-8000-000000000001';
+  v_result jsonb;
+  v_counts jsonb;
+begin
+  if exists (
+    select 1
+    from public.assessment_drafts
+    where assessment_type = 'quiz'
+  ) or exists (
+    select 1
+    from public.classroom_retired_assessment_records
+    where source_contract = 'pika.classroom-archive@1/legacy-quiz'
+  ) then
+    raise exception 'Direct archive-v2 activation retained disposable Quiz payloads';
+  end if;
+
+  v_result := public.begin_classroom_archive_export_v2(
+    v_operation_id,
+    v_teacher_id,
+    v_classroom_id,
+    repeat('7', 64),
+    '107_classroom_archive_v2_direct_source',
+    'abcdef1234567890',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or (v_result->>'source_contract_version')::integer <> 2
+    or (v_result->>'archive_format_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 begin failed: %', v_result;
+  end if;
+
+  v_counts := v_result->'resource_counts';
+  if (select count(*) from jsonb_object_keys(v_counts)) <> 40
+    or v_counts ?| array[
+      'quizzes',
+      'quiz_questions',
+      'quiz_responses',
+      'quiz_student_scores'
+    ]
+    or (v_counts->>'classroom_retired_assessment_records')::integer <> 0
+    or (v_counts->>'classroom_retired_assessment_record_actors')::integer <> 0
+  then
+    raise exception 'Direct archive-v2 counts are invalid: %', v_counts;
+  end if;
+  if exists (
+    select 1
+    from public.classroom_archive_snapshot_resources
+    where operation_id = v_operation_id
+      and (
+        source_contract_version <> 2
+        or table_name in (
+          'quizzes',
+          'quiz_questions',
+          'quiz_responses',
+          'quiz_student_scores'
+        )
+      )
+  ) then
+    raise exception 'Direct archive-v2 snapshot contains a legacy contract row';
+  end if;
+
+  if not public.stage_classroom_archive_object_upload_v2(
+    v_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_classroom_id,
+      v_operation_id
+    ),
+    repeat('8', 64),
+    1024,
+    2
+  ) then
+    raise exception 'Direct archive-v2 upload intent failed';
+  end if;
+
+  v_result := public.complete_classroom_archive_export_v2(
+    v_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_classroom_id,
+      v_operation_id
+    ),
+    repeat('8', 64),
+    repeat('9', 64),
+    1024,
+    2048,
+    v_counts,
+    2,
+    v_counts,
+    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
+    '{
+      "read_back_verified": true,
+      "artifact_checksum_verified": true,
+      "manifest_verified": true,
+      "resource_checksums_verified": true,
+      "resource_counts_verified": true,
+      "storage_objects_verified": true,
+      "actor_snapshots_verified": true,
+      "verified_at": "2026-07-23T12:00:00Z"
+    }'::jsonb
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'completed'
+    or (v_result->>'source_contract_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 completion failed: %', v_result;
+  end if;
+end;
+$direct_v2$;
+
+rollback;
+SQL
+
+echo "Classroom archive-v2 direct source database contract passes."

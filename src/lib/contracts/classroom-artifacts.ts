@@ -17,7 +17,7 @@ export const CLASSROOM_ARCHIVE_FORMAT = 'pika.classroom-archive' as const
 export const CLASSROOM_ARCHIVE_V1_VERSION = 1 as const
 export const CLASSROOM_ARCHIVE_V2_VERSION = 2 as const
 export const CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION =
-  CLASSROOM_ARCHIVE_V1_VERSION
+  CLASSROOM_ARCHIVE_V2_VERSION
 export const CLASSROOM_ARCHIVE_VERSION =
   CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION
 export const GRADEX_EXTRACT_FORMAT = 'pika.gradex-classroom-extract' as const
@@ -226,7 +226,7 @@ export const CLASSROOM_ARCHIVE_CONTRACTS = {
   },
 } as const
 
-export const classroomArchiveManifestSchema = classroomArchiveManifestV1Schema
+export const classroomArchiveManifestSchema = classroomArchiveManifestV2Schema
 
 export type ClassroomArchiveManifestV1 = z.infer<
   typeof classroomArchiveManifestV1Schema

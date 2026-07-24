@@ -13,6 +13,7 @@ import {
   CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
   CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
+  LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
   type ClassroomArchiveResourceDefinition,
 } from '@/lib/contracts/classroom-archive-resources'
 import {
@@ -20,7 +21,6 @@ import {
   discoverClassroomStorageReferences,
   type VerifiedClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
-import { adaptLegacyQuizArchiveResources } from '@/lib/server/classroom-archive-quiz-retirement'
 import {
   retiredAssessmentPayloadChecksum,
   validateRetiredAssessmentEnvelopeGraph,
@@ -29,7 +29,7 @@ import {
 export const CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION =
   '083_resumable_classroom_archive_restore' as const
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
-  '105_classroom_archive_v2_contract' as const
+  '107_classroom_archive_v2_direct_source' as const
 
 const managedUrlPattern = /https?:\/\/[^\s<>"'`]+/gi
 const uuidSchema = z.string().uuid()
@@ -93,8 +93,14 @@ const RESTORE_ADAPTERS: RestoreAdapter[] = [
     adapt: cloneResources,
   },
   {
-    id: 'classroom-archive-schema-082-to-105',
+    id: 'classroom-archive-schema-082-to-107',
     source: '082_verified_classroom_archive_exports',
+    target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+    adapt: cloneResources,
+  },
+  {
+    id: 'classroom-archive-schema-105-to-107',
+    source: '105_classroom_archive_v2_contract',
     target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
     adapt: cloneResources,
   },
@@ -112,6 +118,20 @@ function cloneResources(resources: Record<string, JsonObject[]>): Record<string,
   return Object.fromEntries(
     Object.entries(resources).map(([table, rows]) => [table, cloneJsonValue(rows)]),
   )
+}
+
+function discardRetiredQuizResources(
+  resources: Record<string, JsonObject[]>,
+): Record<string, JsonObject[]> {
+  const next = cloneResources(resources)
+  for (const table of LEGACY_QUIZ_ARCHIVE_V1_RESOURCES) {
+    delete next[table]
+  }
+  next.assessment_drafts = (next.assessment_drafts || [])
+    .filter((row) => row.assessment_type !== 'quiz')
+  next.classroom_retired_assessment_records ||= []
+  next.classroom_retired_assessment_record_actors ||= []
+  return next
 }
 
 function resolveAdapterChain(
@@ -303,7 +323,7 @@ function buildClassroomArchiveRestorePlanForVersion(
   const adapterChain =
     restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION &&
     manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
-    ? [...adapters.ids, 'classroom-archive-v1-quiz-to-retired-assessment-v1']
+    ? [...adapters.ids, 'classroom-archive-v1-retired-quiz-discard-v1']
     : adapters.ids
   if (
     restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION &&
@@ -382,11 +402,7 @@ function buildClassroomArchiveRestorePlanForVersion(
   if (restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION) {
     rewrittenResources = rewrittenSourceResources
   } else if (manifest.version === CLASSROOM_ARCHIVE_V1_VERSION) {
-    rewrittenResources = adaptLegacyQuizArchiveResources({
-      classroomId: manifest.classroom_id,
-      resources: rewrittenSourceResources,
-      actors: archivedActors,
-    }).resources
+    rewrittenResources = discardRetiredQuizResources(rewrittenSourceResources)
   } else {
     rewrittenResources = {
       ...rewrittenSourceResources,

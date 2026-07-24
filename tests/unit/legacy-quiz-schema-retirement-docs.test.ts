@@ -5,48 +5,32 @@ import { describe, expect, it } from 'vitest'
 const root = process.cwd()
 
 describe('legacy Quiz schema retirement docs', () => {
-  it('records production evidence and the hosted archive-v2 migration gate', () => {
+  it('records the destructive decision and migration-application boundary', () => {
     const plan = readFileSync(
       resolve(root, 'docs/guidance/legacy-quiz-schema-retirement-plan.md'),
       'utf8',
     )
 
-    expect(plan).toContain('`quizzes` | 1 | 1')
-    expect(plan).toContain('`quiz_questions` | 3 | 3')
-    expect(plan).toContain('`quiz_responses` | 60 | 60')
-    expect(plan).toContain('`quiz_student_scores` | 0 | 0')
-    expect(plan).toContain('pika.classroom-archive` format version 2')
-    expect(plan).toContain('unchanged v1 reader')
-    expect(plan).toContain('`CLASSROOM_ARCHIVE_CONTRACTS` registry keyed by version')
-    expect(plan).toContain('(format_version, table_name)')
-    expect(plan).toContain('classroom_archives.format_version = 1')
-    expect(plan).toContain('retaining both immutable')
-    expect(plan).toContain('never replace or')
-    expect(plan).toContain('both registry graphs remain present')
-    expect(plan).toContain('previously merged application-only foundation')
-    expect(plan).toContain('migration 105 stages the v2 export contract')
-    expect(plan).toContain('current application export remains v1')
-    expect(plan).toContain(
-      'Migration `105_classroom_archive_v2_contract.sql` implements',
-    )
-    expect(plan).toContain('applied only to the local validation database')
-    expect(plan).toContain('No hosted schema was changed')
-    expect(plan).toMatch(/non-empty quiz, question, response,\s+manual/)
-    expect(plan).toContain('The drop is not rollback-safe')
-    expect(plan).toContain('exact migration filename and target approval')
+    expect(plan).toContain('existing Quiz rows and Quiz-format archive')
+    expect(plan).toContain('disposable production experiments')
+    expect(plan).toContain('does not authorize applying a migration')
+    expect(plan).toContain('target and exact')
+    expect(plan).toContain('migration filename')
+    expect(plan).toContain('No migration in this sequence has been applied to a')
+    expect(plan).toContain('hosted target during this work')
   })
 
-  it('keeps retired Quiz rows out of the active Tests graph', () => {
+  it('defines strict v2 activation and the hard-removal exit path', () => {
     const plan = readFileSync(
       resolve(root, 'docs/guidance/legacy-quiz-schema-retirement-plan.md'),
       'utf8',
     )
 
-    expect(plan).toContain('Do not backfill legacy Quiz rows into active `tests`')
-    expect(plan).toContain('classroom_retired_assessment_records')
-    expect(plan).toContain('no active API, gradebook query, Test component')
-    expect(plan).toContain('access-exclusive lock on')
-    expect(plan).toContain('fail if any Quiz row exists')
-    expect(plan).toContain('Test-only constraint')
+    expect(plan).toContain('`107_classroom_archive_v2_direct_source.sql`')
+    expect(plan).toContain('no runtime fallback to the v1 RPCs')
+    expect(plan).toContain('v1 artifact discards its Quiz resources')
+    expect(plan).toContain('`108_drop_legacy_quiz_schema.sql`')
+    expect(plan).toContain('drop `quiz_responses`, `quiz_student_scores`')
+    expect(plan).toContain('backup restoration or a forward schema')
   })
 })

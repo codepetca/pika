@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import {
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+} from '@/lib/contracts/classroom-archive-resources'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
   classroomArchiveRestoreObjectPath,
@@ -44,16 +47,40 @@ function archiveV1ResourceCounts() {
   )
 }
 
-function fixture() {
+function archiveV2ResourceCounts() {
+  return Object.fromEntries(
+    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
+      resource.table,
+      ['classrooms', 'assignments', 'assignment_docs', 'assignment_submission_artifacts']
+        .includes(resource.table) ? 1 : 0,
+    ]),
+  )
+}
+
+function fixture(version: 1 | 2 = 1) {
+  const sourceResources = resources()
+  const archiveResources = version === 2
+    ? Object.fromEntries(
+        CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
+          resource.table,
+          sourceResources[resource.table as keyof typeof sourceResources] || [],
+        ]),
+      )
+    : sourceResources
   return buildClassroomArchiveBundle({
-    version: 1,
+    version,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
     createdAt: '2026-07-13T12:00:00.000Z',
-    source: { schemaMigration: '082_verified_classroom_archive_exports', appCommit: 'abcdef1' },
+    source: {
+      schemaMigration: version === 2
+        ? '105_classroom_archive_v2_contract'
+        : '082_verified_classroom_archive_exports',
+      appCommit: 'abcdef1',
+    },
     retention: { mode: 'teacher_managed', delete_after: null },
-    resources: resources(),
+    resources: archiveResources,
     actors: [
       { id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher', profile: null },
       {
@@ -90,9 +117,14 @@ function createSupabaseMock(options: {
   stageRpcThrows?: boolean
   preexistingRestoreObject?: boolean
   metadataErrorOnce?: boolean
+  v2Unavailable?: boolean
+  v2BeginError?: { code?: string; message?: string }
+  archiveVersion?: 1 | 2
 } = {}) {
-  const bundle = fixture()
-  const counts = archiveV1ResourceCounts()
+  const bundle = fixture(options.archiveVersion)
+  const counts = Object.fromEntries(
+    bundle.manifest.resources.map((resource) => [resource.table, resource.row_count]),
+  )
   const archive = options.corruptArchive
     ? Uint8Array.from([...bundle.archive.slice(0, -1), bundle.archive.at(-1)! ^ 1])
     : bundle.archive
@@ -111,9 +143,14 @@ function createSupabaseMock(options: {
   }
   let postUploadReadFailed = false
   let metadataReads = 0
+  let operationResourceCounts = counts
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === 'begin_classroom_archive_restore') {
-      if (options.beginError) return { data: null, error: options.beginError }
+    if (name === 'begin_classroom_archive_restore_v2') {
+      if (options.v2Unavailable) {
+        return { data: null, error: { code: 'PGRST202', message: 'missing v2 function' } }
+      }
+      if (options.v2BeginError) return { data: null, error: options.v2BeginError }
+      operationResourceCounts = args.p_resource_counts as Record<string, number>
       return {
         data: {
           ok: true,
@@ -122,7 +159,29 @@ function createSupabaseMock(options: {
           archive_id: ARCHIVE_ID,
           operation_status: 'snapshot_ready',
           replayed: false,
-          resource_counts: counts,
+          resource_counts: operationResourceCounts,
+          snapshot_expires_at: '2026-07-14T12:00:00.000Z',
+          database_size_bytes: 100,
+          required_headroom_bytes: 200,
+          source_contract_version: bundle.manifest.version,
+          archive_format_version: bundle.manifest.version,
+          restore_contract_version: 2,
+        },
+        error: null,
+      }
+    }
+    if (name === 'begin_classroom_archive_restore') {
+      if (options.beginError) return { data: null, error: options.beginError }
+      operationResourceCounts = counts
+      return {
+        data: {
+          ok: true,
+          status: 202,
+          operation_id: OPERATION_ID,
+          archive_id: ARCHIVE_ID,
+          operation_status: 'snapshot_ready',
+          replayed: false,
+          resource_counts: operationResourceCounts,
           snapshot_expires_at: '2026-07-14T12:00:00.000Z',
           database_size_bytes: 100,
           required_headroom_bytes: 200,
@@ -172,7 +231,7 @@ function createSupabaseMock(options: {
           archive_id: ARCHIVE_ID,
           operation_status: 'completed',
           replayed: false,
-          resource_counts: counts,
+          resource_counts: operationResourceCounts,
           verification: {
             ...(args.p_verification as Record<string, unknown>),
             referential_integrity_verified: true,
@@ -290,7 +349,7 @@ describe('classroom archive restore coordinator', () => {
     expect(resolveClassroomArchiveRestoreDatabaseBudget()).toBe(524288000)
   })
 
-  it('restores v1 through deployed RPCs without requiring migration 105', async () => {
+  it('restores v1 non-Quiz resources through the v2 contract when migration 107 is available', async () => {
     const mock = createSupabaseMock()
     const result = await restoreClassroomArchive({
       supabase: mock.client,
@@ -304,7 +363,7 @@ describe('classroom archive restore coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: true, status: 201, replayed: false }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore',
+      'begin_classroom_archive_restore_v2',
       'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
@@ -313,8 +372,11 @@ describe('classroom archive restore coordinator', () => {
       'complete_classroom_archive_restore',
     ])
     expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
-      p_target_schema_migration: '083_resumable_classroom_archive_restore',
-      p_resource_counts: archiveV1ResourceCounts(),
+      p_target_schema_migration: '107_classroom_archive_v2_direct_source',
+      p_source_contract_version: 1,
+      p_restore_contract_version: 2,
+      p_source_resource_counts: archiveV1ResourceCounts(),
+      p_resource_counts: archiveV2ResourceCounts(),
     }))
     expect(mock.rpc.mock.calls[6][1].p_verification).not.toHaveProperty(
       'referential_integrity_verified',
@@ -322,6 +384,50 @@ describe('classroom archive restore coordinator', () => {
     expect(result.ok && result.verification.referential_integrity_verified).toBe(true)
     expect(mock.stored.size).toBe(1)
     expect(mock.removed).toEqual([])
+  })
+
+  it('fails closed instead of falling back when migration 107 is unavailable', async () => {
+    const mock = createSupabaseMock({ v2Unavailable: true })
+    const result = await restoreClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_restore_migration_required',
+    }))
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_classroom_archive_restore_v2',
+    ])
+  })
+
+  it('does not fall back when the v2 restore begin RPC returns a domain failure', async () => {
+    const mock = createSupabaseMock({
+      v2BeginError: { code: '40001', message: 'source changed' },
+    })
+    const result = await restoreClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_restore_begin_failed',
+    }))
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_classroom_archive_restore_v2',
+    ])
   })
 
   it('rejects an outer checksum mismatch before starting a database operation', async () => {
@@ -344,7 +450,10 @@ describe('classroom archive restore coordinator', () => {
   })
 
   it('reports a missing migration without claiming a restore operation was recorded', async () => {
-    const mock = createSupabaseMock({ beginError: { code: 'PGRST202', message: 'missing function' } })
+    const mock = createSupabaseMock({
+      v2Unavailable: true,
+      beginError: { code: 'PGRST202', message: 'missing function' },
+    })
     const result = await restoreClassroomArchive({
       supabase: mock.client,
       operationId: OPERATION_ID,
@@ -360,7 +469,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: true,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore',
+      'begin_classroom_archive_restore_v2',
     ])
   })
 
@@ -381,7 +490,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: false,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore',
+      'begin_classroom_archive_restore_v2',
       'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
       'fail_classroom_archive_restore',
