@@ -3,6 +3,7 @@ import {
   buildNextDraftContent,
   buildTestDraftContentFromRows,
   createAssessmentDraft,
+  ensureAssessmentDraft,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
   syncTestQuestionsFromDraft,
@@ -319,6 +320,60 @@ describe('assessment drafts', () => {
       draft: null,
       error: { code: 'PGRST205', message: 'relation missing' },
     })
+  })
+
+  it('creates a Tests-only baseline draft when none exists', async () => {
+    const createdDraft = {
+      id: 'draft-1',
+      assessment_type: 'test',
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: { title: 'Test', show_results: false, questions: [] },
+      version: 1,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    }
+    const assessmentDraftSelect: any = {
+      eq: vi.fn(() => assessmentDraftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const questionSelect: any = {
+      eq: vi.fn(() => questionSelect),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === 'test_questions') {
+          return { select: vi.fn(() => questionSelect) }
+        }
+        return {
+          select: vi.fn(() => assessmentDraftSelect),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: createdDraft, error: null }),
+            })),
+          })),
+        }
+      }),
+    }
+
+    await expect(ensureAssessmentDraft(supabase, {
+      assessmentType: 'test',
+      assessment: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Test',
+        show_results: false,
+      },
+      userId: 'teacher-1',
+      questionsTable: 'test_questions',
+      questionsForeignKey: 'test_id',
+      questionsSelect: 'id',
+      validateContent: validateTestDraftContent,
+      buildFromRows: buildTestDraftContentFromRows,
+    })).resolves.toEqual({ ok: true, draft: createdDraft })
   })
 
   it('returns a 500 error when syncing test questions fails during update', async () => {
