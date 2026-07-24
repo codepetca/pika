@@ -59,7 +59,8 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
 }
 
 // Daily reflection openers, rotated by calendar date so the whole class sees the
-// same prompt on a given day. Recurs roughly every 4 weeks over a semester.
+// same prompt on a given day. 20 prompts at ~5 school days a week means a given
+// prompt comes back around every few weeks.
 const DAILY_REFLECTION_PROMPTS = [
   "What's one thing you're proud of from last time?",
   "What's something you figured out recently?",
