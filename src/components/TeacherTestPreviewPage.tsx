@@ -113,7 +113,7 @@ export function TeacherTestPreviewPage({
   useEffect(() => {
     setActiveDoc((previous) => {
       if (!previous) return null
-      return allowedDocs.some((doc) => doc.id === previous.id) ? previous : null
+      return allowedDocs.find((doc) => doc.id === previous.id) ?? null
     })
   }, [allowedDocs])
 

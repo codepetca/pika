@@ -150,6 +150,8 @@ describe('POST /api/teacher/tests/[id]/documents/[docId]/sync', () => {
 
   it.each([
     ['concurrent edit or removal', 'document_conflict', 409],
+    ['cleanup lease acquisition', 'snapshot_cleanup_in_progress', 409],
+    ['missing cleanup evidence', 'snapshot_cleanup_evidence_missing', 409],
     ['classroom archive', 'classroom_archived', 403],
     ['ownership loss', 'forbidden', 403],
   ])(

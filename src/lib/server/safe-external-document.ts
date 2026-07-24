@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api-handler'
 
 const MAX_REDIRECTS = 5
 const REQUEST_TIMEOUT_MS = 15_000
+const FETCH_TIMEOUT_ERROR = 'Source document fetch timed out'
 
 export interface ResolvedExternalAddress {
   address: string
@@ -144,6 +145,35 @@ function headersFromIncoming(headers: Record<string, string | string[] | undefin
   return result
 }
 
+function isRedirect(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+}
+
+async function runWithinDeadline<T>(
+  deadlineMs: number,
+  operation: (remainingMs: number) => Promise<T>,
+): Promise<T> {
+  const remainingMs = Math.floor(deadlineMs - Date.now())
+  if (remainingMs <= 0) {
+    throw new ApiError(400, FETCH_TIMEOUT_ERROR)
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      operation(remainingMs),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new ApiError(400, FETCH_TIMEOUT_ERROR)),
+          remainingMs,
+        )
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
 export async function requestPinnedExternalDocument(
   url: URL,
   address: ResolvedExternalAddress,
@@ -178,6 +208,16 @@ export async function requestPinnedExternalDocument(
     }, (response) => {
       const status = response.statusCode || 0
       const headers = headersFromIncoming(response.headers)
+      if (isRedirect(status)) {
+        response.destroy()
+        resolve({
+          body: Buffer.alloc(0),
+          headers,
+          status,
+        })
+        return
+      }
+
       const contentLength = Number(headers.get('content-length'))
       if (Number.isFinite(contentLength) && contentLength > maxBytes) {
         response.destroy()
@@ -210,33 +250,32 @@ export async function requestPinnedExternalDocument(
   })
 }
 
-function isRedirect(status: number): boolean {
-  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
-}
-
 export async function fetchSafeExternalDocument(
   sourceUrl: string,
   maxBytes: number,
   dependencies: SafeExternalDocumentDependencies = {},
 ): Promise<ExternalDocumentResponse> {
   const resolve = dependencies.resolve || defaultResolve
-  const request = dependencies.request || ((
-    url: URL,
-    address: ResolvedExternalAddress,
-    requestMaxBytes: number,
-  ) => requestPinnedExternalDocument(
-    url,
-    address,
-    requestMaxBytes,
-    dependencies.timeoutMs,
-  ))
+  const deadlineMs = Date.now() + (dependencies.timeoutMs ?? REQUEST_TIMEOUT_MS)
   let currentUrl = parseExternalUrl(sourceUrl)
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    const address = await resolveSafeAddress(currentUrl, resolve)
+    const address = await runWithinDeadline(
+      deadlineMs,
+      () => resolveSafeAddress(currentUrl, resolve),
+    )
     let response: PinnedResponse
     try {
-      response = await request(currentUrl, address, maxBytes)
+      response = await runWithinDeadline(deadlineMs, (remainingMs) => (
+        dependencies.request
+          ? dependencies.request(currentUrl, address, maxBytes)
+          : requestPinnedExternalDocument(
+              currentUrl,
+              address,
+              maxBytes,
+              remainingMs,
+            )
+      ))
     } catch (error) {
       if (error instanceof ApiError) throw error
       throw new ApiError(400, 'Failed to fetch source document')

@@ -27,6 +27,7 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
 } from '@/lib/course-site-publishing'
+import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
@@ -276,7 +277,7 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
       assessment_type: 'test' as const,
       title: assessment.title,
       content: assessment.content as any,
-      documents: assessment.documents ?? [],
+      documents: stripTestDocumentSnapshots(assessment.documents),
       points_possible: assessment.points_possible,
       gradebook_weight: assessment.gradebook_weight,
       include_in_final: assessment.include_in_final,

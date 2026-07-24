@@ -38,12 +38,14 @@ is independent of the database migration number.
 - Course overview, outline, and resources
 - Assignment plans, default due offsets, default due times, points, gradebook weights, final-grade inclusion, and draft state
 - Test definitions, point scales, gradebook weights, and final-grade inclusion represented in Markdown
-- Test document metadata/content when represented by the test Markdown format
+- Test document metadata/content when represented by the test Markdown format; classroom-specific link snapshot paths and sync timestamps are removed
 - Lesson plan templates
 
 ## Excluded
 
 Course packages are reusable planning files, not classroom backups. They exclude students, submissions, grades, attendance, rosters, join codes, class days, classroom calendar overrides, live announcements, actual course website settings, and runtime storage objects.
+
+Imported, captured, and instantiated link documents retain their reusable source URL and metadata but do not retain a classroom snapshot reference. A teacher must sync the link document in the new classroom to create a snapshot owned by that classroom.
 
 ## Round Trip
 

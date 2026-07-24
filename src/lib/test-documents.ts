@@ -111,6 +111,10 @@ export function clearTestDocumentSnapshot(doc: TestDocument): TestDocument {
   }
 }
 
+export function stripTestDocumentSnapshots(value: unknown): TestDocument[] {
+  return normalizeTestDocuments(value).map(clearTestDocumentSnapshot)
+}
+
 export function preserveCurrentTestDocumentSnapshots(
   currentValue: unknown,
   proposedDocuments: TestDocument[],

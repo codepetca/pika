@@ -1,5 +1,5 @@
 -- Serialize test-document authoring with snapshot sync and durably clean up
--- provisional, removed, superseded, and deleted link snapshot objects.
+-- provisional, removed, superseded, and explicitly deleted link snapshots.
 
 create table if not exists public.test_document_snapshot_storage_cleanup (
   id uuid primary key default gen_random_uuid(),
@@ -84,12 +84,24 @@ security definer
 set search_path = public
 as $$
 declare
+  v_archived_at timestamptz;
   v_new_documents jsonb;
 begin
-  v_new_documents := case
-    when tg_op = 'DELETE' then '[]'::jsonb
-    else coalesce(new.documents, '[]'::jsonb)
-  end;
+  if tg_op = 'DELETE' then
+    select classroom.archived_at
+      into v_archived_at
+    from public.classrooms classroom
+    where classroom.id = old.classroom_id;
+
+    -- Cold compaction deletes archived test rows after copying their managed
+    -- objects into the immutable archive. Archive cleanup owns those objects.
+    if not found or v_archived_at is not null then
+      return old;
+    end if;
+    v_new_documents := '[]'::jsonb;
+  else
+    v_new_documents := coalesce(new.documents, '[]'::jsonb);
+  end if;
 
   insert into public.test_document_snapshot_storage_cleanup as existing_cleanup (
     storage_path,
@@ -112,14 +124,11 @@ begin
     clock_timestamp()
   from jsonb_array_elements(coalesce(old.documents, '[]'::jsonb)) old_document(value)
   where old_document.value ->> 'snapshot_path' like 'link-docs/%/snapshots/%'
-    and (
-      tg_op = 'DELETE'
-      or not exists (
-        select 1
-        from jsonb_array_elements(v_new_documents) new_document(value)
-        where new_document.value ->> 'snapshot_path'
-          = old_document.value ->> 'snapshot_path'
-      )
+    and not exists (
+      select 1
+      from jsonb_array_elements(v_new_documents) new_document(value)
+      where new_document.value ->> 'snapshot_path'
+        = old_document.value ->> 'snapshot_path'
     )
   on conflict (storage_path) do update
   set status = 'pending',
@@ -140,6 +149,28 @@ create trigger enqueue_obsolete_test_document_snapshots
 after update of documents or delete on public.tests
 for each row execute function public.enqueue_obsolete_test_document_snapshots();
 
+-- Blueprint documents are portable source definitions. Snapshot paths belong
+-- to one classroom/test and must be reacquired after instantiation.
+update public.course_blueprint_assessments assessment
+set documents = coalesce((
+  select jsonb_agg(
+    document.value - 'snapshot_path' - 'snapshot_content_type' - 'synced_at'
+    order by document.ordinality
+  )
+  from jsonb_array_elements(assessment.documents)
+    with ordinality as document(value, ordinality)
+), '[]'::jsonb)
+where jsonb_typeof(assessment.documents) = 'array'
+  and exists (
+    select 1
+    from jsonb_array_elements(assessment.documents) document(value)
+    where document.value ?| array[
+      'snapshot_path',
+      'snapshot_content_type',
+      'synced_at'
+    ]
+  );
+
 create or replace function public.test_document_snapshot_path_is_referenced(
   p_storage_path text
 )
@@ -149,14 +180,34 @@ security definer
 stable
 set search_path = public
 as $$
-  select exists (
-    select 1
-    from public.tests test
-    cross join lateral jsonb_array_elements(
-      coalesce(test.documents, '[]'::jsonb)
-    ) document(value)
-    where document.value ->> 'snapshot_path' = p_storage_path
-  );
+  select
+    exists (
+      select 1
+      from public.tests test
+      cross join lateral jsonb_array_elements(
+        coalesce(test.documents, '[]'::jsonb)
+      ) document(value)
+      where document.value ->> 'snapshot_path' = p_storage_path
+    )
+    or exists (
+      select 1
+      from public.course_blueprint_assessments assessment
+      cross join lateral jsonb_array_elements(
+        case
+          when jsonb_typeof(assessment.documents) = 'array'
+            then assessment.documents
+          else '[]'::jsonb
+        end
+      ) document(value)
+      where document.value ->> 'snapshot_path' = p_storage_path
+    )
+    or exists (
+      select 1
+      from public.classroom_archive_source_object_cleanup cleanup
+      where cleanup.storage_bucket = 'test-documents'
+        and cleanup.storage_path = p_storage_path
+        and cleanup.status <> 'deleted'
+    );
 $$;
 
 create or replace function public.claim_test_document_snapshot_storage_cleanup(
@@ -391,7 +442,7 @@ begin
 end;
 $$;
 
--- Migration 105 remains callable during migration-first rollout. This version
+-- Migration 109 remains callable during migration-first rollout. This version
 -- adopts provisional cleanup evidence and lets the update trigger queue the
 -- superseded snapshot in the same transaction.
 create or replace function public.sync_test_document_snapshot_atomic(
@@ -413,6 +464,7 @@ declare
   v_documents jsonb;
   v_document jsonb;
   v_document_index integer;
+  v_cleanup_status text;
   v_owner_id uuid;
   v_previous_snapshot_path text;
   v_test public.tests%rowtype;
@@ -453,6 +505,19 @@ begin
     raise exception using errcode = '40001', message = 'document_conflict';
   end if;
 
+  select cleanup.status
+    into v_cleanup_status
+  from public.test_document_snapshot_storage_cleanup cleanup
+  where cleanup.storage_path = p_snapshot_path
+  for update;
+
+  if not found then
+    raise exception using errcode = '55000', message = 'snapshot_cleanup_evidence_missing';
+  end if;
+  if v_cleanup_status is distinct from 'pending' then
+    raise exception using errcode = '40001', message = 'snapshot_cleanup_in_progress';
+  end if;
+
   v_previous_snapshot_path := nullif(v_document ->> 'snapshot_path', '');
   v_document := (v_document - 'snapshot_path' - 'snapshot_content_type' - 'synced_at')
     || jsonb_build_object(
@@ -474,7 +539,11 @@ begin
 
   -- If this transaction later fails, the provisional evidence is restored.
   delete from public.test_document_snapshot_storage_cleanup
-  where storage_path = p_snapshot_path;
+  where storage_path = p_snapshot_path
+    and status = 'pending';
+  if not found then
+    raise exception using errcode = '40001', message = 'snapshot_cleanup_in_progress';
+  end if;
 
   return jsonb_build_object(
     'previous_snapshot_path', v_previous_snapshot_path,

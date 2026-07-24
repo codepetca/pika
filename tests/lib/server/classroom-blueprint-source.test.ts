@@ -219,6 +219,38 @@ describe('classroom blueprint source loader', () => {
     expect(mockSupabase.from.mock.calls.filter(([table]: [string]) => table === 'assessment_drafts')).toHaveLength(1)
   })
 
+  it('does not carry classroom snapshot ownership into a reusable blueprint', async () => {
+    seedSourceSupabase({
+      tests: [{
+        id: 't-1',
+        title: 'Published test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+        documents: [{
+          id: 'doc-1',
+          title: 'Reference',
+          source: 'link',
+          url: 'https://docs.example.com/reference',
+          snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
+          snapshot_content_type: 'text/html',
+          synced_at: '2026-07-23T12:00:00.000Z',
+        }],
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests[0].documents).toEqual([{
+      id: 'doc-1',
+      title: 'Reference',
+      source: 'link',
+      url: 'https://docs.example.com/reference',
+    }])
+  })
+
   it('rejects a source snapshot when classroom content changes during loading', async () => {
     seedSourceSupabase({ finalSourceRevision: 2 })
 

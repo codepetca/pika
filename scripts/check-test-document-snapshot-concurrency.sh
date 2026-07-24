@@ -10,10 +10,16 @@ if [[ -z "$DB_CONTAINER" ]]; then
   exit 2
 fi
 
+SYNC_READY_PATH="/tmp/pika-test-document-sync-ready"
+
 cleanup() {
+  docker exec "$DB_CONTAINER" rm -f "$SYNC_READY_PATH" >/dev/null 2>&1 || true
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 delete from public.classrooms
-where id = 'f1000000-0000-4000-8000-000000000002';
+where id in (
+  'f1000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000004'
+);
 delete from public.users
 where id in (
   'f1000000-0000-4000-8000-000000000001',
@@ -37,6 +43,15 @@ insert into public.classrooms (id, teacher_id, title, class_code) values (
   'Test document concurrency',
   'TDOC106'
 );
+insert into public.classrooms (
+  id, teacher_id, title, class_code, archived_at
+) values (
+  'f1000000-0000-4000-8000-000000000004',
+  'f1000000-0000-4000-8000-000000000001',
+  'Archived test document ownership',
+  'TDOCARC',
+  clock_timestamp()
+);
 
 insert into public.tests (
   id, classroom_id, title, status, created_by, documents
@@ -54,6 +69,48 @@ insert into public.tests (
     "snapshot_path":"link-docs/f1000000-0000-4000-8000-000000000001/test/doc-1/snapshots/old",
     "snapshot_content_type":"text/html",
     "synced_at":"2026-07-23T12:00:00Z"
+  }]'::jsonb
+);
+
+insert into public.tests (
+  id, classroom_id, title, status, created_by, documents
+) values (
+  'f1000000-0000-4000-8000-000000000005',
+  'f1000000-0000-4000-8000-000000000004',
+  'Archived test',
+  'draft',
+  'f1000000-0000-4000-8000-000000000001',
+  '[{
+    "id":"archived-doc",
+    "title":"Archived reference",
+    "source":"link",
+    "url":"https://example.com/archived",
+    "snapshot_path":"link-docs/f1000000-0000-4000-8000-000000000001/test/archived/snapshots/current",
+    "snapshot_content_type":"text/html",
+    "synced_at":"2026-07-23T12:00:00Z"
+  }]'::jsonb
+);
+
+insert into public.course_blueprints (
+  id, teacher_id, title
+) values (
+  'f1000000-0000-4000-8000-000000000006',
+  'f1000000-0000-4000-8000-000000000001',
+  'Snapshot ownership blueprint'
+);
+insert into public.course_blueprint_assessments (
+  id, course_blueprint_id, assessment_type, title, documents
+) values (
+  'f1000000-0000-4000-8000-000000000007',
+  'f1000000-0000-4000-8000-000000000006',
+  'test',
+  'Blueprint test',
+  '[{
+    "id":"blueprint-doc",
+    "title":"Blueprint reference",
+    "source":"link",
+    "url":"https://example.com/blueprint",
+    "snapshot_path":"link-docs/f1000000-0000-4000-8000-000000000001/test/blueprint/snapshots/current"
   }]'::jsonb
 );
 
@@ -77,12 +134,28 @@ select public.sync_test_document_snapshot_atomic(
   'text/html',
   '2026-07-23T13:00:00Z'
 );
+\! touch /tmp/pika-test-document-sync-ready
 select pg_sleep(1);
 commit;
 SQL
 sync_pid=$!
 
-sleep 0.2
+for _attempt in $(seq 1 100); do
+  if docker exec "$DB_CONTAINER" test -f "$SYNC_READY_PATH"; then
+    break
+  fi
+  if ! kill -0 "$sync_pid" 2>/dev/null; then
+    wait "$sync_pid"
+    echo "Snapshot sync exited before acquiring the test-row lock." >&2
+    exit 3
+  fi
+  sleep 0.05
+done
+if ! docker exec "$DB_CONTAINER" test -f "$SYNC_READY_PATH"; then
+  echo "Timed out waiting for snapshot sync to acquire the test-row lock." >&2
+  exit 3
+fi
+
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 set lock_timeout = '5s';
 do $$
@@ -119,8 +192,34 @@ do $$
 declare
   v_claimed integer;
   v_documents jsonb;
+  v_lease_token uuid := 'f1000000-0000-4000-8000-000000000008';
   v_result jsonb;
 begin
+  delete from public.tests
+  where id = 'f1000000-0000-4000-8000-000000000005';
+  if exists (
+    select 1
+    from public.test_document_snapshot_storage_cleanup
+    where storage_path =
+      'link-docs/f1000000-0000-4000-8000-000000000001/test/archived/snapshots/current'
+  ) then
+    raise exception 'Archived compaction-style deletion queued a preserved snapshot';
+  end if;
+
+  perform public.enqueue_test_document_snapshot_storage_cleanup_path(
+    'link-docs/f1000000-0000-4000-8000-000000000001/test/blueprint/snapshots/current',
+    0
+  );
+  select count(*) into v_claimed
+  from public.claim_test_document_snapshot_storage_cleanup_path(
+    'link-docs/f1000000-0000-4000-8000-000000000001/test/blueprint/snapshots/current',
+    gen_random_uuid(),
+    120
+  );
+  if v_claimed <> 0 then
+    raise exception 'Blueprint-owned snapshot became cleanup eligible';
+  end if;
+
   select documents into strict v_documents
   from public.tests
   where id = 'f1000000-0000-4000-8000-000000000003';
@@ -148,6 +247,37 @@ begin
   ) then
     raise exception 'Superseded snapshot was not durably queued';
   end if;
+
+  perform public.enqueue_test_document_snapshot_storage_cleanup_path(
+    'link-docs/f1000000-0000-4000-8000-000000000001/test/doc-1/snapshots/claimed',
+    0
+  );
+  select count(*) into v_claimed
+  from public.claim_test_document_snapshot_storage_cleanup_path(
+    'link-docs/f1000000-0000-4000-8000-000000000001/test/doc-1/snapshots/claimed',
+    v_lease_token,
+    120
+  );
+  if v_claimed <> 1 then
+    raise exception 'Expected the provisional snapshot cleanup lease';
+  end if;
+  begin
+    perform public.sync_test_document_snapshot_atomic(
+      'f1000000-0000-4000-8000-000000000001',
+      'f1000000-0000-4000-8000-000000000003',
+      'doc-1',
+      'https://example.com/reference',
+      'link-docs/f1000000-0000-4000-8000-000000000001/test/doc-1/snapshots/claimed',
+      'text/html',
+      '2026-07-23T14:00:00Z'
+    );
+    raise exception 'Snapshot attachment bypassed an active cleanup lease';
+  exception
+    when serialization_failure then
+      if sqlerrm <> 'snapshot_cleanup_in_progress' then
+        raise;
+      end if;
+  end;
 
   perform public.enqueue_test_document_snapshot_storage_cleanup_path(
     'link-docs/f1000000-0000-4000-8000-000000000001/test/doc-1/snapshots/new',

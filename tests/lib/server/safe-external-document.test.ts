@@ -149,6 +149,32 @@ describe('fetchSafeExternalDocument', () => {
 
     expect(request).toHaveBeenCalledTimes(6)
   })
+
+  it('applies one deadline to DNS resolution and the full redirect chain', async () => {
+    const unresolved = fetchSafeExternalDocument(
+      'https://example.com/document',
+      1024,
+      {
+        request: vi.fn(),
+        resolve: vi.fn(() => new Promise(() => {})),
+        timeoutMs: 20,
+      },
+    )
+    await expect(unresolved).rejects.toThrow('Source document fetch timed out')
+
+    const request = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      return response(302, { location: '/next' })
+    })
+    await expect(
+      fetchSafeExternalDocument('https://example.com/document', 1024, {
+        request,
+        resolve: vi.fn(async () => [publicAddress]),
+        timeoutMs: 35,
+      }),
+    ).rejects.toThrow('Source document fetch timed out')
+    expect(request.mock.calls.length).toBeLessThan(6)
+  })
 })
 
 describe('requestPinnedExternalDocument transport', () => {
@@ -203,6 +229,27 @@ describe('requestPinnedExternalDocument transport', () => {
           1000,
         ),
       ).rejects.toThrow('Document is too large to sync')
+    })
+  })
+
+  it('discards redirect bodies without buffering them against the document cap', async () => {
+    await withHttpServer((_request, response) => {
+      response.writeHead(302, {
+        'Content-Length': '2048',
+        Location: '/next',
+      })
+      response.write(Buffer.alloc(700))
+      setTimeout(() => response.end(Buffer.alloc(700)), 100)
+    }, async (port) => {
+      const result = await requestPinnedExternalDocument(
+        new URL(`http://public.invalid:${port}/document`),
+        loopback,
+        10,
+        1000,
+      )
+
+      expect(result.status).toBe(302)
+      expect(result.body).toHaveLength(0)
     })
   })
 

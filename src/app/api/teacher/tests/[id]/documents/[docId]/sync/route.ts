@@ -62,7 +62,11 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
   if (error) {
     await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path)
     const details = `${error.message || ''} ${error.details || ''}`.toLowerCase()
-    if (details.includes('document_conflict')) {
+    if (
+      details.includes('document_conflict')
+      || details.includes('snapshot_cleanup_in_progress')
+      || details.includes('snapshot_cleanup_evidence_missing')
+    ) {
       return NextResponse.json(
         { error: 'The document changed while it was syncing. Try again.' },
         { status: 409 },

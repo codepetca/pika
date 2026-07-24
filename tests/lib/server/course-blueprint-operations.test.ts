@@ -377,4 +377,67 @@ describe('importing a course package that contains tests and lesson plans', () =
     expect(plan.lesson_templates[0]).not.toHaveProperty('id')
     expect(plan.assignments[0]).not.toHaveProperty('id')
   })
+
+  it('strips classroom snapshot ownership from capture and instantiation plans', () => {
+    const snapshotDocument = {
+      id: 'doc-1',
+      title: 'Reference',
+      source: 'link',
+      url: 'https://docs.example.com/reference',
+      snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
+      snapshot_content_type: 'text/html',
+      synced_at: '2026-07-23T12:00:00.000Z',
+    }
+    const basePlan = createPlan()
+    const capturePlan = buildCreateBlueprintWritePlan({
+      blueprint: basePlan.blueprint,
+      assignments: basePlan.assignments,
+      lessonTemplates: [],
+      manifestVersion: '4',
+      assessments: [{
+        assessment_type: 'test',
+        title: 'Test',
+        content: { title: 'Test', show_results: false, questions: [] },
+        documents: [snapshotDocument],
+        points_possible: null,
+        gradebook_weight: 10,
+        include_in_final: true,
+        position: 0,
+      }],
+    })
+    expect(capturePlan.assessments[0].documents).toEqual([
+      expect.not.objectContaining({ snapshot_path: expect.anything() }),
+    ])
+
+    const detail = blueprintDetail()
+    detail.assessments = [{
+      id: 'assessment-1',
+      course_blueprint_id: detail.id,
+      assessment_type: 'test',
+      title: 'Test',
+      content: { title: 'Test', show_results: false, questions: [] },
+      documents: [snapshotDocument],
+      points_possible: null,
+      gradebook_weight: 10,
+      include_in_final: true,
+      position: 0,
+    }]
+    const instantiated = buildInstantiateBlueprintWritePlan({
+      detail,
+      input: {
+        title: 'New class',
+        classCode: 'NEW123',
+        start_date: '2026-09-01',
+        end_date: '2026-09-30',
+      },
+      themeColor: 'blue',
+      manifestVersion: '4',
+      operationId,
+    })
+    expect(instantiated).toEqual(expect.objectContaining({ ok: true }))
+    if (!instantiated.ok) throw new Error('Expected blueprint instantiation plan')
+    expect(instantiated.plan.tests[0].documents).toEqual([
+      expect.not.objectContaining({ snapshot_path: expect.anything() }),
+    ])
+  })
 })

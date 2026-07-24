@@ -445,6 +445,63 @@ describe('TeacherTestPreviewPage', () => {
     })
   })
 
+  it('refreshes an open same-id document and closes it when the document is removed', async () => {
+    const fetchMock = vi.mocked(fetch)
+      .mockResolvedValueOnce(previewResponse({
+        documents: [{
+          id: 'document-1',
+          title: 'Reference sheet',
+          source: 'text',
+          content: 'Original content',
+        }],
+      }) as Awaited<ReturnType<typeof fetch>>)
+      .mockResolvedValueOnce(previewResponse({
+        documents: [{
+          id: 'document-1',
+          title: 'Updated reference',
+          source: 'text',
+          content: 'Updated content',
+        }],
+      }) as Awaited<ReturnType<typeof fetch>>)
+      .mockResolvedValueOnce(previewResponse({
+        documents: [],
+      }) as Awaited<ReturnType<typeof fetch>>)
+
+    render(
+      <TeacherTestPreviewPage
+        classroomId="classroom-1"
+        testId="test-1"
+        embedded
+        listenForUpdates
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reference sheet' }))
+    expect(screen.getByTestId('text-document-viewer')).toHaveTextContent(
+      'Original content',
+    )
+
+    window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, {
+      detail: { classroomId: 'classroom-1' },
+    }))
+
+    expect(await screen.findByText('Updated reference')).toBeInTheDocument()
+    expect(screen.getByTestId('text-document-viewer')).toHaveTextContent(
+      'Updated content',
+    )
+    expect(screen.getByRole('button', {
+      name: 'Back to documents list',
+    })).toHaveFocus()
+
+    window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, {
+      detail: { classroomId: 'classroom-1' },
+    }))
+
+    expect(await screen.findByText('No documents provided for this test.')).toBeVisible()
+    expect(screen.queryByTestId('text-document-viewer')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it('renders a framed preview region and delegates embedded close', async () => {
     vi.mocked(fetch).mockResolvedValue(
       previewResponse({ title: 'Framed Test' }) as Awaited<ReturnType<typeof fetch>>,

@@ -6,6 +6,7 @@ import {
   normalizeTestDocuments,
   preserveCurrentTestDocumentSnapshots,
   sanitizeSnapshotHtml,
+  stripTestDocumentSnapshots,
   validateTestDocumentsPayload,
 } from '@/lib/test-documents'
 
@@ -129,6 +130,23 @@ describe('test-documents', () => {
         url: 'https://docs.example.com/new',
       },
     ])
+  })
+
+  it('removes classroom-specific snapshot metadata for reusable documents', () => {
+    expect(stripTestDocumentSnapshots([{
+      id: 'doc-1',
+      title: 'Reference',
+      source: 'link',
+      url: 'https://docs.example.com/reference',
+      snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
+      snapshot_content_type: 'text/html',
+      synced_at: '2026-07-23T12:00:00.000Z',
+    }])).toEqual([{
+      id: 'doc-1',
+      title: 'Reference',
+      source: 'link',
+      url: 'https://docs.example.com/reference',
+    }])
   })
 
   it('clears a snapshot when a link URL changes', () => {

@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import { CLASSROOM_THEME_COLORS } from '@/lib/classroom-theme'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
-import { validateTestDocumentsPayload } from '@/lib/test-documents'
+import {
+  stripTestDocumentSnapshots,
+  validateTestDocumentsPayload,
+} from '@/lib/test-documents'
 import {
   courseSiteSlugSchema,
   plannedCourseSiteConfigSchema,
@@ -107,7 +110,7 @@ const testDocumentsBoundarySchema = z.unknown().transform((value, ctx) => {
     ctx.addIssue({ code: 'custom', message: result.error })
     return z.NEVER
   }
-  return result.documents
+  return stripTestDocumentSnapshots(result.documents)
 })
 
 const blueprintAssessmentSchema = z.object({
