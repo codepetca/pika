@@ -1,0 +1,2 @@
+- [MDN JavaScript Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide)
+- [Course slide deck](https://example.com/slides)
