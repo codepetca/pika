@@ -34,7 +34,7 @@ const safeAnalyticTokens = new Set([
   'completed_with_errors', 'draft', 'empty_doc', 'failed', 'generated_reference',
   'grading_feedback', 'image', 'in_progress', 'link', 'missing', 'missing_doc',
   'multiple_choice', 'open', 'open_response', 'pending', 'processing', 'published',
-  'queued', 'quiz', 'ready', 'redacted', 'repo_link', 'running', 'skipped',
+  'queued', 'ready', 'redacted', 'repo_link', 'running', 'skipped',
   'student', 'system', 'teacher', 'teacher_feedback', 'teacher_key', 'test', 'v1',
 ])
 const sanitizedTokenSchema = structuredTokenSchema.refine(

@@ -96,9 +96,9 @@ function validArchiveManifest(): ClassroomArchiveManifest {
 }
 
 describe('classroom data inventory', () => {
-  it('is a valid, complete 44-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(44)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(44)
+  it('is a valid, complete 40-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(40)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(40)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'test_attempts')?.actor_columns)
       .toEqual(CLASSROOM_ACTOR_REFERENCE_COLUMNS.test_attempts)
@@ -187,12 +187,12 @@ describe('classroom data inventory', () => {
 
   it('detects stale resources, missing restore dependencies, and invalid selection keys', () => {
     const relationships = contractRelationships()
-    const withoutQuizQuestions = relationships.filter((relationship) =>
-      !(relationship.child_table === 'quiz_questions' && relationship.parent_table === 'quizzes'),
+    const withoutReportCardRows = relationships.filter((relationship) =>
+      !(relationship.child_table === 'report_card_rows' && relationship.parent_table === 'report_cards'),
     )
-    expect(auditClassroomResourceSchema(withoutQuizQuestions, contractPrimaryKeys())).toEqual(expect.objectContaining({
+    expect(auditClassroomResourceSchema(withoutReportCardRows, contractPrimaryKeys())).toEqual(expect.objectContaining({
       ok: false,
-      stale_tables: ['quiz_questions'],
+      stale_tables: ['report_card_rows'],
     }))
 
     expect(auditClassroomResourceSchema([
@@ -254,8 +254,8 @@ describe('classroom data inventory', () => {
 
 describe('classroom artifact contracts', () => {
   it('keeps reusable blueprints explicitly non-recoverable and student-free', () => {
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('3')
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3'])
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('4')
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['3', '4'])
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.recoverable_classroom_backup).toBe(false)
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('student_work')
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('grades_and_feedback')

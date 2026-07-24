@@ -39,7 +39,6 @@ function makeClassSummary(): GradebookClassSummary {
     students_with_final: 1,
     average_final_percent: 75,
     assignments: [],
-    quizzes: [],
     tests: [],
   }
 }
@@ -61,14 +60,12 @@ describe('useGradebookData', () => {
       ...student,
       final_percent: 75,
       assignments: [],
-      quizzes: [],
       tests: [],
     }
     const secondDetail: GradebookStudentDetail = {
       ...student,
       final_percent: 92,
       assignments: [],
-      quizzes: [],
       tests: [],
     }
 

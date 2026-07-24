@@ -183,7 +183,7 @@ describe('course-blueprints server helpers', () => {
     )
   })
 
-  it('can replace only one assessment type without deleting the other type', async () => {
+  it('replaces Tests without retaining omitted rows', async () => {
     const deleteBuilder = makeQueryBuilder({ data: null, error: null })
     const updateBuilder = makeQueryBuilder({ data: null, error: null })
     mockSupabase = makeSupabaseFromQueues({
@@ -193,9 +193,8 @@ describe('course-blueprints server helpers', () => {
       course_blueprint_assessments: [
         makeQueryBuilder({
           data: [
-            { id: 'q-1', assessment_type: 'quiz' },
-            { id: 'q-2', assessment_type: 'quiz' },
             { id: 't-1', assessment_type: 'test' },
+            { id: 't-2', assessment_type: 'test' },
           ],
           error: null,
         }),
@@ -208,18 +207,18 @@ describe('course-blueprints server helpers', () => {
       'teacher-1',
       'b-1',
       [{
-        id: 'q-1',
-        assessment_type: 'quiz',
-        title: 'Quiz 1',
-        content: { title: 'Quiz 1', show_results: true, questions: [] } as any,
+        id: 't-1',
+        assessment_type: 'test',
+        title: 'Test 1',
+        content: { title: 'Test 1', show_results: false, questions: [] } as any,
         documents: [],
         position: 0,
       }],
-      { replaceTypes: ['quiz'] }
+      { replaceTypes: ['test'] }
     )).resolves.toEqual({ ok: true })
 
-    expect(deleteBuilder.in).toHaveBeenCalledWith('id', ['q-2'])
-    expect(updateBuilder.eq).toHaveBeenCalledWith('id', 'q-1')
+    expect(deleteBuilder.in).toHaveBeenCalledWith('id', ['t-2'])
+    expect(updateBuilder.eq).toHaveBeenCalledWith('id', 't-1')
   })
 
   it('rejects unknown assignment update IDs before deleting existing blueprint assignments', async () => {
@@ -265,8 +264,8 @@ describe('course-blueprints server helpers', () => {
       course_blueprint_assessments: [
         makeQueryBuilder({
           data: [
-            { id: 'q-1', assessment_type: 'quiz' },
-            { id: 'q-2', assessment_type: 'quiz' },
+            { id: 't-1', assessment_type: 'test' },
+            { id: 't-2', assessment_type: 'test' },
           ],
           error: null,
         }),
@@ -279,94 +278,17 @@ describe('course-blueprints server helpers', () => {
       'b-1',
       [{
         id: 'stale-assessment-id',
-        assessment_type: 'quiz',
-        title: 'Updated Quiz',
-        content: { title: 'Updated Quiz', show_results: true, questions: [] } as any,
+        assessment_type: 'test',
+        title: 'Updated Test',
+        content: { title: 'Updated Test', show_results: false, questions: [] } as any,
         documents: [],
         position: 0,
       }],
-      { replaceTypes: ['quiz'] },
+      { replaceTypes: ['test'] },
     )).resolves.toEqual({
       ok: false,
       status: 400,
       error: 'Cannot update unknown blueprint assessment',
-    })
-
-    expect(deleteBuilder.delete).not.toHaveBeenCalled()
-  })
-
-  it('rejects assessment type drift before deleting existing blueprint assessments', async () => {
-    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
-    mockSupabase = makeSupabaseFromQueues({
-      course_blueprints: [
-        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
-      ],
-      course_blueprint_assessments: [
-        makeQueryBuilder({
-          data: [
-            { id: 'q-1', assessment_type: 'quiz' },
-            { id: 'q-2', assessment_type: 'quiz' },
-          ],
-          error: null,
-        }),
-        deleteBuilder,
-      ],
-    })
-
-    await expect(syncCourseBlueprintAssessments(
-      'teacher-1',
-      'b-1',
-      [{
-        id: 'q-1',
-        assessment_type: 'test',
-        title: 'Updated Test',
-        content: { title: 'Updated Test', questions: [] } as any,
-        documents: [],
-        position: 0,
-      }],
-    )).resolves.toEqual({
-      ok: false,
-      status: 400,
-      error: 'Cannot change blueprint assessment type during bulk sync',
-    })
-
-    expect(deleteBuilder.delete).not.toHaveBeenCalled()
-  })
-
-  it('rejects assessment updates outside the selected replacement type before deleting rows', async () => {
-    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
-    mockSupabase = makeSupabaseFromQueues({
-      course_blueprints: [
-        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
-      ],
-      course_blueprint_assessments: [
-        makeQueryBuilder({
-          data: [
-            { id: 'q-1', assessment_type: 'quiz' },
-            { id: 't-1', assessment_type: 'test' },
-          ],
-          error: null,
-        }),
-        deleteBuilder,
-      ],
-    })
-
-    await expect(syncCourseBlueprintAssessments(
-      'teacher-1',
-      'b-1',
-      [{
-        id: 't-1',
-        assessment_type: 'test',
-        title: 'Updated Test',
-        content: { title: 'Updated Test', questions: [] } as any,
-        documents: [],
-        position: 0,
-      }],
-      { replaceTypes: ['quiz'] },
-    )).resolves.toEqual({
-      ok: false,
-      status: 400,
-      error: 'Cannot update a blueprint assessment outside the selected assessment type',
     })
 
     expect(deleteBuilder.delete).not.toHaveBeenCalled()
@@ -422,7 +344,7 @@ describe('course-blueprints server helpers', () => {
       ],
       course_blueprint_assessments: [
         makeQueryBuilder({
-          data: [{ id: 'q-1', assessment_type: 'quiz', title: 'Quiz 1', content: {}, documents: null, position: 0 }],
+          data: [{ id: 't-1', assessment_type: 'test', title: 'Test 1', content: {}, documents: null, position: 0 }],
           error: null,
         }),
       ],
@@ -536,7 +458,7 @@ describe('course-blueprints server helpers', () => {
 
     const result = await importCourseBlueprintBundle('teacher-1', {
       manifest: {
-        version: '2',
+        version: '4',
         exported_at: '2026-04-20T00:00:00Z',
         title: 'Imported blueprint',
         subject: '',
@@ -561,7 +483,7 @@ describe('course-blueprints server helpers', () => {
         p_operation_id: operationId,
         p_operation_type: 'import',
         p_plan: expect.objectContaining({
-          manifest_version: '2',
+          manifest_version: '4',
           source_package_exported_at: '2026-04-20T00:00:00Z',
         }),
       }),
@@ -685,15 +607,6 @@ describe('course-blueprints server helpers', () => {
             position: 0,
           },
         ],
-        quizzes: [
-          {
-            assessment_type: 'quiz',
-            title: 'Quiz 1',
-            content: { title: 'Quiz 1', questions: [] },
-            documents: [],
-            position: 0,
-          },
-        ],
         tests: [
           {
             assessment_type: 'test',
@@ -775,14 +688,6 @@ describe('course-blueprints server helpers', () => {
         assessmentInsertBuilder,
         makeQueryBuilder({
           data: [
-            {
-              id: 'q-1',
-              assessment_type: 'quiz',
-              title: 'Quiz 1',
-              content: { title: 'Quiz 1', questions: [] },
-              documents: [],
-              position: 0,
-            },
             {
               id: 't-1',
               assessment_type: 'test',
@@ -1065,7 +970,6 @@ describe('course-blueprints server helpers', () => {
         },
         resources_markdown: '',
         assignments: [],
-        quizzes: [],
         tests: [],
         lesson_templates: [],
       },

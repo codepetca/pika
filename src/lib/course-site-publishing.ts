@@ -9,7 +9,6 @@ export const DEFAULT_PLANNED_COURSE_SITE_CONFIG: PlannedCourseSiteConfig = {
   outline: true,
   resources: true,
   assignments: true,
-  quizzes: false,
   tests: true,
   lesson_plans: true,
 }
@@ -44,8 +43,6 @@ export function normalizePlannedCourseSiteConfig(value: unknown): PlannedCourseS
     outline: asBoolean(record.outline, DEFAULT_PLANNED_COURSE_SITE_CONFIG.outline),
     resources: asBoolean(record.resources, DEFAULT_PLANNED_COURSE_SITE_CONFIG.resources),
     assignments: asBoolean(record.assignments, DEFAULT_PLANNED_COURSE_SITE_CONFIG.assignments),
-    // Version 3 packages retain this serialized key, but quizzes are not an active surface.
-    quizzes: false,
     tests: asBoolean(record.tests, DEFAULT_PLANNED_COURSE_SITE_CONFIG.tests),
     lesson_plans: asBoolean(record.lesson_plans, DEFAULT_PLANNED_COURSE_SITE_CONFIG.lesson_plans),
   }

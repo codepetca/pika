@@ -12,7 +12,6 @@ import {
 const DEFAULT_SETTINGS = {
   use_weights: false,
   assignments_weight: 50,
-  quizzes_weight: 20,
   tests_weight: 30,
 }
 
@@ -799,9 +798,6 @@ export async function loadTeacherGradebook(opts: {
       assignments_earned: assignmentTotals.possible > 0 ? round2(assignmentTotals.earned) : null,
       assignments_possible: assignmentTotals.possible > 0 ? round2(assignmentTotals.possible) : null,
       assignments_percent: calc.assignmentsPercent,
-      quizzes_earned: null,
-      quizzes_possible: null,
-      quizzes_percent: null,
       tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
       tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
       tests_percent: calc.testsPercent,
@@ -927,7 +923,6 @@ export async function loadTeacherGradebook(opts: {
                 is_graded: true,
               }
             }),
-          quizzes: [],
           tests: testDetailsByStudent.get(selectedStudent.student_id) || [],
         }
       : null,
@@ -938,12 +933,10 @@ export async function loadTeacherGradebook(opts: {
         ? round2(finalPercents.reduce((sum, value) => sum + value, 0) / finalPercents.length)
         : null,
       assignments: classAssignmentSummaries,
-      quizzes: [],
       tests: classTestSummaries,
     },
     totals: {
       assignments: assignments.length || 0,
-      quizzes: 0,
       tests: tests.filter((test) => test.status !== 'draft').length || 0,
     },
   }

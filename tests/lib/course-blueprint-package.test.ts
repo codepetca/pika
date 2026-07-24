@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   analyzeCourseBlueprintCompleteness,
@@ -15,11 +12,6 @@ import {
   COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
 } from '@/lib/contracts/course-blueprint-package'
 import type { CourseBlueprintDetail } from '@/types'
-
-const testDir = dirname(fileURLToPath(import.meta.url))
-const V2_BUNDLE = JSON.parse(
-  readFileSync(resolve(testDir, '../fixtures/course-blueprint-package-v2.json'), 'utf8')
-)
 
 const DETAIL: CourseBlueprintDetail = {
   id: 'blueprint-1',
@@ -39,7 +31,6 @@ const DETAIL: CourseBlueprintDetail = {
     outline: true,
     resources: true,
     assignments: true,
-    quizzes: false,
     tests: true,
     lesson_plans: true,
   },
@@ -64,30 +55,6 @@ const DETAIL: CourseBlueprintDetail = {
     },
   ],
   assessments: [
-    {
-      id: 'assessment-1',
-      course_blueprint_id: 'blueprint-1',
-      assessment_type: 'quiz',
-      title: 'Check-in quiz',
-      content: {
-        title: 'Check-in quiz',
-        show_results: false,
-        questions: [
-          {
-            id: '11111111-1111-4111-8111-111111111111',
-            question_text: 'What is the first step?',
-            options: ['Plan', 'Practice'],
-          },
-        ],
-      },
-      documents: [],
-      points_possible: null,
-      gradebook_weight: 10,
-      include_in_final: true,
-      position: 0,
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-    },
     {
       id: 'assessment-2',
       course_blueprint_id: 'blueprint-1',
@@ -144,7 +111,7 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
     expect(parsed.blueprint.planned_site_published).toBe(true)
-    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
+    expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
     expect(parsed.assignments).toHaveLength(1)
     expect(parsed.assignments[0]).toEqual(expect.objectContaining({
       default_due_days: -2,
@@ -169,7 +136,7 @@ describe('course blueprint package', () => {
 
     expect(decoded).not.toBeNull()
     expect(decoded?.manifest.title).toBe('Computer Science 11')
-    expect(decoded?.manifest.version).toBe('3')
+    expect(decoded?.manifest.version).toBe('4')
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
@@ -184,68 +151,17 @@ describe('course blueprint package', () => {
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 
-  it('keeps the version 3 quizzes site flag serialized but permanently disabled', () => {
-    const bundle = buildCourseBlueprintExportBundle({
-      ...DETAIL,
-      planned_site_config: {
-        ...DETAIL.planned_site_config,
-        quizzes: true,
-      },
-    })
-
-    expect(bundle.manifest.version).toBe('3')
-    expect(bundle.manifest.planned_site_config?.quizzes).toBe(false)
-
-    const archive = encodeCourseBlueprintPackageArchive(bundle)
-    const decoded = decodeCourseBlueprintPackageArchive(archive)
-    expect(decoded?.manifest.planned_site_config?.quizzes).toBe(false)
-
-    const legacyArchive = encodeCourseBlueprintPackageArchive({
-      ...bundle,
-      manifest: {
-        ...bundle.manifest,
-        planned_site_config: {
-          ...bundle.manifest.planned_site_config,
-          quizzes: true,
-        },
-      },
-    })
-    const parsed = parseCourseBlueprintImportArchive(legacyArchive)
-
-    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
-  })
-
-  it('imports version 2 packages while ignoring retired quiz content', () => {
-    const parsed = parseCourseBlueprintImportBundle(V2_BUNDLE)
-
-    expect(parsed.errors).toEqual([])
-    expect(parsed.blueprint.title).toBe('Legacy Computer Science')
-    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
-    expect(parsed.assessments).toEqual([])
-  })
-
-  it('decodes a version 2 tar package while ignoring retired quiz content', () => {
-    const archive = encodeCourseBlueprintPackageArchive(V2_BUNDLE)
-    const decoded = decodeCourseBlueprintPackageArchive(archive)
-    const parsed = parseCourseBlueprintImportArchive(archive)
-
-    expect(decoded?.manifest.version).toBe('2')
-    expect(decoded?.files).not.toHaveProperty('quizzes.md')
-    expect(parsed.errors).toEqual([])
-    expect(parsed.blueprint.title).toBe('Legacy Computer Science')
-    expect(parsed.assessments).toEqual([])
-  })
-
-  it.each(['1', '4'])('rejects unsupported package version %s', (version) => {
+  it.each(['1', '2', '5'])('rejects unsupported package version %s', (version) => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
-      ...V2_BUNDLE,
-      manifest: { ...V2_BUNDLE.manifest, version },
+      ...bundle,
+      manifest: { ...bundle.manifest, version },
     })
 
     expect(parsed.errors).toEqual(['Invalid course package bundle'])
   })
 
-  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 3 file %s', (fileName) => {
+  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 4 file %s', (fileName) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
       ...bundle,
@@ -257,12 +173,12 @@ describe('course blueprint package', () => {
 
   it('rejects an archive with an unsupported manifest version', () => {
     const archive = encodeCourseBlueprintPackageArchive(buildCourseBlueprintExportBundle(DETAIL))
-    const versionMarker = new TextEncoder().encode('"version": "3"')
+    const versionMarker = new TextEncoder().encode('"version": "4"')
     const markerOffset = archive.findIndex((byte, index) =>
       versionMarker.every((markerByte, markerIndex) => archive[index + markerIndex] === markerByte)
     )
     expect(markerOffset).toBeGreaterThanOrEqual(0)
-    archive[markerOffset + versionMarker.length - 2] = '4'.charCodeAt(0)
+    archive[markerOffset + versionMarker.length - 2] = '5'.charCodeAt(0)
 
     expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
     expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
@@ -308,9 +224,10 @@ describe('course blueprint package', () => {
   })
 
   it('rejects malformed package manifests at the import boundary', () => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
-      ...V2_BUNDLE,
-      manifest: { ...V2_BUNDLE.manifest, exported_at: 'not-a-date' },
+      ...bundle,
+      manifest: { ...bundle.manifest, exported_at: 'not-a-date' },
     })
 
     expect(parsed.errors).toEqual(['Invalid course package bundle'])

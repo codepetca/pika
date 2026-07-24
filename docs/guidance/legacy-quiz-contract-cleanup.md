@@ -31,22 +31,13 @@ and exact filename.
   - Quiz source-row, draft, and copied-envelope deletion;
   - v1 archives require re-export before compaction;
   - v1 restore discards Quiz resources.
-
-## Active Compatibility To Remove
-
-The hard-removal pass must address:
-
-- database tables, policies, triggers, indexes, update functions, and grants
-  for `quizzes`, `quiz_questions`, `quiz_responses`, and
-  `quiz_student_scores`;
-- `quiz_id` database-shaped fields and generated types;
-- assessment draft unions and dead Quiz question-sync branches;
-- gradebook `quizzes_*` and empty `quizzes` response tombstones;
-- course package, site configuration, and blueprint `quizzes` fields;
-- current server/type/UI names that still accept `'quiz'` even though no
-  product route produces it;
-- retirement inventory/backfill utilities after the destructive catalog audit
-  no longer needs them.
+- Prepared migration 108 and coordinated application cleanup:
+  - drops the four retired Quiz tables and supporting catalog objects;
+  - removes v1 database export RPCs and registry rows;
+  - removes Quiz-shaped draft, gradebook, package, site, blueprint, type, and
+    server contracts;
+  - regenerates database types from the post-drop schema;
+  - retains only the discard-only v1 artifact reader.
 
 Legacy URL tombstone tests may remain only when they prove an old URL cannot
 reopen a removed surface. UI absence tests may mention Quizzes as a negative
@@ -54,7 +45,7 @@ assertion.
 
 ## Hard-Removal Exit Criteria
 
-After migration `108_drop_legacy_quiz_schema.sql` and its application cleanup:
+The migration-108 application and disposable replay satisfy:
 
 1. No active application query references a Quiz table.
 2. No current API payload or TypeScript domain type exposes Quiz keys.

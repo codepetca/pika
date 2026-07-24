@@ -59,7 +59,6 @@ const classroom: Classroom = {
     outline: true,
     resources: true,
     assignments: true,
-    quizzes: true,
     tests: true,
     lesson_plans: true,
     announcements: true,

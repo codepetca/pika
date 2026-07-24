@@ -15,7 +15,6 @@ import {
 } from '@/lib/course-site-publishing'
 import { getDefaultClassroomThemeColor, normalizeClassroomThemeColor } from '@/lib/classroom-theme'
 import type {
-  AssessmentDraftContent,
   CourseBlueprint,
   CourseBlueprintAssignment,
   CourseBlueprintAssessment,
@@ -404,7 +403,7 @@ export async function syncCourseBlueprintAssessments(
     id?: string
     assessment_type: 'test'
     title: string
-    content: AssessmentDraftContent | TestDraftContent
+    content: TestDraftContent
     documents: TestDocument[]
     points_possible?: number | null
     gradebook_weight?: number | null

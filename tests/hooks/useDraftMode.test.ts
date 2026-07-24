@@ -21,7 +21,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useDraftMode>[0]> = {}
 function makeQuestion(overrides: Partial<TestAssessmentQuestion> = {}): TestAssessmentQuestion {
   return {
     id: 'q-1',
-    quiz_id: 'test-1',
+    test_id: 'test-1',
     question_text: 'What is 2+2?',
     question_type: 'multiple_choice',
     options: ['1', '2', '4', '5'],

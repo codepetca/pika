@@ -125,7 +125,7 @@ export function useDraftMode(options: UseDraftModeOptions): UseDraftModeReturn {
           question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
         return {
           id: String(question.id || crypto.randomUUID()),
-          quiz_id: assessmentId,
+          test_id: assessmentId,
           question_text: String(question.question_text || ''),
           options: Array.isArray(question.options)
             ? question.options.map((o) => String(o))

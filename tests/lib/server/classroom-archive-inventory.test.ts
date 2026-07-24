@@ -188,7 +188,7 @@ describe('classroom archive production inventory', () => {
     await expect(inventoryReader.readArchiveResourceContract()).resolves.toEqual(archiveRows)
     await expect(inventoryReader.readGradexResourceContract()).resolves.toEqual(gradexRows)
     expect(ranges.filter(({ table }) => table === 'classroom_archive_resource_contract'))
-      .toHaveLength(9)
+      .toHaveLength(8)
     expect(ranges.filter(({ table }) => table === 'classroom_gradex_resource_contract'))
       .toHaveLength(3)
   })

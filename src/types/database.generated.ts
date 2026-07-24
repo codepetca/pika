@@ -2778,7 +2778,6 @@ export type Database = {
           assignments_weight: number
           classroom_id: string
           created_at: string
-          quizzes_weight: number
           tests_weight: number
           updated_at: string
           use_weights: boolean
@@ -2787,7 +2786,6 @@ export type Database = {
           assignments_weight?: number
           classroom_id: string
           created_at?: string
-          quizzes_weight?: number
           tests_weight?: number
           updated_at?: string
           use_weights?: boolean
@@ -2796,7 +2794,6 @@ export type Database = {
           assignments_weight?: number
           classroom_id?: string
           created_at?: string
-          quizzes_weight?: number
           tests_weight?: number
           updated_at?: string
           use_weights?: boolean
@@ -2892,207 +2889,6 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quiz_questions: {
-        Row: {
-          correct_option: number | null
-          created_at: string
-          id: string
-          options: Json
-          position: number
-          question_text: string
-          quiz_id: string
-          updated_at: string
-        }
-        Insert: {
-          correct_option?: number | null
-          created_at?: string
-          id?: string
-          options: Json
-          position?: number
-          question_text: string
-          quiz_id: string
-          updated_at?: string
-        }
-        Update: {
-          correct_option?: number | null
-          created_at?: string
-          id?: string
-          options?: Json
-          position?: number
-          question_text?: string
-          quiz_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_questions_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quiz_responses: {
-        Row: {
-          id: string
-          question_id: string
-          quiz_id: string
-          selected_option: number
-          student_id: string
-          submitted_at: string
-        }
-        Insert: {
-          id?: string
-          question_id: string
-          quiz_id: string
-          selected_option: number
-          student_id: string
-          submitted_at?: string
-        }
-        Update: {
-          id?: string
-          question_id?: string
-          quiz_id?: string
-          selected_option?: number
-          student_id?: string
-          submitted_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_responses_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "quiz_questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_responses_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_responses_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quiz_student_scores: {
-        Row: {
-          created_at: string
-          graded_at: string | null
-          graded_by: string | null
-          id: string
-          manual_override_score: number | null
-          quiz_id: string
-          student_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          graded_at?: string | null
-          graded_by?: string | null
-          id?: string
-          manual_override_score?: number | null
-          quiz_id: string
-          student_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          graded_at?: string | null
-          graded_by?: string | null
-          id?: string
-          manual_override_score?: number | null
-          quiz_id?: string
-          student_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_student_scores_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_student_scores_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quizzes: {
-        Row: {
-          classroom_id: string
-          created_at: string
-          created_by: string
-          gradebook_weight: number
-          id: string
-          include_in_final: boolean
-          opens_at: string | null
-          points_possible: number
-          position: number
-          show_results: boolean
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          classroom_id: string
-          created_at?: string
-          created_by: string
-          gradebook_weight?: number
-          id?: string
-          include_in_final?: boolean
-          opens_at?: string | null
-          points_possible?: number
-          position?: number
-          show_results?: boolean
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          classroom_id?: string
-          created_at?: string
-          created_by?: string
-          gradebook_weight?: number
-          id?: string
-          include_in_final?: boolean
-          opens_at?: string | null
-          points_possible?: number
-          position?: number
-          show_results?: boolean
-          status?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quizzes_classroom_id_fkey"
-            columns: ["classroom_id"]
-            isOneToOne: false
-            referencedRelation: "classrooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quizzes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -4176,18 +3972,6 @@ export type Database = {
         }
         Returns: Json
       }
-      begin_classroom_archive_export: {
-        Args: {
-          p_classroom_id: string
-          p_operation_id: string
-          p_request_sha256: string
-          p_retention: Json
-          p_source_app_commit: string
-          p_source_schema_migration: string
-          p_teacher_id: string
-        }
-        Returns: Json
-      }
       begin_classroom_archive_export_v2: {
         Args: {
           p_archive_format_version: number
@@ -4508,22 +4292,6 @@ export type Database = {
           p_operation_id: string
           p_restore_contract_version: number
           p_teacher_id: string
-          p_verification: Json
-        }
-        Returns: Json
-      }
-      complete_classroom_archive_export: {
-        Args: {
-          p_artifact_sha256: string
-          p_compressed_byte_size: number
-          p_content_sha256: string
-          p_operation_id: string
-          p_resource_counts: Json
-          p_storage_bucket: string
-          p_storage_object_counts: Json
-          p_storage_path: string
-          p_teacher_id: string
-          p_uncompressed_byte_size: number
           p_verification: Json
         }
         Returns: Json

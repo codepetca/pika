@@ -353,7 +353,7 @@ export function TestDetailPanel({
         const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
         return {
           id: String(question.id || crypto.randomUUID()),
-          quiz_id: testAssessment.id,
+          test_id: testAssessment.id,
           question_text: String(question.question_text || ''),
           options: Array.isArray(question.options)
             ? question.options.map((option) => String(option))
@@ -1104,7 +1104,7 @@ export function TestDetailPanel({
     const nextQuestion: TestAssessmentQuestion = questionType === 'open_response'
       ? {
           id: crypto.randomUUID(),
-          quiz_id: testAssessment.id,
+          test_id: testAssessment.id,
           question_type: 'open_response',
           question_text: '',
           options: [],
@@ -1120,7 +1120,7 @@ export function TestDetailPanel({
         }
       : {
           id: crypto.randomUUID(),
-          quiz_id: testAssessment.id,
+          test_id: testAssessment.id,
           question_type: 'multiple_choice',
           question_text: '',
           options: ['Option 1', 'Option 2'],
@@ -1424,7 +1424,7 @@ export function TestDetailPanel({
         const existing = existingById.get(question.id)
         return {
           id: question.id,
-          quiz_id: testAssessment.id,
+          test_id: testAssessment.id,
           question_type: question.question_type,
           question_text: question.question_text,
           options: question.options,

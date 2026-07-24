@@ -45,7 +45,6 @@ export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
 const COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES = new Set<string>([
   'manifest.json',
   ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES,
-  'quizzes.md',
 ])
 
 export type CourseBlueprintPackageFileName =
@@ -165,16 +164,12 @@ function isZeroTarBlock(block: Uint8Array): boolean {
 
 export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPackageBundle): Uint8Array {
   const parsedBundle = coursePackageBundleSchema.parse(bundle)
-  const legacyQuizFile = 'quizzes.md' in parsedBundle.files
-    ? [{ name: 'quizzes.md', content: parsedBundle.files['quizzes.md'] }]
-    : []
   const files: Array<{ name: string; content: string }> = [
     { name: 'manifest.json', content: JSON.stringify(parsedBundle.manifest, null, 2) },
     ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => ({
       name: fileName,
       content: parsedBundle.files[fileName],
     })),
-    ...legacyQuizFile,
   ]
 
   const parts: Uint8Array[] = []

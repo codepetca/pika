@@ -63,7 +63,7 @@ src/
 │   ├── ai-grading.ts              # AI grading for assignments (OpenAI)
 │   ├── ai-test-grading.ts         # AI grading for tests (OpenAI, gpt-5-nano)
 │   ├── server/
-│   │   ├── assessment-drafts.ts   # Legacy quiz + current test draft system (JSON Patch)
+│   │   ├── assessment-drafts.ts   # Test draft system (JSON Patch)
 │   │   └── tests.ts               # Test query helpers
 │   ├── assignments.ts, assessments.ts, test-responses.ts, scheduling.ts …
 │   └── auth.ts, crypto.ts, timezone.ts, attendance.ts …
@@ -188,9 +188,10 @@ Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshne
 
 ### Assessments Pattern
 Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.
-Some database history, archive resources, and portable-package fields still retain legacy quiz naming
-during the data-contract transition. Active Tests APIs emit only `test` / `tests` response keys.
-Before changing remaining `quiz` / `quizzes` names, load
+The active database, API, package, and TypeScript contracts are Tests-only.
+Historical migrations retain their original names, and the archive-v1 reader
+identifies retired Quiz resources only to discard them while restoring other
+classroom data. Before changing that boundary, load
 [`docs/guidance/legacy-quiz-contract-cleanup.md`](../guidance/legacy-quiz-contract-cleanup.md).
 
 - **Test status**: `getStudentTestStatus()` from `@/lib/tests` — uses `returned_at` field
@@ -392,7 +393,7 @@ Existing indexes (migration 038):
 - `test_questions` — `test_id`, `question_text`, `question_type` (`multiple_choice` | `open_response`), `options`, `correct_option`, `points`, `order`, `reference_answer`, `reference_answer_cache_key`
 - `test_responses` — `student_id`, `test_id`, `question_id`, `selected_option`, `response_text`, `score`, `feedback`, `graded_at`, `ai_grading_model`, `returned`
 - `test_attempts` — `student_id`, `test_id`; tracks submission/return lifecycle
-- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative editing with JSON Patch. Legacy quiz drafts may exist for imported/historical data, but product UI no longer creates quizzes.
+- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative Test editing with JSON Patch.
 
 ### Content
 - `announcements` — `classroom_id`, `content` (markdown text), `created_by`, timestamps

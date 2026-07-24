@@ -135,24 +135,6 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
     assignment_submission_requirements: [
       makeQueryBuilder({ data: [], error: null }),
     ],
-    quizzes: [
-      makeQueryBuilder({
-        data: [
-          {
-            id: 'q-1',
-            title: 'Quiz 1',
-            status: 'published',
-            show_results: true,
-            points_possible: 10,
-            gradebook_weight: 20,
-            include_in_final: true,
-            position: 0,
-          },
-          { id: 'q-2', title: 'Quiz Draft', status: 'draft', show_results: false, position: 1 },
-        ],
-        error: null,
-      }),
-    ],
     tests: [
       makeQueryBuilder({
         data: [
@@ -189,10 +171,6 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
         error: null,
       }),
     ],
-    quiz_questions: [
-      makeQueryBuilder({ data: [{ id: 'qq-1', prompt: 'Q1' }], error: null }),
-      makeQueryBuilder({ data: [{ id: 'qq-2', prompt: 'Q2' }], error: null }),
-    ],
     test_questions: [
       makeQueryBuilder({ data: [{ id: 'tq-1', test_id: 't-1', prompt: 'T1' }], error: null }),
     ],
@@ -207,7 +185,6 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
         data: {
           use_weights: true,
           assignments_weight: 50,
-          quizzes_weight: 20,
           tests_weight: 30,
         },
         error: null,
@@ -272,7 +249,6 @@ describe('course-sites server helpers', () => {
         ok: true,
         site: expect.objectContaining({
           assignments: [expect.objectContaining({ title: 'Essay' })],
-          quizzes: [],
           tests: [expect.objectContaining({ title: 'Unit Test' })],
           grading: expect.objectContaining({
             mode: 'weighted',
@@ -311,7 +287,6 @@ describe('course-sites server helpers', () => {
         resources_markdown: 'Blueprint resources',
         assignments: [{ title: 'Essay', instructions_markdown: 'Old instructions', position: 0 }],
         assessments: [
-          { assessment_type: 'quiz', title: 'Quiz 1', content: { version: 1 } },
           { assessment_type: 'test', title: 'Unit Test', content: { version: 1 } },
         ],
         lesson_templates: [{ title: 'Lesson 1 (2026-04-16)', content_markdown: 'Old lesson', position: 0 }],

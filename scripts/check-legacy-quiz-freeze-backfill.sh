@@ -10,7 +10,6 @@ if [[ "$(docker inspect -f '{{.State.Running}}' "$DB_CONTAINER" 2>/dev/null || t
 fi
 
 TMP_DB="${LEGACY_QUIZ_BACKFILL_DATABASE_NAME:-pika_quiz_backfill_${RANDOM}_$$}"
-PAYLOAD_FILE="$(mktemp)"
 PREFLIGHT_OUTPUT="$(mktemp)"
 LOCK_OUTPUT="$(mktemp)"
 MIGRATION_OUTPUT="$(mktemp)"
@@ -20,7 +19,6 @@ cleanup() {
     wait "$LOCK_HOLDER_PID" >/dev/null 2>&1 || true
   fi
   rm -f \
-    "$PAYLOAD_FILE" \
     "$PREFLIGHT_OUTPUT" \
     "$LOCK_OUTPUT" \
     "$MIGRATION_OUTPUT"
@@ -521,39 +519,6 @@ end;
 $write_freeze$;
 SQL
 
-docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -A -t -v ON_ERROR_STOP=1 -c "
-select jsonb_build_object(
-  'classroomId', '62000000-0000-4000-8000-000000000001'::text,
-  'archiveActors', jsonb_build_array(
-    jsonb_build_object('id', '61000000-0000-4000-8000-000000000001'),
-    jsonb_build_object('id', '61000000-0000-4000-8000-000000000002')
-  ),
-  'resources', jsonb_build_object(
-    'quizzes', (select jsonb_agg(to_jsonb(row) order by row.id) from public.quizzes row),
-    'quiz_questions', (select jsonb_agg(to_jsonb(row) order by row.id) from public.quiz_questions row),
-    'quiz_responses', (select jsonb_agg(to_jsonb(row) order by row.id) from public.quiz_responses row),
-    'quiz_student_scores', (select jsonb_agg(to_jsonb(row) order by row.id) from public.quiz_student_scores row),
-    'assessment_drafts', (
-      select jsonb_agg(to_jsonb(row) order by row.id)
-      from public.assessment_drafts row
-      where row.assessment_type = 'quiz'
-    )
-  ),
-  'envelopeRecords', (
-    select jsonb_agg(to_jsonb(row) order by row.source_resource, row.source_row_id)
-    from public.classroom_retired_assessment_records row
-    where row.classroom_id = '62000000-0000-4000-8000-000000000001'
-  ),
-  'envelopeActors', (
-    select jsonb_agg(to_jsonb(actor) order by actor.id)
-    from public.classroom_retired_assessment_record_actors actor
-    join public.classroom_retired_assessment_records record on record.id = actor.record_id
-    where record.classroom_id = '62000000-0000-4000-8000-000000000001'
-  )
-);" > "$PAYLOAD_FILE"
-
-pnpm exec tsx scripts/validate-legacy-quiz-backfill.ts < "$PAYLOAD_FILE"
-
 echo "Legacy Quiz freeze and backfill database contract passes."
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
@@ -885,6 +850,63 @@ rollback;
 SQL
 
 echo "Classroom archive-v2 direct source database contract passes."
+
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/108_drop_legacy_quiz_schema.sql" >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $hard_removal$
+begin
+  if to_regclass('public.quizzes') is not null
+    or to_regclass('public.quiz_questions') is not null
+    or to_regclass('public.quiz_responses') is not null
+    or to_regclass('public.quiz_student_scores') is not null
+    or exists (
+      select 1
+      from pg_proc procedure_record
+      join pg_namespace namespace on namespace.oid = procedure_record.pronamespace
+      where namespace.nspname in ('public', 'private')
+        and procedure_record.proname ~* '(^|_)quiz(zes)?(_|$)'
+    )
+    or exists (
+      select 1
+      from pg_attribute attribute_record
+      join pg_class relation on relation.oid = attribute_record.attrelid
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      where namespace.nspname in ('public', 'private')
+        and attribute_record.attnum > 0
+        and not attribute_record.attisdropped
+        and attribute_record.attname ~* '(^|_)quiz(zes)?(_|$)'
+    )
+  then
+    raise exception 'Migration 108 retained a legacy Quiz catalog contract';
+  end if;
+
+  if to_regclass('public.tests') is null
+    or to_regclass('public.test_questions') is null
+    or to_regclass('public.test_responses') is null
+    or to_regclass('public.test_attempts') is null
+  then
+    raise exception 'Migration 108 removed part of the Tests schema';
+  end if;
+
+  if exists (
+    select 1
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 1
+  ) or (
+    select count(*)
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 2
+  ) <> 40 then
+    raise exception 'Migration 108 changed the direct archive-v2 contract';
+  end if;
+end;
+$hard_removal$;
+SQL
+
+echo "Legacy Quiz schema hard-removal database contract passes."
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
   -c 'grant usage on schema storage, extensions to service_role; grant select, insert, update, delete on storage.objects to service_role;' >/dev/null

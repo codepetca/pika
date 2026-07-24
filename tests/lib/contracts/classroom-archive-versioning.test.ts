@@ -64,7 +64,7 @@ describe('versioned classroom archive contracts', () => {
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).not.toBe(CLASSROOM_RELATIONAL_RESOURCES)
     expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toHaveLength(42)
     expect(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER).toHaveLength(42)
-    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(44)
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(40)
     expect(
       createHash('sha256')
         .update(JSON.stringify(CLASSROOM_ARCHIVE_V1_RESOURCES))
@@ -78,16 +78,12 @@ describe('versioned classroom archive contracts', () => {
     expect(new Set(CLASSROOM_ARCHIVE_V1_RESTORE_ORDER)).toEqual(
       new Set(CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table)),
     )
-    expect(CLASSROOM_ARCHIVE_V1_RESOURCES).toEqual(
-      CLASSROOM_RELATIONAL_RESOURCES
-        .filter((resource) =>
-          !resource.table.startsWith('classroom_retired_assessment_'),
-        )
-        .map((resource) => ({
-          table: resource.table,
-          primary_key: resource.primary_key,
-          actor_columns: resource.actor_columns,
-        })),
+    expect(CLASSROOM_ARCHIVE_V2_RESOURCES).toEqual(
+      CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+        table: resource.table,
+        primary_key: resource.primary_key,
+        actor_columns: resource.actor_columns,
+      })),
     )
     expect(readFileSync(
       resolve(process.cwd(), 'src/lib/contracts/classroom-archive-resources.ts'),
