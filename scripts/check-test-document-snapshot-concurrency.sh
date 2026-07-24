@@ -123,7 +123,7 @@ insert into public.test_document_snapshot_storage_cleanup (
 );
 SQL
 
-docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 select public.sync_test_document_snapshot_atomic(
   'f1000000-0000-4000-8000-000000000001',
