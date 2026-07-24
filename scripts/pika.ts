@@ -1,5 +1,5 @@
 /**
- * pika.ts — CLI probe for driving Pika's teacher API headlessly.
+ * pika.ts — CLI for driving Pika's teacher API headlessly.
  *
  * Curriculum-as-code: author tests and whole courses as markdown files, push
  * them into Pika. Rides the shared contracts the browser already uses
@@ -333,7 +333,7 @@ async function cmdCourseInstantiate(blueprintId: string, flags: Flags): Promise<
 function printHelp(): void {
   console.log(
     [
-      'pika — CLI probe for Pika teacher operations',
+      'pika — CLI for Pika teacher operations',
       '',
       'Usage:',
       '  pnpm pika login [--email <e>] [--password <p>]',

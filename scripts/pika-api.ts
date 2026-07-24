@@ -1,7 +1,7 @@
 /**
  * pika-api.ts — Minimal authenticated client for Pika's teacher API.
  *
- * CLI probe (branch: cli-probe). Standalone: Node built-ins only, no deps.
+ * Standalone: Node built-ins only, no extra dependencies.
  * Logs in via the same POST /api/auth/login path the browser uses, then
  * persists the `pika_session` cookie to .auth/pika-cli.json (gitignored) so
  * subsequent commands act as the logged-in teacher. No new server code — the

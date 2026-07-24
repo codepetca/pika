@@ -1,8 +1,7 @@
-# `pika` CLI — probe
+# `pika` — teacher CLI
 
-A delete-able experiment (branch `cli-probe`): drive Pika's teacher operations
-headlessly instead of clicking the UI, so you — or an AI agent — can manage
-curriculum as versioned markdown files.
+Drive Pika's teacher operations headlessly instead of clicking the UI, so you —
+or an AI agent — can manage curriculum as versioned markdown files.
 
 **No server changes.** The CLI is a second consumer of the existing role-gated
 API routes. It logs in via the same `POST /api/auth/login` the browser uses,
@@ -13,9 +12,26 @@ rides the shared `src/lib/test-markdown` contract the editor already uses.
 
 1. Start the dev server (local Supabase must be up): `pnpm dev`
 2. Log in as the seeded teacher: `pnpm pika login`
+
    - Defaults to `teacher@example.com` / `test1234` (local seed). Override with
      `--email` / `--password`, or `PIKA_EMAIL` / `PIKA_PASSWORD`.
    - Target another host with `PIKA_BASE_URL=...` (defaults to `localhost:3000`).
+
+## Running it globally (optional)
+
+`pnpm pika …` works from any checkout. To get a bare `pika` on PATH, keep a
+checkout on `main` and symlink the launcher:
+
+```bash
+git clone https://github.com/codepetca/pika.git ~/.pika-cli
+cd ~/.pika-cli && pnpm install
+ln -sf ~/.pika-cli/scripts/pika-global.sh ~/bin/pika
+```
+
+Update it later with `git -C ~/.pika-cli pull`. Override the location with
+`PIKA_CLI_HOME`. The launcher runs the CLI from that checkout while resolving
+paths you type against your current directory, so `pika test pull <id> --out
+quiz.md` writes `quiz.md` where you are, not inside the checkout.
 
 ## Commands
 
@@ -80,30 +96,26 @@ pnpm pika test push <id> unit3/quiz.md --yes    # apply
 Now the quiz lives in git — diffable, reviewable, reusable. `pull → push → pull`
 is a stable round-trip (verified).
 
-## A Pika bug this surfaced (fixed on branch `fix-course-import`)
+## A Pika bug this surfaced
 
-Importing a course package containing tests failed with
-`400 assessments.N: Unrecognized key: "id"`. Root cause: the markdown parsers
-attach `id: existingMatch?.id` for row matching, which is `undefined` on a fresh
-import, and zod 4 rejects an `undefined`-valued key on the `.strict()` write
-schemas. Assignments were already normalized before hitting the schema;
-assessments and lesson templates were passed through raw.
-
-Fixed by normalizing all three consistently in `buildCreateBlueprintWritePlan`.
-It affected the UI's tar upload too, since `importCourseBlueprintArchive`
-delegates to the same function.
-
-**Until that branch merges**, a course directory containing `tests.md` will
-still fail against `main`. Omit it as a workaround.
+Using the CLI turned up a real defect: importing a course package containing
+tests failed with `400 assessments.N: Unrecognized key: "id"`, through both this
+CLI and the UI's tar upload. Fixed in
+[#932](https://github.com/codepetca/pika/pull/932); `pnpm smoke:pika-cli --full`
+now guards it.
 
 ## Scope / known gaps
 
-- **Read-heavy, one write.** Only `test` pull/push so far. Other operations
-  (classrooms, assignments, grading) are reachable via the same client but not
-  yet wrapped — add them only as you actually reach for them.
-- **Push updates an existing test's draft.** Creating a test from scratch
-  (title POST → draft PATCH) and publishing a draft are not wrapped yet.
-- **Local dev only** by design. No prod targeting, no confirmation guards on
-  destructive ops — add both before pointing this anywhere real.
-- Files: `scripts/pika-api.ts` (client), `scripts/pika.ts` (commands),
-  `pika` alias in `package.json`. Delete those three to remove the probe.
+- **Not everything is wrapped.** Tests and courses have commands; classrooms,
+  assignments, and grading are reachable through the same client but unwrapped —
+  add them as you actually reach for them.
+- **`test push` updates an existing test's draft.** Creating a test from
+  scratch and publishing a draft are not wrapped yet.
+- **`course push --replace` deletes and recreates** the blueprint rather than
+  diffing it. Classrooms already instantiated from it are unaffected.
+- **Local dev by default.** `PIKA_BASE_URL` can point elsewhere, but there are
+  no extra confirmation guards for production — add them before doing so.
+- Files: `scripts/pika.ts` (commands), `scripts/pika-api.ts` (client),
+  `scripts/pika-global.sh` (launcher), `scripts/pika-cli-smoke.ts` (tests),
+  `scripts/fixtures/dummy-course/`, and the `pika` / `smoke:pika-cli` scripts in
+  `package.json`.
