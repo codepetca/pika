@@ -45,6 +45,7 @@ export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
 const COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES = new Set<string>([
   'manifest.json',
   ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES,
+  'quizzes.md',
 ])
 
 export type CourseBlueprintPackageFileName =
@@ -171,6 +172,12 @@ export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPacka
       content: parsedBundle.files[fileName],
     })),
   ]
+  if (
+    parsedBundle.manifest.version === '2' &&
+    'quizzes.md' in parsedBundle.files
+  ) {
+    files.push({ name: 'quizzes.md', content: parsedBundle.files['quizzes.md'] })
+  }
 
   const parts: Uint8Array[] = []
 

@@ -37,7 +37,8 @@ and exact filename.
   - removes Quiz-shaped draft, gradebook, package, site, blueprint, type, and
     server contracts;
   - regenerates database types from the post-drop schema;
-  - retains only the discard-only v1 artifact reader.
+  - retains only discard boundaries for archive-v1 resources and import-only
+    course-package v2 `quizzes.md`.
 
 Legacy URL tombstone tests may remain only when they prove an old URL cannot
 reopen a removed surface. UI absence tests may mention Quizzes as a negative

@@ -13,6 +13,11 @@ describe('legacy Quiz schema drop migration', () => {
     expect(migration).toContain('in access exclusive mode nowait;')
     expect(migration).toContain('Migration 107 Quiz purge invariants are not satisfied')
     expect(migration).toContain('Live archive registry still contains a Quiz resource')
+    expect(migration).toContain(
+      'Live archive registry does not exactly match source contract 2',
+    )
+    expect(migration).toContain('where format_version = 2\n  ) <> 40')
+    expect(migration.match(/\bexcept\b/g)).toHaveLength(2)
     expect(migration).toContain('Current Tests schema is incomplete')
     expect(migration).toContain('Current Tests schema depends on the retired Quiz graph')
   })

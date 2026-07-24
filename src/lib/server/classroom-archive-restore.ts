@@ -225,7 +225,8 @@ function validateActorReferences(
   resources: Record<string, JsonObject[]>,
   archivedActorIds: Set<string>,
   contractResources: readonly ClassroomArchiveResourceDefinition[],
-) {
+): Set<string> {
+  const referencedActorIds = new Set<string>()
   for (const resource of contractResources) {
     for (const row of resources[resource.table] || []) {
       for (const column of resource.actor_columns) {
@@ -236,9 +237,11 @@ function validateActorReferences(
             `Archive actor snapshot is missing ${resource.table}.${column}=${String(actorId)}`,
           )
         }
+        referencedActorIds.add(actorId)
       }
     }
   }
+  return referencedActorIds
 }
 
 type BuildClassroomArchiveRestorePlanArgs = {
@@ -318,6 +321,14 @@ function buildClassroomArchiveRestorePlanForVersion(
     throw new Error('Archive storage objects do not exactly match classroom references')
   }
 
+  const retainedSourceResources = manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
+    ? discardRetiredQuizResources(schemaAdaptedResources)
+    : schemaAdaptedResources
+  const retainedActorIds = validateActorReferences(
+    retainedSourceResources,
+    archivedActorIds,
+    CLASSROOM_ARCHIVE_V2_RESOURCES,
+  )
   const currentActorsById = new Map(
     args.currentActors.map((actor) => {
       const parsed = currentActorSchema.parse(actor)
@@ -325,29 +336,38 @@ function buildClassroomArchiveRestorePlanForVersion(
     }),
   )
   const unresolvedActorIds = archivedActors.flatMap((actor) => {
+    if (!retainedActorIds.has(actor.id)) return []
     const current = currentActorsById.get(actor.id)
     return current?.role === actor.role ? [] : [actor.id]
   })
 
-  const storageObjects = manifest.storage_objects.map((object) => {
-    const bytes = args.verified.files.get(object.archive_path)
-    if (!bytes) throw new Error(`Archive storage object is missing: ${object.archive_path}`)
-    return {
-      bucket: object.bucket,
-      sourcePath: object.source_path,
-      restorePath: classroomArchiveRestoreObjectPath({
-        classroomId: manifest.classroom_id,
-        operationId,
-        sha256: object.sha256,
+  const retainedStorageReferences = new Set(
+    discoverClassroomStorageReferences(retainedSourceResources, args.supabaseUrl)
+      .map((reference) => `${reference.bucket}\0${reference.path}`),
+  )
+  const storageObjects = manifest.storage_objects
+    .filter((object) =>
+      retainedStorageReferences.has(`${object.bucket}\0${object.source_path}`),
+    )
+    .map((object) => {
+      const bytes = args.verified.files.get(object.archive_path)
+      if (!bytes) throw new Error(`Archive storage object is missing: ${object.archive_path}`)
+      return {
+        bucket: object.bucket,
         sourcePath: object.source_path,
+        restorePath: classroomArchiveRestoreObjectPath({
+          classroomId: manifest.classroom_id,
+          operationId,
+          sha256: object.sha256,
+          sourcePath: object.source_path,
+          contentType: object.content_type,
+        }),
+        archivePath: object.archive_path,
         contentType: object.content_type,
-      }),
-      archivePath: object.archive_path,
-      contentType: object.content_type,
-      sha256: object.sha256,
-      bytes,
-    }
-  })
+        sha256: object.sha256,
+        bytes,
+      }
+    })
   const restoredPaths = new Map(
     storageObjects.map((object) => [
       `${object.bucket}\0${object.sourcePath}`,
@@ -355,7 +375,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     ]),
   )
   const rewrittenSourceResources = Object.fromEntries(
-    Object.entries(schemaAdaptedResources).map(([table, rows]) => [
+    Object.entries(retainedSourceResources).map(([table, rows]) => [
       table,
       rows.map((row) => rewriteResourceValue({
         value: row,
@@ -365,12 +385,7 @@ function buildClassroomArchiveRestorePlanForVersion(
       }) as JsonObject),
     ]),
   )
-  let rewrittenResources: Record<string, JsonObject[]>
-  if (manifest.version === CLASSROOM_ARCHIVE_V1_VERSION) {
-    rewrittenResources = discardRetiredQuizResources(rewrittenSourceResources)
-  } else {
-    rewrittenResources = rewrittenSourceResources
-  }
+  const rewrittenResources = rewrittenSourceResources
   validateRetiredAssessmentEnvelopeGraph({
     classroomId: manifest.classroom_id,
     records: rewrittenResources.classroom_retired_assessment_records || [],

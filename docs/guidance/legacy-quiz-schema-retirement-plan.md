@@ -79,8 +79,8 @@ cleanup:
 - remove obsolete freeze/backfill helpers and the private backfill ledger when
   no later audit needs it;
 - remove Quiz branches from assessment drafts, gradebook payload tombstones,
-  package/site compatibility fields, domain unions, generated database types,
-  and server helpers;
+  current package/site fields, domain unions, generated database types, and
+  server helpers while retaining the import-only package-v2 discard reader;
 - retain Quiz strings only in immutable historical migrations, the
   discard-only v1 artifact boundary, and narrowly labeled negative tests;
 - add a catalog assertion that no active public table, function, policy,

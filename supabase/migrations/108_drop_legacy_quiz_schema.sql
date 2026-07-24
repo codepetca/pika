@@ -62,6 +62,60 @@ begin
       using errcode = '23514';
   end if;
 
+  if (
+    select count(*)
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 2
+  ) <> 40
+    or exists (
+      select
+        table_name,
+        primary_key_columns,
+        parent_table,
+        parent_column,
+        actor_columns,
+        restore_after,
+        export_position
+      from public.classroom_archive_resource_contract
+      except
+      select
+        table_name,
+        primary_key_columns,
+        parent_table,
+        parent_column,
+        actor_columns,
+        restore_after,
+        export_position
+      from public.classroom_archive_resource_contract_versions
+      where format_version = 2
+    )
+    or exists (
+      select
+        table_name,
+        primary_key_columns,
+        parent_table,
+        parent_column,
+        actor_columns,
+        restore_after,
+        export_position
+      from public.classroom_archive_resource_contract_versions
+      where format_version = 2
+      except
+      select
+        table_name,
+        primary_key_columns,
+        parent_table,
+        parent_column,
+        actor_columns,
+        restore_after,
+        export_position
+      from public.classroom_archive_resource_contract
+    )
+  then
+    raise exception 'Live archive registry does not exactly match source contract 2'
+      using errcode = '23514';
+  end if;
+
   if to_regclass('public.tests') is null
     or to_regclass('public.test_questions') is null
     or to_regclass('public.test_responses') is null

@@ -255,7 +255,7 @@ describe('classroom data inventory', () => {
 describe('classroom artifact contracts', () => {
   it('keeps reusable blueprints explicitly non-recoverable and student-free', () => {
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('4')
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['3', '4'])
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3', '4'])
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.recoverable_classroom_backup).toBe(false)
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('student_work')
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('grades_and_feedback')

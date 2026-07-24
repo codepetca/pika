@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const COURSE_BLUEPRINT_PACKAGE_FORMAT = 'pika.course-package' as const
 export const COURSE_BLUEPRINT_PACKAGE_EXTENSION = '.course-package.tar' as const
 export const COURSE_BLUEPRINT_PACKAGE_VERSION = '4' as const
-export const COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS = ['3', '4'] as const
+export const COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS = ['2', '3', '4'] as const
 export const COURSE_BLUEPRINT_PACKAGE_MAX_BYTES = 8 * 1024 * 1024
 export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES = 2 * 1024 * 1024
 export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT = 8
@@ -22,6 +22,16 @@ const legacyPlannedCourseSiteConfigSchema = z.object({
   tests: z.boolean(),
   lesson_plans: z.boolean(),
 })
+
+const v2PlannedCourseSiteConfigSchema = z.object({
+  overview: z.boolean(),
+  outline: z.boolean(),
+  resources: z.boolean(),
+  assignments: z.boolean(),
+  quizzes: z.boolean(),
+  tests: z.boolean(),
+  lesson_plans: z.boolean(),
+}).strict()
 
 const plannedCourseSiteConfigSchema = z.object({
   overview: z.boolean(),
@@ -43,6 +53,12 @@ const coursePackageManifestBaseShape = {
   planned_site_published: z.boolean().optional(),
 }
 
+const coursePackageManifestV2Schema = z.object({
+  version: z.literal('2'),
+  ...coursePackageManifestBaseShape,
+  planned_site_config: v2PlannedCourseSiteConfigSchema.optional(),
+}).strict()
+
 const coursePackageManifestV3Schema = z.object({
   version: z.literal('3'),
   ...coursePackageManifestBaseShape,
@@ -56,6 +72,7 @@ const coursePackageManifestV4Schema = z.object({
 }).strict()
 
 export const coursePackageManifestSchema = z.discriminatedUnion('version', [
+  coursePackageManifestV2Schema,
   coursePackageManifestV3Schema,
   coursePackageManifestV4Schema,
 ])
@@ -69,6 +86,14 @@ const coursePackageFilesShape = {
   'lesson-plans.md': coursePackageFileContentSchema.default(''),
 }
 
+const coursePackageV2BundleSchema = z.object({
+  manifest: coursePackageManifestV2Schema,
+  files: z.object({
+    ...coursePackageFilesShape,
+    'quizzes.md': coursePackageFileContentSchema.default(''),
+  }).strict(),
+}).strict()
+
 const coursePackageV3BundleSchema = z.object({
   manifest: coursePackageManifestV3Schema,
   files: z.object(coursePackageFilesShape).strict(),
@@ -80,6 +105,7 @@ const coursePackageV4BundleSchema = z.object({
 }).strict()
 
 export const coursePackageBundleSchema = z.union([
+  coursePackageV2BundleSchema,
   coursePackageV3BundleSchema,
   coursePackageV4BundleSchema,
 ])

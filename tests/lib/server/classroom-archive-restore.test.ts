@@ -21,6 +21,7 @@ const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
 const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 const STUDENT_ID = '00000000-0000-4000-8000-000000000004'
 const OPERATION_ID = '00000000-0000-4000-8000-000000000005'
+const QUIZ_ONLY_STUDENT_ID = '00000000-0000-4000-8000-000000000006'
 
 function emptyResources() {
   return Object.fromEntries(
@@ -86,13 +87,13 @@ function buildFixtureBundle() {
         id: '60000000-0000-4000-8000-000000000003',
         quiz_id: '60000000-0000-4000-8000-000000000001',
         question_id: '60000000-0000-4000-8000-000000000002',
-        student_id: STUDENT_ID,
+        student_id: QUIZ_ONLY_STUDENT_ID,
         selected_option: 1,
       }],
       quiz_student_scores: [{
         id: '60000000-0000-4000-8000-000000000004',
         quiz_id: '60000000-0000-4000-8000-000000000001',
-        student_id: STUDENT_ID,
+        student_id: QUIZ_ONLY_STUDENT_ID,
         manual_override_score: 9,
       }],
       assessment_drafts: [{
@@ -102,7 +103,7 @@ function buildFixtureBundle() {
         classroom_id: CLASSROOM_ID,
         content: {
           title: 'Historical Quiz draft',
-          image: 'https://project.supabase.co/storage/v1/object/public/submission-images/student/work.png',
+          image: 'https://project.supabase.co/storage/v1/object/public/submission-images/student/quiz-only.png',
         },
         version: 2,
         created_by: TEACHER_ID,
@@ -124,6 +125,12 @@ function buildFixtureBundle() {
           created_at: '2026-07-13T12:00:00.000Z',
         },
       },
+      {
+        id: QUIZ_ONLY_STUDENT_ID,
+        email: 'quiz-only@example.test',
+        role: 'student',
+        profile: null,
+      },
     ],
     storageObjects: [
       {
@@ -137,6 +144,12 @@ function buildFixtureBundle() {
         sourcePath: 'student/work.png',
         contentType: 'image/png',
         bytes: Buffer.from('image'),
+      },
+      {
+        bucket: 'submission-images',
+        sourcePath: 'student/quiz-only.png',
+        contentType: 'image/png',
+        bytes: Buffer.from('discarded quiz image'),
       },
       {
         bucket: 'test-documents',
@@ -250,6 +263,8 @@ describe('classroom archive restore planning', () => {
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_sequence')
     expect(plan.preflight.unresolved_actor_ids).toEqual([])
     expect(plan.storageObjects).toHaveLength(4)
+    expect(plan.storageObjects.map((object) => object.sourcePath))
+      .not.toContain('student/quiz-only.png')
     expect(plan.storageObjects.every((object) =>
       object.restorePath.startsWith(`restores/${CLASSROOM_ID}/${OPERATION_ID}/`),
     )).toBe(true)

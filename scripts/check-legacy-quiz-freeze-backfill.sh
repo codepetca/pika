@@ -851,6 +851,59 @@ SQL
 
 echo "Classroom archive-v2 direct source database contract passes."
 
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+update public.classroom_archive_resource_contract
+set actor_columns = array[]::text[]
+where table_name = 'tests';
+SQL
+
+if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/108_drop_legacy_quiz_schema.sql" \
+  >"$MIGRATION_OUTPUT" 2>&1; then
+  echo "Migration 108 unexpectedly accepted a drifted archive-v2 registry." >&2
+  exit 1
+fi
+
+if ! grep -Fq \
+  'Live archive registry does not exactly match source contract 2' \
+  "$MIGRATION_OUTPUT"; then
+  cat "$MIGRATION_OUTPUT" >&2
+  echo "Migration 108 did not report the expected archive-v2 registry drift." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $registry_drift$
+begin
+  if not exists (
+    select 1
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 1
+  )
+    or to_regclass('public.quizzes') is null
+  then
+    raise exception 'Migration 108 changed legacy contracts after registry drift';
+  end if;
+end;
+$registry_drift$;
+
+update public.classroom_archive_resource_contract as live
+set
+  primary_key_columns = versioned.primary_key_columns,
+  parent_table = versioned.parent_table,
+  parent_column = versioned.parent_column,
+  actor_columns = versioned.actor_columns,
+  restore_after = versioned.restore_after,
+  export_position = versioned.export_position
+from public.classroom_archive_resource_contract_versions as versioned
+where versioned.format_version = 2
+  and versioned.table_name = live.table_name
+  and live.table_name = 'tests';
+SQL
+
+echo "Migration 108 rejects archive-v2 registry drift without removing Quiz contracts."
+
 docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
   psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
   < "$ROOT/supabase/migrations/108_drop_legacy_quiz_schema.sql" >/dev/null

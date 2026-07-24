@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   analyzeCourseBlueprintCompleteness,
@@ -12,6 +15,11 @@ import {
   COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
 } from '@/lib/contracts/course-blueprint-package'
 import type { CourseBlueprintDetail } from '@/types'
+
+const testDir = dirname(fileURLToPath(import.meta.url))
+const V2_BUNDLE = JSON.parse(
+  readFileSync(resolve(testDir, '../fixtures/course-blueprint-package-v2.json'), 'utf8'),
+)
 
 const DETAIL: CourseBlueprintDetail = {
   id: 'blueprint-1',
@@ -151,7 +159,28 @@ describe('course blueprint package', () => {
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 
-  it.each(['1', '2', '5'])('rejects unsupported package version %s', (version) => {
+  it('imports version 2 packages while discarding retired Quiz content', () => {
+    const parsed = parseCourseBlueprintImportBundle(V2_BUNDLE)
+
+    expect(parsed.errors).toEqual([])
+    expect(parsed.blueprint.title).toBe('Legacy Computer Science')
+    expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
+    expect(parsed.assessments).toEqual([])
+  })
+
+  it('decodes a version 2 archive while discarding retired Quiz content', () => {
+    const archive = encodeCourseBlueprintPackageArchive(V2_BUNDLE)
+    const decoded = decodeCourseBlueprintPackageArchive(archive)
+    const parsed = parseCourseBlueprintImportArchive(archive)
+
+    expect(decoded?.manifest.version).toBe('2')
+    expect(decoded?.files).not.toHaveProperty('quizzes.md')
+    expect(parsed.errors).toEqual([])
+    expect(parsed.blueprint.title).toBe('Legacy Computer Science')
+    expect(parsed.assessments).toEqual([])
+  })
+
+  it.each(['1', '5'])('rejects unsupported package version %s', (version) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
       ...bundle,

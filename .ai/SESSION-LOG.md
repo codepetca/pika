@@ -1140,7 +1140,8 @@ future persistence shape without enabling unapproved schema behavior.
   export RPCs/registry rows, and retired site-configuration keys.
 - Removed active Quiz branches and aliases from assessment drafts, gradebook,
   course packages, publishing, blueprints, current domain types, and server
-  helpers. Course packages now export v4 and import v3/v4.
+  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
+  discards `quizzes.md` while preserving reusable non-Quiz content.
 - Reduced the live classroom ownership graph from 44 to 40 resources while
   retaining the immutable archive-v1 resource contract solely for discard-only
   restore of non-Quiz classroom data.
@@ -1148,13 +1149,23 @@ future persistence shape without enabling unapproved schema behavior.
   generated contract has no Quiz tables, fields, or functions.
 - Removed obsolete retirement inventory, backfill parity, and envelope adapter
   utilities after their destructive decision was finalized.
+- Review remediation preserves course-package v2 as an import-only boundary,
+  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
+  classroom restore now excludes Quiz-only actors and storage objects from the
+  restore plan after validating the complete source artifact.
+- Migration 108 now requires exact equality between the live archive registry
+  and versioned source contract 2. The disposable harness proves registry drift
+  fails without deleting v1 metadata or Quiz tables before restoring the
+  registry and completing hard removal.
 
 **Validation:**
 - Fresh disposable replay through migrations 106-108 passes freeze, direct
   archive-v2 activation, hard-removal catalog assertions, current export,
   restore, and compaction contracts.
-- TypeScript, lint, architecture, and UI policy checks pass.
-- Full Vitest passes: 413 files and 3,682 tests. The post-108 atomic blueprint
+- Generated Supabase types exactly match the disposable post-108 schema.
+- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
+  and the Pika pre-commit audit pass.
+- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
   database contract also passes against the disposable database.
 - Migration 108 was not applied to the shared local database or any hosted
   target.
