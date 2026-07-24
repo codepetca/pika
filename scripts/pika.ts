@@ -18,7 +18,7 @@
  * (localhost:3000) unless PIKA_BASE_URL / E2E_BASE_URL is set.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve, isAbsolute } from 'node:path'
 import { config } from 'dotenv'
 import { login, loadSession, pikaFetch, pikaJson, getBaseUrl } from './pika-api'
 import { testToMarkdown, markdownToTest } from '../src/lib/test-markdown'
@@ -26,7 +26,21 @@ import type { TestMarkdownSerializeInput } from '../src/lib/test-markdown'
 import { decodeCourseBlueprintPackageArchive } from '../src/lib/course-blueprint-package'
 import { COURSE_BLUEPRINT_PACKAGE_VERSION } from '../src/lib/contracts/course-blueprint-package'
 
-config({ path: '.env.local' })
+/**
+ * The CLI must run with CWD set to the repo root (the `@/` tsconfig aliases in
+ * src/lib resolve from there), so the global wrapper cds in before exec'ing.
+ * That would make a user's relative path land in the repo, so paths the user
+ * typed are resolved against PIKA_ORIGIN_PWD — where they actually ran it.
+ */
+const REPO_ROOT = resolve(__dirname, '..')
+const ORIGIN_CWD = process.env.PIKA_ORIGIN_PWD || process.cwd()
+
+/** Resolve a user-supplied path against the caller's directory. */
+function userPath(input: string): string {
+  return isAbsolute(input) ? input : resolve(ORIGIN_CWD, input)
+}
+
+config({ path: join(REPO_ROOT, '.env.local') })
 
 type Flags = Record<string, string | boolean>
 
@@ -138,15 +152,17 @@ async function cmdTestPull(testId: string, flags: Flags): Promise<void> {
   const detail = await pikaJson<TestDetail>(`/api/teacher/tests/${testId}`)
   const markdown = testToMarkdown(toSerializeInput(detail))
   if (typeof flags.out === 'string') {
-    mkdirSync(dirname(flags.out), { recursive: true })
-    writeFileSync(flags.out, markdown.endsWith('\n') ? markdown : markdown + '\n')
-    console.log(`Wrote ${detail.questions.length} question(s) → ${flags.out}`)
+    const out = userPath(flags.out)
+    mkdirSync(dirname(out), { recursive: true })
+    writeFileSync(out, markdown.endsWith('\n') ? markdown : markdown + '\n')
+    console.log(`Wrote ${detail.questions.length} question(s) → ${out}`)
   } else {
     process.stdout.write(markdown + '\n')
   }
 }
 
-async function cmdTestPush(testId: string, file: string, flags: Flags): Promise<void> {
+async function cmdTestPush(testId: string, fileArg: string, flags: Flags): Promise<void> {
+  const file = userPath(fileArg)
   const markdown = readFileSync(file, 'utf8')
   const parsed = markdownToTest(markdown)
   if (parsed.errors.length > 0) {
@@ -192,7 +208,8 @@ async function cmdCourseList(): Promise<void> {
   for (const bp of blueprints) console.log(`${bp.id}  ${bp.title}`)
 }
 
-async function cmdCoursePull(blueprintId: string, dir: string): Promise<void> {
+async function cmdCoursePull(blueprintId: string, dirArg: string): Promise<void> {
+  const dir = userPath(dirArg)
   const res = await pikaFetch(`/api/teacher/course-blueprints/${blueprintId}/export`)
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as { error?: string }
@@ -215,7 +232,8 @@ async function cmdCoursePull(blueprintId: string, dir: string): Promise<void> {
 }
 
 /** Build a course-package bundle from a directory of markdown + manifest.json. */
-function readCourseBundle(dir: string): { manifest: Record<string, unknown>; files: Record<string, string> } {
+function readCourseBundle(dirArg: string): { manifest: Record<string, unknown>; files: Record<string, string> } {
+  const dir = userPath(dirArg)
   const manifestPath = join(dir, 'manifest.json')
   if (!existsSync(manifestPath)) {
     throw new Error(`Missing ${manifestPath}. A course directory needs manifest.json + markdown files.`)

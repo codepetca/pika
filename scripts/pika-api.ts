@@ -8,9 +8,12 @@
  * CLI is just a second consumer of the existing role-gated routes.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
-const SESSION_FILE = process.env.PIKA_SESSION_FILE || '.auth/pika-cli.json'
+// Anchored to the repo, not the caller's directory, so the session is the same
+// whether you run `pnpm pika` in the repo or the global `pika` from anywhere.
+const REPO_ROOT = resolve(__dirname, '..')
+const SESSION_FILE = process.env.PIKA_SESSION_FILE || join(REPO_ROOT, '.auth/pika-cli.json')
 const SESSION_COOKIE_NAME = 'pika_session'
 
 export interface SavedSession {
