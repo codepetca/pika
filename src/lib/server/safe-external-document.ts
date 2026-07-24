@@ -19,7 +19,7 @@ export interface ExternalDocumentResponse {
   status: number
 }
 
-interface PinnedResponse {
+export interface PinnedResponse {
   body: Buffer
   headers: Headers
   status: number
@@ -32,6 +32,7 @@ export interface SafeExternalDocumentDependencies {
     maxBytes: number,
   ) => Promise<PinnedResponse>
   resolve?: (hostname: string) => Promise<ResolvedExternalAddress[]>
+  timeoutMs?: number
 }
 
 const blockedAddresses = new BlockList()
@@ -143,10 +144,11 @@ function headersFromIncoming(headers: Record<string, string | string[] | undefin
   return result
 }
 
-async function requestPinned(
+export async function requestPinnedExternalDocument(
   url: URL,
   address: ResolvedExternalAddress,
   maxBytes: number,
+  timeoutMs = REQUEST_TIMEOUT_MS,
 ): Promise<PinnedResponse> {
   return await new Promise<PinnedResponse>((resolve, reject) => {
     const transport = url.protocol === 'https:' ? httpsRequest : httpRequest
@@ -172,7 +174,7 @@ async function requestPinned(
       },
       lookup,
       method: 'GET',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     }, (response) => {
       const status = response.statusCode || 0
       const headers = headersFromIncoming(response.headers)
@@ -218,7 +220,16 @@ export async function fetchSafeExternalDocument(
   dependencies: SafeExternalDocumentDependencies = {},
 ): Promise<ExternalDocumentResponse> {
   const resolve = dependencies.resolve || defaultResolve
-  const request = dependencies.request || requestPinned
+  const request = dependencies.request || ((
+    url: URL,
+    address: ResolvedExternalAddress,
+    requestMaxBytes: number,
+  ) => requestPinnedExternalDocument(
+    url,
+    address,
+    requestMaxBytes,
+    dependencies.timeoutMs,
+  ))
   let currentUrl = parseExternalUrl(sourceUrl)
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {

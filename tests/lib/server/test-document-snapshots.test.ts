@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TEST_DOCUMENT_MAX_SIZE } from '@/lib/test-documents'
 import { fetchSafeExternalDocument } from '@/lib/server/safe-external-document'
 import { syncExternalLinkTestDocument } from '@/lib/server/test-document-snapshots'
+import {
+  createProvisionalTestDocumentSnapshotCleanup,
+} from '@/lib/server/test-document-snapshot-storage-cleanup'
 
 const mockUpload = vi.fn()
 const mockSupabase = {
@@ -20,6 +23,10 @@ vi.mock('@/lib/server/safe-external-document', () => ({
   fetchSafeExternalDocument: vi.fn(),
 }))
 
+vi.mock('@/lib/server/test-document-snapshot-storage-cleanup', () => ({
+  createProvisionalTestDocumentSnapshotCleanup: vi.fn(),
+}))
+
 describe('syncExternalLinkTestDocument', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -32,6 +39,12 @@ describe('syncExternalLinkTestDocument', () => {
       status: 200,
     })
     mockUpload.mockResolvedValue({ error: null })
+    vi.mocked(createProvisionalTestDocumentSnapshotCleanup).mockImplementation(
+      async ({ storagePath }) => ({
+        id: '10000000-0000-4000-8000-000000000001',
+        storage_path: storagePath,
+      }),
+    )
   })
 
   it('uses the safe fetch boundary and stores a unique immutable snapshot', async () => {
@@ -60,6 +73,12 @@ describe('syncExternalLinkTestDocument', () => {
         upsert: false,
       },
     )
+    expect(createProvisionalTestDocumentSnapshotCleanup).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      storagePath: expect.stringMatching(
+        /^link-docs\/teacher-1\/test-1\/doc-1\/snapshots\/[0-9a-f-]+$/,
+      ),
+    })
     const uploadedBody = mockUpload.mock.calls[0][1] as Buffer
     expect(uploadedBody.toString('utf8')).not.toContain('<script>')
     expect(uploadedBody.toString('utf8')).toContain(
@@ -90,6 +109,25 @@ describe('syncExternalLinkTestDocument', () => {
         },
       }),
     ).rejects.toThrow('Unsupported document type')
+
+    expect(mockUpload).not.toHaveBeenCalled()
+  })
+
+  it('does not upload without durable provisional cleanup evidence', async () => {
+    vi.mocked(createProvisionalTestDocumentSnapshotCleanup).mockResolvedValueOnce(null)
+
+    await expect(
+      syncExternalLinkTestDocument({
+        teacherId: 'teacher-1',
+        testId: 'test-1',
+        doc: {
+          id: 'doc-1',
+          title: 'Reference',
+          source: 'link',
+          url: 'https://docs.example.com/data',
+        },
+      }),
+    ).rejects.toThrow('migration 110')
 
     expect(mockUpload).not.toHaveBeenCalled()
   })

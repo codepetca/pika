@@ -4,6 +4,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { ApiError } from '@/lib/api-handler'
 import { fetchSafeExternalDocument } from '@/lib/server/safe-external-document'
 import {
+  createProvisionalTestDocumentSnapshotCleanup,
+} from '@/lib/server/test-document-snapshot-storage-cleanup'
+import {
   normalizeSnapshotContentType,
   normalizeTestDocuments,
   isSupportedLinkSnapshotContentType,
@@ -52,6 +55,16 @@ export async function syncExternalLinkTestDocument(options: {
 
   const supabase = getServiceRoleClient()
   const snapshotPath = buildSnapshotStoragePath(teacherId, testId, doc.id)
+  const cleanup = await createProvisionalTestDocumentSnapshotCleanup({
+    supabase,
+    storagePath: snapshotPath,
+  })
+  if (!cleanup) {
+    throw new ApiError(
+      503,
+      'Test document snapshot cleanup requires migration 110 to be applied',
+    )
+  }
 
   const { error: uploadError } = await supabase.storage
     .from(TEST_DOCUMENTS_BUCKET)

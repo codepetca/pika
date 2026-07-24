@@ -6,15 +6,20 @@ import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import {
   findTestDocument,
-  removeTestDocumentSnapshot,
   syncExternalLinkTestDocument,
 } from '@/lib/server/test-document-snapshots'
+import {
+  removeQueuedTestDocumentSnapshotPath,
+} from '@/lib/server/test-document-snapshot-storage-cleanup'
 
 export const dynamic = 'force-dynamic'
 
-async function removeSnapshotAfterConflict(snapshotPath: string): Promise<void> {
+async function removeSnapshotAfterConflict(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  snapshotPath: string,
+): Promise<void> {
   try {
-    await removeTestDocumentSnapshot(snapshotPath)
+    await removeQueuedTestDocumentSnapshotPath({ supabase, storagePath: snapshotPath })
   } catch (error) {
     console.error('Failed to remove uncommitted test document snapshot:', error)
   }
@@ -55,7 +60,7 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
   )
 
   if (error) {
-    await removeSnapshotAfterConflict(snapshot.snapshot_path)
+    await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path)
     const details = `${error.message || ''} ${error.details || ''}`.toLowerCase()
     if (details.includes('document_conflict')) {
       return NextResponse.json(
@@ -74,7 +79,7 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
     }
     if (details.includes('sync_test_document_snapshot_atomic')) {
       return NextResponse.json(
-        { error: 'Test document sync requires migration 105 to be applied' },
+        { error: 'Test document sync requires migrations 109 and 110 to be applied' },
         { status: 503 },
       )
     }
@@ -88,7 +93,7 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
   } | null
   const test = atomicResult?.test
   if (!test) {
-    await removeSnapshotAfterConflict(snapshot.snapshot_path)
+    await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path)
     return NextResponse.json({ error: 'Failed to save synced document' }, { status: 500 })
   }
 
@@ -99,7 +104,10 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
     && previousSnapshotPath !== snapshot.snapshot_path
   ) {
     try {
-      await removeTestDocumentSnapshot(previousSnapshotPath)
+      await removeQueuedTestDocumentSnapshotPath({
+        supabase,
+        storagePath: previousSnapshotPath,
+      })
     } catch (cleanupError) {
       console.error('Failed to remove superseded test document snapshot:', cleanupError)
     }

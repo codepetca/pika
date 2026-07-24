@@ -3,9 +3,11 @@ import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/documents/[docId]/sync/route'
 import { ApiError } from '@/lib/api-handler'
 import {
-  removeTestDocumentSnapshot,
   syncExternalLinkTestDocument,
 } from '@/lib/server/test-document-snapshots'
+import {
+  removeQueuedTestDocumentSnapshotPath,
+} from '@/lib/server/test-document-snapshot-storage-cleanup'
 
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({
@@ -49,8 +51,11 @@ vi.mock('@/lib/server/test-document-snapshots', () => ({
     test: { documents?: Array<{ id?: string }> },
     docId: string,
   ) => test.documents?.find((document) => document.id === docId) || null,
-  removeTestDocumentSnapshot: vi.fn(),
   syncExternalLinkTestDocument: vi.fn(),
+}))
+
+vi.mock('@/lib/server/test-document-snapshot-storage-cleanup', () => ({
+  removeQueuedTestDocumentSnapshotPath: vi.fn(),
 }))
 
 const mockRpc = vi.fn()
@@ -66,7 +71,9 @@ describe('POST /api/teacher/tests/[id]/documents/[docId]/sync', () => {
       snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshots/new',
       synced_at: '2026-07-23T14:00:00.000Z',
     })
-    vi.mocked(removeTestDocumentSnapshot).mockResolvedValue()
+    vi.mocked(removeQueuedTestDocumentSnapshotPath).mockResolvedValue({
+      completed: true,
+    })
     mockRpc.mockResolvedValue({
       data: {
         previous_snapshot_path: null,
@@ -162,9 +169,10 @@ describe('POST /api/teacher/tests/[id]/documents/[docId]/sync', () => {
       )
 
       expect(response.status).toBe(expectedStatus)
-      expect(removeTestDocumentSnapshot).toHaveBeenCalledWith(
-        'link-docs/teacher-1/test-1/doc-1/snapshots/new',
-      )
+      expect(removeQueuedTestDocumentSnapshotPath).toHaveBeenCalledWith({
+        supabase: mockSupabase,
+        storagePath: 'link-docs/teacher-1/test-1/doc-1/snapshots/new',
+      })
     },
   )
 
@@ -198,8 +206,9 @@ describe('POST /api/teacher/tests/[id]/documents/[docId]/sync', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(removeTestDocumentSnapshot).toHaveBeenCalledWith(
-      'link-docs/teacher-1/test-1/doc-1/snapshots/previous',
-    )
+    expect(removeQueuedTestDocumentSnapshotPath).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      storagePath: 'link-docs/teacher-1/test-1/doc-1/snapshots/previous',
+    })
   })
 })

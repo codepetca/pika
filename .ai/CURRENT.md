@@ -4,12 +4,13 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 
 ## Current Focus
 
-- Legacy Quiz retirement: PR 930 merged migration 107 and strict archive-v2
-  runtime. Migration 108 hard schema removal and application contract cleanup
-  are in final validation.
-- Shared local schema: 001-105. Migrations 106-108 have passed disposable
-  replay only. No migration in this sequence has been applied to a hosted
-  target.
+- Legacy Quiz retirement is complete on `main` through migration 108.
+- PR 920 is rebased onto that work. Its test-preview and document-snapshot
+  hardening now uses migrations 109-110 and is awaiting final independent
+  review and exact-head CI.
+- The shared local database was reset and seeded through migration 104 before
+  the Quiz-removal merge. Migrations 105-110 are unapplied there; 109-110 have
+  not been applied to any hosted target.
 - Product status: `.ai/features.json`; mobile is deferred and Gradex is owned
   by a separate session.
 

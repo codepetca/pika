@@ -6,6 +6,7 @@ import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
+import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import {
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
@@ -248,6 +249,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   const shouldFinalizeOnClose = status === 'closed' && existing.status === 'active'
 
   const updates: Record<string, any> = {}
+  let validatedDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
   if (title !== undefined) updates.title = title.trim()
   if (status !== undefined && !shouldFinalizeOnClose) updates.status = status
   if (show_results !== undefined) updates.show_results = show_results
@@ -256,6 +258,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     if (!validated.valid) {
       return NextResponse.json({ error: validated.error }, { status: 400 })
     }
+    validatedDocuments = validated
     updates.documents = validated.documents
   }
 
@@ -266,28 +269,39 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   let test: Record<string, any> = existing as Record<string, any>
 
   if (Object.keys(updates).length > 0) {
-    const { data: updatedTest, error } = await supabase
-      .from('tests')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      if (
-        (error.code === '42703' || error.code === 'PGRST204') &&
-        `${error.message || ''} ${error.details || ''}`.toLowerCase().includes('documents')
-      ) {
-        return NextResponse.json(
-          { error: 'Test documents require migration 042 to be applied' },
-          { status: 400 }
-        )
+    if (validatedDocuments?.valid) {
+      const result = await updateTestDocumentsAtomic({
+        supabase,
+        teacherId: user.id,
+        testId: id,
+        expectedStatus: existing.status,
+        expectedDocuments: existing.documents,
+        proposedDocuments: validatedDocuments.documents,
+        ...(updates.title !== undefined ? { title: updates.title as string } : {}),
+        ...(updates.status !== undefined ? { status: updates.status as string } : {}),
+        ...(updates.show_results !== undefined
+          ? { showResults: updates.show_results as boolean }
+          : {}),
+      })
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status })
       }
-      console.error('Error updating test:', error)
-      return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
-    }
+      test = result.test
+    } else {
+      const { data: updatedTest, error } = await supabase
+        .from('tests')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
 
-    test = updatedTest as Record<string, any>
+      if (error) {
+        console.error('Error updating test:', error)
+        return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
+      }
+
+      test = updatedTest as Record<string, any>
+    }
   }
 
   if (shouldFinalizeOnClose) {

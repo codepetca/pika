@@ -4,6 +4,7 @@ import { DELETE, GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { getAssessmentDraftByType } from '@/lib/server/assessment-drafts'
+import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -38,6 +39,9 @@ vi.mock('@/lib/server/tests', () => ({
 }))
 vi.mock('@/lib/server/test-deletion', () => ({
   deleteTeacherTestAtomic: vi.fn(async () => ({ deleted: true, responsesCount: 3 })),
+}))
+vi.mock('@/lib/server/test-document-authoring', () => ({
+  updateTestDocumentsAtomic: vi.fn(),
 }))
 
 vi.mock('@/lib/server/assessment-drafts', () => ({
@@ -74,6 +78,18 @@ describe('PATCH /api/teacher/tests/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.rpc = vi.fn(async () => ({ data: {}, error: null }))
+    vi.mocked(updateTestDocumentsAtomic).mockImplementation(async (input) => ({
+      ok: true,
+      cleanupPaths: [],
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: input.title ?? 'Unit Test',
+        status: input.status ?? 'draft',
+        show_results: input.showResults ?? false,
+        documents: input.proposedDocuments,
+      },
+    }))
   })
 
   it('returns canonical questions for closed tests even when a draft overlay exists', async () => {
@@ -277,30 +293,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
   })
 
   it('updates test documents when payload is valid', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'test-1',
-              classroom_id: 'classroom-1',
-              title: 'Unit Test',
-              status: 'draft',
-              show_results: false,
-              documents: payload.documents || [],
-            },
-            error: null,
-          }),
-        })),
-      })),
-    }))
-
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
-        return {
-          update: updateSpy,
-        }
-      }
       if (table === 'test_questions') {
         return {
           select: vi.fn(() => ({
@@ -331,9 +324,13 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(updateSpy).toHaveBeenCalledWith(
+    expect(updateTestDocumentsAtomic).toHaveBeenCalledWith(
       expect.objectContaining({
-        documents,
+        expectedDocuments: undefined,
+        expectedStatus: 'draft',
+        proposedDocuments: documents,
+        teacherId: 'teacher-1',
+        testId: 'test-1',
       })
     )
     expect(data.test.documents).toEqual(documents)
@@ -373,30 +370,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
   })
 
   it('updates text documents when payload is valid', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'test-1',
-              classroom_id: 'classroom-1',
-              title: 'Unit Test',
-              status: 'draft',
-              show_results: false,
-              documents: payload.documents || [],
-            },
-            error: null,
-          }),
-        })),
-      })),
-    }))
-
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
-        return {
-          update: updateSpy,
-        }
-      }
       if (table === 'test_questions') {
         return {
           select: vi.fn(() => ({
@@ -427,12 +401,38 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(updateSpy).toHaveBeenCalledWith(
+    expect(updateTestDocumentsAtomic).toHaveBeenCalledWith(
       expect.objectContaining({
-        documents,
+        proposedDocuments: documents,
       })
     )
     expect(data.test.documents).toEqual(documents)
+  })
+
+  it('returns 409 instead of falling back when the document CAS loses', async () => {
+    vi.mocked(updateTestDocumentsAtomic).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      error: 'The test documents changed elsewhere. Reload and try again.',
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          documents: [{
+            id: 'doc-1',
+            title: 'Reference',
+            source: 'link',
+            url: 'https://docs.example.com/reference',
+          }],
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(response.status).toBe(409)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('finalizes draft attempts when closing an active test', async () => {
