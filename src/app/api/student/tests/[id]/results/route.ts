@@ -320,7 +320,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     if (typeof response.selected_option !== 'number') return []
     return [{
       id: response.id,
-      quiz_id: testId,
+      test_id: testId,
       question_id: response.question_id,
       student_id: response.student_id,
       selected_option: response.selected_option,

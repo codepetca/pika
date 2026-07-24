@@ -9,8 +9,6 @@ import {
   type ClassroomArchiveRestorePreflight,
 } from '@/lib/contracts/classroom-artifacts'
 import {
-  CLASSROOM_ARCHIVE_V1_RESOURCES,
-  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
   CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
   LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
@@ -22,12 +20,9 @@ import {
   type VerifiedClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import {
-  retiredAssessmentPayloadChecksum,
   validateRetiredAssessmentEnvelopeGraph,
 } from '@/lib/server/classroom-retired-assessment-contract'
 
-export const CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION =
-  '083_resumable_classroom_archive_restore' as const
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
   '107_classroom_archive_v2_direct_source' as const
 
@@ -58,9 +53,9 @@ export type ClassroomArchiveRestorePlan = {
   classroomId: string
   teacherId: string
   sourceSchemaMigration: string
-  sourceContractVersion: typeof CLASSROOM_ARCHIVE_V1_VERSION
-  restoreContractVersion: typeof CLASSROOM_ARCHIVE_V1_VERSION
-  targetSchemaMigration: typeof CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION
+  sourceContractVersion: 1 | 2
+  restoreContractVersion: typeof CLASSROOM_ARCHIVE_V2_VERSION
+  targetSchemaMigration: typeof CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION
   adapterChain: string[]
   sourceResourceCounts: Record<string, number>
   resources: Record<string, JsonObject[]>
@@ -69,14 +64,7 @@ export type ClassroomArchiveRestorePlan = {
   preflight: ClassroomArchiveRestorePreflight
 }
 
-export type ClassroomArchiveV2RestorePlan = Omit<
-  ClassroomArchiveRestorePlan,
-  'sourceContractVersion' | 'restoreContractVersion' | 'targetSchemaMigration'
-> & {
-  sourceContractVersion: 1 | 2
-  restoreContractVersion: typeof CLASSROOM_ARCHIVE_V2_VERSION
-  targetSchemaMigration: typeof CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION
-}
+export type ClassroomArchiveV2RestorePlan = ClassroomArchiveRestorePlan
 
 type RestoreAdapter = {
   id: string
@@ -86,12 +74,6 @@ type RestoreAdapter = {
 }
 
 const RESTORE_ADAPTERS: RestoreAdapter[] = [
-  {
-    id: 'classroom-archive-v1-082-to-083',
-    source: '082_verified_classroom_archive_exports',
-    target: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
-    adapt: cloneResources,
-  },
   {
     id: 'classroom-archive-schema-082-to-107',
     source: '082_verified_classroom_archive_exports',
@@ -243,7 +225,8 @@ function validateActorReferences(
   resources: Record<string, JsonObject[]>,
   archivedActorIds: Set<string>,
   contractResources: readonly ClassroomArchiveResourceDefinition[],
-) {
+): Set<string> {
+  const referencedActorIds = new Set<string>()
   for (const resource of contractResources) {
     for (const row of resources[resource.table] || []) {
       for (const column of resource.actor_columns) {
@@ -254,9 +237,11 @@ function validateActorReferences(
             `Archive actor snapshot is missing ${resource.table}.${column}=${String(actorId)}`,
           )
         }
+        referencedActorIds.add(actorId)
       }
     }
   }
+  return referencedActorIds
 }
 
 type BuildClassroomArchiveRestorePlanArgs = {
@@ -269,22 +254,13 @@ type BuildClassroomArchiveRestorePlanArgs = {
 
 function buildClassroomArchiveRestorePlanForVersion(
   args: BuildClassroomArchiveRestorePlanArgs,
-  restoreContractVersion: 1 | 2,
-): ClassroomArchiveRestorePlan | ClassroomArchiveV2RestorePlan {
+): ClassroomArchiveV2RestorePlan {
   if (!args.artifactChecksumVerified) {
     throw new Error('Classroom archive artifact checksum was not verified')
   }
   const operationId = uuidSchema.parse(args.operationId)
   const manifest = args.verified.manifest
   const sourceContract = getClassroomArchiveContract(manifest.version)
-  if (
-    restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION &&
-    manifest.version !== CLASSROOM_ARCHIVE_V1_VERSION
-  ) {
-    throw new Error(
-      `Classroom archive version ${manifest.version} is verified but not enabled for v1 restore`,
-    )
-  }
   if (!sourceContract.restoreEnabled) {
     throw new Error(
       `Classroom archive version ${manifest.version} is verified but not enabled for restore`,
@@ -292,9 +268,7 @@ function buildClassroomArchiveRestorePlanForVersion(
   }
   const origin = new URL(args.supabaseUrl).origin
   const decoded = decodeClassroomArchiveData(args.verified)
-  const targetSchemaMigration = restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
-    ? CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION
-    : CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION
+  const targetSchemaMigration = CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION
   const adapters = resolveAdapterChain(
     manifest.source.schema_migration,
     targetSchemaMigration,
@@ -321,14 +295,10 @@ function buildClassroomArchiveRestorePlanForVersion(
     sourceContract.resources,
   )
   const adapterChain =
-    restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION &&
     manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
     ? [...adapters.ids, 'classroom-archive-v1-retired-quiz-discard-v1']
     : adapters.ids
-  if (
-    restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION &&
-    manifest.version === CLASSROOM_ARCHIVE_V2_VERSION
-  ) {
+  if (manifest.version === CLASSROOM_ARCHIVE_V2_VERSION) {
     validateRetiredAssessmentEnvelopeGraph({
       classroomId: manifest.classroom_id,
       records: schemaAdaptedResources.classroom_retired_assessment_records || [],
@@ -351,6 +321,14 @@ function buildClassroomArchiveRestorePlanForVersion(
     throw new Error('Archive storage objects do not exactly match classroom references')
   }
 
+  const retainedSourceResources = manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
+    ? discardRetiredQuizResources(schemaAdaptedResources)
+    : schemaAdaptedResources
+  const retainedActorIds = validateActorReferences(
+    retainedSourceResources,
+    archivedActorIds,
+    CLASSROOM_ARCHIVE_V2_RESOURCES,
+  )
   const currentActorsById = new Map(
     args.currentActors.map((actor) => {
       const parsed = currentActorSchema.parse(actor)
@@ -358,29 +336,38 @@ function buildClassroomArchiveRestorePlanForVersion(
     }),
   )
   const unresolvedActorIds = archivedActors.flatMap((actor) => {
+    if (!retainedActorIds.has(actor.id)) return []
     const current = currentActorsById.get(actor.id)
     return current?.role === actor.role ? [] : [actor.id]
   })
 
-  const storageObjects = manifest.storage_objects.map((object) => {
-    const bytes = args.verified.files.get(object.archive_path)
-    if (!bytes) throw new Error(`Archive storage object is missing: ${object.archive_path}`)
-    return {
-      bucket: object.bucket,
-      sourcePath: object.source_path,
-      restorePath: classroomArchiveRestoreObjectPath({
-        classroomId: manifest.classroom_id,
-        operationId,
-        sha256: object.sha256,
+  const retainedStorageReferences = new Set(
+    discoverClassroomStorageReferences(retainedSourceResources, args.supabaseUrl)
+      .map((reference) => `${reference.bucket}\0${reference.path}`),
+  )
+  const storageObjects = manifest.storage_objects
+    .filter((object) =>
+      retainedStorageReferences.has(`${object.bucket}\0${object.source_path}`),
+    )
+    .map((object) => {
+      const bytes = args.verified.files.get(object.archive_path)
+      if (!bytes) throw new Error(`Archive storage object is missing: ${object.archive_path}`)
+      return {
+        bucket: object.bucket,
         sourcePath: object.source_path,
+        restorePath: classroomArchiveRestoreObjectPath({
+          classroomId: manifest.classroom_id,
+          operationId,
+          sha256: object.sha256,
+          sourcePath: object.source_path,
+          contentType: object.content_type,
+        }),
+        archivePath: object.archive_path,
         contentType: object.content_type,
-      }),
-      archivePath: object.archive_path,
-      contentType: object.content_type,
-      sha256: object.sha256,
-      bytes,
-    }
-  })
+        sha256: object.sha256,
+        bytes,
+      }
+    })
   const restoredPaths = new Map(
     storageObjects.map((object) => [
       `${object.bucket}\0${object.sourcePath}`,
@@ -388,7 +375,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     ]),
   )
   const rewrittenSourceResources = Object.fromEntries(
-    Object.entries(schemaAdaptedResources).map(([table, rows]) => [
+    Object.entries(retainedSourceResources).map(([table, rows]) => [
       table,
       rows.map((row) => rewriteResourceValue({
         value: row,
@@ -398,41 +385,17 @@ function buildClassroomArchiveRestorePlanForVersion(
       }) as JsonObject),
     ]),
   )
-  let rewrittenResources: Record<string, JsonObject[]>
-  if (restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION) {
-    rewrittenResources = rewrittenSourceResources
-  } else if (manifest.version === CLASSROOM_ARCHIVE_V1_VERSION) {
-    rewrittenResources = discardRetiredQuizResources(rewrittenSourceResources)
-  } else {
-    rewrittenResources = {
-      ...rewrittenSourceResources,
-      classroom_retired_assessment_records: (
-        rewrittenSourceResources.classroom_retired_assessment_records || []
-      ).map((record) => {
-        if (!isJsonObject(record.payload)) {
-          throw new Error('Retired assessment envelope payload must be an object')
-        }
-        return {
-          ...record,
-          payload_sha256: retiredAssessmentPayloadChecksum(record.payload),
-        }
-      }),
-    }
-  }
-  if (restoreContractVersion === CLASSROOM_ARCHIVE_V2_VERSION) {
-    validateRetiredAssessmentEnvelopeGraph({
-      classroomId: manifest.classroom_id,
-      records: rewrittenResources.classroom_retired_assessment_records || [],
-      recordActors: rewrittenResources.classroom_retired_assessment_record_actors || [],
-      archiveActorIds: archivedActors.map((actor) => actor.id),
-    })
-  }
+  const rewrittenResources = rewrittenSourceResources
+  validateRetiredAssessmentEnvelopeGraph({
+    classroomId: manifest.classroom_id,
+    records: rewrittenResources.classroom_retired_assessment_records || [],
+    recordActors: rewrittenResources.classroom_retired_assessment_record_actors || [],
+    archiveActorIds: archivedActors.map((actor) => actor.id),
+  })
   validateActorReferences(
     rewrittenResources,
     archivedActorIds,
-    restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
-      ? CLASSROOM_ARCHIVE_V1_RESOURCES
-      : CLASSROOM_ARCHIVE_V2_RESOURCES,
+    CLASSROOM_ARCHIVE_V2_RESOURCES,
   )
 
   const preflight = classroomArchiveRestorePreflightSchema.parse({
@@ -453,11 +416,7 @@ function buildClassroomArchiveRestorePlanForVersion(
   }
 
   const orderedResources = Object.fromEntries(
-    (
-      restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
-        ? CLASSROOM_ARCHIVE_V1_RESTORE_ORDER
-        : CLASSROOM_ARCHIVE_V2_RESTORE_ORDER
-    ).map(
+    CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.map(
       (table) => [table, rewrittenResources[table] || []],
     ),
   )
@@ -480,35 +439,16 @@ function buildClassroomArchiveRestorePlanForVersion(
     storageObjects,
     preflight,
   }
-  return restoreContractVersion === CLASSROOM_ARCHIVE_V1_VERSION
-    ? {
-        ...basePlan,
-        sourceContractVersion: CLASSROOM_ARCHIVE_V1_VERSION,
-        restoreContractVersion: CLASSROOM_ARCHIVE_V1_VERSION,
-        targetSchemaMigration: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
-      }
-    : {
-        ...basePlan,
-        sourceContractVersion: manifest.version,
-        restoreContractVersion: CLASSROOM_ARCHIVE_V2_VERSION,
-        targetSchemaMigration: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
-      }
-}
-
-export function buildClassroomArchiveRestorePlan(
-  args: BuildClassroomArchiveRestorePlanArgs,
-): ClassroomArchiveRestorePlan {
-  return buildClassroomArchiveRestorePlanForVersion(
-    args,
-    CLASSROOM_ARCHIVE_V1_VERSION,
-  ) as ClassroomArchiveRestorePlan
+  return {
+    ...basePlan,
+    sourceContractVersion: manifest.version,
+    restoreContractVersion: CLASSROOM_ARCHIVE_V2_VERSION,
+    targetSchemaMigration: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+  }
 }
 
 export function buildClassroomArchiveV2RestorePlan(
   args: BuildClassroomArchiveRestorePlanArgs,
 ): ClassroomArchiveV2RestorePlan {
-  return buildClassroomArchiveRestorePlanForVersion(
-    args,
-    CLASSROOM_ARCHIVE_V2_VERSION,
-  ) as ClassroomArchiveV2RestorePlan
+  return buildClassroomArchiveRestorePlanForVersion(args)
 }

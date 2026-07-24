@@ -75,7 +75,6 @@ const PLANNED_SITE_CONFIG_OPTIONS: Array<[keyof PlannedCourseSiteConfig, string]
 function visiblePlannedSiteConfig(config: PlannedCourseSiteConfig | null | undefined): PlannedCourseSiteConfig {
   return {
     ...(config || DEFAULT_PLANNED_COURSE_SITE_CONFIG),
-    quizzes: false,
   }
 }
 

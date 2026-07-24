@@ -165,17 +165,19 @@ function isZeroTarBlock(block: Uint8Array): boolean {
 
 export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPackageBundle): Uint8Array {
   const parsedBundle = coursePackageBundleSchema.parse(bundle)
-  const legacyQuizFile = 'quizzes.md' in parsedBundle.files
-    ? [{ name: 'quizzes.md', content: parsedBundle.files['quizzes.md'] }]
-    : []
   const files: Array<{ name: string; content: string }> = [
     { name: 'manifest.json', content: JSON.stringify(parsedBundle.manifest, null, 2) },
     ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => ({
       name: fileName,
       content: parsedBundle.files[fileName],
     })),
-    ...legacyQuizFile,
   ]
+  if (
+    parsedBundle.manifest.version === '2' &&
+    'quizzes.md' in parsedBundle.files
+  ) {
+    files.push({ name: 'quizzes.md', content: parsedBundle.files['quizzes.md'] })
+  }
 
   const parts: Uint8Array[] = []
 

@@ -30,7 +30,6 @@ export type ClassroomBlueprintSource = {
     is_draft: boolean
     position: number
   }>
-  quizzes: []
   tests: Array<{
     assessment_type: 'test'
     title: string
@@ -254,7 +253,6 @@ export async function loadClassroomBlueprintSource(
         is_draft: true,
         position: assignment.position ?? 0,
       })),
-      quizzes: [],
       tests: tests.map((test) => ({
           assessment_type: 'test' as const,
           title: test.title,

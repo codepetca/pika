@@ -64,7 +64,6 @@ const SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS = [
 function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefined): ActualCourseSiteConfig {
   return {
     ...(config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG),
-    quizzes: false,
   }
 }
 

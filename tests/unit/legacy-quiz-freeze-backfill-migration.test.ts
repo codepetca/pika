@@ -13,11 +13,6 @@ const databaseHarness = readFileSync(
   resolve(process.cwd(), 'scripts/check-legacy-quiz-freeze-backfill.sh'),
   'utf8',
 )
-const adapterValidator = readFileSync(
-  resolve(process.cwd(), 'scripts/validate-legacy-quiz-backfill.ts'),
-  'utf8',
-)
-
 describe('legacy Quiz freeze and backfill migration', () => {
   it('serializes the freeze, blueprint narrowing, and source snapshot', () => {
     expect(migration).toMatch(/^--[\s\S]*\nbegin;\n/)
@@ -108,7 +103,7 @@ describe('legacy Quiz freeze and backfill migration', () => {
     )
   })
 
-  it('rehearses fail-fast lock conflicts, ordering, timezone, and adapter parity', () => {
+  it('rehearses fail-fast lock conflicts, ordering, timezone, and hard removal', () => {
     expect(databaseHarness).toContain('could not obtain lock on relation')
     expect(databaseHarness).toContain(
       'legacy_quiz_backfill_classroom_parent_conflict',
@@ -127,10 +122,9 @@ describe('legacy Quiz freeze and backfill migration', () => {
     )
     expect(databaseHarness).toContain('pid <> pg_backend_pid()')
     expect(databaseHarness).toContain('timezone=America/Toronto')
+    expect(databaseHarness).toContain('108_drop_legacy_quiz_schema.sql')
     expect(databaseHarness).toContain(
-      'pnpm exec tsx scripts/validate-legacy-quiz-backfill.ts',
+      'Legacy Quiz schema hard-removal database contract passes.',
     )
-    expect(adapterValidator).toContain('async function main()')
-    expect(adapterValidator).not.toMatch(/^const input = await/m)
   })
 })

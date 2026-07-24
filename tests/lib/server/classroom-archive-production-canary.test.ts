@@ -1,8 +1,9 @@
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
-import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   verifyClassroomArchiveBundle,
@@ -136,7 +137,7 @@ function dependencies(options: {
     manifestSha256: SHA,
     operationRequestSha256: { export: SHA, compact: SHA, restore: SHA },
     storageObjectCounts: {},
-    restoreAdapterChain: ['classroom-archive-v1-082-to-083'],
+    restoreAdapterChain: [],
     restoredStorageMappings: [],
     evidence: approvedPlan.pre_evidence,
     restoredEvidence: options.restoredEvidence || approvedPlan.pre_evidence,
@@ -270,6 +271,25 @@ function dependencies(options: {
 }
 
 describe('production classroom archive canary contract', () => {
+  it('loads the actual archive-v2 operator runner', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs'),
+        'scripts/run-classroom-archive-production-canary.ts',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: { ...process.env, ENV_FILE: resolve(process.cwd(), '.env.example') },
+      },
+    )
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('Production classroom archive canary failed:')
+    expect(result.stderr).not.toMatch(/does not provide an export|is not a function/)
+  })
+
   it('accepts pnpm argument forwarding with or without its separator', () => {
     const args = ['prepare', '--plan', '/private/plan.json']
     expect(normalizeClassroomArchiveProductionCanaryCliArguments(args)).toEqual(args)
@@ -477,7 +497,7 @@ describe('production classroom archive canary contract', () => {
   it('builds the runner archive projection from verified source rows', () => {
     const sourcePath = 'student/evidence.png'
     const resources = Object.fromEntries(
-      CLASSROOM_ARCHIVE_V1_RESOURCES.map(({ table }) => [table, []]),
+      CLASSROOM_ARCHIVE_V2_RESOURCES.map(({ table }) => [table, []]),
     ) as Record<string, Array<Record<string, unknown>>>
     resources.classrooms = [{
       id: CLASSROOM_ID,
@@ -503,12 +523,12 @@ describe('production classroom archive canary contract', () => {
       metadata: { preserved: true },
     }]
     const bundle = buildClassroomArchiveBundle({
-      version: 1,
+      version: 2,
       archiveId: plan().operation_ids.export,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,
       createdAt: '2026-07-15T12:00:00.000Z',
-      source: { schemaMigration: '082_verified_classroom_archive_exports', appCommit: COMMIT },
+      source: { schemaMigration: '107_classroom_archive_v2_direct_source', appCommit: COMMIT },
       retention: { mode: 'teacher_managed', delete_after: null },
       resources,
       actors: [
@@ -583,6 +603,11 @@ describe('production classroom archive canary contract', () => {
       'scripts/run-classroom-archive-production-canary.ts',
     ), 'utf8')
     expect(runner).toContain('createClassroomArchiveProductionCanaryVerifiedArchiveProjection({')
+    expect(runner).toContain('buildClassroomArchiveV2RestorePlan({')
+    expect(runner).toContain('CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION')
+    expect(runner).toContain('CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION')
+    expect(runner).not.toContain('buildClassroomArchiveRestorePlan({')
+    expect(runner).not.toContain('CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION')
     expect(runner).not.toContain('restorePlan.resources')
   })
 

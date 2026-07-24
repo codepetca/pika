@@ -83,7 +83,6 @@ export type PublishedActualCourseSiteData = {
   resources: ClassroomResources | null
   resources_markdown: string
   assignments: Array<Record<string, any>>
-  quizzes: Array<Record<string, any>>
   tests: Array<Record<string, any>>
   grading: PublishedCourseSiteGradingSummary | null
   lesson_plans: Array<Record<string, any>>
@@ -358,7 +357,6 @@ export async function getPublishedActualCourseSite(
   const nowIso = new Date().toISOString()
   const maxLessonDate = getMaxAllowedLessonDate(classroom.actual_site_config.lesson_plan_scope)
   const assignments = sourceResult.source.assignments
-  const quizzes: Array<Record<string, any>> = []
   const tests = sourceResult.source.tests
 
   return {
@@ -368,7 +366,6 @@ export async function getPublishedActualCourseSite(
       resources: sourceResult.source.resources,
       resources_markdown: sourceResult.source.resources_markdown,
       assignments,
-      quizzes,
       tests,
       grading: buildCourseSiteGradingSummary(assignments, tests),
       lesson_plans: sourceResult.source.lesson_plans.filter((lesson) => {

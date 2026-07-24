@@ -14935,3 +14935,27 @@
 
 **Remaining:**
 - Independently review PR #894. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.
+
+<!-- pika-session-log-archive-batch:8d544f870b4799bf911c1d161ff7a2475143dea684b3e23645771acfab20e518 -->
+## 2026-07-20 — Blueprint package version contract reconciliation
+
+**Completed:**
+- Merged PR #894, fast-forwarded the hub to `origin/main`, and removed its clean feature worktree and local branch.
+- Made course package version 3 the shared canonical export and lifecycle contract while explicitly retaining version 2 import compatibility.
+- Added a focused Zod boundary for package manifests and files so malformed and unsupported versions fail before operation planning; server operations now consume validated manifest metadata rather than the original request value.
+- Preserved legacy version 2 course content while intentionally ignoring retired `quizzes.md` content, with a checked-in compatibility fixture and bundle/tar regressions.
+- Made v3 file membership strict, bounded HTTP and tar input size/counts, and rejected unknown or duplicate archive entries after independent review; removed the import route from the API validation debt baseline.
+- Added byte-aware per-file limits for both JSON and tar imports after rereview; the final independent rereview reported no actionable findings.
+- Updated package and classroom lifecycle guidance to agree on current and supported versions. No database migration, production access, or visible UI change was required.
+
+**Validation:**
+- `pnpm test` (376 files / 3,514 tests)
+- Focused package, artifact, server, API, documentation, and route-standard suites (6 files / 52 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (606 modules / 0 allowances)
+- `pnpm build`
+- `git diff --check`
+
+**Remaining:**
+- Merge PR #895 after required checks/review. Phase 2 begins after that merge.

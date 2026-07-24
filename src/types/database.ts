@@ -7,7 +7,6 @@ import type { GradingReviewSnapshot } from '@/lib/grading/evals'
 import type { Database as GeneratedDatabase, Json } from '@/types/database.generated'
 import type {
   ActualCourseSiteConfig,
-  AssessmentDraftContent,
   AssessmentDraftType,
   AssignmentAiGradingRunErrorSample,
   AssignmentAiGradingRunStatus,
@@ -85,9 +84,9 @@ type RosterRemovalCounts = {
 type TableOverrides = {
   assessment_drafts: TableContract<
     'assessment_drafts',
-    { assessment_type: AssessmentDraftType; content: AssessmentDraftContent | TestDraftContent },
-    { assessment_type: AssessmentDraftType; content: AssessmentDraftContent | TestDraftContent },
-    { assessment_type?: AssessmentDraftType; content?: AssessmentDraftContent | TestDraftContent }
+    { assessment_type: AssessmentDraftType; content: TestDraftContent },
+    { assessment_type: AssessmentDraftType; content: TestDraftContent },
+    { assessment_type?: AssessmentDraftType; content?: TestDraftContent }
   >
   assignment_ai_grading_runs: TableContract<
     'assignment_ai_grading_runs',
@@ -170,17 +169,17 @@ type TableOverrides = {
     'course_blueprint_assessments',
     {
       assessment_type: AssessmentDraftType
-      content: AssessmentDraftContent | TestDraftContent
+      content: TestDraftContent
       documents: TestDocument[]
     },
     {
       assessment_type: AssessmentDraftType
-      content?: AssessmentDraftContent | TestDraftContent
+      content?: TestDraftContent
       documents?: TestDocument[]
     },
     {
       assessment_type?: AssessmentDraftType
-      content?: AssessmentDraftContent | TestDraftContent
+      content?: TestDraftContent
       documents?: TestDocument[]
     }
   >

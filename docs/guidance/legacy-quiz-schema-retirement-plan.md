@@ -28,9 +28,13 @@ migration filename under the schema rollout checklist.
   non-Quiz classroom resources.
 - Compaction accepts archive-v2 only. A hot classroom backed by a v1 archive
   must be exported again with v2 before it can be compacted.
+- Migration `108_drop_legacy_quiz_schema.sql` is prepared with the coordinated
+  application cleanup. It removes the retired tables, functions, policies,
+  backfill helpers, gradebook column, v1 database export contracts, and site
+  configuration keys. Generated types reflect the post-drop schema.
 
 Migration 105 is present in the shared local database because the local reset
-already applied it. Migrations 106 and 107 have only been replayed in disposable
+already applied it. Migrations 106-108 have only been replayed in disposable
 validation databases. No migration in this sequence has been applied to a
 hosted target during this work.
 
@@ -64,10 +68,10 @@ proves Quiz source rows/drafts/envelopes were removed, captures a 40-resource
 source-v2 snapshot, rejects Quiz membership, finalizes an archive-v2 operation,
 and completes a v2 hot-to-cold compaction.
 
-## Next Pass: Hard Removal
+## Hard Removal
 
-Create migration `108_drop_legacy_quiz_schema.sql` and the coordinated
-application cleanup:
+Migration `108_drop_legacy_quiz_schema.sql` and the coordinated application
+cleanup:
 
 - drop `quiz_responses`, `quiz_student_scores`, `quiz_questions`, and
   `quizzes`;
@@ -75,16 +79,17 @@ application cleanup:
 - remove obsolete freeze/backfill helpers and the private backfill ledger when
   no later audit needs it;
 - remove Quiz branches from assessment drafts, gradebook payload tombstones,
-  package/site compatibility fields, domain unions, generated database types,
-  and server helpers;
-- retain Quiz strings only in immutable historical migrations and narrowly
-  labeled v1 artifact tests, if those tests remain necessary;
+  current package/site fields, domain unions, generated database types, and
+  server helpers while retaining the import-only package-v2 discard reader;
+- retain Quiz strings only in immutable historical migrations, the
+  discard-only v1 artifact boundary, and narrowly labeled negative tests;
 - add a catalog assertion that no active public table, function, policy,
   trigger, generated type, API payload, or application import exposes the
   legacy domain.
 
-Do not edit migrations 105 or 106. Migration 108 must be forward-only and
-idempotent only where PostgreSQL object semantics make that explicit.
+The disposable replay applies migrations 106-108, verifies the post-drop
+catalog, and reruns current archive export, restore, and compaction contracts.
+Do not edit historical migrations. Migration 108 is forward-only.
 
 ## Deployment And Rollback
 

@@ -32,7 +32,6 @@ const plannedSiteConfigSchema = z.object({
   outline: z.boolean(),
   resources: z.boolean(),
   assignments: z.boolean(),
-  quizzes: z.boolean(),
   tests: z.boolean(),
   lesson_plans: z.boolean(),
 }).strict()

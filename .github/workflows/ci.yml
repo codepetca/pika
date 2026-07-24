@@ -63,7 +63,7 @@ jobs:
       - name: Verify atomic archive compaction rollback and cleanup staging
         run: bash scripts/check-classroom-archive-compaction-database.sh
 
-      - name: Verify archive compatibility, then rehearse legacy Quiz freeze and backfill
+      - name: Verify archive compatibility and retired Quiz schema removal
         run: bash scripts/check-legacy-quiz-freeze-backfill.sh
 
       - name: Verify Gradex extract operations and retention cleanup

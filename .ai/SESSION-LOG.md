@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-20 — Blueprint package version contract reconciliation
-
-**Completed:**
-- Merged PR #894, fast-forwarded the hub to `origin/main`, and removed its clean feature worktree and local branch.
-- Made course package version 3 the shared canonical export and lifecycle contract while explicitly retaining version 2 import compatibility.
-- Added a focused Zod boundary for package manifests and files so malformed and unsupported versions fail before operation planning; server operations now consume validated manifest metadata rather than the original request value.
-- Preserved legacy version 2 course content while intentionally ignoring retired `quizzes.md` content, with a checked-in compatibility fixture and bundle/tar regressions.
-- Made v3 file membership strict, bounded HTTP and tar input size/counts, and rejected unknown or duplicate archive entries after independent review; removed the import route from the API validation debt baseline.
-- Added byte-aware per-file limits for both JSON and tar imports after rereview; the final independent rereview reported no actionable findings.
-- Updated package and classroom lifecycle guidance to agree on current and supported versions. No database migration, production access, or visible UI change was required.
-
-**Validation:**
-- `pnpm test` (376 files / 3,514 tests)
-- Focused package, artifact, server, API, documentation, and route-standard suites (6 files / 52 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (606 modules / 0 allowances)
-- `pnpm build`
-- `git diff --check`
-
-**Remaining:**
-- Merge PR #895 after required checks/review. Phase 2 begins after that merge.
-
 ## 2026-07-20 — Phase 2 semantic-token contrast contract
 
 **Completed:**
@@ -1151,3 +1128,56 @@ future persistence shape without enabling unapproved schema behavior.
 - Complete repository validation, independent review, exact-head CI, and merge.
 - Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
   remaining active compatibility types and payload fields.
+
+## 2026-07-23 — Prepared legacy Quiz hard removal
+
+**Risk profile:** runtime-platform/destructive-schema
+
+**Completed:**
+- Added migration 108 to fail closed unless migration 107 purged all retired
+  data, then drop the four Quiz tables, their catalog helpers, the private
+  backfill ledger/functions, `gradebook_settings.quizzes_weight`, v1 database
+  export RPCs/registry rows, and retired site-configuration keys.
+- Removed active Quiz branches and aliases from assessment drafts, gradebook,
+  course packages, publishing, blueprints, current domain types, and server
+  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
+  discards `quizzes.md` while preserving reusable non-Quiz content.
+- Reduced the live classroom ownership graph from 44 to 40 resources while
+  retaining the immutable archive-v1 resource contract solely for discard-only
+  restore of non-Quiz classroom data.
+- Regenerated Supabase database types from a disposable post-108 database; the
+  generated contract has no Quiz tables, fields, or functions.
+- Removed obsolete retirement inventory, backfill parity, and envelope adapter
+  utilities after their destructive decision was finalized.
+- Review remediation preserves course-package v2 as an import-only boundary,
+  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
+  classroom restore now excludes Quiz-only actors and storage objects from the
+  restore plan after validating the complete source artifact.
+- Migration 108 now requires exact equality between the live archive registry
+  and versioned source contract 2. The disposable harness proves registry drift
+  fails without deleting v1 metadata or Quiz tables before restoring the
+  registry and completing hard removal.
+- Final integration review found the production archive canary still bound to
+  archive v1. The operator runner and runbook now use archive format 2, the
+  40-resource graph, migration-107 source/restore contracts, and the current v2
+  restore planner. A subprocess smoke test loads the actual excluded script so
+  future import drift fails in Vitest.
+
+**Validation:**
+- Fresh disposable replay through migrations 106-108 passes freeze, direct
+  archive-v2 activation, hard-removal catalog assertions, current export,
+  restore, and compaction contracts.
+- Generated Supabase types exactly match the disposable post-108 schema.
+- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
+  and the Pika pre-commit audit pass.
+- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
+  database contract also passes against the disposable database.
+- The focused post-review archive suite passes: 4 files and 53 tests, including
+  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
+  and the Pika audit remain green after the canary port.
+- Migration 108 was not applied to the shared local database or any hosted
+  target.
+
+**Remaining:**
+- Complete PR review/remediation, exact-head CI, and merge. Applying migration
+  108 remains separately target-authorized.

@@ -54,7 +54,6 @@ export interface PlannedCourseSiteConfig {
   outline: boolean
   resources: boolean
   assignments: boolean
-  quizzes: boolean
   tests: boolean
   lesson_plans: boolean
 }
@@ -769,7 +768,7 @@ export interface CreateClassroomFromBlueprintInput {
 
 // Assessment/Test types
 export type TestAssessmentStatus = 'draft' | 'active' | 'closed'
-export type TestAssessmentType = 'quiz' | 'test'
+export type TestAssessmentType = 'test'
 export type SurveyStatus = 'draft' | 'active' | 'closed'
 export type SurveyQuestionType = 'multiple_choice' | 'short_text' | 'link'
 export type TestStudentAvailabilityState = 'open' | 'closed'
@@ -781,13 +780,7 @@ export type TestFocusEventType =
 export type TestQuestionType = 'multiple_choice' | 'open_response'
 export type TestDocumentSource = 'link' | 'upload' | 'text'
 
-export type AssessmentDraftType = 'quiz' | 'test'
-
-export type AssessmentDraftQuestion = {
-  id: string
-  question_text: string
-  options: string[]
-}
+export type AssessmentDraftType = 'test'
 
 export type TestDraftQuestion = {
   id: string
@@ -800,14 +793,6 @@ export type TestDraftQuestion = {
   points: number
   response_max_chars: number
   response_monospace: boolean
-}
-
-export type AssessmentDraftContent = {
-  title: string
-  show_results: boolean
-  questions: AssessmentDraftQuestion[]
-  source_format?: 'markdown'
-  source_markdown?: string
 }
 
 export type TestDraftContent = {
@@ -942,7 +927,7 @@ export interface TestAssessment {
 
 export interface TestAssessmentQuestion {
   id: string
-  quiz_id: string
+  test_id: string
   question_text: string
   options: string[]
   position: number
@@ -959,7 +944,7 @@ export interface TestAssessmentQuestion {
 
 export interface TestAssessmentResponse {
   id: string
-  quiz_id: string
+  test_id: string
   question_id: string
   student_id: string
   selected_option: number
@@ -1147,7 +1132,6 @@ export type BlueprintMergeSuggestionArea =
   | 'outline'
   | 'resources'
   | 'assignments'
-  | 'quizzes'
   | 'tests'
   | 'lesson-plans'
   | 'announcements'
@@ -1182,11 +1166,10 @@ export interface GradebookSettings {
   classroom_id: string
   use_weights: boolean
   assignments_weight: number
-  quizzes_weight: number
   tests_weight: number
 }
 
-export type GradebookAssessmentType = 'assignment' | 'quiz' | 'test'
+export type GradebookAssessmentType = 'assignment' | 'test'
 export type GradebookAssessmentStatus =
   | 'missing'
   | 'late'
@@ -1229,9 +1212,6 @@ export interface GradebookStudentSummary {
   assignments_earned: number | null
   assignments_possible: number | null
   assignments_percent: number | null
-  quizzes_earned: number | null
-  quizzes_possible: number | null
-  quizzes_percent: number | null
   tests_earned: number | null
   tests_possible: number | null
   tests_percent: number | null
@@ -1250,16 +1230,6 @@ export interface GradebookAssignmentDetail {
   is_graded: boolean
 }
 
-export interface GradebookQuizDetail {
-  quiz_id: string
-  title: string
-  earned: number
-  possible: number
-  percent: number
-  status: 'draft' | 'active' | 'closed' | null
-  is_manual_override: boolean
-}
-
 export interface GradebookTestDetail {
   test_id: string
   title: string
@@ -1271,7 +1241,6 @@ export interface GradebookTestDetail {
 
 export interface GradebookStudentDetail extends GradebookStudentSummary {
   assignments: GradebookAssignmentDetail[]
-  quizzes: GradebookQuizDetail[]
   tests: GradebookTestDetail[]
 }
 
@@ -1284,15 +1253,6 @@ export interface GradebookClassAssignmentSummary {
   graded_count: number
   average_percent: number | null
   median_percent: number | null
-}
-
-export interface GradebookClassQuizSummary {
-  quiz_id: string
-  title: string
-  status: 'draft' | 'active' | 'closed' | null
-  possible: number
-  scored_count: number
-  average_percent: number | null
 }
 
 export interface GradebookClassTestSummary {
@@ -1309,7 +1269,6 @@ export interface GradebookClassSummary {
   students_with_final: number
   average_final_percent: number | null
   assignments: GradebookClassAssignmentSummary[]
-  quizzes: GradebookClassQuizSummary[]
   tests: GradebookClassTestSummary[]
 }
 

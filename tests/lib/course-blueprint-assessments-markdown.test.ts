@@ -5,28 +5,6 @@ import {
 } from '@/lib/course-blueprint-assessments-markdown'
 
 describe('courseBlueprintAssessmentsToMarkdown', () => {
-  it('falls back to assessment titles when content blobs are incomplete', () => {
-    const markdown = courseBlueprintAssessmentsToMarkdown(
-      [
-        {
-          id: 'assessment-1',
-          assessment_type: 'quiz',
-          title: 'Check-in quiz',
-          content: {},
-          documents: [],
-          points_possible: 40,
-          gradebook_weight: 35,
-          include_in_final: false,
-          position: 0,
-        },
-      ] as any,
-      'quiz'
-    )
-
-    expect(markdown).toContain('Title: Check-in quiz')
-    expect(markdown).toContain('## Questions')
-  })
-
   it('round-trips assessment grading configuration', () => {
     const markdown = courseBlueprintAssessmentsToMarkdown([
       {

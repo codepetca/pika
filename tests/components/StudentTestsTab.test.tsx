@@ -93,7 +93,7 @@ describe('StudentTestsTab exam mode', () => {
         questions: [
           {
             id: 'q1',
-            quiz_id: 'test-1',
+            test_id: 'test-1',
             question_text: '2 + 2 = ?',
             options: ['3', '4'],
             question_type: 'multiple_choice',
@@ -337,7 +337,7 @@ describe('StudentTestsTab exam mode', () => {
         questions: [
           {
             id: 'q-stale',
-            quiz_id: 'test-old',
+            test_id: 'test-old',
             question_text: 'Stale detail question',
             options: ['A', 'B'],
             question_type: 'multiple_choice',
@@ -590,7 +590,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -707,7 +707,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -826,7 +826,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -946,7 +946,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use [Formula Sheet](https://example.com/formula.pdf). 2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -1076,7 +1076,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1232,7 +1232,7 @@ describe('StudentTestsTab exam mode', () => {
             student_status: 'not_started',
             questions: Array.from({ length: 12 }, (_, index) => ({
               id: `q${index + 1}`,
-              quiz_id: 'test-1',
+              test_id: 'test-1',
               question_text: `Question ${index + 1}?`,
               options: ['A', 'B'],
               question_type: 'multiple_choice' as const,
@@ -1331,7 +1331,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -1464,7 +1464,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1591,7 +1591,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use the formula sheet.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1711,7 +1711,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1818,7 +1818,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1911,7 +1911,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2138,7 +2138,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use provided formulas.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -2253,7 +2253,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2392,7 +2392,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2506,7 +2506,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2627,7 +2627,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2730,7 +2730,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2847,7 +2847,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -2977,7 +2977,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3092,7 +3092,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3235,7 +3235,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3392,7 +3392,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3540,7 +3540,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3760,7 +3760,7 @@ describe('StudentTestsTab exam mode', () => {
               questions: [
                 {
                   id: 'q1',
-                  quiz_id: 'test-1',
+                  test_id: 'test-1',
                   question_text: 'Which HTTP method is usually used for partial updates?',
                   options: ['GET', 'POST', 'PATCH', 'DELETE'],
                   question_type: 'multiple_choice',
@@ -3934,7 +3934,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3944,7 +3944,7 @@ describe('StudentTestsTab exam mode', () => {
               },
               {
                 id: 'q2',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Explain one benefit of writing tests before implementation.',
                 options: [],
                 question_type: 'open_response',

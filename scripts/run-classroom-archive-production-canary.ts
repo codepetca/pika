@@ -43,14 +43,15 @@ import {
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import {
-  buildClassroomArchiveRestorePlan,
-  CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+  buildClassroomArchiveV2RestorePlan,
+  CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
 import {
   createSupabaseClassroomArchiveInventoryReader,
   readClassroomArchiveResourceGraph,
 } from '@/lib/server/classroom-archive-inventory'
 import {
+  CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION,
   classroomArchiveStoragePath,
   exportClassroomArchive,
 } from '@/lib/server/classroom-archive-operations'
@@ -110,7 +111,7 @@ const archiveRowSchema = z.object({
   classroom_id: uuidSchema,
   teacher_id: uuidSchema,
   format: z.literal('pika.classroom-archive'),
-  format_version: z.literal(1),
+  format_version: z.literal(2),
   storage_bucket: z.literal('classroom-archives'),
   storage_path: z.string().min(1),
   artifact_sha256: sha256Schema,
@@ -587,7 +588,7 @@ async function readArchiveEvidence(args: {
       teacherId: args.teacherId,
       classroomId: args.classroomId,
       archiveId: args.archiveId,
-      version: 1,
+      version: 2,
     }) ||
     canonicalJsonStringify(metadata.resource_counts) !== canonicalJsonStringify(manifestResourceCounts) ||
     canonicalJsonStringify(metadata.storage_object_counts) !== canonicalJsonStringify(manifestStorageCounts) ||
@@ -636,7 +637,7 @@ async function readArchiveEvidence(args: {
     })),
   })
   const decoded = decodeClassroomArchiveData(verified)
-  const restorePlan = buildClassroomArchiveRestorePlan({
+  const restorePlan = buildClassroomArchiveV2RestorePlan({
     verified,
     operationId: args.restoreOperationId,
     supabaseUrl: args.supabaseUrl,
@@ -681,13 +682,13 @@ async function readArchiveEvidence(args: {
     operationRequestSha256: {
       export: canonicalSha256({
         format: 'pika.classroom-archive',
-        version: 1,
+        version: 2,
         classroom_id: args.classroomId,
         retention: metadata.retention,
       }),
       compact: canonicalSha256({
         format: 'pika.classroom-archive',
-        version: 1,
+        version: 2,
         transition: 'archived_hot:archived_cold',
         classroom_id: args.classroomId,
         archive_id: args.archiveId,
@@ -696,7 +697,7 @@ async function readArchiveEvidence(args: {
         operation: 'classroom_archive_restore',
         archive_id: args.archiveId,
         classroom_id: args.classroomId,
-        target_schema_migration: CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+        target_schema_migration: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
         storage_objects: restoredStorageDescriptors,
       }),
     },
@@ -831,7 +832,7 @@ async function verifyFinalEvidence(args: {
       operation.request_sha256 !== expectedRequestHashes[operation.operation_type] ||
       operation.source_revision !== args.plan.pre_evidence.source_revision ||
       operation.source_app_commit !== args.plan.source_app_commit ||
-      operation.source_schema_migration !== '082_verified_classroom_archive_exports' ||
+      operation.source_schema_migration !== CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION ||
       canonicalJsonStringify(operation.retention) !== canonicalJsonStringify(args.plan.retention) ||
       canonicalJsonStringify(operation.resource_counts) !== canonicalJsonStringify(expectedResourceCounts) ||
       canonicalJsonStringify(operation.storage_object_counts) !==
@@ -841,14 +842,14 @@ async function verifyFinalEvidence(args: {
         teacherId: args.plan.teacher_id,
         classroomId: args.plan.classroom_id,
         archiveId: args.plan.operation_ids.export,
-        version: 1,
+        version: 2,
       }) ||
       operation.artifact_sha256 !== args.archive.artifactSha256 ||
       operation.content_sha256 !== args.archive.contentSha256 ||
       operation.compressed_byte_size !== args.archive.compressedByteSize ||
       operation.uncompressed_byte_size !== args.archive.uncompressedByteSize ||
       (operation.operation_type === 'restore'
-        ? operation.target_schema_migration !== CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION ||
+        ? operation.target_schema_migration !== CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION ||
           canonicalJsonStringify(operation.adapter_chain) !==
             canonicalJsonStringify(args.archive.restoreAdapterChain)
         : operation.target_schema_migration !== null || operation.adapter_chain !== null) ||

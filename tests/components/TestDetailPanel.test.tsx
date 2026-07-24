@@ -122,13 +122,13 @@ describe('TestDetailPanel', () => {
     const currentDraft = createDeferred<Response>()
     const staleQuestion = createMockTestQuestion({
       id: 'q-stale',
-      quiz_id: 'test-stale',
+      test_id: 'test-stale',
       question_text: 'Stale draft question',
       position: 0,
     })
     const currentQuestion = createMockTestQuestion({
       id: 'q-current',
-      quiz_id: 'test-current',
+      test_id: 'test-current',
       question_text: 'Current draft question',
       position: 0,
     })
@@ -2788,7 +2788,7 @@ Prompt:
           }
         }
 
-        if (url.match(/\/api\/teacher\/tests\/quiz-1\/documents\/.+\/sync$/) && options?.method === 'POST') {
+        if (url.match(/\/api\/teacher\/tests\/test-1\/documents\/.+\/sync$/) && options?.method === 'POST') {
           return {
             ok: true,
             json: async () => ({

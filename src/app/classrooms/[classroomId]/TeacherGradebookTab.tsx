@@ -292,7 +292,6 @@ function formatAssessmentRawScore(cell: GradebookAssessmentCell | null, possible
 
 function formatAssessmentTypeLabel(type: GradebookAssessmentColumn['assessment_type']): string {
   if (type === 'assignment') return 'Assignment'
-  if (type === 'quiz') return 'Quiz'
   return 'Test'
 }
 

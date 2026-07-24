@@ -1,8 +1,7 @@
 /**
  * Assessment utilities for status calculation, validation, and result aggregation.
  *
- * Persisted legacy assessment discriminants remain supported without exporting
- * a parallel quiz-named helper surface.
+ * Tests are the only active assessment domain.
  */
 
 import type {
@@ -80,12 +79,6 @@ export function getAssessmentStatusBadgeClass(status: TestAssessmentStatus): str
   return classes[status]
 }
 
-export function getAssessmentType(
-  assessment: { assessment_type?: TestAssessmentType | null }
-): TestAssessmentType {
-  return assessment.assessment_type === 'test' ? 'test' : 'quiz'
-}
-
 /**
  * Check if a student can respond to an assessment.
  */
@@ -119,22 +112,16 @@ export function canStudentViewTestResults(
 }
 
 /**
- * Get the student's status for any assessment (quiz or test).
- *
- * - Quiz-style: pass `show_results` on the assessment object — results visible when closed + show_results.
- * - Test-style: pass `opts.returnedAt` — results visible when closed + teacher has returned the work.
- *
- * The test-specific wrapper below delegates here; call this directly for mixed-type assessments.
+ * Get the student's status for a test.
  */
 export function getStudentAssessmentStatus(
-  assessment: Pick<TestAssessment, 'status'> & { show_results?: boolean | null },
+  assessment: Pick<TestAssessment, 'status'>,
   hasResponded: boolean,
   opts?: { returnedAt?: string | null | boolean }
 ): StudentTestStatus {
   if (!hasResponded) return 'not_started'
   if (assessment.status === 'closed') {
     if (opts?.returnedAt) return 'can_view_results'
-    if (assessment.show_results) return 'can_view_results'
   }
   return 'responded'
 }
@@ -184,7 +171,7 @@ export function aggregateResults(
   })
 }
 
-/** Maximum number of options per assessment question. */
+/** Maximum number of options per test question. */
 export const MAX_ASSESSMENT_OPTIONS = 6
 
 /**

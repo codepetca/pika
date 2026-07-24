@@ -78,10 +78,11 @@ The three artifacts solve different problems and must not be substituted for eac
 | Classroom archive | Recover the complete classroom | Yes | Yes | Private `classroom-archives` bucket |
 | Gradex extract | Improve and evaluate grading behavior | Deidentified subset | No | Private `gradex-analytics-extracts` bucket |
 
-The canonical `.course-package.tar` export manifest is version 3. Import accepts versions 2 and 3;
-legacy version 2 `quizzes.md` content is intentionally ignored because quizzes are no longer a product
-surface. The package includes teacher-authored course content, assignment and test templates, lesson
-templates, grading configuration, submission requirement templates, and planned-site configuration.
+The canonical `.course-package.tar` export manifest is version 4. Import accepts versions 2, 3, and
+4; version 2 discards `quizzes.md`, and version 3 manifests are normalized to the current planned-site
+configuration. The package includes teacher-authored course content, assignment and Test templates,
+lesson templates, grading configuration, submission requirement templates, and planned-site
+configuration.
 It excludes rosters, students, submissions, grades, attendance, journals, telemetry, join credentials,
 runtime publication state, and storage objects. A course package is never evidence that classroom data
 is recoverable.
@@ -115,7 +116,7 @@ teacher has a visible recovery path.
 ## Complete Archive Format
 
 The canonical archive is a gzip-compressed tar bundle with manifest format
-`pika.classroom-archive`, version 1. The manifest is strict and contains:
+`pika.classroom-archive`, version 2. The manifest is strict and contains:
 
 - archive, classroom, and owning-teacher ids
 - source application commit and source schema migration
@@ -130,9 +131,9 @@ The canonical archive is a gzip-compressed tar bundle with manifest format
 Relational files use UTF-8 NDJSON. Each row uses canonical JSON with recursively sorted object keys,
 and rows sort by their primary-key tuple before serialization. The manifest content checksum hashes
 the canonical, path-sorted sequence of each file path, byte count, and file SHA-256. Changing this
-serialization requires an archive-format version or an adapter that preserves version 1 verification.
+serialization requires an archive-format version or an adapter that preserves version 2 verification.
 
-The resource inventory currently contains 42 tables. `CLASSROOM_RELATIONAL_RESOURCES` defines the
+The resource inventory currently contains 40 tables. `CLASSROOM_RELATIONAL_RESOURCES` defines the
 selection path, all restore dependencies, privacy classes, and Gradex disposition for each table.
 Rows export and restore parent-first; destructive cleanup runs in exact reverse order.
 
@@ -149,7 +150,7 @@ Any migration that adds, removes, or changes a classroom-descendant foreign key 
 1. `CLASSROOM_RELATIONAL_RESOURCES`
 2. privacy classification and Gradex disposition
 3. archive export and restore adapters when the serialized shape changes
-4. manifest version only when backward-compatible adapters cannot preserve the version 1 contract
+4. manifest version only when backward-compatible adapters cannot preserve the version 2 contract
 5. focused archive, restore, and schema-audit tests
 
 The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
@@ -234,7 +235,7 @@ same operation id.
 
 `pnpm canary:classroom-archive-production` is the only supported operator runner for the first named
 production export, cold-compaction, and immediate restore. It is not a route, schedule, or general
-classroom command. Before use, migrations 082 through 098, the direct catalog audit, the read-only
+classroom command. Before use, all migrations through 108, the direct catalog audit, the read-only
 inventory, database headroom, and deployment of the exact runner commit must be independently
 verified.
 
@@ -251,7 +252,7 @@ classroom UUID with no prior lifecycle operation, and the actual database quota 
 `CLASSROOM_ARCHIVE_PRODUCTION_CANARY_CLASSROOM_ID`, and
 `CLASSROOM_ARCHIVE_PRODUCTION_CANARY_DATABASE_BUDGET_BYTES`. The ordinary hosted Supabase URL and
 matching service-role JWT are also required. Preparation captures the clean git commit, stable source
-revision, all 42 canonical resource row/byte/SHA-256 descriptors, every referenced source object's
+revision, all 40 canonical resource row/byte/SHA-256 descriptors, every referenced source object's
 byte/SHA-256 descriptor, the Management API's current database size, deterministic phase operation
 UUIDs, and a digest over the complete plan. `SUPABASE_ACCESS_TOKEN` is required for the read-only
 pre/post `pg_database_size` evidence. Paths and classroom content are not printed.

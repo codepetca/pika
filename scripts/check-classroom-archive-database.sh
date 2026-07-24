@@ -84,8 +84,8 @@ begin
   where not trigger_definition.tgisinternal
     and relation_namespace.nspname = 'public'
     and trigger_definition.tgname like 'car_%';
-  if v_trigger_count <> 43 then
-    raise exception 'Expected 43 classroom descendant revision triggers, got %', v_trigger_count;
+  if v_trigger_count <> 39 then
+    raise exception 'Expected 39 classroom descendant revision triggers, got %', v_trigger_count;
   end if;
 
   v_result := public.begin_classroom_archive_export_v2(

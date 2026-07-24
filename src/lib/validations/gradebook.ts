@@ -20,7 +20,6 @@ const gradebookPatchInputSchema = z.preprocess(normalizeRequestObject, z.object(
   gradebook_weight: z.unknown().optional(),
   use_weights: z.unknown().optional(),
   assignments_weight: z.unknown().optional(),
-  quizzes_weight: z.unknown().optional(),
   tests_weight: z.unknown().optional(),
 }).passthrough())
 
@@ -64,7 +63,6 @@ export const gradebookPatchSchema = gradebookPatchInputSchema.transform((body, c
   const hasLegacyCategorySettingsUpdate =
     body.use_weights != null ||
     body.assignments_weight != null ||
-    body.quizzes_weight != null ||
     body.tests_weight != null
 
   if (hasAssessmentWeightUpdate) {

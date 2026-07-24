@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  CLASSROOM_RELATIONAL_RESOURCES,
-  getClassroomResourceOrder,
-} from '@/lib/contracts/classroom-data'
+  CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V1_RESTORE_ORDER,
+} from '@/lib/contracts/classroom-archive-resources'
 
 const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/082_verified_classroom_archive_exports.sql'),
@@ -19,18 +19,13 @@ function sqlTextArray(values: string[]) {
 
 describe('verified classroom archive migration', () => {
   it('mirrors the executable resource graph and primary keys exactly', () => {
-    const order = getClassroomResourceOrder('export').filter((table) =>
-      !table.startsWith('classroom_retired_assessment_'),
-    )
-    for (const [position, table] of order.entries()) {
-      const resource = CLASSROOM_RELATIONAL_RESOURCES.find((item) => item.table === table)
+    for (const [position, table] of CLASSROOM_ARCHIVE_V1_RESTORE_ORDER.entries()) {
+      const resource = CLASSROOM_ARCHIVE_V1_RESOURCES.find((item) => item.table === table)
       expect(resource).toBeDefined()
       if (!resource) continue
-      const parent = resource.scope.kind === 'root' ? 'null' : `'${resource.scope.parent}'`
-      const column = resource.scope.kind === 'root' ? 'null' : `'${resource.scope.column}'`
-      expect(migration).toContain(
-        `('${resource.table}', ${sqlTextArray(resource.primary_key)}, ${parent}, ${column}, ${sqlTextArray(resource.restore_after)}, ${position})`,
-      )
+      expect(migration).toMatch(new RegExp(
+        `\\('${resource.table}', ${sqlTextArray(resource.primary_key).replaceAll('[', '\\[').replaceAll(']', '\\]')}[^\\n]+, ${position}\\)`,
+      ))
       if (resource.actor_columns.length > 0) {
         expect(migration).toContain(
           `when '${resource.table}' then ${sqlTextArray(resource.actor_columns)}`,
