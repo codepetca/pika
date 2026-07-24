@@ -1,13 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
-  CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+  CLASSROOM_ARCHIVE_V2_VERSION,
   classroomArchiveRetentionSchema,
 } from '@/lib/contracts/classroom-artifacts'
 import {
   type ClassroomResourceTable,
 } from '@/lib/contracts/classroom-data'
-import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -20,7 +20,8 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
 export const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
-export const CLASSROOM_ARCHIVE_SOURCE_MIGRATION = '082_verified_classroom_archive_exports' as const
+export const CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION =
+  '107_classroom_archive_v2_direct_source' as const
 export const CLASSROOM_ARCHIVE_MAX_BYTES = 50 * 1024 * 1024
 
 const uuidSchema = z.string().uuid()
@@ -82,15 +83,25 @@ const completedOperationSchema = z.object({
   source_revision: z.number().int().positive().optional(),
 }).strict()
 
-const beginOperationResultSchema = z.union([
+const snapshotReadyV2Schema = snapshotReadySchema.extend({
+  source_contract_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+  archive_format_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+}).strict()
+
+const completedOperationV2Schema = completedOperationSchema.extend({
+  source_contract_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+  archive_format_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+}).strict()
+
+const beginOperationV2ResultSchema = z.union([
   operationFailureSchema,
-  snapshotReadySchema,
-  completedOperationSchema,
+  snapshotReadyV2Schema,
+  completedOperationV2Schema,
 ])
 
-const completeOperationResultSchema = z.union([
+const completeOperationV2ResultSchema = z.union([
   operationFailureSchema,
-  completedOperationSchema,
+  completedOperationV2Schema,
 ])
 
 export type ClassroomArchiveExportResult =
@@ -143,7 +154,7 @@ class ClassroomArchiveExportError extends Error {
 }
 
 function assertExactResourceCounts(counts: Record<string, number>) {
-  const expectedTables = CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table)
+  const expectedTables = CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table)
   const actualTables = Object.keys(counts).sort()
   if (
     actualTables.length !== expectedTables.length ||
@@ -203,15 +214,10 @@ export function classroomArchiveStoragePath(args: {
   return `${uuidSchema.parse(args.teacherId)}/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.archiveId)}/classroom-v${args.version}.tar.gz`
 }
 
-function isMissingArchiveRpc(error: { code?: string; message?: string } | null | undefined): boolean {
-  if (!error) return false
-  const message = (error.message || '').toLowerCase()
-  return (
-    error.code === '42883' ||
-    error.code === 'PGRST202' ||
-    message.includes('begin_classroom_archive_export') ||
-    message.includes('complete_classroom_archive_export')
-  )
+function isMissingArchiveV2Rpc(
+  error: { code?: string; message?: string } | null | undefined,
+): boolean {
+  return Boolean(error && (error.code === '42883' || error.code === 'PGRST202'))
 }
 
 async function loadSnapshotIds(
@@ -314,7 +320,7 @@ async function loadClassroomResources(
   resourceCounts: Record<string, number>,
 ): Promise<Record<string, Record<string, unknown>[]>> {
   const resources: Record<string, Record<string, unknown>[]> = {}
-  for (const resource of CLASSROOM_ARCHIVE_V1_RESOURCES) {
+  for (const resource of CLASSROOM_ARCHIVE_V2_RESOURCES) {
     if (resource.primary_key.length !== 1) {
       throw new ClassroomArchiveExportError(
         'archive_composite_key_adapter_required',
@@ -529,6 +535,56 @@ function emitArchiveMetric(result: ClassroomArchiveExportResult, startedAt: numb
   }))
 }
 
+async function beginArchiveExport(args: {
+  supabase: SupabaseClient
+  operationId: string
+  teacherId: string
+  classroomId: string
+  retention: ArchiveRetention
+  sourceAppCommit: string
+}): Promise<z.infer<typeof beginOperationV2ResultSchema>> {
+  const requestSha256 = hashClassroomArchiveRequest({
+    format: 'pika.classroom-archive',
+    version: CLASSROOM_ARCHIVE_V2_VERSION,
+    classroom_id: args.classroomId,
+    retention: args.retention,
+  })
+  const v2Response = await args.supabase.rpc('begin_classroom_archive_export_v2', {
+    p_operation_id: args.operationId,
+    p_teacher_id: args.teacherId,
+    p_classroom_id: args.classroomId,
+    p_request_sha256: requestSha256,
+    p_source_schema_migration: CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION,
+    p_source_app_commit: args.sourceAppCommit,
+    p_retention: args.retention,
+    p_source_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
+    p_archive_format_version: CLASSROOM_ARCHIVE_V2_VERSION,
+  })
+  if (v2Response.error) {
+    const missingMigration = isMissingArchiveV2Rpc(v2Response.error)
+    throw new ClassroomArchiveExportError(
+      missingMigration
+        ? 'classroom_archive_migration_required'
+        : 'archive_snapshot_begin_failed',
+      missingMigration
+        ? 'Classroom archive export requires migration 107'
+        : 'Failed to start classroom archive-v2 snapshot',
+      503,
+      true,
+    )
+  }
+  const parsed = beginOperationV2ResultSchema.safeParse(v2Response.data)
+  if (!parsed.success) {
+    throw new ClassroomArchiveExportError(
+      'archive_rpc_contract_invalid',
+      'Classroom archive-v2 snapshot returned an invalid contract',
+      500,
+      false,
+    )
+  }
+  return parsed.data
+}
+
 export async function exportClassroomArchive(args: {
   supabase: SupabaseClient
   operationId: string
@@ -540,56 +596,23 @@ export async function exportClassroomArchive(args: {
 }): Promise<ClassroomArchiveExportResult> {
   const startedAt = Date.now()
   const retention = classroomArchiveRetentionSchema.parse(args.retention)
-  const requestSha256 = hashClassroomArchiveRequest({
-    format: 'pika.classroom-archive',
-    version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
-    classroom_id: args.classroomId,
-    retention,
-  })
 
   try {
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_export', {
-      p_operation_id: args.operationId,
-      p_teacher_id: args.teacherId,
-      p_classroom_id: args.classroomId,
-      p_request_sha256: requestSha256,
-      p_source_schema_migration: CLASSROOM_ARCHIVE_SOURCE_MIGRATION,
-      p_source_app_commit: args.sourceAppCommit,
-      p_retention: retention,
+    const begun = await beginArchiveExport({
+      ...args,
+      retention,
     })
-    if (beginResponse.error) {
-      throw new ClassroomArchiveExportError(
-        isMissingArchiveRpc(beginResponse.error)
-          ? 'classroom_archive_migration_required'
-          : 'archive_snapshot_begin_failed',
-        isMissingArchiveRpc(beginResponse.error)
-          ? 'Classroom archive export requires migration 082'
-          : 'Failed to start classroom archive snapshot',
-        503,
-        true,
-      )
+    if (!begun.ok) {
+      emitArchiveMetric(begun, startedAt)
+      return begun
     }
-
-    const parsedBegin = beginOperationResultSchema.safeParse(beginResponse.data)
-    if (!parsedBegin.success) {
-      throw new ClassroomArchiveExportError(
-        'archive_rpc_contract_invalid',
-        'Classroom archive snapshot returned an invalid contract',
-        500,
-        false,
-      )
-    }
-    if (!parsedBegin.data.ok) {
-      emitArchiveMetric(parsedBegin.data, startedAt)
-      return parsedBegin.data
-    }
-    if (parsedBegin.data.operation_status === 'completed') {
-      const result = publicCompletedResult(parsedBegin.data)
+    if (begun.operation_status === 'completed') {
+      const result = publicCompletedResult(begun)
       emitArchiveMetric(result, startedAt)
       return result
     }
 
-    const snapshot = parsedBegin.data
+    const snapshot = begun
     assertExactResourceCounts(snapshot.resource_counts)
     const resources = await loadClassroomResources(
       args.supabase,
@@ -604,13 +627,13 @@ export async function exportClassroomArchive(args: {
     )
     const storageObjectCounts = summarizeStorageObjects(storageObjects)
     const bundle = buildClassroomArchiveBundle({
-      version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+      version: CLASSROOM_ARCHIVE_V2_VERSION,
       archiveId: snapshot.archive_id,
       classroomId: args.classroomId,
       teacherId: args.teacherId,
       createdAt: snapshot.snapshot_created_at,
       source: {
-        schemaMigration: CLASSROOM_ARCHIVE_SOURCE_MIGRATION,
+        schemaMigration: CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION,
         appCommit: args.sourceAppCommit,
       },
       retention,
@@ -631,7 +654,7 @@ export async function exportClassroomArchive(args: {
       teacherId: args.teacherId,
       classroomId: args.classroomId,
       archiveId: snapshot.archive_id,
-      version: CLASSROOM_ARCHIVE_CURRENT_EXPORT_VERSION,
+      version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
     const uploadIntentResponse = await args.supabase.rpc(
       'stage_classroom_archive_object_upload',
@@ -699,7 +722,7 @@ export async function exportClassroomArchive(args: {
       actor_snapshots_verified: true,
       verified_at: new Date().toISOString(),
     })
-    const completeResponse = await args.supabase.rpc('complete_classroom_archive_export', {
+    const completionArgs = {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_storage_bucket: CLASSROOM_ARCHIVE_BUCKET,
@@ -711,18 +734,26 @@ export async function exportClassroomArchive(args: {
       p_resource_counts: snapshot.resource_counts,
       p_storage_object_counts: parseDatabaseJson(storageObjectCounts),
       p_verification: verificationEvidence,
+    }
+    const completeResponse = await args.supabase.rpc('complete_classroom_archive_export_v2', {
+      ...completionArgs,
+      p_archive_format_version: CLASSROOM_ARCHIVE_V2_VERSION,
+      p_archive_resource_counts: parseDatabaseJson(snapshot.resource_counts),
     })
     if (completeResponse.error) {
+      const missingMigration = isMissingArchiveV2Rpc(completeResponse.error)
       throw new ClassroomArchiveExportError(
-        isMissingArchiveRpc(completeResponse.error)
+        missingMigration
           ? 'classroom_archive_migration_required'
           : 'archive_finalize_failed',
-        'Classroom archive could not be finalized',
+        missingMigration
+          ? 'Classroom archive export requires migration 107'
+          : 'Classroom archive could not be finalized',
         503,
         true,
       )
     }
-    const parsedComplete = completeOperationResultSchema.safeParse(completeResponse.data)
+    const parsedComplete = completeOperationV2ResultSchema.safeParse(completeResponse.data)
     if (!parsedComplete.success) {
       throw new ClassroomArchiveExportError(
         'archive_rpc_contract_invalid',

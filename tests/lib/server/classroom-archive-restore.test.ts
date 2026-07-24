@@ -357,7 +357,7 @@ describe('classroom archive restore planning', () => {
     })
     expect(plan.sourceContractVersion).toBe(2)
     expect(plan.restoreContractVersion).toBe(2)
-    expect(plan.adapterChain).toEqual([])
+    expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-107'])
   })
 
   it('keeps the deployed v1 restore plan on migration 083 and preserves Quiz rows', () => {
@@ -391,8 +391,8 @@ describe('classroom archive restore planning', () => {
 
     expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION)
     expect(plan.adapterChain).toEqual([
-      'classroom-archive-schema-082-to-105',
-      'classroom-archive-v1-quiz-to-retired-assessment-v1',
+      'classroom-archive-schema-082-to-107',
+      'classroom-archive-v1-retired-quiz-discard-v1',
     ])
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_session_id')
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_sequence')
@@ -418,30 +418,9 @@ describe('classroom archive restore planning', () => {
     expect(plan.resources).not.toHaveProperty('quiz_questions')
     expect(plan.resources).not.toHaveProperty('quiz_responses')
     expect(plan.resources).not.toHaveProperty('quiz_student_scores')
-    expect(plan.resources.classroom_retired_assessment_records).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          source_resource: 'quizzes',
-          payload: expect.objectContaining({ title: 'Historical quiz' }),
-        }),
-        expect.objectContaining({
-          source_resource: 'quiz_student_scores',
-          payload: expect.objectContaining({
-            student_id: STUDENT_ID,
-            manual_override_score: 9,
-          }),
-        }),
-      ]),
-    )
-    const draftEnvelope = plan.resources.classroom_retired_assessment_records.find(
-      (record) => record.source_resource === 'assessment_drafts',
-    )
-    expect(JSON.stringify(draftEnvelope?.payload)).toContain(
-      `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
-    )
-    expect(draftEnvelope?.payload_sha256).toBe(
-      retiredAssessmentPayloadChecksum(draftEnvelope?.payload as Record<string, unknown>),
-    )
+    expect(plan.resources.classroom_retired_assessment_records).toEqual([])
+    expect(plan.resources.classroom_retired_assessment_record_actors).toEqual([])
+    expect(plan.resources.assessment_drafts).toEqual([])
   })
 
   it('fails closed when an archived actor cannot be reconciled', () => {

@@ -2,12 +2,13 @@
 set -euo pipefail
 
 DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
+DB_NAME="${CLASSROOM_ARCHIVE_DATABASE_NAME:-postgres}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 insert into public.users (id, email, role)
@@ -64,8 +65,8 @@ declare
   v_trigger_count integer;
   v_claim record;
 begin
-  if (select count(*) from public.classroom_archive_resource_contract) <> 42 then
-    raise exception 'Expected 42 database archive resources';
+  if (select count(*) from public.classroom_archive_resource_contract) <> 40 then
+    raise exception 'Expected 40 database archive-v2 resources';
   end if;
   if not exists (
     select 1
@@ -87,27 +88,31 @@ begin
     raise exception 'Expected 43 classroom descendant revision triggers, got %', v_trigger_count;
   end if;
 
-  v_result := public.begin_classroom_archive_export(
+  v_result := public.begin_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('a', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if v_result->>'error_code' <> 'classroom_not_archived' then
     raise exception 'Active classroom export was not rejected: %', v_result;
   end if;
   begin
-    perform public.begin_classroom_archive_export(
+    perform public.begin_classroom_archive_export_v2(
       '40000000-0000-4000-8000-000000000003',
       v_teacher_id,
       v_classroom_id,
       repeat('0', 64),
-      '082_verified_classroom_archive_exports',
+      '107_classroom_archive_v2_direct_source',
       'abcdef1',
-      '{"mode":"scheduled","delete_after":"2020-01-01T00:00:00.000Z"}'::jsonb
+      '{"mode":"scheduled","delete_after":"2020-01-01T00:00:00.000Z"}'::jsonb,
+      2,
+      2
     );
     raise exception 'Expired archive retention unexpectedly succeeded';
   exception
@@ -115,14 +120,16 @@ begin
   end;
 
   update public.classrooms set archived_at = now() where id = v_classroom_id;
-  v_result := public.begin_classroom_archive_export(
+  v_result := public.begin_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('a', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if not coalesce((v_result->>'ok')::boolean, false) then
     raise exception 'Archived classroom snapshot failed: %', v_result;
@@ -159,26 +166,30 @@ begin
     raise exception 'Actor snapshot contains a forbidden credential field';
   end if;
 
-  v_replay := public.begin_classroom_archive_export(
+  v_replay := public.begin_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('a', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if not coalesce((v_replay->>'replayed')::boolean, false) then
     raise exception 'Snapshot-ready operation did not replay';
   end if;
-  v_replay := public.begin_classroom_archive_export(
+  v_replay := public.begin_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('f', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if v_replay->>'error_code' <> 'idempotency_conflict' then
     raise exception 'Idempotency conflict was not rejected: %', v_replay;
@@ -200,20 +211,22 @@ begin
 
   if not public.stage_classroom_archive_object_upload(
     v_stale_operation_id, v_teacher_id, 'classroom-archives',
-    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
     repeat('b', 64), 100
   ) then
     raise exception 'Stale archive upload intent was rejected';
   end if;
-  v_result := public.complete_classroom_archive_export(
+  v_result := public.complete_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
     'classroom-archives',
-    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
     repeat('b', 64),
     repeat('c', 64),
     100,
     200,
+    v_counts,
+    2,
     v_counts,
     '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
     '{"read_back_verified":true,"artifact_checksum_verified":true,"manifest_verified":true,"resource_checksums_verified":true,"resource_counts_verified":true,"storage_objects_verified":true,"actor_snapshots_verified":true,"verified_at":"2026-07-13T12:00:00.000Z"}'::jsonb
@@ -264,14 +277,16 @@ begin
   then
     raise exception 'Expired archive object cleanup was not safely reclaimed';
   end if;
-  v_replay := public.begin_classroom_archive_export(
+  v_replay := public.begin_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('a', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if v_replay->>'error_code' <> 'classroom_changed_during_export'
     or coalesce((v_replay->>'retryable')::boolean, true)
@@ -279,14 +294,16 @@ begin
     raise exception 'Terminal archive operation did not require a new idempotency key: %', v_replay;
   end if;
 
-  v_result := public.begin_classroom_archive_export(
+  v_result := public.begin_classroom_archive_export_v2(
     v_success_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('d', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if not coalesce((v_result->>'ok')::boolean, false) then
     raise exception 'Second archive snapshot failed: %', v_result;
@@ -296,7 +313,7 @@ begin
     v_success_operation_id,
     v_teacher_id,
     'classroom-archives',
-    'noncanonical/classroom-v1.tar.gz',
+    'noncanonical/classroom-v2.tar.gz',
     repeat('e', 64),
     101
   ) then
@@ -304,20 +321,22 @@ begin
   end if;
   if not public.stage_classroom_archive_object_upload(
     v_success_operation_id, v_teacher_id, 'classroom-archives',
-    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
     repeat('e', 64), 101
   ) then
     raise exception 'Successful archive upload intent was rejected';
   end if;
-  v_result := public.complete_classroom_archive_export(
+  v_result := public.complete_classroom_archive_export_v2(
     v_success_operation_id,
     v_teacher_id,
     'classroom-archives',
-    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
     repeat('e', 64),
     repeat('f', 64),
     101,
     201,
+    v_counts,
+    2,
     v_counts,
     '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
     '{"read_back_verified":true,"artifact_checksum_verified":true,"manifest_verified":true,"resource_checksums_verified":true,"resource_counts_verified":true,"storage_objects_verified":true,"actor_snapshots_verified":true,"verified_at":"2026-07-13T12:00:00.000Z"}'::jsonb
@@ -337,14 +356,16 @@ begin
     raise exception 'Completed archive row-id staging was not removed';
   end if;
 
-  v_replay := public.begin_classroom_archive_export(
+  v_replay := public.begin_classroom_archive_export_v2(
     v_success_operation_id,
     v_teacher_id,
     v_classroom_id,
     repeat('d', 64),
-    '082_verified_classroom_archive_exports',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if not coalesce((v_replay->>'replayed')::boolean, false)
     or v_replay->>'operation_status' <> 'completed'
@@ -381,14 +402,14 @@ begin
   end if;
   if has_function_privilege(
     'authenticated',
-    'public.begin_classroom_archive_export(uuid,uuid,uuid,text,text,text,jsonb)',
+    'public.begin_classroom_archive_export_v2(uuid,uuid,uuid,text,text,text,jsonb,integer,integer)',
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute archive begin RPC';
   end if;
   if not has_function_privilege(
     'service_role',
-    'public.begin_classroom_archive_export(uuid,uuid,uuid,text,text,text,jsonb)',
+    'public.begin_classroom_archive_export_v2(uuid,uuid,uuid,text,text,text,jsonb,integer,integer)',
     'EXECUTE'
   ) then
     raise exception 'Service role cannot execute archive begin RPC';

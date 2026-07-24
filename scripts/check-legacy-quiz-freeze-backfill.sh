@@ -555,3 +555,343 @@ select jsonb_build_object(
 pnpm exec tsx scripts/validate-legacy-quiz-backfill.ts < "$PAYLOAD_FILE"
 
 echo "Legacy Quiz freeze and backfill database contract passes."
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.classroom_archive_operations (
+  id,
+  teacher_id,
+  classroom_id,
+  operation_type,
+  request_sha256,
+  status,
+  source_revision,
+  source_schema_migration,
+  source_app_commit,
+  retention,
+  archive_id,
+  storage_bucket,
+  storage_path,
+  artifact_sha256,
+  content_sha256,
+  compressed_byte_size,
+  uncompressed_byte_size,
+  target_schema_migration,
+  adapter_chain,
+  error_code,
+  retryable,
+  snapshot_created_at,
+  snapshot_expires_at
+)
+select
+  operation_id,
+  '61000000-0000-4000-8000-000000000001'::uuid,
+  '62000000-0000-4000-8000-000000000001'::uuid,
+  operation_type,
+  repeat(request_character, 64),
+  'failed',
+  1,
+  '106_freeze_and_backfill_legacy_quiz',
+  'abcdef1',
+  '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+  operation_id,
+  case when operation_type = 'compact' then 'classroom-archives' end,
+  case when operation_type = 'compact' then 'retryable/contract/probe.tar.gz' end,
+  case when operation_type = 'compact' then repeat('a', 64) end,
+  case when operation_type = 'compact' then repeat('b', 64) end,
+  case when operation_type = 'compact' then 1 end,
+  case when operation_type = 'compact' then 1 end,
+  case when operation_type = 'restore'
+    then '083_resumable_classroom_archive_restore'
+  end,
+  case when operation_type = 'restore' then '[]'::jsonb end,
+  'retryable_contract_probe',
+  true,
+  clock_timestamp(),
+  clock_timestamp() + interval '1 hour'
+from (
+  values
+    ('68000000-0000-4000-8000-000000000001'::uuid, 'export', '1'),
+    ('68000000-0000-4000-8000-000000000002'::uuid, 'restore', '2'),
+    ('68000000-0000-4000-8000-000000000003'::uuid, 'compact', '3')
+) probe(operation_id, operation_type, request_character);
+SQL
+
+if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/107_classroom_archive_v2_direct_source.sql" \
+  >"$MIGRATION_OUTPUT" 2>&1; then
+  echo "Migration 107 accepted retryable archive operations." >&2
+  exit 1
+fi
+if ! grep -q 'Cannot activate archive-v2 while an archive operation is active' \
+  "$MIGRATION_OUTPUT"; then
+  cat "$MIGRATION_OUTPUT" >&2
+  echo "Migration 107 failed for an unexpected retryable-operation reason." >&2
+  exit 1
+fi
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  -c "delete from public.classroom_archive_operations where error_code = 'retryable_contract_probe';" \
+  >/dev/null
+
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/107_classroom_archive_v2_direct_source.sql" >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+begin;
+
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = '62000000-0000-4000-8000-000000000001';
+
+do $direct_v2$
+declare
+  v_operation_id constant uuid := '67000000-0000-4000-8000-000000000001';
+  v_compaction_id constant uuid := '67000000-0000-4000-8000-000000000002';
+  v_teacher_id constant uuid := '61000000-0000-4000-8000-000000000001';
+  v_classroom_id constant uuid := '62000000-0000-4000-8000-000000000001';
+  v_result jsonb;
+  v_counts jsonb;
+  v_actors jsonb;
+  v_resource record;
+  v_rows jsonb;
+begin
+  if exists (
+    select 1
+    from public.assessment_drafts
+    where assessment_type = 'quiz'
+  ) or exists (
+    select 1
+    from public.classroom_retired_assessment_records
+    where source_contract = 'pika.classroom-archive@1/legacy-quiz'
+  ) or exists (
+    select 1 from public.quizzes
+  ) or exists (
+    select 1 from public.quiz_questions
+  ) or exists (
+    select 1 from public.quiz_responses
+  ) or exists (
+    select 1 from public.quiz_student_scores
+  ) then
+    raise exception 'Direct archive-v2 activation retained disposable Quiz data';
+  end if;
+
+  v_result := public.begin_classroom_archive_export_v2(
+    v_operation_id,
+    v_teacher_id,
+    v_classroom_id,
+    repeat('7', 64),
+    '107_classroom_archive_v2_direct_source',
+    'abcdef1234567890',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or (v_result->>'source_contract_version')::integer <> 2
+    or (v_result->>'archive_format_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 begin failed: %', v_result;
+  end if;
+
+  v_counts := v_result->'resource_counts';
+  if (select count(*) from jsonb_object_keys(v_counts)) <> 40
+    or v_counts ?| array[
+      'quizzes',
+      'quiz_questions',
+      'quiz_responses',
+      'quiz_student_scores'
+    ]
+    or (v_counts->>'classroom_retired_assessment_records')::integer <> 0
+    or (v_counts->>'classroom_retired_assessment_record_actors')::integer <> 0
+  then
+    raise exception 'Direct archive-v2 counts are invalid: %', v_counts;
+  end if;
+  if exists (
+    select 1
+    from public.classroom_archive_snapshot_resources
+    where operation_id = v_operation_id
+      and (
+        source_contract_version <> 2
+        or table_name in (
+          'quizzes',
+          'quiz_questions',
+          'quiz_responses',
+          'quiz_student_scores'
+        )
+      )
+  ) then
+    raise exception 'Direct archive-v2 snapshot contains a legacy contract row';
+  end if;
+
+  if not public.stage_classroom_archive_object_upload_v2(
+    v_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_classroom_id,
+      v_operation_id
+    ),
+    repeat('8', 64),
+    1024,
+    2
+  ) then
+    raise exception 'Direct archive-v2 upload intent failed';
+  end if;
+
+  select jsonb_agg(
+    jsonb_build_object(
+      'actor_id',
+      actor_id,
+      'role',
+      snapshot->>'role'
+    )
+    order by actor_id
+  )
+  into v_actors
+  from public.classroom_archive_snapshot_actors
+  where operation_id = v_operation_id;
+
+  v_result := public.complete_classroom_archive_export_v2(
+    v_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_classroom_id,
+      v_operation_id
+    ),
+    repeat('8', 64),
+    repeat('9', 64),
+    1024,
+    2048,
+    v_counts,
+    2,
+    v_counts,
+    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
+    '{
+      "read_back_verified": true,
+      "artifact_checksum_verified": true,
+      "manifest_verified": true,
+      "resource_checksums_verified": true,
+      "resource_counts_verified": true,
+      "storage_objects_verified": true,
+      "actor_snapshots_verified": true,
+      "verified_at": "2026-07-23T12:00:00Z"
+    }'::jsonb
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'completed'
+    or (v_result->>'source_contract_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 completion failed: %', v_result;
+  end if;
+
+  v_result := public.begin_classroom_archive_compaction_v2(
+    v_compaction_id,
+    v_teacher_id,
+    v_classroom_id,
+    v_operation_id,
+    repeat('a', 64),
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or (v_result->>'source_contract_version')::integer <> 2
+    or (v_result->>'archive_format_version')::integer <> 2
+    or (v_result->>'restore_contract_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 compaction begin failed: %', v_result;
+  end if;
+
+  for v_resource in
+    select table_name, primary_key_columns[1] as primary_key_column
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    execute format(
+      'select coalesce(jsonb_agg(to_jsonb(source) order by source.%I), ''[]''::jsonb)
+       from public.%I source
+       where public.resolve_classroom_archive_resource_classroom_id(%L, source.%I) = $1',
+      v_resource.primary_key_column,
+      v_resource.table_name,
+      v_resource.table_name,
+      v_resource.primary_key_column
+    ) into v_rows using v_classroom_id;
+    if jsonb_array_length(v_rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows(
+        v_compaction_id,
+        v_teacher_id,
+        v_resource.table_name,
+        v_rows
+      );
+    end if;
+  end loop;
+
+  v_result := public.stage_classroom_archive_compaction_objects(
+    v_compaction_id,
+    v_teacher_id,
+    '[]'::jsonb
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Direct archive-v2 compaction cleanup staging failed: %', v_result;
+  end if;
+
+  v_result := public.complete_classroom_archive_compaction_v2(
+    v_compaction_id,
+    v_teacher_id,
+    coalesce(v_actors, '[]'::jsonb),
+    jsonb_build_object(
+      'operation_id', v_compaction_id,
+      'archive_id', v_operation_id,
+      'artifact_sha256', repeat('8', 64),
+      'content_sha256', repeat('9', 64),
+      'verified_at', clock_timestamp(),
+      'read_back_verified', true,
+      'artifact_checksum_verified', true,
+      'manifest_verified', true,
+      'resource_checksums_verified', true,
+      'resource_counts_verified', true,
+      'storage_objects_verified', true,
+      'actor_snapshots_verified', true,
+      'schema_adapter_verified', true,
+      'actor_references_resolved', true,
+      'source_object_cleanup_staged', true
+    ),
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'completed'
+    or exists (
+      select 1 from public.classrooms where id = v_classroom_id
+    )
+    or not exists (
+      select 1
+      from public.classroom_cold_tombstones
+      where classroom_id = v_classroom_id
+        and archive_id = v_operation_id
+    )
+  then
+    raise exception 'Direct archive-v2 compaction failed: %', v_result;
+  end if;
+end;
+$direct_v2$;
+
+rollback;
+SQL
+
+echo "Classroom archive-v2 direct source database contract passes."
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  -c 'grant usage on schema storage, extensions to service_role; grant select, insert, update, delete on storage.objects to service_role;' >/dev/null
+
+CLASSROOM_ARCHIVE_DB_CONTAINER="$DB_CONTAINER" \
+CLASSROOM_ARCHIVE_DATABASE_NAME="$TMP_DB" \
+  bash "$ROOT/scripts/check-classroom-archive-database.sh"
+CLASSROOM_ARCHIVE_DB_CONTAINER="$DB_CONTAINER" \
+CLASSROOM_ARCHIVE_DATABASE_NAME="$TMP_DB" \
+  bash "$ROOT/scripts/check-classroom-archive-compaction-database.sh"
