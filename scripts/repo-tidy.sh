@@ -49,7 +49,10 @@ while IFS='|' read -r name track wt; do
   fi
 done < <(git for-each-ref refs/heads --format='%(refname:short)|%(upstream:track)|%(worktreepath)')
 
-# 3) Worktrees: flag dirty state and unpushed commits so nothing is lost blindly.
+# 3) Worktrees: classify by PR state, same as remote branches above.
+#    A missing remote branch is NOT a risk signal here: with squash merges and
+#    delete-on-merge, it is the normal end state of merged work. Asking the PR
+#    map instead distinguishes "already merged" from "only exists here".
 #    The hub (main worktree) and the production release worktree are infrastructure.
 echo ""
 echo "── Worktrees ────────────────────────────────────"
@@ -58,21 +61,46 @@ while read -r wt; do
   [[ "$wt" == "$HUB_WT" ]] && continue
   dirty="$(git -C "$wt" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
   branch="$(git -C "$wt" branch --show-current 2>/dev/null || true)"
-  label="${branch:-DETACHED}"
   if [[ "$branch" == "production" ]]; then
     echo "  🏛  $wt (production) — release infrastructure, keep"
     continue
   fi
-  flags=""
-  [[ "$dirty" != "0" ]] && flags+=" dirty:$dirty"
-  if [[ -n "$branch" ]] && ! git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
-    flags+=" not-on-remote"
+
+  # Uncommitted work outranks every other signal: never suggest removing it.
+  if [[ "$dirty" != "0" ]]; then
+    echo "  ⚠️  $wt (${branch:-DETACHED}) dirty:$dirty — uncommitted work, inspect before removing"
+    ISSUES=$((ISSUES + 1))
+    continue
   fi
-  if [[ -n "$flags" ]]; then
-    echo "  ⚠️  $wt ($label)$flags — inspect before removing"
+
+  if [[ -z "$branch" ]]; then
+    echo "  ✓  $wt (DETACHED) — clean; removable with: git worktree remove $wt"
+    ISSUES=$((ISSUES + 1))
+    continue
+  fi
+
+  entry="$(jq -r --arg b "$branch" '.[] | select(.branch == $b)' <<<"$PR_MAP")"
+  pr="$(jq -r '.number // empty' <<<"$entry")"
+  if [[ -z "$entry" ]]; then
+    if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+      echo "  ⚠️  $wt ($branch) — pushed but no PR; inspect before removing"
+    else
+      echo "  ⚠️  $wt ($branch) — no PR and not on remote; commits may exist only here"
+    fi
+    ISSUES=$((ISSUES + 1))
+  elif jq -e '.states | index("OPEN")' <<<"$entry" > /dev/null; then
+    echo "  🔨 $wt ($branch) — PR #$pr open; active work, keep"
+  elif jq -e '.states | index("MERGED")' <<<"$entry" > /dev/null; then
+    echo "  ✓  $wt ($branch) — PR #$pr merged; remove with: git worktree remove $wt && git branch -D $branch"
     ISSUES=$((ISSUES + 1))
   else
-    echo "  ✓  $wt ($label) — clean; removable with: git worktree remove $wt"
+    if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+      recover="remote branch still exists, restorable"
+    else
+      recover="NO remote copy — rescue before deleting"
+    fi
+    echo "  ⚠️  $wt ($branch) — PR #$pr closed unmerged; decide before removing ($recover)"
+    ISSUES=$((ISSUES + 1))
   fi
 done < <(git worktree list --porcelain | awk '/^worktree /{print substr($0, 10)}')
 
