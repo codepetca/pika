@@ -91,6 +91,7 @@ const stageRestoreSchema = z.union([
     table_name: z.string().min(1),
     staged_count: z.number().int().nonnegative(),
     expected_count: z.number().int().nonnegative(),
+    restore_contract_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
   }).strict(),
 ])
 

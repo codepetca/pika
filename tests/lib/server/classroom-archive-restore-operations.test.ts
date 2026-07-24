@@ -212,6 +212,7 @@ function createSupabaseMock(options: {
           table_name: args.p_table_name,
           staged_count: 1,
           expected_count: 1,
+          restore_contract_version: 2,
         },
         error: null,
       }
