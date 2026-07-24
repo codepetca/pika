@@ -11,6 +11,7 @@ import {
   DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
 } from '@/lib/course-site-publishing'
+import { parseCourseBlueprintImportBundle } from '@/lib/course-blueprint-package'
 
 const operationId = '10000000-0000-4000-8000-000000000020'
 
@@ -277,5 +278,103 @@ describe('atomic blueprint operation contracts', () => {
       manifestVersion: '3',
       operationId,
     })).toEqual(expect.objectContaining({ ok: false, status: 400 }))
+  })
+})
+
+describe('importing a course package that contains tests and lesson plans', () => {
+  // The markdown parsers attach `id: existingMatch?.id` for matching against
+  // existing rows. On a fresh import there is no match, so the key is present
+  // with value `undefined` — which zod 4 rejects as an unrecognized key on the
+  // strict write schemas. Assignments were already normalized; assessments and
+  // lesson templates were passed through raw and blew up.
+  function bundleWithAssessmentsAndLessons() {
+    return {
+      manifest: {
+        version: '4' as const,
+        exported_at: '2026-01-01T00:00:00.000Z',
+        title: 'Package With Tests',
+        subject: 'Computer Science',
+        grade_level: '10',
+        course_code: 'ICS2O',
+        term_template: 'Semester',
+      },
+      files: {
+        'course-overview.md': '',
+        'course-outline.md': '',
+        'resources.md': '',
+        'assignments.md': [
+          '## Warm-Up',
+          'Due Days: 7',
+          'Due Time: 23:59',
+          'Gradebook Weight: 10',
+          'Include In Final: true',
+          '',
+          'Do the warm-up.',
+        ].join('\n'),
+        'tests.md': [
+          '# Test',
+          'Title: Unit 1 Quiz',
+          'Points Possible: 5',
+          'Gradebook Weight: 10',
+          'Include In Final: true',
+          'Show Results: false',
+          '',
+          '## Questions',
+          '### Question 1',
+          'Type: multiple_choice',
+          'Points: 5',
+          'Prompt:',
+          'Which keyword cannot be reassigned?',
+          'Options:',
+          '- let',
+          '- const',
+          'Correct Option: 2',
+        ].join('\n'),
+        'lesson-plans.md': ['## Lesson 1', '', 'Introduce variables.', '', '---'].join('\n'),
+      },
+    }
+  }
+
+  // Mirrors the mapping in importCourseBlueprintBundle.
+  function planFromBundle() {
+    const parsed = parseCourseBlueprintImportBundle(bundleWithAssessmentsAndLessons())
+    expect(parsed.errors).toEqual([])
+    return buildCreateBlueprintWritePlan({
+      blueprint: parsed.blueprint,
+      assignments: parsed.assignments.map((assignment) => ({
+        ...assignment,
+        submission_requirements_json: assignment.submission_requirements || [],
+      })),
+      assessments: parsed.assessments.map((assessment) => ({
+        ...assessment,
+        points_possible: assessment.points_possible ?? null,
+        gradebook_weight: assessment.gradebook_weight ?? 10,
+        include_in_final: assessment.include_in_final !== false,
+      })),
+      lessonTemplates: parsed.lesson_templates,
+      manifestVersion: parsed.manifest!.version,
+      sourcePackageExportedAt: parsed.manifest!.exported_at,
+    })
+  }
+
+  it('builds a write plan instead of rejecting the unmatched id key', () => {
+    expect(() => planFromBundle()).not.toThrow()
+  })
+
+  it('keeps the parsed tests and lesson plans in the write plan', () => {
+    const plan = planFromBundle()
+    expect(plan.assessments).toHaveLength(1)
+    expect(plan.assessments[0]).toEqual(
+      expect.objectContaining({ assessment_type: 'test', title: 'Unit 1 Quiz', position: 0 })
+    )
+    expect(plan.lesson_templates).toHaveLength(1)
+    expect(plan.assignments).toHaveLength(1)
+  })
+
+  it('does not carry an id into the create plan', () => {
+    const plan = planFromBundle()
+    expect(plan.assessments[0]).not.toHaveProperty('id')
+    expect(plan.lesson_templates[0]).not.toHaveProperty('id')
+    expect(plan.assignments[0]).not.toHaveProperty('id')
   })
 })
