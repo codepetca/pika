@@ -14983,3 +14983,53 @@
 
 **Remaining:**
 - Review and merge PR #896. Then implement Phase 2's shared modal-layer contract as a separate slice.
+
+<!-- pika-session-log-archive-batch:1c1aaa5047774df6b3ab9c6f6cd9c2e70503569c09de86490f3e586c341c13cf -->
+## 2026-07-21 — Internal test grading profile and provenance
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5.4 - this phase crosses provider contracts, privacy boundaries, durable grading concurrency, revision fencing, and rolling database compatibility.
+
+**Completed:**
+- Moved test open-response prompts, strict output schemas, output budgets, and profile versions into the database-independent grading core while preserving Pika's sanitization, reference cache, score buckets, telemetry, and teacher workflows in the compatibility adapter.
+- Routed direct and durable test grading through the shared structured-output provider executor with bounded, pseudonymous per-request provenance and complete retry token accounting.
+- Added signed manual provenance propagation and migration `102` with service-role-only compatibility wrappers that atomically persist provenance without double-incrementing response revisions.
+- Preserved provenance for teacher corrections, cleared stale provenance for legacy AI replacements and grade clears, and kept durable replay idempotent.
+- Kept the remote Gradex worker disabled; no live provider calls, production changes, or local migration application were performed.
+
+**Validation:**
+- Focused grading/persistence suite (10 files / 114 tests)
+- Full Vitest suite (403 files / 3,632 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (620 modules / 0 allowances)
+- `pnpm build`
+- `bash -n scripts/check-atomic-test-grading.sh`
+- `git diff --check`
+- Migration replay, database harness, and generated-type drift check pending ephemeral CI
+
+## 2026-07-21 — Phase 2 shared control and form-field contract
+
+**Completed:**
+- Merged PR #897 and began the next Phase 2 slice from current `main`.
+- Standardized shared button, input, select, segmented-control, split-button, sortable-table, and split-pane interaction targets and focus-visible treatment without changing Pika's information-dense workflows.
+- Made `FormField` the semantic owner for label association, required state, hints, errors, `aria-describedby`, `aria-errormessage`, and `aria-invalid` while preserving child IDs and existing descriptions.
+- Kept hint and error content visible together, prevented custom props from leaking to native controls, and documented the one-control composition contract.
+- Fixed review findings by expanding the split-pane divider target, reconciling the `FormField` docs, reserving the full mobile classroom switcher height, and forwarding generated field naming and validation semantics to the rich-text editor.
+- Visually verified unauthenticated, teacher, and student surfaces across desktop/mobile and light/dark themes, including keyboard focus, form errors, the dense gradebook, and the student Today view. No overflow or layout regression was found.
+
+**Validation:**
+- `pnpm test` (383 files / 3,543 tests)
+- Focused shared-control and integration suites (8 files / 69 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (607 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/07e8da7d-9a2a-4e74-b516-f5fe2bab1bf8?tab=attendance`
+- Custom Playwright light/dark desktop/mobile focus, error, teacher, and student checks
+- `git diff --check`
+
+**Remaining:**
+- Merge reviewed PR #898 after required CI. Then continue Phase 2 with page structure, typography, spacing, action placement, and responsive density as a separate slice.

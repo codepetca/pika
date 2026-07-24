@@ -26,6 +26,7 @@ import type {
   TestDraftContent,
 } from '@/types'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
+import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import {
   buildCreateBlueprintWritePlan,
   buildInstantiateBlueprintWritePlan,
@@ -197,7 +198,7 @@ export async function getCourseBlueprintDetail(
       assignments: (assignmentsResult.data || []) as CourseBlueprintAssignment[],
       assessments: ((assessmentsResult.data || []) as CourseBlueprintAssessment[]).map((assessment) => ({
         ...assessment,
-        documents: Array.isArray(assessment.documents) ? (assessment.documents as TestDocument[]) : [],
+        documents: stripTestDocumentSnapshots(assessment.documents),
       })),
       lesson_templates: (lessonsResult.data || []) as CourseBlueprintLessonTemplate[],
       linked_classrooms: (linkedClassroomsResult.data || []).map((classroom: Record<string, any>) =>
@@ -483,7 +484,7 @@ export async function syncCourseBlueprintAssessments(
         assessment_type: assessment.assessment_type,
         title: assessment.title,
         content: assessment.content,
-        documents: assessment.documents,
+        documents: stripTestDocumentSnapshots(assessment.documents),
         points_possible: assessment.points_possible ?? null,
         gradebook_weight: assessment.gradebook_weight ?? 10,
         include_in_final: assessment.include_in_final ?? true,
@@ -500,7 +501,7 @@ export async function syncCourseBlueprintAssessments(
         assessment_type: assessment.assessment_type,
         title: assessment.title,
         content: assessment.content,
-        documents: assessment.documents,
+        documents: stripTestDocumentSnapshots(assessment.documents),
         points_possible: assessment.points_possible ?? null,
         gradebook_weight: assessment.gradebook_weight ?? 10,
         include_in_final: assessment.include_in_final ?? true,

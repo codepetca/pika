@@ -111,6 +111,43 @@ export function clearTestDocumentSnapshot(doc: TestDocument): TestDocument {
   }
 }
 
+export function stripTestDocumentSnapshots(value: unknown): TestDocument[] {
+  return normalizeTestDocuments(value).map(clearTestDocumentSnapshot)
+}
+
+export function preserveCurrentTestDocumentSnapshots(
+  currentValue: unknown,
+  proposedDocuments: TestDocument[],
+): TestDocument[] {
+  const currentDocuments = normalizeTestDocuments(currentValue)
+  const currentByIdentity = new Map(
+    currentDocuments
+      .filter((doc) => doc.source === 'link' && doc.url)
+      .map((doc) => [`${doc.id}\0${doc.source}\0${doc.url}`, doc]),
+  )
+
+  return proposedDocuments.map((proposed) => {
+    const clean = clearTestDocumentSnapshot(proposed)
+    if (clean.source !== 'link' || !clean.url) return clean
+
+    const current = currentByIdentity.get(
+      `${clean.id}\0${clean.source}\0${clean.url}`,
+    )
+    if (!current?.snapshot_path) return clean
+
+    return {
+      ...clean,
+      snapshot_path: current.snapshot_path,
+      ...(current.snapshot_content_type
+        ? { snapshot_content_type: current.snapshot_content_type }
+        : {}),
+      ...(current.synced_at !== undefined
+        ? { synced_at: current.synced_at }
+        : {}),
+    }
+  })
+}
+
 export function formatCompactRelativeAge(value: string | null | undefined, nowMs = Date.now()): string {
   if (!value) return ''
   const timestamp = Date.parse(value)

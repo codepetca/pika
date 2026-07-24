@@ -9,6 +9,7 @@ import { generateClassDays, generateClassDaysFromRange, getSemesterDates } from 
 import { CLASSROOM_THEME_COLORS } from '@/lib/classroom-theme'
 import { buildLessonPlanContentFields } from '@/lib/lesson-plan-content'
 import { markdownToTiptapContent } from '@/lib/limited-markdown'
+import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import {
   DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
 } from '@/lib/course-site-publishing'
@@ -67,7 +68,7 @@ const blueprintAssessmentWriteSchema = z.object({
   assessment_type: z.literal('test'),
   title: z.string().min(1),
   content: z.record(z.string(), z.unknown()),
-  documents: z.array(z.unknown()),
+  documents: z.array(z.unknown()).transform(stripTestDocumentSnapshots),
   points_possible: z.number().positive().nullable(),
   gradebook_weight: z.number().int().min(1).max(999),
   include_in_final: z.boolean(),
@@ -133,7 +134,7 @@ const classroomTestWriteSchema = z.object({
   title: z.string().min(1),
   position: z.number().int(),
   show_results: z.boolean(),
-  documents: z.array(z.unknown()),
+  documents: z.array(z.unknown()).transform(stripTestDocumentSnapshots),
   points_possible: z.number().positive().nullable(),
   gradebook_weight: z.number().int().min(1).max(999),
   include_in_final: z.boolean(),
@@ -414,7 +415,7 @@ function normalizeBlueprintAssessment(assessment: CreateBlueprintWritePlan['asse
     assessment_type: assessment.assessment_type,
     title: assessment.title,
     content: assessment.content,
-    documents: assessment.documents,
+    documents: stripTestDocumentSnapshots(assessment.documents),
     points_possible: assessment.points_possible,
     gradebook_weight: assessment.gradebook_weight ?? 10,
     include_in_final: assessment.include_in_final,
@@ -594,7 +595,7 @@ export function buildInstantiateBlueprintWritePlan(args: {
         title: assessment.title,
         position: assessment.position,
         show_results: draft.show_results,
-        documents: assessment.documents || [],
+        documents: stripTestDocumentSnapshots(assessment.documents),
         points_possible: assessment.points_possible,
         gradebook_weight: assessment.gradebook_weight ?? 10,
         include_in_final: assessment.include_in_final,

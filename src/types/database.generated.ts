@@ -3493,6 +3493,45 @@ export type Database = {
           },
         ]
       }
+      test_document_snapshot_storage_cleanup: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          status?: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          status?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       test_focus_events: {
         Row: {
           created_at: string
@@ -4221,6 +4260,56 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_test_document_snapshot_storage_cleanup: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_limit: number
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "test_document_snapshot_storage_cleanup"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_test_document_snapshot_storage_cleanup_path: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_storage_path: string
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "test_document_snapshot_storage_cleanup"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       classroom_archive_source_object_path_sha256: {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: string
@@ -4366,6 +4455,10 @@ export type Database = {
         Args: { p_extract_id: string; p_lease_token: string }
         Returns: boolean
       }
+      complete_test_document_snapshot_storage_cleanup: {
+        Args: { p_cleanup_id: string; p_lease_token: string }
+        Returns: boolean
+      }
       create_assignment_ai_grading_run_atomic: {
         Args: {
           p_assignment_id: string
@@ -4466,6 +4559,10 @@ export type Database = {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean
       }
+      enqueue_test_document_snapshot_storage_cleanup_path: {
+        Args: { p_delay_seconds?: number; p_storage_path: string }
+        Returns: boolean
+      }
       fail_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
@@ -4532,6 +4629,10 @@ export type Database = {
           p_extract_id: string
           p_lease_token: string
         }
+        Returns: boolean
+      }
+      fail_test_document_snapshot_storage_cleanup: {
+        Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
       }
       finalize_assignment_ai_grading_item_atomic: {
@@ -4979,6 +5080,22 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_test_document_snapshot_atomic: {
+        Args: {
+          p_document_id: string
+          p_expected_url: string
+          p_snapshot_content_type: string
+          p_snapshot_path: string
+          p_synced_at: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      test_document_snapshot_path_is_referenced: {
+        Args: { p_storage_path: string }
+        Returns: boolean
+      }
       unsubmit_assignment_doc_atomic: {
         Args: { p_assignment_id: string; p_student_id: string }
         Returns: Json
@@ -4993,6 +5110,22 @@ export type Database = {
       }
       update_assignment_with_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
+        Returns: Json
+      }
+      update_test_documents_atomic: {
+        Args: {
+          p_documents: Json
+          p_expected_documents: Json
+          p_expected_status: string
+          p_show_results: boolean
+          p_status: string
+          p_teacher_id: string
+          p_test_id: string
+          p_title: string
+          p_update_show_results: boolean
+          p_update_status: boolean
+          p_update_title: boolean
+        }
         Returns: Json
       }
       update_test_student_access_atomic: {

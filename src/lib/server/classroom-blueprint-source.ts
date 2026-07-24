@@ -3,6 +3,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
+import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import type {
@@ -257,7 +258,7 @@ export async function loadClassroomBlueprintSource(
           assessment_type: 'test' as const,
           title: test.title,
           content: test.content,
-          documents: Array.isArray(test.documents) ? (test.documents as TestDocument[]) : [],
+          documents: stripTestDocumentSnapshots(test.documents),
           points_possible: test.points_possible ?? null,
           gradebook_weight: test.gradebook_weight ?? null,
           include_in_final: test.include_in_final !== false,

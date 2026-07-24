@@ -1,6 +1,11 @@
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { ApiError } from '@/lib/api-handler'
+import { fetchSafeExternalDocument } from '@/lib/server/safe-external-document'
+import {
+  createProvisionalTestDocumentSnapshotCleanup,
+} from '@/lib/server/test-document-snapshot-storage-cleanup'
 import {
   normalizeSnapshotContentType,
   normalizeTestDocuments,
@@ -14,7 +19,7 @@ import type { TestAccessRecord } from '@/lib/server/tests'
 const TEST_DOCUMENTS_BUCKET = 'test-documents'
 
 function buildSnapshotStoragePath(teacherId: string, testId: string, docId: string): string {
-  return `link-docs/${teacherId}/${testId}/${docId}/snapshot`
+  return `link-docs/${teacherId}/${testId}/${docId}/snapshots/${randomUUID()}`
 }
 
 export function findTestDocument(test: Pick<TestAccessRecord, 'documents'>, docId: string): TestDocument | null {
@@ -31,22 +36,8 @@ export async function syncExternalLinkTestDocument(options: {
     throw new ApiError(400, 'Only link documents can be synced')
   }
 
-  let response: Response
-  try {
-    response = await fetch(doc.url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(15_000),
-      headers: {
-        'User-Agent': 'PikaLinkSnapshot/1.0',
-      },
-      cache: 'no-store',
-    })
-  } catch {
-    throw new ApiError(400, 'Failed to fetch source document')
-  }
-
-  if (!response.ok) {
+  const response = await fetchSafeExternalDocument(doc.url, TEST_DOCUMENT_MAX_SIZE)
+  if (response.status < 200 || response.status >= 300) {
     throw new ApiError(400, `Source returned ${response.status}`)
   }
 
@@ -55,32 +46,31 @@ export async function syncExternalLinkTestDocument(options: {
     throw new ApiError(400, 'Unsupported document type')
   }
 
-  const contentLengthHeader = response.headers.get('content-length')
-  if (contentLengthHeader) {
-    const contentLength = Number(contentLengthHeader)
-    if (!Number.isNaN(contentLength) && contentLength > TEST_DOCUMENT_MAX_SIZE) {
-      throw new ApiError(400, 'Document is too large to sync')
-    }
-  }
-
-  let body = Buffer.from(await response.arrayBuffer())
-  if (body.byteLength > TEST_DOCUMENT_MAX_SIZE) {
-    throw new ApiError(400, 'Document is too large to sync')
-  }
+  let body = response.body
 
   if (contentType === 'text/html') {
     const html = body.toString('utf8')
-    body = Buffer.from(sanitizeSnapshotHtml(html, doc.url), 'utf8')
+    body = Buffer.from(sanitizeSnapshotHtml(html, response.finalUrl), 'utf8')
   }
 
   const supabase = getServiceRoleClient()
   const snapshotPath = buildSnapshotStoragePath(teacherId, testId, doc.id)
+  const cleanup = await createProvisionalTestDocumentSnapshotCleanup({
+    supabase,
+    storagePath: snapshotPath,
+  })
+  if (!cleanup) {
+    throw new ApiError(
+      503,
+      'Test document snapshot cleanup requires migration 110 to be applied',
+    )
+  }
 
   const { error: uploadError } = await supabase.storage
     .from(TEST_DOCUMENTS_BUCKET)
     .upload(snapshotPath, body, {
       contentType,
-      upsert: true,
+      upsert: false,
     })
 
   if (uploadError) {
@@ -98,6 +88,17 @@ export async function syncExternalLinkTestDocument(options: {
     snapshot_path: snapshotPath,
     snapshot_content_type: contentType,
     synced_at: new Date().toISOString(),
+  }
+}
+
+export async function removeTestDocumentSnapshot(snapshotPath: string): Promise<void> {
+  const supabase = getServiceRoleClient()
+  const { error } = await supabase.storage
+    .from(TEST_DOCUMENTS_BUCKET)
+    .remove([snapshotPath])
+
+  if (error) {
+    throw new ApiError(500, 'Failed to remove synced document')
   }
 }
 

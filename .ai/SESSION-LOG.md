@@ -11,77 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-20 — Phase 2 shared modal-layer contract
-
-**Completed:**
-- Reviewed and merged PR #896, then fast-forwarded the hub and started the next Phase 2 slice from current `main`.
-- Added a portal-based `ModalLayer` that owns top-layer keyboard handling, initial focus, Tab containment, focus restoration, background inertness, scroll locking, stacking, Escape, and backdrop behavior.
-- Preserved the canonical `AlertDialog`, `ConfirmDialog`, `DialogPanel`, and `ContentDialog` APIs while routing them through the shared layer; migrated classroom mobile left/right drawers without changing their visual design.
-- Fixed independent-review findings for lifecycle churn while a confirmation becomes busy and reverse Tab containment when a custom panel owns focus; added regressions and narrowed documentation to migrated surfaces.
-- Visually verified open dialogs and navigation drawers for teacher/student roles at desktop/mobile sizes in light/dark themes, including focus, inert background, scroll lock, Escape cleanup, and focus restoration.
-- Opened PR #897. No schema migration or production data change was made.
-
-**Validation:**
-- `pnpm test` (381 files / 3,529 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Custom Playwright teacher/student desktop/mobile light/dark open-state matrix
-- `git diff --check`
-
-**Remaining:**
-- Review and merge PR #897. Continue Phase 2 with shared button target sizing/focus-visible behavior and semantic form-field propagation.
-
-## 2026-07-21 — Internal test grading profile and provenance
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5.4 - this phase crosses provider contracts, privacy boundaries, durable grading concurrency, revision fencing, and rolling database compatibility.
-
-**Completed:**
-- Moved test open-response prompts, strict output schemas, output budgets, and profile versions into the database-independent grading core while preserving Pika's sanitization, reference cache, score buckets, telemetry, and teacher workflows in the compatibility adapter.
-- Routed direct and durable test grading through the shared structured-output provider executor with bounded, pseudonymous per-request provenance and complete retry token accounting.
-- Added signed manual provenance propagation and migration `102` with service-role-only compatibility wrappers that atomically persist provenance without double-incrementing response revisions.
-- Preserved provenance for teacher corrections, cleared stale provenance for legacy AI replacements and grade clears, and kept durable replay idempotent.
-- Kept the remote Gradex worker disabled; no live provider calls, production changes, or local migration application were performed.
-
-**Validation:**
-- Focused grading/persistence suite (10 files / 114 tests)
-- Full Vitest suite (403 files / 3,632 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (620 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-test-grading.sh`
-- `git diff --check`
-- Migration replay, database harness, and generated-type drift check pending ephemeral CI
-
-## 2026-07-21 — Phase 2 shared control and form-field contract
-
-**Completed:**
-- Merged PR #897 and began the next Phase 2 slice from current `main`.
-- Standardized shared button, input, select, segmented-control, split-button, sortable-table, and split-pane interaction targets and focus-visible treatment without changing Pika's information-dense workflows.
-- Made `FormField` the semantic owner for label association, required state, hints, errors, `aria-describedby`, `aria-errormessage`, and `aria-invalid` while preserving child IDs and existing descriptions.
-- Kept hint and error content visible together, prevented custom props from leaking to native controls, and documented the one-control composition contract.
-- Fixed review findings by expanding the split-pane divider target, reconciling the `FormField` docs, reserving the full mobile classroom switcher height, and forwarding generated field naming and validation semantics to the rich-text editor.
-- Visually verified unauthenticated, teacher, and student surfaces across desktop/mobile and light/dark themes, including keyboard focus, form errors, the dense gradebook, and the student Today view. No overflow or layout regression was found.
-
-**Validation:**
-- `pnpm test` (383 files / 3,543 tests)
-- Focused shared-control and integration suites (8 files / 69 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (607 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/07e8da7d-9a2a-4e74-b516-f5fe2bab1bf8?tab=attendance`
-- Custom Playwright light/dark desktop/mobile focus, error, teacher, and student checks
-- `git diff --check`
-
-**Remaining:**
-- Merge reviewed PR #898 after required CI. Then continue Phase 2 with page structure, typography, spacing, action placement, and responsive density as a separate slice.
-
 ## 2026-07-21 — Phase 2 shared page-structure contract
 
 **Completed:**
@@ -684,9 +613,31 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - Focused Tests API/client/component suites (12 files / 208 tests)
 - Full repository suite (408 files / 3,674 tests)
+
+## 2026-07-23 — Hardened standalone test preview
+
+**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
+
+**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
+
+**Completed:**
+- Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
+- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
+- Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
+- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
+- Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
+- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
+- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
+- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
+- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
+- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
+
+**Validation:**
+- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
+- Full repository suite (413 files / 3,712 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm check:architecture` (625 modules / 0 allowances)
 - `pnpm build`
 - Pika changed-file audit
 - `git diff --check`
@@ -1159,6 +1110,30 @@ future persistence shape without enabling unapproved schema behavior.
 - Complete PR review/remediation, exact-head CI, and merge. Applying migration
   108 remains separately target-authorized.
 
+## 2026-07-23 — Rebased test-preview hardening after Quiz removal
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
+  the canonical test-only API and both preview request-order regressions.
+- Resequenced the atomic snapshot migration to 109 and consolidated the
+  uncommitted document-authoring and durable-cleanup schema into migration 110.
+- Kept ordinary document writers behind compare-and-swap updates, added a
+  leased storage-cleanup queue and cron worker, and retained real transport
+  SSRF/timeout coverage.
+- Left the shared local database unchanged. It remains reset and seeded through
+  migration 104; migrations 105-110 are unapplied there.
+
+**Validation:**
+- Full Vitest coverage passes: 421 files and 3,749 tests.
+- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
+- No local or hosted migration was applied.
+
+**Remaining:**
+- Run targeted security rereview and final integration review.
+- Push the rebased exact head, wait for CI, and merge only after approval.
+
 ## 2026-07-24 — Aligned Claude workflow guidance
 
 **Risk profile:** none
@@ -1176,3 +1151,46 @@ future persistence shape without enabling unapproved schema behavior.
 
 **Remaining:**
 - None.
+- `pnpm run db:types:check`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
+- Component keyboard regression for document focus entry/return and semantic region assertions
+- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
+- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
+- `git diff --check`
+
+**Remaining:**
+- Require targeted security review, final integration review, exact-head CI, and protected merge.
+- Apply migration 105 to each deployment target before deploying the updated sync route.
+- Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.
+
+## 2026-07-24 — Remediated test-preview review findings
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto current `main` and retained collision-free migrations 109
+  and 110 without changing the shared local or hosted databases.
+- Closed snapshot cleanup races by requiring pending provisional evidence under
+  a row lock before attachment and by making the database concurrency harness
+  use a deterministic lock barrier.
+- Defined durable snapshot ownership across live tests, cold archives, and
+  defensive legacy blueprint rows. Reusable blueprint capture, persistence,
+  export, and instantiation now strip classroom-specific snapshot metadata.
+- Applied one absolute deadline across DNS, redirects, and response transport,
+  and discard redirect bodies without buffering them.
+- Rebound an open teacher-preview document to refreshed same-ID data and close
+  the viewer when the document disappears.
+
+**Validation:**
+- Focused remediation suite: 12 files and 142 tests.
+- Full Vitest suite: 421 files and 3,767 tests.
+- TypeScript, ESLint, architecture boundaries, production build, shell syntax,
+  `git diff --check`, and Pika changed-file audit pass.
+- Teacher preview verified visually at desktop and mobile; student access to
+  the teacher-only route correctly renders the unavailable state.
+- No migration was applied to the shared local database or a hosted target.
+
+**Remaining:**
+- Push the rebased exact head, run the disposable migration/database checks in
+  CI, and resolve any exact-head failures before merge.

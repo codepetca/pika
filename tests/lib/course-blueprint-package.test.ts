@@ -136,6 +136,33 @@ describe('course blueprint package', () => {
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 
+  it('omits classroom snapshot ownership from exported blueprint documents', () => {
+    const detail = structuredClone(DETAIL)
+    detail.assessments[0].documents = [{
+      id: 'doc-1',
+      title: 'Reference',
+      source: 'link',
+      url: 'https://docs.example.com/reference',
+      snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
+      snapshot_content_type: 'text/html',
+      synced_at: '2026-07-23T12:00:00.000Z',
+    }]
+
+    const parsed = parseCourseBlueprintImportBundle(
+      buildCourseBlueprintExportBundle(detail),
+    )
+
+    expect(parsed.errors).toEqual([])
+    expect(parsed.assessments[0].documents).toEqual([
+      expect.objectContaining({
+        title: 'Reference',
+        source: 'link',
+        url: 'https://docs.example.com/reference',
+      }),
+    ])
+    expect(parsed.assessments[0].documents[0]).not.toHaveProperty('snapshot_path')
+  })
+
   it('exports and re-imports the tar package archive', () => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const archive = encodeCourseBlueprintPackageArchive(bundle)
