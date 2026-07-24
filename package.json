@@ -38,7 +38,9 @@
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "seed:gld2o": "tsx scripts/seed-gld2o.ts",
     "smoke:gradex:assignment": "tsx scripts/gradex-assignment-smoke.ts",
-    "generate:secret": "node scripts/generate-env.js"
+    "generate:secret": "node scripts/generate-env.js",
+    "pika": "tsx scripts/pika.ts",
+    "smoke:pika-cli": "tsx scripts/pika-cli-smoke.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
