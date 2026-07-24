@@ -28,7 +28,8 @@ and exact filename.
   - direct source-contract-2 export;
   - v2-only restore and compaction;
   - no pre-107 fallback;
-  - Quiz draft and copied-envelope deletion;
+  - Quiz source-row, draft, and copied-envelope deletion;
+  - v1 archives require re-export before compaction;
   - v1 restore discards Quiz resources.
 
 ## Active Compatibility To Remove

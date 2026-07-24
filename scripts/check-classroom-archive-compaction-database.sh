@@ -2,12 +2,13 @@
 set -euo pipefail
 
 DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
+DB_NAME="${CLASSROOM_ARCHIVE_DATABASE_NAME:-postgres}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 insert into public.users (id, email, role)
@@ -129,9 +130,9 @@ begin
     from pg_proc procedure
     join pg_namespace namespace on namespace.oid = procedure.pronamespace
     where namespace.nspname = 'public'
-      and procedure.proname = 'complete_classroom_archive_compaction'
+      and procedure.proname = 'complete_classroom_archive_compaction_v2'
       and pg_get_function_identity_arguments(procedure.oid) =
-        'p_operation_id uuid, p_teacher_id uuid, p_actors jsonb, p_verification jsonb'
+        'p_operation_id uuid, p_teacher_id uuid, p_actors jsonb, p_verification jsonb, p_restore_contract_version integer'
       and procedure.proconfig @> array['statement_timeout=60s']::text[]
   ) then
     raise exception 'Compaction finalizer does not have the function-scoped 60-second timeout';
@@ -162,14 +163,16 @@ declare
     {"actor_id":"11000000-0000-4000-8000-000000000022","role":"student"}
   ]'::jsonb;
 begin
-  v_result := public.begin_classroom_archive_export(
+  v_result := public.begin_classroom_archive_export_v2(
     v_rollback_archive_id,
     v_teacher_id,
     v_rollback_classroom_id,
     repeat('1', 64),
-    '085_atomic_classroom_archive_compaction',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Rollback archive begin failed: %', v_result;
@@ -178,7 +181,7 @@ begin
   if not public.stage_classroom_archive_object_upload(
     v_rollback_archive_id, v_teacher_id, 'classroom-archives',
     format(
-      '%s/%s/%s/classroom-v1.tar.gz',
+      '%s/%s/%s/classroom-v2.tar.gz',
       v_teacher_id,
       v_rollback_classroom_id,
       v_rollback_archive_id
@@ -187,12 +190,12 @@ begin
   ) then
     raise exception 'Rollback archive upload intent was rejected';
   end if;
-  v_result := public.complete_classroom_archive_export(
+  v_result := public.complete_classroom_archive_export_v2(
     v_rollback_archive_id,
     v_teacher_id,
     'classroom-archives',
     format(
-      '%s/%s/%s/classroom-v1.tar.gz',
+      '%s/%s/%s/classroom-v2.tar.gz',
       v_teacher_id,
       v_rollback_classroom_id,
       v_rollback_archive_id
@@ -201,6 +204,8 @@ begin
     repeat('b', 64),
     1024,
     4096,
+    v_counts,
+    2,
     v_counts,
     '{
       "total_count": 1,
@@ -221,12 +226,13 @@ begin
     raise exception 'Rollback archive completion failed: %', v_result;
   end if;
 
-  v_result := public.begin_classroom_archive_compaction(
+  v_result := public.begin_classroom_archive_compaction_v2(
     v_rollback_compaction_id,
     v_teacher_id,
     v_rollback_classroom_id,
     v_rollback_archive_id,
-    repeat('c', 64)
+    repeat('c', 64),
+    2
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true
     or v_result->>'operation_status' <> 'snapshot_ready'
@@ -253,22 +259,24 @@ begin
       );
     end if;
   end loop;
-  v_result := public.begin_classroom_archive_compaction(
+  v_result := public.begin_classroom_archive_compaction_v2(
     v_rollback_compaction_id,
     v_teacher_id,
     v_rollback_classroom_id,
     v_rollback_archive_id,
-    repeat('d', 64)
+    repeat('d', 64),
+    2
   );
   if v_result->>'error_code' <> 'idempotency_conflict' then
     raise exception 'Compaction idempotency conflict was not rejected: %', v_result;
   end if;
-  v_result := public.begin_classroom_archive_compaction(
+  v_result := public.begin_classroom_archive_compaction_v2(
     v_concurrent_id,
     v_teacher_id,
     v_rollback_classroom_id,
     v_rollback_archive_id,
-    repeat('e', 64)
+    repeat('e', 64),
+    2
   );
   if v_result->>'error_code' <> 'compaction_already_in_progress'
     or exists (select 1 from public.classroom_archive_operations where id = v_concurrent_id)
@@ -325,11 +333,12 @@ begin
     'source_object_cleanup_staged', true
   );
   begin
-    perform public.complete_classroom_archive_compaction(
+    perform public.complete_classroom_archive_compaction_v2(
       v_rollback_compaction_id,
       v_teacher_id,
       v_actors,
-      jsonb_set(v_verification, '{read_back_verified}', 'false'::jsonb)
+      jsonb_set(v_verification, '{read_back_verified}', 'false'::jsonb),
+      2
     );
     raise exception 'Incomplete compaction verification was accepted';
   exception when invalid_parameter_value then null;
@@ -348,22 +357,24 @@ begin
   end if;
 
   begin
-    perform public.complete_classroom_archive_compaction(
+    perform public.complete_classroom_archive_compaction_v2(
       v_rollback_compaction_id,
       v_teacher_id,
       jsonb_set(v_actors, '{0,role}', '"student"'::jsonb),
-      v_verification
+      v_verification,
+      2
     );
     raise exception 'Changed actor role was accepted for compaction';
   exception when serialization_failure then null;
   end;
 
   begin
-    perform public.complete_classroom_archive_compaction(
+    perform public.complete_classroom_archive_compaction_v2(
       v_rollback_compaction_id,
       v_teacher_id,
       v_actors,
-      v_verification
+      v_verification,
+      2
     );
     raise exception 'Compaction trigger preflight did not fail';
   exception when check_violation then
@@ -410,32 +421,36 @@ begin
     raise exception 'Terminal compaction failure retained cleanup staging';
   end if;
 
-  v_result := public.begin_classroom_archive_export(
+  v_result := public.begin_classroom_archive_export_v2(
     v_success_archive_id,
     v_teacher_id,
     v_success_classroom_id,
     repeat('2', 64),
-    '085_atomic_classroom_archive_compaction',
+    '107_classroom_archive_v2_direct_source',
     'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
   );
   v_counts := v_result->'resource_counts';
   if not public.stage_classroom_archive_object_upload(
     v_success_archive_id, v_teacher_id, 'classroom-archives',
-    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_success_classroom_id, v_success_archive_id),
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_success_classroom_id, v_success_archive_id),
     repeat('3', 64), 1024
   ) then
     raise exception 'Successful archive upload intent was rejected';
   end if;
-  v_result := public.complete_classroom_archive_export(
+  v_result := public.complete_classroom_archive_export_v2(
     v_success_archive_id,
     v_teacher_id,
     'classroom-archives',
-    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_success_classroom_id, v_success_archive_id),
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_success_classroom_id, v_success_archive_id),
     repeat('3', 64),
     repeat('4', 64),
     1024,
     4096,
+    v_counts,
+    2,
     v_counts,
     '{
       "total_count": 1,
@@ -455,12 +470,13 @@ begin
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Successful archive setup failed: %', v_result;
   end if;
-  v_result := public.begin_classroom_archive_compaction(
+  v_result := public.begin_classroom_archive_compaction_v2(
     v_success_compaction_id,
     v_teacher_id,
     v_success_classroom_id,
     v_success_archive_id,
-    repeat('5', 64)
+    repeat('5', 64),
+    2
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Successful compaction begin failed: %', v_result;
@@ -522,11 +538,12 @@ begin
     'actor_references_resolved', true,
     'source_object_cleanup_staged', true
   );
-  v_result := public.complete_classroom_archive_compaction(
+  v_result := public.complete_classroom_archive_compaction_v2(
     v_success_compaction_id,
     v_teacher_id,
     v_actors,
-    v_verification
+    v_verification,
+    2
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true
     or v_result->>'operation_status' <> 'completed'
@@ -552,11 +569,12 @@ begin
   then
     raise exception 'Successful compaction did not produce exact cold state';
   end if;
-  v_result := public.complete_classroom_archive_compaction(
+  v_result := public.complete_classroom_archive_compaction_v2(
     v_success_compaction_id,
     v_teacher_id,
     v_actors,
-    v_verification
+    v_verification,
+    2
   );
   if (v_result->>'status')::integer <> 200
     or (v_result->>'replayed')::boolean is not true
@@ -920,7 +938,7 @@ do $security$
 begin
   if has_function_privilege(
     'authenticated',
-    'public.begin_classroom_archive_compaction(uuid,uuid,uuid,uuid,text)',
+    'public.begin_classroom_archive_compaction_v2(uuid,uuid,uuid,uuid,text,integer)',
     'EXECUTE'
   ) or has_function_privilege(
     'authenticated',
@@ -928,7 +946,7 @@ begin
     'EXECUTE'
   ) or has_function_privilege(
     'authenticated',
-    'public.complete_classroom_archive_compaction(uuid,uuid,jsonb,jsonb)',
+    'public.complete_classroom_archive_compaction_v2(uuid,uuid,jsonb,jsonb,integer)',
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute classroom compaction RPCs';
@@ -1012,7 +1030,7 @@ RACE_STAGING_PATH="zzzz-concurrent-staging-path.txt"
 RACE_OUTPUT="$(mktemp)"
 
 cleanup_race_fixture() {
-  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
     -v operation_id="$RACE_OPERATION_ID" \
     -v staging_operation_id="$RACE_STAGING_OPERATION_ID" \
     -v archive_id="$RACE_ARCHIVE_ID" \
@@ -1052,7 +1070,7 @@ SQL
 trap cleanup_race_fixture EXIT
 cleanup_race_fixture
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -v operation_id="$RACE_OPERATION_ID" \
   -v staging_operation_id="$RACE_STAGING_OPERATION_ID" \
   -v archive_id="$RACE_ARCHIVE_ID" \
@@ -1172,13 +1190,13 @@ insert into public.classroom_archive_source_object_cleanup (
 );
 SQL
 
-docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "begin; set local role service_role; select public.verify_and_reserve_classroom_archive_source_objects('$RACE_OPERATION_ID'::uuid, 1); select pg_sleep(3); commit;" \
   >"$RACE_OUTPUT" 2>&1 &
 RACE_VERIFIER_PID=$!
 
 for _ in {1..40}; do
-  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from pg_locks locks join pg_stat_activity activity using (pid) where locks.locktype = 'advisory' and locks.granted and activity.query like '%verify_and_reserve_classroom_archive_source_objects%pg_sleep(3)%';")"
   [[ "$LOCK_COUNT" -gt 0 ]] && break
   sleep 0.1
@@ -1190,11 +1208,11 @@ if [[ "${LOCK_COUNT:-0}" -eq 0 ]]; then
   exit 1
 fi
 
-RACE_WRITE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+RACE_WRITE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "set statement_timeout = '10s'; insert into public.assignment_submission_artifacts (assignment_doc_id, requirement_id, student_id, type, storage_path) values ('23000000-0000-4000-8000-000000000029', '27000000-0000-4000-8000-000000000029', '11000000-0000-4000-8000-000000000030', 'image', '$RACE_PATH');" 2>&1)" && RACE_WRITE_STATUS=0 || RACE_WRITE_STATUS=$?
 wait "$RACE_VERIFIER_PID"
 
-RACE_BOUND_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_BOUND_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and not ownership_verified);")"
 
 if [[ "$RACE_WRITE_STATUS" -eq 0 ]] \
@@ -1208,21 +1226,21 @@ if [[ "$RACE_BOUND_COUNTS" != "1|1|2" ]]; then
   exit 1
 fi
 
-RACE_CLAIM_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_CLAIM_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select count(*) from public.claim_due_classroom_archive_source_object_cleanup_v2('26000000-0000-4000-8000-000000000039'::uuid, '$RACE_OPERATION_ID'::uuid, 1, 300);")"
 if [[ "$RACE_CLAIM_COUNT" != "1" ]]; then
   echo "Relational race fixture could not claim its first bounded reservation." >&2
   exit 1
 fi
 
-docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "begin; set local role service_role; select public.verify_and_reserve_classroom_archive_source_objects('$RACE_OPERATION_ID'::uuid, 1); select pg_sleep(3); commit;" \
   >"$RACE_OUTPUT" 2>&1 &
 RACE_VERIFIER_PID=$!
 
 LOCK_COUNT=0
 for _ in {1..40}; do
-  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from pg_locks locks join pg_stat_activity activity using (pid) where locks.locktype = 'advisory' and locks.granted and activity.query like '%verify_and_reserve_classroom_archive_source_objects%pg_sleep(3)%';")"
   [[ "$LOCK_COUNT" -gt 0 ]] && break
   sleep 0.1
@@ -1234,11 +1252,11 @@ if [[ "$LOCK_COUNT" -eq 0 ]]; then
   exit 1
 fi
 
-RACE_STORAGE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+RACE_STORAGE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "set statement_timeout = '10s'; insert into storage.objects (bucket_id, name) values ('assignment-artifacts', '$RACE_STORAGE_PATH');" 2>&1)" && RACE_STORAGE_STATUS=0 || RACE_STORAGE_STATUS=$?
 wait "$RACE_VERIFIER_PID"
 
-RACE_FINAL_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_FINAL_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and not ownership_verified);")"
 if [[ "$RACE_STORAGE_STATUS" -eq 0 ]] \
   || [[ "$RACE_STORAGE_OUTPUT" != *"Storage path is reserved by a classroom archive"* ]]; then
@@ -1251,21 +1269,21 @@ if [[ "$RACE_FINAL_COUNTS" != "2|2|1" ]]; then
   exit 1
 fi
 
-RACE_SECOND_CLAIM_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_SECOND_CLAIM_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select count(*) from public.claim_due_classroom_archive_source_object_cleanup_v2('26000000-0000-4000-8000-000000000038'::uuid, '$RACE_OPERATION_ID'::uuid, 1, 300);")"
 if [[ "$RACE_SECOND_CLAIM_COUNT" != "1" ]]; then
   echo "Storage race fixture could not claim its bounded reservation." >&2
   exit 1
 fi
 
-docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "begin; set local role service_role; select public.verify_and_reserve_classroom_archive_source_objects('$RACE_OPERATION_ID'::uuid, 1); select pg_sleep(3); commit;" \
   >"$RACE_OUTPUT" 2>&1 &
 RACE_VERIFIER_PID=$!
 
 LOCK_COUNT=0
 for _ in {1..40}; do
-  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
     "select count(*) from pg_locks locks join pg_stat_activity activity using (pid) where locks.locktype = 'advisory' and locks.granted and activity.query like '%verify_and_reserve_classroom_archive_source_objects%pg_sleep(3)%';")"
   [[ "$LOCK_COUNT" -gt 0 ]] && break
   sleep 0.1
@@ -1277,11 +1295,11 @@ if [[ "$LOCK_COUNT" -eq 0 ]]; then
   exit 1
 fi
 
-RACE_STAGING_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+RACE_STAGING_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
   -c "set statement_timeout = '10s'; select public.stage_classroom_archive_compaction_objects('$RACE_STAGING_OPERATION_ID'::uuid, '11000000-0000-4000-8000-000000000029'::uuid, jsonb_build_array(jsonb_build_object('storage_bucket', 'assignment-artifacts', 'storage_path', '$RACE_STAGING_PATH', 'sha256', repeat('a', 64), 'byte_size', 1)));" 2>&1)" && RACE_STAGING_STATUS=0 || RACE_STAGING_STATUS=$?
 wait "$RACE_VERIFIER_PID"
 
-RACE_STAGING_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+RACE_STAGING_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_STAGING_OPERATION_ID'::uuid);")"
 if [[ "$RACE_STAGING_STATUS" -eq 0 ]] \
   || [[ "$RACE_STAGING_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]]; then

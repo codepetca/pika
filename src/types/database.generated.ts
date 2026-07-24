@@ -4165,6 +4165,17 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_classroom_archive_compaction_v2: {
+        Args: {
+          p_archive_id: string
+          p_classroom_id: string
+          p_operation_id: string
+          p_request_sha256: string
+          p_restore_contract_version: number
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       begin_classroom_archive_export: {
         Args: {
           p_classroom_id: string
@@ -4486,6 +4497,16 @@ export type Database = {
         Args: {
           p_actors: Json
           p_operation_id: string
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
+      complete_classroom_archive_compaction_v2: {
+        Args: {
+          p_actors: Json
+          p_operation_id: string
+          p_restore_contract_version: number
           p_teacher_id: string
           p_verification: Json
         }

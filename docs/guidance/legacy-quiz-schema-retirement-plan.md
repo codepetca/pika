@@ -18,14 +18,16 @@ migration filename under the schema rollout checklist.
   legacy graph. It remains useful migration-history evidence, but the copied
   Quiz payload is no longer retained by the active contract.
 - Migration `107_classroom_archive_v2_direct_source.sql` is the runtime cutover:
-  it deletes Quiz drafts and copied Quiz envelopes, narrows drafts to Tests,
-  promotes the live archive registry to v2, and snapshots source contract 2
-  directly.
+  it deletes Quiz source rows, drafts, and copied Quiz envelopes, narrows
+  drafts to Tests, promotes the live archive registry to v2, and snapshots
+  source contract 2 directly.
 - Application export, restore, and compaction coordinators use v2 only. Missing
   migration 107 fails closed; there is no runtime fallback to the v1 RPCs.
 - A v1 archive reader remains at the historical artifact boundary. Restoring a
   v1 artifact discards its Quiz resources and Quiz drafts while retaining its
   non-Quiz classroom resources.
+- Compaction accepts archive-v2 only. A hot classroom backed by a v1 archive
+  must be exported again with v2 before it can be compacted.
 
 Migration 105 is present in the shared local database because the local reset
 already applied it. Migrations 106 and 107 have only been replayed in disposable
@@ -53,19 +55,20 @@ invariants:
 3. Source and archive resource counts are identical; there is no conversion.
 4. Restore always stages the v2 graph.
 5. V1 artifacts discard Quiz rows rather than restoring or adapting them.
-6. Compaction validates and stages the v2 restore graph.
+6. Compaction validates and stages an archive-v2 restore graph; v1 archives
+   return `classroom_archive_reexport_required`.
 7. Missing v2 RPCs return migration-required failures instead of invoking v1.
 
 The disposable database harness replays migrations through 106, applies 107,
-proves Quiz drafts/envelopes were removed, captures a 40-resource source-v2
-snapshot, rejects Quiz membership, and finalizes an archive-v2 operation.
+proves Quiz source rows/drafts/envelopes were removed, captures a 40-resource
+source-v2 snapshot, rejects Quiz membership, finalizes an archive-v2 operation,
+and completes a v2 hot-to-cold compaction.
 
 ## Next Pass: Hard Removal
 
 Create migration `108_drop_legacy_quiz_schema.sql` and the coordinated
 application cleanup:
 
-- delete any remaining rows in dependency order;
 - drop `quiz_responses`, `quiz_student_scores`, `quiz_questions`, and
   `quizzes`;
 - remove Quiz policies, triggers, update functions, indexes, and grants;
@@ -88,7 +91,7 @@ idempotent only where PostgreSQL object semantics make that explicit.
 Deploy the migration-107-aware application before applying migration 107.
 Archive features fail closed until the migration is present. Apply migration
 107 only in a quiet window because it takes archive-operation locks and rejects
-an active export, restore, or compaction.
+an active or retryable export, restore, or compaction.
 
 After migration 107, Quiz drafts and copied envelopes cannot be recovered from
 the database. That loss is explicitly accepted. Application rollback to a

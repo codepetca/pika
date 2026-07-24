@@ -22,15 +22,58 @@ begin
   if exists (
     select 1
     from public.classroom_archive_operations
-    where status = 'snapshot_ready'
-      and snapshot_expires_at > clock_timestamp()
+    where snapshot_expires_at > clock_timestamp()
       and operation_type in ('export', 'restore', 'compact')
+      and (
+        status = 'snapshot_ready'
+        or (status = 'failed' and retryable is true)
+      )
   ) then
     raise exception 'Cannot activate archive-v2 while an archive operation is active'
       using errcode = '55006';
   end if;
 end;
 $active_operation_guard$;
+
+create or replace function private.reject_legacy_quiz_source_write()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if current_setting('pika.classroom_archive_compaction', true) = 'on'
+    and tg_op = 'DELETE'
+  then
+    return old;
+  end if;
+
+  if tg_table_name = 'assessment_drafts' and tg_op <> 'TRUNCATE' then
+    if tg_op = 'INSERT' and new.assessment_type <> 'quiz' then
+      return new;
+    end if;
+    if tg_op = 'UPDATE'
+      and old.assessment_type <> 'quiz'
+      and new.assessment_type <> 'quiz'
+    then
+      return new;
+    end if;
+    if tg_op = 'DELETE' and old.assessment_type <> 'quiz' then
+      return old;
+    end if;
+  end if;
+
+  raise exception 'Legacy Quiz source is frozen: %.% %',
+    tg_table_schema, tg_table_name, tg_op
+    using errcode = '0A000';
+end;
+$$;
+
+select set_config('pika.classroom_archive_compaction', 'on', true);
+
+delete from public.quiz_responses;
+delete from public.quiz_student_scores;
+delete from public.quiz_questions;
+delete from public.quizzes;
 
 drop trigger if exists freeze_legacy_quiz_drafts on public.assessment_drafts;
 drop trigger if exists freeze_legacy_quiz_drafts_truncate on public.assessment_drafts;
@@ -118,6 +161,32 @@ begin
     or p_archive_format_version <> 2
   then
     raise exception 'Unsupported classroom archive export contract transition'
+      using errcode = '22023';
+  end if;
+  if p_request_sha256 !~ '^[a-f0-9]{64}$'
+    or p_source_schema_migration !~ '^\d{3}(?:_[a-z0-9_]+)?$'
+    or p_source_app_commit !~ '^[a-f0-9]{7,40}$'
+  then
+    raise exception 'Invalid classroom archive-v2 source request'
+      using errcode = '22023';
+  end if;
+  if p_retention is null
+    or jsonb_typeof(p_retention) <> 'object'
+    or coalesce(p_retention->>'mode', '') not in ('teacher_managed', 'scheduled')
+    or p_retention - 'mode' - 'delete_after' <> '{}'::jsonb
+    or (
+      p_retention->>'mode' = 'teacher_managed'
+      and p_retention->'delete_after' is distinct from 'null'::jsonb
+    )
+    or (
+      p_retention->>'mode' = 'scheduled'
+      and (
+        jsonb_typeof(p_retention->'delete_after') is distinct from 'string'
+        or (p_retention->>'delete_after')::timestamptz <= v_now
+      )
+    )
+  then
+    raise exception 'Invalid classroom archive retention policy'
       using errcode = '22023';
   end if;
 
@@ -719,5 +788,275 @@ begin
   );
 end;
 $$;
+
+create or replace function public.begin_classroom_archive_compaction_v2(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_archive_id uuid,
+  p_request_sha256 text,
+  p_restore_contract_version integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+  v_archive_format_version integer;
+  v_result jsonb;
+begin
+  if p_restore_contract_version <> 2 then
+    raise exception 'Unsupported classroom archive compaction contract'
+      using errcode = '22023';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
+
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.id is not null
+    and (
+      v_operation.source_contract_version <> 2
+      or v_operation.archive_format_version <> 2
+      or v_operation.restore_contract_version <> p_restore_contract_version
+    )
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'idempotency_conflict',
+      'error', 'Idempotency key was already used for another compaction contract',
+      'retryable', false
+    );
+  end if;
+
+  select archive.format_version
+  into v_archive_format_version
+  from public.classroom_archives archive
+  where archive.id = p_archive_id
+    and archive.teacher_id = p_teacher_id
+    and archive.classroom_id = p_classroom_id;
+
+  if v_archive_format_version is not null
+    and v_archive_format_version <> 2
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'classroom_archive_reexport_required',
+      'error', 'Classroom must be re-exported with archive-v2 before compaction',
+      'retryable', false
+    );
+  end if;
+
+  v_result := public.begin_classroom_archive_compaction(
+    p_operation_id,
+    p_teacher_id,
+    p_classroom_id,
+    p_archive_id,
+    p_request_sha256
+  );
+
+  if coalesce((v_result->>'ok')::boolean, false) is true then
+    update public.classroom_archive_operations
+    set
+      source_contract_version = 2,
+      archive_format_version = 2,
+      restore_contract_version = p_restore_contract_version,
+      source_resource_counts = resource_counts,
+      updated_at = clock_timestamp()
+    where id = p_operation_id
+      and operation_type = 'compact';
+
+    v_result := v_result || jsonb_build_object(
+      'source_contract_version', 2,
+      'archive_format_version', 2,
+      'restore_contract_version', p_restore_contract_version
+    );
+  end if;
+
+  return v_result;
+end;
+$$;
+
+create or replace function public.complete_classroom_archive_compaction_v2(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_actors jsonb,
+  p_verification jsonb,
+  p_restore_contract_version integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+set statement_timeout = '60s'
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  if p_restore_contract_version <> 2 then
+    raise exception 'Unsupported classroom archive compaction contract'
+      using errcode = '22023';
+  end if;
+
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.id is not null
+    and (
+      v_operation.source_contract_version <> 2
+      or v_operation.archive_format_version <> 2
+      or v_operation.restore_contract_version <> p_restore_contract_version
+    )
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'archive_contract_mismatch',
+      'error', 'Compaction operation contract does not match finalization',
+      'retryable', false
+    );
+  end if;
+
+  v_result := public.complete_classroom_archive_compaction(
+    p_operation_id,
+    p_teacher_id,
+    p_actors,
+    p_verification
+  );
+
+  if coalesce((v_result->>'ok')::boolean, false) is true then
+    v_result := v_result || jsonb_build_object(
+      'source_contract_version', 2,
+      'archive_format_version', 2,
+      'restore_contract_version', p_restore_contract_version
+    );
+  end if;
+
+  return v_result;
+end;
+$$;
+
+create or replace function public.stage_classroom_archive_restore_rows(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_table_name text,
+  p_rows jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_restore_contract_version integer;
+  v_operation_type text;
+begin
+  select restore_contract_version, operation_type
+  into v_restore_contract_version, v_operation_type
+  from public.classroom_archive_operations
+  where id = p_operation_id
+    and teacher_id = p_teacher_id;
+
+  if v_restore_contract_version = 1 then
+    return private.stage_classroom_archive_restore_rows_v094(
+      p_operation_id,
+      p_teacher_id,
+      p_table_name,
+      p_rows
+    );
+  end if;
+  if v_restore_contract_version = 2
+    and v_operation_type = 'compact'
+  then
+    return private.stage_classroom_archive_restore_rows_v094(
+      p_operation_id,
+      p_teacher_id,
+      p_table_name,
+      p_rows
+    );
+  end if;
+  if v_restore_contract_version = 2 then
+    return public.stage_classroom_archive_restore_rows_v2(
+      p_operation_id,
+      p_teacher_id,
+      p_table_name,
+      p_rows,
+      v_restore_contract_version
+    );
+  end if;
+
+  return jsonb_build_object(
+    'ok', false,
+    'status', 404,
+    'operation_id', p_operation_id,
+    'error_code', 'restore_operation_not_found',
+    'error', 'Restore operation not found',
+    'retryable', false
+  );
+end;
+$$;
+
+revoke all on function public.begin_classroom_archive_compaction_v2(
+  uuid,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  integer
+) from public, anon, authenticated;
+grant execute on function public.begin_classroom_archive_compaction_v2(
+  uuid,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  integer
+) to service_role;
+
+revoke all on function public.complete_classroom_archive_compaction_v2(
+  uuid,
+  uuid,
+  jsonb,
+  jsonb,
+  integer
+) from public, anon, authenticated;
+grant execute on function public.complete_classroom_archive_compaction_v2(
+  uuid,
+  uuid,
+  jsonb,
+  jsonb,
+  integer
+) to service_role;
+
+comment on function public.begin_classroom_archive_compaction_v2(
+  uuid,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  integer
+) is
+  'Begins archive-v2-only hot-to-cold compaction. V1 archives must be re-exported before compaction.';
+comment on function public.complete_classroom_archive_compaction_v2(
+  uuid,
+  uuid,
+  jsonb,
+  jsonb,
+  integer
+) is
+  'Finalizes archive-v2-only hot-to-cold compaction against restore contract 2.';
 
 commit;

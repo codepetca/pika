@@ -1128,18 +1128,23 @@ future persistence shape without enabling unapproved schema behavior.
 **Completed:**
 - Recorded the maintainer decision that experimental Quiz rows, drafts,
   envelopes, and Quiz portions of v1 artifacts are disposable.
-- Added migration 107 to purge Quiz drafts/envelopes, narrow drafts to Tests,
-  promote the live archive registry to v2, and capture source contract 2
-  directly.
+- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
+  drafts to Tests, promote the live archive registry to v2, and capture source
+  contract 2 directly.
 - Made export, restore, and compaction strict v2 paths with no pre-107 RPC
   fallback. V1 restore now discards Quiz resources while retaining other
   classroom content.
 - Extended disposable replay through migrations 106-107 and proved direct
   source counts, snapshot membership, upload intent, and finalization.
+- Review remediation now purges the frozen Quiz source rows, fences retryable
+  operations, and makes compaction use migration-107-specific v2 RPCs. V1
+  archives must be re-exported before compaction.
 
 **Validation:**
 - Focused archive coordinator tests and TypeScript pass.
 - The disposable freeze/backfill/direct-source database harness passes.
+- Current-export and atomic-compaction database harnesses pass against the
+  disposable post-107 schema, including a complete v2 cold transition.
 - No shared local or hosted migration was applied.
 
 **Remaining:**

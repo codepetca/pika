@@ -5,7 +5,7 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 ## Current Focus
 
 - Legacy Quiz retirement: migration 107 and strict archive-v2 runtime are in
-  review. Existing Quiz rows and Quiz-format payloads are explicitly
+  PR 930 review. Existing Quiz rows and Quiz-format payloads are explicitly
   disposable; the next pass is migration 108 hard schema removal.
 - Shared local schema: 001-105. Migrations 106-107 have passed disposable
   replay only. None of 105-107 is hosted.

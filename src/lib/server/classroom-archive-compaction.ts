@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { CLASSROOM_ARCHIVE_V2_RESTORE_ORDER } from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V2_VERSION } from '@/lib/contracts/classroom-artifacts'
 import { classroomArchiveCompactionVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
@@ -64,6 +65,12 @@ const completedVerificationSchema = classroomArchiveCompactionVerificationSchema
   tombstone_verified: z.literal(true),
 }).strict()
 
+const compactionV2ContractSchema = {
+  source_contract_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+  archive_format_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+  restore_contract_version: z.literal(CLASSROOM_ARCHIVE_V2_VERSION),
+}
+
 const completedOperationSchema = z.object({
   ok: z.literal(true),
   status: z.union([z.literal(200), z.literal(201)]),
@@ -74,6 +81,7 @@ const completedOperationSchema = z.object({
   resource_counts: resourceCountsSchema,
   storage_object_counts: storageObjectCountsSchema,
   verification: completedVerificationSchema,
+  ...compactionV2ContractSchema,
 }).strict()
 
 const snapshotReadySchema = z.object({
@@ -90,6 +98,7 @@ const snapshotReadySchema = z.object({
   storage_path: z.string().min(1),
   artifact_sha256: sha256Schema,
   content_sha256: sha256Schema,
+  ...compactionV2ContractSchema,
 }).strict()
 
 const stageSuccessSchema = z.object({
@@ -195,21 +204,15 @@ function isArchiveStoragePath(args: {
   archiveId: string
   storagePath: string
 }) {
-  const prefix = `${args.teacherId}/${args.classroomId}/${args.archiveId}/classroom-v`
-  return args.storagePath === `${prefix}1.tar.gz` || args.storagePath === `${prefix}2.tar.gz`
+  return args.storagePath ===
+    `${args.teacherId}/${args.classroomId}/${args.archiveId}/classroom-v2.tar.gz`
 }
 
 function isMissingCompactionRpc(
   error: { code?: string; message?: string } | null | undefined,
 ): boolean {
   if (!error) return false
-  const message = (error.message || '').toLowerCase()
-  return error.code === '42883' || error.code === 'PGRST202' || (
-    message.includes('begin_classroom_archive_compaction') ||
-    message.includes('stage_classroom_archive_compaction_objects') ||
-    message.includes('complete_classroom_archive_compaction') ||
-    message.includes('fail_classroom_archive_compaction')
-  )
+  return error.code === '42883' || error.code === 'PGRST202'
 }
 
 function assertOperationIdentity(args: {
@@ -577,7 +580,7 @@ async function stageCleanupObjects(args: {
           ? 'classroom_archive_compaction_migration_required'
           : 'archive_compaction_cleanup_staging_failed',
         isMissingCompactionRpc(response.error)
-          ? 'Classroom archive compaction requires migration 085'
+          ? 'Classroom archive compaction requires migration 107'
           : 'Source-object cleanup inventory could not be staged',
         503,
         true,
@@ -694,12 +697,13 @@ export async function compactClassroomArchive(args: {
   })
 
   try {
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_compaction', {
+    const beginResponse = await args.supabase.rpc('begin_classroom_archive_compaction_v2', {
       p_operation_id: operationId,
       p_teacher_id: teacherId,
       p_classroom_id: classroomId,
       p_archive_id: archiveId,
       p_request_sha256: requestSha256,
+      p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
     if (beginResponse.error) {
       const missingMigration = isMissingCompactionRpc(beginResponse.error)
@@ -708,7 +712,7 @@ export async function compactClassroomArchive(args: {
           ? 'classroom_archive_compaction_migration_required'
           : 'archive_compaction_begin_failed',
         missingMigration
-          ? 'Classroom archive compaction requires migration 085'
+          ? 'Classroom archive compaction requires migration 107'
           : 'Classroom archive compaction could not be started',
         503,
         true,
@@ -782,13 +786,14 @@ export async function compactClassroomArchive(args: {
       actor_references_resolved: true,
       source_object_cleanup_staged: true,
     })
-    const completeResponse = await args.supabase.rpc('complete_classroom_archive_compaction', {
+    const completeResponse = await args.supabase.rpc('complete_classroom_archive_compaction_v2', {
       p_operation_id: operationId,
       p_teacher_id: teacherId,
       p_actors: verified.restorePlan.actors
         .map((actor) => ({ actor_id: actor.id, role: actor.role }))
         .sort((left, right) => left.actor_id < right.actor_id ? -1 : left.actor_id > right.actor_id ? 1 : 0),
       p_verification: verification,
+      p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
     if (completeResponse.error) {
       const missingMigration = isMissingCompactionRpc(completeResponse.error)
@@ -800,7 +805,7 @@ export async function compactClassroomArchive(args: {
             ? 'archive_compaction_verification_rejected'
             : 'archive_compaction_finalize_failed',
         missingMigration
-          ? 'Classroom archive compaction requires migration 085'
+          ? 'Classroom archive compaction requires migration 107'
           : terminalVerificationError
             ? 'Classroom archive compaction verification was rejected'
             : 'Classroom archive compaction could not be finalized',
