@@ -1157,6 +1157,11 @@ future persistence shape without enabling unapproved schema behavior.
   and versioned source contract 2. The disposable harness proves registry drift
   fails without deleting v1 metadata or Quiz tables before restoring the
   registry and completing hard removal.
+- Final integration review found the production archive canary still bound to
+  archive v1. The operator runner and runbook now use archive format 2, the
+  40-resource graph, migration-107 source/restore contracts, and the current v2
+  restore planner. A subprocess smoke test loads the actual excluded script so
+  future import drift fails in Vitest.
 
 **Validation:**
 - Fresh disposable replay through migrations 106-108 passes freeze, direct
@@ -1167,6 +1172,9 @@ future persistence shape without enabling unapproved schema behavior.
   and the Pika pre-commit audit pass.
 - Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
   database contract also passes against the disposable database.
+- The focused post-review archive suite passes: 4 files and 53 tests, including
+  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
+  and the Pika audit remain green after the canary port.
 - Migration 108 was not applied to the shared local database or any hosted
   target.
 
