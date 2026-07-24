@@ -20,9 +20,10 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { config } from 'dotenv'
-import { login, loadSession, pikaJson, getBaseUrl } from './pika-api'
+import { login, loadSession, pikaFetch, pikaJson, getBaseUrl } from './pika-api'
 import { testToMarkdown, markdownToTest } from '../src/lib/test-markdown'
 import type { TestMarkdownSerializeInput } from '../src/lib/test-markdown'
+import { decodeCourseBlueprintPackageArchive } from '../src/lib/course-blueprint-package'
 import { COURSE_BLUEPRINT_PACKAGE_VERSION } from '../src/lib/contracts/course-blueprint-package'
 
 config({ path: '.env.local' })
@@ -44,7 +45,7 @@ const COURSE_PACKAGE_FILES = [
  * the next positional (e.g. `test push --yes <id> file.md` would read the id as
  * the value of --yes), so flag order would silently break commands.
  */
-const BOOLEAN_FLAGS = new Set(['yes'])
+const BOOLEAN_FLAGS = new Set(['yes', 'replace', 'new'])
 
 function parseArgs(argv: string[]): { positional: string[]; flags: Flags } {
   const positional: string[] = []
@@ -171,16 +172,46 @@ async function cmdTestPush(testId: string, file: string, flags: Flags): Promise<
   console.log(`Pushed ${questionCount} question(s) to test ${testId} (draft v${draft.version} → v${draft.version + 1}).`)
 }
 
+interface BlueprintSummary {
+  id: string
+  title: string
+  course_code?: string | null
+}
+
+async function listBlueprints(): Promise<BlueprintSummary[]> {
+  const data = await pikaJson<{ blueprints?: BlueprintSummary[] }>('/api/teacher/course-blueprints')
+  return data.blueprints ?? []
+}
+
 async function cmdCourseList(): Promise<void> {
-  const data = await pikaJson<{ blueprints?: Array<{ id: string; title: string }> }>(
-    '/api/teacher/course-blueprints'
-  )
-  const blueprints = data.blueprints ?? []
+  const blueprints = await listBlueprints()
   if (blueprints.length === 0) {
     console.log('No course blueprints.')
     return
   }
   for (const bp of blueprints) console.log(`${bp.id}  ${bp.title}`)
+}
+
+async function cmdCoursePull(blueprintId: string, dir: string): Promise<void> {
+  const res = await pikaFetch(`/api/teacher/course-blueprints/${blueprintId}/export`)
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(`Export failed (${res.status}): ${err.error ?? res.statusText}`)
+  }
+  const bundle = decodeCourseBlueprintPackageArchive(new Uint8Array(await res.arrayBuffer()))
+  if (!bundle) {
+    throw new Error('Could not decode the exported course package.')
+  }
+
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify(bundle.manifest, null, 2) + '\n')
+  const written: string[] = []
+  for (const [name, content] of Object.entries(bundle.files)) {
+    writeFileSync(join(dir, name), content.length && !content.endsWith('\n') ? content + '\n' : content)
+    if (content.trim().length > 0) written.push(name)
+  }
+  console.log(`Pulled "${bundle.manifest.title}" → ${dir}`)
+  console.log(`  manifest.json + files with content: ${written.length ? written.join(', ') : '(metadata only)'}`)
 }
 
 /** Build a course-package bundle from a directory of markdown + manifest.json. */
@@ -203,13 +234,36 @@ function readCourseBundle(dir: string): { manifest: Record<string, unknown>; fil
 
 async function cmdCoursePush(dir: string, flags: Flags): Promise<void> {
   const bundle = readCourseBundle(dir)
+  const title = String(bundle.manifest.title ?? '')
+  const courseCode = String(bundle.manifest.course_code ?? '')
   const present = COURSE_PACKAGE_FILES.filter((f) => bundle.files[f].trim().length > 0)
-  console.log(`Course "${bundle.manifest.title}" from ${dir}`)
+  console.log(`Course "${title}" from ${dir}`)
   console.log(`  files with content: ${present.length ? present.join(', ') : '(none — metadata only)'}`)
 
-  if (!flags.yes) {
-    console.log('DRY RUN. Would import this course blueprint. Re-run with --yes to apply.')
+  // Import always CREATES a blueprint. Detect an existing one (by course code,
+  // else title) so repeated pushes don't silently accumulate duplicates.
+  const existing = (await listBlueprints()).find(
+    (bp) => (courseCode && bp.course_code === courseCode) || bp.title === title
+  )
+
+  if (existing && !flags.replace && !flags.new) {
+    console.error(`A blueprint "${existing.title}" already exists (${existing.id}).`)
+    console.error('  --replace  delete it and recreate from this directory')
+    console.error('  --new      create a duplicate anyway')
+    process.exitCode = 1
     return
+  }
+
+  const willReplace = Boolean(existing && flags.replace)
+  if (!flags.yes) {
+    const action = willReplace ? `replace blueprint ${existing!.id}` : 'import a new blueprint'
+    console.log(`DRY RUN. Would ${action}. Re-run with --yes to apply.`)
+    return
+  }
+
+  if (willReplace) {
+    await pikaJson(`/api/teacher/course-blueprints/${existing!.id}`, { method: 'DELETE' })
+    console.log(`Deleted existing blueprint ${existing!.id}.`)
   }
 
   const result = await pikaJson<{ blueprint: { id: string; title: string } }>(
@@ -221,7 +275,7 @@ async function cmdCoursePush(dir: string, flags: Flags): Promise<void> {
     }
   )
   console.log(`Imported blueprint ${result.blueprint.id} — "${result.blueprint.title}"`)
-  console.log(`Next: pnpm pika course instantiate ${result.blueprint.id} --title "<classroom name>" --yes`)
+  console.log(`Next: pnpm pika course instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
 }
 
 async function cmdCourseInstantiate(blueprintId: string, flags: Flags): Promise<void> {
@@ -269,7 +323,8 @@ function printHelp(): void {
       '  pnpm pika test pull <testId> [--out <file.md>]',
       '  pnpm pika test push <testId> <file.md> [--yes]',
       '  pnpm pika course list',
-      '  pnpm pika course push <dir> [--yes]',
+      '  pnpm pika course pull <blueprintId> <dir>',
+      '  pnpm pika course push <dir> [--replace | --new] [--yes]',
       '  pnpm pika course instantiate <blueprintId> --title <name>',
       '      (--semester <semester1|semester2> --year <YYYY>) | (--start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD>) [--yes]',
       '',
@@ -301,10 +356,13 @@ async function main(): Promise<void> {
         break
       case 'course':
         if (sub === 'list') await cmdCourseList()
+        else if (sub === 'pull' && rest[0] && rest[1]) await cmdCoursePull(rest[0], rest[1])
         else if (sub === 'push' && rest[0]) await cmdCoursePush(rest[0], flags)
         else if (sub === 'instantiate' && rest[0]) await cmdCourseInstantiate(rest[0], flags)
         else {
-          console.error('Usage: pnpm pika course list | course push <dir> | course instantiate <id> --title <name>')
+          console.error(
+            'Usage: pnpm pika course list | course pull <id> <dir> | course push <dir> | course instantiate <id> --title <name>'
+          )
           process.exitCode = 1
         }
         break

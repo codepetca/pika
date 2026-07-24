@@ -26,7 +26,8 @@ rides the shared `src/lib/test-markdown` contract the editor already uses.
 | `pnpm pika test pull <testId> [--out f.md]` | Export a test to markdown (stdout or file). |
 | `pnpm pika test push <testId> <f.md> [--yes]` | Parse markdown → replace the test's draft. **Dry-run without `--yes`.** |
 | `pnpm pika course list` | List course blueprints. |
-| `pnpm pika course push <dir> [--yes]` | Import a course directory (manifest.json + markdown) as a blueprint. |
+| `pnpm pika course pull <blueprintId> <dir>` | Export a blueprint to an editable directory (manifest.json + markdown). |
+| `pnpm pika course push <dir> [--replace \| --new] [--yes]` | Import a course directory as a blueprint. |
 | `pnpm pika course instantiate <id> --title <name> --semester semester1 --year 2026 [--yes]` | Turn a blueprint into a real classroom. |
 
 ## Creating a whole course
@@ -42,6 +43,20 @@ pnpm pika course push scripts/fixtures/dummy-course --yes      # → blueprint
 pnpm pika course instantiate <blueprintId> --title "CS 101" \
   --semester semester1 --year 2026 --yes                       # → classroom
 ```
+
+### Editing an existing course (round-trip)
+
+```bash
+pnpm pika course pull <blueprintId> course/            # export to markdown
+$EDITOR course/assignments.md course/tests.md          # edit
+pnpm pika course push course/ --replace --yes          # delete + recreate
+```
+
+`course push` refuses by default when a blueprint with the same course code (or
+title) already exists, so repeated pushes don't silently pile up duplicates.
+Pass `--replace` to delete and recreate it, or `--new` to create a duplicate on
+purpose. Replacing a blueprint does not touch classrooms already instantiated
+from it — those are independent copies.
 
 ## Testing
 
