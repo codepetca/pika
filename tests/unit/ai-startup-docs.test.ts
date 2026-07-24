@@ -82,6 +82,13 @@ const requiredStartupFiles = [
   '.ai/features.json',
   'docs/ai-instructions.md',
 ]
+const requiredStartupGuidanceFiles = [...requiredStartupFiles, 'docs/dev-workflow.md']
+const requiredWorkflowRecoveryFiles = [
+  '.ai/START-HERE.md',
+  '.ai/CURRENT.md',
+  'docs/ai-instructions.md',
+  'docs/dev-workflow.md',
+]
 
 describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
@@ -128,13 +135,44 @@ describe('AI startup docs', () => {
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
   })
 
-  it('keeps the manual startup prompt aligned with the required startup set', () => {
-    const prompt = readRepoFile('.codex/prompts/session-start.md')
+  it('keeps startup prompts aligned with the canonical guidance set', () => {
+    const prompts = ['.claude/commands/session-start.md', '.codex/prompts/session-start.md']
 
-    for (const file of requiredStartupFiles) {
-      expect(prompt).toContain(file)
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      for (const file of requiredStartupGuidanceFiles) {
+        expect(prompt).toContain(file)
+      }
+      expect(prompt).toContain('--orient-only')
     }
-    expect(prompt).toContain('--orient-only')
+  })
+
+  it('keeps workflow reset prompts aligned with the canonical recovery set', () => {
+    const prompts = ['.claude/commands/follow-workflow.md', '.codex/prompts/follow-workflow.md']
+
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      for (const file of requiredWorkflowRecoveryFiles) {
+        expect(prompt).toContain(file)
+      }
+      expect(prompt).toContain('git rev-parse --show-toplevel')
+      expect(prompt).toContain('detached HEAD')
+    }
+  })
+
+  it('keeps issue prompts on the canonical worktree workflow', () => {
+    const prompts = ['.claude/commands/work-on-issue.md', '.codex/prompts/work-on-issue.md']
+
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      expect(prompt).toContain('docs/workflow/handle-issue.md')
+      expect(prompt).toContain('docs/dev-workflow.md')
+      expect(prompt).not.toContain('$HOME/.codex/worktrees/pika/issue-')
+      expect(prompt).not.toContain('git -C "$HUB" worktree add')
+    }
   })
 
   it('documents both named and app-managed Codex worktree locations', () => {

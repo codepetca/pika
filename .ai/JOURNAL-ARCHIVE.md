@@ -14959,3 +14959,27 @@
 
 **Remaining:**
 - Merge PR #895 after required checks/review. Phase 2 begins after that merge.
+
+<!-- pika-session-log-archive-batch:a73dcf9eb7487dcd0acaba81544d6e7333f6addb1ad942ce89748d8c50d1b45b -->
+## 2026-07-20 — Phase 2 semantic-token contrast contract
+
+**Completed:**
+- Merged PR #895, completing the Product Experience Safety Wave and beginning Phase 2.
+- Added a WCAG AA contract that evaluates semantic foreground/background pairs in both themes, including translucent selected and status surfaces.
+- Split semantic foreground colors from opaque solid action fills, migrated filled controls to the new solid tokens, and corrected failing muted, status, accent, and selected-state combinations.
+- Preserved a persistent selected-row cue in the gradebook after reducing the dark selected-surface opacity.
+- Resolved all findings from two independent reviews, including omitted hover/subtle pairs, solid-fill opacity enforcement, inverse-text bypasses, and missing direct component coverage.
+- Visually verified representative teacher and student routes at desktop/mobile sizes in light/dark themes, plus selected gradebook rows in both themes. No overflow, overlap, console, or page errors were found.
+
+**Validation:**
+- `pnpm test` (378 files / 3,523 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Custom Playwright teacher/student desktop/mobile light/dark matrix and gradebook selected-row checks
+- `git diff --check`
+
+**Remaining:**
+- Review and merge PR #896. Then implement Phase 2's shared modal-layer contract as a separate slice.
