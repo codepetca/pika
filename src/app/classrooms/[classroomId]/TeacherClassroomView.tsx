@@ -66,7 +66,7 @@ import {
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { RichTextEditor } from '@/components/editor'
+import { ContentField, RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -433,14 +433,16 @@ function TeacherMaterialDialog({
           />
         </FormField>
 
-        <FormField label="Content">
+        <ContentField label="Content">
           <RichTextEditor
             content={content}
             onChange={setContent}
             editable={!saving && !isReadOnly}
             placeholder="Add links, notes, readings, or instructions..."
+            toolbarPreset="compact"
+            aria-label="Material content"
           />
-        </FormField>
+        </ContentField>
 
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

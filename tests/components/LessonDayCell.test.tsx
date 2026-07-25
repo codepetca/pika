@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import { applyMarkdownShortcut, LessonDayCell } from '@/components/LessonDayCell'
+import { LessonDayCell } from '@/components/LessonDayCell'
 import { TooltipProvider } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TiptapContent } from '@/types'
 
@@ -88,7 +89,7 @@ describe('LessonDayCell', () => {
     )
   }
 
-  it('enters inline markdown edit mode when the preview is clicked', () => {
+  it('enters toolbar-free WYSIWYG edit mode when the preview is clicked', () => {
     const { container } = renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
@@ -103,7 +104,8 @@ describe('LessonDayCell', () => {
 
     expect(container.querySelector('.calendar-day-text')).toBeTruthy()
     fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
+    expect(screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })).toHaveTextContent('Lesson text')
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
   it('does not render default add-lesson-plan prompt text for empty editable cells', () => {
@@ -126,7 +128,7 @@ describe('LessonDayCell', () => {
     expect(screen.getByRole('textbox')).not.toHaveAttribute('placeholder')
   })
 
-  it('enters inline markdown edit mode when the date header is clicked', () => {
+  it('enters inline WYSIWYG edit mode when the date header is clicked', () => {
     const { container } = renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
@@ -141,28 +143,32 @@ describe('LessonDayCell', () => {
 
     fireEvent.click(screen.getByText('13'))
 
-    expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
-    expect(container.querySelector('textarea')).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })).toHaveTextContent('Lesson text')
+    expect(container.querySelector('.ProseMirror')).toBeTruthy()
   })
 
-  it('keeps the edited markdown visible after blur when parent state updates optimistically', () => {
+  it('keeps edited content visible after blur when parent state updates optimistically', async () => {
+    const user = userEvent.setup()
     renderWithTooltip(<Harness />)
 
     fireEvent.click(screen.getByRole('button'))
-    const textarea = screen.getByDisplayValue('Lesson text')
-    fireEvent.change(textarea, { target: { value: 'Updated lesson text' } })
-    fireEvent.blur(textarea)
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    editor.focus()
+    await user.keyboard('{Control>}a{/Control}Updated lesson text')
+    fireEvent.blur(editor)
 
     expect(screen.getByText('Updated lesson text')).toBeInTheDocument()
   })
 
-  it('keeps the edited markdown visible after pressing escape', () => {
+  it('keeps edited content visible after pressing escape', async () => {
+    const user = userEvent.setup()
     renderWithTooltip(<Harness />)
 
     fireEvent.click(screen.getByRole('button'))
-    const textarea = screen.getByDisplayValue('Lesson text')
-    fireEvent.change(textarea, { target: { value: 'Saved via escape' } })
-    fireEvent.keyDown(textarea, { key: 'Escape' })
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    editor.focus()
+    await user.keyboard('{Control>}a{/Control}Saved via escape')
+    fireEvent.keyDown(editor, { key: 'Escape' })
 
     expect(screen.getByText('Saved via escape')).toBeInTheDocument()
   })
@@ -203,16 +209,6 @@ describe('LessonDayCell', () => {
       'hover:bg-primary-solid-hover',
       'text-text-inverse'
     )
-  })
-
-  it('applies bold shortcut to the selected markdown range', () => {
-    const result = applyMarkdownShortcut('hello world', 0, 5, 'bold')
-    expect(result.value).toBe('**hello** world')
-  })
-
-  it('toggles list prefix for the selected lines', () => {
-    const result = applyMarkdownShortcut('item one\nitem two', 0, 'item one\nitem two'.length, 'unordered-list')
-    expect(result.value).toBe('- item one\n- item two')
   })
 
   it('shows the full announcement content inside the tooltip', async () => {

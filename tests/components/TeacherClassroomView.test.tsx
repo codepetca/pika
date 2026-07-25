@@ -1123,6 +1123,26 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
 
+  it('uses the compact WYSIWYG preset for material content', async () => {
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+
+    const materialEditor = await screen.findByRole('textbox', { name: 'Material content' })
+    expect(materialEditor).toHaveAttribute('contenteditable', 'true')
+    expect(
+      within(screen.getByRole('dialog', { name: 'New Material' }))
+        .getByRole('toolbar', { name: 'Formatting options' }),
+    ).toHaveAttribute('data-toolbar-preset', 'compact')
+  })
+
   it('disables classwork create and options actions for archived classrooms', async () => {
     render(
       <TeacherClassroomView

@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
+import { MarkdownContentEditor } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/announcements'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
@@ -54,89 +55,6 @@ interface LessonDayCellProps {
   onAnnouncementClick?: () => void
 }
 
-type MarkdownShortcut = 'bold' | 'italic' | 'code' | 'unordered-list' | 'heading-3'
-
-type ShortcutResult = {
-  value: string
-  selectionStart: number
-  selectionEnd: number
-}
-
-function applyWrapShortcut(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  open: string,
-  close = open
-): ShortcutResult {
-  const selected = value.slice(selectionStart, selectionEnd)
-  const replacement = `${open}${selected}${close}`
-  const nextValue = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`
-
-  if (selectionStart === selectionEnd) {
-    return {
-      value: nextValue,
-      selectionStart: selectionStart + open.length,
-      selectionEnd: selectionStart + open.length,
-    }
-  }
-
-  return {
-    value: nextValue,
-    selectionStart: selectionStart + open.length,
-    selectionEnd: selectionStart + open.length + selected.length,
-  }
-}
-
-function toggleLinePrefix(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  prefix: string
-): ShortcutResult {
-  const blockStart = value.lastIndexOf('\n', Math.max(selectionStart - 1, 0)) + 1
-  const nextBreak = value.indexOf('\n', selectionEnd)
-  const blockEnd = nextBreak === -1 ? value.length : nextBreak
-  const block = value.slice(blockStart, blockEnd)
-  const lines = block.split('\n')
-  const shouldRemove = lines.every((line) => line.trim().length === 0 || line.startsWith(prefix))
-  const updated = lines.map((line) => {
-    if (line.trim().length === 0) return line
-    if (shouldRemove) {
-      return line.startsWith(prefix) ? line.slice(prefix.length) : line
-    }
-    return `${prefix}${line}`
-  })
-  const replacement = updated.join('\n')
-
-  return {
-    value: `${value.slice(0, blockStart)}${replacement}${value.slice(blockEnd)}`,
-    selectionStart: blockStart,
-    selectionEnd: blockStart + replacement.length,
-  }
-}
-
-export function applyMarkdownShortcut(
-  value: string,
-  selectionStart: number,
-  selectionEnd: number,
-  shortcut: MarkdownShortcut
-): ShortcutResult {
-  if (shortcut === 'bold') {
-    return applyWrapShortcut(value, selectionStart, selectionEnd, '**')
-  }
-  if (shortcut === 'italic') {
-    return applyWrapShortcut(value, selectionStart, selectionEnd, '*')
-  }
-  if (shortcut === 'code') {
-    return applyWrapShortcut(value, selectionStart, selectionEnd, '`')
-  }
-  if (shortcut === 'unordered-list') {
-    return toggleLinePrefix(value, selectionStart, selectionEnd, '- ')
-  }
-  return toggleLinePrefix(value, selectionStart, selectionEnd, '### ')
-}
-
 export const LessonDayCell = memo(function LessonDayCell({
   date,
   day,
@@ -157,7 +75,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   const { showMarkdown } = useMarkdownPreference()
   const [isEditing, setIsEditing] = useState(false)
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const cellRef = useRef<HTMLDivElement | null>(null)
   const renderPlainText = plainTextOnly || !showMarkdown
 
   useEffect(() => {
@@ -167,12 +85,13 @@ export const LessonDayCell = memo(function LessonDayCell({
   }, [markdown, isEditing])
 
   useEffect(() => {
-    if (!isEditing) return
-    const textarea = textareaRef.current
-    if (!textarea) return
-    textarea.focus()
-    const cursor = textarea.value.length
-    textarea.setSelectionRange(cursor, cursor)
+    if (
+      isEditing
+      && cellRef.current
+      && typeof cellRef.current.scrollIntoView === 'function'
+    ) {
+      cellRef.current.scrollIntoView({ block: 'nearest', inline: 'center' })
+    }
   }, [isEditing])
 
   const handleStartEditing = useCallback(() => {
@@ -185,59 +104,6 @@ export const LessonDayCell = memo(function LessonDayCell({
     setLocalMarkdown(nextMarkdown)
     onContentChange?.(date, nextMarkdown)
   }, [date, onContentChange])
-
-  const applyShortcut = useCallback((shortcut: MarkdownShortcut) => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-
-    const result = applyMarkdownShortcut(
-      textarea.value,
-      textarea.selectionStart,
-      textarea.selectionEnd,
-      shortcut
-    )
-
-    handleMarkdownChange(result.value)
-    requestAnimationFrame(() => {
-      textarea.focus()
-      textarea.setSelectionRange(result.selectionStart, result.selectionEnd)
-    })
-  }, [handleMarkdownChange])
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!showMarkdown) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setIsEditing(false)
-      }
-      return
-    }
-
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
-      event.preventDefault()
-      applyShortcut('bold')
-      return
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
-      event.preventDefault()
-      applyShortcut('italic')
-      return
-    }
-    if ((event.metaKey || event.ctrlKey) && event.altKey && event.key.toLowerCase() === 'l') {
-      event.preventDefault()
-      applyShortcut('unordered-list')
-      return
-    }
-    if ((event.metaKey || event.ctrlKey) && event.altKey && event.key === '3') {
-      event.preventDefault()
-      applyShortcut('heading-3')
-      return
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      setIsEditing(false)
-    }
-  }, [applyShortcut, showMarkdown])
 
   const hasContent = markdown.trim().length > 0
   const plainText = useMemo(() => {
@@ -328,6 +194,7 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   return (
     <div
+      ref={cellRef}
       onClick={() => {
         if (!isEditing) {
           handleStartEditing()
@@ -336,6 +203,7 @@ export const LessonDayCell = memo(function LessonDayCell({
       className={`
         relative h-full min-w-0 overflow-hidden flex flex-col
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
+        ${isEditing && !isToday ? 'ring-2 ring-inset ring-primary' : ''}
         ${isNonClassDay ? 'bg-surface-2/50' : ''}
         ${!editable && !hasContent && !isNonClassDay ? 'bg-surface-2/50' : ''}
       `}
@@ -416,13 +284,18 @@ export const LessonDayCell = memo(function LessonDayCell({
       {/* Content area */}
       <div className={`calendar-day-text flex-1 min-h-0 ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
         {isEditing ? (
-          <textarea
-            ref={textareaRef}
-            value={localMarkdown}
-            onChange={(event) => handleMarkdownChange(event.target.value)}
-            onKeyDown={handleKeyDown}
+          <MarkdownContentEditor
+            markdown={localMarkdown}
+            onMarkdownChange={handleMarkdownChange}
             onBlur={() => setIsEditing(false)}
-            className={`w-full h-full resize-none border-none bg-transparent text-text-default focus:outline-none ${showMarkdown ? 'font-mono' : ''} ${compact ? 'text-[10px] leading-tight' : 'text-sm leading-snug'}`}
+            onEscape={() => setIsEditing(false)}
+            toolbarPreset="brief"
+            autoFocus
+            placeholder=""
+            aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
+            className={`h-full [&_.simple-editor-content]:overflow-hidden [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0 ${
+              compact ? '[&_.ProseMirror]:text-[10px] [&_.ProseMirror]:leading-tight' : '[&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-snug'
+            }`}
           />
         ) : (
           <button

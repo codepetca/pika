@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useState, type ReactNode } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
@@ -451,7 +452,7 @@ describe('TestDetailPanel', () => {
         { wrapper: Wrapper }
       )
 
-      expect(await screen.findByLabelText('Question 1 prompt')).toHaveValue(
+      expect(await screen.findByLabelText('Question 1 prompt')).toHaveTextContent(
         'Explain the runtime complexity of your solution.'
       )
       expect(screen.getByLabelText('Question 1 points')).toHaveValue('6')
@@ -539,19 +540,22 @@ describe('TestDetailPanel', () => {
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
       expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()
       expect(within(editorPane).getByTestId('question-sq1-answer-section')).toHaveClass('bg-surface', 'p-px')
-      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveValue('Explain the runtime complexity of your solution.')
+      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent('Explain the runtime complexity of your solution.')
       expect(within(editorPane).getByLabelText('Question 1 answer key')).toHaveValue(
         'Look for linear-time reasoning and mention of hash-map tradeoffs.'
       )
       expect(within(editorPane).getByLabelText('Question 1 sample solution')).toHaveValue(
         'A good answer explains O(n) time and O(n) space.'
       )
-      expect(within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')).toBeInTheDocument()
+      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent(
+        'Explain the runtime complexity of your solution.'
+      )
       expect(
         within(editorPane).getByDisplayValue('Look for linear-time reasoning and mention of hash-map tradeoffs.')
       ).toBeInTheDocument()
-      expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
-      expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveValue('Which traversal visits the root node first?')
+      expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveTextContent(
+        'Which traversal visits the root node first?'
+      )
       expect(within(editorPane).getByLabelText('Question 2 option A correct answer')).not.toBeChecked()
       expect(within(editorPane).getByLabelText('Question 2 option B correct answer')).toBeChecked()
       expect(within(editorPane).getByLabelText('Question 2 option A')).toHaveValue('Inorder')
@@ -595,7 +599,9 @@ describe('TestDetailPanel', () => {
         expect(within(editorPane).getByRole('button', { name: 'Collapse all sections' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Collapse documents' })).toBeInTheDocument()
         expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(3)
-        expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
+        expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveTextContent(
+          'Which traversal visits the root node first?'
+        )
         expect(within(editorPane).queryByTestId('question-sq2-collapsed-summary')).not.toBeInTheDocument()
         expect(within(editorPane).getByDisplayValue('Inorder')).toBeInTheDocument()
         expect(within(editorPane).getByDisplayValue('Preorder')).toBeInTheDocument()
@@ -607,8 +613,8 @@ describe('TestDetailPanel', () => {
       await waitFor(() => {
         expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Expand documents' })).toBeInTheDocument()
-        expect(within(editorPane).queryByDisplayValue('Explain the runtime complexity of your solution.')).not.toBeInTheDocument()
-        expect(within(editorPane).queryByDisplayValue('Which traversal visits the root node first?')).not.toBeInTheDocument()
+        expect(within(editorPane).queryByLabelText('Question 1 prompt')).not.toBeInTheDocument()
+        expect(within(editorPane).queryByLabelText('Question 2 prompt')).not.toBeInTheDocument()
         expect(within(editorPane).getByTestId('question-sq1-collapsed-summary')).toHaveTextContent(
           'Explain the runtime complexity of your solution.'
         )
@@ -1414,7 +1420,9 @@ Current Test reference material.
         />
       )
 
-      expect(await screen.findByDisplayValue('Current switched test question')).toBeInTheDocument()
+      expect(await screen.findByLabelText('Question 1 prompt')).toHaveTextContent(
+        'Current switched test question'
+      )
 
       await act(async () => {
         staleSave.resolve(jsonResponse({
@@ -1438,8 +1446,10 @@ Current Test reference material.
         await staleSave.promise
       })
 
-      expect(screen.getByDisplayValue('Current switched test question')).toBeInTheDocument()
-      expect(screen.queryByDisplayValue('Stale saved question')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Question 1 prompt')).toHaveTextContent(
+        'Current switched test question'
+      )
+      expect(screen.queryByText('Stale saved question')).not.toBeInTheDocument()
     })
 
     it('persists pending debounced saves after selected assessment changes', async () => {
@@ -1600,9 +1610,12 @@ Current Test reference material.
         expect(within(editorPane).getByRole('button', { name: 'Expand question 3' })).toBeInTheDocument()
         expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(6)
         expect(within(editorPane).getByLabelText('Question 2 code response')).toBeChecked()
-        expect(
-          within(editorPane).getAllByDisplayValue('Explain the runtime complexity of your solution.')
-        ).toHaveLength(2)
+        expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent(
+          'Explain the runtime complexity of your solution.'
+        )
+        expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveTextContent(
+          'Explain the runtime complexity of your solution.'
+        )
         expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
           'Which traversal visits the root node first?'
         )
@@ -1714,11 +1727,11 @@ Current Test reference material.
 
       const editorPane = await screen.findByTestId('test-question-editor-pane')
       const markdownPane = screen.getByTestId('test-question-markdown-pane')
-      const promptField = within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')
+      const user = userEvent.setup()
+      const promptField = within(editorPane).getByLabelText('Question 1 prompt')
 
-      fireEvent.change(promptField, {
-        target: { value: 'Explain the amortized runtime complexity of your solution.' },
-      })
+      promptField.focus()
+      await user.keyboard('{Control>}a{/Control}Explain the amortized runtime complexity of your solution.')
       fireEvent.blur(promptField)
 
       await waitFor(() => {
@@ -1877,7 +1890,9 @@ _None_
       fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
 
       await waitFor(() => {
-        expect(within(editorPane).getByDisplayValue('Updated prompt before save returns?')).toBeInTheDocument()
+        expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent(
+          'Updated prompt before save returns?'
+        )
         expect(within(markdownPane).getByTestId('markdown-helper-status')).toHaveTextContent('Applying markdown...')
       })
 
@@ -2544,18 +2559,18 @@ Prompt:
       fireEvent.click(screen.getByText('Questions (1)'))
 
       await waitFor(() => {
-        expect(screen.getByDisplayValue('Explain your reasoning')).toBeInTheDocument()
+        expect(screen.getByLabelText('Question 1 prompt')).toHaveTextContent('Explain your reasoning')
       })
 
-      const promptField = screen.getByPlaceholderText('Question 1')
-      expect(promptField.tagName).toBe('TEXTAREA')
+      const promptField = screen.getByLabelText('Question 1 prompt')
+      expect(promptField.tagName).toBe('DIV')
+      expect(promptField).toHaveAttribute('contenteditable', 'true')
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Character limit')).not.toBeInTheDocument()
       expect(screen.getByLabelText('Code')).toBeInTheDocument()
       expect(screen.getByText('Points')).toBeInTheDocument()
-      const promptFieldGridCheck = screen.getByDisplayValue('Explain your reasoning')
-      const gridContainer = promptFieldGridCheck.closest('div')?.parentElement
+      const gridContainer = promptField.closest('.simple-editor-wrapper')?.parentElement?.parentElement
       expect(gridContainer?.className).toContain('md:grid-cols-[16px_24px_minmax(0,1fr)_112px]')
       expect(screen.getByRole('button', { name: 'Add Grading Notes' })).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).not.toBeInTheDocument()
@@ -2662,7 +2677,7 @@ Prompt:
       fireEvent.click(screen.getByText('Questions (1)'))
 
       await waitFor(() => {
-        expect(screen.getByDisplayValue('Explain inertia.')).toBeInTheDocument()
+        expect(screen.getByLabelText('Question 1 prompt')).toHaveTextContent('Explain inertia.')
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Add Grading Notes' }))
@@ -2741,8 +2756,8 @@ Prompt:
         expect(screen.getByText('Questions (1)')).toBeInTheDocument()
       })
 
-      const promptField = screen.getByPlaceholderText('Question 1') as HTMLTextAreaElement
-      expect(promptField.value).toBe('')
+      const promptField = screen.getByLabelText('Question 1 prompt')
+      expect(promptField).toHaveTextContent('')
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 
       expect(fetchMock.mock.calls.some((call: any[]) => call[1]?.method === 'POST')).toBe(false)

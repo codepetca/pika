@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button, PageState } from '@/ui'
+import { Button, PageState, SaveStatus } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -712,21 +712,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
                   {DAILY_PLAN_PROMPT}
                 </span>
               </label>
-              <span
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                className={
-                  'text-sm ' +
-                  (saveStatus === 'saved'
-                    ? 'text-success'
-                    : saveStatus === 'saving'
-                      ? 'text-text-muted'
-                      : 'text-warning')
-                }
-              >
-                {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-              </span>
+              <SaveStatus status={saveStatus} className="text-sm" />
             </div>
             <RichTextEditor
               content={content}
@@ -734,7 +720,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
               onBlur={flushAutosave}
               placeholder="Write something..."
               editable={true}
-              showToolbar={false}
+              toolbarPreset="brief"
               className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
             />
 

@@ -476,17 +476,6 @@
       ]
     },
     {
-      "file": "src/components/AssignmentForm.tsx",
-      "reviewBy": "phase-3-assignments",
-      "controls": [
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        }
-      ]
-    },
-    {
       "file": "src/components/AssignmentSubmissionRequirementsEditor.tsx",
       "reviewBy": "phase-3-assignments",
       "controls": [
@@ -618,11 +607,6 @@
           "kind": "button",
           "count": 5,
           "reason": "legacy-form-control"
-        },
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
         }
       ]
     },
@@ -853,7 +837,7 @@
         },
         {
           "kind": "textarea",
-          "count": 7,
+          "count": 4,
           "reason": "native-textarea"
         }
       ]

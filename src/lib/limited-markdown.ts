@@ -24,6 +24,11 @@ export type TiptapMarkdownResult = {
   hasLossyConversion: boolean
 }
 
+export type LimitedMarkdownRoundTripResult = TiptapMarkdownResult & {
+  content: TiptapContent
+  isStable: boolean
+}
+
 const WARNING_IMAGES = 'Images were simplified when converting to markdown.'
 const WARNING_MARKS = 'Some rich text formatting was simplified when converting to markdown.'
 const WARNING_BLOCKS = 'Some rich block formatting was simplified when converting to markdown.'
@@ -313,9 +318,12 @@ function mergeTextNodes(nodes: TiptapNode[]): TiptapNode[] {
       node.type === 'text' &&
       marksKey(previous.marks) === marksKey(node.marks)
     ) {
-      previous.text = `${previous.text || ''}${node.text || ''}`
+      merged[merged.length - 1] = {
+        ...previous,
+        text: `${previous.text || ''}${node.text || ''}`,
+      }
     } else {
-      merged.push(node)
+      merged.push({ ...node })
     }
   }
   return merged
@@ -461,6 +469,26 @@ export function tiptapToMarkdown(content: TiptapContent | null | undefined): Tip
     markdown,
     warnings,
     hasLossyConversion: warnings.length > 0,
+  }
+}
+
+/**
+ * Converts markdown through the same TipTap boundary used by WYSIWYG-backed
+ * markdown fields and verifies that the canonical result can be parsed again
+ * without changing the document.
+ */
+export function roundTripLimitedMarkdown(markdown: string): LimitedMarkdownRoundTripResult {
+  const content = markdownToTiptapContent(markdown)
+  const converted = tiptapToMarkdown(content)
+  const reparsed = markdownToTiptapContent(converted.markdown)
+  const reconverted = tiptapToMarkdown(reparsed)
+
+  return {
+    ...converted,
+    content,
+    isStable:
+      converted.markdown === reconverted.markdown &&
+      reconverted.hasLossyConversion === converted.hasLossyConversion,
   }
 }
 
