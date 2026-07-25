@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 composite-control contracts
-
-**Completed:**
-- Merged PR #900 and started Phase 2 item 6 from current `main` in a dedicated worktree.
-- Promoted canonical `DataTable` and `Tabs` primitives into `@/ui`, retained the legacy table export for incremental compatibility, and migrated teacher Attendance, Assignments, Tests, Gradebook, Roster, document-editor, and work-surface callers.
-- Standardized automatic tabs, roving segmented controls, Home/End menu navigation, keyboard table selection, stable row identity, split-pane and column-resize separators, focus-visible treatment, 44px interaction targets, and narrow-screen tab overflow.
-- Fixed independent-review findings covering failed Attendance refreshes, legacy `aria-label` compatibility, extra tab-panel stops, mobile tab overflow, row-focus semantics and cancellation races, remount-safe Attendance focus restoration, and resize target sizing.
-- Added governed composite-control guidance plus direct primitive and integration regressions. No schema, migration, API, production, or data change was made.
-- Opened PR #902 after independent architecture and accessibility re-reviews. The final cumulative review then caught bubbled table shortcuts overriding nested inputs, failed Attendance reads falling through to empty-roster copy, and empty copy flashing during retry; all now have direct regressions and remediated behavior.
-- Restored the startup-context budget after CI caught a 10-character overage in `.ai/CURRENT.md`.
-
-**Validation:**
-- `pnpm test --run` (390 files / 3,579 tests)
-- Focused DataTable, Attendance, and startup regressions (3 files / 50 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (612 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Teacher/student desktop/mobile light/dark visual matrix plus live Attendance ArrowDown selection, row focus, Escape deselection/focus restoration, retryable error desktop/mobile light/dark states, and overflow checks
-- `git diff --cached --check`
-
-**Remaining:**
-- Merge PR #902 after required CI. Then continue Phase 2 with the next scoped shared-experience slice from the product-experience audit.
-
 ## 2026-07-21 — Phase 2 shared application navigation
 
 **Completed:**
@@ -1195,3 +1170,24 @@ future persistence shape without enabling unapproved schema behavior.
   `assignment pull/push`, and creating a test from scratch.
 - `~/.pika-cli` does not self-update; run `git -C ~/.pika-cli pull` after CLI
   changes land.
+
+## 2026-07-25 — Split the vitest environment and closed an audit gap
+
+**Completed:**
+- Diagnosed slow CI. The cause was neither the 3,767 unit tests nor e2e: CI runs a single Playwright spec, and the other twelve specs are config-gated to local. Every one of the 421 unit files constructed a jsdom environment while only 114 touch the DOM, so cumulative `environment` was 435.6s against 164.9s actually running tests.
+- Split vitest into `node` (307 files) and `jsdom` (114 files) projects via `test.projects`, since Vitest 4 removed `environmentMatchGlobs`. The only blocker was an unguarded `window` reference in `tests/setup.ts`. The jsdom exception list was derived empirically by running every `.test.ts` under `node` and taking the nine that failed on a missing DOM global (PR #940).
+- Fixed `audit.sh`'s `no-withErrorHandler` check, which matched only `export async function GET` and therefore had zero reach on the 135 routes that all use `export const GET = withErrorHandler(...)`. A re-review then found `HAS_WRAPPER` grepped the whole file, so a route that imported the wrapper without applying it also passed — the likelier mistake, since routes get copied. Both are now checked per handler export line, with `export const POST = PUT` aliases allowed (PR #942).
+- Fixed an intermittent `toHaveFocus` failure in `TeacherTestPreviewPage`. Focus lands one commit after the refreshed text, because the `allowedDocs` effect calls `setActiveDoc` and only the resulting re-render focuses the back button; the assertion was synchronous while the file's two other focus assertions already used `waitFor` (PR #943).
+- Merged #940, #943, and #942; `main` green.
+
+**Validation:**
+- `pnpm test` (421 files / 3,773 tests)
+- `pnpm test:coverage` — thresholds pass, all five 100%-gated files unchanged at 100%
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm check:architecture`
+- Audit regex checked against all 135 real route files: 135 matched, 0 flagged
+- Mutation-tested the focus fix: the assertion still fails when the component's `focus()` call is removed
+- Timing: cumulative `environment` 435.6s to 113.2s (node project 169ms). Tests step averages ~181s to ~140s across runs, though CI variance is wide enough (141-204s pre-change) that no single before/after pair is conclusive. CI wall clock is now bounded by `supabase start`, not by tests.
+
+**Follow-ups:**
+- 16 other synchronous `toHaveFocus` assertions share the shape of the flake; none currently failing, `waitFor` is the fix if one trips.
+- `audit.sh` is still advisory only. It diffs `git diff HEAD`, so it no-ops on a clean checkout and would need an explicit base ref to run in CI.
