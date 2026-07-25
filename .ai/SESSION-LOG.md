@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 governed page-state contract
-
-**Completed:**
-- Merged PR #899 and started Phase 2 item 5 from current `main` in a dedicated worktree.
-- Added canonical `PageState` loading, error, empty, and forbidden variants with explicit live-region semantics, text-backed icons, optional actions, and compact work-region support.
-- Added classroom route loading, error-boundary retry, and intentionally indistinguishable unavailable/access-denied states while preserving safe layout framing and route-away behavior.
-- Migrated teacher dashboard and student history initial loading/empty behavior; failed classroom/history reads now render explicit retryable errors instead of valid-looking empty data.
-- Added cache invalidation before client retries and direct regressions for state semantics, route boundaries, error/empty separation, and retry recovery.
-- Documented the state decision table and App Router conventions in stable guidance.
-- Visually verified teacher/student loading, error, and empty states plus classroom unavailable states at desktop/mobile sizes in light/dark themes. Governed states had no overflow or page errors, and retry/route-away controls measured 44px.
-- Opened PR #900 for independent review; no schema, migration, API contract, or production data change was made.
-- Fixed independent-review findings by separating attendance read failures from empty rosters, binding data to its owning classroom, routing roster-upload refresh through the same guarded coordinator, and rejecting stale entry-detail responses after class switches.
-- Added deterministic focus recovery and page-level heading semantics, clarified shell behavior when protected identity data is unavailable, and made the teacher dashboard and student history stack cleanly on mobile without changing their table-first desktop workflow.
-
-**Validation:**
-- `pnpm test` (387 files / 3,569 tests)
-- Focused page-state, classroom-route, teacher-dashboard, student-history, UI-guidance, and startup-doc suites
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (610 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Composite-widget checklist reviewed; no composite widget behavior changed in this slice, while retry keyboard/focus behavior is covered directly.
-- Custom Playwright teacher/student desktop/mobile light/dark loading/error/empty/forbidden and keyboard-retry matrix; all remediation cases had no overflow or page errors, 44px retry controls, and stable post-retry focus
-- `git diff --check`
-
-**Remaining:**
-- Merge the independently reviewed page-state PR after required checks. Then continue Phase 2 with shared table, menu, tabs, segmented-control, and split-pane contracts.
-
 ## 2026-07-21 — Phase 2 composite-control contracts
 
 **Completed:**
@@ -1177,3 +1148,50 @@ future persistence shape without enabling unapproved schema behavior.
 **Remaining:**
 - Push the rebased exact head, run the disposable migration/database checks in
   CI, and resolve any exact-head failures before merge.
+
+## 2026-07-24 — Promoted the pika teacher CLI and made it global
+
+**Completed:**
+- Reviewed the CLI before real use and fixed four bugs: the flag parser
+  greedily consumed the token after `--yes`, so `test push --yes <id> <file>`
+  read the id as the flag's value; `course push` defaulted a missing manifest
+  version to `3` after the format moved to `4`; `test pull --out nested/dir.md`
+  threw when the directory did not exist; and help omitted the required
+  `--semester`/`--year` args for `course instantiate`. Added `--key=value`
+  support.
+- Closed the curriculum-as-code loop for whole courses. `course pull` exports a
+  blueprint to an editable directory using the shipped package decoder, and
+  `course push` now detects an existing blueprint by course code (else title)
+  and refuses by default, with `--replace` to recreate and `--new` to duplicate
+  on purpose. Previously every push created another blueprint.
+- Promoted the CLI from the `cli-probe` experiment into `main` (PR #937) and
+  retired `scripts/pika`, the earlier worktree-router that held the name,
+  rewriting its section in `docs/dev-workflow.md`.
+- Made the CLI runnable from anywhere. It must run with CWD at the repo root
+  because `src/lib` uses `@/` tsconfig aliases that tsx resolves from the
+  working directory, so `scripts/pika-global.sh` cds in but forwards the
+  caller's directory via `PIKA_ORIGIN_PWD`; repo-owned paths (`.env.local`, the
+  saved session) anchor to the repo through `__dirname`. Installed as a
+  dedicated checkout at `~/.pika-cli` on `main`, symlinked to `~/bin/pika`.
+- Made `smoke:pika-cli --full` tear down the blueprint and classroom it creates,
+  including when an assertion throws partway through (PR #938). Without it,
+  runs had accumulated nine duplicate blueprints and nine stray classrooms
+  locally; those were cleared, keeping the seeded `Test Classroom`.
+
+**Validation:**
+- Full smoke (`--full`) passes; three consecutive runs leave row counts
+  unchanged, `--keep` retains exactly one blueprint and classroom, and an
+  injected mid-phase failure tears down without leaking.
+- Course round-trip verified end to end: push, pull, guard refusing a duplicate,
+  edit, `push --replace`, then pull confirming the edit landed.
+- Global `pika` verified from an unrelated directory: files land in the caller's
+  cwd and nothing leaks into `~/.pika-cli`.
+- TypeScript and `pnpm check:architecture` (628 modules) clean; CI green on both
+  PRs.
+
+**Remaining:**
+- Use the CLI for real curriculum work and let that rank the next slice.
+  Unbuilt candidates: gradebook commands for agent-in-the-loop grading,
+  `assignment pull/push`, and creating a test from scratch.
+- `~/.pika-cli` does not self-update; run `git -C ~/.pika-cli pull` after CLI
+  changes land.
