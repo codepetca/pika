@@ -489,9 +489,14 @@ describe('TeacherTestPreviewPage', () => {
     expect(screen.getByTestId('text-document-viewer')).toHaveTextContent(
       'Updated content',
     )
-    expect(screen.getByRole('button', {
-      name: 'Back to documents list',
-    })).toHaveFocus()
+    // Focus lands a commit later than the refreshed text: the allowedDocs effect
+    // calls setActiveDoc, and only the resulting re-render runs the effect that
+    // focuses the back button. Asserting synchronously here raced under load.
+    await waitFor(() => {
+      expect(screen.getByRole('button', {
+        name: 'Back to documents list',
+      })).toHaveFocus()
+    })
 
     window.dispatchEvent(new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, {
       detail: { classroomId: 'classroom-1' },
