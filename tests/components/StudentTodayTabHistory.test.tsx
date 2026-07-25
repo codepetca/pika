@@ -66,9 +66,10 @@ vi.mock('@/components/editor', async () => {
   }
 
   return {
-    RichTextEditor: ({ content, onBlur, onChange, placeholder }: any) =>
+    RichTextEditor: ({ content, onBlur, onChange, placeholder, toolbarPreset }: any) =>
       React.createElement('textarea', {
         'aria-label': placeholder,
+        'data-toolbar-preset': toolbarPreset,
         onBlur,
         onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
           onChange(toContent(event.currentTarget.value)),
@@ -470,6 +471,7 @@ describe('StudentTodayTab history section', () => {
     expect(saveStatus).toHaveAttribute('role', 'status')
     expect(saveStatus).toHaveAttribute('aria-live', 'polite')
     expect(saveStatus).toHaveAttribute('aria-atomic', 'true')
+    expect(editor).toHaveAttribute('data-toolbar-preset', 'brief')
 
     fireEvent.change(editor, { target: { value: '' } })
 

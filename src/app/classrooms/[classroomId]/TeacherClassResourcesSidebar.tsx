@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { RichTextEditor } from '@/components/editor'
+import { ContentField, RichTextEditor } from '@/components/editor'
 import type { Classroom, TiptapContent } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { isEmpty } from '@/lib/tiptap-content'
@@ -209,15 +209,22 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
         )}
 
         <div className="rounded-lg bg-surface p-4 shadow-sm">
-          <RichTextEditor
-            content={currentContent}
-            onChange={handleContentChange}
-            onBlur={handleBlur}
-            placeholder="Add resources for your students..."
-            editable={!isArchived}
-            showToolbar={!isArchived}
-            className="min-h-[400px]"
-          />
+          <ContentField
+            label="Class resources"
+            hint="Share reference material students can return to throughout the class."
+            saveStatus={!isArchived ? saveStatus : undefined}
+          >
+            <RichTextEditor
+              content={currentContent}
+              onChange={handleContentChange}
+              onBlur={handleBlur}
+              placeholder="Add resources for your students..."
+              editable={!isArchived}
+              toolbarPreset={isArchived ? 'none' : 'document'}
+              aria-label="Class resources"
+              className="min-h-[400px]"
+            />
+          </ContentField>
         </div>
       </div>
     </div>

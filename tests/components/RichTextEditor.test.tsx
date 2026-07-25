@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { RichTextEditor } from '@/components/editor'
 import { FormField } from '@/ui/FormField'
 import type { TiptapContent } from '@/types'
@@ -122,23 +123,147 @@ describe('RichTextEditor', () => {
     })
   })
 
+  it.each(['none', 'brief'] as const)(
+    'should hide the toolbar for the %s preset',
+    async (toolbarPreset) => {
+      const onChange = vi.fn()
+      const content: TiptapContent = { type: 'doc', content: [] }
+
+      render(
+        <RichTextEditor
+          content={content}
+          onChange={onChange}
+          toolbarPreset={toolbarPreset}
+        />,
+      )
+
+      await waitFor(() => {
+        expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+        expect(screen.getByRole('textbox', { name: 'Rich text editor' })).toBeInTheDocument()
+      })
+    },
+  )
+
+  it('should render only core formatting controls for the compact preset', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        toolbarPreset="compact"
+      />,
+    )
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'Formatting options' })
+    expect(toolbar).toHaveAttribute('data-toolbar-preset', 'compact')
+    expect(screen.getByLabelText('Bold')).toBeInTheDocument()
+    expect(screen.getByLabelText('Italic')).toBeInTheDocument()
+    expect(screen.getByLabelText('List options')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Underline')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Format text as heading')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Block formatting')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Text marks')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Text alignment')).not.toBeInTheDocument()
+  })
+
+  it('should limit the markdown-safe preset to round-trip-friendly controls', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        toolbarPreset="markdown-safe"
+      />,
+    )
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'Formatting options' })
+    expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
+    expect(screen.getByLabelText('Bold')).toBeInTheDocument()
+    expect(screen.getByLabelText('Italic')).toBeInTheDocument()
+    expect(screen.getByLabelText('Inline code')).toBeInTheDocument()
+    expect(screen.getByLabelText('Format text as heading')).toBeInTheDocument()
+    expect(screen.getByLabelText('List options')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Underline')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Block formatting')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Text marks')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Text alignment')).not.toBeInTheDocument()
+  })
+
+  it('uses document semantics when content is read-only', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Read only' }] }],
+    }
+
+    render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        editable={false}
+        aria-label="Submitted assignment"
+      />,
+    )
+
+    const document = await screen.findByRole('document', { name: 'Submitted assignment' })
+    expect(document).toHaveAttribute('aria-readonly', 'true')
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
   it('should call onChange when content is modified', async () => {
+    const user = userEvent.setup()
     const onChange = vi.fn()
     const content: TiptapContent = { type: 'doc', content: [] }
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    // Find and click a formatting button to trigger a change
-    await waitFor(() => {
-      expect(screen.getByLabelText('Bold')).toBeInTheDocument()
-    })
-
-    const boldButton = screen.getByLabelText('Bold')
-    fireEvent.click(boldButton)
+    const editor = await screen.findByRole('textbox', { name: 'Rich text editor' })
+    editor.focus()
+    await user.keyboard('Hello')
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled()
     })
+  })
+
+  it('does not report externally synchronized content as a user change', async () => {
+    const onChange = vi.fn()
+    const emptyContent: TiptapContent = { type: 'doc', content: [] }
+    const populatedContent: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Loaded instructions' }],
+        },
+      ],
+    }
+
+    const { rerender } = render(
+      <RichTextEditor
+        content={emptyContent}
+        onChange={onChange}
+        disabled
+      />,
+    )
+
+    await screen.findByRole('document')
+    onChange.mockClear()
+
+    rerender(
+      <RichTextEditor
+        content={populatedContent}
+        onChange={onChange}
+      />,
+    )
+
+    await screen.findByRole('textbox')
+    expect(screen.getByText('Loaded instructions')).toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('should render formatting buttons', async () => {

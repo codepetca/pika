@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { Button, Input } from '@/ui'
+import { MarkdownContentEditor } from '@/components/editor'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { defaultPointsForQuestionType } from '@/lib/test-questions'
 import { MAX_TEST_OPTIONS } from '@/lib/tests'
@@ -390,14 +391,14 @@ export function TestQuestionEditor({
           </div>
         </div>
 
-        <textarea
-          value={state.question_text}
-          onChange={(event) => updateState({ question_text: event.target.value })}
+        <MarkdownContentEditor
+          markdown={state.question_text}
+          onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
           onBlur={() => handleSave()}
           aria-label={questionPromptLabel}
           placeholder={questionPlaceholder}
-          rows={5}
-          className="w-full min-h-[144px] resize-y rounded-md border border-border bg-surface px-4 py-3 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+          toolbarPreset="compact"
+          className="overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-[144px]"
         />
 
         {multipleChoiceEditor}
@@ -547,14 +548,14 @@ export function TestQuestionEditor({
             {isEditable ? (
               <>
                 <div className="bg-surface">
-                  <textarea
-                    value={state.question_text}
-                    onChange={(event) => updateState({ question_text: event.target.value })}
+                  <MarkdownContentEditor
+                    markdown={state.question_text}
+                    onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
                     onBlur={() => handleSave()}
                     aria-label={questionPromptLabel}
                     placeholder={questionPlaceholder}
-                    rows={4}
-                    className="block w-full min-h-[112px] resize-y border-0 bg-surface px-4 py-4 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-0"
+                    toolbarPreset="compact"
+                    className="[&_.ProseMirror]:!min-h-[112px]"
                   />
                 </div>
                 {multipleChoiceEditor}
@@ -607,14 +608,14 @@ export function TestQuestionEditor({
         <div className="space-y-3 md:ml-2">
           {isEditable ? (
             <>
-              <textarea
-                value={state.question_text}
-                onChange={(event) => updateState({ question_text: event.target.value })}
+              <MarkdownContentEditor
+                markdown={state.question_text}
+                onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
                 onBlur={() => handleSave()}
                 aria-label={questionPromptLabel}
                 placeholder={questionPlaceholder}
-                rows={3}
-                className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                toolbarPreset="compact"
+                className="overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-[88px]"
               />
               {multipleChoiceEditor}
               {openResponseEditor}

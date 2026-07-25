@@ -48,6 +48,7 @@ import { AlignmentDropdownMenu } from '@/components/tiptap-ui/alignment-dropdown
 import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover'
 import { MarkButton } from '@/components/tiptap-ui/mark-button'
 import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button'
+import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button'
 
 // --- Icons ---
 import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
@@ -55,8 +56,6 @@ import { LinkIcon } from '@/components/tiptap-icons/link-icon'
 
 // --- Hooks ---
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
-import { useWindowSize } from '@/hooks/use-window-size'
-import { useCursorVisibility } from '@/hooks/use-cursor-visibility'
 
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss'
@@ -197,9 +196,17 @@ export interface RichTextEditorProps {
   onBlur?: () => void
   onPaste?: (wordCount: number) => void
   onKeystroke?: () => void
+  onEscape?: () => void
   placeholder?: string
   disabled?: boolean
   editable?: boolean
+  autoFocus?: boolean
+  /**
+   * Governs the amount of formatting UI shown for this authoring task.
+   * Prefer this over `showToolbar` for new call sites.
+   */
+  toolbarPreset?: RichTextToolbarPreset
+  /** @deprecated Use toolbarPreset="none" instead. */
   showToolbar?: boolean
   className?: string
   /** Enable image upload via button, paste, and drag-drop */
@@ -211,36 +218,62 @@ export interface RichTextEditorProps {
   'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling'
   'aria-describedby'?: string
   'aria-errormessage'?: string
+  'aria-label'?: string
   'aria-labelledby'?: string
 }
+
+export type RichTextToolbarPreset =
+  | 'none'
+  | 'brief'
+  | 'compact'
+  | 'document'
+  | 'markdown-safe'
 
 const MainToolbarContent = ({
   onLinkClick,
   isMobile,
   enableImageUpload,
+  preset,
 }: {
   onLinkClick: () => void
   isMobile: boolean
   enableImageUpload: boolean
+  preset: Exclude<RichTextToolbarPreset, 'none' | 'brief'>
 }) => {
+  const isDocument = preset === 'document'
+  const isMarkdownSafe = preset === 'markdown-safe'
+
   return (
     <>
       <ToolbarGroup>
-        <MarkButton type="bold" />
-        <MarkButton type="italic" />
-        <MarkButton type="underline" />
-        {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
-        {enableImageUpload && <ImageUploadButton />}
+        <UndoRedoButton action="undo" />
+        <UndoRedoButton action="redo" />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <HeadingDropdownMenu levels={[1, 2, 3]} portal={isMobile} />
-        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
-        <BlocksDropdownMenu portal={isMobile} />
-        <MarksDropdownMenu portal={isMobile} />
-        <AlignmentDropdownMenu portal={isMobile} />
+        <MarkButton type="bold" />
+        <MarkButton type="italic" />
+        {isDocument && <MarkButton type="underline" />}
+        {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+        {isDocument && enableImageUpload && <ImageUploadButton />}
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      <ToolbarGroup>
+        {(isDocument || isMarkdownSafe) && (
+          <HeadingDropdownMenu levels={[1, 2, 3]} portal={isMobile} />
+        )}
+        <ListDropdownMenu
+          types={isDocument ? ['bulletList', 'orderedList', 'taskList'] : ['bulletList', 'orderedList']}
+          portal={isMobile}
+        />
+        {isMarkdownSafe && <MarkButton type="code" aria-label="Inline code" />}
+        {isDocument && <BlocksDropdownMenu portal={isMobile} />}
+        {isDocument && <MarksDropdownMenu portal={isMobile} />}
+        {isDocument && <AlignmentDropdownMenu portal={isMobile} />}
       </ToolbarGroup>
 
       <Spacer />
@@ -287,9 +320,12 @@ export function RichTextEditor({
   onBlur,
   onPaste,
   onKeystroke,
+  onEscape,
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
+  autoFocus = false,
+  toolbarPreset = 'document',
   showToolbar = true,
   className = '',
   enableImageUpload = false,
@@ -299,11 +335,17 @@ export function RichTextEditor({
   'aria-invalid': ariaInvalid,
   'aria-describedby': ariaDescribedBy,
   'aria-errormessage': ariaErrorMessage,
+  'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
+  const resolvedToolbarPreset: RichTextToolbarPreset =
+    showToolbar === false ? 'none' : toolbarPreset
+  const visibleToolbarPreset =
+    resolvedToolbarPreset === 'none' || resolvedToolbarPreset === 'brief'
+      ? null
+      : resolvedToolbarPreset
   const isMobile = useIsBreakpoint()
-  const { height } = useWindowSize()
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -313,22 +355,38 @@ export function RichTextEditor({
       autocomplete: 'off',
       autocorrect: 'off',
       autocapitalize: 'off',
-      role: 'textbox',
-      'aria-multiline': 'true',
       class: 'simple-editor',
     }
     const requiredState = ariaRequired ?? required
 
+    if (canEdit) {
+      attributes.role = 'textbox'
+      attributes['aria-multiline'] = 'true'
+    } else {
+      attributes.role = 'document'
+      attributes['aria-readonly'] = 'true'
+    }
     if (id) attributes.id = id
     if (ariaLabelledBy) attributes['aria-labelledby'] = ariaLabelledBy
-    else attributes['aria-label'] = 'Main content area, start typing to enter text.'
+    else if (ariaLabel) attributes['aria-label'] = ariaLabel
+    else attributes['aria-label'] = canEdit ? 'Rich text editor' : 'Rich text content'
     if (requiredState !== undefined) attributes['aria-required'] = String(requiredState)
     if (ariaInvalid !== undefined) attributes['aria-invalid'] = String(ariaInvalid)
     if (ariaDescribedBy) attributes['aria-describedby'] = ariaDescribedBy
     if (ariaErrorMessage) attributes['aria-errormessage'] = ariaErrorMessage
 
     return attributes
-  }, [ariaDescribedBy, ariaErrorMessage, ariaInvalid, ariaLabelledBy, ariaRequired, id, required])
+  }, [
+    ariaDescribedBy,
+    ariaErrorMessage,
+    ariaInvalid,
+    ariaLabel,
+    ariaLabelledBy,
+    ariaRequired,
+    canEdit,
+    id,
+    required,
+  ])
 
   // Build extensions array based on props (memoized to avoid recreating on every render)
   const extensions = useMemo(() => [
@@ -404,6 +462,11 @@ export function RichTextEditor({
           return false
         },
         keydown: (_view, event) => {
+          if (event.key === 'Escape' && onEscape) {
+            event.preventDefault()
+            onEscape()
+            return true
+          }
           // Only count key presses that produce characters (skip modifiers, nav, etc.)
           if (onKeystroke && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
             onKeystroke()
@@ -442,24 +505,32 @@ export function RichTextEditor({
     },
   })
 
-  const rect = useCursorVisibility({
-    editor,
-    overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
-  })
-
   // Sync content changes from parent
   useEffect(() => {
     if (editor && JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
-      editor.commands.setContent(content, { emitUpdate: false })
+      editor
+        .chain()
+        .setMeta('addToHistory', false)
+        .setContent(content, { emitUpdate: false })
+        .run()
     }
   }, [content, editor])
 
   // Sync editable state
   useEffect(() => {
     if (editor) {
-      editor.setEditable(canEdit)
+      // Enabling/disabling the surface is parent-controlled state, not a content
+      // edit. Suppress TipTap's update event so autosave consumers do not treat
+      // a loading or saving transition as user-authored content.
+      editor.setEditable(canEdit, false)
     }
   }, [canEdit, editor])
+
+  useEffect(() => {
+    if (editor && canEdit && autoFocus) {
+      editor.commands.focus('end')
+    }
+  }, [autoFocus, canEdit, editor])
 
   useEffect(() => {
     if (!editor) return
@@ -541,22 +612,18 @@ export function RichTextEditor({
       }}
     >
       <EditorContext.Provider value={{ editor }}>
-        {canEdit && showToolbar && (
+        {canEdit && visibleToolbarPreset && (
           <Toolbar
             ref={toolbarRef}
-            style={{
-              ...(isMobile
-                ? {
-                    bottom: `calc(100% - ${height - rect.y}px)`,
-                  }
-                : {}),
-            }}
+            aria-label="Formatting options"
+            data-toolbar-preset={visibleToolbarPreset}
           >
             {mobileView === 'main' ? (
               <MainToolbarContent
                 onLinkClick={() => setMobileView('link')}
                 isMobile={isMobile}
                 enableImageUpload={enableImageUpload}
+                preset={visibleToolbarPreset}
               />
             ) : (
               <MobileToolbarContent onBack={() => setMobileView('main')} />
