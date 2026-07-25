@@ -77,12 +77,20 @@ from it — those are independent copies.
 ## Testing
 
 ```bash
-pnpm smoke:pika-cli          # auth + markdown round-trip (idempotent)
-pnpm smoke:pika-cli --full   # also creates a blueprint + classroom
+pnpm smoke:pika-cli                 # auth + markdown round-trip (idempotent)
+pnpm smoke:pika-cli --full          # also imports a course and instantiates it
+pnpm smoke:pika-cli --full --keep   # same, but leave the artifacts for inspection
 ```
 
 The `pull → push → pull` round-trip is the drift detector: if a route or a
 shared contract changes shape, it stops matching and the smoke test fails.
+
+`--full` removes the blueprint and classroom it creates, even if an assertion
+fails partway through, so repeated runs don't pile up duplicates. The blueprint
+goes through the API; the classroom is deleted directly, since classrooms have
+no DELETE route by design and every foreign key into them cascades. That
+teardown needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY`, which
+`.env.local` already provides.
 
 ## Curriculum-as-code loop
 

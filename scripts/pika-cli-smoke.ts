@@ -10,23 +10,43 @@
  * drift detector — if a route or contract changes shape, it stops matching.
  *
  * Phases 1-3 are idempotent (no data created). Phase 4 creates a blueprint +
- * classroom and is opt-in via --full.
+ * classroom and is opt-in via --full; both are removed again afterwards unless
+ * --keep is passed. Without teardown, repeated runs pile up duplicates.
  */
 import { writeFileSync, readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { config } from 'dotenv'
+import { createClient } from '@supabase/supabase-js'
 import { login, pikaJson } from './pika-api'
 import { testToMarkdown, markdownToTest } from '../src/lib/test-markdown'
 
 config({ path: '.env.local' })
 
 const FULL = process.argv.includes('--full')
+const KEEP = process.argv.includes('--keep')
 let failures = 0
 
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`${ok ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
+}
+
+/**
+ * Classrooms have no DELETE route (that is deliberate — the product path is
+ * archiving, which is built for real end-of-term retention, not test junk).
+ * Every foreign key into classrooms is ON DELETE CASCADE, so teardown removes
+ * the row directly and lets the database clean up the rest.
+ */
+async function deleteClassroom(classroomId: string): Promise<string | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SECRET_KEY
+  if (!url || !key) {
+    return 'NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY not set'
+  }
+  const supabase = createClient(url, key, { auth: { persistSession: false } })
+  const { error } = await supabase.from('classrooms').delete().eq('id', classroomId)
+  return error ? error.message : null
 }
 
 async function main(): Promise<void> {
@@ -124,33 +144,59 @@ async function main(): Promise<void> {
     const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Record<string, unknown>
     manifest.exported_at = new Date().toISOString()
 
-    const imported = await pikaJson<{ blueprint: { id: string } }>('/api/teacher/course-blueprints/import', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ manifest, files }),
-    })
-    check('course import', Boolean(imported.blueprint?.id), imported.blueprint?.id)
-
-    const created = await pikaJson<{ classroom: { id: string } }>(
-      `/api/teacher/course-blueprints/${imported.blueprint.id}/instantiate`,
-      {
+    // Track what this run creates so teardown can remove it even if an
+    // assertion below throws.
+    let blueprintId = ''
+    let classroomId = ''
+    try {
+      const imported = await pikaJson<{ blueprint: { id: string } }>('/api/teacher/course-blueprints/import', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: `CLI Smoke ${Date.now()}`, semester: 'semester1', year: 2026 }),
+        body: JSON.stringify({ manifest, files }),
+      })
+      blueprintId = imported.blueprint?.id ?? ''
+      check('course import', Boolean(blueprintId), blueprintId)
+
+      const created = await pikaJson<{ classroom: { id: string } }>(
+        `/api/teacher/course-blueprints/${blueprintId}/instantiate`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ title: `CLI Smoke ${Date.now()}`, semester: 'semester1', year: 2026 }),
+        }
+      )
+      classroomId = created.classroom?.id ?? ''
+      check('course instantiate', Boolean(classroomId), classroomId)
+
+      const { assignments = [] } = await pikaJson<{ assignments: unknown[] }>(
+        `/api/teacher/assignments?classroom_id=${classroomId}`
+      )
+      check('assignments materialized', assignments.length === 3, `${assignments.length}/3`)
+
+      // The #932 regression guard: tests from tests.md must land as real tests.
+      const { tests = [] } = await pikaJson<{ tests: unknown[] }>(
+        `/api/teacher/tests?classroom_id=${classroomId}`
+      )
+      check('tests materialized (#932)', tests.length === 2, `${tests.length}/2`)
+    } finally {
+      if (KEEP) {
+        console.log(`ℹ️  --keep: left blueprint ${blueprintId || '(none)'} and classroom ${classroomId || '(none)'} in place`)
+      } else {
+        const problems: string[] = []
+        if (classroomId) {
+          const err = await deleteClassroom(classroomId)
+          if (err) problems.push(`classroom: ${err}`)
+        }
+        if (blueprintId) {
+          try {
+            await pikaJson(`/api/teacher/course-blueprints/${blueprintId}`, { method: 'DELETE' })
+          } catch (err) {
+            problems.push(`blueprint: ${(err as Error).message}`)
+          }
+        }
+        check('cleaned up what this run created', problems.length === 0, problems.join('; '))
       }
-    )
-    check('course instantiate', Boolean(created.classroom?.id), created.classroom?.id)
-
-    const { assignments = [] } = await pikaJson<{ assignments: unknown[] }>(
-      `/api/teacher/assignments?classroom_id=${created.classroom.id}`
-    )
-    check('assignments materialized', assignments.length === 3, `${assignments.length}/3`)
-
-    // The #932 regression guard: tests from tests.md must land as real tests.
-    const { tests = [] } = await pikaJson<{ tests: unknown[] }>(
-      `/api/teacher/tests?classroom_id=${created.classroom.id}`
-    )
-    check('tests materialized (#932)', tests.length === 2, `${tests.length}/2`)
+    }
   }
 
   console.log(`\n${failures === 0 ? 'PASS' : `FAIL (${failures})`}`)
