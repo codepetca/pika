@@ -1259,7 +1259,7 @@ describe('AssignmentModal', () => {
         json: async () => ({
           assignment: {
             ...baseAssignment,
-            instructions_markdown: 'Original instructions updated',
+            instructions_markdown: 'Updated instructions',
           },
         }),
       })
@@ -1275,21 +1275,31 @@ describe('AssignmentModal', () => {
       )
 
       const instructions = screen.getByRole('textbox', { name: 'Instructions' })
-      instructions.focus()
-      await user.keyboard('updated ')
-      expect(fetchMock).not.toHaveBeenCalled()
-
-      screen.getByLabelText(/Title/).focus()
-
+      expect(instructions).toHaveTextContent('Original instructions')
+      const title = screen.getByLabelText(/Title/)
       await waitFor(() => {
+        expect(title).toHaveFocus()
+      })
+
+      const timeoutSpy = vi.spyOn(global, 'setTimeout')
+      try {
+        instructions.focus()
+        await user.keyboard('{Control>}a{/Control}Updated instructions')
+        expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 3000)
+        expect(fetchMock).not.toHaveBeenCalled()
+
+        title.focus()
+
         expect(fetchMock).toHaveBeenCalledTimes(1)
-      })
-      const [url, options] = fetchMock.mock.calls[0]
-      expect(url).toBe('/api/teacher/assignments/assignment-1')
-      expect(options.method).toBe('PATCH')
-      expect(JSON.parse(options.body)).toMatchObject({
-        instructions_markdown: expect.stringContaining('updated'),
-      })
+        const [url, options] = fetchMock.mock.calls[0]
+        expect(url).toBe('/api/teacher/assignments/assignment-1')
+        expect(options.method).toBe('PATCH')
+        expect(JSON.parse(options.body)).toEqual({
+          instructions_markdown: 'Updated instructions',
+        })
+      } finally {
+        timeoutSpy.mockRestore()
+      }
     })
 
     it('saves and closes on Escape key when there are changes', async () => {
