@@ -41,6 +41,9 @@ quiz.md` writes `quiz.md` where you are, not inside the checkout.
 | `pnpm pika whoami` | Show the logged-in user (verifies the saved session). |
 | `pnpm pika test pull <testId> [--out f.md]` | Export a test to markdown (stdout or file). |
 | `pnpm pika test push <testId> <f.md> [--yes]` | Parse markdown → replace the test's draft. **Dry-run without `--yes`.** |
+| `pnpm pika classroom list [--archived]` | List active classrooms, or archived ones. |
+| `pnpm pika classroom archive <id> [--yes]` | Archive a classroom: hidden from your list, student access blocked. Reversible. |
+| `pnpm pika classroom restore <id> [--yes]` | Unarchive a classroom. |
 | `pnpm pika course list` | List course blueprints. |
 | `pnpm pika course pull <blueprintId> <dir>` | Export a blueprint to an editable directory (manifest.json + markdown). |
 | `pnpm pika course push <dir> [--replace \| --new] [--yes]` | Import a course directory as a blueprint. |
@@ -111,6 +114,26 @@ tests failed with `400 assessments.N: Unrecognized key: "id"`, through both this
 CLI and the UI's tar upload. Fixed in
 [#932](https://github.com/codepetca/pika/pull/932); `pnpm smoke:pika-cli --full`
 now guards it.
+
+## Removing a classroom
+
+There is no delete: classrooms hold student work, so the product exposes
+archiving instead. `classroom archive` flips `archived_at` on the classroom —
+it disappears from your list and students lose access — and `classroom restore`
+undoes it. That is the practical way to retire a classroom created by mistake,
+including in production.
+
+```bash
+pika classroom archive <id>          # dry run
+pika classroom archive <id> --yes    # apply; prints the restore command
+pika classroom list --archived       # find it again
+pika classroom restore <id> --yes    # undo
+```
+
+Not to be confused with `POST /classrooms/{id}/archives`, the cold-storage
+export with checksummed copies and retention policy. That is a separate,
+feature-gated operation (`CLASSROOM_ARCHIVE_EXPORT_ENABLED` plus a per-teacher
+allowlist) and is not what these commands use.
 
 ## Scope / known gaps
 
