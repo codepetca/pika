@@ -23,6 +23,10 @@ declare -a COMPOSITE_FILES=()
 # variable. Keep a sentinel so no-test changes report audit violations.
 declare -a TEST_FILES=("__pika_no_changed_tests__")
 
+# Route handler exports, in either the legacy `export async function GET()` form
+# or the arrow form `export const GET = ...` used by every current route.
+HANDLER_EXPORT_RE='^[[:space:]]*export[[:space:]]+((async[[:space:]]+)?function|const|let|var)[[:space:]]+(GET|POST|PATCH|PUT|DELETE)[[:space:]]*[=(<:]'
+
 # Collect changed .ts/.tsx files
 CHANGED=$(git -C "$WORKTREE" diff --name-only HEAD 2>/dev/null || true)
 STAGED=$(git -C "$WORKTREE" diff --name-only --cached 2>/dev/null || true)
@@ -216,8 +220,11 @@ while IFS= read -r file; do
       HAS_WRAPPER=1
     fi
 
-    # Exported handler without withErrorHandler
-    if grep -qE 'export async function (GET|POST|PATCH|PUT|DELETE)' "$FULL" 2>/dev/null; then
+    # Exported handler without withErrorHandler.
+    # Matches both the legacy `export async function GET()` form and the house
+    # style every route now uses, `export const GET = withErrorHandler(...)`.
+    # The trailing [=(<:] stops GETTER/POSTAL_CODE from matching the method name.
+    if grep -qE "$HANDLER_EXPORT_RE" "$FULL" 2>/dev/null; then
       if [[ "$HAS_WRAPPER" -eq 0 ]]; then
         report_violation "no-withErrorHandler" "$file" "run /migrate-error-handler to wrap handlers"
       fi
