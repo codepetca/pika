@@ -3,7 +3,7 @@
  * Tests student journal entry creation and retrieval
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST, PATCH } from '@/app/api/student/entries/route'
 import { NextRequest } from 'next/server'
 import { mockAuthenticationError } from '../setup'
@@ -40,6 +40,11 @@ vi.mock('@/lib/server/classrooms', () => ({
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  delete (mockSupabaseClient as any).rpc
+})
 
 describe('GET /api/student/entries', () => {
   beforeEach(() => {
@@ -933,6 +938,89 @@ describe('POST /api/student/entries', () => {
 describe('PATCH /api/student/entries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('atomically creates the first autosaved log with its Pal fact', async () => {
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'First autosaved log' }],
+      }],
+    }
+    const mockRpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        created: true,
+        entry: {
+          id: 'entry-1',
+          version: 1,
+          text: 'First autosaved log',
+          rich_content: content,
+        },
+      },
+      error: null,
+    })
+    ;(mockSupabaseClient as any).rpc = mockRpc
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'class_days') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { is_class_day: true },
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST116' },
+            }),
+          })),
+        }
+      }
+    })
+
+    const response = await PATCH(new NextRequest(
+      'http://localhost:3000/api/student/entries',
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          version: 1,
+          rich_content: content,
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      entry: { id: 'entry-1' },
+    })
+    expect(mockRpc).toHaveBeenCalledWith(
+      'upsert_student_entry_with_pal_event_atomic',
+      expect.objectContaining({
+        p_student_id: 'student-1',
+        p_classroom_id: 'classroom-1',
+        p_date: '2024-10-15',
+        p_pal_event: expect.objectContaining({
+          event_type: 'daily_log.completed',
+          metadata: expect.objectContaining({ activity_day: '2024-10-15' }),
+        }),
+      }),
+    )
   })
 
   it('should apply patch and increment version', async () => {

@@ -15,6 +15,9 @@ import {
   loadUserGitHubIdentity,
 } from '@/lib/server/assignment-submission-artifacts'
 import { assignmentDocSaveRequestSchema } from '@/lib/validations/assignment-doc-submissions'
+import { isPalEnabled } from '@/lib/server/pal-config'
+import { buildLearningItemViewedEvent } from '@/lib/server/pal-events'
+import { createAssignmentDocWithPalEvent } from '@/lib/server/pal-source-writes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -171,67 +174,112 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
         })
       }
 
-      const { data: created, error: createError } = await supabase
-        .from('assignment_docs')
-        .insert({
-          assignment_id: assignmentId,
-          student_id: user.id,
-          content: { type: 'doc', content: [] },
-          repo_url: null,
-          github_username: null,
-          is_submitted: false,
-          submitted_at: null,
-          viewed_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
+      const viewedAt = new Date()
+      let created: any = null
+      let createdByThisRequest = true
 
-      if (createError || !created) {
-        // If we raced another create, re-fetch.
-        if (createError?.code === '23505') {
-          const { data: raced } = await supabase
-            .from('assignment_docs')
-            .select('*')
-            .eq('assignment_id', assignmentId)
-            .eq('student_id', user.id)
-            .single()
-          // Parse content if it's a string (for backwards compatibility)
-          if (raced) {
-            raced.content = parseContentField(raced.content)
+      if (isPalEnabled()) {
+        let palEvent = null
+        const effectiveReleaseAt = assignment.released_at ?? assignment.created_at
+        if (effectiveReleaseAt) {
+          try {
+            palEvent = buildLearningItemViewedEvent({
+              learnerId: user.id,
+              itemId: assignmentId,
+              occurredAt: viewedAt,
+              releasedAt: effectiveReleaseAt,
+            })
+          } catch (error) {
+            console.error('Failed to build Pal assignment view event:', error)
           }
-          // Race condition: another request created the doc, so this wasn't first view
-          const feedbackEntries = raced ? await loadAssignmentFeedbackEntries(assignmentId, user.id) : []
-          const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, raced?.id ?? null, user.id)
-          return NextResponse.json({
-            assignment: {
-              ...assignment,
-              instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
-            },
-            doc: raced ? sanitizeDocForStudent(raced) : raced,
-            feedback_entries: feedbackEntries,
-            ...submissionContext,
-            wasFirstView: false,
-          })
         }
 
-        console.error('Error creating assignment doc:', createError)
-        return NextResponse.json(
-          { error: 'Failed to create assignment doc' },
-          { status: 500 }
-        )
+        try {
+          const result = await createAssignmentDocWithPalEvent({
+            supabase,
+            assignmentId,
+            studentId: user.id,
+            viewedAt: viewedAt.toISOString(),
+            event: palEvent,
+          })
+          created = result.doc
+          createdByThisRequest = result.created
+        } catch (error) {
+          console.error('Error creating assignment doc with Pal outbox:', error)
+          return NextResponse.json(
+            { error: 'Failed to create assignment doc' },
+            { status: 500 }
+          )
+        }
+      } else {
+        const { data, error: createError } = await supabase
+          .from('assignment_docs')
+          .insert({
+            assignment_id: assignmentId,
+            student_id: user.id,
+            content: { type: 'doc', content: [] },
+            repo_url: null,
+            github_username: null,
+            is_submitted: false,
+            submitted_at: null,
+            viewed_at: viewedAt.toISOString(),
+          })
+          .select()
+          .single()
+
+        if (createError || !data) {
+          // If we raced another create, re-fetch.
+          if (createError?.code === '23505') {
+            const { data: raced } = await supabase
+              .from('assignment_docs')
+              .select('*')
+              .eq('assignment_id', assignmentId)
+              .eq('student_id', user.id)
+              .single()
+            // Parse content if it's a string (for backwards compatibility)
+            if (raced) {
+              raced.content = parseContentField(raced.content)
+            }
+            // Race condition: another request created the doc, so this wasn't first view
+            const feedbackEntries = raced ? await loadAssignmentFeedbackEntries(assignmentId, user.id) : []
+            const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, raced?.id ?? null, user.id)
+            return NextResponse.json({
+              assignment: {
+                ...assignment,
+                instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+              },
+              doc: raced ? sanitizeDocForStudent(raced) : raced,
+              feedback_entries: feedbackEntries,
+              ...submissionContext,
+              wasFirstView: false,
+            })
+          }
+
+          console.error('Error creating assignment doc:', createError)
+          return NextResponse.json(
+            { error: 'Failed to create assignment doc' },
+            { status: 500 }
+          )
+        }
+        created = data
       }
+
+      created.content = parseContentField(created.content)
 
       // New doc created = first view
       const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, created.id, user.id)
+      const feedbackEntries = createdByThisRequest
+        ? []
+        : await loadAssignmentFeedbackEntries(assignmentId, user.id)
       return NextResponse.json({
         assignment: {
           ...assignment,
           instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
         },
         doc: sanitizeDocForStudent(created),
-        feedback_entries: [],
+        feedback_entries: feedbackEntries,
         ...submissionContext,
-        wasFirstView: true,
+        wasFirstView: createdByThisRequest,
       })
     }
     console.error('Error fetching assignment doc:', docError)

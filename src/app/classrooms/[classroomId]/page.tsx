@@ -6,6 +6,7 @@ import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
+import { getPalEmbedUrl, isPalEnabled } from '@/lib/server/pal-config'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -74,6 +75,8 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         teacherClassrooms={teacherClassrooms}
         initialTab={tab}
         initialSearchParams={initialSearchParams}
+        palEnabled={false}
+        palEmbedUrl={null}
       />
     )
   }
@@ -118,6 +121,8 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
       teacherClassrooms={[]} // Students don't need this
       initialTab={tab}
       initialSearchParams={initialSearchParams}
+      palEnabled={isPalEnabled()}
+      palEmbedUrl={getPalEmbedUrl()}
     />
   )
 }

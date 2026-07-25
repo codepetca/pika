@@ -11,6 +11,9 @@ import {
 } from '@/lib/tiptap-content'
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { withErrorHandler } from '@/lib/api-handler'
+import { isPalEnabled } from '@/lib/server/pal-config'
+import { buildDailyLogCompletedEvent } from '@/lib/server/pal-events'
+import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
 import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -250,7 +253,40 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
 
   let entry
 
-  if (existing) {
+  if (isPalEnabled()) {
+    let palEvent = null
+    try {
+      palEvent = buildDailyLogCompletedEvent({
+        learnerId: user.id,
+        activityDay: date,
+        occurredAt: now,
+      })
+    } catch (error) {
+      console.error('Failed to build Pal daily log event:', error)
+    }
+
+    try {
+      const result = await upsertStudentEntryWithPalEvent({
+        supabase,
+        studentId: user.id,
+        classroomId: classroom_id,
+        date,
+        text: entryText,
+        richContent: content,
+        minutesReported: minutes_reported,
+        mood,
+        onTime,
+        event: palEvent,
+      })
+      entry = result.entry
+    } catch (error) {
+      console.error('Error saving entry with Pal outbox:', error)
+      return NextResponse.json(
+        { error: existing ? 'Failed to update entry' : 'Failed to create entry' },
+        { status: 500 }
+      )
+    }
+  } else if (existing) {
     const nextVersion = (existing.version ?? 1) + 1
     const { data, error } = await supabase
       .from('entries')
@@ -418,6 +454,39 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     const entryText = extractPlainText(content)
     const now = new Date()
     const onTime = isOnTime(now, date)
+
+    if (isPalEnabled()) {
+      let palEvent = null
+      try {
+        palEvent = buildDailyLogCompletedEvent({
+          learnerId: user.id,
+          activityDay: date,
+          occurredAt: now,
+        })
+      } catch (error) {
+        console.error('Failed to build Pal daily log event:', error)
+      }
+
+      try {
+        const result = await upsertStudentEntryWithPalEvent({
+          supabase,
+          studentId: user.id,
+          classroomId: classroom_id,
+          date,
+          text: entryText,
+          richContent: content,
+          onTime,
+          event: palEvent,
+        })
+        return NextResponse.json({ entry: result.entry })
+      } catch (error) {
+        console.error('Error creating entry with Pal outbox:', error)
+        return NextResponse.json(
+          { error: 'Failed to create entry' },
+          { status: 500 }
+        )
+      }
+    }
 
     const { data, error } = await supabase
       .from('entries')

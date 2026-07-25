@@ -4,6 +4,7 @@ import {
   submitAssignmentDocAtomic,
   unsubmitAssignmentDocAtomic,
 } from '@/lib/server/assignment-doc-submissions'
+import { buildLearningItemCompletedEvent } from '@/lib/server/pal-events'
 
 const beforeContent = {
   type: 'doc',
@@ -164,6 +165,39 @@ describe('atomic assignment document operations', () => {
       p_word_count: 1,
       p_char_count: 5,
     }))
+  })
+
+  it('uses the Pal-aware atomic submit RPC when a completion fact is supplied', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        idempotent: false,
+        doc: makeDoc({ is_submitted: true, submitted_at: '2026-07-16T12:02:00.000Z' }),
+        history_entry: null,
+      },
+      error: null,
+    })
+    const palEvent = buildLearningItemCompletedEvent({
+      learnerId: 'student-1',
+      itemId: 'assignment-1',
+      dueAt: '2026-07-16T13:00:00.000Z',
+      occurredAt: new Date('2026-07-16T12:02:00.000Z'),
+      pseudonymSecret: 'test-pseudonym-secret',
+    })
+
+    await submitAssignmentDocAtomic({
+      supabase: { rpc },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      content: afterContent,
+      expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
+      palEvent,
+    })
+
+    expect(rpc).toHaveBeenCalledWith(
+      'submit_assignment_doc_with_pal_event_atomic',
+      expect.objectContaining({ p_pal_event: palEvent }),
+    )
   })
 
   it('accepts production-shaped authenticity flags from every mutation RPC', async () => {
