@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
@@ -1248,6 +1249,47 @@ describe('AssignmentModal', () => {
 
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Modified title' } })
       expect(screen.getByText('Unsaved')).toBeInTheDocument()
+    })
+
+    it('flushes edited instructions immediately when focus leaves the editor', async () => {
+      const user = userEvent.setup()
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          assignment: {
+            ...baseAssignment,
+            instructions_markdown: 'Original instructions updated',
+          },
+        }),
+      })
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      const instructions = screen.getByRole('textbox', { name: 'Instructions' })
+      instructions.focus()
+      await user.keyboard('updated ')
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      screen.getByLabelText(/Title/).focus()
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      })
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/teacher/assignments/assignment-1')
+      expect(options.method).toBe('PATCH')
+      expect(JSON.parse(options.body)).toMatchObject({
+        instructions_markdown: expect.stringContaining('updated'),
+      })
     })
 
     it('saves and closes on Escape key when there are changes', async () => {

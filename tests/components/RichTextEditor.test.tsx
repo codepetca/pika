@@ -362,10 +362,11 @@ describe('RichTextEditor', () => {
       </div>
     )
 
-    // Simulate focus leaving the editor by clicking an external element
-    await waitFor(() => {
-      expect(screen.getByTestId('external-button')).toBeInTheDocument()
-    })
+    const editor = await screen.findByRole('textbox', { name: 'Rich text editor' })
+    editor.focus()
+    screen.getByTestId('external-button').focus()
+
+    expect(onBlur).toHaveBeenCalledTimes(1)
   })
 })
 
