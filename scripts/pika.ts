@@ -188,6 +188,61 @@ async function cmdTestPush(testId: string, fileArg: string, flags: Flags): Promi
   console.log(`Pushed ${questionCount} question(s) to test ${testId} (draft v${draft.version} → v${draft.version + 1}).`)
 }
 
+interface ClassroomSummary {
+  id: string
+  title?: string
+  archived_at?: string | null
+}
+
+async function cmdClassroomList(flags: Flags): Promise<void> {
+  const archived = Boolean(flags.archived)
+  const data = await pikaJson<{ classrooms?: ClassroomSummary[] }>(
+    `/api/teacher/classrooms${archived ? '?archived=true' : ''}`
+  )
+  const classrooms = data.classrooms ?? []
+  if (classrooms.length === 0) {
+    console.log(archived ? 'No archived classrooms.' : 'No classrooms.')
+    return
+  }
+  for (const c of classrooms) console.log(`${c.id}  ${c.title ?? '(untitled)'}`)
+}
+
+/**
+ * Archiving is a reversible toggle on the classroom row: it hides the classroom
+ * from the teacher list and blocks student access. It is not the cold-storage
+ * export under /archives, which is a separate, feature-gated operation.
+ */
+async function setClassroomArchived(id: string, archived: boolean, flags: Flags): Promise<void> {
+  const verb = archived ? 'Archive' : 'Restore'
+  const { classroom } = await pikaJson<{ classroom: ClassroomSummary }>(`/api/teacher/classrooms/${id}`)
+  const title = classroom?.title ?? '(untitled)'
+  const alreadyArchived = Boolean(classroom?.archived_at)
+
+  if (archived === alreadyArchived) {
+    console.log(`"${title}" is already ${archived ? 'archived' : 'active'}. Nothing to do.`)
+    return
+  }
+
+  if (!flags.yes) {
+    console.log(`DRY RUN. Would ${verb.toLowerCase()} "${title}" (${id}) @ ${getBaseUrl()}.`)
+    console.log('Re-run with --yes to apply.')
+    return
+  }
+
+  await pikaJson(`/api/teacher/classrooms/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ archived }),
+  })
+
+  if (archived) {
+    console.log(`Archived "${title}". Students can no longer access it, and it is hidden from your list.`)
+    console.log(`Undo with: pika classroom restore ${id} --yes`)
+  } else {
+    console.log(`Restored "${title}".`)
+  }
+}
+
 interface BlueprintSummary {
   id: string
   title: string
@@ -340,6 +395,9 @@ function printHelp(): void {
       '  pnpm pika whoami',
       '  pnpm pika test pull <testId> [--out <file.md>]',
       '  pnpm pika test push <testId> <file.md> [--yes]',
+      '  pnpm pika classroom list [--archived]',
+      '  pnpm pika classroom archive <classroomId> [--yes]',
+      '  pnpm pika classroom restore <classroomId> [--yes]',
       '  pnpm pika course list',
       '  pnpm pika course pull <blueprintId> <dir>',
       '  pnpm pika course push <dir> [--replace | --new] [--yes]',
@@ -369,6 +427,17 @@ async function main(): Promise<void> {
         else if (sub === 'push' && rest[0] && rest[1]) await cmdTestPush(rest[0], rest[1], flags)
         else {
           console.error('Usage: pnpm pika test pull <testId> | test push <testId> <file.md>')
+          process.exitCode = 1
+        }
+        break
+      case 'classroom':
+        if (sub === 'list') await cmdClassroomList(flags)
+        else if (sub === 'archive' && rest[0]) await setClassroomArchived(rest[0], true, flags)
+        else if (sub === 'restore' && rest[0]) await setClassroomArchived(rest[0], false, flags)
+        else {
+          console.error(
+            'Usage: pnpm pika classroom list [--archived] | classroom archive <id> | classroom restore <id>'
+          )
           process.exitCode = 1
         }
         break
