@@ -220,15 +220,23 @@ while IFS= read -r file; do
       HAS_WRAPPER=1
     fi
 
-    # Exported handler without withErrorHandler.
-    # Matches both the legacy `export async function GET()` form and the house
-    # style every route now uses, `export const GET = withErrorHandler(...)`.
-    # The trailing [=(<:] stops GETTER/POSTAL_CODE from matching the method name.
-    if grep -qE "$HANDLER_EXPORT_RE" "$FULL" 2>/dev/null; then
-      if [[ "$HAS_WRAPPER" -eq 0 ]]; then
-        report_violation "no-withErrorHandler" "$file" "run /migrate-error-handler to wrap handlers"
+    # Exported handler without withErrorHandler, checked per handler rather than
+    # per file: every route imports withErrorHandler, so a file-level grep passes
+    # any route that imports it and then forgets to wrap the handler.
+    while IFS= read -r handler_line; do
+      [[ -z "$handler_line" ]] && continue
+
+      # Wrapped on the same line, e.g. `export const GET = withErrorHandler(...)`.
+      printf '%s' "$handler_line" | grep -q 'withErrorHandler' && continue
+
+      # `export const POST = PUT` aliases a handler checked on its own line.
+      if printf '%s' "$handler_line" | grep -qE '=[[:space:]]*[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*;?[[:space:]]*$'; then
+        continue
       fi
-    fi
+
+      report_violation "no-withErrorHandler" "$file" "run /migrate-error-handler to wrap handlers"
+      break
+    done < <(grep -hE "$HANDLER_EXPORT_RE" "$FULL" 2>/dev/null || true)
 
     # Manual catch blocks are only flagged for unwrapped route files.
     if [[ "$HAS_WRAPPER" -eq 0 ]]; then

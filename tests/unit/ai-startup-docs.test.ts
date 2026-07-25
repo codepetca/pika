@@ -506,6 +506,58 @@ describe('AI startup docs', () => {
     expect(output).not.toContain('no-withErrorHandler')
   })
 
+  // Every route imports withErrorHandler, so a file-level grep for the name
+  // passes any route that imports it and then forgets to wrap the handler.
+  it('rejects a handler that imports withErrorHandler without wrapping', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        'export const GET = async () => {',
+        '  return Response.json({ ok: true })',
+        '}',
+      ],
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        'export const GET = async () => {',
+        "  return Response.json({ ok: 'changed' })",
+        '}',
+      ],
+    )
+
+    expect(status).not.toBe(0)
+    expect(output).toContain('no-withErrorHandler')
+  })
+
+  it('allows a handler aliased to an already-wrapped handler', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const PUT = withErrorHandler('PutProfile', async () => {",
+        '  return Response.json({ ok: true })',
+        '})',
+        '',
+        'export const POST = PUT',
+      ],
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const PUT = withErrorHandler('PutProfile', async () => {",
+        "  return Response.json({ ok: 'changed' })",
+        '})',
+        '',
+        'export const POST = PUT',
+      ],
+    )
+
+    expect(status).toBe(0)
+    expect(output).not.toContain('no-withErrorHandler')
+  })
+
   it('does not flag exported names that merely start with an HTTP method', () => {
     const { status, output } = runAuditOnChangedRoute(
       'src/app/api/profile/route.ts',
