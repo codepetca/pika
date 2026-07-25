@@ -44,10 +44,11 @@ quiz.md` writes `quiz.md` where you are, not inside the checkout.
 | `pnpm pika classroom list [--archived]` | List active classrooms, or archived ones. |
 | `pnpm pika classroom archive <id> [--yes]` | Archive a classroom: hidden from your list, student access blocked. Reversible. |
 | `pnpm pika classroom restore <id> [--yes]` | Unarchive a classroom. |
-| `pnpm pika course list` | List course blueprints. |
-| `pnpm pika course pull <blueprintId> <dir>` | Export a blueprint to an editable directory (manifest.json + markdown). |
-| `pnpm pika course push <dir> [--replace \| --new] [--yes]` | Import a course directory as a blueprint. |
-| `pnpm pika course instantiate <id> --title <name> --semester semester1 --year 2026 [--yes]` | Turn a blueprint into a real classroom. |
+| `pnpm pika blueprint list` | List course blueprints. |
+| `pnpm pika blueprint delete <id> [--yes]` | Delete a blueprint. Permanent; classrooms made from it are unaffected. |
+| `pnpm pika blueprint pull <blueprintId> <dir>` | Export a blueprint to an editable directory (manifest.json + markdown). |
+| `pnpm pika blueprint push <dir> [--replace \| --new] [--yes]` | Import a course directory as a blueprint. |
+| `pnpm pika blueprint instantiate <id> --title <name> --semester semester1 --year 2026 [--yes]` | Turn a blueprint into a real classroom. |
 
 ## Creating a whole course
 
@@ -57,18 +58,18 @@ A course is a directory: `manifest.json` plus up to six markdown files
 `scripts/fixtures/dummy-course/` for a working example an agent can copy.
 
 ```bash
-pnpm pika course push scripts/fixtures/dummy-course            # dry run
-pnpm pika course push scripts/fixtures/dummy-course --yes      # → blueprint
-pnpm pika course instantiate <blueprintId> --title "CS 101" \
+pnpm pika blueprint push scripts/fixtures/dummy-course            # dry run
+pnpm pika blueprint push scripts/fixtures/dummy-course --yes      # → blueprint
+pnpm pika blueprint instantiate <blueprintId> --title "CS 101" \
   --semester semester1 --year 2026 --yes                       # → classroom
 ```
 
 ### Editing an existing course (round-trip)
 
 ```bash
-pnpm pika course pull <blueprintId> course/            # export to markdown
+pnpm pika blueprint pull <blueprintId> course/            # export to markdown
 $EDITOR course/assignments.md course/tests.md          # edit
-pnpm pika course push course/ --replace --yes          # delete + recreate
+pnpm pika blueprint push course/ --replace --yes          # delete + recreate
 ```
 
 `course push` refuses by default when a blueprint with the same course code (or
@@ -114,6 +115,20 @@ tests failed with `400 assessments.N: Unrecognized key: "id"`, through both this
 CLI and the UI's tar upload. Fixed in
 [#932](https://github.com/codepetca/pika/pull/932); `pnpm smoke:pika-cli --full`
 now guards it.
+
+## Two different nouns
+
+`blueprint` and `classroom` are distinct things, and the commands do not cross
+over:
+
+| Noun | What it is | How it is removed |
+| --- | --- | --- |
+| `blueprint` | The reusable **template** — what `blueprint push` creates | `blueprint delete`, permanent |
+| `classroom` | The **live class** with students, created by `blueprint instantiate` | `classroom archive`, reversible |
+
+Deleting a blueprint never deletes a classroom. Classrooms are independent
+copies; the foreign key is `ON DELETE SET NULL`, so they keep every assignment,
+test and submission and only lose the link back to the template.
 
 ## Removing a classroom
 

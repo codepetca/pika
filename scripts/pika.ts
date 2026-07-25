@@ -10,9 +10,9 @@
  *   pnpm pika whoami
  *   pnpm pika test pull <testId> [--out <file.md>]
  *   pnpm pika test push <testId> <file.md> [--yes]
- *   pnpm pika course list
- *   pnpm pika course push <dir> [--yes]
- *   pnpm pika course instantiate <blueprintId> --title <name> [--yes]
+ *   pnpm pika blueprint list
+ *   pnpm pika blueprint push <dir> [--yes]
+ *   pnpm pika blueprint instantiate <blueprintId> --title <name> [--yes]
  *
  * Writes are DRY-RUN by default; pass --yes to apply. Targets local dev
  * (localhost:3000) unless PIKA_BASE_URL / E2E_BASE_URL is set.
@@ -254,7 +254,7 @@ async function listBlueprints(): Promise<BlueprintSummary[]> {
   return data.blueprints ?? []
 }
 
-async function cmdCourseList(): Promise<void> {
+async function cmdBlueprintList(): Promise<void> {
   const blueprints = await listBlueprints()
   if (blueprints.length === 0) {
     console.log('No course blueprints.')
@@ -263,7 +263,35 @@ async function cmdCourseList(): Promise<void> {
   for (const bp of blueprints) console.log(`${bp.id}  ${bp.title}`)
 }
 
-async function cmdCoursePull(blueprintId: string, dirArg: string): Promise<void> {
+/**
+ * Blueprints are authoring templates, so deletion is permanent — there is no
+ * archive for them, unlike classrooms. Classrooms instantiated from a blueprint
+ * are independent copies; the foreign key is ON DELETE SET NULL, so they keep
+ * all their data and only lose the link back to the template.
+ */
+async function cmdBlueprintDelete(blueprintId: string, flags: Flags): Promise<void> {
+  const blueprint = (await listBlueprints()).find((bp) => bp.id === blueprintId)
+  if (!blueprint) {
+    console.error(`No blueprint ${blueprintId}. List them with: pika blueprint list`)
+    process.exitCode = 1
+    return
+  }
+
+  console.log(`Blueprint "${blueprint.title}" (${blueprintId}) @ ${getBaseUrl()}`)
+  console.log('  Deleting removes the template and its assignments, tests and lesson templates.')
+  console.log('  Classrooms already created from it keep their data and are not deleted.')
+  console.log('  This cannot be undone — re-push the directory to recreate it.')
+
+  if (!flags.yes) {
+    console.log('DRY RUN. Re-run with --yes to delete.')
+    return
+  }
+
+  await pikaJson(`/api/teacher/course-blueprints/${blueprintId}`, { method: 'DELETE' })
+  console.log(`Deleted blueprint ${blueprintId}.`)
+}
+
+async function cmdBlueprintPull(blueprintId: string, dirArg: string): Promise<void> {
   const dir = userPath(dirArg)
   const res = await pikaFetch(`/api/teacher/course-blueprints/${blueprintId}/export`)
   if (!res.ok) {
@@ -305,7 +333,7 @@ function readCourseBundle(dirArg: string): { manifest: Record<string, unknown>; 
   return { manifest, files }
 }
 
-async function cmdCoursePush(dir: string, flags: Flags): Promise<void> {
+async function cmdBlueprintPush(dir: string, flags: Flags): Promise<void> {
   const bundle = readCourseBundle(dir)
   const title = String(bundle.manifest.title ?? '')
   const courseCode = String(bundle.manifest.course_code ?? '')
@@ -348,10 +376,10 @@ async function cmdCoursePush(dir: string, flags: Flags): Promise<void> {
     }
   )
   console.log(`Imported blueprint ${result.blueprint.id} — "${result.blueprint.title}"`)
-  console.log(`Next: pnpm pika course instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
+  console.log(`Next: pnpm pika blueprint instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
 }
 
-async function cmdCourseInstantiate(blueprintId: string, flags: Flags): Promise<void> {
+async function cmdBlueprintInstantiate(blueprintId: string, flags: Flags): Promise<void> {
   const title = (flags.title as string) || ''
   if (!title) {
     console.error('--title <classroom name> is required.')
@@ -398,10 +426,11 @@ function printHelp(): void {
       '  pnpm pika classroom list [--archived]',
       '  pnpm pika classroom archive <classroomId> [--yes]',
       '  pnpm pika classroom restore <classroomId> [--yes]',
-      '  pnpm pika course list',
-      '  pnpm pika course pull <blueprintId> <dir>',
-      '  pnpm pika course push <dir> [--replace | --new] [--yes]',
-      '  pnpm pika course instantiate <blueprintId> --title <name>',
+      '  pnpm pika blueprint list',
+      '  pnpm pika blueprint pull <blueprintId> <dir>',
+      '  pnpm pika blueprint push <dir> [--replace | --new] [--yes]',
+      '  pnpm pika blueprint delete <blueprintId> [--yes]',
+      '  pnpm pika blueprint instantiate <blueprintId> --title <name>',
       '      (--semester <semester1|semester2> --year <YYYY>) | (--start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD>) [--yes]',
       '',
       'Writes are dry-run unless --yes is passed.',
@@ -441,14 +470,15 @@ async function main(): Promise<void> {
           process.exitCode = 1
         }
         break
-      case 'course':
-        if (sub === 'list') await cmdCourseList()
-        else if (sub === 'pull' && rest[0] && rest[1]) await cmdCoursePull(rest[0], rest[1])
-        else if (sub === 'push' && rest[0]) await cmdCoursePush(rest[0], flags)
-        else if (sub === 'instantiate' && rest[0]) await cmdCourseInstantiate(rest[0], flags)
+      case 'blueprint':
+        if (sub === 'list') await cmdBlueprintList()
+        else if (sub === 'pull' && rest[0] && rest[1]) await cmdBlueprintPull(rest[0], rest[1])
+        else if (sub === 'push' && rest[0]) await cmdBlueprintPush(rest[0], flags)
+        else if (sub === 'delete' && rest[0]) await cmdBlueprintDelete(rest[0], flags)
+        else if (sub === 'instantiate' && rest[0]) await cmdBlueprintInstantiate(rest[0], flags)
         else {
           console.error(
-            'Usage: pnpm pika course list | course pull <id> <dir> | course push <dir> | course instantiate <id> --title <name>'
+            'Usage: pnpm pika blueprint list | course pull <id> <dir> | course push <dir> | course instantiate <id> --title <name>'
           )
           process.exitCode = 1
         }
