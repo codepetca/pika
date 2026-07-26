@@ -51,8 +51,8 @@ describe('TableCard', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Last name' })).toHaveClass(
-      'min-h-11',
-      'focus-visible:ring-2',
+      'min-h-control',
+      'focus-visible:ring-foundation',
       'focus-visible:ring-inset',
     )
     expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'ascending')
@@ -76,7 +76,10 @@ describe('TableCard', () => {
 
     const tableNavigation = screen.getByRole('region', { name: 'Students' })
     expect(tableNavigation).toHaveAttribute('tabindex', '0')
-    expect(tableNavigation).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-primary')
+    expect(tableNavigation).toHaveClass(
+      'focus-visible:ring-foundation',
+      'focus-visible:ring-focus',
+    )
 
     fireEvent.keyDown(tableNavigation, { key: 'ArrowDown' })
     expect(onSelectKey).toHaveBeenCalledWith('student-1')

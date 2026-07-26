@@ -147,7 +147,7 @@ export function AppMessageProvider({ children }: { children: ReactNode }) {
       {message ? (
         <div
           data-testid="app-message-overlay"
-          className="pointer-events-none fixed left-1/2 top-6 z-[80] flex w-[calc(100%-8rem)] max-w-[14rem] -translate-x-1/2 -translate-y-1/2 justify-center sm:max-w-md"
+          className="pointer-events-none fixed left-1/2 top-6 z-app-message flex w-[calc(100%-8rem)] max-w-[14rem] -translate-x-1/2 -translate-y-1/2 justify-center sm:max-w-md"
           aria-live="polite"
           aria-atomic="true"
           role="status"

@@ -42,6 +42,10 @@
   /* Brand assets */
   --pika-logo-filter: none;
 
+  /* Typography */
+  --font-family-ui: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
   /* Primary accent */
   --color-primary: #1d4ed8;
   --color-primary-hover: #1e40af;
@@ -72,6 +76,40 @@
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-panel: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.08);
   --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* Focus and control geometry */
+  --size-control-min: 2.75rem;
+  --focus-ring-color: var(--color-primary);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* Motion */
+  --motion-duration-fast: 150ms;
+  --motion-duration-standard: 200ms;
+  --motion-duration-deliberate: 300ms;
+  --motion-easing-standard: ease-out;
+
+  /* Page widths */
+  --page-width-reading: 42rem;
+  --page-width-standard: 56rem;
+  --page-width-wide: 80rem;
+
+  /* Density rhythm */
+  --density-compact-gutter: 0.75rem;
+  --density-compact-content-top: 0.5rem;
+  --density-compact-stack-gap: 0.75rem;
+  --density-comfortable-gutter: 1rem;
+  --density-comfortable-content-top: 0.75rem;
+  --density-comfortable-stack-gap: 1rem;
+
+  /* Shared layer responsibilities */
+  --layer-local-menu: 20;
+  --layer-floating: 40;
+  --layer-app-chrome: 50;
+  --layer-popover: 50;
+  --layer-modal: 50;
+  --layer-app-message: 80;
+  --color-overlay-scrim: rgb(0 0 0 / 0.5);
 
   /* Spacing */
   --space-dialog: 1.25rem;
@@ -138,11 +176,20 @@
   --color-info: #60a5fa;
   --color-info-bg: rgba(30, 58, 138, 0.3);
   --color-info-bg-hover: rgba(30, 58, 138, 0.4);
+  --color-overlay-scrim: rgb(0 0 0 / 0.7);
 
   /* Shadows - dark mode */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
   --shadow-panel: 0 4px 12px -2px rgb(0 0 0 / 0.32), 0 2px 4px -2px rgb(0 0 0 / 0.24);
   --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 0ms;
+    --motion-duration-standard: 0ms;
+    --motion-duration-deliberate: 0ms;
+  }
 }
 
 .classroom-theme {
@@ -168,7 +215,9 @@
 }
 
 .classroom-theme-card-interactive {
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  transition:
+    box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+    transform var(--motion-duration-fast) var(--motion-easing-standard);
 }
 
 .classroom-theme-card-interactive:hover,

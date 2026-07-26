@@ -65,7 +65,11 @@ describe('TeacherWorkSurfaceShell', () => {
     expect(frame).toHaveClass('rounded-lg', 'border', 'border-border', 'bg-surface')
     expect(frame).not.toHaveClass('rounded-b-lg')
     const content = frame?.parentElement
-    expect(content).toHaveClass('px-3', 'pt-2', 'flex-1')
+    expect(content).toHaveClass(
+      'px-density-compact-gutter',
+      'pt-density-compact-content-top',
+      'flex-1',
+    )
     expect(content).not.toHaveClass('px-0', 'pt-0')
   })
 

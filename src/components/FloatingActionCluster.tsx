@@ -4,8 +4,8 @@ import type { ComponentPropsWithoutRef } from 'react'
 import { cn } from '@/ui'
 
 const FLOATING_ACTION_CLUSTER_LAYOUT_CLASSES = {
-  top: 'fixed left-1/2 top-[3.25rem] z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg lg:left-[var(--main-content-center-x,50%)] lg:transition-[left] lg:duration-200 lg:ease-out',
-  bottom: 'fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-40 w-[calc(100vw-3.5rem)] max-w-[40.5rem] -translate-x-1/2 rounded-lg',
+  top: 'fixed left-1/2 top-[3.25rem] z-floating w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg lg:left-[var(--main-content-center-x,50%)] lg:transition-[left] lg:duration-standard lg:ease-standard',
+  bottom: 'fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-floating w-[calc(100vw-3.5rem)] max-w-[40.5rem] -translate-x-1/2 rounded-lg',
 } as const
 
 const FLOATING_ACTION_CLUSTER_CHROME_CLASSES = {

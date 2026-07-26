@@ -21,6 +21,7 @@
     "db:types:generate": "bash scripts/supabase-types.sh generate",
     "db:types:check": "bash scripts/supabase-types.sh check",
     "check:architecture": "tsx scripts/check-architecture.ts",
+    "check:design-policy": "tsx scripts/check-design-policy.ts",
     "check:ui-policy": "tsx scripts/check-ui-policy.ts",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
     "dev-feedback": "node scripts/dev-feedback.mjs",

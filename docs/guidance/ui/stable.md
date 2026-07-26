@@ -25,6 +25,32 @@ Source grounding:
 - [`src/ui/README.md`](/src/ui/README.md)
 - Current classroom surfaces use these tokens heavily.
 
+### 1a. Portable foundations and raw values stay governed
+
+- Use the host-neutral typography, focus, motion, page-width, density,
+  minimum-target, layer-responsibility, and scrim variables in
+  `src/styles/tokens.css` through their Tailwind aliases or canonical owners.
+- Do not add a raw colour, arbitrary spacing value, or raw `z-index` merely
+  because a similar value already exists. Existing values are registered
+  migration or content-owned evidence, not precedent.
+- When a raw value is genuinely required, update
+  `scripts/design-value-exceptions.json` with the owning migration phase and
+  reason. The exact fingerprint must change in the same review.
+- Enforcement covers Tailwind arbitrary syntax, literal inline styles, and
+  CSS/SCSS declarations. `src/styles/tokens.css` is excluded because it is the
+  canonical semantic-value definition boundary; its consumers and contrast
+  pairs remain governed.
+- A named layer token describes responsibility, not relative importance.
+  Feature-local sticky layers remain contained; document-level overlays use the
+  shared owner.
+
+Source grounding:
+
+- [`src/styles/tokens.css`](/src/styles/tokens.css)
+- [`tailwind.config.ts`](/tailwind.config.ts)
+- [`scripts/check-design-policy.ts`](/scripts/check-design-policy.ts)
+- [`scripts/design-value-exceptions.json`](/scripts/design-value-exceptions.json)
+
 ### 2. Base controls come from `@/ui`
 
 - Import primitives from `@/ui`, not from feature-local component paths.

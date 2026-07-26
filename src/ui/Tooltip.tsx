@@ -7,7 +7,7 @@ import { cn } from './utils'
 
 // Tooltip content styles with CVA
 const tooltipContentStyles = cva([
-  'z-50 max-w-[min(20rem,calc(100vw-1rem))] rounded-lg border px-3 py-2 text-xs leading-relaxed pointer-events-none',
+  'z-popover max-w-[min(20rem,calc(100vw-1rem))] rounded-lg border px-3 py-2 text-xs leading-relaxed pointer-events-none',
   'bg-surface',
   'text-text-default',
   'shadow-lg border-border-strong',

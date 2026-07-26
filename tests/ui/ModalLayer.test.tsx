@@ -27,7 +27,12 @@ describe('ModalLayer', () => {
 
     const firstAction = await screen.findByRole('button', { name: 'First action' })
     const done = screen.getByRole('button', { name: 'Done' })
+    const dialog = screen.getByRole('dialog', { name: 'Focus contract' })
     await waitFor(() => expect(firstAction).toHaveFocus())
+    expect(dialog.parentElement).toHaveClass('z-modal')
+    expect(screen.getByRole('button', { name: 'Close dialog' })).toHaveClass(
+      'bg-overlay-scrim',
+    )
     expect(container).toHaveAttribute('aria-hidden', 'true')
     expect(container.inert).toBe(true)
     expect(document.body.style.overflow).toBe('hidden')

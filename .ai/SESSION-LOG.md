@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 browser experience matrix
-
-**Completed:**
-- Merged independently reviewed PR #905 as `126658e0`, fast-forwarded the hub, and started Phase 2 item 9 from current `main` in a dedicated worktree.
-- Added desktop light, desktop dark, mobile light, and mobile dark Chromium projects while preserving the established `chromium-desktop` snapshot identity.
-- Kept the broad feature and manual snapshot suites on the desktop-light project and limited the additional three projects to a focused experience contract, preventing a fourfold expansion of the full E2E suite.
-- Added read-only seeded browser coverage for teacher Daily attendance, student Today, teacher Blueprints navigation, and student History navigation. The contract verifies real role authentication, classroom data, active navigation, mobile drawer behavior, persisted themes, viewport geometry, and horizontal overflow.
-- Added a dedicated GitHub Actions job that starts ephemeral local Supabase, replays migrations, exports local-only credentials, runs `pnpm seed`, installs Chromium, executes the matrix, uploads failure diagnostics, and always tears down the database.
-- Updated testing guidance and Phase 2 audit evidence. No runtime UI, API, schema, migration, production state, or production data changed.
-
-**Validation:**
-- `pnpm e2e:matrix` (18 checks across setup and four projects)
-- `pnpm test` (397 files / 3,603 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Publish, independently review, remediate, and merge the browser matrix PR. Then confirm Phase 2 exit evidence and begin Phase 3 with the first independently releasable vertical product slice.
-
 ## 2026-07-21 — Phase 3 Classwork list states
 
 **Completed:**
@@ -1233,3 +1209,72 @@ widget boundary requires repository-wide synthesis.
   only if the review gate is clean.
 - Keep future Pal custom-property names provisional until `@pal/widget`, the
   Pika adapter, contract tests, and host captures are reviewed together.
+
+## 2026-07-26 — Portable design-foundation enforcement
+
+**Risk profile:** standard
+
+**Model recommendation:** GPT-5.6 Sol high reasoning — shared token aliases,
+class-merging behavior, repository-wide visual-value policy, and pixel-parity
+evidence require cross-layer verification.
+
+**Completed:**
+- Added host-neutral typography, minimum target, focus, motion, page-width,
+  density, layer-responsibility, and light/dark scrim variables while preserving
+  the implemented Pika values.
+- Exposed the foundations through Tailwind and migrated canonical page,
+  control, overlay, status, header, tooltip, tab, table, and floating-action
+  owners to semantic aliases.
+- Extended `tailwind-merge` so semantic ring-width and ring-offset aliases
+  remain distinct from semantic ring colours; the first focused test run caught
+  this before commit.
+- Added reduced-motion resolution for shared duration tokens. Normal light/dark
+  geometry and appearance remain unchanged; adopted transitions resolve to
+  zero only when reduced motion is requested.
+- Added an exact design-value policy for raw colours, arbitrary spacing, and raw
+  layers. The governed baseline records count, fingerprint, reason, and
+  migration owner, so additions, removals, and same-count substitutions fail
+  CI without an explicit registry update.
+- Added portable-foundation contract tests, updated affected component
+  contracts, wired the design policy into CI, and documented the foundation and
+  exception rules in `DESIGN.md`, stable guidance, and `src/ui/README.md`.
+- Added a repository PR conformance checklist and a durable visual-evidence
+  provenance template.
+- Independent review found that the first raw-value scanner missed arbitrary
+  Tailwind values/properties, literal inline styles, and CSS/SCSS, and that
+  caller-last overrides did not conflict with every new Tailwind alias.
+- Expanded the policy across TypeScript, JavaScript, CSS, and SCSS while
+  preserving `src/styles/tokens.css` as the explicit semantic-definition
+  boundary. Follow-up review also closed arbitrary color-property and
+  background-shorthand escapes. The exact baseline now governs 779 values
+  across 100 files.
+- Registered page-width, minimum-target, density (including negative bleed),
+  motion, easing, and layer aliases in `tailwind-merge`, with caller-last
+  regression coverage for every portable alias family.
+
+**Validation:**
+- Full Vitest suite: 429 files / 3,810 tests.
+- `pnpm lint`.
+- `pnpm build`.
+- `pnpm exec tsc --noEmit --pretty false`.
+- Architecture, UI policy, design policy, and semantic-token contrast checks.
+- Pika audit passed; composite accessibility checklist reviewed, with keyboard
+  behavior and semantic state covered by existing and updated tests.
+- Browser experience matrix: 18/18 across teacher/student, desktop/mobile, and
+  light/dark.
+- Pika UI verification screenshots reviewed for teacher desktop, teacher
+  mobile, student mobile, and mobile dark variants.
+- Direct current-`main` comparison: teacher/student light/dark classroom-index
+  captures were pixel-identical below the dynamic clock header; the login
+  capture was fully pixel-identical. Stored snapshot baselines are stale under
+  the current browser/runtime and were not rewritten in this change.
+- Remediation regressions: 13/13 focused policy/foundation tests; all six files
+  that timed out under full-suite parallel resource contention passed
+  sequentially (165/165).
+- `git diff --check`.
+
+**Remaining:**
+- Commit and publish the review remediation, complete targeted independent
+  review and exact-head CI, and merge only when both gates are clean.
+- Keep the public `--pal-*` bridge out of Pika until the actual `@pal/widget`
+  package API can be reviewed and contract-tested.

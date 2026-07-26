@@ -172,7 +172,11 @@ describe('StudentSurveyPanel', () => {
     expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
     const responseAction = screen.getByRole('button', { name: 'Respond' })
     expect(responseAction).toBeInTheDocument()
-    expect(responseAction.parentElement).toHaveClass('fixed', 'top-[3.25rem]', 'z-40')
+    expect(responseAction.parentElement).toHaveClass(
+      'fixed',
+      'top-[3.25rem]',
+      'z-floating',
+    )
     expect(responseAction.parentElement?.className).toContain('lg:left-[var(--main-content-center-x,50%)]')
 
     await waitFor(() => {

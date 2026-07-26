@@ -15,6 +15,12 @@ This guide defines how to collect and review the final visual evidence.
 
 Before coding non-trivial UI work, record the acceptance target from [`docs/guidance/ui/change-brief.md`](/docs/guidance/ui/change-brief.md). The strongest recent failure mode has been visual churn after the first implementation, not missing screenshots.
 
+When screenshots will remain as review or design-system evidence, record their
+provenance with
+[`docs/guidance/ui/visual-evidence-template.md`](/docs/guidance/ui/visual-evidence-template.md).
+An unlabeled capture is useful for debugging but not durable proof of current
+conformance.
+
 ## Tooling Policy
 
 Playwright is the required path for final UI/UX verification. Use Playwright for E2E tests, `pnpm e2e:verify` scenarios, reproducible screenshots, teacher/student auth-state checks, and artifacts that another agent or CI can rerun.

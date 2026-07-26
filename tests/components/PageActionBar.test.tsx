@@ -47,12 +47,12 @@ describe('PageActionBar', () => {
     expect(menuButton).toHaveAttribute('aria-expanded', 'true')
     const menu = screen.getByRole('menu')
     expect(menuButton).toHaveAttribute('aria-controls', menu.id)
-    expect(menu).toHaveClass('absolute', 'right-0', 'z-20', 'mt-2', 'w-56')
+    expect(menu).toHaveClass('absolute', 'right-0', 'z-local-menu', 'mt-2', 'w-56')
 
     const menuItems = within(menu).getAllByRole('menuitem')
     expect(menuItems.map((item) => item.textContent)).toEqual(['Archive', 'Delete'])
     expect(menuItems[1].parentElement).toHaveClass('border-t', 'border-border')
-    expect(menuItems[0]).toHaveClass('min-h-11', 'focus-visible:ring-2')
+    expect(menuItems[0]).toHaveClass('min-h-control', 'focus-visible:ring-foundation')
     await waitFor(() => {
       expect(within(menu).getByRole('menuitem', { name: 'Archive' })).toHaveFocus()
     })

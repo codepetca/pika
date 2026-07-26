@@ -29,6 +29,9 @@ jobs:
       - name: Check governed UI imports and native controls
         run: pnpm run check:ui-policy
 
+      - name: Check governed design values
+        run: pnpm run check:design-policy
+
   # Enforce no dark: classes in app code (only allowed in /ui CVA definitions)
   check-dark-mode:
     name: "Check No dark: Classes in App Code"

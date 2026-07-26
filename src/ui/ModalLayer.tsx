@@ -135,7 +135,7 @@ export function ModalLayer({
   closeOnBackdrop = true,
   backdropLabel = 'Close dialog',
   rootClassName = 'flex items-center justify-center p-4',
-  backdropClassName = 'bg-black/50 dark:bg-black/70',
+  backdropClassName = 'bg-overlay-scrim',
   panelClassName,
 }: ModalLayerProps) {
   const layerRef = useRef<HTMLDivElement | null>(null)
@@ -225,7 +225,7 @@ export function ModalLayer({
   if (!isOpen || typeof document === 'undefined') return null
 
   return createPortal(
-    <div ref={layerRef} className={`fixed inset-0 z-50 ${rootClassName}`}>
+    <div ref={layerRef} className={`fixed inset-0 z-modal ${rootClassName}`}>
       <button
         type="button"
         tabIndex={-1}

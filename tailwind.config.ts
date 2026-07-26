@@ -98,6 +98,14 @@ const config: Config = {
             hover: 'var(--color-info-bg-hover)',
           },
         },
+        focus: 'var(--focus-ring-color)',
+        overlay: {
+          scrim: 'var(--color-overlay-scrim)',
+        },
+      },
+      fontFamily: {
+        sans: ['var(--font-family-ui)'],
+        mono: ['var(--font-family-mono)'],
       },
       borderRadius: {
         control: 'var(--radius-control)',
@@ -114,6 +122,45 @@ const config: Config = {
         field: 'var(--space-field)',
         control: 'var(--space-control)',
         'header-compact': 'var(--space-header-compact)',
+        'density-compact-gutter': 'var(--density-compact-gutter)',
+        'density-compact-content-top': 'var(--density-compact-content-top)',
+        'density-compact-stack-gap': 'var(--density-compact-stack-gap)',
+        'density-comfortable-gutter': 'var(--density-comfortable-gutter)',
+        'density-comfortable-content-top': 'var(--density-comfortable-content-top)',
+        'density-comfortable-stack-gap': 'var(--density-comfortable-stack-gap)',
+      },
+      minHeight: {
+        control: 'var(--size-control-min)',
+      },
+      minWidth: {
+        control: 'var(--size-control-min)',
+      },
+      maxWidth: {
+        reading: 'var(--page-width-reading)',
+        standard: 'var(--page-width-standard)',
+        wide: 'var(--page-width-wide)',
+      },
+      ringWidth: {
+        foundation: 'var(--focus-ring-width)',
+      },
+      ringOffsetWidth: {
+        foundation: 'var(--focus-ring-offset)',
+      },
+      transitionDuration: {
+        fast: 'var(--motion-duration-fast)',
+        standard: 'var(--motion-duration-standard)',
+        deliberate: 'var(--motion-duration-deliberate)',
+      },
+      transitionTimingFunction: {
+        standard: 'var(--motion-easing-standard)',
+      },
+      zIndex: {
+        'local-menu': 'var(--layer-local-menu)',
+        floating: 'var(--layer-floating)',
+        'app-chrome': 'var(--layer-app-chrome)',
+        popover: 'var(--layer-popover)',
+        modal: 'var(--layer-modal)',
+        'app-message': 'var(--layer-app-message)',
       },
       boxShadow: {
         elevated: 'var(--shadow-elevated)',

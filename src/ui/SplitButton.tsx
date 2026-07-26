@@ -225,7 +225,7 @@ export function SplitButton({
           role="menu"
           onClick={(event) => event.stopPropagation()}
           className={cn(
-            'absolute right-0 z-50 min-w-[9rem] rounded-md border border-border-strong bg-surface p-1 shadow-xl',
+            'absolute right-0 z-popover min-w-[9rem] rounded-md border border-border-strong bg-surface p-1 shadow-xl',
             menuPlacement === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'
           )}
         >
@@ -248,7 +248,7 @@ export function SplitButton({
                   handleOptionSelect(option.onSelect)
                 }}
                 className={cn(
-                  'min-h-11 w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
+                  'min-h-control w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
                   option.destructive ? 'text-danger hover:bg-danger-bg' : ''
                 )}
               >
