@@ -1184,6 +1184,9 @@ consistency review.
   authority.
 - Added documentation hierarchy tests covering the root authority, redirect,
   historical-document disposition, active legacy governance, and AI routing.
+- Opened PR #948. Independent review found two non-blocking documentation-index
+  and redirect-test gaps; both were corrected in one remediation batch, and the
+  targeted re-review was clean.
 - Kept this phase documentation-only: no visual, component, token, Pal runtime,
   dependency, schema, or application behavior changes.
 
@@ -1198,6 +1201,7 @@ consistency review.
 - `git diff --check`.
 
 **Remaining:**
-- Obtain human approval before committing or publishing Phase 1.
+- Require green exact-head CI and a clean final integration review before any
+  merge decision.
 - In Phase 2, add the missing portable foundation tokens and policy checks
   before implementing the Pika-to-Pal semantic bridge.
