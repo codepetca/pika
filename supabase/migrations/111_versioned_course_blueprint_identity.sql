@@ -468,7 +468,9 @@ declare
   v_old_classroom_id uuid;
   v_new_classroom_id uuid;
 begin
-  if current_setting('pika.identity_mapping', true) = 'on' then
+  if current_setting('pika.identity_mapping', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;
@@ -498,7 +500,9 @@ declare
   v_old_classroom_id uuid;
   v_new_classroom_id uuid;
 begin
-  if current_setting('pika.identity_mapping', true) = 'on' then
+  if current_setting('pika.identity_mapping', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;
@@ -534,7 +538,9 @@ declare
   v_old_classroom_id uuid;
   v_new_classroom_id uuid;
 begin
-  if current_setting('pika.identity_mapping', true) = 'on' then
+  if current_setting('pika.identity_mapping', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;
@@ -570,7 +576,9 @@ declare
   v_old_classroom_id uuid;
   v_new_classroom_id uuid;
 begin
-  if current_setting('pika.identity_mapping', true) = 'on' then
+  if current_setting('pika.identity_mapping', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;
@@ -789,7 +797,9 @@ declare
   v_old_type text;
   v_new_type text;
 begin
-  if current_setting('pika.identity_mapping', true) = 'on' then
+  if current_setting('pika.identity_mapping', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;

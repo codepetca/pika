@@ -1,7 +1,6 @@
-Focus: PR #952 on `codex/versioned-course-blueprints` implements lineage and
-live-safe classroom updates. Shared local is through migration 111; the first
-review remediation is awaiting targeted re-review and exact-head
-CI.
+Focus: PR #952 implements Blueprint lineage and live-safe classroom updates.
+Shared local is through migration 111. Both remediation batches pass locally;
+final exact-head review/CI is pending.
 
 Environment rules: `docs/dev-workflow.md`.
 - Worktrees: `$HOME/.codex/worktrees/pika/` or

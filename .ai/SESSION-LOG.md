@@ -1361,9 +1361,13 @@ structural revision triggers, and adds atomic proposal application.
 - Added a database-backed CI contract for two-connection proposal replay,
   source-classroom staleness, direct Version immutability, and Blueprint/user
   cascade deletion.
+- Fixed the final CI integration issues: archive schema fixtures now include
+  declared non-owning Blueprint workflow references, and classroom structural
+  revision triggers honor the archive-restore transaction guard so a restored
+  classroom exactly preserves its verified source revision.
 
 **Validation:**
-- Full Vitest suite: 434 files / 3,831 tests.
+- Full Vitest suite: 437 files / 3,851 tests.
 - Focused migration, Blueprint, Test, and assignment compatibility coverage:
   7 files / 64 tests.
 - `pnpm run db:types:check`.
@@ -1380,14 +1384,16 @@ structural revision triggers, and adds atomic proposal application.
 - Rebased-head full suite, generated database-type parity, TypeScript, lint,
   build, UI/design policies, Pika audit, and the live versioned-Blueprint
   database contract.
-- PR #952 initial CI: Test & Build, Browser Experience Matrix, Vercel, and
-  no-dark-class policy passed; the two failing contract gates were remediated
-  in the first review batch.
+- Exact local archive recovery rehearsal passed export, compaction,
+  ownership-fenced source cleanup, exact row/object restore, and all
+  idempotent replays.
+- PR #952 review-head CI exposed archive fixture/recovery integration gaps;
+  both failing paths pass locally after the final remediation.
 - Pre-migration backup:
   `/Users/stew/Repos/.env/pika/backups/pika-local-pre-106-111-20260726T201121Z.dump`
   (SHA-256 verified).
 
 **Remaining:**
-- Publish the review remediation, run targeted independent re-review, and
+- Publish the final remediation, run final independent exact-head review, and
   require exact-head CI before marking PR #952 ready. Leave it unmerged unless
   explicit merge authority is provided.

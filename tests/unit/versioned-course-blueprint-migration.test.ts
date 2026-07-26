@@ -89,6 +89,11 @@ describe('versioned course blueprint migration contract', () => {
     expect(migration).toContain('touch_classroom_blueprint_source_from_materials_update')
     expect(migration).toContain('touch_classroom_blueprint_source_from_surveys_update')
     expect(migration).toContain('touch_classroom_blueprint_source_from_gradebook_update')
+    expect(
+      migration.match(
+        /current_setting\('pika\.classroom_archive_restore', true\) = 'on'/g,
+      ),
+    ).toHaveLength(5)
     expect(migration).not.toMatch(
       /after update of[\s\S]{0,220}\breleased_at\b[\s\S]{0,100}on public\.classwork_materials/
     )

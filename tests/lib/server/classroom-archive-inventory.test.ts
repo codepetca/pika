@@ -9,6 +9,7 @@ import {
   type ClassroomArchiveInventoryReader,
 } from '@/lib/server/classroom-archive-inventory'
 import {
+  CLASSROOM_NON_OWNING_REFERENCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   getClassroomResourceOrder,
@@ -66,6 +67,15 @@ function openApiDocument() {
       }
     }
     definitions[resource.table] = { properties }
+  }
+  for (const relationship of CLASSROOM_NON_OWNING_REFERENCES) {
+    const definition = definitions[relationship.child_table] || { properties: {} }
+    for (const column of relationship.child_columns) {
+      definition.properties[column] = {
+        description: `${definition.properties[column]?.description || 'Note:'}\nThis is a Foreign Key.<fk table='${relationship.parent_table}' column='id'/>`,
+      }
+    }
+    definitions[relationship.child_table] = definition
   }
   definitions.users = {
     properties: { id: { description: 'Note:\nThis is a Primary Key.<pk/>' } },
