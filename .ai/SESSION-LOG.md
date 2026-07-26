@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 specialized-control policy
-
-**Completed:**
-- Merged independently reviewed PR #904 as `f614fa61`, fast-forwarded the hub, and started Phase 2 item 8 from current `main` in a dedicated worktree.
-- Replaced the brittle UI import grep with a TypeScript-AST policy checker and a versioned, Zod-validated exception registry covering 215 native controls across 67 files.
-- Required exact per-file/per-kind counts, constrained rationale categories, explicit Phase 2/3/6 review ownership, canonical `@/ui` imports, and rejection of legacy UI component paths.
-- Converted 22 remaining `@/ui/*` imports to the canonical barrel and retained narrow compatibility exports for existing component paths.
-- Corrected seven full `@/ui` test mocks to preserve unmocked barrel exports after the full suite exposed their hidden coupling.
-- Added direct semantic coverage for calendar navigation, creation dialogs, multiple-choice review states, announcement menus, edit toggles, split panes, and teacher action menus.
-- No runtime UI behavior, schema, migration, API contract, production state, or data changed; visual verification is not required for this import/tooling-only slice.
-- Opened PR #905 for independent review.
-- Accepted initial review findings covering dynamic/CommonJS/import-equals bypasses, literal React factory controls, complete static input classification, and overly broad Tiptap exclusions; remediated them together with direct regression fixtures.
-- Kept roadmap ownership in `reviewBy` and `.ai/features.json` rather than introducing date-dependent CI expiry for source exceptions.
-- Targeted re-review found import-option/import-type bypasses, case/template static-input gaps, and missing namespace/root fixtures; closed all four in the second remediation batch.
-- With explicit approval to exceed the default review budget, the third remediation batch closed final cumulative findings for relative UI paths, CommonJS/import-equals React factories, shorthand input props, strict registry metadata, and stale Phase 1 audit evidence.
-
-**Validation:**
-- `pnpm test --run` (full repository suite)
-- Focused UI-policy, guidance, and composite-control suites
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm check:architecture`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Publish, independently review, remediate, and merge the specialized-control policy PR. Then continue Phase 2 with mobile and light/dark Playwright projects plus representative teacher/student CI coverage.
-
 ## 2026-07-21 — Phase 2 browser experience matrix
 
 **Completed:**
@@ -1205,3 +1175,50 @@ consistency review.
   merge decision.
 - In Phase 2, add the missing portable foundation tokens and policy checks
   before implementing the Pika-to-Pal semantic bridge.
+
+## 2026-07-26 — DESIGN.md product-conformance loop
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Sol high reasoning — cross-checking design
+authority against implemented owners, current product evidence, and a portable
+widget boundary requires repository-wide synthesis.
+
+**Completed:**
+- Audited the canonical root design contract against executable tokens,
+  Tailwind aliases, shared primitives, policy tests, representative product
+  surfaces, and the current Pal pilot footprint.
+- Used two Open Design passes to classify confirmed invariants, executable-only
+  behavior, migration gaps, governed legacy exceptions, and unverified Pal
+  work; the second independent pass gave the revised structure a qualified
+  pass and identified two final wording edits.
+- Refined `DESIGN.md` with an explicit claim-classification model, observed
+  Pika visual invariants, named adoption gaps, bounded classroom/auth/workspace
+  exceptions, evidence freshness requirements, risk-matched verification, a
+  conformance loop, and a provisional Pika-to-Pal handoff packet.
+- Kept exact visual values with their executable owners and retained the Pal
+  bridge detail only as a provisional handoff until the real package API can be
+  reviewed.
+- Added hierarchy-test coverage for the new classification, verification,
+  evidence, and provisional-contract language.
+- Kept the work documentation-only; no existing runtime UI, behavior, tokens,
+  dependencies, schema, migrations, or production state changed.
+
+**Validation:**
+- Open Design revision board: structure, interaction, evidence integrity,
+  responsive breakpoints, visible 44px controls, and independent desktop render
+  inspection at 1280px.
+- Full Vitest suite: 427 files / 3,799 tests.
+- `pnpm exec tsc --noEmit --pretty false`.
+- `pnpm lint`.
+- Architecture boundaries: 631 modules / 0 deletion-only allowances.
+- UI policy scan: 202 registered native controls across 64 files.
+- `bash .codex/skills/pika-audit/scripts/audit.sh`.
+- `node scripts/trim-session-log.mjs --check`.
+- `git diff --check`.
+
+**Remaining:**
+- Publish the approved documentation-only branch, complete independent review
+  and exact-head CI, and merge only if the review gate is clean.
+- Keep future Pal custom-property names provisional until `@pal/widget`, the
+  Pika adapter, contract tests, and host captures are reviewed together.

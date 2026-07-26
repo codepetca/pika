@@ -25,7 +25,7 @@ describe('ui guidance docs and prompts', () => {
     expect(design).toContain('src/ui/README.md')
     expect(design).toContain('docs/guidance/ui/README.md')
     expect(design).toContain('docs/guidance/ui/legacy.md')
-    expect(design).toContain('## External Widgets')
+    expect(design).toContain('## Proposed External Widget Contract')
     expect(coreDesign).toContain('Compatibility redirect')
     expect(coreDesign).toContain('DESIGN.md')
     expect(coreDesign.split('\n').length).toBeLessThanOrEqual(40)
@@ -33,6 +33,21 @@ describe('ui guidance docs and prompts', () => {
     expect(docsReadme).toMatch(/DESIGN\.md\s+# Canonical product design entry point/)
     expect(docsReadme).toMatch(/design\.md\s+# Compatibility redirect to \/DESIGN\.md/)
     expect(uiCanon).toContain('composite-widget-accessibility.md')
+  })
+
+  it('keeps observed design, stable contracts, and migration gaps distinguishable', () => {
+    const design = readRepoFile('DESIGN.md')
+
+    expect(design).toContain('## How To Read This Contract')
+    expect(design).toContain('**Observed invariant:**')
+    expect(design).toContain('**Stable contract:**')
+    expect(design).toContain('**Migration gap:**')
+    expect(design).toContain('## Design Conformance Loop')
+    expect(design).toContain('confirmed, executable-only, stable target, legacy')
+    expect(design).toContain('evidence rather than')
+    expect(design).toContain('a proposed contract, not a confirmed')
+    expect(design).toContain('implementation commit, capture date')
+    expect(design).toContain('marked `n/a` with a reason')
   })
 
   it('retires the historical design-system document without weakening legacy governance', () => {
