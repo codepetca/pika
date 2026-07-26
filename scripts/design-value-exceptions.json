@@ -262,6 +262,12 @@
           "count": 2,
           "fingerprint": "b0465cb47405a373",
           "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 1,
+          "fingerprint": "8c3a5d4f399e5972",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -1087,8 +1093,8 @@
         },
         {
           "kind": "raw-css-color",
-          "count": 3,
-          "fingerprint": "ad0ff2ff6d51a0ca",
+          "count": 4,
+          "fingerprint": "00dfd341f4633a43",
           "reason": "third-party-editor"
         }
       ]
@@ -1191,6 +1197,12 @@
           "kind": "arbitrary-spacing",
           "count": 5,
           "fingerprint": "5d7f46e54dcce153",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 1,
+          "fingerprint": "ff012b81ed6322fa",
           "reason": "third-party-editor"
         }
       ]

@@ -1245,7 +1245,9 @@ evidence require cross-layer verification.
   caller-last overrides did not conflict with every new Tailwind alias.
 - Expanded the policy across TypeScript, JavaScript, CSS, and SCSS while
   preserving `src/styles/tokens.css` as the explicit semantic-definition
-  boundary. The exact baseline now governs 776 values across 100 files.
+  boundary. Follow-up review also closed arbitrary color-property and
+  background-shorthand escapes. The exact baseline now governs 779 values
+  across 100 files.
 - Registered page-width, minimum-target, density (including negative bleed),
   motion, easing, and layer aliases in `tailwind-merge`, with caller-last
   regression coverage for every portable alias family.

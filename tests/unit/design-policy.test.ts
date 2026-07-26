@@ -68,6 +68,23 @@ describe('design value policy', () => {
     })
   })
 
+  it('covers arbitrary color properties and background shorthands', () => {
+    const inventory = inventoryDesignValues({
+      'src/components/ColorBypass.tsx': `
+        export const classes = '[background:red] [color:rebeccapurple]'
+        export const inline = { background: 'red' }
+      `,
+      'src/components/color-bypass.scss': '.example { background: red; }',
+    })
+
+    expect(inventory.get('src/components/ColorBypass.tsx')?.get('raw-color-class')?.count)
+      .toBe(2)
+    expect(inventory.get('src/components/ColorBypass.tsx')?.get('raw-css-color')?.count)
+      .toBe(1)
+    expect(inventory.get('src/components/color-bypass.scss')?.get('raw-css-color')?.count)
+      .toBe(1)
+  })
+
   it('covers stylesheet values while exempting the canonical token source', () => {
     const inventory = inventoryDesignValues({
       'src/components/example.scss': `
