@@ -11,8 +11,9 @@ component APIs, or workflow-specific guidance.
 This file distinguishes between the product Pika already demonstrates and the
 default contract for new or deliberately modified work:
 
-- **Observed invariant:** repeated in implemented product surfaces and current
-  visual evidence.
+- **Observed invariant:** repeated in implemented product surfaces and
+  corroborated by recorded visual evidence. Historical captures are baseline
+  context, not proof that a later implementation still conforms.
 - **Stable contract:** the default for new work. Existing legacy surfaces may
   still diverge, but that divergence is not precedent.
 - **Migration gap:** a named capability that is not yet portable or consistently
@@ -70,8 +71,9 @@ and explicit product approval.
 
 ### Observed visual language
 
-Representative teacher, student, desktop, mobile, light, and dark surfaces
-establish these invariants:
+Current executable owners and representative recorded teacher, student,
+desktop, mobile, light, and dark surfaces support these invariants. Historical
+capture sets must be refreshed before they can prove current conformance:
 
 - Structure comes primarily from semantic surface changes, thin borders,
   spacing, and alignment. Strong elevation is reserved for overlays, active

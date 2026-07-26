@@ -40,6 +40,7 @@ describe('ui guidance docs and prompts', () => {
 
     expect(design).toContain('## How To Read This Contract')
     expect(design).toContain('**Observed invariant:**')
+    expect(design).toContain('Historical captures are baseline')
     expect(design).toContain('**Stable contract:**')
     expect(design).toContain('**Migration gap:**')
     expect(design).toContain('**Governed legacy:**')
@@ -50,6 +51,7 @@ describe('ui guidance docs and prompts', () => {
     expect(design).toContain('a proposed contract, not a confirmed')
     expect(design).toContain('auth text controls remain registered migration debt')
     expect(design).toContain('implementation commit, capture date')
+    expect(design).toContain('must be refreshed before they can prove current')
     expect(design).toContain('marked `n/a` with a reason')
 
     const productEvidence = readRepoFile(

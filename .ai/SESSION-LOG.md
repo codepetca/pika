@@ -1210,6 +1210,10 @@ widget boundary requires repository-wide synthesis.
   One remediation batch classified the registered auth controls as Phase 6
   migration debt, completed the taxonomy, and marked the older captures as a
   historical evidence set rather than fresh conformance proof.
+- Targeted review then found that the observed-invariant definition still
+  called the linked evidence current. A second narrow remediation distinguished
+  current executable owners from recorded historical baselines and requires
+  refreshed captures before claiming current visual conformance.
 
 **Validation:**
 - Open Design revision board: structure, interaction, evidence integrity,
