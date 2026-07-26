@@ -6,8 +6,9 @@ This audit records which existing sources already govern Pika UI work and which 
 
 - [`docs/ai-instructions.md`](/docs/ai-instructions.md)
   Defines the global read order, mandatory constraints, and AI workflow rules.
-- [`docs/core/design.md`](/docs/core/design.md)
-  Holds the durable UI invariants: mobile-first, accessibility, dark-mode support via semantic tokens, and classroom-route layout expectations.
+- [`DESIGN.md`](/DESIGN.md)
+  Holds the durable UI invariants, authority model, accessibility and theme expectations, and
+  pointers to executable and governed sources.
 - [`src/ui/README.md`](/src/ui/README.md)
   Documents the canonical primitive layer: `@/ui` imports, semantic tokens, `FormField`, `Card`, dialogs, and token usage.
 - [`docs/workflow/handle-issue.md`](/docs/workflow/handle-issue.md) and [`docs/issue-worker.md`](/docs/issue-worker.md)

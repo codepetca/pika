@@ -2,6 +2,9 @@
 
 This guide explains how to use Playwright for AI-assisted UI verification in Pika.
 
+Root [`DESIGN.md`](/DESIGN.md) defines the product and accessibility contract.
+This guide defines how to collect and review the final visual evidence.
+
 ## MANDATORY: Visual Verification for UI Changes
 
 **After ANY UI/UX change, AI agents MUST:**

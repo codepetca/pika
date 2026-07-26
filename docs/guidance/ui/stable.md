@@ -21,7 +21,7 @@ This file handles shared foundation rules. The teacher work-surface canon handle
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/ui/README.md`](/src/ui/README.md)
 - Current classroom surfaces use these tokens heavily.
 
@@ -36,7 +36,7 @@ Source grounding:
 Source grounding:
 
 - [`src/ui/README.md`](/src/ui/README.md)
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/components/AssignmentForm.tsx`](/src/components/AssignmentForm.tsx)
 
 ### 3. Classroom pages preserve the shared shell
@@ -47,7 +47,7 @@ Source grounding:
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/components/layout/ThreePanelShell.tsx`](/src/components/layout/ThreePanelShell.tsx)
 - [`src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`](/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx)
 
@@ -150,7 +150,7 @@ Source grounding:
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`docs/core/architecture.md`](/docs/core/architecture.md)
 - [`src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx)
 
@@ -163,7 +163,7 @@ Source grounding:
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`](/src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx)
 - [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
 - [`src/components/AssignmentModal.tsx`](/src/components/AssignmentModal.tsx)
@@ -172,11 +172,14 @@ Source grounding:
 
 - Use the existing Toronto-aware date helpers and the established app language for dates.
 - Prefer predictable classroom-facing date labels instead of one-off formatting.
+- Use the established short classroom date form such as `Tue Dec 16` without a year when the
+  surrounding context makes the year unambiguous; include the year when omitting it would create
+  ambiguity.
 - Date presentation should feel consistent across attendance navigation, assignment due labels, and classroom-level scheduling affordances.
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`docs/core/architecture.md`](/docs/core/architecture.md)
 - Current attendance and assignment surfaces already rely on Toronto-aware helpers.
 

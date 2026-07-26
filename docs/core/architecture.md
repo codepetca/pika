@@ -117,7 +117,7 @@ tests/                             # Vitest unit + API suites
   ```
 - Common tokens: `bg-page`, `bg-surface`, `bg-surface-2`, `text-text-default`, `text-text-muted`,
   `border-border`, `text-primary`, `text-danger`, `text-success`, `text-warning`
-- Full token reference: `src/ui/README.md` | Design rules: `docs/core/design.md`
+- Full token reference: `src/ui/README.md` | Design rules: `DESIGN.md`
 
 ### Authentication (Current And WorkOS-Ready)
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session.
@@ -436,4 +436,4 @@ Existing indexes (migration 038):
 
 ---
 
-For UI/UX patterns see `docs/core/design.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`; for routing architecture see `docs/core/route-patterns.md`.
+For UI/UX principles and routing see `DESIGN.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`; for routing architecture see `docs/core/route-patterns.md`.

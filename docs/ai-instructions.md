@@ -19,7 +19,7 @@ After startup, load only task-specific docs:
 | Task | Read next |
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
-| UI/UX | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| UI/UX | [`DESIGN.md`](../DESIGN.md), [`src/ui/README.md`](../src/ui/README.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
 | Teacher assignments/tests shell/layout | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Schema rollout or API validation | [`schema`](./guidance/schema-rollout-checklist.md), [`API`](./guidance/api-boundary-validation.md) |
 | Legacy quiz/tests contract cleanup | [`docs/guidance/legacy-quiz-contract-cleanup.md`](./guidance/legacy-quiz-contract-cleanup.md), [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
@@ -62,7 +62,7 @@ Use `.codex/prompts/` for session start, issue work, TDD, UI verify, audit, API-
 2. `.ai/CURRENT.md`
 3. `docs/core/architecture.md`
 4. `docs/core/tests.md`
-5. `docs/core/design.md`
+5. `DESIGN.md`
 6. `docs/core/project-context.md`
 7. `docs/core/roadmap.md`
 8. `docs/core/decision-log.md`

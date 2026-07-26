@@ -21,7 +21,7 @@ Pika uses four UI guidance buckets:
 
 When a task affects UI, styling, layout, or interaction flow, read in this order:
 
-1. [`docs/core/design.md`](/docs/core/design.md)
+1. [`DESIGN.md`](/DESIGN.md)
 2. [`src/ui/README.md`](/src/ui/README.md)
 3. [`docs/guidance/ui/stable.md`](/docs/guidance/ui/stable.md)
 4. [`docs/guidance/ui/change-brief.md`](/docs/guidance/ui/change-brief.md)
@@ -30,6 +30,10 @@ When a task affects UI, styling, layout, or interaction flow, read in this order
 7. [`docs/guidance/ui/composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md) when the task changes composite interactions or ARIA semantics
 
 The stable file is the default. Experimental and legacy docs are context, not overrides.
+
+`DESIGN.md` owns global principles and the authority model. This directory owns
+the promotion lifecycle and scoped product guidance; it must not duplicate
+executable token values or canonical component APIs.
 
 ## Promotion Rules
 

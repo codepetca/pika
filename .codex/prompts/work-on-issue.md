@@ -5,6 +5,7 @@ Assume the startup context from `.ai/START-HERE.md` is already loaded. If not, r
 Steps:
 1. Run `gh issue view $ARGUMENTS --json number,title,body,labels,assignees`.
 2. Read `docs/workflow/handle-issue.md` plus the task-specific docs selected by `docs/ai-instructions.md`.
+   - For UI work, start with root `DESIGN.md` and `src/ui/README.md`.
    - For UI work, include a UI guidance declaration.
    - Record: stable guidance followed
    - Record: experimental guidance introduced: yes/no

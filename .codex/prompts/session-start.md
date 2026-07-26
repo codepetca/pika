@@ -20,6 +20,7 @@ Manual fallback:
 5. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
 6. Read `.ai/SESSION-LOG.md` only if recent handoff context is needed; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 7. Load only the task-specific docs routed by `docs/ai-instructions.md`.
+   - For UI work, start with root `DESIGN.md` and `src/ui/README.md`.
    - For UI work, include a UI guidance declaration.
    - For UI work, record a brief acceptance target using `docs/guidance/ui/change-brief.md`.
    - Record: stable guidance followed

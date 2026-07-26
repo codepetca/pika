@@ -1,6 +1,7 @@
 Visually verify UI changes for the page path in `$ARGUMENTS`.
 
-Use the repo guide for expectations: `docs/guides/ai-ui-testing.md`.
+Use root `DESIGN.md` for the product contract and the repo guide for the
+verification procedure: `docs/guides/ai-ui-testing.md`.
 
 Playwright is the required final verification path. Chrome plugin/browser-profile checks may be used only as supplemental exploratory debugging and do not replace Playwright screenshots or verification scripts.
 
