@@ -15234,3 +15234,29 @@
 
 **Remaining:**
 - Publish, independently review, remediate, and merge the browser matrix PR. Then confirm Phase 2 exit evidence and begin Phase 3 with the first independently releasable vertical product slice.
+
+<!-- pika-session-log-archive-batch:20040a6f17c83d64cfaa9d32a8617fbef185740ad217bb2b2eca2cf6e94edc63 -->
+## 2026-07-21 — Phase 3 Classwork list states
+
+**Completed:**
+- Began Phase 3 with a narrow assignment slice that preserves the existing class-wide teacher workflow and student assignment list.
+- Replaced ambiguous initial loading and failed-read empty states with governed `PageState` loading, error, and successful-empty states for teacher and student Classwork.
+- Added bounded Retry actions that invalidate assignment, material, and survey list caches before reloading; failures never render "No classwork yet," and successful retry restores the normal list.
+- Added focused role regressions and browser-verified loading, error, empty, retry, and restored-list states at desktop/mobile widths in light/dark themes. No API, schema, migration, production state, or production data changed.
+- Independent review found that reactivating Classwork after a failed load used the content-preserving refresh path and could expose the empty state while retrying. Reactivation from an error now uses the blocking load path; both roles prove pending reactivation, repeated failure, and recovery.
+- Final cumulative review found the remaining survey-list exception could still turn survey failures into empty or partial Classwork. Survey reads now participate in the same required failure/retry contract, with teacher and student survey-specific recovery regressions.
+
+**Validation:**
+- Focused Classwork component suites (2 files / 61 tests)
+- `pnpm test --run` (397 files / 3,605 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm check:ui-policy` (215 controls / 67 files)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- Playwright forced-state matrix (16 checks across two focused local runs)
+
+**Remaining:**
+- Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
