@@ -4,6 +4,15 @@
 
 This manifest makes the Phase 1 product audit reviewable after the local browser session ends. After review deleted the two credential-bearing login images and their one DOM snapshot, the ignored local product set contains 51 screenshots and 51 matching DOM/accessibility snapshots. Two additional Open Design board-QA pairs bring the local directory totals to 53 screenshots and 53 DOM snapshots.
 
+This is a historical evidence set under the current root
+[`DESIGN.md`](../../../DESIGN.md) provenance contract. It was first committed in
+`208f7b78b39f23e33c8a52434327d40dbd67da66` on 2026-07-16, but its original
+capture workflow did not record a per-capture date or the implementation commit
+shown in each image. Use it to understand the audited product snapshot and its
+named limitations, not as fresh conformance proof for later implementation
+changes. New or refreshed evidence must record the complete provenance required
+by `DESIGN.md`.
+
 Twenty-two representative product screenshots and two Open Design board-QA screenshots are committed below. They cover the three role/shell regimes, the highest-risk teacher/student workflows, desktop/mobile behavior, both themes, lifecycle controls, and the utility routes added during audit review. A credential-bearing local login capture was removed during review; signup and reset remain as durable authentication-entry evidence.
 
 The matching DOM `.txt` files are committed beside each screenshot with the basename shown in the final column.

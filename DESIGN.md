@@ -18,6 +18,12 @@ default contract for new or deliberately modified work:
 - **Migration gap:** a named capability that is not yet portable or consistently
   adopted.
 - **Family rule:** authoritative only inside the workflow family that owns it.
+- **Governed legacy:** implemented compatibility behavior recorded in
+  [active legacy guidance](./docs/guidance/ui/legacy.md) or an exception
+  registry. Preserve it only within that scope; do not use it as precedent.
+- **Experimental guidance:** a review-bound proposal in
+  [`docs/guidance/ui/experimental`](./docs/guidance/ui/experimental/README.md).
+  It is not a default until promoted.
 
 Unmarked statements that use **must**, **do not**, or **new work** are stable
 contracts, not claims that every historical surface already conforms. When an
@@ -240,8 +246,11 @@ evidence, not a new design language to copy.
 
 Login, signup, verification, and recovery are intentional shell-light
 exceptions. Use a centered, bounded form surface on the semantic page canvas
-without authenticated application navigation, while preserving canonical
-fields, controls, focus behavior, themes, and state feedback.
+without authenticated application navigation. The shell framing is an observed
+invariant; new or deliberately modified fields, controls, focus behavior,
+themes, and state feedback follow the stable contract above. Current
+feature-owned auth text controls remain registered migration debt under the
+Phase 6 auth-verification owner and are not precedent.
 
 ### Page and workflow states
 

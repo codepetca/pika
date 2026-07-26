@@ -42,12 +42,22 @@ describe('ui guidance docs and prompts', () => {
     expect(design).toContain('**Observed invariant:**')
     expect(design).toContain('**Stable contract:**')
     expect(design).toContain('**Migration gap:**')
+    expect(design).toContain('**Governed legacy:**')
+    expect(design).toContain('**Experimental guidance:**')
     expect(design).toContain('## Design Conformance Loop')
     expect(design).toContain('confirmed, executable-only, stable target, legacy')
     expect(design).toContain('evidence rather than')
     expect(design).toContain('a proposed contract, not a confirmed')
+    expect(design).toContain('auth text controls remain registered migration debt')
     expect(design).toContain('implementation commit, capture date')
     expect(design).toContain('marked `n/a` with a reason')
+
+    const productEvidence = readRepoFile(
+      'docs/guidance/ui/product-experience-evidence-2026-07.md',
+    )
+    expect(productEvidence).toContain('historical evidence set')
+    expect(productEvidence).toContain('did not record a per-capture date')
+    expect(productEvidence).toContain('not as fresh conformance proof')
   })
 
   it('retires the historical design-system document without weakening legacy governance', () => {

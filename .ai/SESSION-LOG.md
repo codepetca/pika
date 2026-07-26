@@ -1203,6 +1203,13 @@ widget boundary requires repository-wide synthesis.
   evidence, and provisional-contract language.
 - Kept the work documentation-only; no existing runtime UI, behavior, tokens,
   dependencies, schema, migrations, or production state changed.
+- Opened PR #949. Independent review found that shell-light authentication
+  guidance overstated current legacy text-control conformance, the start
+  taxonomy did not explicitly define governed legacy/experimental guidance,
+  and the linked July evidence set did not identify its missing provenance.
+  One remediation batch classified the registered auth controls as Phase 6
+  migration debt, completed the taxonomy, and marked the older captures as a
+  historical evidence set rather than fresh conformance proof.
 
 **Validation:**
 - Open Design revision board: structure, interaction, evidence integrity,
@@ -1218,7 +1225,7 @@ widget boundary requires repository-wide synthesis.
 - `git diff --check`.
 
 **Remaining:**
-- Publish the approved documentation-only branch, complete independent review
-  and exact-head CI, and merge only if the review gate is clean.
+- Complete targeted remediation review and exact-head CI for PR #949, and merge
+  only if the review gate is clean.
 - Keep future Pal custom-property names provisional until `@pal/widget`, the
   Pika adapter, contract tests, and host captures are reviewed together.
