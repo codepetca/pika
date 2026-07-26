@@ -4,6 +4,10 @@ This directory contains the canonical UI primitives for the Pika application.
 
 **All app code must import from `@/ui`, not from legacy `@/components/*` paths.**
 
+Root [`DESIGN.md`](/DESIGN.md) owns global design principles and authority.
+This file owns canonical component APIs and semantic-token usage; executable
+values remain in [`src/styles/tokens.css`](/src/styles/tokens.css).
+
 ---
 
 ## Quick Start
@@ -361,7 +365,6 @@ These are NOT part of the `/ui` design system:
 - **Tiptap primitives**: Stay in `tiptap-ui-primitive/`
 - **Textarea**: Use native `<textarea>` wrapped by FormField
 - **Toast stacks**: Use `AppMessage` instead; stacked toasts are intentionally not implemented
-- **Tabs**: Not implemented yet
 - **App-specific components**: ClassroomDropdown, UserMenu, etc.
 
 ---

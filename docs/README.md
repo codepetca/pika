@@ -77,9 +77,9 @@ This file provides:
 
 ---
 
-### `/docs/core/` — Stable, Long-Lived Reference Docs
+### Stable, Long-Lived Reference Docs
 
-These define Pika's unchanging rules:
+Root `DESIGN.md` and the focused `/docs/core/` files define Pika's durable rules:
 
 #### [architecture.md](core/architecture.md) — System Architecture
 - Directory structure
@@ -91,16 +91,15 @@ These define Pika's unchanging rules:
 - Middleware & utilities
 - Deployment architecture
 
-#### [design.md](core/design.md) — UI/UX Guidelines
-- Design principles (mobile-first, minimal, accessible, performant)
-- Visual design system (colors, typography, spacing, shadows)
-- Component patterns (buttons, forms, cards, navigation)
-- Layout patterns (containers, grids, flexbox)
-- Page-specific patterns (student pages, teacher dashboard)
-- Responsive breakpoints
-- Accessibility guidelines
-- Animation & transitions
-- Performance optimization
+#### [DESIGN.md](../DESIGN.md) — Canonical Product Design
+- Product character and durable UI principles
+- Design-source authority and conflict resolution
+- Accessibility, themes, density, motion, layers, and responsive invariants
+- Shared-shell and external-widget ownership boundaries
+- Guidance promotion and visual-verification contract
+
+The compatibility path at [`docs/core/design.md`](core/design.md) redirects older
+links to the root entry point.
 
 #### [project-context.md](core/project-context.md) — Project Context
 - What is Pika (overview, goals, users)
@@ -253,5 +252,5 @@ Quick summary:
 - **Setting up locally?** See [project-context.md](core/project-context.md)
 - **Working on an issue?** Follow [handle-issue.md](workflow/handle-issue.md)
 - **Understanding architecture?** See [architecture.md](core/architecture.md)
-- **Building UI?** See [design.md](core/design.md)
+- **Building UI?** Start with [DESIGN.md](../DESIGN.md)
 - **Writing tests?** See [tests.md](core/tests.md)

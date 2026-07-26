@@ -12,7 +12,7 @@ gh issue view <number> --json number,title,body,labels,comments
 2. Read `.ai/CURRENT.md`
 3. Read `docs/ai-instructions.md` and load only the task-specific docs it routes you to.
 3. Check `.ai/features.json` for any referenced feature IDs.
-4. If the issue affects UI/UX, read `docs/guidance/ui/README.md`, `docs/guidance/ui/stable.md`, and `docs/guidance/ui/change-brief.md`.
+4. If the issue affects UI/UX, read `DESIGN.md`, `src/ui/README.md`, `docs/guidance/ui/README.md`, `docs/guidance/ui/stable.md`, and `docs/guidance/ui/change-brief.md`.
 5. If the issue affects teacher assignments or teacher tests, also read `docs/guidance/ui/teacher-work-surfaces.md` and `docs/guidance/ui/audit-teacher-work-surfaces.md`.
 6. If the issue affects migrations or Supabase query shape, read `docs/guidance/schema-rollout-checklist.md`.
 7. If the issue is a large TSX refactor or shared shell extraction, read `docs/guidance/component-refactor-checklist.md`.

@@ -64,7 +64,8 @@ All agents operate from exactly one current repo checkout/worktree.
 
 ## Document Hierarchy (When Conflicts Arise)
 
-Trust in order: `.ai/features.json`, `.ai/CURRENT.md`, core docs
-(`architecture`, `tests`, `design`, `project-context`, `roadmap`,
-`decision-log`), `.ai/SESSION-LOG.md` on demand, then
+Trust in order: `.ai/features.json`, `.ai/CURRENT.md`,
+`docs/core/architecture.md`, `docs/core/tests.md`, root `DESIGN.md`, then
+`docs/core/project-context.md`, `docs/core/roadmap.md`,
+`docs/core/decision-log.md`, `.ai/SESSION-LOG.md` on demand, then
 `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.

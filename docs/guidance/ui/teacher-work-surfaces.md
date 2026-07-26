@@ -17,7 +17,7 @@ Assignments are the current baseline source of truth for this family because the
 
 When a task touches teacher assignments or teacher tests, read in this order:
 
-1. [`docs/core/design.md`](/docs/core/design.md)
+1. [`DESIGN.md`](/DESIGN.md)
 2. [`src/ui/README.md`](/src/ui/README.md)
 3. [`docs/guidance/ui/stable.md`](/docs/guidance/ui/stable.md)
 4. [`docs/guidance/ui/teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)

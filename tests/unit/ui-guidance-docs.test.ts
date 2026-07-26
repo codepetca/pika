@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -10,29 +10,53 @@ function readRepoFile(relativePath: string) {
 }
 
 describe('ui guidance docs and prompts', () => {
-  it('points UI work to the canon entrypoint and stable guidance', () => {
+  it('points UI work to the canonical root design entrypoint and stable guidance', () => {
     const aiInstructions = readRepoFile('docs/ai-instructions.md')
+    const design = readRepoFile('DESIGN.md')
     const coreDesign = readRepoFile('docs/core/design.md')
-    const designSystem = readRepoFile('docs/design-system.md')
     const uiCanon = readRepoFile('docs/guidance/ui/README.md')
 
+    expect(aiInstructions).toContain('DESIGN.md')
     expect(aiInstructions).toContain('docs/guidance/ui/README.md')
     expect(aiInstructions).toContain('docs/guidance/ui/stable.md')
-    expect(coreDesign).toContain('UI canon')
-    expect(coreDesign).toContain('composite-widget-accessibility.md')
+    expect(design).toContain('## Authority Model')
+    expect(design).toContain('src/styles/tokens.css')
+    expect(design).toContain('src/ui/README.md')
+    expect(design).toContain('docs/guidance/ui/README.md')
+    expect(design).toContain('docs/guidance/ui/legacy.md')
+    expect(design).toContain('## External Widgets')
+    expect(coreDesign).toContain('Compatibility redirect')
+    expect(coreDesign).toContain('DESIGN.md')
     expect(uiCanon).toContain('composite-widget-accessibility.md')
-    expect(designSystem).toContain('Historical reference only')
   })
 
-  it('keeps historical design-system dark-mode examples aligned with semantic tokens', () => {
-    const designSystem = readRepoFile('docs/design-system.md')
-    const darkModeSection = designSystem.match(/### Dark Mode Implementation \(REQUIRED\)(?<body>[\s\S]*?)### Playful Accents/)?.groups?.body ?? ''
+  it('retires the historical design-system document without weakening legacy governance', () => {
+    const historicalPath = resolve(testDir, '../..', 'docs/design-system.md')
+    const legacyGuidance = readRepoFile('docs/guidance/ui/legacy.md')
 
-    expect(darkModeSection).toContain('semantic tokens')
-    expect(darkModeSection).toMatch(/className="bg-surface"/)
-    expect(darkModeSection).toMatch(/className="text-text-default"/)
-    expect(darkModeSection).toMatch(/className="border-border"/)
-    expect(darkModeSection).not.toContain('dark:')
+    expect(existsSync(historicalPath)).toBe(false)
+    expect(legacyGuidance).toContain('retired `docs/design-system.md`')
+    expect(legacyGuidance).toContain('Git history')
+    expect(legacyGuidance).toContain('Do not create')
+  })
+
+  it('keeps active AI and issue workflows routed through DESIGN.md', () => {
+    const files = [
+      'AGENTS.md',
+      '.ai/START-HERE.md',
+      'docs/ai-instructions.md',
+      'docs/workflow/handle-issue.md',
+      'docs/issue-worker.md',
+      '.codex/prompts/session-start.md',
+      '.codex/prompts/work-on-issue.md',
+      '.codex/prompts/ui-verify.md',
+    ]
+
+    for (const file of files) {
+      const content = readRepoFile(file)
+      expect(content, file).toContain('DESIGN.md')
+      expect(content, file).not.toContain('docs/design-system.md')
+    }
   })
 
   it('requires the UI guidance declaration in issue and Codex workflows', () => {

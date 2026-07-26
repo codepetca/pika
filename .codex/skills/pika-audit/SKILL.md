@@ -36,7 +36,7 @@ Use the audit to catch common drift early, then use human review for edge cases 
 |---|---|---|
 | `manual-catch` | `catch (error` in API routes without `withErrorHandler` | Run `/migrate-error-handler` |
 | `no-withErrorHandler` | Route exports handler without wrapper | Run `/migrate-error-handler` |
-| `dark-class` | `dark:` class outside `src/ui/` | Use semantic tokens from `docs/core/design.md` |
+| `dark-class` | `dark:` class outside `src/ui/` | Use semantic tokens according to `DESIGN.md` and `src/ui/README.md` |
 | `duplicate-parseContentField` | Local `parseContentField` function | Import from `@/lib/tiptap-content` |
 | `console-log` | `console.log(` in non-test production code | Use `console.error`/`warn` or structured logging |
 | `uncached-fetch` | Raw read `fetch()` in classroom/client components | Use `fetchJSONWithCache`; raw mutation fetches are allowed |

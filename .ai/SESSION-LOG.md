@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 student utility navigation
-
-**Completed:**
-- Merged independently reviewed PR #903 as `d157d4cf`, fast-forwarded the hub, and started the second Phase 2 item 7 slice from current `main` in a dedicated worktree.
-- Migrated the student utility layout from its duplicate logo/header/logout implementation to the canonical `AppShell`, compact `AppHeader`, account menu, session watcher, and shared application-navigation band.
-- Preserved the existing `Classrooms` and `History` destinations plus the original `max-w-4xl px-4 py-8` content geometry. This slice does not redirect, retire, or consolidate `/student/history`, and does not change classroom navigation.
-- Added a direct student-layout regression and expanded the durable application-navigation Playwright contract with student desktop-light and mobile-dark checks for active state, inset focus, rendered target size, spacing, and overflow.
-- Visually inspected populated student History at desktop and mobile widths; the two-column desktop layout and stacked mobile workflow remain intact with the cleaned shared header.
-- Opened PR #904 for independent review.
-- Accepted one independent accessibility finding: the newly activated shared header and account menu exposed sub-44px controls. Enlarged the Home, fullscreen, login, account, sidebar, and menu-item hit areas without changing icon sizes, removed the menu scale animation that temporarily shrank interactive rows, and added unit plus rendered-size keyboard regressions.
-
-**Validation:**
-- `pnpm test --run` (393 files / 3,585 tests)
-- Focused student-layout, application-navigation, app-shell, and student-history suites (4 files / 10 tests)
-- Focused remediation suite for the shared header, account menu, student shell, and navigation (6 files / 20 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Durable Playwright application-navigation suite (10 checks including auth setup)
-- Desktop/mobile teacher and student screenshots, including open mobile-dark account menus
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Complete full repository verification, independent review, and merge for the student navigation slice. Then continue Phase 2 with specialized-control policy enforcement.
-
 ## 2026-07-21 — Phase 2 specialized-control policy
 
 **Completed:**
@@ -1189,3 +1161,43 @@ future persistence shape without enabling unapproved schema behavior.
 
 **Remaining:**
 - Push the rebased exact head to PR #832 and require fresh CI before merge.
+
+## 2026-07-25 — Design-system consolidation Phase 1
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra — documentation-only authority and
+consistency review.
+
+**Completed:**
+- Added root `DESIGN.md` as the canonical design entry point and documented the
+  source-of-truth order across principles, executable tokens, shared UI,
+  Tailwind aliases, stable/family-specific/experimental/legacy guidance, and
+  Git history.
+- Consolidated the still-useful compact-density and approachable-character
+  principles from the historical design-system document, replaced
+  `docs/core/design.md` with a compatibility redirect, and retired
+  `docs/design-system.md` without copying its obsolete raw colors, 36px target
+  guidance, or pre-token recipes.
+- Updated active AI instructions, prompts, documentation routing, governed UI
+  guidance, and `src/ui/README.md` to route design work through the new
+  authority.
+- Added documentation hierarchy tests covering the root authority, redirect,
+  historical-document disposition, active legacy governance, and AI routing.
+- Kept this phase documentation-only: no visual, component, token, Pal runtime,
+  dependency, schema, or application behavior changes.
+
+**Validation:**
+- Full Vitest suite.
+- `pnpm lint`.
+- Focused UI guidance, policy, and semantic-token contrast tests: 3 files / 24
+  tests.
+- UI policy scan: 202 registered native controls across 64 files.
+- Architecture boundaries: 631 modules / 0 deletion-only allowances.
+- `bash scripts/verify-env.sh`.
+- `git diff --check`.
+
+**Remaining:**
+- Obtain human approval before committing or publishing Phase 1.
+- In Phase 2, add the missing portable foundation tokens and policy checks
+  before implementing the Pika-to-Pal semantic bridge.
