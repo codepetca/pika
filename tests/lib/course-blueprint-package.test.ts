@@ -159,7 +159,7 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
-    expect(parsed.blueprint.planned_site_published).toBe(true)
+    expect(parsed.blueprint.planned_site_published).toBe(false)
     expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
     expect(parsed.blueprint).toEqual(expect.objectContaining({
       gradebook_use_weights: true,
@@ -297,6 +297,54 @@ describe('course blueprint package', () => {
     })
 
     expect(parsed.errors).toEqual(['Invalid course package bundle'])
+  })
+
+  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 4 file %s', (fileName) => {
+    const current = buildCourseBlueprintExportBundle(DETAIL)
+    const parsed = parseCourseBlueprintImportBundle({
+      manifest: {
+        version: '4',
+        exported_at: current.manifest.exported_at,
+        title: current.manifest.title,
+        subject: current.manifest.subject,
+        grade_level: current.manifest.grade_level,
+        course_code: current.manifest.course_code,
+        term_template: current.manifest.term_template,
+        planned_site_slug: current.manifest.planned_site_slug,
+        planned_site_published: current.manifest.planned_site_published,
+        planned_site_config: current.manifest.planned_site_config,
+      },
+      files: {
+        'course-overview.md': current.files['course-overview.md'],
+        'course-outline.md': current.files['course-outline.md'],
+        'resources.md': current.files['resources.md'],
+        'assignments.md': current.files['assignments.md'],
+        'tests.md': current.files['tests.md'],
+        'lesson-plans.md': current.files['lesson-plans.md'],
+        [fileName]: 'Unexpected content',
+      },
+    })
+
+    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+  })
+
+  it('rejects a version 4 archive containing retired Quiz content', () => {
+    const archive = encodeCourseBlueprintPackageArchive({
+      ...structuredClone(V2_BUNDLE),
+      manifest: {
+        ...structuredClone(V2_BUNDLE.manifest),
+        planned_site_config: undefined,
+      },
+    })
+    const versionMarker = new TextEncoder().encode('"version": "2"')
+    const markerOffset = archive.findIndex((byte, index) =>
+      versionMarker.every((markerByte, markerIndex) => archive[index + markerIndex] === markerByte)
+    )
+    expect(markerOffset).toBeGreaterThanOrEqual(0)
+    archive[markerOffset + versionMarker.length - 2] = '4'.charCodeAt(0)
+
+    expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
+    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
   })
 
   it('rejects an archive with an unsupported manifest version', () => {

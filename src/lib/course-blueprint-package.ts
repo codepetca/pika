@@ -511,7 +511,7 @@ function normalizeBundle(input: unknown): CourseBlueprintPackageBundle | null {
       ? inputRecord.files as Record<string, unknown>
       : {}
   const version = manifestRecord?.version
-  const normalizedInput = version === '5'
+  const normalizedInput = version === '4' || version === '5'
     ? input
     : {
         manifest: inputRecord?.manifest,
@@ -699,7 +699,9 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       gradebook_tests_weight:
         manifest.version === '5' ? manifest.grading.tests_weight : 30,
       planned_site_slug: manifest.planned_site_slug ?? null,
-      planned_site_published: !!manifest.planned_site_published,
+      // Package and repository input may describe a previously published site,
+      // but importing content is never itself a publish action.
+      planned_site_published: false,
       planned_site_config: manifest.planned_site_config
         ? normalizePlannedCourseSiteConfig(manifest.planned_site_config)
         : DEFAULT_PLANNED_COURSE_SITE_CONFIG,

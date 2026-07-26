@@ -5,9 +5,11 @@ import {
   countUntrackedClassroomBlueprintArtifacts,
   applyPersistedCourseBlueprintProposal,
   buildCourseBlueprintAiCandidate,
+  buildCourseBlueprintPackageCandidate,
   submitClassroomBlueprintProposal,
   submitCourseBlueprintProposal,
 } from '@/lib/server/course-blueprint-proposals'
+import { buildCourseBlueprintExportBundle } from '@/lib/course-blueprint-package'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import type { CourseBlueprintDetail } from '@/types'
 
@@ -157,6 +159,42 @@ describe('persisted course blueprint proposals', () => {
         tests_weight: 35,
       })
       expect(detail.gradebook_use_weights).toBe(false)
+    }
+  })
+
+  it('keeps public-site publication under Pika control for package proposals', () => {
+    const detail = {
+      id: base.blueprint_id,
+      teacher_id: proposalRow.teacher_id,
+      content_revision: base.draft_revision,
+      authority_mode: 'repository',
+      latest_version_number: 0,
+      ...base.metadata,
+      ...base.sections,
+      gradebook_use_weights: base.grading.use_weights,
+      gradebook_assignments_weight: base.grading.assignments_weight,
+      gradebook_tests_weight: base.grading.tests_weight,
+      planned_site_slug: 'published-course',
+      planned_site_published: true,
+      planned_site_config: base.planned_site.config,
+      position: 0,
+      created_at: proposalRow.created_at,
+      updated_at: proposalRow.updated_at,
+      assignments: [],
+      assessments: [],
+      lesson_templates: [],
+      materials: [],
+      surveys: [],
+      linked_classrooms: [],
+    } satisfies CourseBlueprintDetail
+    const bundle = buildCourseBlueprintExportBundle(detail)
+    bundle.manifest.planned_site_published = false
+
+    const result = buildCourseBlueprintPackageCandidate(detail, bundle)
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (result.ok) {
+      expect(result.candidate.planned_site.published).toBe(true)
     }
   })
 

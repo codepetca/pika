@@ -30,6 +30,10 @@ describe('versioned course blueprint migration contract', () => {
     expect(migration).toContain('create table if not exists public.course_blueprint_versions')
     expect(migration).toContain('snapshot_sha256 text not null')
     expect(migration).toContain('before update or delete on public.course_blueprint_versions')
+    expect(migration).toContain("if tg_op = 'DELETE' and pg_trigger_depth() > 1")
+    expect(migration).toContain(
+      'foreign key (created_by) references public.users (id) on delete cascade'
+    )
     expect(migration).toContain('create or replace function public.save_course_blueprint_version_atomic(')
     expect(migration).toContain("raise exception 'Blueprint Draft changed; rebuild the Version'")
   })
@@ -44,6 +48,12 @@ describe('versioned course blueprint migration contract', () => {
     )
     expect(migration).toContain(
       'create or replace function public.apply_course_blueprint_classroom_proposal_atomic('
+    )
+    expect(
+      migration.match(/pg_catalog\.pg_advisory_xact_lock\(/g)
+    ).toHaveLength(2)
+    expect(migration).toMatch(
+      /apply_course_blueprint_proposal_atomic[\s\S]*v_source_classroom\.blueprint_source_revision[\s\S]*v_proposal\.base_classroom_revision/
     )
   })
 

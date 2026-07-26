@@ -1,6 +1,7 @@
-Focus: `codex/versioned-course-blueprints` implements lineage and live-safe
-classroom updates. Shared local is through migration 111; rollback-only Version,
-revision, proposal, and successor-safety smokes pass.
+Focus: PR #952 on `codex/versioned-course-blueprints` implements lineage and
+live-safe classroom updates. Shared local is through migration 111; the first
+review remediation is awaiting targeted re-review and exact-head
+CI.
 
 Environment rules: `docs/dev-workflow.md`.
 - Worktrees: `$HOME/.codex/worktrees/pika/` or

@@ -200,11 +200,17 @@ create table if not exists public.course_blueprint_versions (
   source_kind text not null default 'pika'
     check (source_kind in ('pika', 'classroom', 'package', 'repository', 'ai')),
   source_metadata jsonb not null default '{}'::jsonb,
-  created_by uuid not null references public.users (id),
+  created_by uuid not null references public.users (id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (course_blueprint_id, version_number),
   unique (course_blueprint_id, source_draft_revision, snapshot_sha256)
 );
+
+alter table public.course_blueprint_versions
+  drop constraint if exists course_blueprint_versions_created_by_fkey;
+alter table public.course_blueprint_versions
+  add constraint course_blueprint_versions_created_by_fkey
+  foreign key (created_by) references public.users (id) on delete cascade;
 
 create index if not exists idx_course_blueprint_versions_blueprint_created
   on public.course_blueprint_versions (course_blueprint_id, version_number desc);
@@ -215,6 +221,11 @@ language plpgsql
 set search_path = public
 as $$
 begin
+  -- Direct Version deletion remains forbidden, while an FK cascade from an
+  -- intentional Blueprint (or owning user) deletion may erase the whole graph.
+  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+    return old;
+  end if;
   raise exception 'Blueprint Versions are immutable' using errcode = '55000';
 end;
 $$;
@@ -1887,6 +1898,13 @@ begin
     raise exception 'Invalid Blueprint proposal payload' using errcode = '22023';
   end if;
 
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      p_teacher_id::text || ':' || p_idempotency_key::text,
+      0
+    )
+  );
+
   select *
   into v_proposal
   from public.course_blueprint_change_proposals
@@ -1982,6 +2000,7 @@ as $$
 declare
   v_proposal public.course_blueprint_change_proposals;
   v_blueprint public.course_blueprints;
+  v_source_classroom public.classrooms;
   v_item jsonb;
   v_candidate_ids uuid[];
   v_result_revision bigint;
@@ -2027,6 +2046,25 @@ begin
     where id = p_proposal_id
     returning * into v_proposal;
     return v_proposal;
+  end if;
+  if v_proposal.source_kind = 'classroom' then
+    select *
+    into v_source_classroom
+    from public.classrooms
+    where id = v_proposal.source_classroom_id
+      and teacher_id = p_teacher_id
+      and source_blueprint_id = v_proposal.course_blueprint_id
+    for share;
+    if not found
+      or v_source_classroom.blueprint_source_revision
+        <> v_proposal.base_classroom_revision
+    then
+      update public.course_blueprint_change_proposals
+      set status = 'stale', updated_at = now()
+      where id = p_proposal_id
+      returning * into v_proposal;
+      return v_proposal;
+    end if;
   end if;
   if (p_candidate_snapshot->>'blueprint_id')::uuid <> v_blueprint.id
     or (p_candidate_snapshot->>'draft_revision')::bigint
@@ -2339,6 +2377,13 @@ begin
     raise exception 'Invalid classroom Blueprint proposal payload'
       using errcode = '22023';
   end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      p_teacher_id::text || ':' || p_idempotency_key::text,
+      0
+    )
+  );
 
   select *
   into v_proposal

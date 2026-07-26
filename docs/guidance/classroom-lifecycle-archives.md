@@ -153,6 +153,14 @@ Any migration that adds, removes, or changes a classroom-descendant foreign key 
 4. manifest version only when backward-compatible adapters cannot preserve the version 2 contract
 5. focused archive, restore, and schema-audit tests
 
+Workflow records may hold a classroom reference without being owned by that
+classroom. Those exceptional edges must be declared in
+`CLASSROOM_NON_OWNING_REFERENCES`; the audit verifies the declared foreign key
+still exists and excludes that edge from archive ownership traversal. Blueprint
+change proposals and short-lived external editing sessions use this boundary
+because they are rebuilt or expired by the Blueprint workflow, not restored as
+classroom state.
+
 The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
 
 ```bash

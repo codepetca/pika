@@ -310,7 +310,7 @@
         },
         {
           "kind": "input:checkbox",
-          "count": 3,
+          "count": 4,
           "reason": "native-input-capability"
         },
         {

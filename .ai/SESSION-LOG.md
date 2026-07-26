@@ -1352,6 +1352,15 @@ structural revision triggers, and adds atomic proposal application.
   and repository read-only messaging.
 - Applied migrations 106-111 to shared local after a verified backup and
   regenerated the database contract.
+- Published draft PR #952 after rebasing onto current `main`. Independent
+  security/migration and architecture/compatibility reviews found and the
+  first remediation batch fixed external publication-state authority, stale
+  classroom-source application, Version deletion cascades, concurrent proposal
+  replay, strict v4 file validation, archive ownership classification for
+  workflow-only classroom references, and current-main UI policy registration.
+- Added a database-backed CI contract for two-connection proposal replay,
+  source-classroom staleness, direct Version immutability, and Blueprint/user
+  cascade deletion.
 
 **Validation:**
 - Full Vitest suite: 434 files / 3,831 tests.
@@ -1368,9 +1377,17 @@ structural revision triggers, and adds atomic proposal application.
 - `git diff --check`.
 - Local history through 111, identity/runtime preservation checks, and
   rollback-only Version, revision, proposal, and successor smokes.
+- Rebased-head full suite, generated database-type parity, TypeScript, lint,
+  build, UI/design policies, Pika audit, and the live versioned-Blueprint
+  database contract.
+- PR #952 initial CI: Test & Build, Browser Experience Matrix, Vercel, and
+  no-dark-class policy passed; the two failing contract gates were remediated
+  in the first review batch.
 - Pre-migration backup:
   `/Users/stew/Repos/.env/pika/backups/pika-local-pre-106-111-20260726T201121Z.dump`
   (SHA-256 verified).
 
 **Remaining:**
-- Review and publish the branch.
+- Publish the review remediation, run targeted independent re-review, and
+  require exact-head CI before marking PR #952 ready. Leave it unmerged unless
+  explicit merge authority is provided.

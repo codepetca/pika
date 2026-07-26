@@ -679,6 +679,9 @@ export function buildCourseBlueprintPackageCandidate(
   const candidateDetail: CourseBlueprintDetail = {
     ...baseDetail,
     ...parsed.blueprint,
+    // Publication authority stays in Pika. External package content may update
+    // the site draft but cannot publish or unpublish the public course site.
+    planned_site_published: baseDetail.planned_site_published,
     content_revision: parsed.manifest.source_draft_revision,
     assignments: parsed.assignments.map((assignment) => ({
       id: assignment.artifact_id!,

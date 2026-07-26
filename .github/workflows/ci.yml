@@ -60,6 +60,9 @@ jobs:
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
 
+      - name: Verify versioned Blueprint proposals and deletion safety
+        run: bash scripts/check-versioned-course-blueprint-database.sh
+
       - name: Verify archive operations and lifecycle evidence
         run: bash scripts/check-classroom-archive-database.sh
 
