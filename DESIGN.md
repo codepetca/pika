@@ -6,6 +6,31 @@ It defines the durable principles, ownership boundaries, authority order, and
 review contract for UI work. It does not duplicate executable token values,
 component APIs, or workflow-specific guidance.
 
+## How To Read This Contract
+
+This file distinguishes between the product Pika already demonstrates and the
+default contract for new or deliberately modified work:
+
+- **Observed invariant:** repeated in implemented product surfaces and
+  corroborated by recorded visual evidence. Historical captures are baseline
+  context, not proof that a later implementation still conforms.
+- **Stable contract:** the default for new work. Existing legacy surfaces may
+  still diverge, but that divergence is not precedent.
+- **Migration gap:** a named capability that is not yet portable or consistently
+  adopted.
+- **Family rule:** authoritative only inside the workflow family that owns it.
+- **Governed legacy:** implemented compatibility behavior recorded in
+  [active legacy guidance](./docs/guidance/ui/legacy.md) or an exception
+  registry. Preserve it only within that scope; do not use it as precedent.
+- **Experimental guidance:** a review-bound proposal in
+  [`docs/guidance/ui/experimental`](./docs/guidance/ui/experimental/README.md).
+  It is not a default until promoted.
+
+Unmarked statements that use **must**, **do not**, or **new work** are stable
+contracts, not claims that every historical surface already conforms. When an
+implementation differs, classify it through governed legacy or experimental
+guidance instead of weakening the system around a one-off pattern.
+
 ## Start Here
 
 For UI work, read in this order:
@@ -44,6 +69,30 @@ Pika already has a substantial visual foundation. New work should refine the
 current product rather than introduce a broad visual redesign without evidence
 and explicit product approval.
 
+### Observed visual language
+
+Current executable owners and representative recorded teacher, student,
+desktop, mobile, light, and dark surfaces support these invariants. Historical
+capture sets must be refreshed before they can prove current conformance:
+
+- Structure comes primarily from semantic surface changes, thin borders,
+  spacing, and alignment. Strong elevation is reserved for overlays, active
+  drag states, and other temporary foreground responsibilities.
+- Blue is the common action, selection, link, and focus accent. Classroom
+  gradients are scoped identity cues and must not become a second global color
+  system.
+- Application chrome and operational headings stay compact. Avoid
+  marketing-scale type, ornamental section labels, or oversized empty space
+  inside authenticated workflows.
+- Controls and cards use modest shared radii. Pill shapes are for badges,
+  statuses, and intentionally compact selectors rather than ordinary
+  containers.
+- Teacher tables and split workspaces prioritize scanning and adjacent
+  inspection. Student work gives reading and authoring more room without
+  introducing a separate visual language.
+- Dark and light themes preserve the same hierarchy and component geometry;
+  theme switching changes semantic values, not composition.
+
 ## Authority Model
 
 Use this order when sources conflict:
@@ -67,7 +116,13 @@ tokens; component behavior comes from `src/ui`; workflow composition comes from
 stable or family-specific guidance. A mismatch between executable behavior and
 this contract is drift to resolve, not permission to silently copy the mismatch.
 
-## Executable Foundations
+## Stable Foundation Contract
+
+Semantic colors and the canonical primitive behaviors below are implemented.
+Portable typography, focus, motion, density, and layer variables are migration
+gaps, and adoption of page, control, and overlay owners is incomplete across
+legacy surfaces. The rules remain the default for new or deliberately modified
+work.
 
 ### Semantic color and themes
 
@@ -79,6 +134,9 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
   components reference their intent instead of copying values.
 - Color is never the only carrier of status or meaning.
 - Text and interactive states meet WCAG 2.1 AA contrast in both themes.
+- The semantic-token contrast suite verifies its declared foreground/background
+  pairs. Translucent composites, imagery, and feature-owned combinations still
+  require visual and browser verification.
 
 ### Typography
 
@@ -89,6 +147,12 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
   than feature-local title scales.
 - Components and embedded widgets inherit host typography unless a documented
   content-specific exception owns another typeface.
+- Pika currently relies on the application font cascade rather than portable
+  typography custom properties. External widgets must inherit by default;
+  explicit typography variables belong in a reviewed bridge, not copied font
+  declarations.
+- The Tiptap editor remains a content-owned mini-platform exception. Its
+  typography must not spread into ordinary application controls or shells.
 
 ### Spacing, density, and touch
 
@@ -101,6 +165,15 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
   feature-local `max-w-*` contracts.
 - Narrow-screen behavior should change composition when needed rather than
   squeezing a desktop workspace until it becomes unusable.
+- `PageLayout` implements named widths and teacher/student content rhythm, but
+  legacy adoption remains partial. Existing feature-local widths are migration
+  evidence, not options for new work.
+- Density describes content rhythm and role needs; it is not a viewport
+  breakpoint. Responsive mode comes from the available layout or container and
+  must not be inferred from a teacher/student label.
+- Canonical controls enforce the target contract. A native-control exception
+  registry prevents silent count drift but does not prove target size, focus
+  visibility, or responsive usability.
 
 ### Focus and keyboard behavior
 
@@ -110,6 +183,9 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
 - Composite controls follow their widget keyboard model, including roving focus,
   semantic state, disabled-item handling, Escape behavior, and focus return.
 - Do not suppress an outline without providing an equally visible replacement.
+- Canonical primitives own a primary-color focus treatment with a
+  context-appropriate offset or inset ring. The treatment is not yet a portable
+  token contract, and older feature-owned controls require direct verification.
 
 ### Motion and reduced motion
 
@@ -120,6 +196,9 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
 - Every non-essential animation or transition has a reduced-motion path.
 - Playful features may retain identity through static artwork and state changes
   when movement is reduced.
+- This is a stable contract, not a statement that current coverage is complete.
+  Reduced-motion handling is still distributed and partial; an existing
+  animation without an opt-out is debt, not precedent.
 
 ### Layers and overlays
 
@@ -130,6 +209,12 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
 - Feature-local sticky table layers stay inside their own stacking context.
 - Do not introduce a new global raw `z-index` or body-level portal when a shared
   owner exists.
+- `ModalLayer` is the canonical current owner for document-level dialogs and
+  mobile drawers. Several older fixed overlays remain governed migration debt.
+- Pika does not yet expose a portable named layer scale, overlay boundary, or
+  scrim token. Until it does, new work reuses an existing owner and external
+  widgets accept a host-provided overlay root instead of choosing their own
+  global layer.
 
 Phase 2 of the design-system consolidation will give typography, focus, motion,
 global layers, overlay scrims/bounds, touch targets, and density portable
@@ -151,9 +236,23 @@ The authenticated classroom shell is Pika's strongest reference surface:
 The right side is not default empty chrome. Activate an inspector only when the
 current workflow, mode, and selection justify it.
 
+Three-panel authoring, grading, and journal workspaces intentionally use the
+named full-width mode. Do not constrain an operational workspace to a reading
+width merely to make it resemble a conventional document page.
+
 Utility routes should converge on shared application navigation and page-state
 contracts incrementally. Existing utility-shell differences are migration
 evidence, not a new design language to copy.
+
+### Unauthenticated entry
+
+Login, signup, verification, and recovery are intentional shell-light
+exceptions. Use a centered, bounded form surface on the semantic page canvas
+without authenticated application navigation. The shell framing is an observed
+invariant; new or deliberately modified fields, controls, focus behavior,
+themes, and state feedback follow the stable contract above. Current
+feature-owned auth text controls remain registered migration debt under the
+Phase 6 auth-verification owner and are not precedent.
 
 ### Page and workflow states
 
@@ -166,6 +265,8 @@ Loading, error, empty, and forbidden are different states:
 
 Preserve the surrounding shell when possible. A failed read must not look like
 an empty result. Use the shared page-state contract and bounded retry behavior.
+`PageState` provides the canonical implementation, but legacy routes still
+contain local or incomplete state handling and must not be used as references.
 
 ### Base controls and composition
 
@@ -193,9 +294,12 @@ AI may draft experimental or legacy guidance, but humans promote patterns into
 stable guidance. Ordinary feature work must not silently redefine the design
 system.
 
-## External Widgets
+## Proposed External Widget Contract
 
 External widgets must feel native without becoming coupled to Pika internals.
+The Pika-to-Pal boundary below is a proposed contract, not a confirmed
+implementation. Keep its public variable names provisional until the native
+widget API, adapter, drift tests, and host capture are reviewed together.
 
 For the Pal achievement system:
 
@@ -215,6 +319,26 @@ For the Pal achievement system:
 The public `--pal-*` contract and its drift tests should land with the bridge
 after the actual `@pal/widget` package API is available for review.
 
+### Pal handoff packet
+
+The host-to-widget handoff must contain:
+
+1. this ownership contract and the relevant Pika reference surfaces
+2. the reviewed public `--pal-*` property list with portable fallback values
+3. one Pika adapter that aliases existing semantic tokens at the widget mount
+4. a role, viewport/container, theme, focus, and reduced-motion verification
+   matrix
+5. contract tests that compare the widget's declared inputs with the Pika
+   adapter
+
+The bridge should cover semantic surfaces, text, borders, actions, statuses,
+typography inheritance, shared radii, spacing/density, minimum control size,
+focus treatment, motion preference, and host-approved pet/overlay clearance.
+Responsive state and density may be communicated through scoped custom
+properties or data attributes, but Pal must not infer a Pika route, role, or
+Tailwind breakpoint. Pal keeps its artwork and reward personality inside that
+boundary.
+
 ## Change Governance
 
 Before a non-trivial UI change:
@@ -231,6 +355,11 @@ guidance require explicit human review. Token and primitive changes update their
 documentation, contrast/semantic tests, and representative visual evidence in
 the same change.
 
+New durable visual evidence must record its implementation commit, capture date,
+route or surface, role, viewport, theme, and state. Existing capture sets that
+predate this contract remain historical evidence only when their temporal
+mismatch is explicit.
+
 ## Verification Contract
 
 User-visible UI work is complete only after:
@@ -246,8 +375,34 @@ User-visible UI work is complete only after:
 - reduced-motion behavior is checked when motion changes
 - screenshots are captured and visually reviewed
 
+Use a risk-matched verification matrix. Every relevant dimension must be
+checked, while a non-applicable role, theme, viewport, state, or interaction may
+be marked `n/a` with a reason. Do not claim exhaustive product coverage from a
+representative capture set.
+
 Documentation-only changes declare the visual dimensions not applicable and
 verify links, routing, hierarchy tests, and policy checks instead.
+
+## Design Conformance Loop
+
+Use this loop when changing this file or validating a new design-system claim:
+
+1. State the claim without a raw visual value or feature-specific recipe.
+2. Identify the executable owner, or mark the claim as a migration gap.
+3. Compare representative teacher/student, desktop/mobile, light/dark, and
+   interaction-state evidence as applicable.
+4. Classify the result as confirmed, executable-only, stable target, legacy
+   exception, or unverified.
+5. Update the correct authority: this file for cross-system principles, tokens
+   for exact values, `src/ui` for behavior, scoped guidance for composition, or
+   legacy guidance for a governed mismatch.
+6. Rerun hierarchy, UI-policy, contrast, semantic/keyboard, and visual checks
+   that cover the changed claim.
+
+A rule is effective only when an agent can trace it to an owner, identify the
+reference surface, and name how conformance is verified. Open Design boards and
+screenshots make that review legible, but they remain evidence rather than
+authority.
 
 ## Supporting References
 
@@ -259,4 +414,8 @@ verify links, routing, hierarchy tests, and policy checks instead.
 - UI change brief: [`docs/guidance/ui/change-brief.md`](./docs/guidance/ui/change-brief.md)
 - Composite accessibility:
   [`docs/guidance/ui/composite-widget-accessibility.md`](./docs/guidance/ui/composite-widget-accessibility.md)
+- Representative product evidence:
+  [`docs/guidance/ui/product-experience-evidence-2026-07.md`](./docs/guidance/ui/product-experience-evidence-2026-07.md)
+- Product experience audit:
+  [`docs/guidance/ui/product-experience-audit-2026-07.md`](./docs/guidance/ui/product-experience-audit-2026-07.md)
 - Visual verification: [`docs/guides/ai-ui-testing.md`](./docs/guides/ai-ui-testing.md)
