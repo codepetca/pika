@@ -36,6 +36,10 @@ Source grounding:
 - When a raw value is genuinely required, update
   `scripts/design-value-exceptions.json` with the owning migration phase and
   reason. The exact fingerprint must change in the same review.
+- Enforcement covers Tailwind arbitrary syntax, literal inline styles, and
+  CSS/SCSS declarations. `src/styles/tokens.css` is excluded because it is the
+  canonical semantic-value definition boundary; its consumers and contrast
+  pairs remain governed.
 - A named layer token describes responsibility, not relative importance.
   Feature-local sticky layers remain contained; document-level overlays use the
   shared owner.

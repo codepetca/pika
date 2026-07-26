@@ -4,8 +4,37 @@ import { extendTailwindMerge } from 'tailwind-merge'
 const mergeTailwindClasses = extendTailwindMerge({
   extend: {
     classGroups: {
+      duration: [{ duration: ['fast', 'standard', 'deliberate'] }],
+      ease: [{ ease: ['standard'] }],
+      'max-w': [{ 'max-w': ['reading', 'standard', 'wide'] }],
+      'min-h': [{ 'min-h': ['control'] }],
+      'min-w': [{ 'min-w': ['control'] }],
+      mx: [{ mx: ['density-compact-gutter', 'density-comfortable-gutter'] }],
+      pt: [{
+        pt: [
+          'density-compact-content-top',
+          'density-comfortable-content-top',
+        ],
+      }],
+      px: [{ px: ['density-compact-gutter', 'density-comfortable-gutter'] }],
       'ring-w': [{ ring: ['foundation'] }],
       'ring-offset-w': [{ 'ring-offset': ['foundation'] }],
+      'space-y': [{
+        'space-y': [
+          'density-compact-stack-gap',
+          'density-comfortable-stack-gap',
+        ],
+      }],
+      z: [{
+        z: [
+          'local-menu',
+          'floating',
+          'app-chrome',
+          'popover',
+          'modal',
+          'app-message',
+        ],
+      }],
     },
   },
 })

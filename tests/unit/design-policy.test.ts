@@ -3,6 +3,8 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   auditDesignPolicy,
+  DESIGN_POLICY_EXCLUDED_FILES,
+  DESIGN_POLICY_SOURCE_EXTENSIONS,
   inventoryDesignValues,
   parseDesignValueExceptionRegistry,
   type DesignValueExceptionRegistry,
@@ -36,6 +38,64 @@ describe('design value policy', () => {
       'arbitrary-spacing': 1,
       'raw-z-index': 1,
     })
+  })
+
+  it('covers arbitrary Tailwind properties and literal inline styles', () => {
+    const inventory = inventoryDesignValues({
+      'src/components/Bypass.tsx': `
+        export function Bypass() {
+          return (
+            <div
+              className="bg-[red] w-[40%] [z-index:99]"
+              style={{ zIndex: 99, color: 'rebeccapurple', width: '40%' }}
+            />
+          )
+        }
+      `,
+    })
+
+    expect(
+      Object.fromEntries(
+        [...(inventory.get('src/components/Bypass.tsx') ?? [])].map(
+          ([kind, evidence]) => [kind, evidence.count],
+        ),
+      ),
+    ).toEqual({
+      'raw-color-class': 1,
+      'raw-css-color': 1,
+      'arbitrary-spacing': 2,
+      'raw-z-index': 2,
+    })
+  })
+
+  it('covers stylesheet values while exempting the canonical token source', () => {
+    const inventory = inventoryDesignValues({
+      'src/components/example.scss': `
+        .example {
+          color: rebeccapurple;
+          width: 40%;
+          z-index: 99;
+        }
+      `,
+    })
+
+    expect(
+      Object.fromEntries(
+        [...(inventory.get('src/components/example.scss') ?? [])].map(
+          ([kind, evidence]) => [kind, evidence.count],
+        ),
+      ),
+    ).toEqual({
+      'raw-css-color': 1,
+      'arbitrary-spacing': 1,
+      'raw-z-index': 1,
+    })
+    expect(DESIGN_POLICY_SOURCE_EXTENSIONS).toEqual(
+      expect.arrayContaining(['.css', '.scss', '.ts', '.tsx']),
+    )
+    expect(DESIGN_POLICY_EXCLUDED_FILES).toEqual(
+      new Set(['src/styles/tokens.css']),
+    )
   })
 
   it('accepts exact, owned exceptions', () => {

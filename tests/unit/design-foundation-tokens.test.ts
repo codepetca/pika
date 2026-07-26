@@ -92,4 +92,5 @@ describe('portable design foundations', () => {
       for (const alias of aliases) expect(source).toContain(alias)
     }
   })
+
 })

@@ -371,9 +371,12 @@ The motion duration variables resolve to `0ms` under
 `prefers-reduced-motion: reduce`. A feature-owned animation that does not use
 them must provide an equivalent path.
 
-Run `pnpm run check:design-policy` after changing visual values. The exception
-registry is an exact baseline: counts and fingerprints must match, and each
-entry names a reason and migration owner.
+Run `pnpm run check:design-policy` after changing visual values. It covers
+Tailwind arbitrary syntax, literal inline styles, and CSS/SCSS declarations;
+canonical definitions in `src/styles/tokens.css` are intentionally reviewed by
+semantic and contrast tests instead. The exception registry is an exact
+baseline: counts and fingerprints must match, and each entry names a reason and
+migration owner.
 
 ### Shadows
 

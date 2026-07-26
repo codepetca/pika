@@ -49,16 +49,31 @@ export interface DesignValueInventory {
   fingerprint: string
 }
 
+export const DESIGN_POLICY_SOURCE_EXTENSIONS = [
+  '.css',
+  '.js',
+  '.jsx',
+  '.scss',
+  '.ts',
+  '.tsx',
+] as const
+
+export const DESIGN_POLICY_EXCLUDED_FILES = new Set([
+  // Exact semantic values belong here; consumers of those values remain governed.
+  'src/styles/tokens.css',
+])
+
 const rawColorClassPattern =
-  /(?<![\w-])(?:bg|text|border|ring|outline|fill|stroke)-(?:black|white|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)(?:-[0-9]{2,3})?(?:\/[0-9]+)?(?![\w-])/g
+  /(?<![\w-])(?:bg|text|border|ring|outline|fill|stroke)-(?:black|white|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)(?:-[0-9]{2,3})?(?:\/[0-9]+)?(?![\w-])|(?<![\w-])(?:bg|text|border|ring|outline|fill|stroke)-\[(?!(?:var|theme)\()[^\]\n]+\]/g
 
 const rawCssColorPattern =
-  /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(/g
+  /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|\b(?:color|backgroundColor|borderColor|outlineColor|fill|stroke)\s*:\s*['"`](?!(?:var\(|currentColor|inherit|initial|unset)[^'"`]*['"`])[^'"`\n]+['"`]|\b(?:color|background-color|border(?:-(?:top|right|bottom|left))?-color|outline-color|fill|stroke)\s*:\s*(?!(?:var\(|currentColor|inherit|initial|unset)\b)[a-zA-Z][\w-]*(?=\s*;)/g
 
 const arbitrarySpacingPattern =
-  /(?<![\w-])-?(?:m[trblxy]?|p[trblxy]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|w|h|min-w|min-h|max-w|max-h)-\[[^\]\n]*(?:px|rem|em|dvh|svh|lvh|vh|dvw|svw|lvw|vw)[^\]\n]*\]/g
+  /(?<![\w-])-?(?:m[trblxy]?|p[trblxy]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|w|h|min-w|min-h|max-w|max-h)-\[(?!var\()[^\]\n]+\]|(?<![\w-])\[(?:margin|padding|gap|inset|top|right|bottom|left|width|height|min-width|min-height|max-width|max-height):(?!(?:var)\()[^\]\n]+\]|\b(?:margin(?:Top|Right|Bottom|Left)?|padding(?:Top|Right|Bottom|Left)?|gap|rowGap|columnGap|inset|top|right|bottom|left|width|height|minWidth|minHeight|maxWidth|maxHeight)\s*:\s*(?:-?(?:0*[1-9]\d*)(?:\.\d+)?|['"`](?!var\()[^'"`\n]*\d(?:px|rem|em|dvh|svh|lvh|vh|dvw|svw|lvw|vw|%)[^'"`\n]*['"`])|\b(?:margin(?:-(?:top|right|bottom|left))?|padding(?:-(?:top|right|bottom|left))?|gap|row-gap|column-gap|inset|top|right|bottom|left|width|height|min-width|min-height|max-width|max-height)\s*:\s*(?!var\()[^;\n{}]*\d(?:px|rem|em|dvh|svh|lvh|vh|dvw|svw|lvw|vw|%)[^;\n{}]*;/g
 
-const rawZIndexPattern = /(?<![\w-])z-(?:\d+|\[[^\]\n]+\])(?![\w-])/g
+const rawZIndexPattern =
+  /(?<![\w-])z-(?:\d+|\[[^\]\n]+\])(?![\w-])|(?<![\w-])\[z-index:(?!var\()[^\]\n]+\]|\bzIndex\s*:\s*(?:-?\d+|['"`]-?\d+['"`])|\bz-index\s*:\s*(?!var\()-?\d+\s*;/g
 
 const patterns: Record<DesignValueKind, RegExp> = {
   'raw-color-class': rawColorClassPattern,

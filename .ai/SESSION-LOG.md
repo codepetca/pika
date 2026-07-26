@@ -1240,6 +1240,15 @@ evidence require cross-layer verification.
   exception rules in `DESIGN.md`, stable guidance, and `src/ui/README.md`.
 - Added a repository PR conformance checklist and a durable visual-evidence
   provenance template.
+- Independent review found that the first raw-value scanner missed arbitrary
+  Tailwind values/properties, literal inline styles, and CSS/SCSS, and that
+  caller-last overrides did not conflict with every new Tailwind alias.
+- Expanded the policy across TypeScript, JavaScript, CSS, and SCSS while
+  preserving `src/styles/tokens.css` as the explicit semantic-definition
+  boundary. The exact baseline now governs 776 values across 100 files.
+- Registered page-width, minimum-target, density (including negative bleed),
+  motion, easing, and layer aliases in `tailwind-merge`, with caller-last
+  regression coverage for every portable alias family.
 
 **Validation:**
 - Full Vitest suite: 429 files / 3,810 tests.
@@ -1257,10 +1266,13 @@ evidence require cross-layer verification.
   captures were pixel-identical below the dynamic clock header; the login
   capture was fully pixel-identical. Stored snapshot baselines are stale under
   the current browser/runtime and were not rewritten in this change.
+- Remediation regressions: 13/13 focused policy/foundation tests; all six files
+  that timed out under full-suite parallel resource contention passed
+  sequentially (165/165).
 - `git diff --check`.
 
 **Remaining:**
-- Commit and publish the branch, run independent PR review and exact-head CI,
-  remediate any findings, and merge only when both gates are clean.
+- Commit and publish the review remediation, complete targeted independent
+  review and exact-head CI, and merge only when both gates are clean.
 - Keep the public `--pal-*` bridge out of Pika until the actual `@pal/widget`
   package API can be reviewed and contract-tested.

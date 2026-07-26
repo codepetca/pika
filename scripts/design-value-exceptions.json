@@ -2,6 +2,18 @@
   "version": 1,
   "entries": [
     {
+      "file": "src/app/__ui/UiGallery.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "e85d3e9f173807f6",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
       "file": "src/app/classrooms/[classroomId]/ClassroomPageClient.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
@@ -22,6 +34,18 @@
           "count": 3,
           "fingerprint": "c9f345cc744e1657",
           "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentAnnouncementsSection.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "0e9d29b47a05a496",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -49,8 +73,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "7eea8611e7cbb6e6",
+          "count": 2,
+          "fingerprint": "20ec8227ed178c8f",
           "reason": "legacy-visual-value"
         },
         {
@@ -145,9 +169,15 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "1fe51233df618b68",
+          "count": 8,
+          "fingerprint": "9e89a74e2b597265",
           "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 6,
+          "fingerprint": "35a7eb0a9d297773",
+          "reason": "legacy-visual-value"
         },
         {
           "kind": "raw-z-index",
@@ -178,6 +208,12 @@
           "count": 3,
           "fingerprint": "5aeb452565160656",
           "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "0e9d29b47a05a496",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -211,8 +247,20 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "f46e4f63f5b1fe81",
+          "count": 2,
+          "fingerprint": "44b0b528d57e5c28",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/globals.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "b0465cb47405a373",
           "reason": "layout-geometry"
         }
       ]
@@ -233,6 +281,12 @@
       "file": "src/app/snapshots-gallery/SnapshotGallery.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "f3bdd20645458569",
+          "reason": "layout-geometry"
+        },
         {
           "kind": "raw-color-class",
           "count": 1,
@@ -366,6 +420,18 @@
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
         {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "564d9223eb0a948f",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "0e9d29b47a05a496",
+          "reason": "legacy-visual-value"
+        },
+        {
           "kind": "raw-z-index",
           "count": 1,
           "fingerprint": "418e44ad4f9ebdab",
@@ -385,8 +451,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 18,
-          "fingerprint": "be08ccfd9ca1537b",
+          "count": 24,
+          "fingerprint": "e545d6e91ae94b83",
           "reason": "legacy-visual-value"
         }
       ]
@@ -400,6 +466,12 @@
           "count": 1,
           "fingerprint": "34055e6f8c1b444d",
           "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 6,
+          "fingerprint": "f866e4f4022ea505",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -463,8 +535,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "537c6ab184a2098b",
+          "count": 2,
+          "fingerprint": "dd7dae98312857f9",
           "reason": "legacy-visual-value"
         },
         {
@@ -535,9 +607,21 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 5,
-          "fingerprint": "cbfd945c7e62f157",
+          "count": 2,
+          "fingerprint": "21b9a9de4519568c",
           "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/HistoryGraph.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 2,
+          "fingerprint": "0cdc4f2501aa4779",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -578,13 +662,25 @@
       ]
     },
     {
+      "file": "src/components/layout/ThreePanelShell.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "d6295dc322f7e4b6",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
       "file": "src/components/LessonCalendar.tsx",
       "reviewBy": "phase-3-calendar",
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 7,
-          "fingerprint": "b63bda714442d103",
+          "count": 8,
+          "fingerprint": "ced2224d9153436b",
           "reason": "layout-geometry"
         },
         {
@@ -607,8 +703,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 12,
-          "fingerprint": "ed5fc193d581fc0e",
+          "count": 23,
+          "fingerprint": "c2842bc5ae63b919",
           "reason": "legacy-visual-value"
         }
       ]
@@ -619,8 +715,8 @@
       "values": [
         {
           "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "67ffffa7d32214c4",
+          "count": 3,
+          "fingerprint": "e2b29eeac45fa5f0",
           "reason": "content-owned-color"
         }
       ]
@@ -646,6 +742,30 @@
           "count": 1,
           "fingerprint": "d0039cf5f3d17fa2",
           "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentAssignmentEditor.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "0e9d29b47a05a496",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentAssignmentSubmissionChecklist.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "0e9d29b47a05a496",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -775,8 +895,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "7eea8611e7cbb6e6",
+          "count": 2,
+          "fingerprint": "20ec8227ed178c8f",
           "reason": "legacy-visual-value"
         },
         {
@@ -805,8 +925,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "07f5119126d7ddcf",
+          "count": 2,
+          "fingerprint": "e9bcdc50e4214b89",
           "reason": "layout-geometry"
         },
         {
@@ -834,6 +954,12 @@
           "reason": "layout-geometry"
         },
         {
+          "kind": "raw-color-class",
+          "count": 6,
+          "fingerprint": "f866e4f4022ea505",
+          "reason": "legacy-visual-value"
+        },
+        {
           "kind": "raw-z-index",
           "count": 2,
           "fingerprint": "800c9add04acd35a",
@@ -850,6 +976,330 @@
           "count": 1,
           "fingerprint": "6fad538e00e71cee",
           "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/blockquote-node/blockquote-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 6,
+          "fingerprint": "6ef8961f621c26c4",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/code-block-node/code-block-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "e717b12093ac8c53",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 1,
+          "fingerprint": "8842193ebe6598ba",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/heading-node/heading-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 4,
+          "fingerprint": "e2de2abe6724e140",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "6ef90c2b733fed90",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/image-node/image-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "e2f2dd5ae1b5ca69",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/image-upload-node/image-upload-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 25,
+          "fingerprint": "692610a5cc63231d",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 2,
+          "fingerprint": "3c78d87772126f32",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/list-node/list-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 13,
+          "fingerprint": "83ff4cd41925b8f3",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-node/paragraph-node/paragraph-node.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 24,
+          "fingerprint": "22f174e9e3e8f09f",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 3,
+          "fingerprint": "ad0ff2ff6d51a0ca",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-templates/simple/simple-editor.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 13,
+          "fingerprint": "9ef39cb801342fec",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 2,
+          "fingerprint": "aef1fa7a07f7f4af",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/badge/badge-group.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "5553157fd722e0b9",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/badge/badge.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 15,
+          "fingerprint": "4d93d43911903392",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/button/button-group.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "181b2cad52bac384",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/button/button.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 48,
+          "fingerprint": "ec3f35b88995920a",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/card/card.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 10,
+          "fingerprint": "c5eee5962a6b53b6",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/dropdown-menu/dropdown-menu.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "f5750befd45e3f2f",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/input/input.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "5d7f46e54dcce153",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/popover/popover.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "f5750befd45e3f2f",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/separator/separator.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "d405ef59dc1bb982",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/toolbar/toolbar.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 15,
+          "fingerprint": "da5827f7315eba30",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 1,
+          "fingerprint": "8842193ebe6598ba",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "29425ce62c6324fa",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/tooltip/tooltip.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "0562c39f2faee816",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 1,
+          "fingerprint": "530c6e5bdfea50cd",
+          "reason": "third-party-editor"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "aa2c98219c81512b",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui-primitive/tooltip/tooltip.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "a49cfc6f2e75e2da",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/tiptap-ui/color-highlight-button/color-highlight-button.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "94e0d049dcc563cd",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/components/UploadRosterModal.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "e85d3e9f173807f6",
+          "reason": "legacy-visual-value"
         }
       ]
     },
@@ -914,8 +1364,44 @@
         {
           "kind": "raw-css-color",
           "count": 48,
-          "fingerprint": "42aa07ff80c2952b",
+          "fingerprint": "2673379ab429eb09",
           "reason": "dynamic-identity-color"
+        }
+      ]
+    },
+    {
+      "file": "src/lib/history-graph.ts",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-css-color",
+          "count": 1,
+          "fingerprint": "0c727111b8c60d91",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/lib/tiptap-utils.ts",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "9f114ec5c47c57b9",
+          "reason": "third-party-editor"
+        }
+      ]
+    },
+    {
+      "file": "src/styles/_variables.scss",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-css-color",
+          "count": 169,
+          "fingerprint": "9882b73620d122ca",
+          "reason": "third-party-editor"
         }
       ]
     },

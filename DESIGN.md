@@ -362,10 +362,14 @@ route or surface, role, viewport, theme, and state. Existing capture sets that
 predate this contract remain historical evidence only when their temporal
 mismatch is explicit.
 
-Raw colours, arbitrary spacing, and raw layer values in product source require
-an exact, owned exception in `scripts/design-value-exceptions.json`. CI compares
-both counts and fingerprints, so additions, removals, and same-count
-substitutions require review. An exception records migration or content
+Raw colours, arbitrary spacing, and raw layer values in product TypeScript,
+JavaScript, CSS, and SCSS require an exact, owned exception in
+`scripts/design-value-exceptions.json`. CI covers Tailwind arbitrary syntax,
+literal inline styles, and stylesheet declarations, and compares both counts
+and fingerprints, so additions, removals, and same-count substitutions require
+review. The canonical definitions in `src/styles/tokens.css` are the intentional
+boundary: consumers are governed, while token values are reviewed through
+semantic and contrast tests. An exception records migration or content
 ownership; it does not promote the value into the design system.
 
 ## Verification Contract
