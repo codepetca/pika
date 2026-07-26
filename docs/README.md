@@ -26,6 +26,7 @@ This file provides:
 ## Folder Structure
 
 ```
+/DESIGN.md                      # Canonical product design entry point
 /docs
 ├── ai-instructions.md          # AI orchestrator (entry point)
 │
@@ -35,7 +36,7 @@ This file provides:
 │
 ├── /core                        # Stable, long-lived reference docs
 │   ├── architecture.md         # System architecture & patterns
-│   ├── design.md               # UI/UX guidelines
+│   ├── design.md               # Compatibility redirect to /DESIGN.md
 │   ├── project-context.md      # Tech stack & setup
 │   ├── agents.md               # Multi-agent collaboration (6 personas)
 │   ├── tests.md                # TDD philosophy & testing priorities

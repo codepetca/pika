@@ -14,6 +14,7 @@ describe('ui guidance docs and prompts', () => {
     const aiInstructions = readRepoFile('docs/ai-instructions.md')
     const design = readRepoFile('DESIGN.md')
     const coreDesign = readRepoFile('docs/core/design.md')
+    const docsReadme = readRepoFile('docs/README.md')
     const uiCanon = readRepoFile('docs/guidance/ui/README.md')
 
     expect(aiInstructions).toContain('DESIGN.md')
@@ -27,6 +28,10 @@ describe('ui guidance docs and prompts', () => {
     expect(design).toContain('## External Widgets')
     expect(coreDesign).toContain('Compatibility redirect')
     expect(coreDesign).toContain('DESIGN.md')
+    expect(coreDesign.split('\n').length).toBeLessThanOrEqual(40)
+    expect(coreDesign).not.toMatch(/^## /m)
+    expect(docsReadme).toMatch(/DESIGN\.md\s+# Canonical product design entry point/)
+    expect(docsReadme).toMatch(/design\.md\s+# Compatibility redirect to \/DESIGN\.md/)
     expect(uiCanon).toContain('composite-widget-accessibility.md')
   })
 
