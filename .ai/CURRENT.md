@@ -4,11 +4,10 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 
 ## Current Focus
 
-- Legacy Quiz removal is complete through migration 108.
-- PR 920 test-preview/document-snapshot hardening uses migrations 109-110;
-  review remediation is complete and exact-head CI is next.
-- Shared local is reset and seeded through 104; migrations 105-110 are
-  unapplied there, and 109-110 are unapplied on hosted targets.
+- Design consolidation and portable foundations through PR 950 are on `main`;
+  root `DESIGN.md` is canonical.
+- The Pal pilot remains disabled; migration 111 is human-applied and the native
+  widget package is an external release dependency.
 - Product status: `.ai/features.json`; mobile is deferred and Gradex is owned
   by a separate session.
 

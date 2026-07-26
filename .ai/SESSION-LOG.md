@@ -11,113 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 specialized-control policy
-
-**Completed:**
-- Merged independently reviewed PR #904 as `f614fa61`, fast-forwarded the hub, and started Phase 2 item 8 from current `main` in a dedicated worktree.
-- Replaced the brittle UI import grep with a TypeScript-AST policy checker and a versioned, Zod-validated exception registry covering 215 native controls across 67 files.
-- Required exact per-file/per-kind counts, constrained rationale categories, explicit Phase 2/3/6 review ownership, canonical `@/ui` imports, and rejection of legacy UI component paths.
-- Converted 22 remaining `@/ui/*` imports to the canonical barrel and retained narrow compatibility exports for existing component paths.
-- Corrected seven full `@/ui` test mocks to preserve unmocked barrel exports after the full suite exposed their hidden coupling.
-- Added direct semantic coverage for calendar navigation, creation dialogs, multiple-choice review states, announcement menus, edit toggles, split panes, and teacher action menus.
-- No runtime UI behavior, schema, migration, API contract, production state, or data changed; visual verification is not required for this import/tooling-only slice.
-- Opened PR #905 for independent review.
-- Accepted initial review findings covering dynamic/CommonJS/import-equals bypasses, literal React factory controls, complete static input classification, and overly broad Tiptap exclusions; remediated them together with direct regression fixtures.
-- Kept roadmap ownership in `reviewBy` and `.ai/features.json` rather than introducing date-dependent CI expiry for source exceptions.
-- Targeted re-review found import-option/import-type bypasses, case/template static-input gaps, and missing namespace/root fixtures; closed all four in the second remediation batch.
-- With explicit approval to exceed the default review budget, the third remediation batch closed final cumulative findings for relative UI paths, CommonJS/import-equals React factories, shorthand input props, strict registry metadata, and stale Phase 1 audit evidence.
-
-**Validation:**
-- `pnpm test --run` (full repository suite)
-- Focused UI-policy, guidance, and composite-control suites
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm check:architecture`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Publish, independently review, remediate, and merge the specialized-control policy PR. Then continue Phase 2 with mobile and light/dark Playwright projects plus representative teacher/student CI coverage.
-
-## 2026-07-21 — Phase 2 browser experience matrix
-
-**Completed:**
-- Merged independently reviewed PR #905 as `126658e0`, fast-forwarded the hub, and started Phase 2 item 9 from current `main` in a dedicated worktree.
-- Added desktop light, desktop dark, mobile light, and mobile dark Chromium projects while preserving the established `chromium-desktop` snapshot identity.
-- Kept the broad feature and manual snapshot suites on the desktop-light project and limited the additional three projects to a focused experience contract, preventing a fourfold expansion of the full E2E suite.
-- Added read-only seeded browser coverage for teacher Daily attendance, student Today, teacher Blueprints navigation, and student History navigation. The contract verifies real role authentication, classroom data, active navigation, mobile drawer behavior, persisted themes, viewport geometry, and horizontal overflow.
-- Added a dedicated GitHub Actions job that starts ephemeral local Supabase, replays migrations, exports local-only credentials, runs `pnpm seed`, installs Chromium, executes the matrix, uploads failure diagnostics, and always tears down the database.
-- Updated testing guidance and Phase 2 audit evidence. No runtime UI, API, schema, migration, production state, or production data changed.
-
-**Validation:**
-- `pnpm e2e:matrix` (18 checks across setup and four projects)
-- `pnpm test` (397 files / 3,603 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Publish, independently review, remediate, and merge the browser matrix PR. Then confirm Phase 2 exit evidence and begin Phase 3 with the first independently releasable vertical product slice.
-
-## 2026-07-21 — Phase 3 Classwork list states
-
-**Completed:**
-- Began Phase 3 with a narrow assignment slice that preserves the existing class-wide teacher workflow and student assignment list.
-- Replaced ambiguous initial loading and failed-read empty states with governed `PageState` loading, error, and successful-empty states for teacher and student Classwork.
-- Added bounded Retry actions that invalidate assignment, material, and survey list caches before reloading; failures never render "No classwork yet," and successful retry restores the normal list.
-- Added focused role regressions and browser-verified loading, error, empty, retry, and restored-list states at desktop/mobile widths in light/dark themes. No API, schema, migration, production state, or production data changed.
-- Independent review found that reactivating Classwork after a failed load used the content-preserving refresh path and could expose the empty state while retrying. Reactivation from an error now uses the blocking load path; both roles prove pending reactivation, repeated failure, and recovery.
-- Final cumulative review found the remaining survey-list exception could still turn survey failures into empty or partial Classwork. Survey reads now participate in the same required failure/retry contract, with teacher and student survey-specific recovery regressions.
-
-**Validation:**
-- Focused Classwork component suites (2 files / 61 tests)
-- `pnpm test --run` (397 files / 3,605 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- Playwright forced-state matrix (16 checks across two focused local runs)
-
-**Remaining:**
-- Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
-
-## 2026-07-21 — Internal grading core foundation
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5 Codex - grading contracts, provider error semantics, reproducibility metadata, and database security require cross-layer invariant analysis.
-
-**Completed:**
-- Started the internal modular-grading direction from current `main` without modifying the open remote Gradex worker branch or enabling remote grading.
-- Added a database-independent grading core with Zod rubric/result contracts, profile and provider interfaces, canonical weighted criterion results, and versioned policy, prompt, profile, rubric, usage, and provider-request metadata.
-- Extracted the OpenAI Responses structured-output transport behind the provider interface, including timeout/status classification, bounded output-cap fallback, structured response extraction, and cumulative token usage.
-- Moved native assignment grading onto a pure Pika assignment profile while preserving the existing Completion/Thinking/Workflow rubric, prompt text, sanitization, teacher routes, durable run orchestration, retry semantics, and atomic writes.
-- Added migration 100 to replace the legacy assignment-run claim with an empty search path, validated lease arguments, and service-role-only execution. No migration was applied.
-- Added core engine/profile, assignment compatibility, usage, retry/error, and migration security regressions. No live provider call, production change, deployment setting, or data mutation occurred.
-
-**Validation:**
-- `pnpm test` (396 files / 3,593 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Focused grading and assignment route suites (59 tests)
-- `git diff --check`
-
-**Remaining:**
-- Add fully fenced assignment lease mutation contracts and durable grading audit/suggested-score persistence through the authorized schema workflow.
-- Migrate test and repository-review profiles to the shared core, then add teacher-correction evaluation datasets and metrics.
-
 ## 2026-07-21 — Internal grading core review remediation
 
 **Risk profile:** async-grading
@@ -1206,6 +1099,52 @@ consistency review.
 - In Phase 2, add the missing portable foundation tokens and policy checks
   before implementing the Pika-to-Pal semantic bridge.
 
+## 2026-07-25 — Pika-side Pal achievements pilot
+
+**Risk profile:** integration, privacy, database, cross-origin embed
+
+**Completed:**
+- Implemented the disabled-by-default `PAL_ENABLED` pilot on
+  `codex/pal-pilot`, with pinned Pal v1 contract fixtures and stable HMAC
+  learner/classroom/item/fact tokens. Outbound payloads exclude raw IDs,
+  assignment names, work, grades, deadlines, and teacher-maintained catalogs.
+- Drafted unapplied migration 111 for a service-role-only transactional
+  outbox, leases, retries, non-retryable visibility/requeue, and monotonic
+  learner/week opportunity revisions.
+- Wired authenticated session, new enrollment, the real daily-log autosave
+  creation path, genuine first assignment open, and first valid assignment
+  completion to the outbox. Duplicate daily logs and resubmissions retain one
+  fact identity.
+- Added daily Monday–Friday opportunity reconciliation across learner
+  enrollments and class days, including short weeks, schedule/archive changes,
+  completion floors, and terminal prior-week closure.
+- Added the student-only Achievements navigation item and secure
+  `/embed/roadmap` iframe with origin/source/nonce validation, short-lived
+  read-token handoff, bounded failure/retry, and light/dark appearance
+  messages. Pika retains its shell; Pal owns roadmap and reward rendering.
+- Added the Pika operations/rollout guide, including week-boundary rollout,
+  no historical backfill, at-least-once/out-of-order delivery, and current Pal
+  prerequisites. No migration was applied and no environment was enabled.
+
+**Validation:**
+- `pnpm test` (440 files / 3,850 tests).
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (648 modules / 0 allowances)
+- `pnpm check:ui-policy` (202 controls / 64 files)
+- `pnpm build`
+- Desktop/mobile and light/dark Playwright inspection using a temporary Pal
+  handshake harness; selected navigation, ready embed, and live theme changes
+  were verified.
+- `git diff --check`
+
+**Remaining:**
+- Apply migration 111 only through the separately authorized target-specific
+  process.
+- Complete Pal v1 ingest, read-token, and `/embed/roadmap` dependencies, then
+  run the real duplicate/retry/out-of-order vertical slice before enabling the
+  pilot or merging the integration branch to `main`.
+
 ## 2026-07-26 — DESIGN.md product-conformance loop
 
 **Risk profile:** none
@@ -1364,46 +1303,38 @@ requires exact cross-repository contract and semantic-token drift checks.
   `@pal/widget`; mount it only as part of the separately reviewed native pilot.
 ## 2026-07-25 — Pika-side Pal achievements pilot
 
-**Risk profile:** integration, privacy, database, cross-origin embed
+## 2026-07-26 — Pika-to-Pal widget theme contract
+
+**Risk profile:** cross-repository UI contract, accessibility, package release
 
 **Completed:**
-- Implemented the disabled-by-default `PAL_ENABLED` pilot on
-  `codex/pal-pilot`, with pinned Pal v1 contract fixtures and stable HMAC
-  learner/classroom/item/fact tokens. Outbound payloads exclude raw IDs,
-  assignment names, work, grades, deadlines, and teacher-maintained catalogs.
-- Drafted unapplied migration 111 for a service-role-only transactional
-  outbox, leases, retries, non-retryable visibility/requeue, and monotonic
-  learner/week opportunity revisions.
-- Wired authenticated session, new enrollment, the real daily-log autosave
-  creation path, genuine first assignment open, and first valid assignment
-  completion to the outbox. Duplicate daily logs and resubmissions retain one
-  fact identity.
-- Added daily Monday–Friday opportunity reconciliation across learner
-  enrollments and class days, including short weeks, schedule/archive changes,
-  completion floors, and terminal prior-week closure.
-- Added the student-only Achievements navigation item and secure
-  `/embed/roadmap` iframe with origin/source/nonce validation, short-lived
-  read-token handoff, bounded failure/retry, and light/dark appearance
-  messages. Pika retains its shell; Pal owns roadmap and reward rendering.
-- Added the Pika operations/rollout guide, including week-boundary rollout,
-  no historical backfill, at-least-once/out-of-order delivery, and current Pal
-  prerequisites. No migration was applied and no environment was enabled.
+- Pal commit `7a6d869` defines theme contract v1 with 36 optional scoped
+  properties, explicit theme/density/viewport/motion provider values, portable
+  light/dark fallbacks, focus/target/motion handling, and contract tests.
+- Added the Pika `PalWidgetThemeBoundary` and one CSS-module adapter that maps
+  every Pal input to an existing Pika semantic token without copied raw values.
+- Vendored only Pal's dependency-free property manifest while `@pal/widget`
+  remains private; documented its upstream commit and mandatory deletion after
+  the package can be imported directly.
+- Updated `DESIGN.md`, the pilot runbook, startup context, and hierarchy tests
+  to record the confirmed native-widget boundary. The disabled iframe remains
+  an interim prototype and is not an enablement target.
+- Registered the interim iframe's two existing raw height utilities under the
+  native-widget release owner so current design-policy CI remains exact.
 
 **Validation:**
-- `pnpm test` (440 files / 3,850 tests).
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (648 modules / 0 allowances)
-- `pnpm check:ui-policy` (202 controls / 64 files)
-- `pnpm build`
-- Desktop/mobile and light/dark Playwright inspection using a temporary Pal
-  handshake harness; selected navigation, ready embed, and live theme changes
-  were verified.
-- `git diff --check`
+- Pal widget tests: 37/37; Pal widget/web lint and typecheck passed.
+- Pal sandbox reviewed at 1440x900 and 390x844 in light/dark, including visible
+  keyboard focus and reward/companion layers; desktop is the default.
+- Pika adapter, hierarchy, startup-budget, and design-policy tests passed.
+- Pika audit, lint, typecheck, architecture, UI policy, design policy, build,
+  and `git diff --check` passed.
+- Full Pika suite passed 443/444 files and 3,870/3,871 tests; the sole
+  unrelated `TestDetailPanel` timeout passed in isolation in 0.54s.
 
 **Remaining:**
-- Apply migration 111 only through the separately authorized target-specific
-  process.
-- Complete Pal v1 ingest, read-token, and `/embed/roadmap` dependencies, then
-  run the real duplicate/retry/out-of-order vertical slice before enabling the
-  pilot or merging the integration branch to `main`.
+- Publish a reviewed non-private `@pal/widget` package and import its contract
+  directly.
+- Replace the disabled iframe with the native provider/surfaces, then run the
+  authenticated Pika student visual matrix and real delivery vertical slice.
+- Migration 111 and feature enablement remain human-controlled.

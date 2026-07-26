@@ -28,9 +28,9 @@ PAL_PSEUDONYM_SECRET=
 
 The other values are server-only connection settings, not feature flags.
 `PAL_API_URL` is the Pal origin used for event ingest, read-token minting, and
-the chrome-free `/embed/roadmap` route. `PAL_INTEGRATION_SECRET` authenticates
-Pika's backend. `PAL_PSEUDONYM_SECRET` creates stable HMAC tokens and must never
-be shared with Pal or the browser.
+learner widget reads. `PAL_INTEGRATION_SECRET` authenticates Pika's backend.
+`PAL_PSEUDONYM_SECRET` creates stable HMAC tokens and must never be shared with
+Pal or the browser.
 
 When the switch is false or absent:
 
@@ -49,14 +49,19 @@ Do not enable the switch until all prerequisites are true:
 2. Configure all server-only Pal settings.
 3. Confirm Pal accepts the six version 1 event shapes.
 4. Confirm Pal implements `POST /api/v1/integration/read-token`.
-5. Confirm Pal serves `/embed/roadmap` and supports the nonce-bound
-   `postMessage` handshake below.
-6. Enable `PAL_ENABLED=true` in the pilot environment only, preferably before
+5. Publish a reviewed `@pal/widget` package version exposing
+   `@pal/widget/theme-contract`.
+6. Replace the interim iframe host with the native widget surfaces, import
+   `@pal/widget/styles.css` once, wrap the provider in
+   `PalWidgetThemeBoundary`, and pass Pika's scoped theme, density, viewport,
+   and motion values.
+7. Run the Pika/Pal theme-contract drift test and visual verification matrix.
+8. Enable `PAL_ENABLED=true` in the pilot environment only, preferably before
    learners act on the first day of a pilot week.
 
-Pal must support a contract version before Pika emits it. The current Pal
-prototype does not yet satisfy steps 3–5; keeping the switch off is the safe
-default while those Pal-side dependencies are completed.
+Pal must support a contract version before Pika emits it. The current package is
+private and unpublished, so the switch must remain off until steps 3–7 are
+complete.
 
 The pilot does not backfill actions that happened while the switch was off.
 Enabling midweek is safe, but Pal will only receive facts asserted from that
@@ -138,30 +143,28 @@ re-evaluate affected achievement progress when a related fact or later
 configuration revision arrives; correctness must not depend on HTTP arrival
 order.
 
-## Embedded roadmap
+## Native widget boundary
 
-When enabled, students see Achievements in the existing classroom sidebar.
-Pika loads Pal's chrome-free roadmap inside the normal content pane; the full
-roadmap is not a Pika overlay.
+The rollout target is the native React `@pal/widget` package. When enabled,
+students see Achievements in the existing classroom sidebar.
+`PalAchievements` renders inside the normal content pane; the full roadmap is
+not a Pika overlay. `PalCompanion` and `PalRewardCelebration` mount only in
+Pika-approved host layers.
 
-The iframe authentication exchange is:
+Pika imports Pal's stylesheet but does not copy it. The
+`PalWidgetThemeBoundary` wrapper aliases current Pika semantic tokens into the
+public `--pal-*` inputs. `PalProvider` receives the active theme plus explicit
+`density`, `viewport`, and motion values. Pal does not inspect Pika routes,
+roles, Tailwind breakpoints, theme context, or `@/ui` components.
 
-1. Pika loads `/embed/roadmap#pika_nonce=<per-load-random-nonce>`.
-2. Pal posts `{ type: "pal.embed.ready", nonce }`.
-3. Pika verifies the exact Pal origin, iframe window, and nonce.
-4. Pika's authenticated backend mints a learner-scoped short-lived token from
-   `POST /api/v1/integration/read-token`.
-5. Pika posts `{ type: "pal.embed.authenticate", nonce, token, theme }` using
-   the exact Pal `targetOrigin`. `theme` is either `light` or `dark`.
-6. Pal posts `{ type: "pal.embed.authenticated", nonce }` before Pika reveals
-   the iframe.
-7. After authentication, Pika posts
-   `{ type: "pal.embed.appearance", nonce, theme }` whenever its theme changes.
-   Pal owns applying that appearance to the roadmap; Pika does not restyle or
-   recreate Pal content.
+The adapter, vendored contract manifest, and their drift tests can land before
+package publication. They do not make the interim iframe themeable: CSS custom
+properties do not cross an iframe origin. `StudentAchievementsTab` remains a
+disabled prototype on this branch and must be replaced, not enabled, after the
+package release.
 
 The integration secret and raw learner ID never enter the browser. The token
-is never placed in the iframe URL. An unavailable or incomplete Pal
+is supplied only through Pal's learner client. An unavailable or incomplete Pal
 implementation produces a bounded retry state while the rest of Pika remains
 usable.
 
