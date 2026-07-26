@@ -296,12 +296,12 @@ AI may draft experimental or legacy guidance, but humans promote patterns into
 stable guidance. Ordinary feature work must not silently redefine the design
 system.
 
-## Proposed External Widget Contract
+## External Widget Contract
 
 External widgets must feel native without becoming coupled to Pika internals.
-The Pika-to-Pal boundary below is a proposed contract, not a confirmed
-implementation. Keep its public variable names provisional until the native
-widget API, adapter, drift tests, and host capture are reviewed together.
+The Pika-to-Pal boundary below is confirmed as contract version 1. Pal owns the
+machine-readable public property list and portable fallbacks; Pika owns the one
+scoped adapter that maps those inputs to current Pika semantic tokens.
 
 For the Pal achievement system:
 
@@ -318,8 +318,14 @@ For the Pal achievement system:
   portal to `document.body` by default.
 - Pika approves pet placement and clearance; Pal owns the art and pose.
 
-The public `--pal-*` contract and its drift tests should land with the bridge
-after the actual `@pal/widget` package API is available for review.
+The public `--pal-*` contract is owned by
+`@pal/widget/theme-contract`. While that package remains private and
+unpublished, Pika vendors only the dependency-free manifest in
+[`src/vendor/pal-widget-theme`](./src/vendor/pal-widget-theme) and maps it in
+[`src/integrations/pal/pal-widget-theme.module.css`](./src/integrations/pal/pal-widget-theme.module.css).
+The vendored manifest is temporary release plumbing, not a second authority.
+Delete it and import the package contract directly when Pika installs a
+published `@pal/widget`.
 
 ### Pal handoff packet
 
@@ -332,6 +338,12 @@ The host-to-widget handoff must contain:
    matrix
 5. contract tests that compare the widget's declared inputs with the Pika
    adapter
+
+Contract version 1 communicates `theme`, `density`, `viewport`, and motion
+preference as scoped provider values and `data-pal-*` attributes. The adapter
+supplies semantic colours, inherited typography, radii, spacing, minimum target
+size, focus, and motion values. Pika still owns the outer content and overlay
+containers; no theme property grants Pal placement or portal authority.
 
 The bridge should cover semantic surfaces, text, borders, actions, statuses,
 typography inheritance, shared radii, spacing/density, minimum control size,

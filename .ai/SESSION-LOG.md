@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 3 Classwork list states
-
-**Completed:**
-- Began Phase 3 with a narrow assignment slice that preserves the existing class-wide teacher workflow and student assignment list.
-- Replaced ambiguous initial loading and failed-read empty states with governed `PageState` loading, error, and successful-empty states for teacher and student Classwork.
-- Added bounded Retry actions that invalidate assignment, material, and survey list caches before reloading; failures never render "No classwork yet," and successful retry restores the normal list.
-- Added focused role regressions and browser-verified loading, error, empty, retry, and restored-list states at desktop/mobile widths in light/dark themes. No API, schema, migration, production state, or production data changed.
-- Independent review found that reactivating Classwork after a failed load used the content-preserving refresh path and could expose the empty state while retrying. Reactivation from an error now uses the blocking load path; both roles prove pending reactivation, repeated failure, and recovery.
-- Final cumulative review found the remaining survey-list exception could still turn survey failures into empty or partial Classwork. Survey reads now participate in the same required failure/retry contract, with teacher and student survey-specific recovery regressions.
-
-**Validation:**
-- Focused Classwork component suites (2 files / 61 tests)
-- `pnpm test --run` (397 files / 3,605 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- Playwright forced-state matrix (16 checks across two focused local runs)
-
-**Remaining:**
-- Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
-
 ## 2026-07-21 — Internal grading core foundation
 
 **Risk profile:** async-grading
@@ -1278,3 +1253,33 @@ evidence require cross-layer verification.
   review and exact-head CI, and merge only when both gates are clean.
 - Keep the public `--pal-*` bridge out of Pika until the actual `@pal/widget`
   package API can be reviewed and contract-tested.
+
+## 2026-07-26 — Pika-to-Pal theme adapter
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Sol high reasoning — the small adapter still
+requires exact cross-repository contract and semantic-token drift checks.
+
+**Completed:**
+- Added a dormant, widget-scoped Pika theme boundary that aliases the reviewed
+  36-property Pal contract exclusively to existing Pika semantic tokens.
+- Vendored only Pal's dependency-free contract manifest while `@pal/widget`
+  remains private; no Pal components, styles, artwork, or behavior were copied.
+- Confirmed contract version 1 in `DESIGN.md` while keeping Pika ownership of
+  host layout, overlay placement, theme, density, focus, and motion.
+- Added drift tests for property completeness, allowed appearance attributes,
+  raw-value exclusion, and existence of every referenced Pika token.
+- Isolated this safe adapter from the broader draft Pal pilot after independent
+  review found rollout blockers in that cumulative branch.
+
+**Validation:**
+- Focused design/theme guidance tests: 17/17.
+- TypeScript, lint, production build, architecture check, UI policy, design
+  policy, and Pika audit passed.
+- No current route mounts the boundary, so existing Pika UI/UX is unchanged.
+
+**Remaining:**
+- Complete independent review and exact-head CI for the isolated adapter PR.
+- Replace the vendored manifest with a direct package import when Pal publishes
+  `@pal/widget`; mount it only as part of the separately reviewed native pilot.
