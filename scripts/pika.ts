@@ -20,7 +20,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname, resolve, isAbsolute } from 'node:path'
 import { config } from 'dotenv'
-import { login, loadSession, pikaFetch, pikaJson, getBaseUrl } from './pika-api'
+import { login, loadSession, pikaFetch, pikaJson, getBaseUrl, cliName } from './pika-api'
 import { testToMarkdown, markdownToTest } from '../src/lib/test-markdown'
 import type { TestMarkdownSerializeInput } from '../src/lib/test-markdown'
 import { decodeCourseBlueprintPackageArchive } from '../src/lib/course-blueprint-package'
@@ -141,7 +141,7 @@ async function cmdLogin(flags: Flags): Promise<void> {
 async function cmdWhoami(): Promise<void> {
   const session = loadSession()
   if (!session) {
-    console.log(`Not logged in (target: ${getBaseUrl()}). Run: pnpm pika login`)
+    console.log(`Not logged in (target: ${getBaseUrl()}). Run: ${cliName()} login`)
     return
   }
   const { user } = await pikaJson<{ user: { email: string; role: string } }>('/api/auth/me')
@@ -237,7 +237,7 @@ async function setClassroomArchived(id: string, archived: boolean, flags: Flags)
 
   if (archived) {
     console.log(`Archived "${title}". Students can no longer access it, and it is hidden from your list.`)
-    console.log(`Undo with: pika classroom restore ${id} --yes`)
+    console.log(`Undo with: ${cliName()} classroom restore ${id} --yes`)
   } else {
     console.log(`Restored "${title}".`)
   }
@@ -272,7 +272,7 @@ async function cmdBlueprintList(): Promise<void> {
 async function cmdBlueprintDelete(blueprintId: string, flags: Flags): Promise<void> {
   const blueprint = (await listBlueprints()).find((bp) => bp.id === blueprintId)
   if (!blueprint) {
-    console.error(`No blueprint ${blueprintId}. List them with: pika blueprint list`)
+    console.error(`No blueprint ${blueprintId}. List them with: ${cliName()} blueprint list`)
     process.exitCode = 1
     return
   }
@@ -376,7 +376,7 @@ async function cmdBlueprintPush(dir: string, flags: Flags): Promise<void> {
     }
   )
   console.log(`Imported blueprint ${result.blueprint.id} — "${result.blueprint.title}"`)
-  console.log(`Next: pnpm pika blueprint instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
+  console.log(`Next: ${cliName()} blueprint instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
 }
 
 async function cmdBlueprintInstantiate(blueprintId: string, flags: Flags): Promise<void> {
@@ -419,18 +419,18 @@ function printHelp(): void {
       'pika — CLI for Pika teacher operations',
       '',
       'Usage:',
-      '  pnpm pika login [--email <e>] [--password <p>]',
-      '  pnpm pika whoami',
-      '  pnpm pika test pull <testId> [--out <file.md>]',
-      '  pnpm pika test push <testId> <file.md> [--yes]',
-      '  pnpm pika classroom list [--archived]',
-      '  pnpm pika classroom archive <classroomId> [--yes]',
-      '  pnpm pika classroom restore <classroomId> [--yes]',
-      '  pnpm pika blueprint list',
-      '  pnpm pika blueprint pull <blueprintId> <dir>',
-      '  pnpm pika blueprint push <dir> [--replace | --new] [--yes]',
-      '  pnpm pika blueprint delete <blueprintId> [--yes]',
-      '  pnpm pika blueprint instantiate <blueprintId> --title <name>',
+      `  ${cliName()} login [--email <e>] [--password <p>]`,
+      `  ${cliName()} whoami`,
+      `  ${cliName()} test pull <testId> [--out <file.md>]`,
+      `  ${cliName()} test push <testId> <file.md> [--yes]`,
+      `  ${cliName()} classroom list [--archived]`,
+      `  ${cliName()} classroom archive <classroomId> [--yes]`,
+      `  ${cliName()} classroom restore <classroomId> [--yes]`,
+      `  ${cliName()} blueprint list`,
+      `  ${cliName()} blueprint pull <blueprintId> <dir>`,
+      `  ${cliName()} blueprint push <dir> [--replace | --new] [--yes]`,
+      `  ${cliName()} blueprint delete <blueprintId> [--yes]`,
+      `  ${cliName()} blueprint instantiate <blueprintId> --title <name>`,
       '      (--semester <semester1|semester2> --year <YYYY>) | (--start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD>) [--yes]',
       '',
       'Writes are dry-run unless --yes is passed.',
@@ -455,7 +455,7 @@ async function main(): Promise<void> {
         if (sub === 'pull' && rest[0]) await cmdTestPull(rest[0], flags)
         else if (sub === 'push' && rest[0] && rest[1]) await cmdTestPush(rest[0], rest[1], flags)
         else {
-          console.error('Usage: pnpm pika test pull <testId> | test push <testId> <file.md>')
+          console.error(`Usage: ${cliName()} test pull <testId> | test push <testId> <file.md>`)
           process.exitCode = 1
         }
         break
@@ -465,7 +465,7 @@ async function main(): Promise<void> {
         else if (sub === 'restore' && rest[0]) await setClassroomArchived(rest[0], false, flags)
         else {
           console.error(
-            'Usage: pnpm pika classroom list [--archived] | classroom archive <id> | classroom restore <id>'
+            `Usage: ${cliName()} classroom list [--archived] | classroom archive <id> | classroom restore <id>`
           )
           process.exitCode = 1
         }
@@ -478,7 +478,7 @@ async function main(): Promise<void> {
         else if (sub === 'instantiate' && rest[0]) await cmdBlueprintInstantiate(rest[0], flags)
         else {
           console.error(
-            'Usage: pnpm pika blueprint list | course pull <id> <dir> | course push <dir> | course instantiate <id> --title <name>'
+            `Usage: ${cliName()} blueprint list | blueprint pull <id> <dir> | blueprint push <dir> | blueprint delete <id> | blueprint instantiate <id> --title <name>`
           )
           process.exitCode = 1
         }

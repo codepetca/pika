@@ -23,6 +23,15 @@ export interface SavedSession {
   user?: { id: string; email: string; role: string }
 }
 
+/**
+ * How the user invoked us, so suggested commands are copy-pasteable. The global
+ * wrapper exports PIKA_ORIGIN_PWD before handing off; running the package
+ * script in the repo does not.
+ */
+export function cliName(): string {
+  return process.env.PIKA_ORIGIN_PWD ? 'pika' : 'pnpm pika'
+}
+
 /** Where the CLI talks to. Local dev by default; override for staging. */
 export function getBaseUrl(): string {
   return process.env.PIKA_BASE_URL || process.env.E2E_BASE_URL || 'http://localhost:3000'
@@ -80,13 +89,13 @@ export async function login(email: string, password: string): Promise<SavedSessi
 export async function pikaFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const session = loadSession()
   if (!session) {
-    throw new Error('Not logged in. Run: pnpm pika login')
+    throw new Error(`Not logged in. Run: ${cliName()} login`)
   }
   const headers = new Headers(init.headers)
   headers.set('cookie', session.cookie)
   const res = await fetch(`${session.baseUrl}${path}`, { ...init, headers })
   if (res.status === 401) {
-    throw new Error('Session expired or invalid. Run: pnpm pika login')
+    throw new Error(`Session expired or invalid. Run: ${cliName()} login`)
   }
   return res
 }
