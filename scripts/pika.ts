@@ -44,7 +44,11 @@ config({ path: join(REPO_ROOT, '.env.local') })
 
 type Flags = Record<string, string | boolean>
 
-/** The six markdown files a course package may contain (all optional, default ''). */
+function print(message = ''): void {
+  process.stdout.write(`${message}\n`)
+}
+
+/** The eight markdown files a course package may contain (all optional, default ''). */
 const COURSE_PACKAGE_FILES = [
   'course-overview.md',
   'course-outline.md',
@@ -52,6 +56,8 @@ const COURSE_PACKAGE_FILES = [
   'assignments.md',
   'tests.md',
   'lesson-plans.md',
+  'classwork-materials.md',
+  'surveys.md',
 ] as const
 
 /**
@@ -135,17 +141,17 @@ async function cmdLogin(flags: Flags): Promise<void> {
   const password =
     (flags.password as string) || process.env.PIKA_PASSWORD || process.env.E2E_PASSWORD || 'test1234'
   const session = await login(email, password)
-  console.log(`Logged in as ${session.user?.email} (${session.user?.role}) @ ${session.baseUrl}`)
+  print(`Logged in as ${session.user?.email} (${session.user?.role}) @ ${session.baseUrl}`)
 }
 
 async function cmdWhoami(): Promise<void> {
   const session = loadSession()
   if (!session) {
-    console.log(`Not logged in (target: ${getBaseUrl()}). Run: pnpm pika login`)
+    print(`Not logged in (target: ${getBaseUrl()}). Run: pnpm pika login`)
     return
   }
   const { user } = await pikaJson<{ user: { email: string; role: string } }>('/api/auth/me')
-  console.log(`${user.email} (${user.role}) @ ${session.baseUrl}`)
+  print(`${user.email} (${user.role}) @ ${session.baseUrl}`)
 }
 
 async function cmdTestPull(testId: string, flags: Flags): Promise<void> {
@@ -155,7 +161,7 @@ async function cmdTestPull(testId: string, flags: Flags): Promise<void> {
     const out = userPath(flags.out)
     mkdirSync(dirname(out), { recursive: true })
     writeFileSync(out, markdown.endsWith('\n') ? markdown : markdown + '\n')
-    console.log(`Wrote ${detail.questions.length} question(s) → ${out}`)
+    print(`Wrote ${detail.questions.length} question(s) → ${out}`)
   } else {
     process.stdout.write(markdown + '\n')
   }
@@ -172,10 +178,10 @@ async function cmdTestPush(testId: string, fileArg: string, flags: Flags): Promi
     return
   }
   const questionCount = parsed.draftContent?.questions.length ?? 0
-  console.log(`Parsed ${file}: "${parsed.draftContent?.title}" — ${questionCount} question(s).`)
+  print(`Parsed ${file}: "${parsed.draftContent?.title}" — ${questionCount} question(s).`)
 
   if (!flags.yes) {
-    console.log(`DRY RUN. Would replace the draft for test ${testId}. Re-run with --yes to apply.`)
+    print(`DRY RUN. Would replace the draft for test ${testId}. Re-run with --yes to apply.`)
     return
   }
 
@@ -185,7 +191,7 @@ async function cmdTestPush(testId: string, fileArg: string, flags: Flags): Promi
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ version: draft.version, content: parsed.draftContent }),
   })
-  console.log(`Pushed ${questionCount} question(s) to test ${testId} (draft v${draft.version} → v${draft.version + 1}).`)
+  print(`Pushed ${questionCount} question(s) to test ${testId} (draft v${draft.version} → v${draft.version + 1}).`)
 }
 
 interface ClassroomSummary {
@@ -201,10 +207,10 @@ async function cmdClassroomList(flags: Flags): Promise<void> {
   )
   const classrooms = data.classrooms ?? []
   if (classrooms.length === 0) {
-    console.log(archived ? 'No archived classrooms.' : 'No classrooms.')
+    print(archived ? 'No archived classrooms.' : 'No classrooms.')
     return
   }
-  for (const c of classrooms) console.log(`${c.id}  ${c.title ?? '(untitled)'}`)
+  for (const c of classrooms) print(`${c.id}  ${c.title ?? '(untitled)'}`)
 }
 
 /**
@@ -219,13 +225,13 @@ async function setClassroomArchived(id: string, archived: boolean, flags: Flags)
   const alreadyArchived = Boolean(classroom?.archived_at)
 
   if (archived === alreadyArchived) {
-    console.log(`"${title}" is already ${archived ? 'archived' : 'active'}. Nothing to do.`)
+    print(`"${title}" is already ${archived ? 'archived' : 'active'}. Nothing to do.`)
     return
   }
 
   if (!flags.yes) {
-    console.log(`DRY RUN. Would ${verb.toLowerCase()} "${title}" (${id}) @ ${getBaseUrl()}.`)
-    console.log('Re-run with --yes to apply.')
+    print(`DRY RUN. Would ${verb.toLowerCase()} "${title}" (${id}) @ ${getBaseUrl()}.`)
+    print('Re-run with --yes to apply.')
     return
   }
 
@@ -236,10 +242,10 @@ async function setClassroomArchived(id: string, archived: boolean, flags: Flags)
   })
 
   if (archived) {
-    console.log(`Archived "${title}". Students can no longer access it, and it is hidden from your list.`)
-    console.log(`Undo with: pika classroom restore ${id} --yes`)
+    print(`Archived "${title}". Students can no longer access it, and it is hidden from your list.`)
+    print(`Undo with: pika classroom restore ${id} --yes`)
   } else {
-    console.log(`Restored "${title}".`)
+    print(`Restored "${title}".`)
   }
 }
 
@@ -257,10 +263,10 @@ async function listBlueprints(): Promise<BlueprintSummary[]> {
 async function cmdBlueprintList(): Promise<void> {
   const blueprints = await listBlueprints()
   if (blueprints.length === 0) {
-    console.log('No course blueprints.')
+    print('No course blueprints.')
     return
   }
-  for (const bp of blueprints) console.log(`${bp.id}  ${bp.title}`)
+  for (const bp of blueprints) print(`${bp.id}  ${bp.title}`)
 }
 
 /**
@@ -277,18 +283,18 @@ async function cmdBlueprintDelete(blueprintId: string, flags: Flags): Promise<vo
     return
   }
 
-  console.log(`Blueprint "${blueprint.title}" (${blueprintId}) @ ${getBaseUrl()}`)
-  console.log('  Deleting removes the template and its assignments, tests and lesson templates.')
-  console.log('  Classrooms already created from it keep their data and are not deleted.')
-  console.log('  This cannot be undone — re-push the directory to recreate it.')
+  print(`Blueprint "${blueprint.title}" (${blueprintId}) @ ${getBaseUrl()}`)
+  print('  Deleting removes the template and its assignments, tests and lesson templates.')
+  print('  Classrooms already created from it keep their data and are not deleted.')
+  print('  This cannot be undone — re-push the directory to recreate it.')
 
   if (!flags.yes) {
-    console.log('DRY RUN. Re-run with --yes to delete.')
+    print('DRY RUN. Re-run with --yes to delete.')
     return
   }
 
   await pikaJson(`/api/teacher/course-blueprints/${blueprintId}`, { method: 'DELETE' })
-  console.log(`Deleted blueprint ${blueprintId}.`)
+  print(`Deleted blueprint ${blueprintId}.`)
 }
 
 async function cmdBlueprintPull(blueprintId: string, dirArg: string): Promise<void> {
@@ -310,8 +316,8 @@ async function cmdBlueprintPull(blueprintId: string, dirArg: string): Promise<vo
     writeFileSync(join(dir, name), content.length && !content.endsWith('\n') ? content + '\n' : content)
     if (content.trim().length > 0) written.push(name)
   }
-  console.log(`Pulled "${bundle.manifest.title}" → ${dir}`)
-  console.log(`  manifest.json + files with content: ${written.length ? written.join(', ') : '(metadata only)'}`)
+  print(`Pulled "${bundle.manifest.title}" → ${dir}`)
+  print(`  manifest.json + files with content: ${written.length ? written.join(', ') : '(metadata only)'}`)
 }
 
 /** Build a course-package bundle from a directory of markdown + manifest.json. */
@@ -338,33 +344,57 @@ async function cmdBlueprintPush(dir: string, flags: Flags): Promise<void> {
   const title = String(bundle.manifest.title ?? '')
   const courseCode = String(bundle.manifest.course_code ?? '')
   const present = COURSE_PACKAGE_FILES.filter((f) => bundle.files[f].trim().length > 0)
-  console.log(`Course "${title}" from ${dir}`)
-  console.log(`  files with content: ${present.length ? present.join(', ') : '(none — metadata only)'}`)
+  print(`Course "${title}" from ${dir}`)
+  print(`  files with content: ${present.length ? present.join(', ') : '(none — metadata only)'}`)
 
-  // Import always CREATES a blueprint. Detect an existing one (by course code,
-  // else title) so repeated pushes don't silently accumulate duplicates.
+  const manifestBlueprintId = String(bundle.manifest.blueprint_id ?? '')
   const existing = (await listBlueprints()).find(
-    (bp) => (courseCode && bp.course_code === courseCode) || bp.title === title
+    (bp) => (manifestBlueprintId && bp.id === manifestBlueprintId)
+      || (courseCode && bp.course_code === courseCode)
+      || bp.title === title
   )
 
-  if (existing && !flags.replace && !flags.new) {
-    console.error(`A blueprint "${existing.title}" already exists (${existing.id}).`)
-    console.error('  --replace  delete it and recreate from this directory')
-    console.error('  --new      create a duplicate anyway')
+  if (existing && flags.replace) {
+    console.error('--replace is no longer supported because it destroys Blueprint lineage.')
+    console.error('Push without --replace to submit a reviewable change proposal.')
     process.exitCode = 1
     return
   }
 
-  const willReplace = Boolean(existing && flags.replace)
+  const willPropose = Boolean(existing && !flags.new)
   if (!flags.yes) {
-    const action = willReplace ? `replace blueprint ${existing!.id}` : 'import a new blueprint'
-    console.log(`DRY RUN. Would ${action}. Re-run with --yes to apply.`)
+    const action = willPropose
+      ? `submit a change proposal for blueprint ${existing!.id}`
+      : 'import a new blueprint'
+    print(`DRY RUN. Would ${action}. Re-run with --yes to continue.`)
     return
   }
 
-  if (willReplace) {
-    await pikaJson(`/api/teacher/course-blueprints/${existing!.id}`, { method: 'DELETE' })
-    console.log(`Deleted existing blueprint ${existing!.id}.`)
+  if (willPropose) {
+    const editingSessionId = String(bundle.manifest.editing_session_id || '')
+    if (bundle.manifest.version !== '5' || !editingSessionId) {
+      console.error(
+        `Pull Blueprint ${existing!.id} before pushing so Pika can verify the exact Draft revision.`
+      )
+      process.exitCode = 1
+      return
+    }
+    const result = await pikaJson<{
+      proposal: { id: string; status: string }
+    }>(
+      `/api/teacher/course-blueprints/${existing!.id}/proposals`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'idempotency-key': editingSessionId,
+        },
+        body: JSON.stringify(bundle),
+      }
+    )
+    print(`Submitted proposal ${result.proposal.id} (${result.proposal.status}).`)
+    print('Review and apply it in Pika; the live Blueprint was not changed.')
+    return
   }
 
   const result = await pikaJson<{ blueprint: { id: string; title: string } }>(
@@ -375,8 +405,41 @@ async function cmdBlueprintPush(dir: string, flags: Flags): Promise<void> {
       body: JSON.stringify(bundle),
     }
   )
-  console.log(`Imported blueprint ${result.blueprint.id} — "${result.blueprint.title}"`)
-  console.log(`Next: pnpm pika blueprint instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
+  print(`Imported blueprint ${result.blueprint.id} — "${result.blueprint.title}"`)
+  print(`Next: pnpm pika blueprint instantiate ${result.blueprint.id} --title "<classroom name>" --semester semester1 --year 2026 --yes`)
+}
+
+async function cmdBlueprintProposals(blueprintId: string): Promise<void> {
+  const result = await pikaJson<{
+    proposals: Array<{ id: string; status: string; source_kind: string; created_at: string }>
+  }>(`/api/teacher/course-blueprints/${blueprintId}/proposals`)
+  if (result.proposals.length === 0) {
+    print('No Blueprint proposals.')
+    return
+  }
+  result.proposals.forEach((proposal) => {
+    print(`${proposal.id}  ${proposal.status}  ${proposal.source_kind}  ${proposal.created_at}`)
+  })
+}
+
+async function cmdBlueprintApply(
+  blueprintId: string,
+  proposalId: string,
+  flags: Flags
+): Promise<void> {
+  if (!flags.yes) {
+    print(`DRY RUN. Would apply proposal ${proposalId}. Re-run with --yes to apply.`)
+    return
+  }
+  const result = await pikaJson<{
+    proposal: { id: string; status: string; applied_blueprint_revision: number | null }
+  }>(
+    `/api/teacher/course-blueprints/${blueprintId}/proposals/${proposalId}/apply`,
+    { method: 'POST' }
+  )
+  print(
+    `Applied proposal ${result.proposal.id}; Blueprint revision ${result.proposal.applied_blueprint_revision}.`
+  )
 }
 
 async function cmdBlueprintInstantiate(blueprintId: string, flags: Flags): Promise<void> {
@@ -399,7 +462,7 @@ async function cmdBlueprintInstantiate(blueprintId: string, flags: Flags): Promi
   }
 
   if (!flags.yes) {
-    console.log(`DRY RUN. Would create classroom "${title}" from blueprint ${blueprintId}. Re-run with --yes.`)
+    print(`DRY RUN. Would create classroom "${title}" from blueprint ${blueprintId}. Re-run with --yes.`)
     return
   }
   const result = await pikaJson<{ classroom: { id: string; name?: string; title?: string } }>(
@@ -410,11 +473,11 @@ async function cmdBlueprintInstantiate(blueprintId: string, flags: Flags): Promi
       body: JSON.stringify(body),
     }
   )
-  console.log(`Created classroom ${result.classroom.id} — "${result.classroom.name ?? result.classroom.title ?? title}"`)
+  print(`Created classroom ${result.classroom.id} — "${result.classroom.name ?? result.classroom.title ?? title}"`)
 }
 
 function printHelp(): void {
-  console.log(
+  print(
     [
       'pika — CLI for Pika teacher operations',
       '',
@@ -428,7 +491,9 @@ function printHelp(): void {
       '  pnpm pika classroom restore <classroomId> [--yes]',
       '  pnpm pika blueprint list',
       '  pnpm pika blueprint pull <blueprintId> <dir>',
-      '  pnpm pika blueprint push <dir> [--replace | --new] [--yes]',
+      '  pnpm pika blueprint push <dir> [--new] [--yes]',
+      '  pnpm pika blueprint proposals <blueprintId>',
+      '  pnpm pika blueprint apply <blueprintId> <proposalId> [--yes]',
       '  pnpm pika blueprint delete <blueprintId> [--yes]',
       '  pnpm pika blueprint instantiate <blueprintId> --title <name>',
       '      (--semester <semester1|semester2> --year <YYYY>) | (--start-date <YYYY-MM-DD> --end-date <YYYY-MM-DD>) [--yes]',
@@ -474,6 +539,10 @@ async function main(): Promise<void> {
         if (sub === 'list') await cmdBlueprintList()
         else if (sub === 'pull' && rest[0] && rest[1]) await cmdBlueprintPull(rest[0], rest[1])
         else if (sub === 'push' && rest[0]) await cmdBlueprintPush(rest[0], flags)
+        else if (sub === 'proposals' && rest[0]) await cmdBlueprintProposals(rest[0])
+        else if (sub === 'apply' && rest[0] && rest[1]) {
+          await cmdBlueprintApply(rest[0], rest[1], flags)
+        }
         else if (sub === 'delete' && rest[0]) await cmdBlueprintDelete(rest[0], flags)
         else if (sub === 'instantiate' && rest[0]) await cmdBlueprintInstantiate(rest[0], flags)
         else {

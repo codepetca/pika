@@ -18,7 +18,22 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
 } from '@/lib/course-site-publishing'
 import { getDefaultClassroomThemeColor } from '@/lib/classroom-theme'
-import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
+import {
+  makeQueryBuilder,
+  makeSupabaseFromQueues as makeStrictSupabaseFromQueues,
+} from '../../support/supabase'
+
+function makeSupabaseFromQueues(queues: Record<string, any[]>) {
+  const emptyBlueprintRows = () => Array.from(
+    { length: 12 },
+    () => makeQueryBuilder({ data: [], error: null }),
+  )
+  return makeStrictSupabaseFromQueues({
+    course_blueprint_materials: emptyBlueprintRows(),
+    course_blueprint_surveys: emptyBlueprintRows(),
+    ...queues,
+  })
+}
 
 let mockSupabase: any
 const mockAssertTeacherCanMutateClassroom = vi.fn()
@@ -51,8 +66,32 @@ describe('course-blueprints server helpers', () => {
         planned_site_slug: null,
         planned_site_published: false,
         planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+        authority_mode: 'pika',
+        latest_version_number: 0,
       })
     )
+  })
+
+  it('blocks direct reusable-content writes while repository authority is active', async () => {
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: 'b-1',
+            teacher_id: 'teacher-1',
+            authority_mode: 'repository',
+          },
+          error: null,
+        }),
+      ],
+    })
+
+    await expect(
+      updateCourseBlueprint('teacher-1', 'b-1', { overview_markdown: 'Direct edit' })
+    ).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      status: 409,
+    }))
   })
 
   it('checks blueprint ownership and reports not found / forbidden states', async () => {
@@ -478,7 +517,7 @@ describe('course-blueprints server helpers', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: false, status: 500 }))
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic',
+      'create_course_blueprint_atomic_v2',
       expect.objectContaining({
         p_operation_id: operationId,
         p_operation_type: 'import',
@@ -553,18 +592,37 @@ describe('course-blueprints server helpers', () => {
         makeQueryBuilder({ data: null, error: { message: 'resource clone failed' } }),
       ],
     })
-    mockSupabase.rpc = vi.fn().mockResolvedValue({
-      data: {
-        ok: false,
-        status: 500,
-        operation_id: operationId,
-        operation_type: 'instantiate',
-        error_code: 'create_classroom_resources_failed',
-        error: 'Atomic blueprint instantiation failed',
-        retryable: true,
-      },
-      error: null,
-    })
+    mockSupabase.rpc = vi.fn().mockImplementation((rpcName: string) => Promise.resolve(
+      rpcName === 'save_course_blueprint_version_atomic'
+        ? {
+            data: {
+              id: '61000000-0000-4000-8000-000000000000',
+              course_blueprint_id: '10000000-0000-4000-8000-000000000000',
+              version_number: 1,
+              source_draft_revision: 1,
+              snapshot_schema_version: 1,
+              snapshot_json: {},
+              snapshot_sha256: 'a'.repeat(64),
+              source_kind: 'pika',
+              source_metadata: {},
+              created_by: '20000000-0000-4000-8000-000000000000',
+              created_at: '2026-07-26T00:00:00.000Z',
+            },
+            error: null,
+          }
+        : {
+            data: {
+              ok: false,
+              status: 500,
+              operation_id: operationId,
+              operation_type: 'instantiate',
+              error_code: 'create_classroom_resources_failed',
+              error: 'Atomic blueprint instantiation failed',
+              retryable: true,
+            },
+            error: null,
+          }
+    ))
 
     await expect(createClassroomFromBlueprint('teacher-1', {
       blueprintId: 'b-1',
@@ -764,7 +822,7 @@ describe('course-blueprints server helpers', () => {
       })
     )
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic',
+      'create_course_blueprint_atomic_v2',
       expect.objectContaining({
         p_operation_id: operationId,
         p_operation_type: 'capture',
@@ -811,9 +869,11 @@ describe('course-blueprints server helpers', () => {
       course_blueprint_assignments: [makeQueryBuilder({
         data: [{
           id: 'ba-1',
+          artifact_id: '31000000-0000-4000-8000-000000000000',
           title: 'Essay',
           instructions_markdown: 'Write an essay',
           submission_requirements_json: [{
+            id: '32000000-0000-4000-8000-000000000000',
             type: 'link',
             label: 'Published essay',
             instructions: '',
@@ -834,12 +894,14 @@ describe('course-blueprints server helpers', () => {
       course_blueprint_assessments: [makeQueryBuilder({
         data: [{
           id: 'bt-1',
+          artifact_id: '41000000-0000-4000-8000-000000000000',
           assessment_type: 'test',
           title: 'Unit Test',
           content: {
             title: 'Unit Test',
             show_results: false,
             questions: [{
+              id: '42000000-0000-4000-8000-000000000000',
               question_type: 'open_response',
               question_text: 'Explain recursion.',
               options: [],
@@ -860,7 +922,13 @@ describe('course-blueprints server helpers', () => {
         error: null,
       })],
       course_blueprint_lesson_templates: [makeQueryBuilder({
-        data: [{ id: 'bl-1', title: 'Lesson 1', content_markdown: 'Introduction', position: 0 }],
+        data: [{
+          id: 'bl-1',
+          artifact_id: '51000000-0000-4000-8000-000000000000',
+          title: 'Lesson 1',
+          content_markdown: 'Introduction',
+          position: 0,
+        }],
         error: null,
       })],
       classrooms: [
@@ -879,30 +947,50 @@ describe('course-blueprints server helpers', () => {
       class_days: [makeQueryBuilder({ data: [{ date: '2026-09-08' }], error: null })],
       lesson_plans: [lessonUpsert],
     })
-    mockSupabase.rpc = vi.fn().mockResolvedValue({
-      data: {
-        ok: true,
-        status: 201,
-        operation_id: operationId,
-        operation_type: 'instantiate',
-        replayed: false,
-        classroom_id: classroomId,
-        source_revision: 1,
-        counts: {
-          assignments: 1,
-          assessments: 1,
-          lesson_templates: 1,
-          class_days: 99,
-          submission_requirements: 1,
-          questions: 1,
-        },
-        lesson_mapping: {
-          applied_lesson_templates: 1,
-          overflow_lesson_templates: [],
-        },
-      },
-      error: null,
-    })
+    mockSupabase.rpc = vi.fn().mockImplementation((rpcName: string) => Promise.resolve(
+      rpcName === 'save_course_blueprint_version_atomic'
+        ? {
+            data: {
+              id: '61000000-0000-4000-8000-000000000000',
+              course_blueprint_id: '10000000-0000-4000-8000-000000000000',
+              version_number: 1,
+              source_draft_revision: 1,
+              snapshot_schema_version: 1,
+              snapshot_json: {},
+              snapshot_sha256: 'a'.repeat(64),
+              source_kind: 'pika',
+              source_metadata: {},
+              created_by: '20000000-0000-4000-8000-000000000000',
+              created_at: '2026-07-26T00:00:00.000Z',
+            },
+            error: null,
+          }
+        : {
+            data: {
+              ok: true,
+              status: 201,
+              operation_id: operationId,
+              operation_type: 'instantiate',
+              replayed: false,
+              classroom_id: classroomId,
+              source_blueprint_version_id: '61000000-0000-4000-8000-000000000000',
+              source_revision: 1,
+              counts: {
+                assignments: 1,
+                assessments: 1,
+                lesson_templates: 1,
+                class_days: 99,
+                submission_requirements: 1,
+                questions: 1,
+              },
+              lesson_mapping: {
+                applied_lesson_templates: 1,
+                overflow_lesson_templates: [],
+              },
+            },
+            error: null,
+          }
+    ))
 
     const result = await createClassroomFromBlueprint('teacher-1', {
       blueprintId: 'b-1',
@@ -918,9 +1006,10 @@ describe('course-blueprints server helpers', () => {
       operation_id: operationId,
     }))
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'instantiate_course_blueprint_atomic',
+      'instantiate_course_blueprint_atomic_v2',
       expect.objectContaining({
         p_operation_id: operationId,
+        p_blueprint_version_id: '61000000-0000-4000-8000-000000000000',
         p_plan: expect.objectContaining({
           classroom: expect.objectContaining({
             title: 'CS Fall',

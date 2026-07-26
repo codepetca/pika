@@ -47,14 +47,17 @@ quiz.md` writes `quiz.md` where you are, not inside the checkout.
 | `pnpm pika blueprint list` | List course blueprints. |
 | `pnpm pika blueprint delete <id> [--yes]` | Delete a blueprint. Permanent; classrooms made from it are unaffected. |
 | `pnpm pika blueprint pull <blueprintId> <dir>` | Export a blueprint to an editable directory (manifest.json + markdown). |
-| `pnpm pika blueprint push <dir> [--replace \| --new] [--yes]` | Import a course directory as a blueprint. |
+| `pnpm pika blueprint push <dir> [--new] [--yes]` | Import a new Blueprint or submit an identity-aware change proposal. |
+| `pnpm pika blueprint proposals <blueprintId>` | List reviewable proposals. |
+| `pnpm pika blueprint apply <blueprintId> <proposalId> [--yes]` | Explicitly apply a reviewed, non-stale proposal. |
 | `pnpm pika blueprint instantiate <id> --title <name> --semester semester1 --year 2026 [--yes]` | Turn a blueprint into a real classroom. |
 
 ## Creating a whole course
 
-A course is a directory: `manifest.json` plus up to six markdown files
+A course is a directory: `manifest.json` plus up to eight markdown files
 (`course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`,
-`tests.md`, `lesson-plans.md` — all optional). See
+`tests.md`, `lesson-plans.md`, `classwork-materials.md`, `surveys.md` — all
+optional). See
 `scripts/fixtures/dummy-course/` for a working example an agent can copy.
 
 ```bash
@@ -69,14 +72,12 @@ pnpm pika blueprint instantiate <blueprintId> --title "CS 101" \
 ```bash
 pnpm pika blueprint pull <blueprintId> course/            # export to markdown
 $EDITOR course/assignments.md course/tests.md          # edit
-pnpm pika blueprint push course/ --replace --yes          # delete + recreate
+pnpm pika blueprint push course/ --yes                    # submit proposal
 ```
 
-`course push` refuses by default when a blueprint with the same course code (or
-title) already exists, so repeated pushes don't silently pile up duplicates.
-Pass `--replace` to delete and recreate it, or `--new` to create a duplicate on
-purpose. Replacing a blueprint does not touch classrooms already instantiated
-from it — those are independent copies.
+When the pulled package identifies an existing Blueprint, push submits a
+reviewable proposal. Pika rejects stale package revisions and never deletes the
+existing Blueprint. Pass `--new` only to create an independent copy.
 
 ## Testing
 
@@ -157,8 +158,8 @@ allowlist) and is not what these commands use.
   add them as you actually reach for them.
 - **`test push` updates an existing test's draft.** Creating a test from
   scratch and publishing a draft are not wrapped yet.
-- **`course push --replace` deletes and recreates** the blueprint rather than
-  diffing it. Classrooms already instantiated from it are unaffected.
+- **`course push` proposes changes** to an existing Blueprint. Applying is a
+  separate explicit action and preserves stable artifact lineage.
 - **Local dev by default.** `PIKA_BASE_URL` can point elsewhere, but there are
   no extra confirmation guards for production — add them before doing so.
 - Files: `scripts/pika.ts` (commands), `scripts/pika-api.ts` (client),

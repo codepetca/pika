@@ -41,6 +41,10 @@ function seedSourceSupabase(overrides?: {
   tests?: Array<Record<string, any>>
   testQuestions?: Array<Record<string, any>>
   assessmentDrafts?: Array<Record<string, any>>
+  materials?: Array<Record<string, any>>
+  surveys?: Array<Record<string, any>>
+  surveyQuestions?: Array<Record<string, any>>
+  grading?: Record<string, any> | null
 }) {
   const classroom = {
     id: 'c-1',
@@ -80,6 +84,15 @@ function seedSourceSupabase(overrides?: {
     lesson_plans: [
       makeQueryBuilder({ data: [], error: null }),
     ],
+    classwork_materials: [
+      makeQueryBuilder({ data: overrides?.materials || [], error: null }),
+    ],
+    surveys: [
+      makeQueryBuilder({ data: overrides?.surveys || [], error: null }),
+    ],
+    gradebook_settings: [
+      makeQueryBuilder({ data: overrides?.grading ?? null, error: null }),
+    ],
     announcements: [
       makeQueryBuilder({ data: [], error: null }),
     ],
@@ -102,6 +115,9 @@ function seedSourceSupabase(overrides?: {
         error: overrides?.assessmentDraftError ?? null,
       }),
     ],
+    survey_questions: overrides?.surveys?.length
+      ? [makeQueryBuilder({ data: overrides.surveyQuestions || [], error: null })]
+      : [],
   })
 }
 
@@ -249,6 +265,68 @@ describe('classroom blueprint source loader', () => {
       source: 'link',
       url: 'https://docs.example.com/reference',
     }])
+  })
+
+  it('projects materials, surveys, grading, and portable identity without runtime state', async () => {
+    seedSourceSupabase({
+      materials: [{
+        id: 'm-row',
+        artifact_id: '11111111-1111-4111-8111-111111111111',
+        title: 'Course guide',
+        content: { markdown: 'Read this first.' },
+        position: 1,
+        is_draft: false,
+        released_at: '2026-09-01T12:00:00.000Z',
+      }],
+      surveys: [{
+        id: 's-row',
+        artifact_id: '22222222-2222-4222-8222-222222222222',
+        title: 'Check-in',
+        show_results: false,
+        dynamic_responses: true,
+        position: 2,
+        status: 'active',
+        opens_at: '2026-09-02T12:00:00.000Z',
+      }],
+      surveyQuestions: [{
+        id: 'sq-row',
+        artifact_id: '33333333-3333-4333-8333-333333333333',
+        survey_id: 's-row',
+        question_type: 'short_text',
+        question_text: 'What do you need?',
+        options: [],
+        response_max_chars: 300,
+        position: 0,
+      }],
+      grading: {
+        use_weights: true,
+        assignments_weight: 65,
+        tests_weight: 35,
+      },
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.materials).toEqual([expect.objectContaining({
+      artifact_id: '11111111-1111-4111-8111-111111111111',
+      content_markdown: 'Read this first.',
+      position: 1,
+    })])
+    expect(result.source.surveys).toEqual([expect.objectContaining({
+      artifact_id: '22222222-2222-4222-8222-222222222222',
+      questions_json: [expect.objectContaining({
+        id: '33333333-3333-4333-8333-333333333333',
+      })],
+    })])
+    expect(result.source.grading).toEqual({
+      use_weights: true,
+      assignments_weight: 65,
+      tests_weight: 35,
+    })
+    expect(result.source.materials[0]).not.toHaveProperty('released_at')
+    expect(result.source.surveys[0]).not.toHaveProperty('status')
+    expect(result.source.surveys[0]).not.toHaveProperty('opens_at')
   })
 
   it('rejects a source snapshot when classroom content changes during loading', async () => {

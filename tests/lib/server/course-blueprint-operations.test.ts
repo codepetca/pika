@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCreateBlueprintWritePlan,
+  buildClassroomBlueprintUpdateWritePlan,
   buildInstantiateBlueprintWritePlan,
   createBlueprintWritePlanSchema,
   createCourseBlueprintAtomic,
@@ -50,6 +51,9 @@ function blueprintDetail() {
     overview_markdown: 'Overview',
     outline_markdown: 'Outline',
     resources_markdown: '',
+    gradebook_use_weights: true,
+    gradebook_assignments_weight: 65,
+    gradebook_tests_weight: 35,
     planned_site_slug: null,
     planned_site_published: false,
     planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
@@ -63,6 +67,31 @@ function blueprintDetail() {
       { id: 'l-2', course_blueprint_id: 'b-1', title: 'Lesson 2', content_markdown: 'Two', position: 1 },
       { id: 'l-3', course_blueprint_id: 'b-1', title: 'Lesson 3', content_markdown: 'Three', position: 2 },
     ],
+    materials: [{
+      id: 'm-1',
+      artifact_id: '71000000-0000-4000-8000-000000000020',
+      course_blueprint_id: 'b-1',
+      title: 'Course guide',
+      content_markdown: 'Read first.',
+      position: 0,
+    }],
+    surveys: [{
+      id: 's-1',
+      artifact_id: '72000000-0000-4000-8000-000000000020',
+      course_blueprint_id: 'b-1',
+      title: 'Check-in',
+      show_results: false,
+      dynamic_responses: true,
+      questions_json: [{
+        id: '73000000-0000-4000-8000-000000000020',
+        question_type: 'short_text',
+        question_text: 'What do you need?',
+        options: [],
+        response_max_chars: 300,
+        position: 0,
+      }],
+      position: 1,
+    }],
     linked_classrooms: [],
   } as any
 }
@@ -182,7 +211,7 @@ describe('atomic blueprint operation contracts', () => {
     })
 
     expect(supabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic',
+      'create_course_blueprint_atomic_v2',
       expect.objectContaining({
         p_source_classroom_id: '40000000-0000-4000-8000-000000000020',
         p_expected_source_revision: 12,
@@ -230,6 +259,23 @@ describe('atomic blueprint operation contracts', () => {
         expect.objectContaining({ date: '2026-09-09' }),
       ],
       overflow_lesson_templates: ['Lesson 3'],
+      grading: {
+        use_weights: true,
+        assignments_weight: 65,
+        tests_weight: 35,
+      },
+      materials: [expect.objectContaining({
+        artifact_id: '71000000-0000-4000-8000-000000000020',
+        title: 'Course guide',
+        position: 0,
+      })],
+      surveys: [expect.objectContaining({
+        artifact_id: '72000000-0000-4000-8000-000000000020',
+        questions: [expect.objectContaining({
+          artifact_id: '73000000-0000-4000-8000-000000000020',
+        })],
+        position: 1,
+      })],
     }))
   })
 
@@ -252,6 +298,72 @@ describe('atomic blueprint operation contracts', () => {
     expect(first.ok && first.plan.classroom.class_code).toBe(
       second.ok && second.plan.classroom.class_code,
     )
+  })
+
+  it('materializes Blueprint pacing against a classroom calendar without runtime controls', () => {
+    const snapshot = {
+      schema_version: 2,
+      blueprint_id: '20000000-0000-4000-8000-000000000020',
+      draft_revision: 7,
+      metadata: {
+        title: 'Course',
+        subject: '',
+        grade_level: '',
+        course_code: '',
+        term_template: '',
+      },
+      sections: {
+        overview_markdown: 'Overview',
+        outline_markdown: 'Outline',
+        resources_markdown: 'Resources',
+      },
+      grading: { use_weights: true, assignments_weight: 65, tests_weight: 35 },
+      planned_site: {
+        slug: null,
+        published: false,
+        config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+      },
+      assignments: [{
+        artifact_id: '71000000-0000-4000-8000-000000000020',
+        title: 'Draft assignment',
+        instructions_markdown: 'Do the work.',
+        submission_requirements: [],
+        default_due_days: 7,
+        default_due_time: '15:30',
+        points_possible: 30,
+        gradebook_weight: 10,
+        include_in_final: true,
+        is_draft: true,
+        track_authenticity: false,
+        position: 0,
+      }],
+      assessments: [],
+      lesson_templates: [],
+      materials: [],
+      surveys: [],
+    } as const
+
+    const plan = buildClassroomBlueprintUpdateWritePlan({
+      snapshot: snapshot as any,
+      classroomStartDate: '2026-09-08',
+      classDayDates: ['2026-09-08'],
+    })
+    expect(plan.assignments[0]).toEqual(expect.objectContaining({
+      artifact_id: '71000000-0000-4000-8000-000000000020',
+      due_at: '2026-09-15T19:30:00.000Z',
+    }))
+    expect(plan.calendar_guard).toEqual({
+      start_date: '2026-09-08',
+      class_day_dates: ['2026-09-08'],
+    })
+    expect(plan.site_visibility_defaults).toEqual(
+      DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+    )
+    expect(plan.assignments[0]).not.toHaveProperty('is_draft')
+    expect(plan.assignments[0]).not.toHaveProperty('released_at')
+    expect(plan.tests).toEqual([])
+    expect(plan).not.toHaveProperty('students')
+    expect(plan).not.toHaveProperty('submissions')
   })
 
   it('rejects missing or ambiguous classroom calendar modes before any RPC call', () => {

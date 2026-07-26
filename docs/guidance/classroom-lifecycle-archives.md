@@ -78,8 +78,8 @@ The three artifacts solve different problems and must not be substituted for eac
 | Classroom archive | Recover the complete classroom | Yes | Yes | Private `classroom-archives` bucket |
 | Gradex extract | Improve and evaluate grading behavior | Deidentified subset | No | Private `gradex-analytics-extracts` bucket |
 
-The canonical `.course-package.tar` export manifest is version 4. Import accepts versions 2, 3, and
-4; version 2 discards `quizzes.md`, and version 3 manifests are normalized to the current planned-site
+The canonical `.course-package.tar` export manifest is version 5. Import accepts versions 2, 3, 4, and
+5; version 2 discards `quizzes.md`, and version 3 manifests are normalized to the current planned-site
 configuration. The package includes teacher-authored course content, assignment and Test templates,
 lesson templates, grading configuration, submission requirement templates, and planned-site
 configuration.

@@ -1309,3 +1309,68 @@ source writes, background delivery, and cross-repository integration.
 - Keep PR 951 draft and `PAL_ENABLED=false`; the published native widget,
   authenticated vertical slice, and one-time human authorization for the
   named migration target remain rollout gates.
+## 2026-07-26 — Versioned Course Blueprint lineage and proposals
+
+**Risk profile:** high — migration 111 changes reusable artifact identity and
+structural revision triggers, and adds atomic proposal application.
+
+**Completed:**
+- Defined Course Blueprint, Blueprint Draft, immutable Blueprint Version,
+  Artifact ID, Course Package, Change Proposal, and Classroom Archive
+  boundaries. Student work and classroom runtime state remain outside the
+  Blueprint.
+- Added package format v5 with UUIDv4 Artifact IDs and exact Blueprint
+  revision/version/editing-session provenance while retaining legacy package
+  import adapters.
+- Added stable Blueprint-to-classroom lineage for assignments, tests,
+  questions, submission requirements, lesson plans, classwork materials,
+  surveys, and survey questions.
+- Expanded the complete reusable structure boundary to include mixed classwork
+  ordering, assignment authenticity settings, and category gradebook defaults
+  while excluding releases, responses, grades, and other runtime/student data.
+- Added content-addressed immutable Blueprint Versions and made export and
+  classroom instantiation save/select an exact Version.
+- Added atomic, idempotent, stale-safe proposal storage/application for
+  repository, classroom, package, and Pika AI sources.
+- Completed the inverse update path from an immutable Blueprint Version into
+  an existing linked classroom. Pika now prepares a classroom-target proposal
+  against exact Blueprint, classroom, start-date, and class-day revisions and
+  applies the reviewed plan atomically.
+- Added live-classroom successor safety: attempted Tests, surveys with
+  responses, and assignments with student documents retain their historical
+  rows and receive new unpublished draft successors for content updates.
+  Blueprint removals retire lineage from future sync without deleting runtime
+  or student data.
+- Replaced destructive CLI replacement with pull-edit-propose-review/apply and
+  added proposal listing/application commands.
+- Added explicit Pika-managed versus repository-managed authority. Direct Pika
+  Draft edits are blocked in repository mode.
+- Routed classroom promotion and AI drafting through proposals rather than
+  direct Blueprint writes.
+- Added teacher Materials, Surveys, and Grading editors, AI targets, and a
+  Proposal review surface with operation-level diffs, actionable/stale states,
+  and repository read-only messaging.
+- Applied migrations 106-111 to shared local after a verified backup and
+  regenerated the database contract.
+
+**Validation:**
+- Full Vitest suite: 434 files / 3,831 tests.
+- Focused migration, Blueprint, Test, and assignment compatibility coverage:
+  7 files / 64 tests.
+- `pnpm run db:types:check`.
+- `pnpm exec tsc --noEmit`.
+- `pnpm lint`.
+- `pnpm build` (valid `.next/BUILD_ID`).
+- Pika audit.
+- Playwright teacher desktop/mobile, light/dark, empty/populated, Materials,
+  Grading, two-way Classroom Updates, and classroom-target proposal-detail
+  captures; student route redirect capture.
+- `git diff --check`.
+- Local history through 111, identity/runtime preservation checks, and
+  rollback-only Version, revision, proposal, and successor smokes.
+- Pre-migration backup:
+  `/Users/stew/Repos/.env/pika/backups/pika-local-pre-106-111-20260726T201121Z.dump`
+  (SHA-256 verified).
+
+**Remaining:**
+- Review and publish the branch.

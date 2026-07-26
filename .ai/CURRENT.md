@@ -1,6 +1,12 @@
-# Pika Current Context
+Focus: `codex/versioned-course-blueprints` implements lineage and live-safe
+classroom updates. Shared local is through migration 111; rollback-only Version,
+revision, proposal, and successor-safety smokes pass.
 
-Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-LOG.md`.
+Environment rules: `docs/dev-workflow.md`.
+- Worktrees: `$HOME/.codex/worktrees/pika/` or
+  `$HOME/.codex/worktrees/<id>/pika`.
+- Env: `$HOME/Repos/.env/pika/.env.local`; collaborators may copy
+  `.env.example`.
 
 ## Current Focus
 

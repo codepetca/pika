@@ -27,6 +27,9 @@ type TestQuestionResponse = Omit<
   | 'ai_reference_cache_generated_at'
   | 'ai_reference_cache_key'
   | 'ai_reference_cache_model'
+  | 'artifact_id'
+  | 'source_artifact_id'
+  | 'source_blueprint_version_id'
 > & Partial<Pick<
   TableRow<'test_questions'>,
   | 'ai_reference_cache_answers'
@@ -66,7 +69,26 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
 
   const { data: questions, error: questionsError } = await supabase
     .from('test_questions')
-    .select('*')
+    .select(`
+      id,
+      test_id,
+      question_type,
+      question_text,
+      options,
+      correct_option,
+      answer_key,
+      sample_solution,
+      points,
+      response_max_chars,
+      response_monospace,
+      position,
+      ai_reference_cache_answers,
+      ai_reference_cache_generated_at,
+      ai_reference_cache_key,
+      ai_reference_cache_model,
+      created_at,
+      updated_at
+    `)
     .eq('test_id', id)
     .order('position', { ascending: true })
 
