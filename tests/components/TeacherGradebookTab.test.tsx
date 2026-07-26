@@ -394,7 +394,7 @@ describe('TeacherGradebookTab', () => {
     expect(await screen.findByText('Ada')).toBeInTheDocument()
 
     const floatingCluster = screen.getByRole('button', { name: 'Gradebook actions' }).closest('.fixed')
-    expect(floatingCluster).toHaveClass('fixed', 'z-40')
+    expect(floatingCluster).toHaveClass('fixed', 'z-floating')
     expect(floatingCluster?.className).not.toContain('z-[70]')
     expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('z-30')
     expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('z-20', 'md:z-30')

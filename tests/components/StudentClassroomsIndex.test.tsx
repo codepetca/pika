@@ -54,6 +54,6 @@ describe('StudentClassroomsIndex', () => {
       name: '+ Join classroom',
     })
     await waitFor(() => expect(joinItem).toHaveFocus())
-    expect(joinItem).toHaveClass('min-h-11', 'focus-visible:ring-2')
+    expect(joinItem).toHaveClass('min-h-control', 'focus-visible:ring-foundation')
   })
 })

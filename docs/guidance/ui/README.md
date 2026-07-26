@@ -28,6 +28,7 @@ When a task affects UI, styling, layout, or interaction flow, read in this order
 5. Family-specific canon docs in this folder when the task targets a governed slice
 6. Relevant experimental, legacy, and open-question docs in this folder only if they materially affect the task
 7. [`docs/guidance/ui/composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md) when the task changes composite interactions or ARIA semantics
+8. [`docs/guidance/ui/visual-evidence-template.md`](/docs/guidance/ui/visual-evidence-template.md) when captures will be retained as review evidence
 
 The stable file is the default. Experimental and legacy docs are context, not overrides.
 
@@ -75,6 +76,7 @@ When a task touches UI/UX, the implementation plan or issue note should declare:
 - [`teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)
 - [`audit-teacher-work-surfaces.md`](/docs/guidance/ui/audit-teacher-work-surfaces.md)
 - [`composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md)
+- [`visual-evidence-template.md`](/docs/guidance/ui/visual-evidence-template.md)
 - [`legacy.md`](/docs/guidance/ui/legacy.md)
 - [`open-questions.md`](/docs/guidance/ui/open-questions.md)
 - [`experimental/README.md`](/docs/guidance/ui/experimental/README.md)

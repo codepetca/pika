@@ -1,14 +1,23 @@
 import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { extendTailwindMerge } from 'tailwind-merge'
+
+const mergeTailwindClasses = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'ring-w': [{ ring: ['foundation'] }],
+      'ring-offset-w': [{ 'ring-offset': ['foundation'] }],
+    },
+  },
+})
 
 /**
  * Utility for merging class names with Tailwind CSS support.
  * Uses clsx for conditional classes and tailwind-merge to handle conflicts.
  *
  * @example
- * cn('px-4 py-2', isPrimary && 'bg-blue-500', className)
- * cn('text-red-500', 'text-blue-500') // => 'text-blue-500' (tailwind-merge resolves conflict)
+ * cn('px-4 py-2', isPrimary && 'bg-primary-solid', className)
+ * cn('text-text-muted', 'text-text-default') // => 'text-text-default'
  */
 export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs))
+  return mergeTailwindClasses(clsx(inputs))
 }

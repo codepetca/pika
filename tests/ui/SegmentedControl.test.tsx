@@ -26,7 +26,11 @@ describe('SegmentedControl', () => {
     expect(preview).toHaveAttribute('aria-pressed', 'false')
     expect(edit).toHaveAttribute('tabindex', '0')
     expect(preview).toHaveAttribute('tabindex', '-1')
-    expect(edit).toHaveClass('min-h-11', 'min-w-11', 'focus-visible:ring-2')
+    expect(edit).toHaveClass(
+      'min-h-control',
+      'min-w-control',
+      'focus-visible:ring-foundation',
+    )
 
     fireEvent.click(preview)
     expect(onChange).toHaveBeenCalledWith('preview')

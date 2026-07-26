@@ -118,11 +118,10 @@ this contract is drift to resolve, not permission to silently copy the mismatch.
 
 ## Stable Foundation Contract
 
-Semantic colors and the canonical primitive behaviors below are implemented.
-Portable typography, focus, motion, density, and layer variables are migration
-gaps, and adoption of page, control, and overlay owners is incomplete across
-legacy surfaces. The rules remain the default for new or deliberately modified
-work.
+Semantic colors, portable foundation variables, and the canonical primitive
+behaviors below are implemented. Adoption of page, control, motion, and overlay
+owners remains incomplete across legacy surfaces. The rules remain the default
+for new or deliberately modified work.
 
 ### Semantic color and themes
 
@@ -147,10 +146,9 @@ work.
   than feature-local title scales.
 - Components and embedded widgets inherit host typography unless a documented
   content-specific exception owns another typeface.
-- Pika currently relies on the application font cascade rather than portable
-  typography custom properties. External widgets must inherit by default;
-  explicit typography variables belong in a reviewed bridge, not copied font
-  declarations.
+- `--font-family-ui` and `--font-family-mono` expose the implemented stacks for
+  portable consumers. External widgets inherit by default and consume these
+  values only through a reviewed host bridge, never copied declarations.
 - The Tiptap editor remains a content-owned mini-platform exception. Its
   typography must not spread into ordinary application controls or shells.
 
@@ -184,8 +182,9 @@ work.
   semantic state, disabled-item handling, Escape behavior, and focus return.
 - Do not suppress an outline without providing an equally visible replacement.
 - Canonical primitives own a primary-color focus treatment with a
-  context-appropriate offset or inset ring. The treatment is not yet a portable
-  token contract, and older feature-owned controls require direct verification.
+  context-appropriate offset or inset ring. Portable focus colour, width,
+  offset, and minimum-control tokens back those owners; older feature-owned
+  controls still require direct verification.
 
 ### Motion and reduced motion
 
@@ -196,6 +195,9 @@ work.
 - Every non-essential animation or transition has a reduced-motion path.
 - Playful features may retain identity through static artwork and state changes
   when movement is reduced.
+- Shared motion durations resolve to zero when the user requests reduced
+  motion. Feature-owned animation that does not use those durations must
+  provide its own equivalent media-query path.
 - This is a stable contract, not a statement that current coverage is complete.
   Reduced-motion handling is still distributed and partial; an existing
   animation without an opt-out is debt, not precedent.
@@ -211,15 +213,15 @@ work.
   owner exists.
 - `ModalLayer` is the canonical current owner for document-level dialogs and
   mobile drawers. Several older fixed overlays remain governed migration debt.
-- Pika does not yet expose a portable named layer scale, overlay boundary, or
-  scrim token. Until it does, new work reuses an existing owner and external
-  widgets accept a host-provided overlay root instead of choosing their own
-  global layer.
+- Portable layer-responsibility and light/dark scrim tokens back the shared
+  owners. They do not grant feature code permission to choose a global layer.
+- Overlay containment remains a behavioral boundary: new work reuses an
+  existing owner, and external widgets accept a host-provided overlay root
+  instead of portaling to `document.body`.
 
-Phase 2 of the design-system consolidation will give typography, focus, motion,
-global layers, overlay scrims/bounds, touch targets, and density portable
-semantic tokens. Until then, reuse the existing shared owners instead of
-creating competing values.
+The portable foundation values live in `src/styles/tokens.css`; Tailwind only
+adapts them. New work uses the semantic aliases documented in `src/ui/README.md`.
+Existing raw values are governed migration evidence, not additional options.
 
 ## Application Composition
 
@@ -360,6 +362,12 @@ route or surface, role, viewport, theme, and state. Existing capture sets that
 predate this contract remain historical evidence only when their temporal
 mismatch is explicit.
 
+Raw colours, arbitrary spacing, and raw layer values in product source require
+an exact, owned exception in `scripts/design-value-exceptions.json`. CI compares
+both counts and fingerprints, so additions, removals, and same-count
+substitutions require review. An exception records migration or content
+ownership; it does not promote the value into the design system.
+
 ## Verification Contract
 
 User-visible UI work is complete only after:
@@ -412,6 +420,8 @@ authority.
 - Governed UI canon: [`docs/guidance/ui/README.md`](./docs/guidance/ui/README.md)
 - Stable guidance: [`docs/guidance/ui/stable.md`](./docs/guidance/ui/stable.md)
 - UI change brief: [`docs/guidance/ui/change-brief.md`](./docs/guidance/ui/change-brief.md)
+- Visual evidence record:
+  [`docs/guidance/ui/visual-evidence-template.md`](./docs/guidance/ui/visual-evidence-template.md)
 - Composite accessibility:
   [`docs/guidance/ui/composite-widget-accessibility.md`](./docs/guidance/ui/composite-widget-accessibility.md)
 - Representative product evidence:

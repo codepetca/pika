@@ -60,8 +60,8 @@ describe('SplitButton', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
     expect(screen.getByRole('menuitem', { name: 'Schedule' })).toHaveClass(
-      'min-h-11',
-      'focus-visible:ring-2',
+      'min-h-control',
+      'focus-visible:ring-foundation',
       'focus-visible:ring-inset',
     )
   })

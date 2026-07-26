@@ -62,6 +62,39 @@ describe('ui guidance docs and prompts', () => {
     expect(productEvidence).toContain('not as fresh conformance proof')
   })
 
+  it('requires provenance for durable visual evidence and PR conformance claims', () => {
+    const design = readRepoFile('DESIGN.md')
+    const testingGuide = readRepoFile('docs/guides/ai-ui-testing.md')
+    const evidenceTemplate = readRepoFile(
+      'docs/guidance/ui/visual-evidence-template.md',
+    )
+    const pullRequestTemplate = readRepoFile('.github/pull_request_template.md')
+
+    expect(design).toContain('visual-evidence-template.md')
+    expect(testingGuide).toContain('visual-evidence-template.md')
+    for (const field of [
+      'Implementation commit',
+      'Capture date',
+      'Viewport or container',
+      'Historical baseline or current conformance evidence',
+    ]) {
+      expect(evidenceTemplate).toContain(field)
+    }
+    for (const dimension of [
+      'Teacher',
+      'Student',
+      'Desktop',
+      'Mobile',
+      'Light',
+      'Dark',
+      'Focus/keyboard',
+      'Reduced motion',
+    ]) {
+      expect(pullRequestTemplate).toContain(dimension)
+    }
+    expect(pullRequestTemplate).toContain('Raw design-value exception changed')
+  })
+
   it('retires the historical design-system document without weakening legacy governance', () => {
     const historicalPath = resolve(testDir, '../..', 'docs/design-system.md')
     const legacyGuidance = readRepoFile('docs/guidance/ui/legacy.md')

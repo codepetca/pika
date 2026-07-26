@@ -1,0 +1,995 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "file": "src/app/classrooms/[classroomId]/ClassroomPageClient.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "090f0fcf6022696d",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/loading.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "c9f345cc744e1657",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentResourcesTab.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "ec1d80b0398c341d",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentTestsTab.tsx",
+      "reviewBy": "phase-3-tests-exam-mode",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "864000abc5b64cda",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "7eea8611e7cbb6e6",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 4,
+          "fingerprint": "09687a5852fc8eb9",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentTodayTab.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "cf0fef07b09cfab4",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherAnnouncementsSection.tsx",
+      "reviewBy": "phase-3-announcements",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 6,
+          "fingerprint": "01999dfccae59d6f",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 8,
+          "fingerprint": "d8800159e0354a5f",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 2,
+          "fingerprint": "556991f875e0acb3",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx",
+      "reviewBy": "phase-3-attendance",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "4f915023ef036a7b",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherClassResourcesSidebar.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "246483286dd3066c",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherClassroomView.tsx",
+      "reviewBy": "phase-3-classwork",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "4085886e79150fbc",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx",
+      "reviewBy": "phase-3-gradebook",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "1fe51233df618b68",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 26,
+          "fingerprint": "298d1d5e0addb03d",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherResourcesTab.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "ec1d80b0398c341d",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherRosterTab.tsx",
+      "reviewBy": "phase-3-roster",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "5aeb452565160656",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx",
+      "reviewBy": "phase-3-settings",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 4,
+          "fingerprint": "999d9d3b47705b32",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherTestsTab.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "4c9fcf2aead93eeb",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/TeacherClassroomsIndex.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "f46e4f63f5b1fe81",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/layout.tsx",
+      "reviewBy": "phase-6-theme-parity",
+      "values": [
+        {
+          "kind": "raw-css-color",
+          "count": 2,
+          "fingerprint": "d77dd721687196b0",
+          "reason": "theme-bootstrap"
+        }
+      ]
+    },
+    {
+      "file": "src/app/snapshots-gallery/SnapshotGallery.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "3b2129406eefd7fd",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/app/student/history/page.tsx",
+      "reviewBy": "phase-3-student-history",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "9696cc4f81f0a789",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "3b2129406eefd7fd",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/app/teacher/blueprints/page.tsx",
+      "reviewBy": "phase-5-blueprints",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "8e641faaedf5510a",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/teacher/calendar/page.tsx",
+      "reviewBy": "phase-3-calendar",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "9d93856156b47301",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/app/teacher/dashboard/page.tsx",
+      "reviewBy": "phase-3-dashboard",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "3b2129406eefd7fd",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 3,
+          "fingerprint": "5b8a95dbe44cc73b",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AddStudentsModal.tsx",
+      "reviewBy": "phase-3-roster",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "4d80d2738b0dc134",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "830020e061d92a58",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assessment/AssessmentSetupDialog.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 8,
+          "fingerprint": "ec81a743e15a38b8",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assessment/EditableAssessmentTitle.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "c7b845f5de6a7a47",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assignment-workspace/TeacherAssignmentStudentTable.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assignment-workspace/TeacherWorkInspector.tsx",
+      "reviewBy": "phase-3-assignments",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 6,
+          "fingerprint": "9fbf362d7bebc056",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 18,
+          "fingerprint": "be08ccfd9ca1537b",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentArtifactsCell.tsx",
+      "reviewBy": "phase-3-assignments",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "34055e6f8c1b444d",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentForm.tsx",
+      "reviewBy": "phase-3-assignments",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "6558d2be703257cf",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentModal.tsx",
+      "reviewBy": "phase-3-assignments",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "1e43ff6cdd353cfe",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentSubmissionRequirementsEditor.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/CalendarActionBar.tsx",
+      "reviewBy": "phase-3-calendar",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "9f563f4c1d285d37",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ClassroomDropdown.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "451b7b47ec4cd7be",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "537c6ab184a2098b",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/creation/CreationModalShell.tsx",
+      "reviewBy": "phase-3-creation-flows",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 6,
+          "fingerprint": "26d2461b9efbae29",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "4e8f0a87a0dc6164",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/DateActionBar.tsx",
+      "reviewBy": "phase-3-calendar",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "56d41214b87c7fc3",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/editor/RichTextEditor.tsx",
+      "reviewBy": "phase-3-authoring",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 2,
+          "fingerprint": "67ffffa7d32214c4",
+          "reason": "content-owned-color"
+        }
+      ]
+    },
+    {
+      "file": "src/components/editor/RichTextViewer.tsx",
+      "reviewBy": "phase-3-authoring",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 2,
+          "fingerprint": "67ffffa7d32214c4",
+          "reason": "content-owned-color"
+        }
+      ]
+    },
+    {
+      "file": "src/components/FloatingActionCluster.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "cbfd945c7e62f157",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/layout/LeftSidebar.tsx",
+      "reviewBy": "phase-2-shared-shell",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "ad105f648a65c3e5",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "3d00bb19a40417c2",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/layout/RightSidebar.tsx",
+      "reviewBy": "phase-2-shared-shell",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "ad105f648a65c3e5",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "3d00bb19a40417c2",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/LessonCalendar.tsx",
+      "reviewBy": "phase-3-calendar",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 7,
+          "fingerprint": "b63bda714442d103",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 2,
+          "fingerprint": "556991f875e0acb3",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/LessonDayCell.tsx",
+      "reviewBy": "phase-3-calendar",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 3,
+          "fingerprint": "288e2c335fcb9ab5",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 12,
+          "fingerprint": "ed5fc193d581fc0e",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/LimitedMarkdown.tsx",
+      "reviewBy": "phase-3-authoring",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 2,
+          "fingerprint": "67ffffa7d32214c4",
+          "reason": "content-owned-color"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ScheduleDateTimePicker.tsx",
+      "reviewBy": "phase-3-scheduling",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 2,
+          "fingerprint": "5b9c422177b72590",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/components/SortableClassroomRow.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "d0039cf5f3d17fa2",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentCountBadge.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "9a7d5ca5f7d6b10a",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentTestForm.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "9d3f814d6fec12ae",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/surveys/SurveyCreationModal.tsx",
+      "reviewBy": "phase-3-surveys",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "3d2942c28e776924",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/surveys/TeacherSurveyWorkspace.tsx",
+      "reviewBy": "phase-3-surveys",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "ba36c18da944fc90",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/teacher-work-surface/TeacherWorkItemCardFrame.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/teacher-work-surface/TeacherWorkSurfaceActionCluster.tsx",
+      "reviewBy": "phase-3-teacher-work-surfaces",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "34055e6f8c1b444d",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/teacher-work-surface/TeacherWorkSurfaceModeBar.tsx",
+      "reviewBy": "phase-3-teacher-work-surfaces",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "1acd74b1b0eedf8f",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TeacherStudentWorkModal.tsx",
+      "reviewBy": "phase-3-assignments",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "18bc424b18fb07f1",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "830020e061d92a58",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TeacherTestPreviewPage.tsx",
+      "reviewBy": "phase-3-tests-exam-mode",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "f4782128604f1ecb",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "7eea8611e7cbb6e6",
+          "reason": "legacy-visual-value"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 7,
+          "fingerprint": "29ea700c0adba061",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/test-workspace/TeacherTestAuthoringDialog.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "090f0fcf6022696d",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestDetailPanel.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "07f5119126d7ddcf",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-css-color",
+          "count": 2,
+          "fingerprint": "d8656fc0bedd0ea0",
+          "reason": "content-owned-color"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 2,
+          "fingerprint": "556991f875e0acb3",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestQuestionEditor.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 9,
+          "fingerprint": "bad2c3b0464be322",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 2,
+          "fingerprint": "800c9add04acd35a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestStudentGradingPanel.tsx",
+      "reviewBy": "phase-3-tests",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "6fad538e00e71cee",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/UserMenu.tsx",
+      "reviewBy": "phase-2-shared-shell",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 20,
+          "fingerprint": "4ef663e9fafd9792",
+          "reason": "dynamic-identity-color"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "3eef1ce97dba458a",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/WorkspaceSplitPane.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/contexts/ThemeContext.tsx",
+      "reviewBy": "phase-6-theme-parity",
+      "values": [
+        {
+          "kind": "raw-css-color",
+          "count": 4,
+          "fingerprint": "6d091a2ddcb22fdd",
+          "reason": "theme-bootstrap"
+        }
+      ]
+    },
+    {
+      "file": "src/lib/attendance.ts",
+      "reviewBy": "phase-3-attendance",
+      "values": [
+        {
+          "kind": "raw-color-class",
+          "count": 3,
+          "fingerprint": "6b13fe7812839082",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/lib/classroom-theme.ts",
+      "reviewBy": "phase-2-classroom-identity",
+      "values": [
+        {
+          "kind": "raw-css-color",
+          "count": 48,
+          "fingerprint": "42aa07ff80c2952b",
+          "reason": "dynamic-identity-color"
+        }
+      ]
+    },
+    {
+      "file": "src/ui/AppMessage.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "14c90175e60364a8",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/ui/Dialog.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 5,
+          "fingerprint": "a1b544e62e585d15",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/ui/SplitButton.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "b80bd523efaa4774",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-color-class",
+          "count": 1,
+          "fingerprint": "c1a8491ee4e9ab8b",
+          "reason": "legacy-visual-value"
+        }
+      ]
+    },
+    {
+      "file": "src/ui/Tabs.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "d86265661ba3af50",
+          "reason": "layout-geometry"
+        },
+        {
+          "kind": "raw-z-index",
+          "count": 1,
+          "fingerprint": "418e44ad4f9ebdab",
+          "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/ui/Tooltip.tsx",
+      "reviewBy": "phase-2-design-foundation-debt",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 1,
+          "fingerprint": "f2a1079bec0fefb9",
+          "reason": "layout-geometry"
+        }
+      ]
+    }
+  ]
+}

@@ -80,10 +80,10 @@ describe('form control contract', () => {
       screen.getByRole('combobox', { name: 'Course' }),
     ]) {
       expect(control).toHaveClass(
-        'min-h-11',
+        'min-h-control',
         'focus:outline-none',
-        'focus-visible:ring-2',
-        'focus-visible:ring-primary',
+        'focus-visible:ring-foundation',
+        'focus-visible:ring-focus',
       )
     }
   })
