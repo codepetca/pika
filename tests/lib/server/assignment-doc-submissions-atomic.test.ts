@@ -182,7 +182,7 @@ describe('atomic assignment document operations', () => {
       itemId: 'assignment-1',
       dueAt: '2026-07-16T13:00:00.000Z',
       occurredAt: new Date('2026-07-16T12:02:00.000Z'),
-      pseudonymSecret: 'test-pseudonym-secret',
+      pseudonymSecret: 'test-pseudonym-secret-32-characters-long',
     })
 
     await submitAssignmentDocAtomic({

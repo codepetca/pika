@@ -7,8 +7,8 @@ describe('Pal learner read token', () => {
 
   it('mints a short-lived token without sending a raw Pika learner id', async () => {
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test/')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => {
       const body = String(init?.body)
       expect(body).not.toContain('raw-student-id')
@@ -33,7 +33,7 @@ describe('Pal learner read token', () => {
       'https://pal.example.test/api/v1/integration/read-token',
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: 'Bearer integration-secret',
+          Authorization: 'Bearer integration-secret-32-characters-long',
         }),
       }),
     )
@@ -44,8 +44,8 @@ describe('Pal learner read token', () => {
     ['2026-09-16T18:31:00.000Z', 'maximum TTL'],
   ])('rejects an unsafe expiry at %s', async (expiresAt, message) => {
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
       token: 'unsafe-token',
       expires_at: expiresAt,
@@ -60,8 +60,8 @@ describe('Pal learner read token', () => {
 
   it('rejects malformed token responses', async () => {
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
       token: '',
       expires_at: 'not-a-date',

@@ -164,6 +164,9 @@ export async function deliverPalOutboxBatch(input: {
   fetchImpl?: typeof fetch
   now?: Date
   limit?: number
+  concurrency?: number
+  deadlineAtMs?: number
+  clock?: () => number
 } = {}): Promise<PalOutboxDeliverySummary> {
   if (!isPalEnabled()) {
     return {
@@ -179,6 +182,7 @@ export async function deliverPalOutboxBatch(input: {
   const supabase = input.supabase ?? getServiceRoleClient()
   const fetchImpl = input.fetchImpl ?? fetch
   const now = input.now ?? new Date()
+  const clock = input.clock ?? Date.now
   const { data, error } = await supabase.rpc('claim_pal_event_outbox', {
     p_limit: input.limit ?? 10,
     p_lease_seconds: 60,
@@ -200,7 +204,13 @@ export async function deliverPalOutboxBatch(input: {
     nonRetryable: 0,
   }
 
-  for (const row of rows) {
+  let nextRow = 0
+  const deliverNext = async (): Promise<void> => {
+    const rowIndex = nextRow
+    nextRow += 1
+    if (rowIndex >= rows.length) return
+    const row = rows[rowIndex]
+
     const validation = v1.validateV1Event(row.payload)
     if (!validation.ok) {
       await markNonRetryable(
@@ -210,7 +220,22 @@ export async function deliverPalOutboxBatch(input: {
         'Pika outbox payload failed the pinned Pal v1 validator',
       )
       summary.nonRetryable += 1
-      continue
+      return deliverNext()
+    }
+
+    const remainingMs = input.deadlineAtMs === undefined
+      ? 3_000
+      : input.deadlineAtMs - clock()
+    if (remainingMs <= 0) {
+      await markRetry(
+        supabase,
+        row,
+        now,
+        'worker_deadline',
+        'Pal delivery worker reached its bounded execution deadline',
+      )
+      summary.retrying += 1
+      return deliverNext()
     }
 
     let response: Response
@@ -222,7 +247,7 @@ export async function deliverPalOutboxBatch(input: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(validation.event),
-        signal: AbortSignal.timeout(3_000),
+        signal: AbortSignal.timeout(Math.max(1, Math.min(3_000, remainingMs))),
       })
     } catch {
       await markRetry(
@@ -233,7 +258,7 @@ export async function deliverPalOutboxBatch(input: {
         'Pal delivery failed before an HTTP response was received',
       )
       summary.retrying += 1
-      continue
+      return deliverNext()
     }
 
     if (response.ok) {
@@ -245,7 +270,7 @@ export async function deliverPalOutboxBatch(input: {
         },
       })
       summary.delivered += 1
-      continue
+      return deliverNext()
     }
 
     const errorCode = `http_${response.status}`
@@ -257,7 +282,14 @@ export async function deliverPalOutboxBatch(input: {
       await markNonRetryable(supabase, row, errorCode, errorDetail)
       summary.nonRetryable += 1
     }
+    return deliverNext()
   }
+
+  const concurrency = Math.max(
+    1,
+    Math.min(input.concurrency ?? 10, rows.length || 1),
+  )
+  await Promise.all(Array.from({ length: concurrency }, () => deliverNext()))
 
   return summary
 }
@@ -271,11 +303,12 @@ export async function drainPalOutbox(input: {
   maxDurationMs?: number
   clock?: () => number
 } = {}): Promise<PalOutboxDrainSummary> {
-  const batchSize = input.batchSize ?? 50
+  const batchSize = input.batchSize ?? 20
   const maxBatches = input.maxBatches ?? 10
   const maxDurationMs = input.maxDurationMs ?? 8_000
   const clock = input.clock ?? Date.now
   const startedAt = clock()
+  const deliveryDeadlineAt = startedAt + Math.max(1_000, maxDurationMs - 1_000)
   const summary: PalOutboxDrainSummary = {
     status: 'ok',
     claimed: 0,
@@ -288,7 +321,7 @@ export async function drainPalOutbox(input: {
   }
 
   for (let batch = 0; batch < maxBatches; batch += 1) {
-    if (batch > 0 && clock() - startedAt >= maxDurationMs) {
+    if (batch > 0 && clock() >= deliveryDeadlineAt) {
       summary.stoppedReason = 'time_limit'
       break
     }
@@ -298,6 +331,9 @@ export async function drainPalOutbox(input: {
       fetchImpl: input.fetchImpl,
       now: input.now,
       limit: batchSize,
+      concurrency: 10,
+      deadlineAtMs: deliveryDeadlineAt,
+      clock,
     })
     if (delivered.status === 'disabled') {
       return { ...summary, status: 'disabled', stoppedReason: 'disabled' }
@@ -311,6 +347,10 @@ export async function drainPalOutbox(input: {
 
     if (delivered.claimed === 0) {
       summary.stoppedReason = summary.claimed === 0 ? 'empty' : 'drained'
+      break
+    }
+    if (clock() >= deliveryDeadlineAt) {
+      summary.stoppedReason = 'time_limit'
       break
     }
     if (delivered.claimed < batchSize) {

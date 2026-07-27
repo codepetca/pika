@@ -30,8 +30,8 @@ describe('Pal session signal', () => {
   it('records one privacy-safe fact for an authenticated learner session', async () => {
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     mockEnqueueStandalonePalEvent.mockResolvedValue('enqueued')
 
     await recordPalAuthenticatedSession({
@@ -55,8 +55,8 @@ describe('Pal session signal', () => {
   it('never blocks login when the adapter cannot record the session', async () => {
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     mockEnqueueStandalonePalEvent.mockRejectedValue(new Error('outbox unavailable'))
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 

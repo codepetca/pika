@@ -12,7 +12,7 @@ import {
 } from '@/lib/server/pal-events'
 import { v1 } from '@/vendor/pal-contract'
 
-const secret = 'pal-pilot-test-secret'
+const secret = 'pal-pilot-test-secret-32-characters-long'
 
 describe('Pika Pal v1 event builder', () => {
   it('makes stable, opaque, URL-safe tokens with domain separation', () => {
@@ -22,6 +22,11 @@ describe('Pika Pal v1 event builder', () => {
     expect(learner).not.toContain('raw-uuid')
     expect(learner).toMatch(/^[A-Za-z0-9._~-]+$/)
     expect(learner).not.toBe(pseudonymizePalRef('item', 'raw-uuid', secret))
+  })
+
+  it('rejects a weak explicit pseudonym secret', () => {
+    expect(() => pseudonymizePalRef('learner', 'raw-uuid', 'too-short'))
+      .toThrow('at least 32 characters')
   })
 
   it('uses the Toronto calendar week anchored to Monday', () => {

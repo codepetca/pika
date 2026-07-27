@@ -8,8 +8,8 @@ type PalTokenKind = 'learner' | 'classroom' | 'item' | 'session' | 'fact'
 
 function requiredSecret(explicitSecret?: string): string {
   const secret = explicitSecret?.trim() || requirePalPseudonymSecret()
-  if (!secret) {
-    throw new Error('PAL_PSEUDONYM_SECRET is not configured')
+  if (secret.length < 32) {
+    throw new Error('PAL_PSEUDONYM_SECRET must be at least 32 characters')
   }
   return secret
 }

@@ -15259,3 +15259,78 @@
 
 **Remaining:**
 - Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
+
+<!-- pika-session-log-archive-batch:bbd0df49fc4bc409dad26d65a4126a87cd29dbcb2f866302833ac8ef50cd0b0e -->
+## 2026-07-21 — Internal grading core review remediation
+
+**Risk profile:** async-grading
+
+**Completed:**
+- Opened PR #906 and completed the initial independent review wave for the assignment grading core.
+- Preserved the legacy direct-grading behavior by creating an abort signal only when the caller supplies a timeout; durable background runs continue to supply their existing 25-second timeout.
+- Classified response-body `AbortError` and `TimeoutError` failures, including browser-style `DOMException` aborts, as retryable provider timeouts.
+- Kept aggregate token usage unknown when either request in the output-cap fallback sequence omits usage, avoiding silently incomplete cost telemetry.
+- Added a provider-to-run regression proving a response-body timeout requeues the assignment item with a future retry and leaves the batch running rather than failing it closed.
+- No migration was applied, no live provider call was made, and no production state changed.
+
+**Validation:**
+- `pnpm test` (396 files / 3,597 tests)
+- Focused grading, provider, and durable assignment-run suites (3 files / 27 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (619 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+**Remaining:**
+- Complete targeted remediation and final cumulative reviews for PR #906, then obtain the required external approval before merge.
+- Continue the active internal grading subsystem goal with assignment audit persistence, followed by test and repository-review profiles.
+
+## 2026-07-21 — Durable assignment grading provenance
+
+**Risk profile:** async-grading
+
+**Completed:**
+- Fixed the cumulative PR #906 review finding that versioned assignment grading metadata was computed but not durably persisted.
+- Added a strict, bounded, pseudonymous provenance contract containing only provider/model, profile/rubric/prompt/policy versions, provider request count, and nullable token usage.
+- Added migration 101 with an `assignment_docs.ai_grading_provenance` JSONB contract and additive service-role-only wrappers around the existing direct-grade and durable-item atomic RPCs, preserving rolling compatibility for old application instances.
+- Added a compatibility trigger that clears provenance whenever legacy direct, durable, batch, repository-review, manual-grade, or missing-work writers replace grade/audit fields without supplying replacement provenance.
+- Routed native Pika assignment grading through both provenance-aware persistence paths while legacy Gradex, missing-work, and repository-review callers write null provenance until their profiles migrate.
+- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, replay preservation, and stale-provenance clearing across old direct, durable, batch, and missing-work writers; updated generated and refined database contracts.
+- No migration was applied locally, no live model call was made, and no production state changed.
+
+**Validation:**
+- `pnpm test` (401 files / 3,619 tests after rebasing onto `origin/main`)
+- Focused grading, persistence, migration, Gradex compatibility, and database-contract suites (9 files / 64 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (619 modules / 0 allowances)
+- `pnpm build`
+- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+**Remaining:**
+- Confirm migration replay, generated-type parity, and the database-backed provenance contract in PR CI, then complete the final independent re-review.
+- Obtain required external approval before merge; continue with test and repository-review profile migration after this assignment foundation lands.
+
+## 2026-07-22 — Phase 3 assignment accessibility evidence
+
+**Completed:**
+- Audited the remaining non-mobile assignment backlog against current `main` and confirmed #891 already shipped polite atomic save announcements and the shared restore-confirmation dialog.
+- Replaced the assignment suite's hand-built confirmation stub with the real `ConfirmDialog`, added focused initial-focus coverage, and locked the visible save-status live-region attributes with regression assertions.
+- Updated the product audit and current context to remove completed assignment work from the backlog. No runtime UI, API, schema, migration, production state, or production data changed.
+
+**Validation:**
+- `pnpm test tests/components/StudentAssignmentEditor.save-submit.test.tsx tests/ui/ModalLayer.test.tsx` (2 files / 52 tests)
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm check:ui-policy` (215 controls / 67 files)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Complete repository gates, independent review, and merge this evidence slice. Then start Daily/Attendance; assignment mobile UX remains deferred and Gradex remains owned by a separate session.

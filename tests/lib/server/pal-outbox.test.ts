@@ -15,7 +15,7 @@ const event = buildSessionStartedEvent({
   learnerId: studentId,
   sessionId: 'session-1',
   occurredAt,
-  pseudonymSecret: 'test-pseudonym-secret',
+  pseudonymSecret: 'test-pseudonym-secret-32-characters-long',
 })
 
 function buildSupabase(rows: unknown[] = []) {
@@ -43,8 +43,8 @@ describe('Pal outbox adapter', () => {
   beforeEach(() => {
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test/')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'pal-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'test-pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'pal-integration-secret-32-characters')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'test-pseudonym-secret-32-characters-long')
   })
 
   afterEach(() => {
@@ -109,7 +109,7 @@ describe('Pal outbox adapter', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: 'Bearer pal-secret',
+          Authorization: 'Bearer pal-integration-secret-32-characters',
         }),
         body: JSON.stringify(event),
       }),
@@ -208,8 +208,27 @@ describe('Pal outbox adapter', () => {
     })
   })
 
+  it('releases a claimed row without contacting Pal after the worker deadline', async () => {
+    const supabase = buildSupabase([claimedRow()])
+    const fetchImpl = vi.fn<typeof fetch>()
+
+    await expect(deliverPalOutboxBatch({
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+      deadlineAtMs: 1_000,
+      clock: () => 1_000,
+    })).resolves.toMatchObject({ retrying: 1 })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(supabase.calls.at(-1)).toMatchObject({
+      name: 'retry_pal_event_outbox',
+      args: { p_error_code: 'worker_deadline' },
+    })
+  })
+
   it('drains more than one class-day of events and reports no ready backlog', async () => {
-    const batchSizes = [50, 50, 20]
+    const batchSizes = [20, 20, 20, 20, 20, 20, 0]
     let claim = 0
     const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
       if (name === 'claim_pal_event_outbox') {
@@ -238,7 +257,7 @@ describe('Pal outbox adapter', () => {
     })).resolves.toMatchObject({
       claimed: 120,
       delivered: 120,
-      batches: 3,
+      batches: 7,
       remainingReady: 0,
       stoppedReason: 'drained',
     })

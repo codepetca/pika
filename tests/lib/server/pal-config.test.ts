@@ -17,8 +17,8 @@ describe('Pal pilot configuration', () => {
 
     vi.stubEnv('PAL_ENABLED', ' TRUE ')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     expect(isPalEnabled()).toBe(true)
 
     vi.stubEnv('PAL_ENABLED', 'false')
@@ -27,20 +27,20 @@ describe('Pal pilot configuration', () => {
 
   it('loads server-only connection settings when configured', () => {
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test/')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
     expect(requirePalEnvironment()).toEqual({
       apiUrl: 'https://pal.example.test',
-      integrationSecret: 'integration-secret',
-      pseudonymSecret: 'pseudonym-secret',
+      integrationSecret: 'integration-secret-32-characters-long',
+      pseudonymSecret: 'pseudonym-secret-32-characters-long',
     })
   })
 
   it('fails closed when an enabled adapter is missing required settings', () => {
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', '')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
     expect(() => requirePalEnvironment()).toThrow(
       'PAL_ENABLED requires PAL_API_URL, PAL_INTEGRATION_SECRET, and PAL_PSEUDONYM_SECRET',
@@ -55,16 +55,36 @@ describe('Pal pilot configuration', () => {
   })
 
   it('allows event pseudonymization without loading delivery configuration', () => {
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
-    expect(requirePalPseudonymSecret()).toBe('pseudonym-secret')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
+    expect(requirePalPseudonymSecret()).toBe('pseudonym-secret-32-characters-long')
+  })
+
+  it('rejects weak or shared integration secrets at the enabled boundary', () => {
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'too-short')
+    vi.stubEnv(
+      'PAL_PSEUDONYM_SECRET',
+      'pseudonym-secret-32-characters-long-32-characters-long',
+    )
+    expect(() => requirePalEnvironment()).toThrow('at least 32 characters')
+
+    vi.stubEnv(
+      'PAL_INTEGRATION_SECRET',
+      'shared-secret-value-that-is-long-enough',
+    )
+    vi.stubEnv(
+      'PAL_PSEUDONYM_SECRET',
+      'shared-secret-value-that-is-long-enough',
+    )
+    expect(() => requirePalEnvironment()).toThrow('must be distinct')
   })
 
   it.each(['pal.example.test', 'ftp://pal.example.test'])(
     'rejects an invalid Pal API URL: %s',
     (apiUrl) => {
       vi.stubEnv('PAL_API_URL', apiUrl)
-      vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-      vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+      vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+      vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
       expect(() => requirePalEnvironment()).toThrow()
     },
@@ -73,8 +93,8 @@ describe('Pal pilot configuration', () => {
   it('exposes only the chrome-free public embed URL to the learner page', () => {
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test/')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
     expect(getPalEmbedUrl()).toBe('https://pal.example.test/embed/roadmap')
   })
@@ -86,8 +106,8 @@ describe('Pal pilot configuration', () => {
     'https://pal.example.test/#embed',
   ])('rejects a URL that is not an origin: %s', (apiUrl) => {
     vi.stubEnv('PAL_API_URL', apiUrl)
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
     expect(() => requirePalEnvironment()).toThrow(
       'PAL_API_URL must contain only an origin',
@@ -97,8 +117,8 @@ describe('Pal pilot configuration', () => {
   it('rejects production HTTP origins', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('PAL_API_URL', 'http://pal.example.test')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
     expect(() => requirePalEnvironment()).toThrow(
       'PAL_API_URL must use HTTPS',
@@ -108,8 +128,8 @@ describe('Pal pilot configuration', () => {
   it('allows loopback HTTP only outside production', () => {
     vi.stubEnv('NODE_ENV', 'test')
     vi.stubEnv('PAL_API_URL', 'http://localhost:3100/')
-    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret')
-    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
     expect(requirePalEnvironment().apiUrl).toBe('http://localhost:3100')
   })

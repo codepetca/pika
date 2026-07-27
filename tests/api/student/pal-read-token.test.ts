@@ -16,6 +16,9 @@ describe('POST /api/student/pal/read-token', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     mockRequireRole.mockResolvedValue({ id: 'student-1', role: 'student' })
     mockMintPalReadToken.mockResolvedValue({
       token: 'short-lived-token',
@@ -40,6 +43,16 @@ describe('POST /api/student/pal/read-token', () => {
     }) as any, { params: Promise.resolve({}) })
 
     expect(response.status).toBe(404)
+    expect(mockMintPalReadToken).not.toHaveBeenCalled()
+  })
+
+  it('fails closed before minting when enabled configuration is incomplete', async () => {
+    vi.stubEnv('PAL_INTEGRATION_SECRET', '')
+    const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+    }) as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(500)
     expect(mockMintPalReadToken).not.toHaveBeenCalled()
   })
 })

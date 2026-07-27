@@ -30,7 +30,8 @@ The other values are server-only connection settings, not feature flags.
 `PAL_API_URL` is the Pal origin used for event ingest, read-token minting, and
 learner widget reads. `PAL_INTEGRATION_SECRET` authenticates Pika's backend.
 `PAL_PSEUDONYM_SECRET` creates stable HMAC tokens and must never be shared with
-Pal or the browser.
+Pal or the browser. Both secrets must be distinct and at least 32 characters;
+use independently generated high-entropy values rather than human phrases.
 
 `PAL_API_URL` must be an HTTPS origin with no credentials, path, query, or
 fragment. Loopback HTTP is allowed only outside production. When
@@ -133,10 +134,14 @@ grace-day target and recurring Weekly Rhythm award.
 
 Vercel calls `GET /api/cron/pal-sync` daily with
 `Authorization: Bearer <CRON_SECRET>`. It reconciles weekly configurations
-before draining up to 10 batches of 50 events within an eight-second worker
+before draining up to 10 batches of 20 events within an eight-second worker
 budget. The response reports batches, stop reason, and the number of rows still
 ready, so capacity exhaustion is visible rather than silently deferred for a
 day.
+
+Each batch uses at most 10 concurrent deliveries. Network attempts are bounded
+by the worker's remaining deadline, which stays well inside the 60-second row
+lease so an overlapping worker cannot reclaim a slow in-flight batch.
 
 The same credential protects the focused outbox operations:
 

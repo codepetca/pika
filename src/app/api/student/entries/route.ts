@@ -238,7 +238,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
 
   const { data: existing, error: existingError } = await supabase
     .from('entries')
-    .select('id, version')
+    .select('id, version, minutes_reported, mood')
     .eq('student_id', user.id)
     .eq('classroom_id', classroom_id)
     .eq('date', date)
@@ -255,6 +255,10 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   let entry
 
   if (isPalEnabled()) {
+    const preservedMinutes = minutes_reported === undefined
+      ? existing?.minutes_reported
+      : minutes_reported
+    const preservedMood = mood === undefined ? existing?.mood : mood
     const palEvent = hasQualifyingDailyLogContent(entryText)
       ? buildDailyLogCompletedEvent({
         learnerId: user.id,
@@ -271,8 +275,8 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
         date,
         text: entryText,
         richContent: content,
-        minutesReported: minutes_reported,
-        mood,
+        minutesReported: preservedMinutes,
+        mood: preservedMood,
         onTime,
         expectedVersion: existing?.version ?? null,
         event: palEvent,
@@ -423,7 +427,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
 
   let entryQuery = supabase
     .from('entries')
-    .select('id, version, text, rich_content')
+    .select('id, version, text, rich_content, minutes_reported, mood')
     .eq('student_id', user.id)
     .eq('classroom_id', classroom_id)
     .eq('date', date)
@@ -578,6 +582,8 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
         date,
         text: entryText,
         richContent: nextContent,
+        minutesReported: existing.minutes_reported,
+        mood: existing.mood,
         onTime,
         expectedVersion: currentVersion,
         event: palEvent,

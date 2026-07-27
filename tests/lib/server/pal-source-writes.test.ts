@@ -12,7 +12,7 @@ import {
 } from '@/lib/server/pal-events'
 
 const occurredAt = new Date('2026-09-16T18:20:00.000Z')
-const pseudonymSecret = 'test-pseudonym-secret'
+const pseudonymSecret = 'test-pseudonym-secret-32-characters-long'
 const studentId = 'student-1'
 
 function clientFor(result: unknown) {

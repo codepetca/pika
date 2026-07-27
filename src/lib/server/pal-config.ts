@@ -13,6 +13,9 @@ export function requirePalPseudonymSecret(): string {
   if (!secret) {
     throw new Error('PAL_PSEUDONYM_SECRET is not configured')
   }
+  if (secret.length < 32) {
+    throw new Error('PAL_PSEUDONYM_SECRET must be at least 32 characters')
+  }
   return secret
 }
 
@@ -62,6 +65,16 @@ export function requirePalEnvironment(): {
   if (!apiUrl || !integrationSecret || !pseudonymSecret) {
     throw new Error(
       'PAL_ENABLED requires PAL_API_URL, PAL_INTEGRATION_SECRET, and PAL_PSEUDONYM_SECRET',
+    )
+  }
+  if (integrationSecret.length < 32 || pseudonymSecret.length < 32) {
+    throw new Error(
+      'PAL_INTEGRATION_SECRET and PAL_PSEUDONYM_SECRET must each be at least 32 characters',
+    )
+  }
+  if (integrationSecret === pseudonymSecret) {
+    throw new Error(
+      'PAL_INTEGRATION_SECRET and PAL_PSEUDONYM_SECRET must be distinct',
     )
   }
 
