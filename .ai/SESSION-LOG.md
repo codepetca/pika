@@ -11,108 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Internal grading core foundation
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5 Codex - grading contracts, provider error semantics, reproducibility metadata, and database security require cross-layer invariant analysis.
-
-**Completed:**
-- Started the internal modular-grading direction from current `main` without modifying the open remote Gradex worker branch or enabling remote grading.
-- Added a database-independent grading core with Zod rubric/result contracts, profile and provider interfaces, canonical weighted criterion results, and versioned policy, prompt, profile, rubric, usage, and provider-request metadata.
-- Extracted the OpenAI Responses structured-output transport behind the provider interface, including timeout/status classification, bounded output-cap fallback, structured response extraction, and cumulative token usage.
-- Moved native assignment grading onto a pure Pika assignment profile while preserving the existing Completion/Thinking/Workflow rubric, prompt text, sanitization, teacher routes, durable run orchestration, retry semantics, and atomic writes.
-- Added migration 100 to replace the legacy assignment-run claim with an empty search path, validated lease arguments, and service-role-only execution. No migration was applied.
-- Added core engine/profile, assignment compatibility, usage, retry/error, and migration security regressions. No live provider call, production change, deployment setting, or data mutation occurred.
-
-**Validation:**
-- `pnpm test` (396 files / 3,593 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Focused grading and assignment route suites (59 tests)
-- `git diff --check`
-
-**Remaining:**
-- Add fully fenced assignment lease mutation contracts and durable grading audit/suggested-score persistence through the authorized schema workflow.
-- Migrate test and repository-review profiles to the shared core, then add teacher-correction evaluation datasets and metrics.
-
-## 2026-07-21 — Internal grading core review remediation
-
-**Risk profile:** async-grading
-
-**Completed:**
-- Opened PR #906 and completed the initial independent review wave for the assignment grading core.
-- Preserved the legacy direct-grading behavior by creating an abort signal only when the caller supplies a timeout; durable background runs continue to supply their existing 25-second timeout.
-- Classified response-body `AbortError` and `TimeoutError` failures, including browser-style `DOMException` aborts, as retryable provider timeouts.
-- Kept aggregate token usage unknown when either request in the output-cap fallback sequence omits usage, avoiding silently incomplete cost telemetry.
-- Added a provider-to-run regression proving a response-body timeout requeues the assignment item with a future retry and leaves the batch running rather than failing it closed.
-- No migration was applied, no live provider call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (396 files / 3,597 tests)
-- Focused grading, provider, and durable assignment-run suites (3 files / 27 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Complete targeted remediation and final cumulative reviews for PR #906, then obtain the required external approval before merge.
-- Continue the active internal grading subsystem goal with assignment audit persistence, followed by test and repository-review profiles.
-
-## 2026-07-21 — Durable assignment grading provenance
-
-**Risk profile:** async-grading
-
-**Completed:**
-- Fixed the cumulative PR #906 review finding that versioned assignment grading metadata was computed but not durably persisted.
-- Added a strict, bounded, pseudonymous provenance contract containing only provider/model, profile/rubric/prompt/policy versions, provider request count, and nullable token usage.
-- Added migration 101 with an `assignment_docs.ai_grading_provenance` JSONB contract and additive service-role-only wrappers around the existing direct-grade and durable-item atomic RPCs, preserving rolling compatibility for old application instances.
-- Added a compatibility trigger that clears provenance whenever legacy direct, durable, batch, repository-review, manual-grade, or missing-work writers replace grade/audit fields without supplying replacement provenance.
-- Routed native Pika assignment grading through both provenance-aware persistence paths while legacy Gradex, missing-work, and repository-review callers write null provenance until their profiles migrate.
-- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, replay preservation, and stale-provenance clearing across old direct, durable, batch, and missing-work writers; updated generated and refined database contracts.
-- No migration was applied locally, no live model call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (401 files / 3,619 tests after rebasing onto `origin/main`)
-- Focused grading, persistence, migration, Gradex compatibility, and database-contract suites (9 files / 64 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Confirm migration replay, generated-type parity, and the database-backed provenance contract in PR CI, then complete the final independent re-review.
-- Obtain required external approval before merge; continue with test and repository-review profile migration after this assignment foundation lands.
-
-## 2026-07-22 — Phase 3 assignment accessibility evidence
-
-**Completed:**
-- Audited the remaining non-mobile assignment backlog against current `main` and confirmed #891 already shipped polite atomic save announcements and the shared restore-confirmation dialog.
-- Replaced the assignment suite's hand-built confirmation stub with the real `ConfirmDialog`, added focused initial-focus coverage, and locked the visible save-status live-region attributes with regression assertions.
-- Updated the product audit and current context to remove completed assignment work from the backlog. No runtime UI, API, schema, migration, production state, or production data changed.
-
-**Validation:**
-- `pnpm test tests/components/StudentAssignmentEditor.save-submit.test.tsx tests/ui/ModalLayer.test.tsx` (2 files / 52 tests)
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Complete repository gates, independent review, and merge this evidence slice. Then start Daily/Attendance; assignment mobile UX remains deferred and Gradex remains owned by a separate session.
-
 ## 2026-07-22 — Internal repository-review grading profile and provenance
 
 **Risk profile:** async-grading
@@ -1127,6 +1025,54 @@ consistency review.
 - In Phase 2, add the missing portable foundation tokens and policy checks
   before implementing the Pika-to-Pal semantic bridge.
 
+## 2026-07-25 — Pika-side Pal achievements pilot
+
+**Risk profile:** integration, privacy, database, cross-origin embed
+
+**Completed:**
+- Implemented the disabled-by-default `PAL_ENABLED` pilot on
+  `codex/pal-pilot`, with pinned Pal v1 contract fixtures and stable HMAC
+  learner/classroom/item/fact tokens. Outbound payloads exclude raw IDs,
+  assignment names, work, grades, deadlines, and teacher-maintained catalogs.
+- Drafted unapplied migration 111 for a service-role-only transactional
+  outbox, leases, retries, non-retryable visibility/requeue, and monotonic
+  learner/week opportunity revisions.
+- Wired authenticated session, new enrollment, the real daily-log autosave
+  creation path, genuine first assignment open, and first valid assignment
+  completion to the outbox. Duplicate daily logs and resubmissions retain one
+  fact identity.
+- Added daily Monday–Friday opportunity reconciliation across learner
+  enrollments and class days, including short weeks, schedule/archive changes,
+  completion floors, and terminal prior-week closure.
+- Added the student-only Achievements navigation item and secure
+  `/embed/roadmap` iframe with origin/source/nonce validation, short-lived
+  read-token handoff, bounded failure/retry, and light/dark appearance
+  messages. Pika retains its shell; Pal owns roadmap and reward rendering.
+- Added the Pika operations/rollout guide, including week-boundary rollout,
+  no historical backfill, at-least-once/out-of-order delivery, and current Pal
+  prerequisites. No migration was applied and no environment was enabled.
+
+**Validation:**
+- `pnpm test` (440 files / 3,850 tests).
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (648 modules / 0 allowances)
+- `pnpm check:ui-policy` (202 controls / 64 files)
+- `pnpm build`
+- Desktop/mobile and light/dark Playwright inspection using a temporary Pal
+  handshake harness; selected navigation, ready embed, and live theme changes
+  were verified.
+- `git diff --check`
+
+**Remaining:**
+- Apply migration 111 only through the separately authorized target-specific
+  process.
+- Complete Pal v1 ingest, read-token, and `/embed/roadmap` dependencies, then
+  run the real duplicate/retry/out-of-order vertical slice before enabling the
+  pilot or merging the integration branch to `main`.
+
+## 2026-07-25 — Pika-side Pal achievements pilot
+
 ## 2026-07-26 — DESIGN.md product-conformance loop
 
 **Risk profile:** none
@@ -1283,3 +1229,83 @@ requires exact cross-repository contract and semantic-token drift checks.
 - Complete independent review and exact-head CI for the isolated adapter PR.
 - Replace the vendored manifest with a direct package import when Pal publishes
   `@pal/widget`; mount it only as part of the separately reviewed native pilot.
+
+## 2026-07-26 — Pika-to-Pal widget theme contract
+
+**Risk profile:** cross-repository UI contract, accessibility, package release
+
+**Completed:**
+- Pal commit `7a6d869` defines theme contract v1 with 36 optional scoped
+  properties, explicit theme/density/viewport/motion provider values, portable
+  light/dark fallbacks, focus/target/motion handling, and contract tests.
+- Added the Pika `PalWidgetThemeBoundary` and one CSS-module adapter that maps
+  every Pal input to an existing Pika semantic token without copied raw values.
+- Vendored only Pal's dependency-free property manifest while `@pal/widget`
+  remains private; documented its upstream commit and mandatory deletion after
+  the package can be imported directly.
+- Updated `DESIGN.md`, the pilot runbook, startup context, and hierarchy tests
+  to record the confirmed native-widget boundary. The disabled iframe remains
+  an interim prototype and is not an enablement target.
+- Registered the interim iframe's two existing raw height utilities under the
+  native-widget release owner so current design-policy CI remains exact.
+
+**Validation:**
+- Pal widget tests: 37/37; Pal widget/web lint and typecheck passed.
+- Pal sandbox reviewed at 1440x900 and 390x844 in light/dark, including visible
+  keyboard focus and reward/companion layers; desktop is the default.
+- Pika adapter, hierarchy, startup-budget, and design-policy tests passed.
+- Pika audit, lint, typecheck, architecture, UI policy, design policy, build,
+  and `git diff --check` passed.
+- Full Pika suite passed 443/444 files and 3,870/3,871 tests; the sole
+  unrelated `TestDetailPanel` timeout passed in isolation in 0.54s.
+
+**Remaining:**
+- Publish a reviewed non-private `@pal/widget` package and import its contract
+  directly.
+- Replace the disabled iframe with the native provider/surfaces, then run the
+  authenticated Pika student visual matrix and real delivery vertical slice.
+- Migration 111 and feature enablement remain human-controlled.
+
+## 2026-07-27 — PR 951 rebase and hardening
+
+**Risk profile:** high — privacy contract, service-role SQL, transactional
+source writes, background delivery, and cross-repository integration.
+
+**Completed:**
+- Rebased `codex/pal-pilot` onto current `origin/main`; retained migration 111
+  without a sequence collision and dropped duplicate adapter content already
+  merged through PR 953.
+- Hardened Pal's authoritative v1 contract on Pal PR 39 at commit
+  `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`, then synchronized Pika's
+  vendored validator and privacy fixtures. Event envelopes and metadata are
+  both closed allow-lists.
+- Made enabled configuration fail closed; restricted Pal to HTTPS origins
+  (loopback HTTP only in development); required distinct 32-character minimum
+  integration/pseudonym secrets; capped read tokens at ten minutes.
+- Removed silent null-event fallbacks from authoritative learner transitions.
+  Empty/format-only logs no longer qualify, while empty autosaves emit
+  atomically when they first gain real content.
+- Preserved journal mood/minutes and optimistic version checks across the
+  Pal-enabled POST/PATCH transaction paths.
+- Added bounded missed-week recovery (12 periods/run) and a deadline-aware
+  outbox drain (20-row batches, concurrency 10, 10 batches/run) with remaining
+  ready-row reporting.
+- Added the CI-generated Pal tables/functions to
+  `src/types/database.generated.ts` and replaced new Pal persistence `any`
+  boundaries with the generated service-role client types.
+
+**Validation:**
+- Clean ephemeral Supabase replay confirmed migration 111 and generated types
+  are exact; no local or hosted migration was applied.
+- Focused hardening suite: 80/80 tests.
+- TypeScript, lint, architecture, UI policy, Pika audit-equivalent committed
+  diff scan, and `git diff --check` passed.
+- Independent security and operability reviewers found the lease/budget and
+  journal-field parity issues above; their remediation passes targeted review.
+
+**Remaining:**
+- Publish the final remediation commit and require exact-head CI plus final
+  independent security confirmation.
+- Keep PR 951 draft and `PAL_ENABLED=false`; the published native widget,
+  authenticated vertical slice, and one-time human authorization for the
+  named migration target remain rollout gates.

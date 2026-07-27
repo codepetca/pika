@@ -1,6 +1,8 @@
 import { getIronSession, IronSession } from 'iron-session'
 import { cookies } from 'next/headers'
+import { randomUUID } from 'node:crypto'
 import type { SessionData, UserRole } from '@/types'
+import { recordPalAuthenticatedSession } from '@/lib/server/pal-signals'
 
 /**
  * Custom error class for authentication failures (401)
@@ -54,12 +56,20 @@ export async function getSession(): Promise<IronSession<SessionData>> {
  */
 export async function createSession(userId: string, email: string, role: UserRole) {
   const session = await getSession()
+  const sessionId = randomUUID()
   session.user = {
     id: userId,
     email,
     role,
   }
   await session.save()
+
+  if (role === 'student') {
+    await recordPalAuthenticatedSession({
+      studentId: userId,
+      sessionId,
+    })
+  }
 }
 
 /**

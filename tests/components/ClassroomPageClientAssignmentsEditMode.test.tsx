@@ -95,11 +95,16 @@ vi.mock('@/components/layout', async () => {
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
     LeftSidebar: ({ children }: any) => <div>{children}</div>,
     MainContent: ({ children }: any) => <main>{children}</main>,
-    NavItems: ({ onTabChange }: any) => (
+    NavItems: ({ onTabChange, palEnabled }: any) => (
       <nav>
         <button type="button" onClick={() => onTabChange('attendance')}>
           Go Daily
         </button>
+        {palEnabled ? (
+          <button type="button" onClick={() => onTabChange('achievements')}>
+            Go Achievements
+          </button>
+        ) : null}
         <button type="button" onClick={() => onTabChange('assignments')}>
           Go Classwork
         </button>
@@ -322,6 +327,13 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
     return <div />
   },
 }))
+vi.mock('@/app/classrooms/[classroomId]/StudentAchievementsTab', () => ({
+  StudentAchievementsTab: ({ embedUrl, isActive }: any) => (
+    <div data-testid="student-achievements">
+      {isActive ? 'active' : 'inactive'}:{embedUrl}
+    </div>
+  ),
+}))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,
 }))
@@ -374,6 +386,8 @@ function renderStudentClient(options?: {
   classroom?: Classroom
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
+  palEnabled?: boolean
+  palEmbedUrl?: string | null
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
@@ -387,6 +401,8 @@ function renderStudentClient(options?: {
         teacherClassrooms={[]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
+        palEnabled={options?.palEnabled}
+        palEmbedUrl={options?.palEmbedUrl}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -432,6 +448,20 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
         isActive: true,
       })
     })
+  })
+
+  it('mounts the Pal achievements destination only when enabled for a student', async () => {
+    renderStudentClient({
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+      palEnabled: true,
+      palEmbedUrl: 'https://pal.example/embed/roadmap',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Achievements' }))
+    expect(await screen.findByTestId('student-achievements')).toHaveTextContent(
+      'active:https://pal.example/embed/roadmap',
+    )
   })
 
   it('updates the app shell classroom theme when settings saves classroom changes', async () => {

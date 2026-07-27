@@ -10,6 +10,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/pal-sync",
+      "schedule": "30 5 * * *"
+    },
+    {
       "path": "/api/cron/nightly-log-summaries",
       "schedule": "0 6 * * *"
     },

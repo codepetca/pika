@@ -91,6 +91,33 @@ describe('NavItems notification dots', () => {
     expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
   })
 
+  it('shows the learner achievements destination only when the Pal pilot is enabled', () => {
+    const { rerender } = render(
+      <NavItems
+        classroomId="classroom-1"
+        role="student"
+        activeTab="today"
+        onTabChange={vi.fn()}
+        updateSearchParams={vi.fn()}
+        palEnabled={false}
+      />
+    )
+    expect(screen.queryByRole('link', { name: 'Achievements' })).toBeNull()
+
+    rerender(
+      <NavItems
+        classroomId="classroom-1"
+        role="student"
+        activeTab="achievements"
+        onTabChange={vi.fn()}
+        updateSearchParams={vi.fn()}
+        palEnabled
+      />
+    )
+    expect(screen.getByRole('link', { name: 'Achievements' }))
+      .toHaveAttribute('aria-current', 'page')
+  })
+
   it('uses dot path for student assignments nav item', () => {
     mockNotifications = baseNotifications({ unviewedAssignmentsCount: 2 })
     renderNav('student', 'assignments')

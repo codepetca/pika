@@ -26,6 +26,18 @@
       ]
     },
     {
+      "file": "src/app/classrooms/[classroomId]/StudentAchievementsTab.tsx",
+      "reviewBy": "pal-native-widget-release",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "68103de61fbb3b27",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
       "file": "src/app/classrooms/[classroomId]/loading.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
