@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -10,29 +10,120 @@ function readRepoFile(relativePath: string) {
 }
 
 describe('ui guidance docs and prompts', () => {
-  it('points UI work to the canon entrypoint and stable guidance', () => {
+  it('points UI work to the canonical root design entrypoint and stable guidance', () => {
     const aiInstructions = readRepoFile('docs/ai-instructions.md')
+    const design = readRepoFile('DESIGN.md')
     const coreDesign = readRepoFile('docs/core/design.md')
-    const designSystem = readRepoFile('docs/design-system.md')
+    const docsReadme = readRepoFile('docs/README.md')
     const uiCanon = readRepoFile('docs/guidance/ui/README.md')
 
+    expect(aiInstructions).toContain('DESIGN.md')
     expect(aiInstructions).toContain('docs/guidance/ui/README.md')
     expect(aiInstructions).toContain('docs/guidance/ui/stable.md')
-    expect(coreDesign).toContain('UI canon')
-    expect(coreDesign).toContain('composite-widget-accessibility.md')
+    expect(design).toContain('## Authority Model')
+    expect(design).toContain('src/styles/tokens.css')
+    expect(design).toContain('src/ui/README.md')
+    expect(design).toContain('docs/guidance/ui/README.md')
+    expect(design).toContain('docs/guidance/ui/legacy.md')
+    expect(design).toContain('## External Widget Contract')
+    expect(coreDesign).toContain('Compatibility redirect')
+    expect(coreDesign).toContain('DESIGN.md')
+    expect(coreDesign.split('\n').length).toBeLessThanOrEqual(40)
+    expect(coreDesign).not.toMatch(/^## /m)
+    expect(docsReadme).toMatch(/DESIGN\.md\s+# Canonical product design entry point/)
+    expect(docsReadme).toMatch(/design\.md\s+# Compatibility redirect to \/DESIGN\.md/)
     expect(uiCanon).toContain('composite-widget-accessibility.md')
-    expect(designSystem).toContain('Historical reference only')
   })
 
-  it('keeps historical design-system dark-mode examples aligned with semantic tokens', () => {
-    const designSystem = readRepoFile('docs/design-system.md')
-    const darkModeSection = designSystem.match(/### Dark Mode Implementation \(REQUIRED\)(?<body>[\s\S]*?)### Playful Accents/)?.groups?.body ?? ''
+  it('keeps observed design, stable contracts, and migration gaps distinguishable', () => {
+    const design = readRepoFile('DESIGN.md')
 
-    expect(darkModeSection).toContain('semantic tokens')
-    expect(darkModeSection).toMatch(/className="bg-surface"/)
-    expect(darkModeSection).toMatch(/className="text-text-default"/)
-    expect(darkModeSection).toMatch(/className="border-border"/)
-    expect(darkModeSection).not.toContain('dark:')
+    expect(design).toContain('## How To Read This Contract')
+    expect(design).toContain('**Observed invariant:**')
+    expect(design).toContain('Historical captures are baseline')
+    expect(design).toContain('**Stable contract:**')
+    expect(design).toContain('**Migration gap:**')
+    expect(design).toContain('**Governed legacy:**')
+    expect(design).toContain('**Experimental guidance:**')
+    expect(design).toContain('## Design Conformance Loop')
+    expect(design).toContain('confirmed, executable-only, stable target, legacy')
+    expect(design).toContain('evidence rather than')
+    expect(design).toContain('confirmed as contract version 1')
+    expect(design).toContain('@pal/widget/theme-contract')
+    expect(design).toContain('pal-widget-theme.module.css')
+    expect(design).toContain('auth text controls remain registered migration debt')
+    expect(design).toContain('implementation commit, capture date')
+    expect(design).toContain('must be refreshed before they can prove current')
+    expect(design).toContain('marked `n/a` with a reason')
+
+    const productEvidence = readRepoFile(
+      'docs/guidance/ui/product-experience-evidence-2026-07.md',
+    )
+    expect(productEvidence).toContain('historical evidence set')
+    expect(productEvidence).toContain('did not record a per-capture date')
+    expect(productEvidence).toContain('not as fresh conformance proof')
+  })
+
+  it('requires provenance for durable visual evidence and PR conformance claims', () => {
+    const design = readRepoFile('DESIGN.md')
+    const testingGuide = readRepoFile('docs/guides/ai-ui-testing.md')
+    const evidenceTemplate = readRepoFile(
+      'docs/guidance/ui/visual-evidence-template.md',
+    )
+    const pullRequestTemplate = readRepoFile('.github/pull_request_template.md')
+
+    expect(design).toContain('visual-evidence-template.md')
+    expect(testingGuide).toContain('visual-evidence-template.md')
+    for (const field of [
+      'Implementation commit',
+      'Capture date',
+      'Viewport or container',
+      'Historical baseline or current conformance evidence',
+    ]) {
+      expect(evidenceTemplate).toContain(field)
+    }
+    for (const dimension of [
+      'Teacher',
+      'Student',
+      'Desktop',
+      'Mobile',
+      'Light',
+      'Dark',
+      'Focus/keyboard',
+      'Reduced motion',
+    ]) {
+      expect(pullRequestTemplate).toContain(dimension)
+    }
+    expect(pullRequestTemplate).toContain('Raw design-value exception changed')
+  })
+
+  it('retires the historical design-system document without weakening legacy governance', () => {
+    const historicalPath = resolve(testDir, '../..', 'docs/design-system.md')
+    const legacyGuidance = readRepoFile('docs/guidance/ui/legacy.md')
+
+    expect(existsSync(historicalPath)).toBe(false)
+    expect(legacyGuidance).toContain('retired `docs/design-system.md`')
+    expect(legacyGuidance).toContain('Git history')
+    expect(legacyGuidance).toContain('Do not create')
+  })
+
+  it('keeps active AI and issue workflows routed through DESIGN.md', () => {
+    const files = [
+      'AGENTS.md',
+      '.ai/START-HERE.md',
+      'docs/ai-instructions.md',
+      'docs/workflow/handle-issue.md',
+      'docs/issue-worker.md',
+      '.codex/prompts/session-start.md',
+      '.codex/prompts/work-on-issue.md',
+      '.codex/prompts/ui-verify.md',
+    ]
+
+    for (const file of files) {
+      const content = readRepoFile(file)
+      expect(content, file).toContain('DESIGN.md')
+      expect(content, file).not.toContain('docs/design-system.md')
+    }
   })
 
   it('requires the UI guidance declaration in issue and Codex workflows', () => {

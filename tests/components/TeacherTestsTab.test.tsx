@@ -235,7 +235,6 @@ function makeResultsResponse(overrides?: {
   questions?: Array<Record<string, unknown>>
   testStatus?: TestAssessmentWithStats['status']
   activeRun?: Record<string, unknown> | null
-  legacyQuizKey?: boolean
 }) {
   const testSummary = {
     id: overrides?.testId ?? 'test-1',
@@ -247,7 +246,7 @@ function makeResultsResponse(overrides?: {
   return {
     ok: true,
     json: async () => ({
-      [overrides?.legacyQuizKey ? 'quiz' : 'test']: testSummary,
+      test: testSummary,
       questions:
         overrides?.questions ?? [
           {
@@ -292,6 +291,66 @@ describe('TeacherTestsTab', () => {
       json: async () => ({ tests }),
     })
   }
+
+  it('shows a retryable error instead of an empty state when the tests list fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Database unavailable' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Still unavailable' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Recovered Test' })] }),
+      })
+
+    renderTab()
+
+    expect(await screen.findByText('Tests unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('No tests yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Recovered Test')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
+    expect(screen.queryByText('Tests unavailable')).not.toBeInTheDocument()
+  })
+
+  it('keeps the current list visible when a background refresh fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Current Test' })] }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Refresh failed' }),
+      })
+
+    renderTab()
+
+    expect(await screen.findByText('Current Test')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }),
+      )
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tests could not be refreshed. Showing the last loaded list.',
+    )
+    expect(screen.getByText('Current Test')).toBeInTheDocument()
+    expect(screen.queryByText('No tests yet')).not.toBeInTheDocument()
+  })
 
   function renderTab(options?: {
     classroom?: Classroom
@@ -632,19 +691,6 @@ describe('TeacherTestsTab', () => {
     )
   })
 
-  it('reads legacy quiz-keyed test results payloads as a compatibility fallback', async () => {
-    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ legacyQuizKey: true }))
-    renderTab()
-
-    fireEvent.click(await screen.findByText('Unit Test'))
-
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
-    expect(screen.queryByText('Failed to load test results')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
-  })
-
   it('opens the edit modal from the selected test edit button', async () => {
     const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams('tab=tests')
@@ -658,7 +704,9 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit Test' })).toBeEnabled()
+    const editTestButton = screen.getByRole('button', { name: 'Edit Test' })
+    expect(editTestButton).toBeEnabled()
+    expect(within(editTestButton).getByText('Edit Test')).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
@@ -667,9 +715,12 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
     fireEvent.keyDown(window, { key: 'Escape' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Test' }))
+    editTestButton.focus()
+    fireEvent.click(editTestButton)
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByRole('dialog', { name: 'Edit test' })).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText('Edit test')).toBeVisible()
     expect(updateSearchParams).toHaveBeenCalledTimes(2)
     const params = new URLSearchParams('tab=tests&testId=test-1&testMode=grading&testStudentId=student-1')
     updateSearchParams.mock.calls[1][0](params)
@@ -682,6 +733,11 @@ describe('TeacherTestsTab', () => {
       'aria-pressed',
       'false'
     )
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(editTestButton).toHaveFocus()
+    })
   })
 
   it('closes the edit modal when controlled params return from authoring to grading', async () => {
@@ -1695,6 +1751,23 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(0)
+    expect(updateSearchParams).not.toHaveBeenCalled()
+  })
+
+  it('keeps controlled test params intact when the tests list fails', async () => {
+    const updateSearchParams = vi.fn()
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Database unavailable' }),
+    })
+
+    renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'authoring',
+      updateSearchParams,
+    })
+
+    expect(await screen.findByText('Tests unavailable')).toBeInTheDocument()
     expect(updateSearchParams).not.toHaveBeenCalled()
   })
 

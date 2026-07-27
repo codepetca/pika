@@ -12,9 +12,9 @@ export type PageWidth = 'reading' | 'standard' | 'wide' | 'full'
 const PageDensityContext = createContext<PageDensity>('default')
 
 const PAGE_WIDTH_CLASSES: Record<PageWidth, string> = {
-  reading: 'max-w-2xl',
-  standard: 'max-w-4xl',
-  wide: 'max-w-7xl',
+  reading: 'max-w-reading',
+  standard: 'max-w-standard',
+  wide: 'max-w-wide',
   full: 'max-w-none',
 }
 
@@ -23,22 +23,22 @@ const PAGE_DENSITY_CLASSES: Record<
   { gutter: string; bleed: string; contentTop: string; stackGap: string }
 > = {
   default: {
-    gutter: 'px-3',
-    bleed: '-mx-3',
-    contentTop: 'pt-2',
-    stackGap: 'space-y-3',
+    gutter: 'px-density-compact-gutter',
+    bleed: '-mx-density-compact-gutter',
+    contentTop: 'pt-density-compact-content-top',
+    stackGap: 'space-y-density-compact-stack-gap',
   },
   teacher: {
-    gutter: 'px-3',
-    bleed: '-mx-3',
-    contentTop: 'pt-2',
-    stackGap: 'space-y-3',
+    gutter: 'px-density-compact-gutter',
+    bleed: '-mx-density-compact-gutter',
+    contentTop: 'pt-density-compact-content-top',
+    stackGap: 'space-y-density-compact-stack-gap',
   },
   student: {
-    gutter: 'px-4',
-    bleed: '-mx-4',
-    contentTop: 'pt-3',
-    stackGap: 'space-y-4',
+    gutter: 'px-density-comfortable-gutter',
+    bleed: '-mx-density-comfortable-gutter',
+    contentTop: 'pt-density-comfortable-content-top',
+    stackGap: 'space-y-density-comfortable-stack-gap',
   },
 }
 
@@ -272,7 +272,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
   if (items.length === 0) return null
 
   const menuItemClassName =
-    'min-h-11 w-full px-3 py-2 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50'
+    'min-h-control w-full px-3 py-2 text-left text-sm focus:outline-none focus-visible:ring-foundation focus-visible:ring-inset focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <div className="relative" ref={containerRef}>
@@ -303,7 +303,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
           ref={menuRef}
           role="menu"
           onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
+          className="absolute right-0 z-local-menu mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
         >
           {normalItems.map((item) => (
             <button

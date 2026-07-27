@@ -3,6 +3,7 @@ import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { countCharacters, countWords } from '@/lib/tiptap-content'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
 import type { AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
+import type { v1 } from '@/vendor/pal-contract'
 
 type SupabaseLike = any
 
@@ -224,15 +225,23 @@ export async function submitAssignmentDocAtomic(input: {
   studentId: string
   content: TiptapContent
   expectedUpdatedAt: string
+  palEvent?: v1.LearningItemCompletedEvent | null
 }): Promise<AssignmentDocMutationResult> {
-  const { data, error } = await input.supabase.rpc('submit_assignment_doc_atomic', {
-    p_assignment_id: input.assignmentId,
-    p_student_id: input.studentId,
-    p_content: input.content,
-    p_expected_updated_at: input.expectedUpdatedAt,
-    p_word_count: countWords(input.content),
-    p_char_count: countCharacters(input.content),
-  })
+  const usePalOutbox = input.palEvent !== undefined
+  const { data, error } = await input.supabase.rpc(
+    usePalOutbox
+      ? 'submit_assignment_doc_with_pal_event_atomic'
+      : 'submit_assignment_doc_atomic',
+    {
+      p_assignment_id: input.assignmentId,
+      p_student_id: input.studentId,
+      p_content: input.content,
+      p_expected_updated_at: input.expectedUpdatedAt,
+      p_word_count: countWords(input.content),
+      p_char_count: countCharacters(input.content),
+      ...(usePalOutbox ? { p_pal_event: input.palEvent } : {}),
+    },
+  )
 
   if (error) return mapRpcError(error, 'submit')
 

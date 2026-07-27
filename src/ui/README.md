@@ -4,6 +4,10 @@ This directory contains the canonical UI primitives for the Pika application.
 
 **All app code must import from `@/ui`, not from legacy `@/components/*` paths.**
 
+Root [`DESIGN.md`](/DESIGN.md) owns global design principles and authority.
+This file owns canonical component APIs and semantic-token usage; executable
+values remain in [`src/styles/tokens.css`](/src/styles/tokens.css).
+
 ---
 
 ## Quick Start
@@ -260,6 +264,7 @@ These rules ensure consistency across the codebase:
 | **Form labels** | Always via `<FormField>`, never on Input/Select directly | One pattern to learn, one place for label styling |
 | **Targets and focus** | Shared buttons, segmented controls, and form controls provide a 44px minimum target and `focus-visible` ring | Mobile and keyboard access should not depend on feature-local classes |
 | **Token naming** | Intent-based only (`rounded-control`, not `rounded-8px`) | Prevents proliferation of one-off tokens |
+| **Raw design values** | New raw colours, arbitrary spacing, and raw layers require an exact governed exception | Existing migration debt must not silently spread or mutate |
 | **Tiptap** | Stays in `/components/tiptap*`, not `/ui` | Editor is a mini-platform; don't mix with app primitives |
 
 ### Dark Mode Examples
@@ -345,6 +350,34 @@ Use these semantic surfaces in app code and component variants:
 | `gap-field` | 0.75rem (12px) | Form field gaps |
 | `gap-control` | 0.5rem (8px) | Button group gaps |
 
+### Portable foundations
+
+These aliases preserve existing Pika values while making their intent portable.
+Use canonical components first; use an alias directly only when the
+responsibility belongs to feature composition.
+
+| Responsibility | Tailwind aliases |
+|---|---|
+| Typography | `font-sans`, `font-mono` |
+| Minimum control target | `min-h-control`, `min-w-control` |
+| Focus | `ring-foundation`, `ring-focus`, `ring-offset-foundation` |
+| Motion | `duration-fast`, `duration-standard`, `duration-deliberate`, `ease-standard` |
+| Page width | `max-w-reading`, `max-w-standard`, `max-w-wide` |
+| Density rhythm | `*-density-compact-*`, `*-density-comfortable-*` |
+| Layers | `z-local-menu`, `z-floating`, `z-app-chrome`, `z-popover`, `z-modal`, `z-app-message` |
+| Overlay scrim | `bg-overlay-scrim` |
+
+The motion duration variables resolve to `0ms` under
+`prefers-reduced-motion: reduce`. A feature-owned animation that does not use
+them must provide an equivalent path.
+
+Run `pnpm run check:design-policy` after changing visual values. It covers
+Tailwind arbitrary syntax, literal inline styles, and CSS/SCSS declarations;
+canonical definitions in `src/styles/tokens.css` are intentionally reviewed by
+semantic and contrast tests instead. The exception registry is an exact
+baseline: counts and fingerprints must match, and each entry names a reason and
+migration owner.
+
 ### Shadows
 
 | Token | Usage |
@@ -361,7 +394,6 @@ These are NOT part of the `/ui` design system:
 - **Tiptap primitives**: Stay in `tiptap-ui-primitive/`
 - **Textarea**: Use native `<textarea>` wrapped by FormField
 - **Toast stacks**: Use `AppMessage` instead; stacked toasts are intentionally not implemented
-- **Tabs**: Not implemented yet
 - **App-specific components**: ClassroomDropdown, UserMenu, etc.
 
 ---

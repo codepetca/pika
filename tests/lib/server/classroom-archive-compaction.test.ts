@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import {
+  CLASSROOM_ARCHIVE_V2_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
+} from '@/lib/contracts/classroom-archive-resources'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
   CLASSROOM_ARCHIVE_COMPACTION_OBJECT_BATCH_SIZE,
@@ -14,11 +17,11 @@ const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 const OPERATION_ID = '00000000-0000-4000-8000-000000000004'
 const OTHER_ARCHIVE_ID = '00000000-0000-4000-8000-000000000005'
 const OTHER_CLASSROOM_ID = '00000000-0000-4000-8000-000000000006'
-const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v1.tar.gz`
+const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v2.tar.gz`
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
@@ -33,6 +36,7 @@ function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
     bytes: Buffer.from(`object-${index}`),
   }))
   return buildClassroomArchiveBundle({
+    version: 2,
     archiveId: ARCHIVE_ID,
     classroomId,
     teacherId: TEACHER_ID,
@@ -107,6 +111,7 @@ function completionVerification(args: Record<string, unknown>) {
 function createSupabaseMock(options: {
   objectCount?: number
   completedReplay?: boolean
+  legacyArchive?: boolean
   beginError?: { code?: string; message?: string }
   corruptArchive?: boolean
   wrongManifestIdentity?: boolean
@@ -153,12 +158,28 @@ function createSupabaseMock(options: {
       : reportedResourceCounts,
     storage_object_counts: reportedStorageCounts,
     verification,
+    source_contract_version: 2,
+    archive_format_version: 2,
+    restore_contract_version: 2,
   })
 
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
     calls.push(`rpc:${name}`)
-    if (name === 'begin_classroom_archive_compaction') {
+    if (name === 'begin_classroom_archive_compaction_v2') {
       if (options.beginError) return { data: null, error: options.beginError }
+      if (options.legacyArchive) {
+        return {
+          data: {
+            ok: false,
+            status: 409,
+            operation_id: OPERATION_ID,
+            error_code: 'classroom_archive_reexport_required',
+            error: 'Classroom must be re-exported with archive-v2 before compaction',
+            retryable: false,
+          },
+          error: null,
+        }
+      }
       if (options.completedReplay) {
         return {
           data: completed(true, {
@@ -200,6 +221,9 @@ function createSupabaseMock(options: {
           storage_path: options.wrongStoragePath ? 'wrong/archive.tar.gz' : ARCHIVE_PATH,
           artifact_sha256: bundle.artifactSha256,
           content_sha256: bundle.manifest.content_sha256,
+          source_contract_version: 2,
+          archive_format_version: 2,
+          restore_contract_version: 2,
         },
         error: null,
       }
@@ -253,7 +277,7 @@ function createSupabaseMock(options: {
         error: null,
       }
     }
-    if (name === 'complete_classroom_archive_compaction') {
+    if (name === 'complete_classroom_archive_compaction_v2') {
       if (options.completeError) return { data: null, error: options.completeError }
       if (options.malformedComplete) return { data: { ok: true, status: 201 }, error: null }
       if (options.completeFailure) {
@@ -415,11 +439,12 @@ describe('classroom archive cold-compaction coordinator', () => {
     expect(mock.calls.indexOf(`download:classroom-archives/${ARCHIVE_PATH}`))
       .toBeLessThan(mock.calls.indexOf('rpc:stage_classroom_archive_compaction_objects'))
     expect(mock.calls.indexOf('rpc:stage_classroom_archive_compaction_objects'))
-      .toBeLessThan(mock.calls.indexOf('rpc:complete_classroom_archive_compaction'))
+      .toBeLessThan(mock.calls.indexOf('rpc:complete_classroom_archive_compaction_v2'))
     expect(mock.rpc).toHaveBeenCalledWith(
-      'complete_classroom_archive_compaction',
+      'complete_classroom_archive_compaction_v2',
       expect.objectContaining({
         p_actors: [{ actor_id: TEACHER_ID, role: 'teacher' }],
+        p_restore_contract_version: 2,
         p_verification: expect.objectContaining({
           operation_id: OPERATION_ID,
           archive_id: ARCHIVE_ID,
@@ -429,6 +454,14 @@ describe('classroom archive cold-compaction coordinator', () => {
           source_object_cleanup_staged: true,
         }),
       }),
+    )
+    const stagedTables = mock.rpc.mock.calls
+      .filter(([name]) => name === 'stage_classroom_archive_restore_rows')
+      .map(([, args]) => args.p_table_name)
+    expect(stagedTables).toEqual(
+      CLASSROOM_ARCHIVE_V2_RESTORE_ORDER.filter((table) =>
+        table === 'classrooms' || table === 'assignment_submission_artifacts',
+      ),
     )
   })
 
@@ -489,7 +522,26 @@ describe('classroom archive cold-compaction coordinator', () => {
     expect(result).toEqual(expect.objectContaining({ ok: true, replayed: true }))
     expect(mock.storageFrom).not.toHaveBeenCalled()
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_compaction',
+      'begin_classroom_archive_compaction_v2',
+    ])
+  })
+
+  it('requires a v2 re-export before compacting a historical v1 archive', async () => {
+    const mock = createSupabaseMock({ legacyArchive: true })
+
+    const result = await compactClassroomArchive(operationArgs(mock))
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      operation_id: OPERATION_ID,
+      error_code: 'classroom_archive_reexport_required',
+      error: 'Classroom must be re-exported with archive-v2 before compaction',
+      retryable: false,
+    })
+    expect(mock.storageFrom).not.toHaveBeenCalled()
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_classroom_archive_compaction_v2',
     ])
   })
 
@@ -588,7 +640,7 @@ describe('classroom archive cold-compaction coordinator', () => {
     }))
     for (const mock of [rejected, malformed]) {
       expect(mock.rpc.mock.calls.map(([name]) => name)).not.toContain(
-        'complete_classroom_archive_compaction',
+        'complete_classroom_archive_compaction_v2',
       )
     }
   })
@@ -651,8 +703,8 @@ describe('classroom archive cold-compaction coordinator', () => {
       retryable: true,
     }))
     expect(mock.calls.indexOf('rpc:stage_classroom_archive_compaction_objects'))
-      .toBeLessThan(mock.calls.indexOf('rpc:complete_classroom_archive_compaction'))
-    expect(mock.calls.indexOf('rpc:complete_classroom_archive_compaction'))
+      .toBeLessThan(mock.calls.indexOf('rpc:complete_classroom_archive_compaction_v2'))
+    expect(mock.calls.indexOf('rpc:complete_classroom_archive_compaction_v2'))
       .toBeLessThan(mock.calls.indexOf('rpc:fail_classroom_archive_compaction'))
   })
 
@@ -701,11 +753,11 @@ describe('classroom archive cold-compaction coordinator', () => {
       status: 503,
       operation_id: OPERATION_ID,
       error_code: 'classroom_archive_compaction_migration_required',
-      error: 'Classroom archive compaction requires migration 085',
+      error: 'Classroom archive compaction requires migration 107',
       retryable: true,
     })
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_compaction',
+      'begin_classroom_archive_compaction_v2',
       'fail_classroom_archive_compaction',
     ])
   })

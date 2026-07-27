@@ -75,6 +75,9 @@ const blueprintDetail = {
   overview_markdown: 'Overview',
   outline_markdown: 'Outline',
   resources_markdown: 'Resources',
+  gradebook_use_weights: true,
+  gradebook_assignments_weight: 65,
+  gradebook_tests_weight: 35,
   planned_site_slug: null,
   planned_site_published: false,
   planned_site_config: {
@@ -82,13 +85,14 @@ const blueprintDetail = {
     outline: true,
     resources: true,
     assignments: true,
-    quizzes: true,
     tests: true,
     lesson_plans: true,
   },
   assignments: [],
   assessments: [],
   lesson_templates: [],
+  materials: [],
+  surveys: [],
   linked_classrooms: [
     {
       id: 'c-9',
@@ -175,6 +179,12 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.getByText('Portable Course Package')).toBeInTheDocument()
     expect(screen.getByText(/Exports a .course-package.tar file with manifest.json and editable Markdown files./)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Quizzes' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Materials' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Surveys' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    expect(screen.getByText('Reusable Gradebook Setup')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('65')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('35')).toBeInTheDocument()
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
       'teacher-blueprints:teacher-1:list',
       expect.any(Function),

@@ -1,6 +1,7 @@
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { CLASSROOM_RELATIONAL_RESOURCES, GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
+import { GRADEX_RESOURCE_TABLES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -13,6 +14,7 @@ import {
   buildGradexExtractFromClassroomArchive,
   verifyGradexExtractBundle,
 } from '@/lib/server/classroom-gradex-extract'
+import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
 
 const TEACHER_ID = '10000000-0000-4000-8000-000000000001'
 const STUDENT_ID = '20000000-0000-4000-8000-000000000001'
@@ -32,7 +34,7 @@ const HMAC_SECRET = 'test-only-gradex-hmac-secret-with-more-than-32-bytes'
 
 function sourceArchive() {
   const resources = Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
   )
   resources.assignments = [{
     id: ASSIGNMENT_ID,
@@ -199,6 +201,7 @@ function sourceArchive() {
   }]
 
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: 'a0000000-0000-4000-8000-000000000001',
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -376,6 +379,16 @@ describe('classroom Gradex extract', () => {
       deleteAfter: DELETE_AFTER,
       hmacSecret: 'too-short',
     })).toThrow('at least 32 bytes')
+  })
+
+  it('rejects verified archive versions that are disabled for Gradex', () => {
+    expect(() => buildGradexExtractFromClassroomArchive({
+      archive: buildClassroomArchiveV2Fixture().archive,
+      extractId: EXTRACT_ID,
+      generatedAt: GENERATED_AT,
+      deleteAfter: DELETE_AFTER,
+      hmacSecret: HMAC_SECRET,
+    })).toThrow('version 2 is not enabled for Gradex')
   })
 
   it('rejects checksum-consistent bundles with identifiers or broken pseudonymous relationships', () => {

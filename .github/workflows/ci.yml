@@ -54,8 +54,14 @@ jobs:
       - name: Verify atomic test grading
         run: bash scripts/check-atomic-test-grading.sh
 
+      - name: Verify test document snapshot concurrency and cleanup
+        run: bash scripts/check-test-document-snapshot-concurrency.sh
+
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
+
+      - name: Verify versioned Blueprint proposals and deletion safety
+        run: bash scripts/check-versioned-course-blueprint-database.sh
 
       - name: Verify archive operations and lifecycle evidence
         run: bash scripts/check-classroom-archive-database.sh
@@ -63,8 +69,8 @@ jobs:
       - name: Verify atomic archive compaction rollback and cleanup staging
         run: bash scripts/check-classroom-archive-compaction-database.sh
 
-      - name: Verify real compaction and resumable restore round trip
-        run: bash scripts/check-classroom-archive-restore-database.sh
+      - name: Verify archive compatibility and retired Quiz schema removal
+        run: bash scripts/check-legacy-quiz-freeze-backfill.sh
 
       - name: Verify Gradex extract operations and retention cleanup
         run: bash scripts/check-classroom-gradex-database.sh

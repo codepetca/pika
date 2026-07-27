@@ -66,7 +66,6 @@ interface TestResultsPayload {
 
 type TestResultsResponsePayload = Omit<TestResultsPayload, 'test'> & {
   test?: TestResultSummary | null
-  quiz?: TestResultSummary | null
 }
 
 interface GradeDraft {

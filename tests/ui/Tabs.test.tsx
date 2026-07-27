@@ -37,7 +37,7 @@ describe('Tabs', () => {
     expect(activeTab).toHaveAttribute('aria-selected', 'true')
     expect(activeTab).toHaveAttribute('aria-controls', 'class-panel')
     expect(activeTab).toHaveAttribute('tabindex', '0')
-    expect(activeTab).toHaveClass('min-h-11', 'shrink-0', 'focus-visible:ring-2')
+    expect(activeTab).toHaveClass('min-h-control', 'shrink-0', 'focus-visible:ring-foundation')
     expect(inactiveTab).toHaveAttribute('tabindex', '-1')
     expect(panel).toHaveAttribute('aria-labelledby', 'class-tab')
     expect(panel).not.toHaveAttribute('tabindex')

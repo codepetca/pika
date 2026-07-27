@@ -241,7 +241,7 @@ export const createMockAssessmentQuestion = (
   overrides: Partial<TestAssessmentQuestion> = {}
 ): TestAssessmentQuestion => ({
   id: 'question-1',
-  quiz_id: 'test-1',
+  test_id: 'test-1',
   question_text: 'What is your favorite color?',
   options: ['Red', 'Blue', 'Green', 'Yellow'],
   position: 0,
@@ -257,7 +257,7 @@ export const createMockAssessmentResponse = (
   overrides: Partial<TestAssessmentResponse> = {}
 ): TestAssessmentResponse => ({
   id: 'response-1',
-  quiz_id: 'test-1',
+  test_id: 'test-1',
   question_id: 'question-1',
   student_id: 'student-1',
   selected_option: 0,
@@ -267,7 +267,7 @@ export const createMockAssessmentResponse = (
 
 /**
  * Create a mock test with default or custom values.
- * The shape aliases the legacy quiz table contract while using the active surface name.
+ * The shape matches the active Test table contract.
  */
 export const createMockTest = (overrides: Partial<TestAssessment> = {}): TestAssessment =>
   createMockAssessment({
@@ -284,7 +284,7 @@ export const createMockTestQuestion = (
   overrides: Partial<TestAssessmentQuestion> = {}
 ): TestAssessmentQuestion =>
   createMockAssessmentQuestion({
-    quiz_id: 'test-1',
+    test_id: 'test-1',
     ...overrides,
   })
 
@@ -295,6 +295,6 @@ export const createMockTestResponse = (
   overrides: Partial<TestAssessmentResponse> = {}
 ): TestAssessmentResponse =>
   createMockAssessmentResponse({
-    quiz_id: 'test-1',
+    test_id: 'test-1',
     ...overrides,
   })

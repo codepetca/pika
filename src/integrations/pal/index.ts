@@ -1,0 +1,1 @@
+export { PalWidgetThemeBoundary } from './PalWidgetThemeBoundary'

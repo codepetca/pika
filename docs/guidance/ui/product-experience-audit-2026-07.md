@@ -177,8 +177,26 @@ Assignment progress:
 - Accessible assignment save announcements and restore-dialog semantics were completed in #891. The visible save state is a polite atomic live region, and restore confirmation uses the shared modal-layer contract for focus containment, dismissal, background isolation, scroll locking, and focus return.
 - Remaining assignment work is limited to the deferred mobile workspace modes and the separately owned Gradex status boundary.
 
+Daily and attendance progress:
+
+- Cold class-schedule, student-entry, teacher-attendance, and selected-student history reads now render explicit retryable failures instead of false non-class-day or empty states.
+- Failed background schedule and student-entry refreshes preserve the last valid table, editor, and history snapshots with non-blocking retry warnings. Cross-classroom and cross-student stale response guards prevent another classroom's or student's log data from painting in the active workspace.
+- Student Daily save status is a polite atomic live region and save failures are announced. Existing Toronto midnight, DST, quick-jump, stale-mounted-save, and API timing tests remain the timestamp evidence.
+- Remaining Daily/Attendance work is limited to the deferred mobile history/table workspace modes.
+
+Tests progress:
+
+- Teacher and student Tests lists now distinguish loading, cold failure, successful empty, and failed refresh states. Cold failures offer an explicit retry instead of claiming that no tests exist.
+- Failed refreshes retain the last valid list with a compact retry warning, while classroom-scoped snapshots and request guards prevent another classroom's tests from painting in the active view.
+- Teacher controlled test URLs remain intact until a successful list snapshot proves that the selected test is invalid. Existing list-first teacher and student compositions are unchanged.
+- The selected Tests workspace remains grading-first and preserves the class-wide student table. Test authoring is now an explicit visible `Edit Test` command with a named editor dialog, and authoring-only dialog/view composition lives in `TeacherTestAuthoringDialog` instead of expanding the grading coordinator.
+- Standalone preview route tests now prove unauthenticated, non-teacher, non-owner, and classroom/test mismatch denials. Preview data is owned by `testId`, late requests cannot repaint another test, and opening or closing a document transfers focus predictably.
+- Full-screen teacher preview framing was browser-verified in light/dark at desktop and the mobile breakpoint, including a mobile-dark opened text document with focus on Back and no horizontal overflow. A student-authenticated route check rendered only the generic authorization denial.
+- Link snapshots now validate and pin public DNS addresses across manual redirects before fetching. Migration 105 atomically rechecks ownership, archive state, document identity, and URL under row locks before attaching a unique snapshot; it must be applied before deploying the updated sync route.
+- Remaining Tests work is accessible flag/save announcements and the deferred mobile navigation treatment.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
-2. Tests: list errors, authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, accessible flags/save status.
+2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
 4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.

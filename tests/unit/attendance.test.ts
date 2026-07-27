@@ -3,6 +3,7 @@ import {
   computeAttendanceStatusForStudent,
   computeAttendanceRecords,
   entryHasContent,
+  hasQualifyingDailyLogContent,
   getAttendanceIcon,
   getAttendanceLabel,
   getAttendanceDotClass,
@@ -10,6 +11,17 @@ import {
 import type { ClassDay, Entry } from '@/types'
 
 describe('attendance utilities', () => {
+  it.each(['', ' ', '\n\t'])(
+    'does not treat whitespace-only text as a qualifying daily log: %j',
+    (text) => {
+      expect(hasQualifyingDailyLogContent(text)).toBe(false)
+    },
+  )
+
+  it('uses the attendance content predicate as the Pal qualification boundary', () => {
+    expect(hasQualifyingDailyLogContent('A real reflection')).toBe(true)
+  })
+
   const classDays: ClassDay[] = [
     { id: '1', course_code: 'GLD2O', date: '2024-09-01', is_class_day: true, prompt_text: null },
     { id: '2', course_code: 'GLD2O', date: '2024-09-02', is_class_day: true, prompt_text: null },

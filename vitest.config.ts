@@ -1,14 +1,45 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, defaultExclude } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+
+// Constructing a jsdom environment costs roughly a second per test file, and
+// most suites here (API routes, server helpers, pure utilities) never touch the
+// DOM. Those run under `node` instead; only the suites below need a window.
+//
+// To find this list empirically after adding tests:
+//   npx vitest run --project node
+// Any suite that fails on a missing DOM global belongs in `jsdomOnlyTsSuites`.
+const jsdomOnlyTsSuites = [
+  'tests/hooks/**/*.{test,spec}.ts',
+  'tests/lib/flag-questions.test.ts',
+  'tests/unit/classroom-ux-metrics.test.ts',
+  'tests/unit/client-storage.test.ts',
+]
 
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['tests/**/*.{test,spec}.ts'],
+          exclude: [...defaultExclude, ...jsdomOnlyTsSuites],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'jsdom',
+          environment: 'jsdom',
+          include: ['tests/**/*.{test,spec}.tsx', ...jsdomOnlyTsSuites],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

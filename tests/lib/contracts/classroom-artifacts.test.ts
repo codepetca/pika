@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
+  CLASSROOM_NON_OWNING_REFERENCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   auditClassroomResourceSchema,
   classroomResourceInventorySchema,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   CLASSROOM_ARCHIVE_FORMAT,
   CLASSROOM_ARCHIVE_VERSION,
@@ -28,7 +30,7 @@ const classroomId = '20000000-0000-4000-8000-000000000002'
 const teacherId = '30000000-0000-4000-8000-000000000003'
 
 function archiveResourceFiles() {
-  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+  return CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => ({
     table: resource.table,
     path: `data/${resource.table}.ndjson`,
     row_count: 0,
@@ -38,7 +40,7 @@ function archiveResourceFiles() {
 }
 
 function contractRelationships() {
-  return CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
+  const ownedRelationships = CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
     const ownershipRelationships = resource.scope.kind === 'root'
       ? []
       : resource.restore_after.map((parent) => ({
@@ -55,6 +57,13 @@ function contractRelationships() {
     }))
     return [...ownershipRelationships, ...actorRelationships]
   })
+  return [
+    ...ownedRelationships,
+    ...CLASSROOM_NON_OWNING_REFERENCES.map((relationship) => ({
+      ...relationship,
+      child_columns: [...relationship.child_columns],
+    })),
+  ]
 }
 
 function contractPrimaryKeys() {
@@ -95,12 +104,33 @@ function validArchiveManifest(): ClassroomArchiveManifest {
 }
 
 describe('classroom data inventory', () => {
-  it('is a valid, complete 42-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(42)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(42)
+  it('is a valid, complete 40-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(40)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(40)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'test_attempts')?.actor_columns)
       .toEqual(CLASSROOM_ACTOR_REFERENCE_COLUMNS.test_attempts)
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
+      resource.table === 'classroom_retired_assessment_records',
+    )).toMatchObject({
+      scope: {
+        kind: 'foreign_key',
+        parent: 'classrooms',
+        column: 'classroom_id',
+      },
+      restore_after: ['classrooms'],
+    })
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) =>
+      resource.table === 'classroom_retired_assessment_record_actors',
+    )).toMatchObject({
+      actor_columns: ['actor_id'],
+      scope: {
+        kind: 'foreign_key',
+        parent: 'classroom_retired_assessment_records',
+        column: 'record_id',
+      },
+      restore_after: ['classroom_retired_assessment_records'],
+    })
   })
 
   it('exports and restores parents first and purges children first', () => {
@@ -142,7 +172,14 @@ describe('classroom data inventory', () => {
   it('detects schema resources that are not represented in the archive graph', () => {
     const relationships = contractRelationships()
 
-    expect(auditClassroomResourceSchema(relationships, contractPrimaryKeys()).ok).toBe(true)
+    expect(auditClassroomResourceSchema([
+      ...relationships,
+      {
+        child_table: 'classroom_retired_assessment_records',
+        parent_table: 'classroom_retired_assessment_records',
+        child_columns: ['parent_source_row_id'],
+      },
+    ], contractPrimaryKeys()).ok).toBe(true)
     expect(auditClassroomResourceSchema([
       ...relationships,
       {
@@ -156,14 +193,38 @@ describe('classroom data inventory', () => {
     }))
   })
 
+  it('keeps Blueprint workflow references outside classroom archive ownership', () => {
+    const audit = auditClassroomResourceSchema(
+      contractRelationships(),
+      contractPrimaryKeys(),
+    )
+
+    expect(audit.ok).toBe(true)
+    expect(audit.untracked_tables).not.toContain('course_blueprint_change_proposals')
+    expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
+
+    const missingReference = contractRelationships().filter((relationship) =>
+      !(relationship.child_table === 'course_blueprint_editing_sessions' &&
+        relationship.child_columns.includes('classroom_id'))
+    )
+    expect(
+      auditClassroomResourceSchema(missingReference, contractPrimaryKeys()),
+    ).toEqual(expect.objectContaining({
+      ok: false,
+      stale_non_owning_references: [
+        'course_blueprint_editing_sessions.classroom_id->classrooms',
+      ],
+    }))
+  })
+
   it('detects stale resources, missing restore dependencies, and invalid selection keys', () => {
     const relationships = contractRelationships()
-    const withoutQuizQuestions = relationships.filter((relationship) =>
-      !(relationship.child_table === 'quiz_questions' && relationship.parent_table === 'quizzes'),
+    const withoutReportCardRows = relationships.filter((relationship) =>
+      !(relationship.child_table === 'report_card_rows' && relationship.parent_table === 'report_cards'),
     )
-    expect(auditClassroomResourceSchema(withoutQuizQuestions, contractPrimaryKeys())).toEqual(expect.objectContaining({
+    expect(auditClassroomResourceSchema(withoutReportCardRows, contractPrimaryKeys())).toEqual(expect.objectContaining({
       ok: false,
-      stale_tables: ['quiz_questions'],
+      stale_tables: ['report_card_rows'],
     }))
 
     expect(auditClassroomResourceSchema([
@@ -225,8 +286,8 @@ describe('classroom data inventory', () => {
 
 describe('classroom artifact contracts', () => {
   it('keeps reusable blueprints explicitly non-recoverable and student-free', () => {
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('3')
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3'])
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('5')
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3', '4', '5'])
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.recoverable_classroom_backup).toBe(false)
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('student_work')
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('grades_and_feedback')
@@ -246,7 +307,7 @@ describe('classroom artifact contracts', () => {
     expect(CLASSROOM_STORAGE_CONTRACT.sources.every((source) => source.copy_policy === 'referenced_only')).toBe(true)
   })
 
-  it('requires one checksummed file for every relational resource, including empty tables', () => {
+  it('requires one checksummed file for every current archive resource, including empty tables', () => {
     expect(classroomArchiveManifestSchema.safeParse(validArchiveManifest()).success).toBe(true)
 
     const missingResource = validArchiveManifest()

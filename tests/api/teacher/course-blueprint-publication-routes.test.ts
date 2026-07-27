@@ -78,20 +78,37 @@ describe('teacher blueprint publication routes', () => {
   })
 
   it('applies selected blueprint merge areas', async () => {
-    mockApplyMerge.mockResolvedValue({ ok: true })
+    mockApplyMerge.mockResolvedValue({
+      ok: true,
+      proposal: { id: 'proposal-1', status: 'needs_review' },
+    })
 
     const response = await POST_MERGE_APPLY(
       new NextRequest('http://localhost:3000/api/teacher/course-blueprints/b-1/merge-apply', {
         method: 'POST',
         body: JSON.stringify({
           classroomId: '11111111-1111-4111-8111-111111111111',
+          expectedBlueprintRevision: 7,
+          expectedClassroomRevision: 3,
           areas: ['overview', 'assignments'],
         }),
       }),
       { params: Promise.resolve({ id: 'b-1' }) } as any
     )
 
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ success: true })
+    expect(mockApplyMerge).toHaveBeenCalledWith(
+      'teacher-1',
+      'b-1',
+      '11111111-1111-4111-8111-111111111111',
+      ['overview', 'assignments'],
+      {
+        expectedBlueprintRevision: 7,
+        expectedClassroomRevision: 3,
+      }
+    )
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual({
+      proposal: { id: 'proposal-1', status: 'needs_review' },
+    })
   })
 })

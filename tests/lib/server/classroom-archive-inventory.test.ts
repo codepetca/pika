@@ -9,10 +9,12 @@ import {
   type ClassroomArchiveInventoryReader,
 } from '@/lib/server/classroom-archive-inventory'
 import {
+  CLASSROOM_NON_OWNING_REFERENCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   createTargetBoundFetch,
   hostedSupabasePsqlEnvironment,
@@ -25,21 +27,26 @@ const CLASSROOM_ID = '11111111-1111-4111-8111-111111111111'
 const ASSIGNMENT_ID = '22222222-2222-4222-8222-222222222222'
 
 function remoteArchiveContract() {
+  const v1Tables = new Set<string>(
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => resource.table),
+  )
   const resources = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
-  return getClassroomResourceOrder('export').map((table, exportPosition) => {
-    const resource = resources.get(table)!
-    return {
-      table_name: table,
-      primary_key_columns: [...resource.primary_key],
-      parent_table: resource.scope.kind === 'foreign_key' ? resource.scope.parent : null,
-      parent_column: resource.scope.kind === 'foreign_key' ? resource.scope.column : null,
-      actor_columns: [...resource.actor_columns],
-      restore_after: [...resource.restore_after],
-      export_position: exportPosition,
-    }
-  })
+  return getClassroomResourceOrder('export')
+    .filter((table) => v1Tables.has(table))
+    .map((table, exportPosition) => {
+      const resource = resources.get(table)!
+      return {
+        table_name: table,
+        primary_key_columns: [...resource.primary_key],
+        parent_table: resource.scope.kind === 'foreign_key' ? resource.scope.parent : null,
+        parent_column: resource.scope.kind === 'foreign_key' ? resource.scope.column : null,
+        actor_columns: [...resource.actor_columns],
+        restore_after: [...resource.restore_after],
+        export_position: exportPosition,
+      }
+    })
 }
 
 function openApiDocument() {
@@ -60,6 +67,15 @@ function openApiDocument() {
       }
     }
     definitions[resource.table] = { properties }
+  }
+  for (const relationship of CLASSROOM_NON_OWNING_REFERENCES) {
+    const definition = definitions[relationship.child_table] || { properties: {} }
+    for (const column of relationship.child_columns) {
+      definition.properties[column] = {
+        description: `${definition.properties[column]?.description || 'Note:'}\nThis is a Foreign Key.<fk table='${relationship.parent_table}' column='id'/>`,
+      }
+    }
+    definitions[relationship.child_table] = definition
   }
   definitions.users = {
     properties: { id: { description: 'Note:\nThis is a Primary Key.<pk/>' } },
@@ -182,7 +198,7 @@ describe('classroom archive production inventory', () => {
     await expect(inventoryReader.readArchiveResourceContract()).resolves.toEqual(archiveRows)
     await expect(inventoryReader.readGradexResourceContract()).resolves.toEqual(gradexRows)
     expect(ranges.filter(({ table }) => table === 'classroom_archive_resource_contract'))
-      .toHaveLength(9)
+      .toHaveLength(8)
     expect(ranges.filter(({ table }) => table === 'classroom_gradex_resource_contract'))
       .toHaveLength(3)
   })

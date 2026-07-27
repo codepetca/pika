@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Tooltip } from '@/ui'
+import { Button, SaveStatus, Tooltip } from '@/ui'
 import { Card, ConfirmDialog, EmptyState } from '@/ui'
 import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
@@ -1454,21 +1454,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   {getAssignmentStatusLabel(status)}
                 </span>
               ) : null}
-              <div
+              <SaveStatus
                 data-testid="assignment-save-status"
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                className={`text-xs ${
-                  saveStatus === 'saved'
-                    ? 'text-success'
-                    : saveStatus === 'saving'
-                      ? 'text-text-muted'
-                      : 'text-warning'
-                }`}
-              >
-                {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-              </div>
+                status={saveStatus}
+              />
               <Tooltip content={isHistoryOpen ? 'Hide history' : 'Show history'}>
                 <button
                   type="button"
@@ -1499,6 +1488,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 onPaste={(wordCount) => { pasteWordCountRef.current += wordCount }}
                 onKeystroke={() => { keystrokeCountRef.current++ }}
                 className="h-full"
+                toolbarPreset="document"
                 enableImageUpload
                 onImageUploadError={(message) => setError(message)}
               />

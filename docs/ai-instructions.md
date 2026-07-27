@@ -19,12 +19,13 @@ After startup, load only task-specific docs:
 | Task | Read next |
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
-| UI/UX | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| UI/UX | [`DESIGN.md`](../DESIGN.md), [`src/ui/README.md`](../src/ui/README.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
 | Teacher assignments/tests shell/layout | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Schema rollout or API validation | [`schema`](./guidance/schema-rollout-checklist.md), [`API`](./guidance/api-boundary-validation.md) |
 | Legacy quiz/tests contract cleanup | [`docs/guidance/legacy-quiz-contract-cleanup.md`](./guidance/legacy-quiz-contract-cleanup.md), [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
 | Large TSX/shared shell refactors | [`docs/guidance/component-refactor-checklist.md`](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
+| Grading behavior, profiles, providers, provenance, or evals | [`docs/guidance/grading-architecture.md`](./guidance/grading-architecture.md), [`docs/guidance/ai-grading-egress.md`](./guidance/ai-grading-egress.md), [`docs/guidance/teacher-grading-evals.md`](./guidance/teacher-grading-evals.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
 | Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
 | Multi-agent delegation | [`docs/core/agents.md`](./core/agents.md) |
@@ -61,7 +62,7 @@ Use `.codex/prompts/` for session start, issue work, TDD, UI verify, audit, API-
 2. `.ai/CURRENT.md`
 3. `docs/core/architecture.md`
 4. `docs/core/tests.md`
-5. `docs/core/design.md`
+5. `DESIGN.md`
 6. `docs/core/project-context.md`
 7. `docs/core/roadmap.md`
 8. `docs/core/decision-log.md`

@@ -7,6 +7,7 @@ import type { Classroom } from '@/types'
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
+const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -94,11 +95,16 @@ vi.mock('@/components/layout', async () => {
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
     LeftSidebar: ({ children }: any) => <div>{children}</div>,
     MainContent: ({ children }: any) => <main>{children}</main>,
-    NavItems: ({ onTabChange }: any) => (
+    NavItems: ({ onTabChange, palEnabled }: any) => (
       <nav>
         <button type="button" onClick={() => onTabChange('attendance')}>
           Go Daily
         </button>
+        {palEnabled ? (
+          <button type="button" onClick={() => onTabChange('achievements')}>
+            Go Achievements
+          </button>
+        ) : null}
         <button type="button" onClick={() => onTabChange('assignments')}>
           Go Classwork
         </button>
@@ -154,6 +160,8 @@ vi.mock('@/hooks/useClassDays', () => ({
   ClassDaysProvider: ({ children }: any) => <>{children}</>,
   useClassDaysContext: () => ({
     classDays: mockClassDays,
+    error: null,
+    hasLoadedSnapshot: true,
     isLoading: false,
     refresh: vi.fn(),
   }),
@@ -314,7 +322,17 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
   },
 }))
 vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
-  StudentTestsTab: () => <div />,
+  StudentTestsTab: (props: any) => {
+    mockStudentTestsTabProps(props)
+    return <div />
+  },
+}))
+vi.mock('@/app/classrooms/[classroomId]/StudentAchievementsTab', () => ({
+  StudentAchievementsTab: ({ embedUrl, isActive }: any) => (
+    <div data-testid="student-achievements">
+      {isActive ? 'active' : 'inactive'}:{embedUrl}
+    </div>
+  ),
 }))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,
@@ -368,6 +386,8 @@ function renderStudentClient(options?: {
   classroom?: Classroom
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
+  palEnabled?: boolean
+  palEmbedUrl?: string | null
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
@@ -381,6 +401,8 @@ function renderStudentClient(options?: {
         teacherClassrooms={[]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
+        palEnabled={options?.palEnabled}
+        palEmbedUrl={options?.palEmbedUrl}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -397,6 +419,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockFetchJSONWithCache.mockReset()
     mockAssignmentsToMarkdown.mockReset()
     mockTeacherTestsTabProps.mockReset()
+    mockStudentTestsTabProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -411,6 +434,34 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       markdown: '## Assignment One',
       hasRichContent: false,
     })
+  })
+
+  it('renders the student Tests tab without a legacy assessment discriminator', async () => {
+    renderStudentClient({
+      initialTab: 'tests',
+      initialSearchParams: { tab: 'tests' },
+    })
+
+    await waitFor(() => {
+      expect(mockStudentTestsTabProps).toHaveBeenLastCalledWith({
+        classroom,
+        isActive: true,
+      })
+    })
+  })
+
+  it('mounts the Pal achievements destination only when enabled for a student', async () => {
+    renderStudentClient({
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+      palEnabled: true,
+      palEmbedUrl: 'https://pal.example/embed/roadmap',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Achievements' }))
+    expect(await screen.findByTestId('student-achievements')).toHaveTextContent(
+      'active:https://pal.example/embed/roadmap',
+    )
   })
 
   it('updates the app shell classroom theme when settings saves classroom changes', async () => {

@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,11 +30,13 @@ function deferred<T>() {
 }
 
 function ContextProbe({ label = 'probe' }: { label?: string }) {
-  const { classDays, isLoading, refresh } = useClassDaysContext()
+  const { classDays, error, hasLoadedSnapshot, isLoading, refresh } = useClassDaysContext()
   return (
     <div>
       <div data-testid={`${label}-loading`}>{String(isLoading)}</div>
       <div data-testid={`${label}-dates`}>{classDays.map((day) => day.date).join(',')}</div>
+      <div data-testid={`${label}-error`}>{error ?? ''}</div>
+      <div data-testid={`${label}-snapshot`}>{String(hasLoadedSnapshot)}</div>
       <button type="button" onClick={() => void refresh()}>
         Refresh {label}
       </button>
@@ -44,6 +47,30 @@ function ContextProbe({ label = 'probe' }: { label?: string }) {
 function ClassDaysProbe({ classroomId }: { classroomId: string }) {
   const classDays = useClassDays(classroomId)
   return <div data-testid="class-days-hook">{classDays.map((day) => day.date).join(',')}</div>
+}
+
+function SnapshotEffectProbe({
+  classroomId,
+  onObservation,
+}: {
+  classroomId: string
+  onObservation: (observation: {
+    classroomId: string
+    dates: string[]
+    hasLoadedSnapshot: boolean
+  }) => void
+}) {
+  const { classDays, hasLoadedSnapshot } = useClassDaysContext()
+
+  useLayoutEffect(() => {
+    onObservation({
+      classroomId,
+      dates: classDays.map((day) => day.date),
+      hasLoadedSnapshot,
+    })
+  }, [classDays, classroomId, hasLoadedSnapshot, onObservation])
+
+  return null
 }
 
 describe('ClassDaysProvider', () => {
@@ -122,6 +149,102 @@ describe('ClassDaysProvider', () => {
 
     await screen.findByText('2026-05-02')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains the last successful snapshot when a refresh fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ class_days: [classDay('2026-05-01')] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Class days unavailable' }),
+      } as Response)
+
+    render(
+      <ClassDaysProvider classroomId="classroom-1">
+        <ContextProbe />
+      </ClassDaysProvider>,
+    )
+
+    await screen.findByText('2026-05-01')
+    expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('true')
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Refresh probe' }).click()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('probe-error')).toHaveTextContent(
+        'The class schedule could not be loaded.',
+      )
+    })
+    expect(screen.getByTestId('probe-dates')).toHaveTextContent('2026-05-01')
+    expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('true')
+    expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
+  })
+
+  it('resets the provider subtree before children observe a new classroom', async () => {
+    const classroomTwoLoad = deferred<{ class_days: ClassDay[] }>()
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ class_days: [classDay('2026-05-01')] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => classroomTwoLoad.promise,
+      } as Response)
+    const observations: Array<{
+      classroomId: string
+      dates: string[]
+      hasLoadedSnapshot: boolean
+    }> = []
+    const onObservation = vi.fn((observation) => observations.push(observation))
+
+    const view = render(
+      <ClassDaysProvider classroomId="classroom-1">
+        <SnapshotEffectProbe classroomId="classroom-1" onObservation={onObservation} />
+      </ClassDaysProvider>,
+    )
+
+    await waitFor(() => {
+      expect(observations).toContainEqual({
+        classroomId: 'classroom-1',
+        dates: ['2026-05-01'],
+        hasLoadedSnapshot: true,
+      })
+    })
+
+    view.rerender(
+      <ClassDaysProvider classroomId="classroom-2">
+        <SnapshotEffectProbe classroomId="classroom-2" onObservation={onObservation} />
+      </ClassDaysProvider>,
+    )
+
+    const classroomTwoObservations = observations.filter(
+      (item) => item.classroomId === 'classroom-2',
+    )
+    expect(classroomTwoObservations.length).toBeGreaterThan(0)
+    expect(classroomTwoObservations.every((item) => (
+      item.dates.length === 0 && !item.hasLoadedSnapshot
+    ))).toBe(true)
+
+    await act(async () => {
+      classroomTwoLoad.resolve({ class_days: [classDay('2026-06-02')] })
+    })
+
+    await waitFor(() => {
+      expect(observations).toContainEqual({
+        classroomId: 'classroom-2',
+        dates: ['2026-06-02'],
+        hasLoadedSnapshot: true,
+      })
+    })
   })
 
   it('ignores stale class-days responses that resolve after a forced refresh', async () => {
@@ -247,12 +370,17 @@ describe('ClassDaysProvider', () => {
       expect(screen.getByTestId('probe-loading')).toHaveTextContent('false')
     })
     expect(screen.getByTestId('probe-dates')).toHaveTextContent('')
+    expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('false')
+    expect(screen.getByTestId('probe-error')).toHaveTextContent(
+      'The class schedule could not be loaded.',
+    )
 
     await act(async () => {
       screen.getByRole('button', { name: 'Refresh probe' }).click()
     })
 
     await screen.findByText('2026-05-04')
+    expect(screen.getByTestId('probe-error')).toHaveTextContent('')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
   })

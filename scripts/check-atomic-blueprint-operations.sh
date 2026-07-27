@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
+DB_CONTAINER="${ATOMIC_BLUEPRINT_DB_CONTAINER:-$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)}"
+DATABASE_NAME="${ATOMIC_BLUEPRINT_DATABASE_NAME:-postgres}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
 insert into public.users (id, email, role)
@@ -74,7 +75,6 @@ begin
         'outline', true,
         'resources', true,
         'assignments', true,
-        'quizzes', true,
         'tests', true,
         'lesson_plans', true
       )
@@ -239,7 +239,6 @@ begin
         'outline', true,
         'resources', true,
         'assignments', true,
-        'quizzes', true,
         'tests', true,
         'lesson_plans', true,
         'announcements', true,

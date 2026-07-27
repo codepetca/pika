@@ -1,13 +1,8 @@
 {
   "meta": {
-    "project": "pika",
-    "lastUpdated": "2026-07-16",
-    "phase": "Product Experience Architecture",
-    "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.",
-    "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 14,
-    "passing": 13,
-    "failing": 1
+    "project": "pika", "lastUpdated": "2026-07-27", "phase": "Versioned Course Blueprint Lineage",
+    "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.", "deletionPolicy": "PROHIBITED",
+    "totalFeatures": 16, "passing": 14, "failing": 2
   },
   "features": [
     {
@@ -16,9 +11,7 @@
       "description": "Next.js, TypeScript, Tailwind, and Supabase bootstrap",
       "passes": true,
       "verification": "Run: pnpm test",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12"
     },
     {
       "id": "epic-auth",
@@ -26,9 +19,7 @@
       "description": "Email-code auth, password login, secure sessions, lockout, and role routing",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: signup → verify → create password → login → logout → reset password",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12"
     },
     {
       "id": "epic-student-experience",
@@ -36,9 +27,7 @@
       "description": "Student journal, attendance, and dashboard flows per classroom",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: student submits entry for today and sees history update",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12"
     },
     {
       "id": "epic-teacher-dashboard",
@@ -46,9 +35,7 @@
       "description": "Teacher attendance matrix, entry drill-down, class day management, and CSV export",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: teacher views classroom attendance and exports CSV",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12"
     },
     {
       "id": "epic-classrooms-rosters",
@@ -56,9 +43,7 @@
       "description": "Classrooms, join codes/links, enrollments, roster CSV, and class days",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: teacher creates classroom and uploads roster; student joins by code",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12"
     },
     {
       "id": "epic-assignments",
@@ -66,9 +51,7 @@
       "description": "Classroom assignments with autosave, submit/unsubmit, late detection, and teacher views",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: student edits + submits; teacher views submission status",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12"
     },
     {
       "id": "epic-tests-polish",
@@ -76,10 +59,7 @@
       "description": "Expand coverage, harden security, and keep docs in sync (coverage thresholds met and stable)",
       "passes": true,
       "verification": "Run: pnpm test:coverage (and meet thresholds). Add missing tests as needed.",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12",
-      "completedDate": "2025-12-14"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2025-12-12", "completedDate": "2025-12-14"
     },
     {
       "id": "epic-ai-effectiveness-layer",
@@ -87,12 +67,7 @@
       "description": "AI continuity layer (.ai/) and standardized protocols",
       "passes": true,
       "verification": "Run: bash scripts/verify-env.sh and node scripts/features.mjs validate.",
-      "issueRefs": [
-        "#8"
-      ],
-      "blockedBy": [],
-      "addedDate": "2025-12-12",
-      "completedDate": "2025-12-14"
+      "issueRefs": ["#8"], "blockedBy": [], "addedDate": "2025-12-12", "completedDate": "2025-12-14"
     },
     {
       "id": "epic-daily-log-summaries",
@@ -100,10 +75,7 @@
       "description": "Legacy entry_summaries per-entry log snippets. Removed; distinct from active classroom/day log_summaries.",
       "passes": true,
       "verification": "Removed in #241; migration 032 drops entry_summaries.",
-      "issueRefs": ["#241"],
-      "blockedBy": [],
-      "addedDate": "2025-12-13",
-      "completedDate": "2025-12-14",
+      "issueRefs": ["#241"], "blockedBy": [], "addedDate": "2025-12-13", "completedDate": "2025-12-14",
       "removedDate": "2026-01-31"
     },
     {
@@ -112,10 +84,7 @@
       "description": "Teacher-owned flat course blueprints with markdown-first editing, classroom instantiation, and portable package import/export",
       "passes": true,
       "verification": "Run: pnpm lint && pnpm build && pnpm test tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-04-17",
-      "completedDate": "2026-04-17"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2026-04-17", "completedDate": "2026-04-17"
     },
     {
       "id": "epic-classwork-surveys",
@@ -123,10 +92,7 @@
       "description": "Classwork surveys: MC/text/link, updates, results",
       "passes": true,
       "verification": "pnpm lint && pnpm test && pnpm build",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-05-13",
-      "completedDate": "2026-05-13"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2026-05-13", "completedDate": "2026-05-13"
     },
     {
       "id": "epic-developer-feedback-helper",
@@ -134,10 +100,7 @@
       "description": "Agent queue for Pika improvement candidates from logs and Send Feedback",
       "passes": true,
       "verification": "focused developer feedback tests",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-05-21",
-      "completedDate": "2026-05-21"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2026-05-21", "completedDate": "2026-05-21"
     },
     {
       "id": "epic-classroom-lifecycle-archives",
@@ -145,10 +108,7 @@
       "description": "Reversible hot/cold classroom archives with managed storage and deidentified Gradex extracts",
       "passes": true,
       "verification": "Contract/DB audit, restore equality canary, cold recovery drill, production verification",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-07-13",
-      "completedDate": "2026-07-15"
+      "issueRefs": [], "blockedBy": [], "addedDate": "2026-07-13", "completedDate": "2026-07-15"
     },
     {
       "id": "epic-product-experience-architecture",
@@ -157,8 +117,9 @@
       "passes": false,
       "verification": "Complete the exit evidence in docs/guidance/ui/product-experience-audit-2026-07.md",
       "issueRefs": ["#889", "#890", "#891", "#893", "#894", "#895", "#896", "#897", "#898", "#899", "#900", "#902", "#903", "#904", "#905"],
-      "blockedBy": [],
-      "addedDate": "2026-07-16"
-    }
+      "blockedBy": [], "addedDate": "2026-07-16"
+    },
+    {"id":"epic-pal-achievements-pilot","phase":"Pal Pilot","description":"Feature-gated Pika facts, outbox, weekly config, and native Pal widget","passes":false,"verification":"Tests plus duplicate-safe vertical slice","issueRefs":["pal#32","pal#35"],"blockedBy":[],"addedDate":"2026-07-25"},
+    {"id":"epic-versioned-course-blueprint-lineage","phase":"Course Authoring","description":"Stable artifact lineage, immutable Versions, authority, and stale-safe proposals","passes":true,"verification":"Migration 112 replay/contracts; shared local reset and verified through Pal 111 plus Blueprint 112.","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-26"}
   ]
 }

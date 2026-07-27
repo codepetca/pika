@@ -15,28 +15,28 @@ describe('query chunk helpers', () => {
     const rangeCalls: Array<{ from: number; to: number }> = []
     const orderCalls: string[] = []
     const rows = [
-      { id: '1', quiz_id: 'quiz-1', student_id: 'student-1' },
-      { id: '2', quiz_id: 'quiz-1', student_id: 'student-2' },
-      { id: '3', quiz_id: 'quiz-2', student_id: 'student-1' },
-      { id: '4', quiz_id: 'quiz-2', student_id: 'student-2' },
-      { id: '5', quiz_id: 'quiz-3', student_id: 'student-3' },
+      { id: '1', test_id: 'test-1', student_id: 'student-1' },
+      { id: '2', test_id: 'test-1', student_id: 'student-2' },
+      { id: '3', test_id: 'test-2', student_id: 'student-1' },
+      { id: '4', test_id: 'test-2', student_id: 'student-2' },
+      { id: '5', test_id: 'test-3', student_id: 'student-3' },
     ]
 
     const supabase = {
       from: vi.fn(() => ({
         select: vi.fn(() => {
-          let selectedQuizIds: string[] = []
+          let selectedTestIds: string[] = []
           const query: any = {
             in: vi.fn((column: string, values: string[]) => {
               inCalls.push({ column, values })
-              if (column === 'quiz_id') {
-                selectedQuizIds = values
+              if (column === 'test_id') {
+                selectedTestIds = values
                 return query
               }
 
               if (column === 'student_id') {
                 const filtered = rows.filter(
-                  (row) => selectedQuizIds.includes(row.quiz_id) && values.includes(row.student_id),
+                  (row) => selectedTestIds.includes(row.test_id) && values.includes(row.student_id),
                 )
                 const pageQuery: any = {
                   order: vi.fn((orderColumn: string) => {
@@ -62,12 +62,12 @@ describe('query chunk helpers', () => {
       })),
     }
 
-    const result = await loadChunkedRows<{ id: string; quiz_id: string; student_id: string }>({
+    const result = await loadChunkedRows<{ id: string; test_id: string; student_id: string }>({
       supabase,
-      table: 'quiz_responses',
-      select: 'id, quiz_id, student_id',
+      table: 'test_responses',
+      select: 'id, test_id, student_id',
       filters: [
-        { column: 'quiz_id', values: ['quiz-1', 'quiz-2', 'quiz-3'] },
+        { column: 'test_id', values: ['test-1', 'test-2', 'test-3'] },
         { column: 'student_id', values: ['student-1', 'student-2', 'student-3'] },
       ],
       chunkSize: 2,
@@ -76,14 +76,14 @@ describe('query chunk helpers', () => {
 
     expect(result.error).toBeNull()
     expect(result.rows).toHaveLength(5)
-    const quizCalls = inCalls.filter((call) => call.column === 'quiz_id')
+    const testCalls = inCalls.filter((call) => call.column === 'test_id')
     const studentCalls = inCalls.filter((call) => call.column === 'student_id')
 
-    expect(quizCalls.length).toBeGreaterThanOrEqual(4)
-    expect(quizCalls).toEqual(
+    expect(testCalls.length).toBeGreaterThanOrEqual(4)
+    expect(testCalls).toEqual(
       expect.arrayContaining([
-        { column: 'quiz_id', values: ['quiz-1', 'quiz-2'] },
-        { column: 'quiz_id', values: ['quiz-3'] },
+        { column: 'test_id', values: ['test-1', 'test-2'] },
+        { column: 'test_id', values: ['test-3'] },
       ]),
     )
     expect(studentCalls.length).toBeGreaterThanOrEqual(4)

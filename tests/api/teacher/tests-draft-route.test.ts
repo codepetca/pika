@@ -7,6 +7,7 @@ import {
   ensureAssessmentDraft,
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
+import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -43,8 +44,11 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
   ensureAssessmentDraft: vi.fn(),
   updateAssessmentDraft: vi.fn(),
 }))
+vi.mock('@/lib/server/test-document-authoring', () => ({
+  updateTestDocumentsAtomic: vi.fn(),
+}))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('PATCH /api/teacher/tests/[id]/draft', () => {
   beforeEach(() => {
@@ -104,6 +108,14 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       },
       error: null,
     } as any)
+    vi.mocked(updateTestDocumentsAtomic).mockImplementation(async (input) => ({
+      ok: true,
+      cleanupPaths: [],
+      test: {
+        id: 'test-1',
+        documents: input.proposedDocuments,
+      },
+    }))
   })
 
   it('loads the draft through the shared assessment draft helper', async () => {
@@ -135,17 +147,6 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
   })
 
   it('persists validated documents when provided', async () => {
-    const updateSpy = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
-        return { update: updateSpy }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
     const documents = [
       {
         id: 'doc-1',
@@ -175,11 +176,14 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(updateSpy).toHaveBeenCalledWith(
+    expect(updateTestDocumentsAtomic).toHaveBeenCalledWith(
       expect.objectContaining({
+        expectedDocuments: undefined,
+        proposedDocuments: documents,
+        showResults: true,
+        teacherId: 'teacher-1',
+        testId: 'test-1',
         title: 'Updated Test',
-        show_results: true,
-        documents,
       })
     )
     expect(updateAssessmentDraft).toHaveBeenCalledWith(
@@ -261,5 +265,35 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', {
       checkArchived: true,
     })
+  })
+
+  it('returns the saved draft with 409 when document metadata changed concurrently', async () => {
+    vi.mocked(updateTestDocumentsAtomic).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      error: 'The test documents changed elsewhere. Reload and try again.',
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          version: 3,
+          content: { title: 'Updated Test', show_results: true, questions: [] },
+          documents: [{
+            id: 'doc-1',
+            title: 'Reference',
+            source: 'link',
+            url: 'https://docs.example.com/reference',
+          }],
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(data.draft.version).toBe(4)
+    expect(data.error).toContain('changed elsewhere')
   })
 })

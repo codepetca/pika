@@ -54,7 +54,6 @@ export interface PlannedCourseSiteConfig {
   outline: boolean
   resources: boolean
   assignments: boolean
-  quizzes: boolean
   tests: boolean
   lesson_plans: boolean
 }
@@ -69,6 +68,9 @@ export interface ClassroomBlueprintOrigin {
   blueprint_title: string
   package_manifest_version: string
   package_exported_at: string
+  blueprint_content_revision?: number
+  blueprint_version_id?: string
+  blueprint_version_number?: number
 }
 
 export interface Classroom {
@@ -86,6 +88,7 @@ export interface Classroom {
   lesson_plan_visibility: LessonPlanVisibility
   blueprint_source_revision: number
   source_blueprint_id: string | null
+  source_blueprint_version_id?: string | null
   source_blueprint_origin: ClassroomBlueprintOrigin | null
   actual_site_slug: string | null
   actual_site_published: boolean
@@ -99,6 +102,9 @@ export interface Classroom {
 
 export interface LessonPlan {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   classroom_id: string
   date: string // YYYY-MM-DD
   content: TiptapContent
@@ -194,6 +200,9 @@ export interface TiptapMark {
 
 export interface Assignment {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   classroom_id: string
   title: string
   description: string
@@ -225,6 +234,9 @@ export type AssignmentArtifactValidationStatus =
 
 export interface AssignmentSubmissionRequirement {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   assignment_id: string
   type: AssignmentSubmissionRequirementType
   label: string
@@ -683,6 +695,8 @@ export interface CourseBlueprint {
   id: string
   teacher_id: string
   content_revision: number
+  authority_mode?: 'pika' | 'repository'
+  latest_version_number?: number
   title: string
   subject: string
   grade_level: string
@@ -691,6 +705,9 @@ export interface CourseBlueprint {
   overview_markdown: string
   outline_markdown: string
   resources_markdown: string
+  gradebook_use_weights: boolean
+  gradebook_assignments_weight: number
+  gradebook_tests_weight: number
   planned_site_slug: string | null
   planned_site_published: boolean
   planned_site_config: PlannedCourseSiteConfig
@@ -699,12 +716,28 @@ export interface CourseBlueprint {
   updated_at: string
 }
 
+export interface CourseBlueprintVersion {
+  id: string
+  course_blueprint_id: string
+  version_number: number
+  source_draft_revision: number
+  snapshot_schema_version: number
+  snapshot_json: Record<string, unknown>
+  snapshot_sha256: string
+  source_kind: 'pika' | 'classroom' | 'package' | 'repository' | 'ai'
+  source_metadata: Record<string, unknown>
+  created_by: string
+  created_at: string
+}
+
 export interface CourseBlueprintAssignment {
   id: string
+  artifact_id: string
   course_blueprint_id: string
   title: string
   instructions_markdown: string
   submission_requirements_json: Array<{
+    id?: string
     type: AssignmentSubmissionRequirementType
     label?: string | null
     instructions?: string | null
@@ -718,6 +751,7 @@ export interface CourseBlueprintAssignment {
   gradebook_weight: number
   include_in_final: boolean
   is_draft: boolean
+  track_authenticity: boolean
   position: number
   created_at: string
   updated_at: string
@@ -725,6 +759,7 @@ export interface CourseBlueprintAssignment {
 
 export interface CourseBlueprintAssessment {
   id: string
+  artifact_id: string
   course_blueprint_id: string
   assessment_type: TestAssessmentType
   title: string
@@ -740,9 +775,43 @@ export interface CourseBlueprintAssessment {
 
 export interface CourseBlueprintLessonTemplate {
   id: string
+  artifact_id: string
   course_blueprint_id: string
   title: string
   content_markdown: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintMaterial {
+  id: string
+  artifact_id: string
+  course_blueprint_id: string
+  title: string
+  content_markdown: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintSurveyQuestion {
+  id: string
+  question_type: SurveyQuestionType
+  question_text: string
+  options: string[]
+  response_max_chars: number
+  position: number
+}
+
+export interface CourseBlueprintSurvey {
+  id: string
+  artifact_id: string
+  course_blueprint_id: string
+  title: string
+  show_results: boolean
+  dynamic_responses: boolean
+  questions_json: CourseBlueprintSurveyQuestion[]
   position: number
   created_at: string
   updated_at: string
@@ -752,6 +821,8 @@ export interface CourseBlueprintDetail extends CourseBlueprint {
   assignments: CourseBlueprintAssignment[]
   assessments: CourseBlueprintAssessment[]
   lesson_templates: CourseBlueprintLessonTemplate[]
+  materials: CourseBlueprintMaterial[]
+  surveys: CourseBlueprintSurvey[]
   linked_classrooms: LinkedBlueprintClassroom[]
 }
 
@@ -769,7 +840,7 @@ export interface CreateClassroomFromBlueprintInput {
 
 // Assessment/Test types
 export type TestAssessmentStatus = 'draft' | 'active' | 'closed'
-export type TestAssessmentType = 'quiz' | 'test'
+export type TestAssessmentType = 'test'
 export type SurveyStatus = 'draft' | 'active' | 'closed'
 export type SurveyQuestionType = 'multiple_choice' | 'short_text' | 'link'
 export type TestStudentAvailabilityState = 'open' | 'closed'
@@ -781,13 +852,7 @@ export type TestFocusEventType =
 export type TestQuestionType = 'multiple_choice' | 'open_response'
 export type TestDocumentSource = 'link' | 'upload' | 'text'
 
-export type AssessmentDraftType = 'quiz' | 'test'
-
-export type AssessmentDraftQuestion = {
-  id: string
-  question_text: string
-  options: string[]
-}
+export type AssessmentDraftType = 'test'
 
 export type TestDraftQuestion = {
   id: string
@@ -800,14 +865,6 @@ export type TestDraftQuestion = {
   points: number
   response_max_chars: number
   response_monospace: boolean
-}
-
-export type AssessmentDraftContent = {
-  title: string
-  show_results: boolean
-  questions: AssessmentDraftQuestion[]
-  source_format?: 'markdown'
-  source_markdown?: string
 }
 
 export type TestDraftContent = {
@@ -842,6 +899,9 @@ export interface TestFocusSummary {
 
 export interface Survey {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   classroom_id: string
   title: string
   status: SurveyStatus
@@ -856,6 +916,9 @@ export interface Survey {
 
 export interface SurveyQuestion {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   survey_id: string
   question_type: SurveyQuestionType
   question_text: string
@@ -924,6 +987,9 @@ export interface SurveyQuestionResult {
 
 export interface TestAssessment {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   classroom_id: string
   title: string
   assessment_type: TestAssessmentType
@@ -942,7 +1008,7 @@ export interface TestAssessment {
 
 export interface TestAssessmentQuestion {
   id: string
-  quiz_id: string
+  test_id: string
   question_text: string
   options: string[]
   position: number
@@ -959,7 +1025,7 @@ export interface TestAssessmentQuestion {
 
 export interface TestAssessmentResponse {
   id: string
-  quiz_id: string
+  test_id: string
   question_id: string
   student_id: string
   selected_option: number
@@ -968,6 +1034,9 @@ export interface TestAssessmentResponse {
 
 export interface TestQuestion {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   test_id: string
   question_type: TestQuestionType
   question_text: string
@@ -1118,6 +1187,9 @@ export interface Announcement {
 
 export interface ClassworkMaterial {
   id: string
+  artifact_id?: string
+  source_artifact_id?: string | null
+  source_blueprint_version_id?: string | null
   classroom_id: string
   title: string
   content: TiptapContent
@@ -1147,9 +1219,11 @@ export type BlueprintMergeSuggestionArea =
   | 'outline'
   | 'resources'
   | 'assignments'
-  | 'quizzes'
   | 'tests'
   | 'lesson-plans'
+  | 'materials'
+  | 'surveys'
+  | 'grading'
   | 'announcements'
 
 export type BlueprintMergeSuggestionOperation = 'add' | 'update' | 'remove'
@@ -1173,7 +1247,9 @@ export interface BlueprintMergeSuggestion {
 export interface BlueprintMergeSuggestionSet {
   classroom_id: string
   classroom_title: string
+  classroom_revision: number
   blueprint_id: string
+  blueprint_revision: number
   generated_at: string
   suggestions: BlueprintMergeSuggestion[]
 }
@@ -1182,11 +1258,10 @@ export interface GradebookSettings {
   classroom_id: string
   use_weights: boolean
   assignments_weight: number
-  quizzes_weight: number
   tests_weight: number
 }
 
-export type GradebookAssessmentType = 'assignment' | 'quiz' | 'test'
+export type GradebookAssessmentType = 'assignment' | 'test'
 export type GradebookAssessmentStatus =
   | 'missing'
   | 'late'
@@ -1229,9 +1304,6 @@ export interface GradebookStudentSummary {
   assignments_earned: number | null
   assignments_possible: number | null
   assignments_percent: number | null
-  quizzes_earned: number | null
-  quizzes_possible: number | null
-  quizzes_percent: number | null
   tests_earned: number | null
   tests_possible: number | null
   tests_percent: number | null
@@ -1250,16 +1322,6 @@ export interface GradebookAssignmentDetail {
   is_graded: boolean
 }
 
-export interface GradebookQuizDetail {
-  quiz_id: string
-  title: string
-  earned: number
-  possible: number
-  percent: number
-  status: 'draft' | 'active' | 'closed' | null
-  is_manual_override: boolean
-}
-
 export interface GradebookTestDetail {
   test_id: string
   title: string
@@ -1271,7 +1333,6 @@ export interface GradebookTestDetail {
 
 export interface GradebookStudentDetail extends GradebookStudentSummary {
   assignments: GradebookAssignmentDetail[]
-  quizzes: GradebookQuizDetail[]
   tests: GradebookTestDetail[]
 }
 
@@ -1284,15 +1345,6 @@ export interface GradebookClassAssignmentSummary {
   graded_count: number
   average_percent: number | null
   median_percent: number | null
-}
-
-export interface GradebookClassQuizSummary {
-  quiz_id: string
-  title: string
-  status: 'draft' | 'active' | 'closed' | null
-  possible: number
-  scored_count: number
-  average_percent: number | null
 }
 
 export interface GradebookClassTestSummary {
@@ -1309,7 +1361,6 @@ export interface GradebookClassSummary {
   students_with_final: number
   average_final_percent: number | null
   assignments: GradebookClassAssignmentSummary[]
-  quizzes: GradebookClassQuizSummary[]
   tests: GradebookClassTestSummary[]
 }
 

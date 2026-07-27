@@ -1,7 +1,6 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import type { AssessmentDraftValidationResult } from '@/lib/validations/assessment-drafts'
 import type {
-  AssessmentDraftContent,
   AssessmentDraftType,
   JsonPatchOperation,
   TestDraftContent,
@@ -79,25 +78,6 @@ export function buildNextDraftContent<TContent extends object>(
   }
 
   return { ok: true, content: validation.value }
-}
-
-export function buildAssessmentDraftContentFromRows(
-  assessment: { title: string; show_results: boolean },
-  rows: unknown[]
-): AssessmentDraftContent {
-  const questions = rows as Array<{ id: string; question_text: string; options: unknown }>
-  return {
-    title: assessment.title,
-    show_results: assessment.show_results,
-    questions: (questions || []).map((question) => {
-      const options = parseStringArray(question.options) || []
-      return {
-        id: question.id,
-        question_text: question.question_text,
-        options,
-      }
-    }),
-  }
 }
 
 type TestQuestionRow = {
@@ -239,37 +219,6 @@ export async function updateAssessmentDraft<TContent>(
   }
 }
 
-export async function syncAssessmentQuestionsFromDraft(
-  supabase: SupabaseLike,
-  assessmentId: string,
-  content: AssessmentDraftContent
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  return syncAssessmentQuestionRowsFromDraft(supabase, {
-    table: 'quiz_questions',
-    foreignKey: 'quiz_id',
-    parentId: assessmentId,
-    questions: content.questions,
-    buildUpdatePayload: (question, position) => ({
-      question_text: question.question_text,
-      options: question.options,
-      position,
-    }),
-    buildInsertPayload: (question, position) => ({
-      id: question.id,
-      quiz_id: assessmentId,
-      question_text: question.question_text,
-      options: question.options,
-      position,
-    }),
-    errorMessages: {
-      load: 'Failed to load assessment questions for sync',
-      update: 'Failed to update synced assessment question',
-      insert: 'Failed to insert synced assessment question',
-      delete: 'Failed to delete removed assessment question',
-    },
-  })
-}
-
 export async function syncTestQuestionsFromDraft(
   supabase: SupabaseLike,
   testId: string,
@@ -389,15 +338,15 @@ async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: strin
 // ────────────────────────────────────────────────────────────────────────────
 
 export type EnsureDraftConfig<TContent> = {
-  /** Assessment type string used in DB ('quiz' | 'test') */
+  /** Assessment type string used in DB. */
   assessmentType: AssessmentDraftType
   /** The parent assessment record */
   assessment: { id: string; classroom_id: string; title: string; show_results: boolean }
   /** User performing the operation */
   userId: string
-  /** Name of the questions table (e.g. 'quiz_questions' | 'test_questions') */
+  /** Name of the questions table. */
   questionsTable: string
-  /** Foreign-key column in the questions table (e.g. 'quiz_id' | 'test_id') */
+  /** Foreign-key column in the questions table. */
   questionsForeignKey: string
   /** Columns to select from the questions table */
   questionsSelect: string

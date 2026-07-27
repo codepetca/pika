@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button } from '@/ui'
+import { Button, PageState, SaveStatus } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -58,6 +58,46 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
   return EMPTY_DOC
 }
 
+// Daily reflection openers, rotated by calendar date so the whole class sees the
+// same prompt on a given day. 20 prompts at ~5 school days a week means a given
+// prompt comes back around every few weeks.
+const DAILY_REFLECTION_PROMPTS = [
+  "What's one thing you're proud of from last time?",
+  "What's something you figured out recently?",
+  'What went well, and what felt tricky?',
+  'How did your last plan turn out?',
+  "What's a small win from your last session?",
+  'Where did you get stuck last time — and what did you try?',
+  "What's one thing you want to keep doing?",
+  'What would you do differently from last time?',
+  'What surprised you in your recent work?',
+  'What are you curious to dig into more?',
+  "What's starting to click for you lately?",
+  "What's a question you're still sitting with?",
+  'Who or what helped you recently?',
+  'What felt like hard work worth doing?',
+  "What's something you almost gave up on but didn't?",
+  'How are you feeling about your progress so far?',
+  "What's one habit you want to build this week?",
+  'What did a recent mistake teach you?',
+  'What do you want to get better at?',
+  'What are you looking forward to?',
+] as const
+
+// Shown when there's no prior post to reflect on yet.
+const NO_LAST_LOG_PROMPT = 'Fresh start — how are you feeling about today?'
+const DAILY_PLAN_PROMPT = "What's your plan for today?"
+
+// Deterministic day index from a 'YYYY-MM-DD' string (timezone-independent), so
+// every student in the class lands on the same prompt for a given date.
+function getDailyReflectionPrompt(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  if (!year || !month || !day) return DAILY_REFLECTION_PROMPTS[0]
+  const dayIndex = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000)
+  const count = DAILY_REFLECTION_PROMPTS.length
+  return DAILY_REFLECTION_PROMPTS[((dayIndex % count) + count) % count]
+}
+
 
 interface StudentTodayTabProps {
   classroom: Classroom
@@ -67,7 +107,13 @@ interface StudentTodayTabProps {
 
 export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
-  const { classDays } = useClassDaysContext()
+  const {
+    classDays,
+    error: classDaysError,
+    hasLoadedSnapshot: hasClassDaysSnapshot,
+    isLoading: classDaysLoading,
+    refresh: refreshClassDays,
+  } = useClassDaysContext()
 
   // Constants
   const historyLimit = 12
@@ -77,6 +123,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
   // State
   const [loading, setLoading] = useState(true)
+  const [entriesError, setEntriesError] = useState<string | null>(null)
+  const [entriesRequestVersion, setEntriesRequestVersion] = useState(0)
+  const [entriesSnapshotClassroomId, setEntriesSnapshotClassroomId] = useState<string | null>(null)
   const [today, setToday] = useState('')
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
@@ -99,6 +148,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   const hasLocalEditSinceLoadRef = useRef(false)
   const loadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
+  const entriesSnapshotClassroomIdRef = useRef<string | null>(null)
   currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
@@ -106,12 +156,18 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       const requestId = loadRequestIdRef.current + 1
       loadRequestIdRef.current = requestId
       const requestedClassroomId = classroom.id
+      const hasCurrentSnapshot = entriesSnapshotClassroomIdRef.current === requestedClassroomId
       const isCurrentLoad = () => (
         loadRequestIdRef.current === requestId &&
         currentClassroomIdRef.current === requestedClassroomId
       )
 
-      setLoading(true)
+      setEntriesError(null)
+      if (!hasCurrentSnapshot) {
+        setLoading(true)
+        setHistoryEntries([])
+        setEntriesSnapshotClassroomId(null)
+      }
       try {
         const todayDate = getTodayInToronto()
         todayRef.current = todayDate
@@ -192,12 +248,16 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
+          entriesSnapshotClassroomIdRef.current = requestedClassroomId
+          setEntriesSnapshotClassroomId(requestedClassroomId)
           setLoading(false)
         }
 
         const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId, { limit: historyLimit })
           .then(entries => {
             if (!isCurrentLoad()) return
+            entriesSnapshotClassroomIdRef.current = requestedClassroomId
+            setEntriesSnapshotClassroomId(requestedClassroomId)
             if (hasLocalEditSinceLoadRef.current) {
               setHistoryEntries(prev => {
                 if (!isCurrentLoad()) return prev
@@ -218,7 +278,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
         await Promise.all([entriesPromise, lessonPlanPromise])
       } catch (err) {
+        if (!isCurrentLoad()) return
         console.error('Error loading today tab:', err)
+        setEntriesError('The daily log could not be loaded.')
       } finally {
         if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === requestedClassroomId) {
           setLoading(false)
@@ -237,7 +299,16 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classroom.id, historyLimit, onLessonPlanLoad])
+  }, [classroom.id, entriesRequestVersion, historyLimit, onLessonPlanLoad])
+
+  const retryEntries = useCallback(() => {
+    invalidateStudentEntriesForClassroom(classroom.id)
+    setEntriesError(null)
+    if (entriesSnapshotClassroomIdRef.current !== classroom.id) {
+      setLoading(true)
+    }
+    setEntriesRequestVersion((version) => version + 1)
+  }, [classroom.id])
 
   const updateHistoryEntries = useCallback((entry: Entry) => {
     setHistoryEntries(prev => {
@@ -544,16 +615,56 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   }, [conflictEntry, content, saveContent])
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
+  const hasCurrentEntriesSnapshot = entriesSnapshotClassroomId === classroom.id
 
-  if (loading) {
+  const blockingState = classDaysError && !hasClassDaysSnapshot ? (
+    <PageState
+      kind="error"
+      title="Class schedule unavailable"
+      description={classDaysError}
+      compact
+      action={(
+        <Button type="button" onClick={() => void refreshClassDays()}>
+          Try again
+        </Button>
+      )}
+    />
+  ) : entriesError && !hasCurrentEntriesSnapshot ? (
+    <PageState
+      kind="error"
+      title="Daily log unavailable"
+      description={entriesError}
+      compact
+      action={(
+        <Button type="button" onClick={retryEntries}>
+          Try again
+        </Button>
+      )}
+    />
+  ) : loading || classDaysLoading || !hasCurrentEntriesSnapshot ? (
+    <div className="flex justify-center py-12">
+      <Spinner size="lg" />
+    </div>
+  ) : null
+
+  if (blockingState) {
+    if (layout === 'pane') {
+      return <div className="h-full min-h-0 overflow-y-auto">{blockingState}</div>
+    }
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <PageLayout>
+        <PageContent>{blockingState}</PageContent>
+      </PageLayout>
     )
   }
 
   const pastHistoryEntries = historyEntries.filter(entry => entry.date !== today)
+  const lastLog = pastHistoryEntries[0] ?? null
+  const hasLastLog =
+    !!lastLog && (!!lastLog.text?.trim() || !isEmpty(resolveEntryContent(lastLog)))
+  const reflectionPrompt = hasLastLog
+    ? getDailyReflectionPrompt(today)
+    : NO_LAST_LOG_PROMPT
 
   function toggleHistoryEntry(entryId: string) {
     setExpandedHistoryIds(prev => {
@@ -569,6 +680,22 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
   const todayContent = (
     <PageStack>
+      {classDaysError && hasClassDaysSnapshot && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
+          <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
+          <Button type="button" size="sm" variant="secondary" onClick={() => void refreshClassDays()}>
+            Try again
+          </Button>
+        </div>
+      )}
+      {entriesError && hasCurrentEntriesSnapshot && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
+          <p className="text-sm text-danger">The latest daily log could not be loaded.</p>
+          <Button type="button" size="sm" variant="secondary" onClick={retryEntries}>
+            Try again
+          </Button>
+        </div>
+      )}
       <div className="bg-surface rounded-lg border border-border p-6">
         {!isClassDay ? (
           <div className="bg-page border border-border rounded-lg p-4 text-center">
@@ -576,22 +703,16 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-text-muted">
-                What did you do today?
+            <div className="flex items-start justify-between mb-2">
+              <label className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-text-default">
+                  {reflectionPrompt}
+                </span>
+                <span className="text-sm text-text-muted">
+                  {DAILY_PLAN_PROMPT}
+                </span>
               </label>
-              <span
-                className={
-                  'text-sm ' +
-                  (saveStatus === 'saved'
-                    ? 'text-success'
-                    : saveStatus === 'saving'
-                      ? 'text-text-muted'
-                      : 'text-warning')
-                }
-              >
-                {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-              </span>
+              <SaveStatus status={saveStatus} className="text-sm" />
             </div>
             <RichTextEditor
               content={content}
@@ -599,13 +720,13 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
               onBlur={flushAutosave}
               placeholder="Write something..."
               editable={true}
-              showToolbar={false}
+              toolbarPreset="brief"
               className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
             />
 
             {saveError && (
               <div className="space-y-2">
-                <p className="text-sm text-danger">{saveError}</p>
+                <p role="alert" className="text-sm text-danger">{saveError}</p>
                 {conflictEntry && (
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>

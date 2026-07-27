@@ -1,29 +1,37 @@
 import { describe, expect, it } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import {
-  buildClassroomArchiveRestorePlan,
+  buildClassroomArchiveV2RestorePlan,
   classroomArchiveRestoreObjectPath,
-  CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
+  CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
+import { buildClassroomArchiveV2Fixture } from '../../fixtures/classroom-archive-v2'
+import {
+  V2_STUDENT_ID,
+  V2_TEACHER_ID,
+} from '../../fixtures/classroom-archive-v2'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
 const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 const STUDENT_ID = '00000000-0000-4000-8000-000000000004'
 const OPERATION_ID = '00000000-0000-4000-8000-000000000005'
+const QUIZ_ONLY_STUDENT_ID = '00000000-0000-4000-8000-000000000006'
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
-function verifiedFixture() {
-  const bundle = buildClassroomArchiveBundle({
+function buildFixtureBundle() {
+  return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -79,14 +87,27 @@ function verifiedFixture() {
         id: '60000000-0000-4000-8000-000000000003',
         quiz_id: '60000000-0000-4000-8000-000000000001',
         question_id: '60000000-0000-4000-8000-000000000002',
-        student_id: STUDENT_ID,
+        student_id: QUIZ_ONLY_STUDENT_ID,
         selected_option: 1,
       }],
       quiz_student_scores: [{
         id: '60000000-0000-4000-8000-000000000004',
         quiz_id: '60000000-0000-4000-8000-000000000001',
-        student_id: STUDENT_ID,
+        student_id: QUIZ_ONLY_STUDENT_ID,
         manual_override_score: 9,
+      }],
+      assessment_drafts: [{
+        id: '60000000-0000-4000-8000-000000000005',
+        assessment_type: 'quiz',
+        assessment_id: '60000000-0000-4000-8000-000000000001',
+        classroom_id: CLASSROOM_ID,
+        content: {
+          title: 'Historical Quiz draft',
+          image: 'https://project.supabase.co/storage/v1/object/public/submission-images/student/quiz-only.png',
+        },
+        version: 2,
+        created_by: TEACHER_ID,
+        updated_by: TEACHER_ID,
       }],
     },
     actors: [
@@ -104,6 +125,12 @@ function verifiedFixture() {
           created_at: '2026-07-13T12:00:00.000Z',
         },
       },
+      {
+        id: QUIZ_ONLY_STUDENT_ID,
+        email: 'quiz-only@example.test',
+        role: 'student',
+        profile: null,
+      },
     ],
     storageObjects: [
       {
@@ -119,6 +146,12 @@ function verifiedFixture() {
         bytes: Buffer.from('image'),
       },
       {
+        bucket: 'submission-images',
+        sourcePath: 'student/quiz-only.png',
+        contentType: 'image/png',
+        bytes: Buffer.from('discarded quiz image'),
+      },
+      {
         bucket: 'test-documents',
         sourcePath: 'teacher/test/snapshot.html',
         contentType: 'text/html',
@@ -132,6 +165,10 @@ function verifiedFixture() {
       },
     ],
   })
+}
+
+function verifiedFixture() {
+  const bundle = buildFixtureBundle()
   const verified = verifyClassroomArchiveBundle(bundle.archive)
   if (!verified.ok) throw new Error(verified.error)
   return verified
@@ -164,10 +201,10 @@ const currentActors = [
 ]
 
 describe('classroom archive restore planning', () => {
-  it('freezes the legacy quiz resources into the archive v1 contract', () => {
+  it('excludes retired Quiz tables from the current classroom graph', () => {
     const resourceNames = CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)
 
-    expect(resourceNames).toEqual(expect.arrayContaining([
+    expect(resourceNames).toEqual(expect.not.arrayContaining([
       'quizzes',
       'quiz_questions',
       'quiz_responses',
@@ -176,7 +213,7 @@ describe('classroom archive restore planning', () => {
   })
 
   it('requires explicit outer artifact checksum evidence', () => {
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified: verifiedFixture(),
       artifactChecksumVerified: false,
       operationId: OPERATION_ID,
@@ -185,8 +222,31 @@ describe('classroom archive restore planning', () => {
     })).toThrow('artifact checksum was not verified')
   })
 
-  it('selects the version adapter, reconciles actors, and rewrites managed object references', () => {
-    const plan = buildClassroomArchiveRestorePlan({
+  it('restores verified v2 input directly through the envelope contract', () => {
+    const verification = verifyClassroomArchiveBundle(
+      buildClassroomArchiveV2Fixture().archive,
+    )
+    expect(verification.ok).toBe(true)
+    if (!verification.ok) throw new Error(verification.error)
+
+    const plan = buildClassroomArchiveV2RestorePlan({
+      verified: verification,
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors: [
+        { id: V2_TEACHER_ID, email: 'teacher@example.test', role: 'teacher' },
+        { id: V2_STUDENT_ID, email: 'student@example.test', role: 'student' },
+      ],
+      supabaseUrl: 'https://project.supabase.co',
+    })
+    expect(plan.sourceContractVersion).toBe(2)
+    expect(plan.restoreContractVersion).toBe(2)
+    expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-107'])
+  })
+
+
+  it('selects the v2 adapter, reconciles actors, and rewrites managed object references', () => {
+    const plan = buildClassroomArchiveV2RestorePlan({
       verified: verifiedFixture(),
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -194,12 +254,17 @@ describe('classroom archive restore planning', () => {
       supabaseUrl: 'https://project.supabase.co',
     })
 
-    expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION)
-    expect(plan.adapterChain).toEqual(['classroom-archive-v1-082-to-083'])
+    expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION)
+    expect(plan.adapterChain).toEqual([
+      'classroom-archive-schema-082-to-107',
+      'classroom-archive-v1-retired-quiz-discard-v1',
+    ])
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_session_id')
     expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_sequence')
     expect(plan.preflight.unresolved_actor_ids).toEqual([])
     expect(plan.storageObjects).toHaveLength(4)
+    expect(plan.storageObjects.map((object) => object.sourcePath))
+      .not.toContain('student/quiz-only.png')
     expect(plan.storageObjects.every((object) =>
       object.restorePath.startsWith(`restores/${CLASSROOM_ID}/${OPERATION_ID}/`),
     )).toBe(true)
@@ -216,22 +281,17 @@ describe('classroom archive restore planning', () => {
     expect(JSON.stringify(plan.resources.tests[0].documents)).not.toContain(
       'teacher/test/snapshot.html',
     )
-    expect(plan.resources.quizzes).toEqual([
-      expect.objectContaining({ title: 'Historical quiz' }),
-    ])
-    expect(plan.resources.quiz_questions).toEqual([
-      expect.objectContaining({ question_text: 'Historical question' }),
-    ])
-    expect(plan.resources.quiz_responses).toEqual([
-      expect.objectContaining({ student_id: STUDENT_ID, selected_option: 1 }),
-    ])
-    expect(plan.resources.quiz_student_scores).toEqual([
-      expect.objectContaining({ student_id: STUDENT_ID, manual_override_score: 9 }),
-    ])
+    expect(plan.resources).not.toHaveProperty('quizzes')
+    expect(plan.resources).not.toHaveProperty('quiz_questions')
+    expect(plan.resources).not.toHaveProperty('quiz_responses')
+    expect(plan.resources).not.toHaveProperty('quiz_student_scores')
+    expect(plan.resources.classroom_retired_assessment_records).toEqual([])
+    expect(plan.resources.classroom_retired_assessment_record_actors).toEqual([])
+    expect(plan.resources.assessment_drafts).toEqual([])
   })
 
   it('fails closed when an archived actor cannot be reconciled', () => {
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified: verifiedFixture(),
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -241,7 +301,7 @@ describe('classroom archive restore planning', () => {
   })
 
   it('fails closed when a stable actor id now has a different authorization role', () => {
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified: verifiedFixture(),
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -256,7 +316,7 @@ describe('classroom archive restore planning', () => {
     const verified = verifiedFixture()
     verified.manifest.source.schema_migration = '081_unknown_archive_schema'
 
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -276,7 +336,7 @@ describe('classroom archive restore planning', () => {
       ).join('\n')),
     )
 
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -292,7 +352,7 @@ describe('classroom archive restore planning', () => {
     const firstActor = actors.toString('utf8').split('\n')[0]
     verified.files.set('actors.ndjson', Buffer.from(`${firstActor}\n${actors.toString('utf8')}`))
 
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,
@@ -305,7 +365,7 @@ describe('classroom archive restore planning', () => {
     const verified = verifiedFixture()
     verified.manifest.storage_objects.pop()
 
-    expect(() => buildClassroomArchiveRestorePlan({
+    expect(() => buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified: true,
       operationId: OPERATION_ID,

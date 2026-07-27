@@ -64,8 +64,8 @@ describe('TeacherClassroomsIndex', () => {
       createMockClassroom({ id: 'c1', title: 'Math 101' }),
     ])
 
-    const pageFrame = screen.getByTestId('classroom-card').closest('.max-w-2xl')
-    expect(pageFrame).toHaveClass('mx-auto', 'w-full', 'max-w-2xl')
+    const pageFrame = screen.getByTestId('classroom-card').closest('.max-w-reading')
+    expect(pageFrame).toHaveClass('mx-auto', 'w-full', 'max-w-reading')
   })
 
   it('does not refetch classrooms on initial mount (#302)', async () => {
@@ -142,7 +142,7 @@ describe('TeacherClassroomsIndex', () => {
     const bottomControls = screen.getByTestId('classroom-bottom-controls')
     const card = screen.getByTestId('classroom-card')
 
-    expect(bottomControls).toHaveClass('fixed', 'left-1/2', 'z-40', 'rounded-lg')
+    expect(bottomControls).toHaveClass('fixed', 'left-1/2', 'z-floating', 'rounded-lg')
     expect(bottomControls).not.toHaveClass('bg-surface/95')
     expect(bottomControls).not.toHaveClass('py-2')
     expect(bottomControls).not.toHaveClass('pl-3')

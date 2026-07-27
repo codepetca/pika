@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
@@ -33,6 +34,40 @@ function deferred<T>() {
     reject = promiseReject
   })
   return { promise, resolve, reject }
+}
+
+function StudentHistoryCommitProbe({
+  studentId,
+  classroomId,
+  initialEntries,
+  selectedEntry,
+  onCommit,
+}: {
+  studentId: string
+  classroomId: string
+  initialEntries: Entry[]
+  selectedEntry: Entry
+  onCommit: (observation: { studentId: string; text: string }) => void
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  useLayoutEffect(() => {
+    onCommit({
+      studentId,
+      text: containerRef.current?.textContent ?? '',
+    })
+  }, [onCommit, studentId])
+
+  return (
+    <div ref={containerRef}>
+      <StudentLogHistory
+        studentId={studentId}
+        classroomId={classroomId}
+        initialEntries={initialEntries}
+        selectedEntry={selectedEntry}
+      />
+    </div>
+  )
 }
 
 describe('StudentLogHistory', () => {
@@ -228,6 +263,34 @@ describe('StudentLogHistory', () => {
     expect(screen.queryByText(/Selected date/)).not.toBeInTheDocument()
   })
 
+  it('shows a retryable error instead of an empty history after the read fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const recoveredEntry = entry({
+      id: 'recovered-history-entry',
+      student_id: 'student-retry',
+      classroom_id: 'classroom-retry',
+      text: 'Recovered history.',
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(await mockJson({ error: 'History unavailable' }, false))
+      .mockResolvedValueOnce(await mockJson({ entries: [recoveredEntry] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StudentLogHistory studentId="student-retry" classroomId="classroom-retry" />
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('History unavailable')
+    expect(screen.queryByText('No entries.')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Recovered history.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    consoleError.mockRestore()
+  })
+
   it('reuses cached exact history when a student is selected again', async () => {
     const exactEntry = entry({
       id: 'cached-entry',
@@ -296,5 +359,113 @@ describe('StudentLogHistory', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('ignores an older load-more response after the selected student changes', async () => {
+    const studentALatest = Array.from({ length: 10 }, (_, index) =>
+      entry({
+        id: `student-a-latest-${index}`,
+        student_id: 'student-a',
+        classroom_id: 'classroom-race',
+        date: `2026-03-${String(20 - index).padStart(2, '0')}`,
+        text: `Student A history ${index + 1}.`,
+      })
+    )
+    const studentBOwnEntry = entry({
+      id: 'student-b-entry',
+      student_id: 'student-b',
+      classroom_id: 'classroom-race',
+      text: 'Student B history.',
+    })
+    const studentAOlderEntry = entry({
+      id: 'student-a-older',
+      student_id: 'student-a',
+      classroom_id: 'classroom-race',
+      date: '2026-03-01',
+      text: 'Student A older history must not leak.',
+    })
+    const olderRequest = deferred<any>()
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('student_id=student-a') && url.includes('before_date=')) {
+        return olderRequest.promise
+      }
+      if (url.includes('student_id=student-a')) {
+        return mockJson({ entries: studentALatest })
+      }
+      if (url.includes('student_id=student-b')) {
+        return mockJson({ entries: [studentBOwnEntry] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(
+      <StudentLogHistory studentId="student-a" classroomId="classroom-race" />
+    )
+    await screen.findByText('Student A history 10.')
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+
+    view.rerender(
+      <StudentLogHistory studentId="student-b" classroomId="classroom-race" />
+    )
+    expect(await screen.findByText('Student B history.')).toBeInTheDocument()
+
+    olderRequest.resolve(await mockJson({ entries: [studentAOlderEntry] }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Student A older history must not leak.')).not.toBeInTheDocument()
+    })
+    expect(screen.getByText('Student B history.')).toBeInTheDocument()
+  })
+
+  it('never commits the previous student history under the next student scope', () => {
+    const studentAEntry = entry({
+      id: 'student-a-commit-entry',
+      student_id: 'student-a',
+      classroom_id: 'classroom-commit',
+      text: 'Student A private history.',
+    })
+    const studentBEntry = entry({
+      id: 'student-b-commit-entry',
+      student_id: 'student-b',
+      classroom_id: 'classroom-commit',
+      text: 'Student B current history.',
+    })
+    const requests = new Map<string, ReturnType<typeof deferred<any>>>()
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const studentId = new URL(String(input), 'http://localhost').searchParams.get('student_id') ?? ''
+      const request = deferred<any>()
+      requests.set(studentId, request)
+      return request.promise
+    }))
+    const observations: Array<{ studentId: string; text: string }> = []
+    const onCommit = vi.fn((observation) => observations.push(observation))
+
+    const view = render(
+      <StudentHistoryCommitProbe
+        studentId="student-a"
+        classroomId="classroom-commit"
+        initialEntries={[studentAEntry]}
+        selectedEntry={studentAEntry}
+        onCommit={onCommit}
+      />
+    )
+
+    view.rerender(
+      <StudentHistoryCommitProbe
+        studentId="student-b"
+        classroomId="classroom-commit"
+        initialEntries={[studentBEntry]}
+        selectedEntry={studentBEntry}
+        onCommit={onCommit}
+      />
+    )
+
+    const studentBCommit = observations.find((observation) => observation.studentId === 'student-b')
+    expect(studentBCommit?.text).toContain('Student B current history.')
+    expect(studentBCommit?.text).not.toContain('Student A private history.')
+    expect(requests.has('student-a')).toBe(true)
+    expect(requests.has('student-b')).toBe(true)
   })
 })

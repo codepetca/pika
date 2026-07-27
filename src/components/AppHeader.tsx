@@ -128,7 +128,7 @@ export function AppHeader({
   return (
     <header
       className={[
-        'sticky top-0 z-50 grid h-12 grid-cols-[1fr_minmax(0,1fr)_1fr] items-center border-b border-border bg-surface px-4',
+        'sticky top-0 z-app-chrome grid h-12 grid-cols-[1fr_minmax(0,1fr)_1fr] items-center border-b border-border bg-surface px-4',
         classroomTheme ? 'classroom-theme classroom-theme-appbar' : '',
       ].filter(Boolean).join(' ')}
       data-classroom-theme-color={classroomTheme?.value}

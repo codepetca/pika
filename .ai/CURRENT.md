@@ -1,23 +1,14 @@
-# Pika Current Context
+Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
+local was backed up, reset without seed data, and cleanly replayed through 112;
+its migration history and generated types now match this branch.
 
-Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-LOG.md`.
+## Current Context
 
-## Current Focus
-
-- Migrations 001-099 and the archive canary are verified; classroom hot-restored; source/Gradex cleanup disabled.
-- Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave and Phase 2 are complete. Phase 3 assignment desktop/accessibility work is complete; assignment mobile UX is deferred, Gradex is owned by a separate session, and Daily/Attendance is next.
-
-## Environment
-
-- Hub: `$HOME/Repos/pika`.
-- Worktrees: `$HOME/.codex/worktrees/pika/` (named), `$HOME/.codex/worktrees/<id>/pika` (app-managed).
-- Maintainer env: `$HOME/Repos/.env/pika/.env.local`; collaborators use local `.env.example` copies.
-- Worktree/env rules: `docs/dev-workflow.md`.
-
-## Invariants And Hazards
-
-- Deadlines/attendance use `America/Toronto`; business logic belongs in `src/lib/*` or server modules.
-- API routes use `withErrorHandler`; UI uses semantic tokens and `@/ui`.
-- Migrations need one-time target/migration permission; never infer reset, repair, rollback, seed, or cleanup permission.
-- Use dedicated worktrees. After session-log updates, run `node scripts/trim-session-log.mjs`.
-- `main` accepts linear history; `production` uses the protected PR flow.
+- `DESIGN.md` is canonical; product status: `.ai/features.json`.
+- Pal remains disabled; its widget package is an external dependency.
+- Worktrees: `$HOME/.codex/worktrees/pika/` or
+  `$HOME/.codex/worktrees/<id>/pika`; maintainer env:
+  `$HOME/Repos/.env/pika/.env.local`; collaborators may copy `.env.example`.
+- Toronto deadlines, server logic, `withErrorHandler`, semantic tokens, and
+  human-controlled migrations are invariants. Workflow: `docs/dev-workflow.md`.
+- Trim session logs after updates. `production` uses the protected PR flow.

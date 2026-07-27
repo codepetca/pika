@@ -11,6 +11,7 @@ import {
   Settings,
   PenSquare,
   SquarePercent,
+  Trophy,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -35,6 +36,7 @@ export type ClassroomNavItemId =
   | 'roster'
   | 'settings'
   | 'today'
+  | 'achievements'
 
 type NavItem = {
   id: ClassroomNavItemId
@@ -60,6 +62,7 @@ const teacherItems: NavItem[] = [
 
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
+  { id: 'achievements', label: 'Achievements', icon: Trophy },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -71,8 +74,11 @@ const studentItems: NavItem[] = [
 // Utilities
 // ============================================================================
 
-function getItems(role: 'student' | 'teacher') {
-  return role === 'teacher' ? teacherItems : studentItems
+function getItems(role: 'student' | 'teacher', palEnabled: boolean) {
+  if (role === 'teacher') return teacherItems
+  return palEnabled
+    ? studentItems
+    : studentItems.filter((item) => item.id !== 'achievements')
 }
 
 function tabHref(classroomId: string, tabId: ClassroomNavItemId) {
@@ -110,6 +116,7 @@ export interface NavItemsProps {
   onTabChange: (tab: ClassroomNavItemId) => void
   onTabIntent?: (tab: ClassroomNavItemId) => void
   updateSearchParams: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
+  palEnabled?: boolean
 }
 
 export function NavItems({
@@ -119,6 +126,7 @@ export function NavItems({
   onTabChange,
   onTabIntent = () => {},
   updateSearchParams,
+  palEnabled = false,
 }: NavItemsProps) {
   const { isExpanded } = useLeftSidebar()
   const { isLeftOpen, close: closeMobileDrawer } = useMobileDrawer()
@@ -141,7 +149,7 @@ export function NavItems({
     !notifications?.loading &&
     (notifications?.unreadAnnouncementsCount ?? 0) > 0
 
-  const items = useMemo(() => getItems(role), [role])
+  const items = useMemo(() => getItems(role, palEnabled), [palEnabled, role])
   const handleTabIntent = useCallback((tab: ClassroomNavItemId) => {
     onTabIntent(tab)
   }, [onTabIntent])

@@ -43,7 +43,11 @@ describe('Button component', () => {
 
   it('should apply size styles', () => {
     const { container } = render(<Button size="lg">Large</Button>)
-    expect(container.querySelector('button')).toHaveClass('min-h-11', 'min-w-11', 'px-6')
+    expect(container.querySelector('button')).toHaveClass(
+      'min-h-control',
+      'min-w-control',
+      'px-6',
+    )
   })
 
   it('uses a keyboard-only focus treatment', () => {
@@ -51,8 +55,8 @@ describe('Button component', () => {
 
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass(
       'focus:outline-none',
-      'focus-visible:ring-2',
-      'focus-visible:ring-primary',
+      'focus-visible:ring-foundation',
+      'focus-visible:ring-focus',
     )
   })
 

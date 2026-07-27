@@ -20,7 +20,6 @@ import type {
   TestStudentAvailabilityState,
 } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
-import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -614,7 +613,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     if (typeof response.selected_option !== 'number') return []
     return [{
       id: response.id,
-      quiz_id: testId,
+      test_id: testId,
       question_id: response.question_id,
       student_id: response.student_id,
       selected_option: response.selected_option,
@@ -624,7 +623,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
   const aggregateQuestions: TestAssessmentQuestion[] = multipleChoiceQuestions.map((question) => ({
     ...question,
-    quiz_id: question.test_id,
+    test_id: question.test_id,
   }))
   const aggregated = aggregateTestResults(aggregateQuestions, multipleChoiceResponses)
 
@@ -655,7 +654,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   }
 
   return NextResponse.json({
-    ...withLegacyQuizKey(responseTest),
+    test: responseTest,
     questions: (questions || []).map((q) => ({
       id: q.id,
       question_type: q.question_type === 'open_response' ? 'open_response' : 'multiple_choice',

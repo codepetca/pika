@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { validateTestDocumentsPayload } from '@/lib/test-documents'
+import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
 import {
   buildNextDraftContent,
   buildTestDraftContentFromRows,
@@ -125,19 +126,36 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 })
   }
 
-  // Sync title, show_results, and optionally documents to the tests table in one update
-  const { error: metaError } = await supabase
-    .from('tests')
-    .update({
+  if (nextDocuments?.valid) {
+    const result = await updateTestDocumentsAtomic({
+      supabase,
+      teacherId: user.id,
+      testId,
+      expectedStatus: access.test.status,
+      expectedDocuments: access.test.documents,
+      proposedDocuments: nextDocuments.documents,
       title: updatedDraft.content.title,
-      show_results: updatedDraft.content.show_results,
-      ...(nextDocuments ? { documents: nextDocuments.documents } : {}),
+      showResults: updatedDraft.content.show_results,
     })
-    .eq('id', testId)
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, draft: updatedDraft },
+        { status: result.status },
+      )
+    }
+  } else {
+    const { error: metaError } = await supabase
+      .from('tests')
+      .update({
+        title: updatedDraft.content.title,
+        show_results: updatedDraft.content.show_results,
+      })
+      .eq('id', testId)
 
-  if (metaError) {
-    console.error('Error syncing test metadata from draft:', metaError)
-    return NextResponse.json({ error: 'Failed to sync assessment metadata' }, { status: 500 })
+    if (metaError) {
+      console.error('Error syncing test metadata from draft:', metaError)
+      return NextResponse.json({ error: 'Failed to sync assessment metadata' }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ draft: updatedDraft })

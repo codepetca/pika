@@ -286,30 +286,6 @@ describe('TestStudentGradingPanel save-all grading', () => {
     })
   })
 
-  it('accepts legacy quiz result payloads as a compatibility fallback', async () => {
-    const legacyPayload = makeResultsPayload(3, 'Legacy feedback') as ReturnType<typeof makeResultsPayload> & {
-      quiz?: { id: string; title: string }
-      test?: { id: string; title: string }
-    }
-    legacyPayload.quiz = legacyPayload.test
-    delete legacyPayload.test
-
-    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => legacyPayload,
-    })
-
-    render(
-      <TestStudentGradingPanel
-        testId="test-1"
-        selectedStudentId="student-1"
-      />
-    )
-
-    await screen.findByDisplayValue('3')
-    expect(screen.getByDisplayValue('Legacy feedback')).toBeInTheDocument()
-  })
-
   it('renders score inputs for MC and open questions and saves MC overrides', async () => {
     let persistedMcScore = 2
     let persistedOpenScore: number | null = 3

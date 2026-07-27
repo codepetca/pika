@@ -417,57 +417,62 @@ export function LessonCalendar({
         </div>
       )}
 
-      {/* Day headers - only shown outside the grid for non-all modes */}
-      {viewMode !== 'all' && (
-        <div
-          className="grid border-b-2 border-border"
-          style={{ gridTemplateColumns: GRID_COLUMNS_7 }}
-        >
-          {DAY_LABELS.map((label, idx) => {
-            const isWeekendDay = idx === 0 || idx === 6
-            const isCompactView = viewMode !== 'week'
-            const headerLabel = isWeekendDay ? label.charAt(0) : label
-            const headerDay = weekHeaderDays[idx]
-
-            if (viewMode === 'week' && headerDay) {
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setPresentedDay(headerDay)}
-                  className={`${isCompactView ? 'py-0.5' : 'py-2'} border-r border-border text-center text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default last:border-r-0`}
-                  aria-label={`Open ${format(headerDay, 'EEEE, MMMM d, yyyy')}`}
-                >
-                  {headerLabel}
-                </button>
-              )
-            }
-
-            return (
-              <div
-                key={label}
-                className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted`}
-              >
-                {headerLabel}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Scrollable container for all mode */}
+      {/* Calendar viewport. Week mode keeps cells legible on small screens via
+          one aligned horizontal scroller for both headers and content. */}
       <div
         className={
           viewMode === 'all'
             ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto'
             : viewMode === 'month'
               ? 'min-h-0 flex-1 overflow-x-hidden'
-              : 'overflow-x-hidden'
+              : 'overflow-x-auto'
         }
       >
+        {/* Day headers - only shown outside the grid for non-all modes */}
+        {viewMode !== 'all' && (
+          <div
+            className={`grid border-b-2 border-border ${
+              viewMode === 'week' ? 'min-w-[49rem] sm:min-w-0' : ''
+            }`}
+            style={{ gridTemplateColumns: GRID_COLUMNS_7 }}
+          >
+            {DAY_LABELS.map((label, idx) => {
+              const isWeekendDay = idx === 0 || idx === 6
+              const isCompactView = viewMode !== 'week'
+              const headerLabel = isWeekendDay ? label.charAt(0) : label
+              const headerDay = weekHeaderDays[idx]
+
+              if (viewMode === 'week' && headerDay) {
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setPresentedDay(headerDay)}
+                    className={`${isCompactView ? 'py-0.5' : 'py-2'} border-r border-border text-center text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default last:border-r-0`}
+                    aria-label={`Open ${format(headerDay, 'EEEE, MMMM d, yyyy')}`}
+                  >
+                    {headerLabel}
+                  </button>
+                )
+              }
+
+              return (
+                <div
+                  key={label}
+                  className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted`}
+                >
+                  {headerLabel}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Calendar grid - in all mode, includes header row */}
         <div
-          className={`grid ${viewMode !== 'all' ? 'overflow-visible' : ''}`}
+          className={`grid ${viewMode !== 'all' ? 'overflow-visible' : ''} ${
+            viewMode === 'week' ? 'min-w-[49rem] sm:min-w-0' : ''
+          }`}
           style={{
             gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
             gridTemplateRows: viewMode === 'week'

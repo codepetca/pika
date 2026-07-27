@@ -71,7 +71,7 @@ case $LEVEL in
     ;;
   full)
     cat CLAUDE.md docs/ai-instructions.md docs/core/architecture.md \
-        docs/core/design.md docs/core/tests.md
+        DESIGN.md docs/core/tests.md
     ;;
 esac
 ```
@@ -287,7 +287,7 @@ UI: Checklist-style rubric that auto-calculates total.
 |----------|---------|--------|-------|
 | `ai-instructions.md` | 350 | 300 | Remove workflow duplication |
 | `architecture.md` | 210 | 200 | Already tight |
-| `design.md` | 715 | 400 | Move component examples to storybook/gallery |
+| `DESIGN.md` | canonical root | concise | Keep values and component APIs in executable/supporting owners |
 | `SESSION-LOG.md` | <= 60 entries | <= 40 entries after trim | Append, then immediately trim with `scripts/trim-session-log.mjs`; CI caps at 60 entries |
 | **Total** | ~7200 | ~4000 | 44% reduction |
 

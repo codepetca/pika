@@ -20,16 +20,17 @@ Steps:
 2) Recover recent context
    - Run: `git log --oneline -10`
    - Run: `git status -sb`
-   - Read `.ai/CURRENT.md`.
    - Read `.ai/SESSION-LOG.md` only if recent handoff context is needed.
    - Summarize: current branch or detached HEAD state, last few commits, uncommitted changes.
 
 3) Load documentation
    - Read in order:
      1. `.ai/START-HERE.md`
-     2. `.ai/features.json`
-     3. `docs/ai-instructions.md`
-     4. Task-specific docs routed by `docs/ai-instructions.md`
+     2. `.ai/CURRENT.md`
+     3. `.ai/features.json`
+     4. `docs/ai-instructions.md`
+     5. `docs/dev-workflow.md`
+     6. Task-specific docs routed by `docs/ai-instructions.md`
    - Briefly confirm: current feature area being developed.
 
 4) Check feature inventory

@@ -6,6 +6,7 @@ import {
   GRADEX_DEIDENTIFICATION_CONTRACT,
   GRADEX_EXTRACT_FORMAT,
   GRADEX_EXTRACT_VERSION,
+  getClassroomArchiveContract,
   gradexExtractManifestSchema,
   type GradexExtractManifest,
 } from '@/lib/contracts/classroom-artifacts'
@@ -33,7 +34,7 @@ const safeAnalyticTokens = new Set([
   'completed_with_errors', 'draft', 'empty_doc', 'failed', 'generated_reference',
   'grading_feedback', 'image', 'in_progress', 'link', 'missing', 'missing_doc',
   'multiple_choice', 'open', 'open_response', 'pending', 'processing', 'published',
-  'queued', 'quiz', 'ready', 'redacted', 'repo_link', 'running', 'skipped',
+  'queued', 'ready', 'redacted', 'repo_link', 'running', 'skipped',
   'student', 'system', 'teacher', 'teacher_feedback', 'teacher_key', 'test', 'v1',
 ])
 const sanitizedTokenSchema = structuredTokenSchema.refine(
@@ -654,6 +655,11 @@ export function buildGradexExtractFromClassroomArchive(input: {
   }
   const verifiedArchive = verifyClassroomArchiveBundle(input.archive)
   if (!verifiedArchive.ok) throw new Error(`Gradex source archive is invalid: ${verifiedArchive.error}`)
+  if (!getClassroomArchiveContract(verifiedArchive.manifest.version).gradexEnabled) {
+    throw new Error(
+      `Classroom archive version ${verifiedArchive.manifest.version} is not enabled for Gradex`,
+    )
+  }
   const generatedAt = z.string().datetime({ offset: true }).parse(input.generatedAt)
   const deleteAfter = z.string().datetime({ offset: true }).parse(input.deleteAfter)
   if (Date.parse(deleteAfter) <= Date.parse(generatedAt)) {

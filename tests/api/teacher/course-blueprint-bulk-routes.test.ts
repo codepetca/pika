@@ -46,6 +46,7 @@ describe('teacher course blueprint bulk routes', () => {
       points_possible: 12.5,
       include_in_final: true,
       is_draft: true,
+      track_authenticity: false,
       position: 0,
     }
     const assessment = {
@@ -111,5 +112,47 @@ describe('teacher course blueprint bulk routes', () => {
     expect(mockSyncAssignments).not.toHaveBeenCalled()
     expect(mockSyncAssessments).not.toHaveBeenCalled()
     expect(mockSyncLessons).not.toHaveBeenCalled()
+  })
+
+  it('strips classroom snapshot ownership before blueprint persistence', async () => {
+    const assessment = {
+      assessment_type: 'test',
+      title: 'Reusable test',
+      content: {
+        title: 'Reusable test',
+        show_results: false,
+        questions: [],
+      },
+      documents: [{
+        id: 'doc-1',
+        title: 'Reference',
+        source: 'link',
+        url: 'https://docs.example.com/reference',
+        snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
+        snapshot_content_type: 'text/html',
+        synced_at: '2026-07-23T12:00:00.000Z',
+      }],
+      position: 0,
+    }
+
+    const response = await POST_ASSESSMENTS(post('/assessments', {
+      assessmentType: 'test',
+      assessments: [assessment],
+    }), context)
+
+    expect(response.status).toBe(200)
+    expect(mockSyncAssessments).toHaveBeenCalledWith(
+      'teacher-1',
+      'blueprint-1',
+      [expect.objectContaining({
+        documents: [{
+          id: 'doc-1',
+          title: 'Reference',
+          source: 'link',
+          url: 'https://docs.example.com/reference',
+        }],
+      })],
+      { replaceTypes: ['test'] },
+    )
   })
 })

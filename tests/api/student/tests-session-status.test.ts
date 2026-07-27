@@ -291,7 +291,7 @@ describe('GET /api/student/tests/[id]/session-status', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.test).toEqual(data.quiz)
+    expect(data).not.toHaveProperty('quiz')
     expect(data.can_continue).toBe(false)
     expect(data.effective_access ?? data.test.effective_access).toBe('closed')
     expect(data.message).toContain('saved draft is preserved')

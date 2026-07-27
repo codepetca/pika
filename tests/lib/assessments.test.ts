@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  getAssessmentType,
   getStudentAssessmentStatus,
   getStudentTestStatus,
 } from '@/lib/assessments'
@@ -10,36 +9,14 @@ describe('getStudentAssessmentStatus', () => {
     expect(getStudentAssessmentStatus({ status: 'active' }, false)).toBe('not_started')
   })
 
-  it('returns not_started when not responded even if closed with show_results', () => {
-    expect(
-      getStudentAssessmentStatus({ status: 'closed', show_results: true }, false)
-    ).toBe('not_started')
-  })
-
   it('returns responded when responded to an active assessment', () => {
     expect(getStudentAssessmentStatus({ status: 'active' }, true)).toBe('responded')
   })
 
-  it('returns responded when responded to closed assessment with no show_results and no returnedAt', () => {
-    expect(
-      getStudentAssessmentStatus({ status: 'closed', show_results: false }, true)
-    ).toBe('responded')
+  it('returns responded when responded to closed test with no returnedAt', () => {
+    expect(getStudentAssessmentStatus({ status: 'closed' }, true)).toBe('responded')
   })
 
-  // Quiz-style: show_results flag
-  it('returns can_view_results when closed and show_results is true', () => {
-    expect(
-      getStudentAssessmentStatus({ status: 'closed', show_results: true }, true)
-    ).toBe('can_view_results')
-  })
-
-  it('does NOT return can_view_results when active even if show_results is true', () => {
-    expect(
-      getStudentAssessmentStatus({ status: 'active', show_results: true }, true)
-    ).toBe('responded')
-  })
-
-  // Test-style: returnedAt flag
   it('returns can_view_results when closed and returnedAt is a date string', () => {
     expect(
       getStudentAssessmentStatus({ status: 'closed' }, true, { returnedAt: '2024-01-01T00:00:00Z' })
@@ -64,44 +41,15 @@ describe('getStudentAssessmentStatus', () => {
     ).toBe('responded')
   })
 
-  it('returnedAt takes precedence over show_results when both present', () => {
-    // Both conditions met → can_view_results
-    expect(
-      getStudentAssessmentStatus(
-        { status: 'closed', show_results: true },
-        true,
-        { returnedAt: '2024-01-01T00:00:00Z' }
-      )
-    ).toBe('can_view_results')
-  })
-
   it('handles undefined opts', () => {
-    expect(getStudentAssessmentStatus({ status: 'closed', show_results: false }, true, undefined)).toBe(
+    expect(getStudentAssessmentStatus({ status: 'closed' }, true, undefined)).toBe(
       'responded'
     )
   })
 })
 
-describe('getAssessmentType', () => {
-  it('returns "test" when assessment_type is "test"', () => {
-    expect(getAssessmentType({ assessment_type: 'test' })).toBe('test')
-  })
-
-  it('returns "quiz" when assessment_type is "quiz"', () => {
-    expect(getAssessmentType({ assessment_type: 'quiz' })).toBe('quiz')
-  })
-
-  it('returns "quiz" when assessment_type is null', () => {
-    expect(getAssessmentType({ assessment_type: null })).toBe('quiz')
-  })
-
-  it('returns "quiz" when assessment_type is undefined', () => {
-    expect(getAssessmentType({})).toBe('quiz')
-  })
-})
-
 describe('getStudentTestStatus (thin wrapper)', () => {
-  it('delegates to getStudentAssessmentStatus — not_started when not responded', () => {
+  it('delegates to getStudentAssessmentStatus - not_started when not responded', () => {
     expect(getStudentTestStatus({ status: 'active' }, false, null)).toBe('not_started')
   })
 

@@ -21,11 +21,9 @@ export type ConflictDraft = {
   content: DraftContent
 } | null
 
-type DraftModeAssessmentIdentity =
-  | { assessmentId: string; assessmentTitle: string; quizId?: string; quizTitle?: string }
-  | { assessmentId?: string; assessmentTitle?: string; quizId: string; quizTitle: string }
-
-type UseDraftModeOptions = DraftModeAssessmentIdentity & {
+type UseDraftModeOptions = {
+  assessmentId: string
+  assessmentTitle: string
   showResults: boolean
   apiBasePath: string
   /** Called after a successful save so the parent can refresh assessment metadata. */
@@ -80,14 +78,14 @@ export interface UseDraftModeReturn {
  */
 export function useDraftMode(options: UseDraftModeOptions): UseDraftModeReturn {
   const {
+    assessmentId,
+    assessmentTitle,
     showResults,
     apiBasePath,
     onUpdate,
     onError,
     onQuestionsChange,
   } = options
-  const assessmentId = options.assessmentId ?? options.quizId
-  const assessmentTitle = options.assessmentTitle ?? options.quizTitle
   if (!assessmentId || !assessmentTitle) {
     throw new Error('useDraftMode requires assessmentId/assessmentTitle')
   }
@@ -127,7 +125,7 @@ export function useDraftMode(options: UseDraftModeOptions): UseDraftModeReturn {
           question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
         return {
           id: String(question.id || crypto.randomUUID()),
-          quiz_id: assessmentId,
+          test_id: assessmentId,
           question_text: String(question.question_text || ''),
           options: Array.isArray(question.options)
             ? question.options.map((o) => String(o))

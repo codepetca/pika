@@ -52,13 +52,11 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   assignment_submission_artifacts: ['student_id'],
   assignments: ['created_by'],
   classroom_enrollments: ['student_id'],
+  classroom_retired_assessment_record_actors: ['actor_id'],
   classroom_resources: ['updated_by'],
   classrooms: ['teacher_id'],
   classwork_materials: ['created_by'],
   entries: ['student_id'],
-  quiz_responses: ['student_id'],
-  quiz_student_scores: ['student_id'],
-  quizzes: ['created_by'],
   report_card_rows: ['student_id'],
   report_cards: ['created_by'],
   survey_responses: ['student_id'],
@@ -71,6 +69,27 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   test_student_availability: ['student_id', 'updated_by'],
   tests: ['created_by'],
 } as const satisfies Record<string, readonly string[]>
+
+// These are workflow references to a classroom, not classroom-owned state.
+// They remain outside classroom archives and must be rebuilt or expired by the
+// Blueprint workflow rather than restored as part of a classroom.
+export const CLASSROOM_NON_OWNING_REFERENCES = [
+  {
+    child_table: 'course_blueprint_change_proposals',
+    parent_table: 'classrooms',
+    child_columns: ['source_classroom_id'],
+  },
+  {
+    child_table: 'course_blueprint_change_proposals',
+    parent_table: 'classrooms',
+    child_columns: ['target_classroom_id'],
+  },
+  {
+    child_table: 'course_blueprint_editing_sessions',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+] as const satisfies readonly ClassroomSchemaRelationship[]
 
 export const classroomResourceInventorySchema = z.array(classroomResourceSchema).min(1).superRefine(
   (resources, context) => {
@@ -222,10 +241,6 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('gradebook_settings', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback'], 'exclude', [], ['classroom_id']),
   resource('lesson_plans', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('log_summaries', 'classrooms', 'classroom_id', ['student_work', 'operations']),
-  resource('quizzes', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback']),
-  resource('quiz_questions', 'quizzes', 'quiz_id', ['teacher_content']),
-  resource('quiz_responses', 'quizzes', 'quiz_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'exclude', ['quiz_questions']),
-  resource('quiz_student_scores', 'quizzes', 'quiz_id', ['student_identity', 'grades_and_feedback']),
   resource('report_cards', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback']),
   resource('report_card_rows', 'report_cards', 'report_card_id', ['student_identity', 'grades_and_feedback']),
   resource('surveys', 'classrooms', 'classroom_id', ['teacher_content']),
@@ -240,6 +255,8 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('test_questions', 'tests', 'test_id', ['teacher_content'], 'include_structured'),
   resource('test_responses', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_structured', ['test_questions']),
   resource('test_student_availability', 'tests', 'test_id', ['student_identity', 'operations']),
+  resource('classroom_retired_assessment_records', 'classrooms', 'classroom_id', ['teacher_content', 'student_identity', 'student_work', 'grades_and_feedback', 'operations']),
+  resource('classroom_retired_assessment_record_actors', 'classroom_retired_assessment_records', 'record_id', ['student_identity']),
 ] as const satisfies readonly ClassroomResource[]
 
 export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[number]['table']
@@ -271,12 +288,27 @@ export type ClassroomResourceSchemaAudit = {
   invalid_primary_keys: string[]
   untracked_actor_references: string[]
   stale_actor_references: string[]
+  stale_non_owning_references: string[]
 }
 
 export function auditClassroomResourceSchema(
   relationships: ClassroomSchemaRelationship[],
   primaryKeys: ClassroomSchemaPrimaryKey[],
 ): ClassroomResourceSchemaAudit {
+  const nonOwningReferenceKeys = new Set(
+    CLASSROOM_NON_OWNING_REFERENCES.flatMap((relationship) =>
+      relationship.child_columns.map((column) =>
+        `${relationship.child_table}.${column}->${relationship.parent_table}`
+      )
+    )
+  )
+  const relationshipIsNonOwning = (relationship: ClassroomSchemaRelationship) =>
+    relationship.child_columns.length > 0 &&
+    relationship.child_columns.every((column) =>
+      nonOwningReferenceKeys.has(
+        `${relationship.child_table}.${column}->${relationship.parent_table}`
+      )
+    )
   const descendants = new Set(['classrooms'])
   let changed = true
 
@@ -284,6 +316,7 @@ export function auditClassroomResourceSchema(
     changed = false
     for (const relationship of relationships) {
       if (
+        !relationshipIsNonOwning(relationship) &&
         descendants.has(relationship.parent_table) &&
         !descendants.has(relationship.child_table)
       ) {
@@ -308,6 +341,7 @@ export function auditClassroomResourceSchema(
   for (const relationship of relationships) {
     if (
       relationship.child_table === 'classrooms' ||
+      relationship.child_table === relationship.parent_table ||
       !descendants.has(relationship.child_table) ||
       !descendants.has(relationship.parent_table)
     ) {
@@ -367,6 +401,16 @@ export function auditClassroomResourceSchema(
   const staleActorReferences = [...expectedActorReferences]
     .filter((reference) => !actualActorReferences.has(reference))
     .sort()
+  const actualRelationshipKeys = new Set(
+    relationships.flatMap((relationship) =>
+      relationship.child_columns.map((column) =>
+        `${relationship.child_table}.${column}->${relationship.parent_table}`
+      )
+    )
+  )
+  const staleNonOwningReferences = [...nonOwningReferenceKeys]
+    .filter((reference) => !actualRelationshipKeys.has(reference))
+    .sort()
 
   const uniqueMissingDependencies = Array.from(new Set(missingRestoreDependencies)).sort()
   return {
@@ -377,7 +421,8 @@ export function auditClassroomResourceSchema(
       invalidSelectionScopes.length === 0 &&
       invalidPrimaryKeys.length === 0 &&
       untrackedActorReferences.length === 0 &&
-      staleActorReferences.length === 0,
+      staleActorReferences.length === 0 &&
+      staleNonOwningReferences.length === 0,
     untracked_tables: untrackedTables,
     stale_tables: staleTables,
     missing_restore_dependencies: uniqueMissingDependencies,
@@ -385,6 +430,7 @@ export function auditClassroomResourceSchema(
     invalid_primary_keys: invalidPrimaryKeys.sort(),
     untracked_actor_references: untrackedActorReferences,
     stale_actor_references: staleActorReferences,
+    stale_non_owning_references: staleNonOwningReferences,
   }
 }
 

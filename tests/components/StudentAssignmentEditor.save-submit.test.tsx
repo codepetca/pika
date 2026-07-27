@@ -805,7 +805,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(screen.getByRole('button', { name: 'Edit older response' }))
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
     await waitFor(() => {
-      expect(screen.getByText('Saving...')).toBeInTheDocument()
+      expect(screen.getByText('Saving…')).toBeInTheDocument()
     })
     await user.click(screen.getByRole('button', { name: 'Edit response' }))
 
@@ -1279,7 +1279,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await screen.findByText('Assignment Title')
     await user.click(screen.getByRole('button', { name: 'Edit older response' }))
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
-    await screen.findByText('Saving...')
+    await screen.findByText('Saving…')
     await user.click(screen.getByRole('button', { name: 'Edit response' }))
 
     resolveOlderSave?.({
@@ -1740,7 +1740,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(screen.getByRole('button', { name: 'Record keystroke' }))
     await user.click(screen.getByRole('button', { name: 'Edit older response' }))
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
-    await screen.findByText('Saving...')
+    await screen.findByText('Saving…')
     await user.click(screen.getByRole('button', { name: 'Record keystroke' }))
     await user.click(screen.getByRole('button', { name: 'Edit response' }))
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
@@ -3400,7 +3400,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(screen.getByRole('button', { name: 'Record keystroke' }))
     await user.click(screen.getByRole('button', { name: 'Edit response' }))
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
-    await waitFor(() => expect(screen.getByText('Saving...')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Saving…')).toBeInTheDocument())
     await user.click(screen.getAllByRole('button', { name: 'Select saved version' })[0])
     await user.click(screen.getAllByRole('button', { name: 'Restore' })[0])
     const restoreDialog = screen.getByRole('dialog', { name: 'Restore this version?' })

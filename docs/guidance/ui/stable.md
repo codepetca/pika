@@ -21,9 +21,35 @@ This file handles shared foundation rules. The teacher work-surface canon handle
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/ui/README.md`](/src/ui/README.md)
 - Current classroom surfaces use these tokens heavily.
+
+### 1a. Portable foundations and raw values stay governed
+
+- Use the host-neutral typography, focus, motion, page-width, density,
+  minimum-target, layer-responsibility, and scrim variables in
+  `src/styles/tokens.css` through their Tailwind aliases or canonical owners.
+- Do not add a raw colour, arbitrary spacing value, or raw `z-index` merely
+  because a similar value already exists. Existing values are registered
+  migration or content-owned evidence, not precedent.
+- When a raw value is genuinely required, update
+  `scripts/design-value-exceptions.json` with the owning migration phase and
+  reason. The exact fingerprint must change in the same review.
+- Enforcement covers Tailwind arbitrary syntax, literal inline styles, and
+  CSS/SCSS declarations. `src/styles/tokens.css` is excluded because it is the
+  canonical semantic-value definition boundary; its consumers and contrast
+  pairs remain governed.
+- A named layer token describes responsibility, not relative importance.
+  Feature-local sticky layers remain contained; document-level overlays use the
+  shared owner.
+
+Source grounding:
+
+- [`src/styles/tokens.css`](/src/styles/tokens.css)
+- [`tailwind.config.ts`](/tailwind.config.ts)
+- [`scripts/check-design-policy.ts`](/scripts/check-design-policy.ts)
+- [`scripts/design-value-exceptions.json`](/scripts/design-value-exceptions.json)
 
 ### 2. Base controls come from `@/ui`
 
@@ -36,7 +62,7 @@ Source grounding:
 Source grounding:
 
 - [`src/ui/README.md`](/src/ui/README.md)
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/components/AssignmentForm.tsx`](/src/components/AssignmentForm.tsx)
 
 ### 3. Classroom pages preserve the shared shell
@@ -47,7 +73,7 @@ Source grounding:
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/components/layout/ThreePanelShell.tsx`](/src/components/layout/ThreePanelShell.tsx)
 - [`src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`](/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx)
 
@@ -150,7 +176,7 @@ Source grounding:
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`docs/core/architecture.md`](/docs/core/architecture.md)
 - [`src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx)
 
@@ -163,7 +189,7 @@ Source grounding:
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`](/src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx)
 - [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
 - [`src/components/AssignmentModal.tsx`](/src/components/AssignmentModal.tsx)
@@ -172,11 +198,14 @@ Source grounding:
 
 - Use the existing Toronto-aware date helpers and the established app language for dates.
 - Prefer predictable classroom-facing date labels instead of one-off formatting.
+- Use the established short classroom date form such as `Tue Dec 16` without a year when the
+  surrounding context makes the year unambiguous; include the year when omitting it would create
+  ambiguity.
 - Date presentation should feel consistent across attendance navigation, assignment due labels, and classroom-level scheduling affordances.
 
 Source grounding:
 
-- [`docs/core/design.md`](/docs/core/design.md)
+- [`DESIGN.md`](/DESIGN.md)
 - [`docs/core/architecture.md`](/docs/core/architecture.md)
 - Current attendance and assignment surfaces already rely on Toronto-aware helpers.
 

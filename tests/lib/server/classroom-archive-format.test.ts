@@ -7,12 +7,16 @@ import {
   decodeClassroomArchiveData,
   discoverClassroomStorageReferences,
   encodeTar,
+  parseAndValidateNdjson,
   parseTar,
   sha256Bytes,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import type { ClassroomArchiveManifest } from '@/lib/contracts/classroom-artifacts'
+import {
+  buildClassroomArchiveV2Fixture,
+} from '../../fixtures/classroom-archive-v2'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
@@ -20,12 +24,13 @@ const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 
 function emptyResources() {
   return Object.fromEntries(
-    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, []]),
+    CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, []]),
   )
 }
 
 function buildFixture() {
   return buildClassroomArchiveBundle({
+    version: 1,
     archiveId: ARCHIVE_ID,
     classroomId: CLASSROOM_ID,
     teacherId: TEACHER_ID,
@@ -136,6 +141,28 @@ function buildLegacyV1Fixture(): Uint8Array {
 }
 
 describe('classroom archive format', () => {
+  it('writes the explicitly requested v2 envelope graph', () => {
+    const fixture = buildClassroomArchiveV2Fixture()
+    const bundle = buildClassroomArchiveBundle({
+      version: 2,
+      archiveId: fixture.manifest.archive_id,
+      classroomId: fixture.manifest.classroom_id,
+      teacherId: fixture.manifest.teacher_id,
+      createdAt: fixture.manifest.created_at,
+      source: {
+        schemaMigration: fixture.manifest.source.schema_migration,
+        appCommit: fixture.manifest.source.app_commit,
+      },
+      retention: fixture.manifest.retention,
+      resources: fixture.resources,
+      actors: fixture.actors,
+      storageObjects: [],
+    })
+
+    const verification = verifyClassroomArchiveBundle(bundle.archive)
+    expect(verification.ok && verification.manifest.version).toBe(2)
+  })
+
   it('canonicalizes object keys recursively while retaining array order', () => {
     expect(canonicalJsonStringify({ z: 1, a: { y: 2, b: 3 }, items: [{ z: 4, a: 5 }] })).toBe(
       '{"a":{"b":3,"y":2},"items":[{"a":5,"z":4}],"z":1}',
@@ -168,12 +195,26 @@ describe('classroom archive format', () => {
     })
   })
 
+  it('limits locale-canonical NDJSON recovery to explicitly identified v1 data', () => {
+    const bytes = Buffer.from(`${legacyV1Stringify({ 'é': 3, z: 1, 'ä': 2 })}\n`)
+
+    expect(() => parseAndValidateNdjson(bytes)).toThrow(
+      'NDJSON resource is not canonically serialized',
+    )
+    expect(parseAndValidateNdjson(bytes, undefined, {
+      allowLegacyV1Canonicalization: true,
+    })).toEqual([{ 'é': 3, z: 1, 'ä': 2 }])
+  })
+
   it('builds deterministic gzip archives and sorts resource rows by primary key', () => {
     const first = buildFixture()
     const second = buildFixture()
 
     expect(Buffer.from(first.archive).equals(Buffer.from(second.archive))).toBe(true)
     expect(first.artifactSha256).toBe(second.artifactSha256)
+    expect(sha256Bytes(gunzipSync(first.archive))).toBe(
+      '4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093',
+    )
 
     const verification = verifyClassroomArchiveBundle(first.archive)
     expect(verification.ok).toBe(true)
@@ -182,6 +223,34 @@ describe('classroom archive format', () => {
     expect(verification.files.get('data/assignments.ndjson')?.toString('utf8')).toBe(
       `${canonicalJsonStringify({ title: 'A', classroom_id: CLASSROOM_ID, id: '00000000-0000-4000-8000-000000000010' })}\n` +
       `${canonicalJsonStringify({ id: '00000000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, title: 'B' })}\n`,
+    )
+  })
+
+  it('rejects non-empty retired assessment envelopes', () => {
+    const built = buildClassroomArchiveV2Fixture({
+      resources: {
+        classroom_retired_assessment_records: [{
+          id: '00000000-0000-4000-8000-000000000040',
+          classroom_id: CLASSROOM_ID,
+          source_contract: 'retired.contract',
+          source_contract_version: 1,
+          source_resource: 'retired_records',
+          source_row_id: '00000000-0000-4000-8000-000000000041',
+          parent_source_resource: null,
+          parent_source_row_id: null,
+          payload: {},
+          payload_sha256: 'a'.repeat(64),
+          checksum_algorithm: 'sha256-canonical-json-v1',
+          source_created_at: null,
+          source_updated_at: null,
+        }],
+      },
+    })
+    expect(verifyClassroomArchiveBundle(built.archive)).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining('Retired assessment envelopes are no longer supported'),
+      }),
     )
   })
 
@@ -199,6 +268,7 @@ describe('classroom archive format', () => {
 
   it('rejects resources that do not match the canonical inventory', () => {
     expect(() => buildClassroomArchiveBundle({
+      version: 1,
       archiveId: ARCHIVE_ID,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,
@@ -216,6 +286,7 @@ describe('classroom archive format', () => {
 
   it('rejects actor snapshots containing credential fields', () => {
     expect(() => buildClassroomArchiveBundle({
+      version: 1,
       archiveId: ARCHIVE_ID,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,
@@ -245,6 +316,7 @@ describe('classroom archive format', () => {
       bytes: Buffer.from('same-object'),
     }
     expect(() => buildClassroomArchiveBundle({
+      version: 1,
       archiveId: ARCHIVE_ID,
       classroomId: CLASSROOM_ID,
       teacherId: TEACHER_ID,

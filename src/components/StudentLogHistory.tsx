@@ -5,6 +5,7 @@ import { Spinner } from '@/components/Spinner'
 import { entryHasContent } from '@/lib/attendance'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Entry } from '@/types'
+import { Button, PageState } from '@/ui'
 
 interface Props {
   studentId: string
@@ -22,21 +23,33 @@ const HISTORY_LIMIT = 10
 const HISTORY_CACHE_TTL_MS = 60_000
 const EMPTY_ENTRIES: Entry[] = []
 
-export function StudentLogHistory({
+export function StudentLogHistory(props: Props) {
+  const scope = `${props.classroomId}:${props.studentId}`
+
+  return <StudentLogHistoryState key={scope} {...props} />
+}
+
+function StudentLogHistoryState({
   studentId,
   classroomId,
   selectedDate = null,
   selectedEntry = null,
   initialEntries = EMPTY_ENTRIES,
 }: Props) {
-  const [entries, setEntries] = useState<Entry[]>([])
-  const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(false)
-  const selectedBlockRef = useRef<HTMLDivElement | null>(null)
   const previewEntries = useMemo(
     () => normalizeEntries(initialEntries),
     [initialEntries]
   )
+  const [entries, setEntries] = useState<Entry[]>(previewEntries)
+  const [loading, setLoading] = useState(previewEntries.length === 0)
+  const [error, setError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+  const [hasMore, setHasMore] = useState(previewEntries.length === HISTORY_LIMIT)
+  const selectedBlockRef = useRef<HTMLDivElement | null>(null)
+  const activeScopeRef = useRef(`${classroomId}:${studentId}`)
+  const loadMoreRequestIdRef = useRef(0)
+  activeScopeRef.current = `${classroomId}:${studentId}`
   const selectedDisplayEntry = selectedEntry && entryHasContent(selectedEntry)
     ? selectedEntry
     : null
@@ -44,10 +57,13 @@ export function StudentLogHistory({
 
   useEffect(() => {
     let cancelled = false
+    loadMoreRequestIdRef.current += 1
 
     setEntries(previewEntries)
     setHasMore(previewEntries.length === HISTORY_LIMIT)
     setLoading(previewEntries.length === 0)
+    setError(null)
+    setLoadMoreError(null)
 
     const params = new URLSearchParams({
       classroom_id: classroomId,
@@ -68,7 +84,9 @@ export function StudentLogHistory({
         setHasMore(fetched.length === HISTORY_LIMIT)
       })
       .catch(err => {
+        if (cancelled) return
         console.error('Error loading student history:', err)
+        setError('The student\'s log history could not be loaded.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -77,12 +95,25 @@ export function StudentLogHistory({
     return () => {
       cancelled = true
     }
-  }, [studentId, classroomId, previewEntries])
+  }, [studentId, classroomId, previewEntries, requestVersion])
+
+  function retryHistory() {
+    setError(null)
+    setLoading(entries.length === 0)
+    setRequestVersion((version) => version + 1)
+  }
 
   function loadMore() {
     if (entries.length === 0) return
+    const requestScope = `${classroomId}:${studentId}`
+    const requestId = loadMoreRequestIdRef.current + 1
+    loadMoreRequestIdRef.current = requestId
+    const isCurrentRequest = () => (
+      activeScopeRef.current === requestScope && loadMoreRequestIdRef.current === requestId
+    )
     const oldestDate = entries[entries.length - 1].date
     setLoading(true)
+    setLoadMoreError(null)
 
     const params = new URLSearchParams({
       classroom_id: classroomId,
@@ -98,14 +129,19 @@ export function StudentLogHistory({
       { errorMessage: 'Failed to load more history', ttlMs: HISTORY_CACHE_TTL_MS },
     )
       .then(data => {
+        if (!isCurrentRequest()) return
         const fetched: Entry[] = data.entries || []
         setEntries(prev => normalizeEntries([...prev, ...fetched]))
         setHasMore(fetched.length === HISTORY_LIMIT)
       })
       .catch(err => {
+        if (!isCurrentRequest()) return
         console.error('Error loading more history:', err)
+        setLoadMoreError('Older history could not be loaded.')
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (isCurrentRequest()) setLoading(false)
+      })
   }
 
   const historyEntries = useMemo(() => {
@@ -118,7 +154,7 @@ export function StudentLogHistory({
     () => buildDisplayItems(historyEntries, selectedDateToHighlight, !selectedDisplayEntry),
     [historyEntries, selectedDateToHighlight, selectedDisplayEntry]
   )
-  const isEmpty = !selectedDateToHighlight && displayItems.length === 0 && !loading
+  const isEmpty = !selectedDateToHighlight && displayItems.length === 0 && !loading && !error
 
   useEffect(() => {
     if (!selectedDateToHighlight) return
@@ -127,6 +163,20 @@ export function StudentLogHistory({
 
   return (
     <div className="p-4 space-y-3">
+      {error && (
+        <PageState
+          kind="error"
+          title="History unavailable"
+          description={error}
+          compact
+          action={(
+            <Button type="button" size="sm" onClick={retryHistory}>
+              Try again
+            </Button>
+          )}
+        />
+      )}
+
       {isEmpty && (
         <p className="text-sm text-text-muted">No entries.</p>
       )}
@@ -148,7 +198,7 @@ export function StudentLogHistory({
         </div>
       )}
 
-      {hasMore && !loading && (
+      {hasMore && !loading && !loadMoreError && (
         <button
           type="button"
           onClick={loadMore}
@@ -156,6 +206,15 @@ export function StudentLogHistory({
         >
           Load more
         </button>
+      )}
+
+      {loadMoreError && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2">
+          <p className="text-sm text-danger">{loadMoreError}</p>
+          <Button type="button" size="sm" variant="secondary" onClick={loadMore}>
+            Try again
+          </Button>
+        </div>
       )}
     </div>
   )

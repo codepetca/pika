@@ -1,71 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  buildAssessmentDraftContentFromRows,
   buildNextDraftContent,
   buildTestDraftContentFromRows,
   createAssessmentDraft,
+  ensureAssessmentDraft,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
-  syncAssessmentQuestionsFromDraft,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
-import {
-  validateAssessmentDraftContent,
-  validateTestDraftContent,
-} from '@/lib/validations/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 
-const QUIZ_ID_1 = '11111111-1111-4111-8111-111111111111'
-const QUIZ_ID_2 = '22222222-2222-4222-8222-222222222222'
 const TEST_ID_1 = '33333333-3333-4333-8333-333333333333'
 const TEST_ID_2 = '44444444-4444-4444-8444-444444444444'
 
 describe('assessment drafts', () => {
-  it('validates and normalizes assessment draft content', () => {
-    expect(
-      validateAssessmentDraftContent({
-        title: '  Quiz Draft  ',
-        show_results: true,
-        questions: [
-          {
-            id: QUIZ_ID_1,
-            question_text: '  What is 2 + 2?  ',
-            options: [' 3 ', ' 4 '],
-          },
-        ],
-      })
-    ).toEqual({
-      valid: true,
-      value: {
-        title: 'Quiz Draft',
-        show_results: true,
-        questions: [
-          {
-            id: QUIZ_ID_1,
-            question_text: 'What is 2 + 2?',
-            options: ['3', '4'],
-          },
-        ],
-      },
-    })
-  })
-
-  it('rejects duplicate assessment question ids', () => {
-    expect(
-      validateAssessmentDraftContent({
-        title: 'Quiz Draft',
-        show_results: false,
-        questions: [
-          { id: QUIZ_ID_1, question_text: 'One', options: ['A', 'B'] },
-          { id: QUIZ_ID_1, question_text: 'Two', options: ['A', 'B'] },
-        ],
-      })
-    ).toEqual({
-      valid: false,
-      error: `Duplicate question id: ${QUIZ_ID_1}`,
-    })
-  })
-
   it('validates test draft content and allows empty question text when requested', () => {
     expect(
       validateTestDraftContent(
@@ -175,7 +124,7 @@ describe('assessment drafts', () => {
       {
         patch: [{ op: 'replace', path: '/title', value: 'Updated title' }],
       },
-      validateAssessmentDraftContent
+      validateTestDraftContent
     )
 
     expect(result).toEqual({
@@ -198,7 +147,7 @@ describe('assessment drafts', () => {
       {
         patch: [{ op: 'replace', path: '/missing', value: 'Updated title' }],
       },
-      validateAssessmentDraftContent
+      validateTestDraftContent
     )
 
     expect(result).toEqual({
@@ -208,18 +157,7 @@ describe('assessment drafts', () => {
     })
   })
 
-  it('builds draft content from persisted quiz and test rows', () => {
-    expect(
-      buildAssessmentDraftContentFromRows(
-        { title: 'Quiz', show_results: true },
-        [{ id: QUIZ_ID_1, question_text: 'Prompt', options: ['One', '', 'Two'] }]
-      )
-    ).toEqual({
-      title: 'Quiz',
-      show_results: true,
-      questions: [{ id: QUIZ_ID_1, question_text: 'Prompt', options: [] }],
-    })
-
+  it('builds draft content from persisted test rows', () => {
     expect(
       buildTestDraftContentFromRows(
         { title: 'Test', show_results: false },
@@ -280,10 +218,10 @@ describe('assessment drafts', () => {
   it('wraps draft fetch/create/update operations and normalizes thrown errors', async () => {
     const expectedDraft = {
       id: 'draft-1',
-      assessment_type: 'quiz',
-      assessment_id: 'quiz-1',
+      assessment_type: 'test',
+      assessment_id: 'test-1',
       classroom_id: 'classroom-1',
-      content: { title: 'Quiz', show_results: false, questions: [] },
+      content: { title: 'Test', show_results: false, questions: [] },
       version: 1,
       created_by: 'teacher-1',
       updated_by: 'teacher-1',
@@ -319,15 +257,15 @@ describe('assessment drafts', () => {
       }),
     }
 
-    await expect(getAssessmentDraftByType(successSupabase, 'quiz', 'quiz-1')).resolves.toEqual({
+    await expect(getAssessmentDraftByType(successSupabase, 'test', 'test-1')).resolves.toEqual({
       draft: expectedDraft,
       error: null,
     })
 
     await expect(
       createAssessmentDraft(successSupabase, {
-        assessmentType: 'quiz',
-        assessmentId: 'quiz-1',
+        assessmentType: 'test',
+        assessmentId: 'test-1',
         classroomId: 'classroom-1',
         userId: 'teacher-1',
         content: expectedDraft.content,
@@ -358,15 +296,15 @@ describe('assessment drafts', () => {
       })),
     }
 
-    await expect(getAssessmentDraftByType(throwingSupabase, 'quiz', 'quiz-1')).resolves.toMatchObject({
+    await expect(getAssessmentDraftByType(throwingSupabase, 'test', 'test-1')).resolves.toMatchObject({
       draft: null,
       error: { code: 'PGRST205', message: 'relation missing' },
     })
 
     await expect(
       createAssessmentDraft(throwingSupabase, {
-        assessmentType: 'quiz',
-        assessmentId: 'quiz-1',
+        assessmentType: 'test',
+        assessmentId: 'test-1',
         classroomId: 'classroom-1',
         userId: 'teacher-1',
         content: expectedDraft.content,
@@ -384,94 +322,58 @@ describe('assessment drafts', () => {
     })
   })
 
-  it('syncs assessment questions by updating existing rows, inserting new rows, and deleting removed rows', async () => {
-    const updates: Array<Record<string, unknown>> = []
-    const inserts: Array<Record<string, unknown>> = []
-    const deletes: Array<string> = []
-
+  it('creates a Tests-only baseline draft when none exists', async () => {
+    const createdDraft = {
+      id: 'draft-1',
+      assessment_type: 'test',
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: { title: 'Test', show_results: false, questions: [] },
+      version: 1,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    }
+    const assessmentDraftSelect: any = {
+      eq: vi.fn(() => assessmentDraftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const questionSelect: any = {
+      eq: vi.fn(() => questionSelect),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    }
     const supabase = {
-      from: vi.fn((_table: string) => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({
-            data: [{ id: QUIZ_ID_1 }, { id: QUIZ_ID_2 }],
-            error: null,
-          }),
-        })),
-        update: vi.fn((payload: Record<string, unknown>) => {
-          updates.push(payload)
-          return {
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
+      from: vi.fn((table: string) => {
+        if (table === 'test_questions') {
+          return { select: vi.fn(() => questionSelect) }
+        }
+        return {
+          select: vi.fn(() => assessmentDraftSelect),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: createdDraft, error: null }),
             })),
-          }
-        }),
-        insert: vi.fn((payload: Record<string, unknown>) => {
-          inserts.push(payload)
-          return Promise.resolve({ error: null })
-        }),
-        delete: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn((_column: string, id: string) => {
-              deletes.push(id)
-              return Promise.resolve({ error: null })
-            }),
           })),
-        })),
-      })),
+        }
+      }),
     }
 
-    await expect(
-      syncAssessmentQuestionsFromDraft(supabase, 'quiz-1', {
-        title: 'Quiz',
+    await expect(ensureAssessmentDraft(supabase, {
+      assessmentType: 'test',
+      assessment: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Test',
         show_results: false,
-        questions: [
-          { id: QUIZ_ID_1, question_text: 'Updated', options: ['A', 'B'] },
-          { id: '55555555-5555-4555-8555-555555555555', question_text: 'New', options: ['C', 'D'] },
-        ],
-      })
-    ).resolves.toEqual({ ok: true })
-
-    expect(updates).toEqual([{ question_text: 'Updated', options: ['A', 'B'], position: 0 }])
-    expect(inserts).toEqual([
-      {
-        id: '55555555-5555-4555-8555-555555555555',
-        quiz_id: 'quiz-1',
-        question_text: 'New',
-        options: ['C', 'D'],
-        position: 1,
       },
-    ])
-    expect(deletes).toEqual([QUIZ_ID_2])
-  })
-
-  it('returns a 500 error when syncing assessment questions fails during insert', async () => {
-    const supabase = {
-      from: vi.fn((_table: string) => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({
-            data: [{ id: QUIZ_ID_1 }],
-            error: null,
-          }),
-        })),
-        update: vi.fn(),
-        insert: vi.fn().mockResolvedValue({ error: { message: 'insert failed' } }),
-        delete: vi.fn(),
-      })),
-    }
-
-    await expect(
-      syncAssessmentQuestionsFromDraft(supabase, 'quiz-1', {
-        title: 'Quiz',
-        show_results: false,
-        questions: [
-          { id: '55555555-5555-4555-8555-555555555555', question_text: 'New', options: ['C', 'D'] },
-        ],
-      })
-    ).resolves.toEqual({
-      ok: false,
-      status: 500,
-      error: 'Failed to insert synced assessment question',
-    })
+      userId: 'teacher-1',
+      questionsTable: 'test_questions',
+      questionsForeignKey: 'test_id',
+      questionsSelect: 'id',
+      validateContent: validateTestDraftContent,
+      buildFromRows: buildTestDraftContentFromRows,
+    })).resolves.toEqual({ ok: true, draft: createdDraft })
   })
 
   it('returns a 500 error when syncing test questions fails during update', async () => {
