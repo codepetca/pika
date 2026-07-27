@@ -2893,6 +2893,102 @@ export type Database = {
           },
         ]
       }
+      pal_daily_log_week_configurations: {
+        Row: {
+          config_version: number
+          configured_at: string
+          created_at: string
+          eligible_days: number
+          id: string
+          period_key: string
+          period_status: string
+          student_id: string
+        }
+        Insert: {
+          config_version: number
+          configured_at: string
+          created_at?: string
+          eligible_days: number
+          id?: string
+          period_key: string
+          period_status: string
+          student_id: string
+        }
+        Update: {
+          config_version?: number
+          configured_at?: string
+          created_at?: string
+          eligible_days?: number
+          id?: string
+          period_key?: string
+          period_status?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
+      pal_event_outbox: {
+        Row: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          event_type: string
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          payload: Json
+          source_id: string
+          source_kind: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          event_type: string
+          id?: string
+          idempotency_key: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_detail?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          payload: Json
+          source_id: string
+          source_kind: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          delivered_at?: string | null
+          event_type?: string
+          id?: string
+          idempotency_key?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_detail?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          source_id?: string
+          source_kind?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       report_card_rows: {
         Row: {
           created_at: string
@@ -4222,6 +4318,35 @@ export type Database = {
           storage_path: string
         }[]
       }
+      claim_pal_event_outbox: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          event_type: string
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          payload: Json
+          source_id: string
+          source_kind: string
+          status: string
+          student_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pal_event_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_test_ai_grading_run: {
         Args: {
           p_lease_seconds?: number
@@ -4455,10 +4580,15 @@ export type Database = {
         Args: { p_extract_id: string; p_lease_token: string }
         Returns: boolean
       }
+      complete_pal_event_outbox: {
+        Args: { p_lease_token: string; p_outbox_id: string }
+        Returns: boolean
+      }
       complete_test_document_snapshot_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
       }
+      count_pal_event_outbox_ready: { Args: never; Returns: number }
       create_assignment_ai_grading_run_atomic: {
         Args: {
           p_assignment_id: string
@@ -4505,6 +4635,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_assignment_doc_with_pal_event_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_pal_event: Json
+          p_student_id: string
+          p_viewed_at: string
+        }
+        Returns: Json
+      }
+      create_classroom_enrollment_with_pal_event_atomic: {
+        Args: {
+          p_classroom_id: string
+          p_pal_event: Json
+          p_student_id: string
+        }
+        Returns: Json
       }
       create_course_blueprint_atomic: {
         Args: {
@@ -4558,6 +4705,40 @@ export type Database = {
       enqueue_assignment_artifact_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean
+      }
+      enqueue_pal_event: {
+        Args: {
+          p_event: Json
+          p_source_id: string
+          p_source_kind: string
+          p_student_id: string
+        }
+        Returns: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          event_type: string
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          payload: Json
+          source_id: string
+          source_kind: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pal_event_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       enqueue_test_document_snapshot_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
@@ -4628,6 +4809,15 @@ export type Database = {
           p_error_code: string
           p_extract_id: string
           p_lease_token: string
+        }
+        Returns: boolean
+      }
+      fail_pal_event_outbox: {
+        Args: {
+          p_error_code: string
+          p_error_detail: string
+          p_lease_token: string
+          p_outbox_id: string
         }
         Returns: boolean
       }
@@ -4760,6 +4950,18 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      record_pal_daily_log_week_configuration_atomic: {
+        Args: {
+          p_config_version: number
+          p_configured_at: string
+          p_eligible_days: number
+          p_pal_event: Json
+          p_period_key: string
+          p_period_status: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       remove_classroom_roster_entries_atomic: {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
         Returns: Json
@@ -4829,6 +5031,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      requeue_pal_event_outbox: {
+        Args: { p_outbox_id: string }
+        Returns: boolean
+      }
       resolve_classroom_archive_resource_classroom_id: {
         Args: { p_row_id: string; p_table_name: string }
         Returns: string
@@ -4840,6 +5046,16 @@ export type Database = {
           p_table_name: string
         }
         Returns: string
+      }
+      retry_pal_event_outbox: {
+        Args: {
+          p_error_code: string
+          p_error_detail: string
+          p_lease_token: string
+          p_next_attempt_at: string
+          p_outbox_id: string
+        }
+        Returns: boolean
       }
       return_assignment_docs_atomic: {
         Args: {
@@ -5071,6 +5287,18 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_assignment_doc_with_pal_event_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_pal_event: Json
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_test_attempt_atomic: {
         Args: {
           p_responses: Json
@@ -5151,6 +5379,21 @@ export type Database = {
           p_source_entry_count: number
           p_suggested_agent: string
           p_title: string
+        }
+        Returns: Json
+      }
+      upsert_student_entry_with_pal_event_atomic: {
+        Args: {
+          p_classroom_id: string
+          p_date: string
+          p_expected_version?: number
+          p_minutes_reported?: number
+          p_mood?: string
+          p_on_time: boolean
+          p_pal_event: Json
+          p_rich_content: Json
+          p_student_id: string
+          p_text: string
         }
         Returns: Json
       }

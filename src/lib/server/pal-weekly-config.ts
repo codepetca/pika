@@ -7,7 +7,7 @@ import { isPalEnabled } from '@/lib/server/pal-config'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 
-type SupabaseLike = any
+type PalWeeklyClient = ReturnType<typeof getServiceRoleClient>
 
 export type PalEnrollmentSchedule = {
   studentId: string
@@ -236,7 +236,7 @@ type CompletionRow = {
 }
 
 async function loadPeriodInputs(
-  supabase: SupabaseLike,
+  supabase: PalWeeklyClient,
   periodStart: string,
 ): Promise<{
   schedules: PalEnrollmentSchedule[]
@@ -331,7 +331,7 @@ async function loadPeriodInputs(
 }
 
 async function syncPeriod(input: {
-  supabase: SupabaseLike
+  supabase: PalWeeklyClient
   periodStart: string
   periodStatus: 'open' | 'closed'
   createIfMissing: boolean
@@ -375,7 +375,7 @@ async function syncPeriod(input: {
 }
 
 export async function syncPalWeeklyConfigurations(input: {
-  supabase?: SupabaseLike
+  supabase?: PalWeeklyClient
   now?: Date
 } = {}): Promise<{
   status: 'disabled' | 'ok'

@@ -1,9 +1,14 @@
 import { z } from 'zod'
 
+import { getServiceRoleClient } from '@/lib/supabase'
 import type { TiptapContent } from '@/types'
+import type { Json } from '@/types/database.generated'
 import type { v1 } from '@/vendor/pal-contract'
 
-type SupabaseLike = any
+export type PalSourceWriteClient = Pick<
+  ReturnType<typeof getServiceRoleClient>,
+  'rpc'
+>
 
 const enrollmentResultSchema = z.object({
   ok: z.literal(true),
@@ -31,15 +36,21 @@ const assignmentDocResultSchema = z.object({
   doc: z.object({ id: z.string().min(1) }).passthrough(),
 }).strip()
 
-function mapPalSourceWriteError(error: any, operation: string): never {
-  if (error?.code === '42883' || error?.code === 'PGRST202') {
+function mapPalSourceWriteError(error: unknown, operation: string): never {
+  const rpcError = typeof error === 'object' && error !== null
+    ? error as { code?: unknown; message?: unknown }
+    : {}
+  if (rpcError.code === '42883' || rpcError.code === 'PGRST202') {
     throw new Error('Pal outbox migration is required')
   }
-  throw new Error(`Failed to ${operation}: ${error?.message ?? 'unknown database error'}`)
+  const message = typeof rpcError.message === 'string'
+    ? rpcError.message
+    : 'unknown database error'
+  throw new Error(`Failed to ${operation}: ${message}`)
 }
 
 export async function createClassroomEnrollmentWithPalEvent(input: {
-  supabase: SupabaseLike
+  supabase: PalSourceWriteClient
   classroomId: string
   studentId: string
   event: v1.ClassroomJoinedEvent | null
@@ -57,7 +68,7 @@ export async function createClassroomEnrollmentWithPalEvent(input: {
 }
 
 export async function upsertStudentEntryWithPalEvent(input: {
-  supabase: SupabaseLike
+  supabase: PalSourceWriteClient
   studentId: string
   classroomId: string
   date: string
@@ -76,12 +87,16 @@ export async function upsertStudentEntryWithPalEvent(input: {
       p_classroom_id: input.classroomId,
       p_date: input.date,
       p_text: input.text,
-      p_rich_content: input.richContent,
-      p_minutes_reported: input.minutesReported ?? null,
-      p_mood: input.mood ?? null,
+      p_rich_content: input.richContent as unknown as Json,
       p_on_time: input.onTime,
-      p_expected_version: input.expectedVersion ?? null,
       p_pal_event: input.event,
+      ...(input.minutesReported == null
+        ? {}
+        : { p_minutes_reported: input.minutesReported }),
+      ...(input.mood == null ? {} : { p_mood: input.mood }),
+      ...(input.expectedVersion == null
+        ? {}
+        : { p_expected_version: input.expectedVersion }),
     },
   )
   if (error) mapPalSourceWriteError(error, 'save daily log')
@@ -89,7 +104,7 @@ export async function upsertStudentEntryWithPalEvent(input: {
 }
 
 export async function createAssignmentDocWithPalEvent(input: {
-  supabase: SupabaseLike
+  supabase: PalSourceWriteClient
   assignmentId: string
   studentId: string
   viewedAt: string

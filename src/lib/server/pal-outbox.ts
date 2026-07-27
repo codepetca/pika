@@ -4,7 +4,10 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { isPalEnabled, requirePalEnvironment } from '@/lib/server/pal-config'
 import { v1 } from '@/vendor/pal-contract'
 
-type SupabaseLike = any
+export type PalOutboxClient = Pick<
+  ReturnType<typeof getServiceRoleClient>,
+  'rpc'
+>
 
 const claimedOutboxRowSchema = z.object({
   id: z.string().uuid(),
@@ -35,15 +38,51 @@ function retryAt(attempts: number, now: Date): string {
   return new Date(now.getTime() + retryDelayMs(attempts)).toISOString()
 }
 
+type PalOutboxTransition =
+  | {
+    functionName: 'complete_pal_event_outbox'
+    args: {
+      p_outbox_id: string
+      p_lease_token: string
+    }
+  }
+  | {
+    functionName: 'retry_pal_event_outbox'
+    args: {
+      p_outbox_id: string
+      p_lease_token: string
+      p_next_attempt_at: string
+      p_error_code: string
+      p_error_detail: string
+    }
+  }
+  | {
+    functionName: 'fail_pal_event_outbox'
+    args: {
+      p_outbox_id: string
+      p_lease_token: string
+      p_error_code: string
+      p_error_detail: string
+    }
+  }
+
 async function transition(
-  supabase: SupabaseLike,
-  functionName:
-    | 'complete_pal_event_outbox'
-    | 'retry_pal_event_outbox'
-    | 'fail_pal_event_outbox',
-  args: Record<string, unknown>,
+  supabase: PalOutboxClient,
+  transition: PalOutboxTransition,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc(functionName, args)
+  let result: { data: boolean | null; error: { message?: string } | null }
+  switch (transition.functionName) {
+    case 'complete_pal_event_outbox':
+      result = await supabase.rpc(transition.functionName, transition.args)
+      break
+    case 'retry_pal_event_outbox':
+      result = await supabase.rpc(transition.functionName, transition.args)
+      break
+    case 'fail_pal_event_outbox':
+      result = await supabase.rpc(transition.functionName, transition.args)
+      break
+  }
+  const { data, error } = result
   if (error) {
     throw new Error(`Failed to transition Pal outbox row: ${error.message ?? 'unknown error'}`)
   }
@@ -53,32 +92,38 @@ async function transition(
 }
 
 async function markRetry(
-  supabase: SupabaseLike,
+  supabase: PalOutboxClient,
   row: z.infer<typeof claimedOutboxRowSchema>,
   now: Date,
   errorCode: string,
   errorDetail: string,
 ): Promise<void> {
-  await transition(supabase, 'retry_pal_event_outbox', {
-    p_outbox_id: row.id,
-    p_lease_token: row.lease_token,
-    p_next_attempt_at: retryAt(row.attempts, now),
-    p_error_code: errorCode,
-    p_error_detail: errorDetail,
+  await transition(supabase, {
+    functionName: 'retry_pal_event_outbox',
+    args: {
+      p_outbox_id: row.id,
+      p_lease_token: row.lease_token,
+      p_next_attempt_at: retryAt(row.attempts, now),
+      p_error_code: errorCode,
+      p_error_detail: errorDetail,
+    },
   })
 }
 
 async function markNonRetryable(
-  supabase: SupabaseLike,
+  supabase: PalOutboxClient,
   row: z.infer<typeof claimedOutboxRowSchema>,
   errorCode: string,
   errorDetail: string,
 ): Promise<void> {
-  await transition(supabase, 'fail_pal_event_outbox', {
-    p_outbox_id: row.id,
-    p_lease_token: row.lease_token,
-    p_error_code: errorCode,
-    p_error_detail: errorDetail,
+  await transition(supabase, {
+    functionName: 'fail_pal_event_outbox',
+    args: {
+      p_outbox_id: row.id,
+      p_lease_token: row.lease_token,
+      p_error_code: errorCode,
+      p_error_detail: errorDetail,
+    },
   })
 }
 
@@ -87,7 +132,7 @@ export async function enqueueStandalonePalEvent(input: {
   sourceKind: string
   sourceId: string
   event: v1.V1Envelope
-  supabase?: SupabaseLike
+  supabase?: PalOutboxClient
 }): Promise<'disabled' | 'enqueued'> {
   if (!isPalEnabled()) return 'disabled'
 
@@ -115,7 +160,7 @@ export async function enqueueStandalonePalEvent(input: {
 }
 
 export async function deliverPalOutboxBatch(input: {
-  supabase?: SupabaseLike
+  supabase?: PalOutboxClient
   fetchImpl?: typeof fetch
   now?: Date
   limit?: number
@@ -192,9 +237,12 @@ export async function deliverPalOutboxBatch(input: {
     }
 
     if (response.ok) {
-      await transition(supabase, 'complete_pal_event_outbox', {
-        p_outbox_id: row.id,
-        p_lease_token: row.lease_token,
+      await transition(supabase, {
+        functionName: 'complete_pal_event_outbox',
+        args: {
+          p_outbox_id: row.id,
+          p_lease_token: row.lease_token,
+        },
       })
       summary.delivered += 1
       continue
@@ -215,7 +263,7 @@ export async function deliverPalOutboxBatch(input: {
 }
 
 export async function drainPalOutbox(input: {
-  supabase?: SupabaseLike
+  supabase?: PalOutboxClient
   fetchImpl?: typeof fetch
   now?: Date
   batchSize?: number

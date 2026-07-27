@@ -227,11 +227,11 @@ create or replace function public.upsert_student_entry_with_pal_event_atomic(
   p_date date,
   p_text text,
   p_rich_content jsonb,
-  p_minutes_reported integer,
-  p_mood text,
   p_on_time boolean,
-  p_expected_version integer,
-  p_pal_event jsonb
+  p_pal_event jsonb,
+  p_minutes_reported integer default null,
+  p_mood text default null,
+  p_expected_version integer default null
 )
 returns jsonb
 language plpgsql
@@ -775,7 +775,7 @@ revoke all on function public.enqueue_pal_event(uuid, text, text, jsonb)
   from public, anon, authenticated;
 revoke all on function public.create_classroom_enrollment_with_pal_event_atomic(uuid, uuid, jsonb)
   from public, anon, authenticated;
-revoke all on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, integer, text, boolean, integer, jsonb)
+revoke all on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, boolean, jsonb, integer, text, integer)
   from public, anon, authenticated;
 revoke all on function public.create_assignment_doc_with_pal_event_atomic(uuid, uuid, timestamptz, jsonb)
   from public, anon, authenticated;
@@ -800,7 +800,7 @@ grant execute on function public.enqueue_pal_event(uuid, text, text, jsonb)
   to service_role;
 grant execute on function public.create_classroom_enrollment_with_pal_event_atomic(uuid, uuid, jsonb)
   to service_role;
-grant execute on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, integer, text, boolean, integer, jsonb)
+grant execute on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, boolean, jsonb, integer, text, integer)
   to service_role;
 grant execute on function public.create_assignment_doc_with_pal_event_atomic(uuid, uuid, timestamptz, jsonb)
   to service_role;

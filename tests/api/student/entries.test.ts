@@ -1084,10 +1084,10 @@ describe('PATCH /api/student/entries', () => {
     expect(mockRpc).toHaveBeenCalledWith(
       'upsert_student_entry_with_pal_event_atomic',
       expect.objectContaining({
-        p_expected_version: null,
         p_pal_event: null,
       }),
     )
+    expect(mockRpc.mock.calls[0][1]).not.toHaveProperty('p_expected_version')
   })
 
   it('atomically emits the fact when an existing empty autosave gains content', async () => {

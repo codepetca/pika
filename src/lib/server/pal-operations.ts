@@ -1,12 +1,12 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isPalEnabled } from '@/lib/server/pal-config'
 
-type SupabaseLike = any
+type PalOperationsClient = ReturnType<typeof getServiceRoleClient>
 
 const STATUSES = ['pending', 'processing', 'delivered', 'non_retryable'] as const
 
 export async function loadPalOutboxStatus(input: {
-  supabase?: SupabaseLike
+  supabase?: PalOperationsClient
 } = {}) {
   const supabase = input.supabase ?? getServiceRoleClient()
   const counts: Record<(typeof STATUSES)[number], number> = {
@@ -48,7 +48,7 @@ export async function loadPalOutboxStatus(input: {
 
 export async function requeuePalOutboxEvent(input: {
   outboxId: string
-  supabase?: SupabaseLike
+  supabase?: PalOperationsClient
 }): Promise<boolean> {
   const supabase = input.supabase ?? getServiceRoleClient()
   const { data, error } = await supabase.rpc('requeue_pal_event_outbox', {
