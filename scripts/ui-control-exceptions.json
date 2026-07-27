@@ -310,7 +310,7 @@
         },
         {
           "kind": "input:checkbox",
-          "count": 3,
+          "count": 4,
           "reason": "native-input-capability"
         },
         {
@@ -476,17 +476,6 @@
       ]
     },
     {
-      "file": "src/components/AssignmentForm.tsx",
-      "reviewBy": "phase-3-assignments",
-      "controls": [
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        }
-      ]
-    },
-    {
       "file": "src/components/AssignmentSubmissionRequirementsEditor.tsx",
       "reviewBy": "phase-3-assignments",
       "controls": [
@@ -618,11 +607,6 @@
           "kind": "button",
           "count": 5,
           "reason": "legacy-form-control"
-        },
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
         }
       ]
     },
@@ -810,13 +794,8 @@
           "reason": "legacy-form-control"
         },
         {
-          "kind": "input:radio",
-          "count": 1,
-          "reason": "native-input-capability"
-        },
-        {
           "kind": "textarea",
-          "count": 2,
+          "count": 1,
           "reason": "native-textarea"
         }
       ]
@@ -834,33 +813,6 @@
           "kind": "textarea",
           "count": 2,
           "reason": "native-textarea"
-        }
-      ]
-    },
-    {
-      "file": "src/components/TestIndividualResponses.tsx",
-      "reviewBy": "phase-3-tests",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        },
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        }
-      ]
-    },
-    {
-      "file": "src/components/TestMultipleChoiceQuestionEditor.tsx",
-      "reviewBy": "phase-3-tests",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 4,
-          "reason": "legacy-form-control"
         }
       ]
     },
@@ -885,7 +837,7 @@
         },
         {
           "kind": "textarea",
-          "count": 7,
+          "count": 4,
           "reason": "native-textarea"
         }
       ]

@@ -13,7 +13,6 @@ import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import { withErrorHandler } from '@/lib/api-handler'
-import { withLegacyQuizKey } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestAssessmentResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -321,7 +320,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     if (typeof response.selected_option !== 'number') return []
     return [{
       id: response.id,
-      quiz_id: testId,
+      test_id: testId,
       question_id: response.question_id,
       student_id: response.student_id,
       selected_option: response.selected_option,
@@ -402,7 +401,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
   }
 
   return NextResponse.json({
-    ...withLegacyQuizKey(responseTest),
+    test: responseTest,
     results: aggregated,
     my_responses: myResponses,
     question_results: questionResults,

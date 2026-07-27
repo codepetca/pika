@@ -2,6 +2,9 @@
 
 This guide explains how to use Playwright for AI-assisted UI verification in Pika.
 
+Root [`DESIGN.md`](/DESIGN.md) defines the product and accessibility contract.
+This guide defines how to collect and review the final visual evidence.
+
 ## MANDATORY: Visual Verification for UI Changes
 
 **After ANY UI/UX change, AI agents MUST:**
@@ -11,6 +14,12 @@ This guide explains how to use Playwright for AI-assisted UI verification in Pik
 3. Iterate on aesthetics/styling until it looks good
 
 Before coding non-trivial UI work, record the acceptance target from [`docs/guidance/ui/change-brief.md`](/docs/guidance/ui/change-brief.md). The strongest recent failure mode has been visual churn after the first implementation, not missing screenshots.
+
+When screenshots will remain as review or design-system evidence, record their
+provenance with
+[`docs/guidance/ui/visual-evidence-template.md`](/docs/guidance/ui/visual-evidence-template.md).
+An unlabeled capture is useful for debugging but not durable proof of current
+conformance.
 
 ## Tooling Policy
 

@@ -19,6 +19,7 @@ import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
+import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
@@ -77,6 +78,8 @@ interface ClassroomPageClientProps {
   teacherClassrooms: Classroom[]
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
+  palEnabled?: boolean
+  palEmbedUrl?: string | null
 }
 
 type UpdateSearchOptions = {
@@ -124,6 +127,8 @@ export function ClassroomPageClient({
   teacherClassrooms,
   initialTab,
   initialSearchParams,
+  palEnabled = false,
+  palEmbedUrl = null,
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
   const [clientClassroom, setClientClassroom] = useState(classroom)
@@ -138,8 +143,16 @@ export function ClassroomPageClient({
     () =>
       isTeacher
         ? (['attendance', 'gradebook', 'assignments', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
-        : (['today', 'assignments', 'tests', 'calendar', 'resources', 'announcements'] as const),
-    [isTeacher]
+        : ([
+            'today',
+            ...(palEnabled ? ['achievements'] as const : []),
+            'assignments',
+            'tests',
+            'calendar',
+            'resources',
+            'announcements',
+          ] as const),
+    [isTeacher, palEnabled]
   )
 
   const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
@@ -251,6 +264,8 @@ export function ClassroomPageClient({
           searchParams={activeSearchParams}
           updateSearchParams={updateSearchParams}
           onClassroomUpdated={handleClassroomUpdated}
+          palEnabled={palEnabled}
+          palEmbedUrl={palEmbedUrl}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -397,6 +412,8 @@ function ClassroomPageContent({
   searchParams,
   updateSearchParams,
   onClassroomUpdated,
+  palEnabled,
+  palEmbedUrl,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -406,6 +423,8 @@ function ClassroomPageContent({
   searchParams: URLSearchParams
   updateSearchParams: UpdateSearchParamsFn
   onClassroomUpdated: (classroom: Classroom) => void
+  palEnabled: boolean
+  palEmbedUrl: string | null
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1110,7 +1129,7 @@ function ClassroomPageContent({
   ])
   const pageDensity = isTeacher ? 'teacher' : 'student'
   const mainContentClassName =
-    activeTab === 'calendar'
+    activeTab === 'calendar' || activeTab === 'achievements'
       ? 'px-0 pt-0 pb-0'
       : activeTab === 'tests'
         ? 'pb-0'
@@ -1227,6 +1246,7 @@ function ClassroomPageContent({
               onTabChange={handleTabChange}
               onTabIntent={prefetchTabData}
               updateSearchParams={navigateInClassroom}
+              palEnabled={palEnabled}
             />
           </LeftSidebar>
         )}
@@ -1376,6 +1396,14 @@ function ClassroomPageContent({
                       />
                     </TabContentTransition>
                   )}
+                  {mountedTabs.achievements && (
+                    <TabContentTransition isActive={activeTab === 'achievements'}>
+                      <StudentAchievementsTab
+                        embedUrl={palEmbedUrl}
+                        isActive={activeTab === 'achievements'}
+                      />
+                    </TabContentTransition>
+                  )}
                   {mountedTabs.assignments && (
                     <TabContentTransition isActive={activeTab === 'assignments'}>
                       <StudentAssignmentsTab
@@ -1390,7 +1418,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
-                      <StudentTestsTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
+                      <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (

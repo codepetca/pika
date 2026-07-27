@@ -2,6 +2,8 @@ import { format } from 'date-fns'
 import { courseBlueprintAssignmentsToMarkdown } from '@/lib/course-blueprint-assignments'
 import { courseBlueprintAssessmentsToMarkdown } from '@/lib/course-blueprint-assessments-markdown'
 import { courseBlueprintLessonTemplatesToMarkdown } from '@/lib/course-blueprint-lesson-templates'
+import { courseBlueprintMaterialsToMarkdown } from '@/lib/course-blueprint-materials'
+import { courseBlueprintSurveysToMarkdown } from '@/lib/course-blueprint-surveys'
 import {
   DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
@@ -13,13 +15,13 @@ import { markdownToTiptapContent } from '@/lib/limited-markdown'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { nowInToronto } from '@/lib/timezone'
 import {
-  assertTeacherOwnsCourseBlueprint,
   getCourseBlueprintDetail,
-  syncCourseBlueprintAssignments,
-  syncCourseBlueprintAssessments,
-  syncCourseBlueprintLessonTemplates,
-  updateCourseBlueprint,
 } from '@/lib/server/course-blueprints'
+import { buildCourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
+import {
+  submitCourseBlueprintProposal,
+  type CourseBlueprintProposalRecord,
+} from '@/lib/server/course-blueprint-proposals'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
 import { loadPublishedClassroomSource } from '@/lib/server/published-classroom-source'
@@ -83,7 +85,6 @@ export type PublishedActualCourseSiteData = {
   resources: ClassroomResources | null
   resources_markdown: string
   assignments: Array<Record<string, any>>
-  quizzes: Array<Record<string, any>>
   tests: Array<Record<string, any>>
   grading: PublishedCourseSiteGradingSummary | null
   lesson_plans: Array<Record<string, any>>
@@ -142,7 +143,7 @@ function buildItemSuggestions(
 }
 
 function compareMarkdownArea(
-  area: Exclude<BlueprintMergeSuggestionArea, 'assignments' | 'tests' | 'lesson-plans' | 'announcements'>,
+  area: 'overview' | 'outline' | 'resources',
   title: string,
   currentMarkdown: string,
   proposedMarkdown: string
@@ -358,7 +359,6 @@ export async function getPublishedActualCourseSite(
   const nowIso = new Date().toISOString()
   const maxLessonDate = getMaxAllowedLessonDate(classroom.actual_site_config.lesson_plan_scope)
   const assignments = sourceResult.source.assignments
-  const quizzes: Array<Record<string, any>> = []
   const tests = sourceResult.source.tests
 
   return {
@@ -368,7 +368,6 @@ export async function getPublishedActualCourseSite(
       resources: sourceResult.source.resources,
       resources_markdown: sourceResult.source.resources_markdown,
       assignments,
-      quizzes,
       tests,
       grading: buildCourseSiteGradingSummary(assignments, tests),
       lesson_plans: sourceResult.source.lesson_plans.filter((lesson) => {
@@ -393,7 +392,9 @@ export async function getBlueprintMergeSuggestionSet(
     return { ok: false, status: blueprintResult.status || 500, error: blueprintResult.error || 'Failed to load blueprint' }
   }
 
-  const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId)
+  const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
+    lessonTemplateTitleMode: 'generic',
+  })
   if (!sourceResult.ok) return sourceResult
 
   if (sourceResult.source.classroom.source_blueprint_id !== blueprintId) {
@@ -431,12 +432,12 @@ export async function getBlueprintMergeSuggestionSet(
 
   const assignmentItems = buildItemSuggestions(
     blueprint.assignments.map((assignment) => ({
-      key: assignment.title.trim().toLowerCase(),
+      key: assignment.artifact_id,
       label: assignment.title,
       summary: summarizeMergeText(assignment.instructions_markdown, 'No assignment instructions'),
     })),
     source.assignments.map((assignment) => ({
-      key: assignment.title.trim().toLowerCase(),
+      key: assignment.artifact_id,
       label: assignment.title,
       summary: summarizeMergeText(assignment.instructions_markdown, 'No assignment instructions'),
     }))
@@ -454,12 +455,12 @@ export async function getBlueprintMergeSuggestionSet(
   const currentTests = blueprint.assessments.filter((assessment) => assessment.assessment_type === 'test')
   const testItems = buildItemSuggestions(
     currentTests.map((test) => ({
-      key: test.title.trim().toLowerCase(),
+      key: test.artifact_id,
       label: test.title,
       summary: summarizeMergeText(JSON.stringify(test.content), 'Test'),
     })),
     source.tests.map((test) => ({
-      key: test.title.trim().toLowerCase(),
+      key: test.artifact_id,
       label: test.title,
       summary: summarizeMergeText(JSON.stringify(test.content), 'Test'),
     }))
@@ -496,12 +497,87 @@ export async function getBlueprintMergeSuggestionSet(
     })
   }
 
+  const materialItems = buildItemSuggestions(
+    (blueprint.materials || []).map((material) => ({
+      key: material.artifact_id,
+      label: material.title,
+      summary: summarizeMergeText(material.content_markdown, 'No material content'),
+    })),
+    (source.materials || []).map((material) => ({
+      key: material.artifact_id,
+      label: material.title,
+      summary: summarizeMergeText(material.content_markdown, 'No material content'),
+    })),
+  )
+  if (materialItems.length > 0) {
+    suggestions.push({
+      area: 'materials',
+      title: 'Materials',
+      summary: 'Classroom material changes can replace the reusable Blueprint material set.',
+      items: materialItems,
+      preview_markdown: courseBlueprintMaterialsToMarkdown(source.materials || []),
+    })
+  }
+
+  const surveyItems = buildItemSuggestions(
+    (blueprint.surveys || []).map((survey) => ({
+      key: survey.artifact_id,
+      label: survey.title,
+      summary: `${survey.questions_json.length} questions • results ${survey.show_results ? 'shown' : 'hidden'}`,
+    })),
+    (source.surveys || []).map((survey) => ({
+      key: survey.artifact_id,
+      label: survey.title,
+      summary: `${survey.questions_json.length} questions • results ${survey.show_results ? 'shown' : 'hidden'}`,
+    })),
+  )
+  if (surveyItems.length > 0) {
+    suggestions.push({
+      area: 'surveys',
+      title: 'Surveys',
+      summary: 'Classroom survey changes can replace the reusable Blueprint survey set.',
+      items: surveyItems,
+      preview_markdown: courseBlueprintSurveysToMarkdown(source.surveys || []),
+    })
+  }
+
+  const currentGrading = {
+    use_weights: blueprint.gradebook_use_weights ?? false,
+    assignments_weight: blueprint.gradebook_assignments_weight ?? 70,
+    tests_weight: blueprint.gradebook_tests_weight ?? 30,
+  }
+  const sourceGrading = source.grading || {
+    use_weights: false,
+    assignments_weight: 70,
+    tests_weight: 30,
+  }
+  if (JSON.stringify(currentGrading) !== JSON.stringify(sourceGrading)) {
+    suggestions.push({
+      area: 'grading',
+      title: 'Grading',
+      summary: 'Classroom gradebook category settings differ from the Blueprint defaults.',
+      items: [{
+        key: 'grading',
+        label: 'Gradebook categories',
+        operation: 'update',
+        current_summary: currentGrading.use_weights
+          ? `${currentGrading.assignments_weight}% assignments • ${currentGrading.tests_weight}% tests`
+          : 'Points-based',
+        proposed_summary: sourceGrading.use_weights
+          ? `${sourceGrading.assignments_weight}% assignments • ${sourceGrading.tests_weight}% tests`
+          : 'Points-based',
+      }],
+    })
+  }
+
   return {
     ok: true,
     suggestionSet: {
       classroom_id: source.classroom.id,
       classroom_title: source.classroom.title,
+      classroom_revision: source.classroom.blueprint_source_revision,
       blueprint_id: blueprint.id,
+      blueprint_revision: blueprint.content_revision,
       generated_at: new Date().toISOString(),
       suggestions,
     },
@@ -512,14 +588,51 @@ export async function applyBlueprintMergeSuggestions(
   teacherId: string,
   blueprintId: string,
   classroomId: string,
-  areas: Array<'overview' | 'outline' | 'resources' | 'assignments' | 'tests' | 'lesson-plans'>
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const blueprintAccess = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
-  if (!blueprintAccess.ok) {
-    return { ok: false, status: blueprintAccess.status, error: blueprintAccess.error }
+  areas: Array<
+    | 'overview'
+    | 'outline'
+    | 'resources'
+    | 'assignments'
+    | 'tests'
+    | 'lesson-plans'
+    | 'materials'
+    | 'surveys'
+    | 'grading'
+  >,
+  expected: {
+    expectedBlueprintRevision: number
+    expectedClassroomRevision: number
+  }
+): Promise<
+  | { ok: true; proposal: CourseBlueprintProposalRecord }
+  | { ok: false; status: number; error: string }
+> {
+  const blueprintResult = await getCourseBlueprintDetail(teacherId, blueprintId)
+  if (!blueprintResult.detail) {
+    return {
+      ok: false,
+      status: blueprintResult.status || 500,
+      error: blueprintResult.error || 'Failed to load Blueprint',
+    }
+  }
+  if (blueprintResult.detail.content_revision !== expected.expectedBlueprintRevision) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'The Blueprint changed after these suggestions were prepared; review them again',
+    }
+  }
+  if (blueprintResult.detail.authority_mode === 'repository') {
+    return {
+      ok: false,
+      status: 409,
+      error: 'This Blueprint is repository-managed and accepts repository proposals only',
+    }
   }
 
-  const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId)
+  const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
+    lessonTemplateTitleMode: 'generic',
+  })
   if (!sourceResult.ok) return sourceResult
 
   if (sourceResult.source.classroom.source_blueprint_id !== blueprintId) {
@@ -527,51 +640,135 @@ export async function applyBlueprintMergeSuggestions(
   }
 
   const source = sourceResult.source
-
-  for (const area of areas) {
-    if (area === 'overview') {
-      const result = await updateCourseBlueprint(teacherId, blueprintId, {
-        overview_markdown: source.classroom.course_overview_markdown,
-      })
-      if (!result.ok) return result
-      continue
+  const sourceGrading = source.grading || {
+    use_weights: false,
+    assignments_weight: 70,
+    tests_weight: 30,
+  }
+  if (source.classroom.blueprint_source_revision !== expected.expectedClassroomRevision) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'The classroom changed after these suggestions were prepared; review them again',
     }
-
-    if (area === 'outline') {
-      const result = await updateCourseBlueprint(teacherId, blueprintId, {
-        outline_markdown: source.classroom.course_outline_markdown,
-      })
-      if (!result.ok) return result
-      continue
-    }
-
-    if (area === 'resources') {
-      const result = await updateCourseBlueprint(teacherId, blueprintId, {
-        resources_markdown: source.resources_markdown,
-      })
-      if (!result.ok) return result
-      continue
-    }
-
-    if (area === 'assignments') {
-      const result = await syncCourseBlueprintAssignments(teacherId, blueprintId, source.assignments)
-      if (!result.ok) return result
-      continue
-    }
-
-    if (area === 'tests') {
-      const result = await syncCourseBlueprintAssessments(teacherId, blueprintId, source.tests, {
-        replaceTypes: ['test'],
-      })
-      if (!result.ok) return result
-      continue
-    }
-
-    const result = await syncCourseBlueprintLessonTemplates(teacherId, blueprintId, source.lesson_templates)
-    if (!result.ok) return result
   }
 
-  return { ok: true }
+  const candidateDetail = structuredClone(blueprintResult.detail)
+  const now = new Date().toISOString()
+  if (areas.includes('overview')) {
+    candidateDetail.overview_markdown = source.classroom.course_overview_markdown
+  }
+  if (areas.includes('outline')) {
+    candidateDetail.outline_markdown = source.classroom.course_outline_markdown
+  }
+  if (areas.includes('resources')) {
+    candidateDetail.resources_markdown = source.resources_markdown
+  }
+  if (areas.includes('assignments')) {
+    candidateDetail.assignments = source.assignments.map((assignment) => ({
+      id: assignment.artifact_id,
+      artifact_id: assignment.artifact_id,
+      course_blueprint_id: blueprintId,
+      title: assignment.title,
+      instructions_markdown: assignment.instructions_markdown,
+      submission_requirements_json: assignment.submission_requirements_json,
+      default_due_days: assignment.default_due_days,
+      default_due_time: assignment.default_due_time,
+      points_possible: assignment.points_possible,
+      gradebook_weight: assignment.gradebook_weight ?? 10,
+      include_in_final: assignment.include_in_final,
+      is_draft: assignment.is_draft,
+      track_authenticity: assignment.track_authenticity,
+      position: assignment.position,
+      created_at: now,
+      updated_at: now,
+    }))
+  }
+  if (areas.includes('tests')) {
+    candidateDetail.assessments = source.tests.map((assessment) => ({
+      id: assessment.artifact_id,
+      artifact_id: assessment.artifact_id,
+      course_blueprint_id: blueprintId,
+      assessment_type: 'test',
+      title: assessment.title,
+      content: assessment.content,
+      documents: assessment.documents,
+      points_possible: assessment.points_possible,
+      gradebook_weight: assessment.gradebook_weight ?? 10,
+      include_in_final: assessment.include_in_final,
+      position: assessment.position,
+      created_at: now,
+      updated_at: now,
+    }))
+  }
+  if (areas.includes('lesson-plans')) {
+    candidateDetail.lesson_templates = source.lesson_templates.map((lesson) => ({
+      id: lesson.artifact_id,
+      artifact_id: lesson.artifact_id,
+      course_blueprint_id: blueprintId,
+      title: lesson.title,
+      content_markdown: lesson.content_markdown,
+      position: lesson.position,
+      created_at: now,
+      updated_at: now,
+    }))
+  }
+  if (areas.includes('materials')) {
+    candidateDetail.materials = (source.materials || []).map((material) => ({
+      id: material.artifact_id,
+      artifact_id: material.artifact_id,
+      course_blueprint_id: blueprintId,
+      title: material.title,
+      content_markdown: material.content_markdown,
+      position: material.position,
+      created_at: now,
+      updated_at: now,
+    }))
+  }
+  if (areas.includes('surveys')) {
+    candidateDetail.surveys = (source.surveys || []).map((survey) => ({
+      id: survey.artifact_id,
+      artifact_id: survey.artifact_id,
+      course_blueprint_id: blueprintId,
+      title: survey.title,
+      show_results: survey.show_results,
+      dynamic_responses: survey.dynamic_responses,
+      questions_json: survey.questions_json,
+      position: survey.position,
+      created_at: now,
+      updated_at: now,
+    }))
+  }
+  if (areas.includes('grading')) {
+    candidateDetail.gradebook_use_weights = sourceGrading.use_weights
+    candidateDetail.gradebook_assignments_weight = sourceGrading.assignments_weight
+    candidateDetail.gradebook_tests_weight = sourceGrading.tests_weight
+  }
+
+  let base
+  let candidate
+  try {
+    base = buildCourseBlueprintSnapshot(blueprintResult.detail)
+    candidate = buildCourseBlueprintSnapshot(candidateDetail)
+  } catch (error) {
+    return {
+      ok: false,
+      status: 400,
+      error: error instanceof Error ? error.message : 'Classroom changes cannot form a valid proposal',
+    }
+  }
+
+  return submitCourseBlueprintProposal({
+    supabase: getServiceRoleClient() as any,
+    teacherId,
+    base,
+    candidate,
+    source: 'classroom',
+    idempotencyKey: crypto.randomUUID(),
+    expectedBlueprintRevision: expected.expectedBlueprintRevision,
+    sourceClassroomId: classroomId,
+    baseClassroomRevision: expected.expectedClassroomRevision,
+  })
 }
 
 export function buildMarkdownSectionContent(markdown: string): TiptapContent {

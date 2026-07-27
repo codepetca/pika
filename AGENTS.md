@@ -62,7 +62,7 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 2. `.ai/CURRENT.md` (current-state summary)
 3. `docs/core/architecture.md` (architecture invariants)
 4. `docs/core/tests.md` (testing requirements)
-5. `docs/core/design.md` (UI/UX rules)
+5. `DESIGN.md` (canonical UI/UX principles, authority, and governance)
 6. `docs/core/project-context.md` (setup and commands)
 7. `.ai/SESSION-LOG.md` + `docs/core/decision-log.md` (recent handoff/history/rationale)
 8. `.ai/JOURNAL-ARCHIVE.md` (historical investigation only)

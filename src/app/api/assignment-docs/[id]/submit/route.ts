@@ -19,6 +19,8 @@ import { assignmentDocSubmitRequestSchema } from '@/lib/validations/assignment-d
 import { submitAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 import { createJsonPatch } from '@/lib/json-patch'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
+import { isPalEnabled } from '@/lib/server/pal-config'
+import { buildLearningItemCompletedEvent } from '@/lib/server/pal-events'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -40,7 +42,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
-    .select('classroom_id, is_draft, released_at')
+    .select('classroom_id, is_draft, released_at, due_at')
     .eq('id', assignmentId)
     .single()
 
@@ -129,12 +131,23 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     }
   }
 
+  const palEnabled = isPalEnabled()
+  const palEvent = palEnabled
+    ? buildLearningItemCompletedEvent({
+        learnerId: user.id,
+        itemId: assignmentId,
+        occurredAt: new Date(),
+        dueAt: assignment.due_at,
+      })
+    : null
+
   const submitResult = await submitAssignmentDocAtomic({
     supabase,
     assignmentId,
     studentId: user.id,
     content: submissionContent as TiptapContent,
     expectedUpdatedAt: submitRequest.expected_updated_at,
+    ...(palEnabled ? { palEvent } : {}),
   })
 
   if (!submitResult.ok) {

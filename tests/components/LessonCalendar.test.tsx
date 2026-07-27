@@ -240,7 +240,9 @@ describe('LessonCalendar', () => {
 
     fireEvent.click(screen.getByText('All mode lesson'))
 
-    expect(screen.getByDisplayValue('All mode lesson')).toBeInTheDocument()
+    expect(
+      screen.getByRole('textbox', { name: 'Lesson plan for March 16, 2026' })
+    ).toHaveTextContent('All mode lesson')
   })
 
   it('renders lesson markdown as plain text when the user preference is off', async () => {

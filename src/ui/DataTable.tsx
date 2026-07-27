@@ -142,7 +142,7 @@ export function SortableHeaderCell({
         onClick={onClick}
         className={[
           densityPadding(density),
-          'flex min-h-11 w-full items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+          'flex min-h-control w-full items-center gap-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
           alignClass,
           'hover:bg-surface-hover transition-colors',
         ].join(' ')}
@@ -346,7 +346,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
       aria-keyshortcuts="ArrowUp ArrowDown Home End Escape"
       tabIndex={tabIndex ?? 0}
       onKeyDown={handleKeyDown}
-      className={['rounded-card outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface', className].filter(Boolean).join(' ')}
+      className={['rounded-card outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface', className].filter(Boolean).join(' ')}
     >
       {children}
     </div>

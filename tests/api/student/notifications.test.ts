@@ -96,8 +96,6 @@ function createTableMock(config: {
   entries?: { data: any; error: any }
   assignments?: { data: any; error: any }
   assignment_docs?: { data: any; error: any }
-  quizzes?: { data: any; error: any }
-  quiz_responses?: { data: any; error: any }
   tests?: { data: any; error: any }
   test_attempts?: { data: any; error: any }
   test_responses?: { data: any; error: any }
@@ -145,23 +143,6 @@ function createTableMock(config: {
           eq: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(config.assignment_docs)),
-        })),
-      }
-    }
-    if (table === 'quizzes' && config.quizzes) {
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          then: vi.fn((resolve: any) => resolve(config.quizzes)),
-        })),
-      }
-    }
-    if (table === 'quiz_responses' && config.quiz_responses) {
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          in: vi.fn().mockReturnThis(),
-          then: vi.fn((resolve: any) => resolve(config.quiz_responses)),
         })),
       }
     }
@@ -281,7 +262,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null  },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -300,7 +280,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: null, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -318,7 +297,6 @@ describe('GET /api/student/notifications', () => {
       ;(mockSupabaseClient.from as any) = createTableMock({
         class_days: { data: { is_class_day: false }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -336,7 +314,6 @@ describe('GET /api/student/notifications', () => {
       ;(mockSupabaseClient.from as any) = createTableMock({
         class_days: { data: null, error: null }, // No record for today
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -356,7 +333,6 @@ describe('GET /api/student/notifications', () => {
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [{ id: 'assignment-1' }, { id: 'assignment-2' }], error: null },
         assignment_docs: { data: [], error: null }, // No docs exist
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -382,7 +358,6 @@ describe('GET /api/student/notifications', () => {
           ],
           error: null,
         },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -408,7 +383,6 @@ describe('GET /api/student/notifications', () => {
           ],
           error: null,
         },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -444,7 +418,6 @@ describe('GET /api/student/notifications', () => {
           ],
           error: null,
         },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -463,7 +436,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: null, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -612,7 +584,6 @@ describe('GET /api/student/notifications', () => {
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [{ id: 'assignment-1' }], error: null },
         assignment_docs: { data: null, error: { message: 'Database error' } },
-        quizzes: { data: [], error: null },
       })
 
       const request = new NextRequest(
@@ -631,7 +602,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
         tests: { data: null, error: { code: 'XX000', message: 'Database error' } },
       })
 
@@ -757,7 +727,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
         tests: { data: [{ id: 'test-1' }, { id: 'test-2' }], error: null },
         test_responses: { data: [], error: null },
       })
@@ -778,8 +747,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [{ id: 'quiz-1' }], error: null },
-        quiz_responses: { data: [], error: null },
         tests: { data: null, error: { code: 'PGRST205', message: 'table not found' } },
       })
 
@@ -800,7 +767,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
         tests: { data: [{ id: 'test-1' }, { id: 'test-2' }, { id: 'test-3' }], error: null },
         test_responses: {
           data: [{ test_id: 'test-2', selected_option: 0, response_text: null }],
@@ -824,7 +790,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
         tests: { data: [{ id: 'test-1', status: 'active' }, { id: 'test-2', status: 'active' }], error: null },
         test_responses: { data: [], error: null },
         test_student_availability: {
@@ -850,7 +815,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
       })
 
       ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -892,7 +856,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
         tests: { data: [{ id: 'test-1', status: 'active' }], error: null },
         test_responses: { data: [], error: null },
         test_attempts: {
@@ -921,7 +884,6 @@ describe('GET /api/student/notifications', () => {
         class_days: { data: { is_class_day: true }, error: null },
         entries: { data: { id: 'entry-1' }, error: null },
         assignments: { data: [], error: null },
-        quizzes: { data: [], error: null },
         tests: { data: [{ id: 'test-1' }, { id: 'test-2' }], error: null },
         test_responses: {
           data: [{ test_id: 'test-1', selected_option: null, response_text: '   ' }],

@@ -3,6 +3,8 @@ import { updateAssignmentWithSubmissionRequirementsAtomic } from '@/lib/server/a
 
 function makeAssignment() {
   return {
+    artifact_id: '10000000-0000-4000-8000-000000000001',
+    blueprint_archived_at: null,
     classroom_id: 'classroom-1',
     created_at: '2026-07-16T12:00:00.000Z',
     created_by: 'teacher-1',
@@ -17,6 +19,8 @@ function makeAssignment() {
     position: 0,
     released_at: null,
     rich_instructions: null,
+    source_artifact_id: null,
+    source_blueprint_version_id: null,
     title: 'Assignment',
     track_authenticity: true,
     updated_at: '2026-07-16T12:01:00.000Z',

@@ -11,1159 +11,1357 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-14 — Archive stack review findings fixed
+## 2026-07-22 — Hardened Daily and attendance read states
+
+**Risk profile:** workspace-state
+
+**Model recommendation:** GPT-5.6 Terra (high) - this slice crosses shared classroom schedule state, cached student work, teacher history selection, and asynchronous retry boundaries.
 
 **Completed:**
-- Ran repeated independent SQL, runtime, Gradex, and cross-layer review loops and fixed every actionable finding.
-- Hardened export/restore upload cleanup, exact restore object descriptors, actor-role reconciliation, transactional compaction dry runs, canonical paths, expiry/retry state transitions, and fail-closed source cleanup.
-- Tightened Gradex v2 with strict per-table Zod contracts, required relationships and projected fields, safe analytic enum preservation, Unicode-aware identifier scanning, pseudonymized unknown tokens, exact cleanup canaries, and retention fences.
-- Updated database contract drills, lifecycle guidance, cron integration, and environment documentation. No production database, migration, row, object, environment, deployment, or schedule was read or modified.
+- Added an explicit class-schedule error and snapshot contract. Cold failures block with retry; failed refreshes retain the last valid teacher/student workspace with a compact retry warning.
+- Added explicit student Daily entry and teacher selected-student history failures, retry behavior, and persistent cached-snapshot recovery without replacing usable data with false empty states.
+- Prevented previous-classroom Daily content from painting during classroom switches and prevented stale load-more responses from appending one student's logs to another student's history.
+- Announced student Daily save status through a polite atomic live region and exposed save failures as alerts.
+- Preserved the existing class-wide teacher table and student journal composition. Mobile workspace redesign and Gradex remained out of scope.
 
 **Validation:**
-- Fresh local Supabase reset through migrations 001–086
-- Archive export, restore, compaction, and Gradex database contract scripts
-- Full Vitest suite (339 files / 3,037 tests)
+- Focused Daily/Attendance and classroom integration suites (5 files / 72 tests)
+- Full repository suite before the final provider-scope remediation (407 files / 3,670 tests); exact-head PR CI is required
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
 - `pnpm build`
-- Pika pre-commit audit
-- `git diff --check`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright experience matrix (18 cases across both roles, desktop/mobile, light/dark)
+- Exact failure/stale-state screenshots for teacher and student; no horizontal overflow at 390px
+- Three independent review passes; five findings fixed in two remediation batches; the first remediation re-reviews are clean and the final provider-scope re-review is pending
 
-## 2026-07-14 — Archive stack consolidation CI fix
+**Remaining:**
+- Require exact-head PR CI and repository approval before merge.
+- Defer Daily/Attendance mobile history/table modes until the later mobile UX phase; continue Phase 3 with Tests desktop/accessibility while Gradex remains separately owned.
 
-**Completed:**
-- Fast-forward merged reviewed archive PRs 852–866 into the final stack base without changing commit history.
-- Fixed the consolidated recovery drill after CI exposed a stale duplicate of the restore object-path algorithm; the drill now calls the production canonical path helper.
-- Kept PR 851 unmerged from `main` until its refreshed required checks pass. No production state was accessed or modified.
-
-**Validation:**
-- Local full archive recovery drill passed twice, including row equality, object equality, and idempotent replays
-- Focused restore unit suite (1 file / 9 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-
-## 2026-07-14 — Read-only production classroom archive inventory
-
-**Risk profile:** runtime-platform
-
-**Model recommendation:** GPT-5 Codex - production verification crosses Supabase target safety, archive graph consistency, privacy-safe reporting, and fail-closed storage evidence.
-
-**Completed:**
-- Added a target-bound, read-only inventory command that requires the exact hosted Supabase project ref, validates deployed archive and Gradex contract rows, audits exposed PostgREST relationship metadata, and traverses the canonical 42-resource graph with exact-count pagination.
-- Bound the separately required direct PostgreSQL catalog audit to the same expected project ref for direct or Supabase pooler DSNs and required TLS.
-- Hardened the catalog runner against libpq DSN overrides and credential disclosure by allowlisting one TLS parameter, passing validated fields through `PG*` environment variables, sanitizing failures, and requiring either a hosted project ref or explicit loopback-only local mode.
-- Bracketed each hot archived classroom read with archive revisions, resolved managed objects through exact Storage metadata reads, and emitted only aggregate labels, counts, and byte sizes; missing referenced objects fail the command.
-- Ran the inventory against production after migrations 080-086 were applied: three hot archives, 44,813 relational rows, 42.2 MiB canonical relational payload, 165 referenced objects / 25.9 MiB, and zero missing objects or archive/restore/Gradex/cleanup operation rows.
-- Kept the archive epic unfinished. PostgREST metadata cannot prove hidden or stale catalog relationships, so the direct read-only PostgreSQL catalog audit remains required; no export, restore, Gradex, compaction, cleanup, row mutation, or Storage mutation was performed.
-
-**Validation:**
-- Final production read-only inventory passed after all review fixes
-- Full Vitest suite (345 files / 3,080 tests)
-- Focused inventory, catalog-runner, and service-client suites (35 tests)
-- Local read-only PostgreSQL catalog audit (117 foreign-key relationships)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-07-14 — Assessment draft validation boundary
+## 2026-07-22 — Scoped Daily history across student switches
 
 **Risk profile:** none
 
-**Model recommendation:** GPT-5 Codex - cross-module boundary extraction benefits from repository-wide import analysis and behavior-parity verification.
+**Model recommendation:** GPT-5.6 Terra (high) - the fix is narrow, but correctness depends on React commit and effect ordering across student identity changes.
 
 **Completed:**
-- Moved browser-safe assessment draft validation into the feature-owned `@/lib/validations/assessment-drafts` module while keeping persistence and database synchronization in `@/lib/server/assessment-drafts`.
-- Split browser, blueprint, route, and server imports so pure modules no longer reach through the server boundary for validation contracts or draft types.
-- Removed all four remaining deletion-only architecture allowances; the architecture check now covers 588 modules with zero allowances.
-- Removed stale route-test validator stubs so invalid draft payload tests exercise the real validation boundary.
-- Deleted the unused `syncAssessmentMetadataFromDraft` server export after CI coverage exposed that production performs the richer test metadata update directly in the route.
-- No behavior, UI, database schema, dependency, migration, or production changes.
+- Remounted only the selected-student history state when the classroom/student scope changes, preventing the prior student's entries from committing beneath the next student's inspector heading.
+- Initialized each scoped history view from that student's preview so the privacy fix does not introduce a false empty-state flash.
+- Added a layout-effect regression test that observes the transition commit before passive effects run.
+- Preserved the existing teacher Daily table and inspector UI; no student, mobile, schema, migration, or production behavior changed.
 
 **Validation:**
-- Focused assessment draft, route, and architecture suites (4 files / 34 tests)
-- `pnpm test` (345 files / 3,081 tests)
-- `pnpm vitest run --coverage --maxWorkers=1` (server assessment drafts: 66.67% lines, 95% functions, 65.74% statements)
-- `pnpm build`
-- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test` (407 files / 3,672 tests)
+- Focused Daily history and attendance suites (2 files / 25 tests)
+- `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture`
-- `node scripts/trim-session-log.mjs --check`
-- `node scripts/features.mjs validate`
-- `git diff --check`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- Pika changed-file audit
+- Teacher Daily desktop screenshots after sequential student selection in light and dark themes; no horizontal overflow
 
-## 2026-07-14 — Assignment grading request boundary
+**Remaining:**
+- Require independent rereview and exact-head PR CI before merge.
+
+## 2026-07-22 — Backported student classwork test isolation
 
 **Risk profile:** none
 
-**Model recommendation:** GPT-5 Codex - feature-boundary extraction requires repository-wide dependency analysis and exact API contract preservation.
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a localized test-only cache-isolation correction with no runtime behavior change.
 
 **Completed:**
-- Moved single-student and selected-student assignment grading request normalization into the feature-owned `@/lib/validations/assignment-grading` Zod contract.
-- Kept assignment ownership, enrollment checks, and grade persistence in `@/lib/server/assignment-grades`; both routes now consume parsed contract values.
-- Preserved legacy validation messages, ordering, score coercion, draft blanks, selected-ID filtering/deduplication, authentication-before-parse behavior, and the batch-only `apply_target` contract.
-- Removed both grading routes from the deletion-only API Zod baseline, reducing existing migration debt from 62 routes to 60.
-- Completed two independent review/fix rounds with no remaining findings.
-- No UI, database schema, migration, dependency, or production changes.
+- Reset the student assignment, material, and survey request-cache namespaces before every `StudentAssignmentsTab` test.
+- Removed the obsolete workaround that expected an already-viewed assignment to open its instructions modal automatically.
+- Aligned `main` with the deterministic test behavior already proven on `production`; no application, schema, grading, or deployment behavior changed.
 
 **Validation:**
-- Focused grading, API handler, and architecture suites (6 files / 33 tests)
-- `pnpm vitest run --coverage --maxWorkers=1` (346 files / 3,098 tests; assignment grading validation: 96.36% lines, 100% functions)
-- `pnpm build`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm check:architecture` (589 modules / 0 allowances)
-- `git diff --check`
-
-## 2026-07-14 — Atomic assignment grading and feedback expand release
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5 Codex - transactional grading, concurrent roster changes, runtime response contracts, and rolling database deployment require cross-layer invariant analysis.
-
-**Completed:**
-- Added expand-only migration 087 with service-role atomic RPCs for manual and AI grades, AI run/item completion, repository review completion, and single/batch feedback returns.
-- Added optimistic document revisions, assignment/classroom locking, replay-safe terminal operations, final-score validation, and all-or-none grade/result persistence.
-- Routed native AI, Gradex, repository review, and teacher feedback flows through typed server boundaries; feedback returns now submit the browser-observed document revision.
-- Added Zod contracts for assignment identifiers, grading and return payloads, and successful Gradex runtime responses; malformed successful responses fail before grade persistence.
-- Added a live database/concurrency harness, migration contract tests, route/service tests, and completed teacher/student desktop/mobile visual verification.
-- Documented the migration-first expand deployment and the separately numbered contract migration required only after all old application instances are drained.
-- Completed repeated independent database and TypeScript reviews with no remaining findings. No production database or Storage changes were made.
-
-**Validation:**
-- `pnpm test` (350 files / 3,159 tests)
-- Atomic assignment database/concurrency harness
-- `pnpm build`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm db:types:check`
-- `pnpm check:architecture` (592 modules / 0 allowances)
-- Pika pre-commit audit
-- `bash scripts/verify-env.sh`
-- `git diff --check`
-
-## 2026-07-14 — Manual test grading workflow boundary
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5 Codex - grading request compatibility and persistence extraction require exact cross-layer behavior analysis.
-
-**Completed:**
-- Replaced the handwritten manual test-grade decoder with a feature-owned Zod contract while preserving score coercion, rounding, trim behavior, clear semantics, AI audit metadata, and duplicate rejection.
-- Extracted teacher access, enrollment/question validation, existing-response preservation, grade row construction, and the legacy AI-column retry into `@/lib/server/test-grades`.
-- Kept the existing non-transactional persistence sequence unchanged for this behavior-preserving expand slice; atomic test grading remains a separately reviewed follow-up.
-- Made malformed JSON and JSON `null` fail deterministically with 400 responses instead of accidental internal errors.
-- Removed the route from the deletion-only API Zod baseline and added regressions for access arguments, archive protection, query failures, question scope, score caps, clear fields, timestamps, and failed compatibility retries.
-- Completed two independent review/fix rounds with no remaining findings. No UI, database schema, migration, dependency, or production changes.
-
-**Validation:**
-- Focused grading contract, route, and API architecture suites (3 files / 33 tests)
-- `pnpm test` (351 files / 3,186 tests)
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm check:architecture` (594 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-14 — Atomic student test attempt expand phase
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5 Codex - student autosave, final submission, lifecycle locks, and rolling database deployment require cross-writer concurrency analysis.
-
-**Completed:**
-- Added expand-only migration 088 with service-role RPCs that atomically save partial attempts and atomically commit final responses with the owning submitted attempt.
-- Serialized submit/save against test close, per-student availability changes, question mutations, classroom archival, enrollment removal, and single/bulk attempt deletion through a consistent parent lock order.
-- Preserved placeholder-response behavior, automatic multiple-choice scoring, open-response grading state, normalized legacy response payloads, and best-effort versioned history after database commit.
-- Routed student autosave and final submit through feature-owned Zod and server boundaries; removed both routes from the API Zod migration baseline.
-- Added forward-compatible 409 handling for the later strict question-immutability contract without enforcing it in migration 088, so old app instances remain compatible during migration-first rollout.
-- Added an ephemeral database harness covering privileges, partial/final saves, validation rollback, forced post-insert rollback, double submit, availability/close/delete/autosave races, cascade deletion, and coherent final state.
-- Completed repeated independent SQL and TypeScript review/fix rounds with no remaining findings. No migration or production state was applied or changed.
-
-**Deployment obligation:**
-- Apply migration 088 before deploying this app version.
-- After deploying and draining all old app instances, add a separately numbered contract migration for semantic question immutability; do not add that enforcement to migration 088.
-
-**Validation:**
-- Focused student attempt/submit, validation, question compatibility, and architecture suites (8 files / 79 tests)
-- `pnpm test`
-- `pnpm build`
+- `pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx` (1 file / 12 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (596 modules / 0 allowances)
-- `bash -n` and `shellcheck` for the database harness
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-15 — Production classroom archive canary runner
-
-**Completed:**
-- Added a production-only prepare/execute/resume CLI bound to one hosted project, teacher,
-  archived-hot classroom, immutable mode-0600 plan, clean deployed commit, exact acknowledgement,
-  and deterministic export/compact/restore operation UUIDs.
-- Added exact pre/archive/restored-projection evidence across all 42 classroom resources and every
-  source object, full manifest and operation metadata auditing, original/restored object byte checks,
-  source-revision equality, pre/post database sizing, and a conservative restore safety margin.
-- Kept every source/Gradex cleanup gate disabled and proved cleanup rows, reservations, restore
-  staging, and upload-cleanup state remain untouched or empty after immediate restore.
-- Added crash recovery for cold state, transient state/archive reads, ambiguous coordinator results,
-  journal failure, and hot state after restore completion. Evidence files reject symlink traversal and
-  unsafe permissions.
-- Updated lifecycle/testing/operator documentation and current context. Production migrations 001-096,
-  read-only inventory, and hosted catalog audit were previously verified; no mutation canary ran in
-  this branch.
-- Completed repeated independent production-safety/data-integrity review and fix rounds.
-
-**Validation:**
-- Production canary contract suite (14 tests)
-- `pnpm vitest run` (363 files / 3,329 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm db:types:check`
-- `pnpm lint`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-15 — Gradebook workflow boundary
-
-**Completed:**
-- Reduced the gradebook API route from 1,127 lines to a transport-only handler backed by a feature-owned server workflow and Zod request contracts.
-- Preserved roster paging, 50-ID chunking, 1,000-row pagination, legacy-column fallbacks, assessment ordering, status calculation, summaries, and response shape while reusing the shared query-chunks infrastructure.
-- Moved `ApiError` into a framework-neutral module so server workflows do not depend on Next transport types; `api-handler` re-exports the same class for compatibility.
-- Tightened assessment weight input to string IDs and integer/decimal-digit weights, retained the intentional legacy-category `410`, and removed the route from the API Zod baseline.
-- Narrowed missing-table detection so partial migrations fail visibly instead of silently hiding tests; added route, validation, migration-compatibility, and architecture regressions.
-- Completed independent behavior/authorization and API/Zod review-fix rounds with no remaining findings. No UI, migration, dependency, or production changes.
-
-**Validation:**
-- Focused gradebook/API/error/architecture suites (5 files / 75 tests)
-- `pnpm check:architecture` (602 modules / 0 allowances)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm vitest run` (361 files / 3,322 tests)
-- `pnpm build`
-- `git diff --check`
-
-## 2026-07-15 — Legacy quiz gradebook and archive compatibility decision
-
-**Completed:**
-- Removed the inactive quiz category from gradebook calculation inputs/results while retaining null/empty API response tombstones for older clients.
-- Added an architecture guard that allowlists gradebook dependencies and quiz tombstones, forbidding legacy quiz identifiers from active calculation and persistence code.
-- Classified legacy quiz gradebook rows as archival data and kept the version 3 course-package `quizzes` flag serialized but permanently normalized to `false`.
-- Removed dead quiz-table fixtures from gradebook tests and added encoded package compatibility regressions.
-- Expanded the archive database restore harness with non-empty quiz, question, response, and manual-override rows; the existing exact-table equality audit now proves they survive staging and final restore.
-- Documented that schema retirement remains blocked on an archive adapter, production inventory, and production verification. No production state or schema was changed.
-- Completed an independent review/fix loop; four guardrail findings were fixed and final rereview returned no findings.
-
-**Validation:**
-- Focused gradebook/package/archive suites (54 tests)
-- Classroom archive restore database contract harness
-- `pnpm vitest run` (361 files / 3,324 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (602 modules / 0 allowances)
-- `bash -n scripts/check-classroom-archive-restore-database.sh`
-- `git diff --check`
-
-## 2026-07-15 — Legacy quiz alias retirement
-
-**Completed:**
-- Removed unused quiz server access/re-export modules, quiz-named assessment helper aliases, zero-caller `Quiz*` domain/draft/markdown type aliases, and obsolete test factories.
-- Preserved persisted quiz tables/discriminants, archive resources, draft synchronization, markdown behavior, API payload aliases, gradebook tombstones, URLs, and UI compatibility props.
-- Added a TypeScript module-resolution/export-graph regression that prevents retired modules or public aliases from returning through direct exports, re-exports, or replacement index modules.
-- Removed stale Vitest coverage thresholds for deleted quiz modules and API routes, and corrected architecture/cleanup documentation.
-- Completed independent behavior and architecture/config review-fix loops; six findings were fixed and final rereviews returned no findings. No UI, migration, dependency, or production changes.
-
-**Validation:**
-- Focused assessment/access/architecture suites (4 files / 90 tests)
-- `pnpm vitest run` (361 files / 3,308 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-15 — Legacy quiz draft alias retirement
-
-**Completed:**
-- Removed the zero-caller `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` wrapper exports and their identity-only assertions.
-- Preserved persisted `assessment_type = 'quiz'`, assessment-named legacy draft behavior, `quiz_questions`/`quiz_id` synchronization, archive resources, markdown compatibility, API aliases, and UI props.
-- Strengthened the legacy alias architecture regression to inspect resolved exports across every TypeScript module under `src`, preventing aliases from returning through unrelated re-exports.
-- Completed independent behavior and architecture review/fix loops; one guard bypass finding was fixed and final rereviews returned no findings. No UI, schema, dependency, or production changes.
-
-**Validation:**
-- Focused draft/architecture suites (2 files / 16 tests)
-- `pnpm vitest run` (361 files / 3,307 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-15 — Classroom archive source ownership fence
-
-**Completed:**
-- Added migration 096 to make assignment-artifact source deletion require a bounded, transactional ownership verification and a permanent SHA-256 path reservation.
-- Serialized verification against artifact references, Storage writes, cleanup-ledger staging, and stale-worker deletion; reset pre-fence leases and rejected unreconciled historical deletions.
-- Restricted cleanup claims, lease transitions, and exact Storage presence checks to service-owned database contracts with explicit privilege tests.
-- Kept source cleanup manual, default-off, unscheduled, operation-scoped, and limited to one object per invocation; submission images and test documents remain preserved until they have authoritative relational registries.
-- Expanded the database harness with live multi-session races and the recovery drill with exact export, cleanup, byte-identical restore, replay, and deidentified-fence retention checks.
-- Completed repeated runtime and database review/fix rounds. No production state was read or modified by this phase.
-
-**Deployment obligation:**
-- Apply migration 096 before deploying this app version.
-- Run hosted catalog audit and named canaries read-only before enabling any source cleanup; keep cleanup disabled unless both explicit gates and an exact completed operation ID are supplied.
-
-**Validation:**
-- Classroom archive source-cleanup route/server/migration suites (33 tests)
-- `pnpm vitest run` (362 files / 3,317 tests)
-- Classroom archive compaction database contract harness, including concurrent verifier/reference/Storage/staging races
-- Classroom archive full recovery drill (42 resource tables; exact restore and replay)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm db:types:check`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-15 — Production archive canary retry and recovery hardening
-
-**Completed:**
-- Hardened restore storage read-back, unexpected transport failures, durable failure recording, and terminal best-effort cleanup so retries retain the fixed operation ID without deleting reused objects.
-- Added an independent archive-to-restored evidence oracle covering all resource rows, nested storage references, canonical public URLs, object identity, byte size, and SHA-256 bindings; the production canary no longer verifies restore output from its own restore plan.
-- Made the canary reconcile thrown restore calls against durable hot/cold state and retry the fixed operation ID up to three times.
-- Added migration 097 to preserve concurrent retryable restore failures and safely rearm exact expired requests. Expiry recovery now fences active cleanup leases, rolls back transient rearm state when delegated begin fails, and recovers a naturally expired snapshot in one call.
-- Expanded the database contract drill for same-ID finalization races, active cleanup leases, delegated-failure rollback, and expiry recovery. Completed repeated independent review/fix loops covering restore safety, equality evidence, SQL concurrency, privilege boundaries, and cleanup ownership.
-- No production canary, source cleanup, Gradex cleanup, or migration application was performed.
-
-**Deployment obligation:**
-- Apply migration 097 before deploying or running the production canary.
-- Keep source cleanup and Gradex cleanup disabled. Prepare a fresh named canary plan after production is on the reviewed commit; do not reuse the obsolete local plan.
-
-**Validation:**
-- Focused archive restore/canary/migration suites (4 files / 37 tests)
-- `pnpm vitest run` (364 files / 3,345 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- Bash syntax validation for the restore database contract drill
-- Pika pre-commit audit
-- `git diff --check`
-- `pnpm db:types:check` intentionally blocked because local database history remains at 096 and AI did not apply migration 097
-
-## 2026-07-15 — Production archive canary timeout hardening
-
-**Completed:**
-- Verified production migrations 001-097, released the reviewed archive recovery changes, and prepared a fresh named canary against the exact production deployment.
-- Completed the approved production export for one archived-hot classroom: 42 relational resources and 20 source objects were captured in a 2,489,962-byte compressed archive with independent evidence.
-- Kept the classroom hot after two same-operation compaction attempts rolled back atomically. No source or Gradex cleanup ran; all 20 source cleanup rows remain staged and no ownership verification or deletion attempt was recorded.
-- Correlated both failures with PostgreSQL SQLSTATE `57014` in hosted logs: `complete_classroom_archive_compaction` exceeded the default statement timeout while finalizing the transition.
-- Added migration 098 to set `statement_timeout = '60s'` only on the service-only compaction finalizer. Added source and replayed-database assertions that reject role- or database-wide timeout changes.
-- Left migration application and the existing canary resume to a human. Independent subagent review was unavailable due to the account usage limit; local SQL review found no additional issue.
-
-**Deployment obligation:**
-- Apply migration 098 before resuming the existing fixed canary operation from its approved runner commit.
-- Keep source cleanup and Gradex cleanup disabled. Resume the same plan; do not prepare a replacement operation or release a different runner before the round trip completes.
-
-**Validation:**
-- Focused archive timeout/compaction/migration suites (3 files / 11 tests)
-- `pnpm vitest run` (365 files / 3,346 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- Bash syntax validation for the compaction database contract harness
-- Pika pre-commit audit (no TypeScript files changed)
-- `git diff --check`
-- Database replay deferred to PR CI because local database history remains at 097 and AI did not apply migration 098
-
-## 2026-07-15 — Explicit AI migration authorization policy
-
-**Completed:**
-- Replaced the blanket AI migration-application prohibition with a human-controlled-by-default contract that permits one exact application only after a current-task instruction names the target environment and exact migration.
-- Required target verification, migration-list inspection, an explicit local/linked dry run, approved-set equality, applicable tests, and read-only post-application verification.
-- Kept reset, migration-history repair, rollback/down, seeding, data cleanup, Storage deletion, alternate database URLs, project relinking, and extra push flags outside ordinary migration approval.
-- Made failed or partial application attempts consume the permission and require renewed authorization before retry.
-- Updated active agent, architecture, project, schema, archive, and legacy-contract guidance and added a regression that prevents blanket prohibition or overbroad authorization from returning.
-- No migration or Supabase project state changed. During validation, a shell search expanded an inline command, but the unlinked worktree failed target resolution before preview or application; it was not retried.
-
-**Validation:**
-- Migration authorization and startup guidance suites (2 files / 29 tests)
-- `pnpm vitest run` (366 files / 3,349 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- `git diff --check`
-
-## 2026-07-15 — Production archive round-trip canary completion
-
-**Completed:**
-- Applied the explicitly authorized migration 098 to the verified production target after a linked dry run proved it was the only pending migration. Production history is 001-098, and a hosted schema read-back confirmed `statement_timeout = '60s'` only on the atomic compaction finalizer.
-- Resumed the existing immutable canary plan from its exact approved production commit and reused all three fixed operation IDs; no replacement plan or operation was created.
-- Replayed the verified export, compacted 42 tables containing 20,184 rows in about 57 seconds, and restored the classroom on the first restore attempt in about 38 seconds. The retained archive contains 20 source objects and is 2,489,962 bytes compressed from 13,359,104 bytes.
-- Passed the runner's independent archive/restored evidence oracle and a separate hosted-state query: one archived-hot classroom, no cold tombstone, one retained verified archive, three completed operations, and no restore residue.
-- Kept all source and Gradex cleanup gates disabled. All 20 source cleanup rows remain pending with zero attempts, ownership verification, reservations, or deletions.
-- Marked `epic-classroom-lifecycle-archives` passing; the feature inventory is now 13/13. A Gradex generation canary remains a separately approved optional rollout action, not an archive-epic completion requirement.
-
-**Validation:**
-- Production migration list and post-application dry run
-- Hosted schema dump verification of the finalizer timeout, security, search path, comment, and service-role grant
-- Named production export/compact/immediate-restore runner final evidence
-- Independent Management API read-only lifecycle, operation, cleanup, reservation, and staging verification
-- Source and Gradex cleanup remained disabled throughout
-
-## 2026-07-16 — Product experience audit and phased architecture backlog
-
-**Completed:**
-- Audited the complete teacher/student product topology against the current UI canon, API/domain boundaries, database contracts, tests, accessibility behavior, and error states. Added explicit maps for authentication, classroom workflows, teacher utility routes, student utility history, Gradex, blueprints, and archive lifecycle.
-- Captured 53 seeded-local product screenshots and 52 DOM/accessibility snapshots at desktop/mobile widths, plus two Open Design board-QA pairs. Committed 22 representative product pairs and two board-QA pairs after removing a credential-bearing local login capture during review.
-- Used only local Supabase data. Temporarily set the seeded classroom to hot-archived to capture Restore/Delete, restored `archived_at` to `null`, and verified the fixture. No production system was read or modified.
-- Built the Open Design project `Pika Product Experience Audit` (`ec89fd79-1229-4143-8f69-cf24842c6584`) through generation run `879efda2-651b-4b5c-aeba-111e43e0cab4` and review run `b503a4ba-f0c0-41df-85a5-6b349588c7e7`. Corrected its evidence model after review and browser-verified the final board at `1440x900` and `390x844`; mobile client and scroll width both measured 375px.
-- Ranked data integrity first: unsafe hot-archive deletion, stale assignment submission after failed save, broken dashboard entry authorization, blueprint v2/v3 contract drift, and invalid active-classroom Delete commands on teacher utility routes.
-- Added measurable exit evidence for all six phases, including shared UI contracts, vertical workflow slices, Gradex deidentification/ingestion/retention, end-of-course blueprint rollover, archive eligibility/restore equality, production authorization, and evidence-based legacy retirement.
-- Resolved independent architecture and evidence reviews. Verified that blueprint v2/v3 drift is real: runtime/package guidance uses v3 while `COURSE_BLUEPRINT_TRANSFER_CONTRACT` and lifecycle guidance still declare v2. Registered the six-phase program as the active incomplete epic.
-
-**Next:**
-- Review and merge the Phase 1 audit PR.
-- Start the first Safety Wave PR: disable the legacy permanent classroom Delete endpoint and UI. Any future hot-data removal must use only the archive compaction state machine.
-
-**Validation:**
-- Open Design static checks and browser review at desktop/mobile widths
-- Representative screenshot visual inspection
-- `pnpm lint`
-- `pnpm run test:coverage` (366 files, 3349 tests)
-- Pika pre-commit audit (no TypeScript files changed)
-- `git diff --check`
-
-## 2026-07-16 — Safety Wave: retire legacy classroom deletion
-
-**Completed:**
-- Removed the classroom-level `DELETE /api/teacher/classrooms/[id]` handler and the archived-index, legacy-dashboard, and top-level-calendar deletion controls. Deleted the orphaned `useDeleteClassroom` hook.
-- Preserved archive, hot restore, cold restore, and verified compaction behavior. Permanent hot-data removal remains exclusive to the archive compaction state machine.
-- Added API and component regressions proving the route exports no `DELETE` handler, archived classrooms are restore-only, and teacher utility surfaces issue no classroom deletion request.
-- Corrected the Pika audit matcher so route-specific tests for generic `page.tsx` files are recognized only through exact static/dynamic imports. Added negative coverage for prefix collisions and line, trailing, and block comments.
-- Browser-verified teacher archived, dashboard, and calendar states plus the student classroom index at desktop/mobile widths and light/dark archived states. Populated legacy utility captures reconfirmed the already-ranked mobile overflow findings; this PR did not broaden into that Phase 2 work. Restored the seeded classroom to active afterward.
-- Completed repeated independent review/fix loops. Both final reviewers reported no actionable findings. No production system was read or modified.
-
-**Validation:**
-- Focused deletion-retirement and audit suites (5 files / 67 tests)
-- `pnpm run test:coverage` (366 files / 3,353 tests)
-- Teacher calendar readiness suite repeated 50 times after CI race hardening
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (599 modules / 0 allowances)
-- Bash syntax validation for the Pika audit script
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-16 — Phase 2 assignment save and submission integrity
-
-**In progress:**
-- Replaced split assignment draft, submit, unsubmit, and combined assignment/requirement writes with migration-first atomic RPC contracts, revision fences, advisory-lock ordering, durable save-operation replay evidence, and bounded authenticity metric checkpoints.
-- Hardened the student editor for immutable retry payloads, response and body timeouts, exact ambiguity reconciliation, persistent tab writer identity, monotonic recovery generations, 30-day recovery expiry, same-content metric replay, stale page-exit responses, and restore deferral.
-- Added authoritative submit-history enforcement, submitted-content and artifact immutability guards, legacy-writer compatibility, archive-restore normalization, and a 35-day save-ledger cleanup while preserving the 42-resource archive contract.
-- Added durable provisional evidence and a leased cleanup cron for assignment image Storage objects. Upload and row-commit ambiguity are reference-aware; shared paths are not deleted; failed cleanup remains retryable.
-- Added strict Zod request boundaries and validating, additive-compatible RPC response decoders that strip unknown future fields before returning older app shapes.
-- Added migration 099, atomic and live-concurrency SQL harnesses, CI database-contract gates, rollout guidance, generated type coverage, and a narrow Pika-audit exemption for the canonical `parseContentField` implementation.
-- Multiple review rounds found and fixed retry, metric, recovery, artifact cleanup, RPC compatibility, migration-upgrade, lock-order, privilege, timeout, and test-coverage issues. Final client, API, and database rereviews returned no actionable findings.
-- Opened PR #891. Its first architecture-database run exposed three stale-revision setups in the pre-existing feedback-return harness that directly edited submitted content. Replaced those setup writes with allowed feedback-draft revisions so the harness continues testing serialization without violating migration 099's submitted-content guard.
-- The next CI run exposed a synthetic archive ownership race row that referenced no assignment document. Rebuilt the fixture with a real active classroom, assignment, unsubmitted document, and requirement so migration 099's document guard runs normally and the existing archive path reservation still proves serialization.
-- Closed the remaining assignment utility coverage branches for default release clocks and returned documents missing a submission timestamp. The full coverage gate is back to 100% for `src/lib/assignments.ts`.
-- The subsequent real archive round-trip exposed an empty-`search_path` restore wrapper resolving its deferred constraint by an unqualified name. Schema-qualified the migration 099 constraint flush and tightened its migration contract test.
-- The full recovery drill then exposed a stale fixture sequence that inserted a submitted document before its required artifact. The drill now creates an unsubmitted document, attaches its requirement and artifact, and only then submits through the guarded update path. It also verifies submit-history source/restore equality and removes and checks its artifact-cleanup ledger during teardown; a source contract preserves those checks.
-- No production data, Storage, migration history, or deployment was read or modified.
-
-**Deployment obligation:**
-- Apply and verify migration 099 before deploying this application version. Leave migration 099 in place if the app rolls back; do not deploy the new writers before it.
-- Migration application remains human-controlled and requires exact one-time permission naming the target and migration 099.
-
-**Validation:**
-- Focused assignment client/API/server suites, including 46 editor save/submit tests and additive-schema/ambiguous-upload regressions
-- `pnpm test:coverage` (375 files / 3,483 tests; `src/lib/assignments.ts` at 100%)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm run check:architecture` (604 modules / 0 allowances)
-- Atomic assignment SQL transaction harness
-- Assignment concurrency harness against a disposable 001-099 database replay
-- Atomic feedback-return harness against a disposable 001-099 database replay after the CI compatibility fix
-- Classroom archive compaction database contract against a disposable 001-099 database replay after the relational race-fixture fix
-- Real classroom compaction and resumable restore round trip against a disposable 001-099 database replay after the schema-qualified constraint fix
-- Recovery-drill fixture ordering contract plus TypeScript validation after the migration 099 compatibility fix
-- Generated database types match the normalized disposable 001-099 schema
-- Pika pre-commit audit
-- `git diff --check`
-- Local Playwright verification on the assignment surfaces: student editor and restore dialog on desktop/mobile in light/dark; teacher assignment list on desktop/mobile in light/dark
-- The student autosave response was mocked in-browser because local migration 099 is intentionally unapplied; final captures had no console errors and no database write was sent
-
-**Remaining before merge:**
-- Push the CI compatibility and integration-fixture fixes, wait for PR checks and review, then merge only after the required migration-first deployment obligation is clear.
-
-## 2026-07-17 — Assignment cloned-tab writer-fence review fix
-
-**Completed:**
-- Fixed the PR #891 review finding where a live assignment save-session identity persisted in cloneable `sessionStorage` could be inherited by a duplicated tab. A stale page-exit save from that tab could otherwise be mistaken for a same-editor superseding save and bypass the database revision conflict.
-- Made each mounted student assignment editor use a fresh writer identity and sequence. Exact uncertain operations still retain and replay their original immutable save identity from durable recovery evidence.
-- Replaced the cross-remount identity-reuse test with a regression proving copied writer state is ignored and a remounted editor starts a distinct fence at sequence one.
-- Did not read or modify production, apply migration 099, merge the PR, or advance the broader phased product-experience goal.
-
-**Validation:**
-- `pnpm test` (375 files / 3,484 tests)
-- Focused assignment integrity suites (3 files / 68 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm run check:architecture` (604 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-**Remaining before merge:**
-- Push the review fix, wait for PR checks, and rereview PR #891. Migration 099 must still be applied and verified before the application version is deployed.
-
-## 2026-07-18 — Assignment submit/recovery race review fixes
-
-**Completed:**
-- Ran independent Sol/high database, client-state, and integration reviews of PR #891 after CI passed. The client review found and fixed four ordering/recovery defects: a conflict catch overwriting a newer durable draft, edits arriving during a successful submit being shown or cleared incorrectly, queued save reconciliation being cleared by a later submit response, and a definitively rejected equal-content recovered operation retaining a stale writer fence.
-- Added a synchronous preserved-draft reference so the submitted server snapshot remains authoritative while newer local content survives save/submit response reordering and can be restored after unsubmit.
-- Replaced stale recovered operations with a fresh mount-local writer identity and refreshed revision while retaining the original metric-session identity and cumulative counters for database deduplication.
-- Added behavior regressions for all four races. Final independent rereviews reported no findings and confirmed the tests fail against the prior implementation.
-- No production data, Storage, migration history, deployment, or visible layout was modified.
-
-**Validation:**
-- `pnpm test` (375 files / 3,487 tests)
-- Focused assignment integrity suites (3 files / 71 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm run check:architecture` (604 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-**Remaining before merge:**
-- Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.
-
-## 2026-07-18 — Production assignment integrity migration
-
-**Completed:**
-- Applied only migration `099_assignment_submission_integrity_guards.sql` to the linked production Pika project after exact one-time authorization and a clean dry run.
-- Verified production migration history is aligned through 099, both new ledger tables have RLS enabled, the writer-fence columns are present, and the four application RPCs exist with execution granted to `service_role` but denied to `anon` and `authenticated`.
-- No reset, repair, rollback, seed, cleanup, Storage deletion, or application deployment was performed.
-
-**Validation:**
-- `supabase migration list --linked` records migrations 001-099
-- Read-only production catalog checks for RPC signatures, role grants, RLS, save RPC overload count, and assignment document columns
-- PR #891 CI: architecture/database contracts, full test/build, and UI policy checks passed before application
-
-**Remaining:**
-- Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.
-
-## 2026-07-18 — Enforce chronological session-log retention
-
-**Completed:**
-- Updated the session-log trimmer to order ISO-dated entries chronologically before retaining or archiving them while preserving source order for same-day entries.
-- Made check mode reject chronological drift so CI catches future merge-order mistakes.
-- Made archive appends idempotent with deterministic path-normalized per-trim batch markers so failed output writes can be retried without duplicating history or collapsing identical entries; added forced-failure, duplicate-entry, and equivalent-path recovery coverage after independent review.
-- Made trim and check modes reject undated or invalid entry headings instead of guessing whether they belong in the latest retention window; aligned startup guidance after independent review.
-- Repaired the rolling log's existing July 13-15 ordering drift and added focused regression coverage.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 41 tests)
-- `pnpm lint`
-- `node --check scripts/trim-session-log.mjs`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-## 2026-07-20 — Migration 099 local seed compatibility
-
-**Completed:**
-- Fixed `pnpm seed` for databases with migration 099 by creating assignment documents as editable, inserting their baseline/autosave/blur history, and only then finalizing submitted documents.
-- Let migration 099's deferred constraint trigger create each authoritative submit snapshot, preserving the database invariant that editable history cannot be written after submission.
-- Aligned the synthetic writing timelines with the existing 4-day and 2-day submission dates so grading fixtures remain chronologically valid.
-- Added unit and source-order regression coverage for history partitioning and seed lifecycle ordering.
-- Derived the earliest returned-feedback timestamp from the generated submission time after review found an early-day chronology edge case.
-- Re-ran `pnpm seed` against the authorized loopback database; the complete classroom, assignment-review, and test fixtures now seed successfully. No production resources were accessed or modified.
-
-**Validation:**
-- `pnpm test` (376 files / 3,495 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm seed` against the loopback Supabase database through migration 099
-- Direct loopback database checks: one submit row per submitted document, matching content snapshots, all editable history before submission, and returned feedback after submission
-- `git diff --check`
-
-**Audit note:**
-- The Pika pre-commit audit reports the existing CLI progress `console.log` calls throughout `scripts/seed.ts` after that file is touched. No new production logging path was introduced; this is a whole-file false positive for the development seed CLI.
-
-## 2026-07-20 — Teacher dashboard entry authorization contract
-
-**Completed:**
-- Replaced the teacher dashboard's unauthorized `/api/student/entries` read with an exact student/day query through the teacher-owned student-history route.
-- Added a named Zod query contract for classroom, student, exact/paged date, and bounded limit inputs while preserving authentication-first handling.
-- Kept classroom ownership and enrollment checks ahead of entry access, and added regressions for foreign classrooms, unenrolled students, exact-date filtering, and the dashboard endpoint choice.
-- Preserved the existing 50-row cap for oversized history limits and rejected ambiguous exact/paged date filters after independent review.
-- Verified the route against local Supabase with a teacher session: the teacher endpoint returned the selected entry and the old student endpoint returned HTTP 403.
-- No schema, migration, production data, or visible UI layout changed.
-
-**Validation:**
-- `pnpm test` (376 files / 3,501 tests)
-- Focused dashboard, teacher entry/history, consumer, and API boundary suites (5 files / 23 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (605 modules / 0 allowances)
-- Live loopback teacher authorization and exact-entry query
 - `git diff --check`
 
 **Remaining:**
-- Independently review PR #894. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.
+- Require exact-head PR CI and normal protected merge into `main`.
 
-## 2026-07-20 — Blueprint package version contract reconciliation
+## 2026-07-22 — Hardened Tests list read states
+
+**Risk profile:** workspace-state
+
+**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses cached teacher/student lists, controlled workspace URLs, classroom transitions, and asynchronous retry boundaries.
 
 **Completed:**
-- Merged PR #894, fast-forwarded the hub to `origin/main`, and removed its clean feature worktree and local branch.
-- Made course package version 3 the shared canonical export and lifecycle contract while explicitly retaining version 2 import compatibility.
-- Added a focused Zod boundary for package manifests and files so malformed and unsupported versions fail before operation planning; server operations now consume validated manifest metadata rather than the original request value.
-- Preserved legacy version 2 course content while intentionally ignoring retired `quizzes.md` content, with a checked-in compatibility fixture and bundle/tar regressions.
-- Made v3 file membership strict, bounded HTTP and tar input size/counts, and rejected unknown or duplicate archive entries after independent review; removed the import route from the API validation debt baseline.
-- Added byte-aware per-file limits for both JSON and tar imports after rereview; the final independent rereview reported no actionable findings.
-- Updated package and classroom lifecycle guidance to agree on current and supported versions. No database migration, production access, or visible UI change was required.
+- Added explicit teacher and student Tests list loading, cold-error, successful-empty, and failed-refresh contracts with retry controls.
+- Preserved the last valid list when refresh fails, rejected non-successful student list responses, and replaced one-off refresh cache keys with canonical invalidation.
+- Scoped rendered list snapshots and errors to the active classroom so another classroom's tests cannot paint during navigation.
+- Kept controlled teacher test URLs intact until a successful list snapshot proves the selected test is invalid.
+- Resolved independent review feedback by moving focus from a replaced Retry button to a stable named Tests region for both failed and successful retries.
+- Preserved the existing desktop list-first composition. Mobile UX, Gradex, schema, migrations, and production state were unchanged.
 
 **Validation:**
-- `pnpm test` (376 files / 3,514 tests)
-- Focused package, artifact, server, API, documentation, and route-standard suites (6 files / 52 tests)
+- Focused teacher/student Tests list suites (3 files / 110 tests)
+- Full repository suite before the focus-only remediation (407 files / 3,680 tests); exact-head PR CI is required
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (606 modules / 0 allowances)
+- `pnpm check:architecture` (623 modules / 0 allowances)
 - `pnpm build`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright desktop matrix for both roles in light/dark across normal, cold-error, and preserved-refresh-error states (12 captures; no horizontal overflow)
+- Post-remediation teacher/student desktop light/dark captures (4 captures; no layout change or horizontal overflow)
 - `git diff --check`
 
 **Remaining:**
-- Merge PR #895 after required checks/review. Phase 2 begins after that merge.
+- Require targeted remediation review and exact-head PR CI before merge.
+- Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.
 
-## 2026-07-20 — Phase 2 semantic-token contrast contract
+## 2026-07-22 — Added canonical grading architecture guide
 
-**Completed:**
-- Merged PR #895, completing the Product Experience Safety Wave and beginning Phase 2.
-- Added a WCAG AA contract that evaluates semantic foreground/background pairs in both themes, including translucent selected and status surfaces.
-- Split semantic foreground colors from opaque solid action fills, migrated filled controls to the new solid tokens, and corrected failing muted, status, accent, and selected-state combinations.
-- Preserved a persistent selected-row cue in the gradebook after reducing the dark selected-surface opacity.
-- Resolved all findings from two independent reviews, including omitted hover/subtle pairs, solid-fill opacity enforcement, inverse-text bypasses, and missing direct component coverage.
-- Visually verified representative teacher and student routes at desktop/mobile sizes in light/dark themes, plus selected gradebook rows in both themes. No overflow, overlap, console, or page errors were found.
+**Risk profile:** none
 
-**Validation:**
-- `pnpm test` (378 files / 3,523 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Custom Playwright teacher/student desktop/mobile light/dark matrix and gradebook selected-row checks
-- `git diff --check`
-
-**Remaining:**
-- Review and merge PR #896. Then implement Phase 2's shared modal-layer contract as a separate slice.
-
-## 2026-07-20 — Phase 2 shared modal-layer contract
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a documentation-only reconciliation of implemented grading boundaries and contracts.
 
 **Completed:**
-- Reviewed and merged PR #896, then fast-forwarded the hub and started the next Phase 2 slice from current `main`.
-- Added a portal-based `ModalLayer` that owns top-layer keyboard handling, initial focus, Tab containment, focus restoration, background inertness, scroll locking, stacking, Escape, and backdrop behavior.
-- Preserved the canonical `AlertDialog`, `ConfirmDialog`, `DialogPanel`, and `ContentDialog` APIs while routing them through the shared layer; migrated classroom mobile left/right drawers without changing their visual design.
-- Fixed independent-review findings for lifecycle churn while a confirmation becomes busy and reverse Tab containment when a custom panel owns focus; added regressions and narrowed documentation to migrated surfaces.
-- Visually verified open dialogs and navigation drawers for teacher/student roles at desktop/mobile sizes in light/dark themes, including focus, inert background, scroll lock, Escape cleanup, and focus restoration.
-- Opened PR #897. No schema migration or production data change was made.
+- Added one canonical guide covering grading layers, assignment/test/repository-review flows, versioning, sanitization, atomic persistence, teacher-review evals, calibration limits, and the Pika/Gradex boundary.
+- Routed grading work to the guide from the AI instruction table and core architecture.
+- Updated current context to reflect verified migrations through 104.
+- Documented current implementation separately from future Gradex and paid replay work; no runtime, schema, provider, grading, or deployment behavior changed.
 
 **Validation:**
-- `pnpm test` (381 files / 3,529 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Custom Playwright teacher/student desktop/mobile light/dark open-state matrix
-- `git diff --check`
-
-**Remaining:**
-- Review and merge PR #897. Continue Phase 2 with shared button target sizing/focus-visible behavior and semantic form-field propagation.
-
-## 2026-07-21 — Internal test grading profile and provenance
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5.4 - this phase crosses provider contracts, privacy boundaries, durable grading concurrency, revision fencing, and rolling database compatibility.
-
-**Completed:**
-- Moved test open-response prompts, strict output schemas, output budgets, and profile versions into the database-independent grading core while preserving Pika's sanitization, reference cache, score buckets, telemetry, and teacher workflows in the compatibility adapter.
-- Routed direct and durable test grading through the shared structured-output provider executor with bounded, pseudonymous per-request provenance and complete retry token accounting.
-- Added signed manual provenance propagation and migration `102` with service-role-only compatibility wrappers that atomically persist provenance without double-incrementing response revisions.
-- Preserved provenance for teacher corrections, cleared stale provenance for legacy AI replacements and grade clears, and kept durable replay idempotent.
-- Kept the remote Gradex worker disabled; no live provider calls, production changes, or local migration application were performed.
-
-**Validation:**
-- Focused grading/persistence suite (10 files / 114 tests)
-- Full Vitest suite (403 files / 3,632 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (620 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-test-grading.sh`
-- `git diff --check`
-- Migration replay, database harness, and generated-type drift check pending ephemeral CI
-
-## 2026-07-21 — Phase 2 shared control and form-field contract
-
-**Completed:**
-- Merged PR #897 and began the next Phase 2 slice from current `main`.
-- Standardized shared button, input, select, segmented-control, split-button, sortable-table, and split-pane interaction targets and focus-visible treatment without changing Pika's information-dense workflows.
-- Made `FormField` the semantic owner for label association, required state, hints, errors, `aria-describedby`, `aria-errormessage`, and `aria-invalid` while preserving child IDs and existing descriptions.
-- Kept hint and error content visible together, prevented custom props from leaking to native controls, and documented the one-control composition contract.
-- Fixed review findings by expanding the split-pane divider target, reconciling the `FormField` docs, reserving the full mobile classroom switcher height, and forwarding generated field naming and validation semantics to the rich-text editor.
-- Visually verified unauthenticated, teacher, and student surfaces across desktop/mobile and light/dark themes, including keyboard focus, form errors, the dense gradebook, and the student Today view. No overflow or layout regression was found.
-
-**Validation:**
-- `pnpm test` (383 files / 3,543 tests)
-- Focused shared-control and integration suites (8 files / 69 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (607 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/07e8da7d-9a2a-4e74-b516-f5fe2bab1bf8?tab=attendance`
-- Custom Playwright light/dark desktop/mobile focus, error, teacher, and student checks
-- `git diff --check`
-
-**Remaining:**
-- Merge reviewed PR #898 after required CI. Then continue Phase 2 with page structure, typography, spacing, action placement, and responsive density as a separate slice.
-
-## 2026-07-21 — Phase 2 shared page-structure contract
-
-**Completed:**
-- Merged PR #898 and began the next Phase 2 slice from current `main`.
-- Promoted page framing into the canonical `@/ui` layer with named content widths, explicit teacher/student density, governed page and section headings, content stacks, and responsive action placement; retained the old component path as an incremental compatibility export.
-- Preserved compact table-first teacher workflows and the existing implicit density for unmigrated callers while adopting the governed contract on teacher and student classroom indexes.
-- Corrected the shared `AppShell` main region so default pages fill the available width instead of accidentally shrinking to their contents.
-- Removed action-bar overrides that reduced shared controls below 44px and gave mobile menu items explicit target and focus-visible treatment.
-- Visually verified teacher and student classroom indexes at desktop/mobile sizes in light/dark themes, including the open mobile menu. All eight role/viewport/theme cases had exact viewport width, no console/page errors, and focused 44px menu items.
-- Opened PR #899. Initial independent architecture review found no actionable issues; accessibility review prompted additional disabled-item, ArrowUp, Home, and End menu coverage plus reconciliation of stale promotion guidance.
-- Targeted remediation review prompted an explicit keyboard-activation regression proving Enter invokes the focused action, closes the menu, updates expanded state, and restores trigger focus.
-- An explicitly approved final remediation batch scoped menu keys to menu focus, restored the startup-doc budget, and reconciled the remaining experimental page-scaffolding guidance.
-- Final review retained legacy width compatibility, migrated Blueprints to the named wide contract, and made all-disabled mobile action groups non-openable.
-
-**Validation:**
-- Full `pnpm test` suite
-- Focused page, shell, classroom-index, action-menu, and teacher-work-surface suites
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (608 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Custom Playwright teacher/student desktop/mobile light/dark and menu-state matrix
-- Composite widget checklist reviewed; keyboard behavior and semantic state are covered, with no remaining manual accessibility follow-up.
-- `git diff --check`
-
-**Remaining:**
-- Complete targeted remediation review and merge PR #899 after required checks. Then continue Phase 2 with page-level loading, error, empty, and forbidden contracts.
-
-## 2026-07-21 — Phase 2 governed page-state contract
-
-**Completed:**
-- Merged PR #899 and started Phase 2 item 5 from current `main` in a dedicated worktree.
-- Added canonical `PageState` loading, error, empty, and forbidden variants with explicit live-region semantics, text-backed icons, optional actions, and compact work-region support.
-- Added classroom route loading, error-boundary retry, and intentionally indistinguishable unavailable/access-denied states while preserving safe layout framing and route-away behavior.
-- Migrated teacher dashboard and student history initial loading/empty behavior; failed classroom/history reads now render explicit retryable errors instead of valid-looking empty data.
-- Added cache invalidation before client retries and direct regressions for state semantics, route boundaries, error/empty separation, and retry recovery.
-- Documented the state decision table and App Router conventions in stable guidance.
-- Visually verified teacher/student loading, error, and empty states plus classroom unavailable states at desktop/mobile sizes in light/dark themes. Governed states had no overflow or page errors, and retry/route-away controls measured 44px.
-- Opened PR #900 for independent review; no schema, migration, API contract, or production data change was made.
-- Fixed independent-review findings by separating attendance read failures from empty rosters, binding data to its owning classroom, routing roster-upload refresh through the same guarded coordinator, and rejecting stale entry-detail responses after class switches.
-- Added deterministic focus recovery and page-level heading semantics, clarified shell behavior when protected identity data is unavailable, and made the teacher dashboard and student history stack cleanly on mobile without changing their table-first desktop workflow.
-
-**Validation:**
-- `pnpm test` (387 files / 3,569 tests)
-- Focused page-state, classroom-route, teacher-dashboard, student-history, UI-guidance, and startup-doc suites
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (610 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Composite-widget checklist reviewed; no composite widget behavior changed in this slice, while retry keyboard/focus behavior is covered directly.
-- Custom Playwright teacher/student desktop/mobile light/dark loading/error/empty/forbidden and keyboard-retry matrix; all remediation cases had no overflow or page errors, 44px retry controls, and stable post-retry focus
-- `git diff --check`
-
-**Remaining:**
-- Merge the independently reviewed page-state PR after required checks. Then continue Phase 2 with shared table, menu, tabs, segmented-control, and split-pane contracts.
-
-## 2026-07-21 — Phase 2 composite-control contracts
-
-**Completed:**
-- Merged PR #900 and started Phase 2 item 6 from current `main` in a dedicated worktree.
-- Promoted canonical `DataTable` and `Tabs` primitives into `@/ui`, retained the legacy table export for incremental compatibility, and migrated teacher Attendance, Assignments, Tests, Gradebook, Roster, document-editor, and work-surface callers.
-- Standardized automatic tabs, roving segmented controls, Home/End menu navigation, keyboard table selection, stable row identity, split-pane and column-resize separators, focus-visible treatment, 44px interaction targets, and narrow-screen tab overflow.
-- Fixed independent-review findings covering failed Attendance refreshes, legacy `aria-label` compatibility, extra tab-panel stops, mobile tab overflow, row-focus semantics and cancellation races, remount-safe Attendance focus restoration, and resize target sizing.
-- Added governed composite-control guidance plus direct primitive and integration regressions. No schema, migration, API, production, or data change was made.
-- Opened PR #902 after independent architecture and accessibility re-reviews. The final cumulative review then caught bubbled table shortcuts overriding nested inputs, failed Attendance reads falling through to empty-roster copy, and empty copy flashing during retry; all now have direct regressions and remediated behavior.
-- Restored the startup-context budget after CI caught a 10-character overage in `.ai/CURRENT.md`.
-
-**Validation:**
-- `pnpm test --run` (390 files / 3,579 tests)
-- Focused DataTable, Attendance, and startup regressions (3 files / 50 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (612 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Teacher/student desktop/mobile light/dark visual matrix plus live Attendance ArrowDown selection, row focus, Escape deselection/focus restoration, retryable error desktop/mobile light/dark states, and overflow checks
-- `git diff --cached --check`
-
-**Remaining:**
-- Merge PR #902 after required CI. Then continue Phase 2 with the next scoped shared-experience slice from the product-experience audit.
-
-## 2026-07-21 — Phase 2 shared application navigation
-
-**Completed:**
-- Merged independently reviewed PR #902 as `14de9893`, fast-forwarded the hub, and started Phase 2 item 7 from current `main` in a dedicated worktree.
-- Added a shared `AppNavigation` route-family mechanism with active-page semantics, stable prefix matching, 44px link targets, visible keyboard focus, and narrow-width horizontal overflow.
-- Added an optional application-navigation region to `AppShell` and migrated the teacher utility layout from its duplicate logo/header/logout implementation to the canonical compact `AppHeader`, `UserMenu`, session watcher, and shared navigation band.
-- Preserved the existing `Classrooms`, `Blueprints`, and `Calendar` destinations without adding a dashboard destination or changing classroom navigation, page content, API contracts, schema, production state, or data.
-- Added direct navigation, shell-order, and teacher-layout regressions plus stable guidance for incremental utility-family migration.
-- Browser-verified teacher Blueprints and Calendar at desktop/mobile widths in light/dark themes, including active-link focus and navigation-shell overflow isolation. The student mobile shell remained unchanged and overflow-free. Calendar's previously ranked narrow-screen content compression remains assigned to its Phase 3 vertical slice.
-- Opened PR #903 for independent review.
-- Accepted independent-review findings that the first implementation dropped the prior teacher-content gutters and used an outward focus ring that could be clipped by the navigation scroller. Restored the content geometry, moved focus treatment inside each link, and added a durable browser contract for every teacher utility route.
-
-**Validation:**
-- `pnpm test --run` (392 files / 3,584 tests)
-- Focused application-navigation, app-shell, teacher-layout, and app-header suites (4 files / 12 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Custom Playwright teacher desktop/mobile light/dark navigation matrix plus unchanged student mobile-dark regression (7 checks including auth setup)
-- Durable Playwright teacher dashboard/Blueprints/Calendar desktop-light and mobile-dark navigation contract
+- Verified referenced source paths and relative documentation links.
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
 
 **Remaining:**
-- Complete full repository verification, independent review, and merge for the teacher navigation slice. Then migrate the student utility family as a separate Phase 2 item 7 PR.
+- Require exact-head PR CI and normal protected merge into `main`.
 
-## 2026-07-21 — Phase 2 student utility navigation
+## 2026-07-23 — Separated Tests authoring from grading
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses route-backed workspace mode, dialog accessibility, and a large teacher Tests coordinator while preserving existing grading behavior.
 
 **Completed:**
-- Merged independently reviewed PR #903 as `d157d4cf`, fast-forwarded the hub, and started the second Phase 2 item 7 slice from current `main` in a dedicated worktree.
-- Migrated the student utility layout from its duplicate logo/header/logout implementation to the canonical `AppShell`, compact `AppHeader`, account menu, session watcher, and shared application-navigation band.
-- Preserved the existing `Classrooms` and `History` destinations plus the original `max-w-4xl px-4 py-8` content geometry. This slice does not redirect, retire, or consolidate `/student/history`, and does not change classroom navigation.
-- Added a direct student-layout regression and expanded the durable application-navigation Playwright contract with student desktop-light and mobile-dark checks for active state, inset focus, rendered target size, spacing, and overflow.
-- Visually inspected populated student History at desktop and mobile widths; the two-column desktop layout and stacked mobile workflow remain intact with the cleaned shared header.
-- Opened PR #904 for independent review.
-- Accepted one independent accessibility finding: the newly activated shared header and account menu exposed sub-44px controls. Enlarged the Home, fullscreen, login, account, sidebar, and menu-item hit areas without changing icon sizes, removed the menu scale animation that temporarily shrank interactive rows, and added unit plus rendered-size keyboard regressions.
+- Preserved the grading-first, class-wide Tests table and prior decision not to restore large Authoring/Grading tabs.
+- Replaced the icon-only pencil with a visible `Edit Test` command so teachers can distinguish test construction from student-work review without leaving the selected test.
+- Gave the editor dialog an explicit accessible `Edit test` name and visible mode label.
+- Extracted authoring-only dialog, markdown-view, and title-portal composition into `TeacherTestAuthoringDialog`, reducing state and presentation ownership in `TeacherTestsTab`.
+- Left APIs, grading behavior, schema, migrations, Gradex, production state, student UI, and deferred mobile UX unchanged.
 
 **Validation:**
-- `pnpm test --run` (393 files / 3,585 tests)
-- Focused student-layout, application-navigation, app-shell, and student-history suites (4 files / 10 tests)
-- Focused remediation suite for the shared header, account menu, student shell, and navigation (6 files / 20 tests)
+- Focused teacher Tests authoring/workspace suites (2 files / 67 tests)
+- Full repository suite (407 files / 3,680 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm check:architecture` (624 modules / 0 allowances)
 - `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Durable Playwright application-navigation suite (10 checks including auth setup)
-- Desktop/mobile teacher and student screenshots, including open mobile-dark account menus
-- `node scripts/trim-session-log.mjs --check`
+- Pika changed-file audit
+- Composite-widget accessibility checklist: reviewed; keyboard focus return and dialog semantics covered by tests; no remaining manual accessibility follow-up
+- In-app browser visual matrix: teacher Tests grading table plus `Edit Test` and `New Test` dialog states at desktop and mobile breakpoints in light and dark themes; no viewport overflow, clipped controls, or grading-workspace regression observed
+- Keyboard verification: tab focus showed the browser focus outline on `Edit test title`, and closing the dialog returned focus to `Edit Test`
+- The in-app browser capture compositor tiled each screenshot; the repeated rendered tiles and measured DOM bounds agreed, with dialog and document widths contained in every tested viewport
 - `git diff --check`
 
 **Remaining:**
-- Complete full repository verification, independent review, and merge for the student navigation slice. Then continue Phase 2 with specialized-control policy enforcement.
+- Complete targeted independent rereview and exact-head PR CI.
+- Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
 
-## 2026-07-21 — Phase 2 specialized-control policy
+## 2026-07-23 — Retired legacy Quiz API response aliases
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses student and teacher API producers, client normalizers, component consumers, and contract documentation.
 
 **Completed:**
-- Merged independently reviewed PR #904 as `f614fa61`, fast-forwarded the hub, and started Phase 2 item 8 from current `main` in a dedicated worktree.
-- Replaced the brittle UI import grep with a TypeScript-AST policy checker and a versioned, Zod-validated exception registry covering 215 native controls across 67 files.
-- Required exact per-file/per-kind counts, constrained rationale categories, explicit Phase 2/3/6 review ownership, canonical `@/ui` imports, and rejection of legacy UI component paths.
-- Converted 22 remaining `@/ui/*` imports to the canonical barrel and retained narrow compatibility exports for existing component paths.
-- Corrected seven full `@/ui` test mocks to preserve unmocked barrel exports after the full suite exposed their hidden coupling.
-- Added direct semantic coverage for calendar navigation, creation dialogs, multiple-choice review states, announcement menus, edit toggles, split panes, and teacher action menus.
-- No runtime UI behavior, schema, migration, API contract, production state, or data changed; visual verification is not required for this import/tooling-only slice.
-- Opened PR #905 for independent review.
-- Accepted initial review findings covering dynamic/CommonJS/import-equals bypasses, literal React factory controls, complete static input classification, and overly broad Tiptap exclusions; remediated them together with direct regression fixtures.
-- Kept roadmap ownership in `reviewBy` and `.ai/features.json` rather than introducing date-dependent CI expiry for source exceptions.
-- Targeted re-review found import-option/import-type bypasses, case/template static-input gaps, and missing namespace/root fixtures; closed all four in the second remediation batch.
-- With explicit approval to exceed the default review budget, the third remediation batch closed final cumulative findings for relative UI paths, CommonJS/import-equals React factories, shorthand input props, strict registry metadata, and stale Phase 1 audit evidence.
+- Closed the internal Tests API compatibility window and removed legacy `quiz` / `quizzes` response aliases from active student and teacher Tests routes.
+- Removed quiz-key fallback reads and compatibility fixtures while preserving current `test` / `tests` handling for optional and error payloads.
+- Added route assertions and an architecture ratchet preventing the retired response helpers from returning.
+- Documented the cutoff, older-client risk, code-only rollback, and remaining database, archive, gradebook, package, component, URL, and automation compatibility boundaries.
+- Left schema, migrations, persisted `quiz_id` fields, archive v1 resources, gradebook tombstones, and course package compatibility unchanged.
 
 **Validation:**
-- `pnpm test --run` (full repository suite)
-- Focused UI-policy, guidance, and composite-control suites
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `pnpm check:architecture`
+- Focused Tests API/client/component suites (12 files / 208 tests)
+- Full repository suite (408 files / 3,674 tests)
+
+## 2026-07-23 — Hardened standalone test preview
+
+**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
+
+**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
+
+**Completed:**
+- Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
+- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
+- Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
+- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
+- Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
+- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
+- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
+- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
+- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
+- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
+
+**Validation:**
+- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
+- Full repository suite (413 files / 3,712 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
+- `pnpm check:architecture` (625 modules / 0 allowances)
 - `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Pika changed-file audit
 - `git diff --check`
 
 **Remaining:**
-- Publish, independently review, remediate, and merge the specialized-control policy PR. Then continue Phase 2 with mobile and light/dark Playwright projects plus representative teacher/student CI coverage.
+- Require independent PR review and exact-head CI before merge.
+- Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.
 
-## 2026-07-21 — Phase 2 browser experience matrix
+## 2026-07-23 — Retired legacy Quiz UI wrappers
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses shared Test component contracts, draft identity, exam-mode E2E setup, and the legacy retirement ratchet without changing rendered behavior.
 
 **Completed:**
-- Merged independently reviewed PR #905 as `126658e0`, fast-forwarded the hub, and started Phase 2 item 9 from current `main` in a dedicated worktree.
-- Added desktop light, desktop dark, mobile light, and mobile dark Chromium projects while preserving the established `chromium-desktop` snapshot identity.
-- Kept the broad feature and manual snapshot suites on the desktop-light project and limited the additional three projects to a focused experience contract, preventing a fourfold expansion of the full E2E suite.
-- Added read-only seeded browser coverage for teacher Daily attendance, student Today, teacher Blueprints navigation, and student History navigation. The contract verifies real role authentication, classroom data, active navigation, mobile drawer behavior, persisted themes, viewport geometry, and horizontal overflow.
-- Added a dedicated GitHub Actions job that starts ephemeral local Supabase, replays migrations, exports local-only credentials, runs `pnpm seed`, installs Chromium, executes the matrix, uploads failure diagnostics, and always tears down the database.
-- Updated testing guidance and Phase 2 audit evidence. No runtime UI, API, schema, migration, production state, or production data changed.
+- Removed unused `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` component and hook aliases after confirming no production callers remained.
+- Made current Test identity and update props explicit and required.
+- Renamed the internal student action-footer automation id from `student-quiz-action-footer` to `student-test-action-footer`.
+- Updated student and teacher exam-mode E2E setup to decode the current `test` API response key.
+- Removed the final quiz-keyed Tests list payload type from assessment URL-state E2E setup after independent review.
+- Added an architecture ratchet preventing retired UI aliases and the old automation id from returning.
+- Preserved the `tab=quizzes&quizId=...` old-link tombstone, persisted `quiz_id` fields, schema, archives, gradebook tombstones, and course package compatibility.
 
 **Validation:**
-- `pnpm e2e:matrix` (18 checks across setup and four projects)
-- `pnpm test` (397 files / 3,603 tests)
+- Focused wrapper and component suites (7 files / 115 tests)
+- Full repository suite (408 files / 3,670 tests)
+- Exam-mode Playwright discovery (10 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
+- `pnpm check:architecture` (624 modules / 0 allowances)
 - `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Pika changed-file audit
 - `git diff --check`
 
 **Remaining:**
-- Publish, independently review, remediate, and merge the browser matrix PR. Then confirm Phase 2 exit evidence and begin Phase 3 with the first independently releasable vertical product slice.
+- Require independent PR review and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.
 
-## 2026-07-21 — Phase 3 Classwork list states
+## 2026-07-23 — Retired standalone legacy Quiz Markdown
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass removes an isolated compatibility parser/serializer and consolidates the shared editor on its already-current Test Markdown contract.
 
 **Completed:**
-- Began Phase 3 with a narrow assignment slice that preserves the existing class-wide teacher workflow and student assignment list.
-- Replaced ambiguous initial loading and failed-read empty states with governed `PageState` loading, error, and successful-empty states for teacher and student Classwork.
-- Added bounded Retry actions that invalidate assignment, material, and survey list caches before reloading; failures never render "No classwork yet," and successful retry restores the normal list.
-- Added focused role regressions and browser-verified loading, error, empty, retry, and restored-list states at desktop/mobile widths in light/dark themes. No API, schema, migration, production state, or production data changed.
-- Independent review found that reactivating Classwork after a failed load used the content-preserving refresh path and could expose the empty state while retrying. Reactivation from an error now uses the blocking load path; both roles prove pending reactivation, repeated failure, and recovery.
-- Final cumulative review found the remaining survey-list exception could still turn survey failures into empty or partial Classwork. Survey reads now participate in the same required failure/retry contract, with teacher and student survey-specific recovery regressions.
+- Removed `src/lib/quiz-markdown.ts` and its dedicated compatibility test after confirming no package, archive, import, or persisted-data reader depended on it.
+- Consolidated `TestDetailPanel` draft serialization, Markdown parsing, document handling, and question-field preservation on `testToMarkdown` / `markdownToTest`.
+- Added an architecture ratchet preventing the retired module and its assessment/quiz Markdown aliases from returning.
+- Updated the cleanup guide to identify unreachable quiz-mode rendering as the next implementation pass.
+- Preserved persisted `quiz_id` fields, schema, archives, gradebook tombstones, course package compatibility, and the `tab=quizzes` URL tombstone.
 
 **Validation:**
-- Focused Classwork component suites (2 files / 61 tests)
-- `pnpm test --run` (397 files / 3,605 tests)
+- Focused Markdown, component, and architecture suites (3 files / 53 tests)
+- Full repository suite (407 files / 3,666 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
+- `pnpm check:architecture` (623 modules / 0 allowances)
 - `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- Playwright forced-state matrix (16 checks across two focused local runs)
-
-**Remaining:**
-- Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
-
-## 2026-07-21 — Internal grading core foundation
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5 Codex - grading contracts, provider error semantics, reproducibility metadata, and database security require cross-layer invariant analysis.
-
-**Completed:**
-- Started the internal modular-grading direction from current `main` without modifying the open remote Gradex worker branch or enabling remote grading.
-- Added a database-independent grading core with Zod rubric/result contracts, profile and provider interfaces, canonical weighted criterion results, and versioned policy, prompt, profile, rubric, usage, and provider-request metadata.
-- Extracted the OpenAI Responses structured-output transport behind the provider interface, including timeout/status classification, bounded output-cap fallback, structured response extraction, and cumulative token usage.
-- Moved native assignment grading onto a pure Pika assignment profile while preserving the existing Completion/Thinking/Workflow rubric, prompt text, sanitization, teacher routes, durable run orchestration, retry semantics, and atomic writes.
-- Added migration 100 to replace the legacy assignment-run claim with an empty search path, validated lease arguments, and service-role-only execution. No migration was applied.
-- Added core engine/profile, assignment compatibility, usage, retry/error, and migration security regressions. No live provider call, production change, deployment setting, or data mutation occurred.
-
-**Validation:**
-- `pnpm test` (396 files / 3,593 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Focused grading and assignment route suites (59 tests)
+- Pika changed-file audit
 - `git diff --check`
 
 **Remaining:**
-- Add fully fenced assignment lease mutation contracts and durable grading audit/suggested-score persistence through the authorized schema workflow.
-- Migrate test and repository-review profiles to the shared core, then add teacher-correction evaluation datasets and metrics.
+- Run full repository validation, independent PR review, and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and wording from current Test components.
 
-## 2026-07-21 — Internal grading core review remediation
+## 2026-07-23 — Retired unreachable Quiz rendering
 
-**Risk profile:** async-grading
+**Risk profile:** none
 
-**Completed:**
-- Opened PR #906 and completed the initial independent review wave for the assignment grading core.
-- Preserved the legacy direct-grading behavior by creating an abort signal only when the caller supplies a timeout; durable background runs continue to supply their existing 25-second timeout.
-- Classified response-body `AbortError` and `TimeoutError` failures, including browser-style `DOMException` aborts, as retryable provider timeouts.
-- Kept aggregate token usage unknown when either request in the output-cap fallback sequence omits usage, avoiding silently incomplete cost telemetry.
-- Added a provider-to-run regression proving a response-body timeout requeues the assignment item with a future retry and leaves the batch running rather than failing it closed.
-- No migration was applied, no live provider call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (396 files / 3,597 tests)
-- Focused grading, provider, and durable assignment-run suites (3 files / 27 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Complete targeted remediation and final cumulative reviews for PR #906, then obtain the required external approval before merge.
-- Continue the active internal grading subsystem goal with assignment audit persistence, followed by test and repository-review profiles.
-
-## 2026-07-21 — Durable assignment grading provenance
-
-**Risk profile:** async-grading
+**Model recommendation:** GPT-5 Codex - the pass traces Test-only callers through large teacher and student components, removes dead rendering/contracts, and preserves persistence and compatibility boundaries.
 
 **Completed:**
-- Fixed the cumulative PR #906 review finding that versioned assignment grading metadata was computed but not durably persisted.
-- Added a strict, bounded, pseudonymous provenance contract containing only provider/model, profile/rubric/prompt/policy versions, provider request count, and nullable token usage.
-- Added migration 101 with an `assignment_docs.ai_grading_provenance` JSONB contract and additive service-role-only wrappers around the existing direct-grade and durable-item atomic RPCs, preserving rolling compatibility for old application instances.
-- Added a compatibility trigger that clears provenance whenever legacy direct, durable, batch, repository-review, manual-grade, or missing-work writers replace grade/audit fields without supplying replacement provenance.
-- Routed native Pika assignment grading through both provenance-aware persistence paths while legacy Gradex, missing-work, and repository-review callers write null provenance until their profiles migrate.
-- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, replay preservation, and stale-provenance clearing across old direct, durable, batch, and missing-work writers; updated generated and refined database contracts.
-- No migration was applied locally, no live model call was made, and no production state changed.
+- Removed assessment-mode switches and unreachable quiz submission, result, list-badge, authoring, preview, and grading branches from active Test components.
+- Consolidated student Test form submissions and returned results on current structured Test payloads.
+- Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
+- Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
+- Preserved authoring-preview freshness with uncached reads and a request-generation guard so a late stale response cannot replace a newer refresh.
+- Updated the governed native-control registry for the removed controls and modules.
+- Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
+- Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
+- Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
 
 **Validation:**
-- `pnpm test` (401 files / 3,619 tests after rebasing onto `origin/main`)
-- Focused grading, persistence, migration, Gradex compatibility, and database-contract suites (9 files / 64 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Confirm migration replay, generated-type parity, and the database-backed provenance contract in PR CI, then complete the final independent re-review.
-- Obtain required external approval before merge; continue with test and repository-review profile migration after this assignment foundation lands.
-
-## 2026-07-22 — Phase 3 assignment accessibility evidence
-
-**Completed:**
-- Audited the remaining non-mobile assignment backlog against current `main` and confirmed #891 already shipped polite atomic save announcements and the shared restore-confirmation dialog.
-- Replaced the assignment suite's hand-built confirmation stub with the real `ConfirmDialog`, added focused initial-focus coverage, and locked the visible save-status live-region attributes with regression assertions.
-- Updated the product audit and current context to remove completed assignment work from the backlog. No runtime UI, API, schema, migration, production state, or production data changed.
-
-**Validation:**
-- `pnpm test tests/components/StudentAssignmentEditor.save-submit.test.tsx tests/ui/ModalLayer.test.tsx` (2 files / 52 tests)
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Complete repository gates, independent review, and merge this evidence slice. Then start Daily/Attendance; assignment mobile UX remains deferred and Gradex remains owned by a separate session.
-## 2026-07-22 — Internal repository-review grading profile and provenance
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5.4 - this slice crosses structured provider contracts, sanitization, deterministic fallback semantics, revision fencing, and transactional database provenance.
-
-**Completed:**
-- Moved ambiguous-change classification and repository-review feedback into versioned, strict, bounded grading-core profiles using the shared OpenAI Responses provider, 25-second timeouts, minimal reasoning, and classification batches capped at 50 changes.
-- Preserved Pika ownership of GitHub access, student identity mapping, sanitization, deterministic metrics, heuristic fallback, teacher workflow, and run orchestration; remote Gradex remains disabled.
-- Added truthful per-result provenance for both model output and local heuristic fallback, with actual model/request/token metadata and zero provider requests for deterministic local grades.
-- Added migration 103 with bounded result provenance, model/provenance linkage, an additive provenance-aware wrapper around the migration-087 completion RPC, completed-run replay preservation, exact student-row matching, and atomic propagation to assignment documents.
-- Extended the database harness for service-role isolation, zero-request heuristic persistence, replay, and rollback on invalid provenance. Updated generated types and rollout/architecture guidance. No migration was applied locally, no live model call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (405 files / 3,642 tests)
-- Focused repository-review/core/migration suite (7 files / 30 tests)
+- Focused component and architecture suites (7 files / 118 tests)
+- Full repository suite (407 files / 3,662 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (621 modules / 0 allowances)
+- `pnpm run check:ui-policy` (207 registered native controls / 65 files)
 - `pnpm build`
-- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
+- Pika changed-file audit
+- Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
 - `git diff --check`
+- Independent review found one blocking in-flight preview freshness regression; fixed with a request-generation guard and deferred-response regression coverage.
 
 **Remaining:**
-- Confirm migration 103 replay, database harness behavior, and generated-type parity in ephemeral PR CI; complete independent review and merge only after the assignment/test stack is approved.
-- Add teacher-correction evaluation capture and offline comparison metrics across assignment, test, and repository-review grading.
+- Require independent PR review and exact-head CI before merge.
+- Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
 
-## 2026-07-22 — Identity-free teacher grading reviews
-
-**Risk profile:** async-grading, database, privacy, grading-quality
-
-**Model recommendation:** GPT-5.4 - this slice crosses teacher outcome semantics, rolling-safe grading persistence, strict privacy contracts, and deterministic eval design.
-
-**Completed:**
-- Added a strict `grading-review-v1` core contract that cannot represent student identity, source assessment IDs, submission content, or raw feedback, plus deterministic summaries for criterion/overall score error, acceptance/edit rates, feedback dispositions, and model/profile counts.
-- Added migration 104 with bounded `ai_grading_review` snapshots on assignment documents and test responses. Provenance-aware AI writes initialize reviews; manual edits update final outcomes; assignment/test return marks reviews final; test grade clearing records dismissal; changed student work and legacy AI replacement clear stale reviews.
-- Kept repository-review grading on the assignment-document lifecycle, preserved existing routes and teacher UI, and prevented review-only test metadata updates from advancing response revisions.
-- Added synthetic accepted, edited, dismissed, and pending fixtures plus `pnpm eval:grading-reviews` for free offline evaluation. Remote Gradex remains disabled, the existing Gradex archive extract is unchanged, and no live model call was made.
-- Extended assignment/test database harnesses for suggestion preservation, correction capture, return finalization, dismissal, privacy rejection, legacy-writer clearing, and test revision stability; updated generated/refined types and rollout/privacy guidance.
-- No migration was applied locally or remotely. The local Docker database had no Pika schema, so fresh migration replay and database harness execution remain PR CI gates.
-
-**Validation:**
-- `pnpm test` (407 files / 3,657 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (622 modules / 0 allowances)
-- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
-- `git diff --check`
-
-**Remaining:**
-- Require fresh PR CI to replay migrations 001-104, verify generated type parity, and execute both atomic grading database harnesses.
-- Complete independent review and obtain external approval before merging the stacked grading PRs.
-- After the pilot collects 10-20 teacher-reviewed outcomes, add an explicit local-admin export of minimum sanitized grading inputs for paid candidate prompt/model comparisons.
-
-## 2026-07-22 — Enforced grading-core isolation
-
-**Risk profile:** async-grading, foundational architecture
-
-**Model recommendation:** GPT-5.4 - enforcing extraction boundaries requires repository-wide import analysis while preserving existing grading policy behavior.
-
-**Completed:**
-- Added an architecture rule that prevents every `src/lib/grading/**` module from importing Pika-owned database, server, route, UI, shared application, or type modules, including type-only imports.
-- Moved the canonical Pika test prompt guidelines into the versioned grading profile directory and retained the old application path as a compatibility re-export, preserving current consumers and prompt output.
-- Added a regression test proving the boundary rejects both runtime Supabase and type-only database dependencies while allowing grading-core imports.
-- Documented the enforced extraction boundary. No route, UI, schema, provider, prompt text, production state, or remote Gradex behavior changed.
-
-**Validation:**
-- `pnpm test` (407 files / 3,658 tests)
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- focused architecture and test-grading suites (3 files / 43 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika audit
-- `git diff --check`
-
-**Remaining:**
-- Run the full repository gates and exact-head PR CI, then obtain the required external code-owner approval before merging the grading stack.
-- Apply migrations 100-104 only with explicit target permission, deploy with remote Gradex disabled, and collect 10-20 teacher-reviewed outcomes before adding paid replay comparisons.
-
-## 2026-07-22 — Corrected total-score grading eval error
+## 2026-07-23 — Designed legacy Quiz schema retirement
 
 **Risk profile:** none
 
-**Model recommendation:** Current coding model - the correction is a small deterministic TypeScript aggregation change with focused regression coverage.
+**Model recommendation:** GPT-5 Codex - the pass crosses hosted evidence, archive format versioning, deterministic backfill, package compatibility, and destructive migration rollback without applying schema changes.
 
 **Completed:**
-- Changed overall grading-review error to compare the summed suggested score with the summed final score instead of adding absolute criterion errors.
-- Added a regression scenario where opposite criterion corrections leave the total score unchanged while criterion-level errors remain visible.
-- Preserved acceptance, feedback, and per-criterion metric behavior; no migration, provider, grading prompt, route, or production state changed.
-- Pushed the correction to PR 911 and completed a bounded cumulative self-review with no new findings; the existing independent-review budget for this stack was already exhausted.
+- Added a target-pinned, redirect-rejecting, read-only inventory for legacy Quiz table rows, Quiz drafts, Quiz blueprint assessments, and verified archive manifest counts.
+- Required two matching aggregate snapshots and emitted no row ids, titles, content, storage paths, or credentials.
+- Ran the inventory against production project `zhioqbapgfcrronyuidm`: 1 quiz, 3 questions, 60 responses, 0 manual score overrides, 0 Quiz drafts, and 0 Quiz blueprint assessments.
+- Confirmed the single verified archive-v1 manifest contains the same non-empty Quiz graph.
+- Designed archive-v2 retired-assessment envelopes instead of mapping historical Quiz rows into active Tests, which would resurface removed product data and lose whole-assessment override semantics.
+- Defined additive adapter, freeze/backfill, production-proof, destructive-retirement, gradebook, and course-package passes with explicit approval, validation, and forward-repair gates.
+- Created no migration and performed no production write.
 
 **Validation:**
-- `pnpm test` (407 files / 3,659 tests)
+- Focused inventory, archive, package, gradebook, docs, and architecture suites (8 files / 96 tests)
+- Full repository suite after review remediation (409 files / 3,672 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm check:architecture` (622 modules / 0 allowances)
 - `pnpm build`
-- Focused teacher-correction eval suite (1 file / 6 tests)
-- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
 - Pika changed-file audit
-- Vercel preview checks at `769059be`
+- Production inventory completed with two stable snapshots
 
-**CI note:**
-- GitHub Actions did not trigger for the correction because PR 911 targets the stacked feature branch `codex/internal-repo-review-grading`, while the workflows listen only for pull requests into `main` or `production`. Full CI passed at the immediately preceding PR head; all correction-affected gates passed locally at `769059be`.
+**Review:**
+- Independent review found that the plan needed an explicit version-keyed
+  TypeScript/database archive transition and an atomic fate for zero-row Quiz
+  blueprint assessments.
+- The same review found that equal-count archive replacement was not part of
+  private snapshot stability evidence.
+- Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
+  and blueprint lock/preflight requirements; added private archive UUID/checksum
+  comparison and concrete duplicate, count-drift, and truncated-page tests.
+- Targeted review caught ambiguous destructive-pass wording; clarified that v2
+  becomes current without deleting either immutable registry graph or the v1
+  adapter, and required a post-drop v1 restore fixture.
+- Re-ran the target-pinned production inventory with stable unchanged aggregates.
 
 **Remaining:**
-- After the lower stack lands and PR 911 is retargeted to `main`, require exact-head GitHub Actions and the repository's external approval before merge.
+- Require independent PR review and exact-head CI before merge.
+- Next implement the additive retired-resource envelope and archive-v2/v1 adapter only after explicit approval to create its named migration; do not apply it without separate exact target-and-filename authorization.
+
+## 2026-07-23 — Established versioned Quiz archive compatibility
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5.6 Terra - the pass freezes a historical archive
+contract, adds version dispatch, and converts legacy relational data into a
+future persistence shape without enabling unapproved schema behavior.
+
+**Completed:**
+- Froze the exact 42-resource archive-v1 table, primary-key, and actor-reference
+  contract independently from the live database inventory.
+- Added explicit v1/v2 manifest schemas and registry dispatch while retaining v1
+  as the only enabled export and restore contract.
+- Restricted locale-dependent canonical serialization/checksum recovery to v1;
+  v2 accepts only the current deterministic canonical form.
+- Defined the inactive v2 graph with generic retired-assessment record and actor
+  resources instead of the four Quiz tables.
+- Added a deterministic, non-mutating adapter that preserves complete Quiz and
+  Quiz-draft payloads, parent identities, actor references, timestamps, and
+  canonical SHA-256 evidence without mapping retired data into Tests.
+- Expanded the verified non-empty v1 fixture to include all four Quiz resources,
+  a manual score override, and a Quiz draft.
+- Froze portable v1 tar-content, manifest-content, and per-resource hashes so
+  the non-empty contract cannot be regenerated with silent Quiz drift.
+- Tightened independent-review findings: Quiz drafts retain and validate their
+  Quiz parent; adapter replay preserves existing envelopes; archived actor
+  references must resolve; and strict v2 verification rejects malformed,
+  checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
+- Added an explicit Gradex capability gate and moved source download, checksum,
+  strict verification, identity, and metadata-version binding before operation
+  creation so disabled or mislabeled v2 causes zero RPC or storage writes.
+- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
+  and added a resource registry that enforces payload identity, required
+  parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
+  payload equality, required actor fields/references, and credential-key
+  rejection including client secrets, private keys, and token variants.
+- Updated the retirement plan and cleanup guide to distinguish the completed
+  application foundation from the approval-gated database/v2 activation work.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused archive contract, format, restore, adapter, Gradex, and docs suites
+  (7 files / 59 tests)
+- Full repository suite after review fixes (411 files / 3,690 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Portable empty-v1 tar SHA:
+  `4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093`
+- Non-empty Quiz-v1 tar SHA:
+  `32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58`
+
+**Remaining:**
+- Require changed-file audit, independent PR review, and exact-head CI before merge.
+- Next create the envelope tables and versioned database archive registry, then
+  activate v2 export/restore, only after explicit approval to create the named
+  migration; applying it requires separate exact target-and-filename permission.
+
+## 2026-07-23 — Staged the additive archive-v2 contract locally
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration `105_classroom_archive_v2_contract.sql` with private retired
+  assessment envelopes, a version-keyed archive registry, operation contract
+  pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
+  preserving every deployed v1 RPC and source table.
+- Validated archive-v2 export through deterministic v1 Quiz adaptation and
+  validated the explicit v1/v2-to-envelope restore path. Kept current
+  application export and restore on v1 because compaction remains v1-only and
+  migration 105 is not hosted.
+- Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
+  fail closed until the freeze/backfill pass provides direct v2 snapshots.
+- Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
+  with actor references; added a direct v1-to-v2 archive/restore round trip.
+- Applied migration 105 only to the local validation database after explicit
+  authorization. The first attempt rolled back on deferred FK ordering; moved
+  the version-registry FK creation after seed rows and validated the corrected
+  schema. No hosted database was changed.
+- Regenerated `src/types/database.generated.ts` and added a transactional v2
+  database harness to CI. Legacy v1 export/restore/compaction and Gradex
+  database harnesses remain green.
+
+**Validation:**
+- Full repository suite at the final head: 412 files / 3,710 tests.
+- Focused final suite: 20 files / 232 tests.
+- Local v1 export, v1 restore, v1 compaction, Gradex, and v2 export/restore
+  database contracts.
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm run db:types:check`, migration
+  filename/static checks, `git diff --check`, and Pika changed-file audit.
+
+**Remaining:**
+- Run architecture/build/full final validation at the exact head.
+- Open the PR, independently review and remediate it, then require exact-head CI.
+- Migration 105 still requires separate explicit authorization for every hosted
+  target. The next implementation pass is the atomic freeze/backfill ledger.
+
+## 2026-07-23 — Closed archive-v2 contract review blockers
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Registered the retired assessment record and actor tables in the live
+  44-resource classroom ownership graph while keeping archive v1 frozen at 42
+  resources and archive v2 at 40.
+- Preserved the deployed v1 production inventory contract and separated v1
+  fixtures from the expanding live ownership graph.
+- Reordered restore URL rewriting so v1 source rows are transformed before
+  envelope adaptation, direct v2 payload checksums are recomputed, and the final
+  staged envelope graph is validated after all transformations.
+- Moved the original v1 export begin implementation to a private compatibility
+  function. Both public v1 and v2 begin RPCs now lock the classroom revision
+  before checking for envelopes, fail closed without snapshot rows, preserve
+  completed replay, and serialize concurrent envelope insertion.
+- Added a real two-session database race proving an uncommitted envelope cannot
+  cross the export fence, plus legacy entry-point and zero-snapshot assertions.
+- Made the v2 database harness select the configured Pika Supabase container
+  instead of the first matching local project.
+- Applied only the corrected 105 function segment to `supabase_db_pika` under
+  the existing local authorization; migration history remains 001-105 and no
+  hosted database was changed.
+
+**Validation:**
+- Full repository suite: 412 files / 3,710 tests.
+- Local v1 export, restore, compaction, Gradex, and v2 database contracts.
+- Live local ownership audit: 123 foreign-key relationships.
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm check:architecture`,
+  `pnpm run check:ui-policy`, `pnpm run db:types:check`, `pnpm build`,
+  `git diff --check`, shell syntax check, and Pika changed-file audit.
+
+**Remaining:**
+- Commit and push the remediation, run targeted and integration re-review, and
+  require exact-head CI before merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+- After merge, implement the separately reviewed atomic Quiz freeze/backfill
+  ledger; applying its migration requires a new exact authorization.
+
+## 2026-07-23 — Kept archive v1 current through compaction
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that making v2 the current application export
+  format was incompatible with the still-v1-only compaction path.
+- Kept explicit v2 construction and v1/v2 restore support, but restored v1 as
+  the current application writer and retained the deployed v1 RPC flow.
+- Updated contract and coordinator tests to prove the current writer preserves
+  historical Quiz rows in v1 while the explicit v2 compatibility path remains
+  independently testable.
+- Shortened the continuity summary to restore the startup-document budget.
+
+**Validation:**
+- The full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay with the frozen 42-resource v1 graph.
+- Focused archive and migration suites, startup-document tests, TypeScript, and
+  lint pass.
+
+**Remaining:**
+- Run final repository checks, integration review, and exact-head CI before
+  merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+
+## 2026-07-23 — Preserved pre-105 archive restore rollout
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that the application restore coordinator
+  required migration 105 even though no hosted target has it.
+- Restored the active coordinator and compaction preflight to the deployed v1
+  planner and migration-083 RPCs; current export, compaction, and restore now
+  share the frozen 42-resource v1 contract.
+- Kept a separate explicit v2 planner for compatibility validation without
+  making it reachable from the current application coordinator.
+- Froze the v1 restore order and protected it with a digest and exact resource
+  set regression.
+- Clarified that migration 105 is additive for data and public API surface, but
+  broadens v1-only constraints and wraps selected implementations internally.
+- Added a live database assertion that all six deployed v1 archive RPC
+  signatures and service-role grants survive migration 105.
+
+**Validation:**
+- Active v1 and explicit v2 restore planning tests pass.
+- Local v1 export, restore, compaction, Gradex, and v2 database harnesses pass.
+- Full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay.
+- TypeScript, lint, shell syntax, Pika changed-file audit, and focused tests
+  pass.
+
+**Remaining:**
+- Push the remediation, run the final authorized targeted review, and require
+  exact-head CI before merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+
+## 2026-07-23 — Froze archive restore ordering
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Derived the inactive v2 restore order from the frozen topological v1 order
+  with Quiz resources removed, then appended the retired-assessment record and
+  actor resources parent-first.
+- Removed the final live classroom-graph dependency from v1 compaction
+  preflight staging.
+- Added regressions for every declared v2 parent-before-child dependency and
+  the actual non-empty v1 compaction staging sequence.
+
+**Validation:**
+- Focused archive contract, restore, and compaction tests pass.
+- TypeScript and lint pass.
+- Local compaction database harness and full archive recovery drill pass.
+
+**Remaining:**
+- Publish, independently review, and require exact-head CI before merge.
+- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
+
+## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
+  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
+  parent/child `NOWAIT` locks roll back immediately on live conflicts.
+- Added deterministic SQL envelope IDs and canonical payload checksums matching
+  the TypeScript adapter, parent and actor preflights, collision checks, and an
+  aggregate-only five-resource parity ledger.
+- Kept every source row intact for the observation window and added no
+  dual-write or active Test-table mapping.
+- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
+  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
+- Documented that migration 106 cannot be hosted until direct v2 snapshots,
+  version-aware compaction, and v1-to-v2 restore dispatch are current.
+
+**Validation:**
+- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
+  `git diff --check` pass.
+- Migration 106 was not applied to the shared local database or a hosted
+  target; its executable rehearsal is reserved for disposable PR CI.
+
+**Remaining:**
+- Run repository checks, independent review, and exact-head CI before merge.
+- Next pass: implement the version-aware archive runtime required before
+  migration 106 can receive target-specific application approval.
+
+## 2026-07-23 — Activated direct archive-v2 runtime
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Recorded the maintainer decision that experimental Quiz rows, drafts,
+  envelopes, and Quiz portions of v1 artifacts are disposable.
+- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
+  drafts to Tests, promote the live archive registry to v2, and capture source
+  contract 2 directly.
+- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
+  fallback. V1 restore now discards Quiz resources while retaining other
+  classroom content.
+- Extended disposable replay through migrations 106-107 and proved direct
+  source counts, snapshot membership, upload intent, and finalization.
+- Review remediation now purges the frozen Quiz source rows, fences retryable
+  operations, and makes compaction use migration-107-specific v2 RPCs. V1
+  archives must be re-exported before compaction.
+
+**Validation:**
+- Focused archive coordinator tests and TypeScript pass.
+- The disposable freeze/backfill/direct-source database harness passes.
+- Current-export and atomic-compaction database harnesses pass against the
+  disposable post-107 schema, including a complete v2 cold transition.
+- No shared local or hosted migration was applied.
+
+**Remaining:**
+- Complete repository validation, independent review, exact-head CI, and merge.
+- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
+  remaining active compatibility types and payload fields.
+
+## 2026-07-23 — Prepared legacy Quiz hard removal
+
+**Risk profile:** runtime-platform/destructive-schema
+
+**Completed:**
+- Added migration 108 to fail closed unless migration 107 purged all retired
+  data, then drop the four Quiz tables, their catalog helpers, the private
+  backfill ledger/functions, `gradebook_settings.quizzes_weight`, v1 database
+  export RPCs/registry rows, and retired site-configuration keys.
+- Removed active Quiz branches and aliases from assessment drafts, gradebook,
+  course packages, publishing, blueprints, current domain types, and server
+  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
+  discards `quizzes.md` while preserving reusable non-Quiz content.
+- Reduced the live classroom ownership graph from 44 to 40 resources while
+  retaining the immutable archive-v1 resource contract solely for discard-only
+  restore of non-Quiz classroom data.
+- Regenerated Supabase database types from a disposable post-108 database; the
+  generated contract has no Quiz tables, fields, or functions.
+- Removed obsolete retirement inventory, backfill parity, and envelope adapter
+  utilities after their destructive decision was finalized.
+- Review remediation preserves course-package v2 as an import-only boundary,
+  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
+  classroom restore now excludes Quiz-only actors and storage objects from the
+  restore plan after validating the complete source artifact.
+- Migration 108 now requires exact equality between the live archive registry
+  and versioned source contract 2. The disposable harness proves registry drift
+  fails without deleting v1 metadata or Quiz tables before restoring the
+  registry and completing hard removal.
+- Final integration review found the production archive canary still bound to
+  archive v1. The operator runner and runbook now use archive format 2, the
+  40-resource graph, migration-107 source/restore contracts, and the current v2
+  restore planner. A subprocess smoke test loads the actual excluded script so
+  future import drift fails in Vitest.
+
+**Validation:**
+- Fresh disposable replay through migrations 106-108 passes freeze, direct
+  archive-v2 activation, hard-removal catalog assertions, current export,
+  restore, and compaction contracts.
+- Generated Supabase types exactly match the disposable post-108 schema.
+- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
+  and the Pika pre-commit audit pass.
+- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
+  database contract also passes against the disposable database.
+- The focused post-review archive suite passes: 4 files and 53 tests, including
+  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
+  and the Pika audit remain green after the canary port.
+- Migration 108 was not applied to the shared local database or any hosted
+  target.
+
+**Remaining:**
+- Complete PR review/remediation, exact-head CI, and merge. Applying migration
+  108 remains separately target-authorized.
+
+## 2026-07-23 — Rebased test-preview hardening after Quiz removal
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
+  the canonical test-only API and both preview request-order regressions.
+- Resequenced the atomic snapshot migration to 109 and consolidated the
+  uncommitted document-authoring and durable-cleanup schema into migration 110.
+- Kept ordinary document writers behind compare-and-swap updates, added a
+  leased storage-cleanup queue and cron worker, and retained real transport
+  SSRF/timeout coverage.
+- Left the shared local database unchanged. It remains reset and seeded through
+  migration 104; migrations 105-110 are unapplied there.
+
+**Validation:**
+- Full Vitest coverage passes: 421 files and 3,749 tests.
+- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
+- No local or hosted migration was applied.
+
+**Remaining:**
+- Run targeted security rereview and final integration review.
+- Push the rebased exact head, wait for CI, and merge only after approval.
+
+## 2026-07-24 — AI-readiness CLI probe, course-import fix, repo tidy
+
+**Completed:**
+- Explored making Pika "AI-ready"; built a delete-able CLI probe (`pnpm pika`, branch `cli-probe`) that drives teacher operations headlessly via the existing role-gated API — no server changes. Logs in through `POST /api/auth/login`, persists the session cookie to `.auth/` (gitignored), and reuses the shared markdown contracts so a script produces exactly what the UI does. Commands: `login`, `whoami`, `test pull/push`, `course list/push/instantiate`; writes are dry-run unless `--yes`. Added `scripts/pika-cli-smoke.ts` (`pnpm smoke:pika-cli`) whose pull→push→pull round-trip is a drift detector. Pushed the branch to start a usage trial; not a merge candidate.
+- The probe surfaced a real bug on first use: importing a course package containing tests/lesson-plans failed with `400 assessments.N: Unrecognized key: "id"`, affecting both the JSON API and the UI's tar upload. Root cause: markdown parsers attach `id: existingMatch?.id` (undefined on fresh import), which zod 4 rejects on `.strict()` schemas; assignments were normalized but assessments and lesson templates were passed raw. Fixed by normalizing all three consistently in `buildCreateBlueprintWritePlan`, with regression tests at the write-plan layer (the existing route test mocks the function, so it could not catch this). Merged as PR #932.
+- Fixed `scripts/repo-tidy.sh` to classify worktrees by PR state (reusing the existing `PR_MAP`) instead of remote presence, since squash-merge + delete-on-merge makes "not on remote" the normal state of merged work — the old logic inverted the risk signal (33 of 44 flagged items were already merged). Merged as PR #934.
+- Repo hygiene: reduced worktrees from 48 to 6 (removed 42 merged/closed-PR worktrees and local branches, remotes preserved for recovery), deleted one merged remote branch, and closed stale PR #567.
+
+**Validation:**
+- Full `pnpm test` (413 files, 3688 tests) on the #932 fix; regression tests confirmed to fail without the patch with the exact production error.
+- End-to-end via the CLI against fixed `main`: `course push` with `tests.md` imports, `course instantiate` creates a classroom, and both quizzes materialize as real tests — the exact case that failed pre-fix.
+- `pnpm smoke:pika-cli --full` passes; typecheck and `pnpm check:architecture` clean on both PRs.
+
+## 2026-07-24 — Aligned Claude workflow guidance
+
+**Risk profile:** none
+
+**Completed:**
+- Aligned the Claude session-start and workflow-reset commands with the
+  canonical startup and worktree guidance.
+- Simplified the Claude issue helper to route worktree setup through
+  `docs/dev-workflow.md` instead of hardcoding one named-worktree layout.
+- Added semantic prompt invariants covering both Claude and Codex startup,
+  workflow-reset, and issue-helper surfaces.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts` passes: 31 tests.
+
+**Remaining:**
+- None.
+- `pnpm run db:types:check`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
+- Component keyboard regression for document focus entry/return and semantic region assertions
+- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
+- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
+- `git diff --check`
+
+**Remaining:**
+- Require targeted security review, final integration review, exact-head CI, and protected merge.
+- Apply migration 105 to each deployment target before deploying the updated sync route.
+- Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.
+
+## 2026-07-24 — Remediated test-preview review findings
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto current `main` and retained collision-free migrations 109
+  and 110 without changing the shared local or hosted databases.
+- Closed snapshot cleanup races by requiring pending provisional evidence under
+  a row lock before attachment and by making the database concurrency harness
+  use a deterministic lock barrier.
+- Defined durable snapshot ownership across live tests, cold archives, and
+  defensive legacy blueprint rows. Reusable blueprint capture, persistence,
+  export, and instantiation now strip classroom-specific snapshot metadata.
+- Applied one absolute deadline across DNS, redirects, and response transport,
+  and discard redirect bodies without buffering them.
+- Rebound an open teacher-preview document to refreshed same-ID data and close
+  the viewer when the document disappears.
+
+**Validation:**
+- Focused remediation suite: 12 files and 142 tests.
+- Full Vitest suite: 421 files and 3,767 tests.
+- TypeScript, ESLint, architecture boundaries, production build, shell syntax,
+  `git diff --check`, and Pika changed-file audit pass.
+- Teacher preview verified visually at desktop and mobile; student access to
+  the teacher-only route correctly renders the unavailable state.
+- No migration was applied to the shared local database or a hosted target.
+
+**Remaining:**
+- Push the rebased exact head, run the disposable migration/database checks in
+  CI, and resolve any exact-head failures before merge.
+
+## 2026-07-24 — Promoted the pika teacher CLI and made it global
+
+**Completed:**
+- Reviewed the CLI before real use and fixed four bugs: the flag parser
+  greedily consumed the token after `--yes`, so `test push --yes <id> <file>`
+  read the id as the flag's value; `course push` defaulted a missing manifest
+  version to `3` after the format moved to `4`; `test pull --out nested/dir.md`
+  threw when the directory did not exist; and help omitted the required
+  `--semester`/`--year` args for `course instantiate`. Added `--key=value`
+  support.
+- Closed the curriculum-as-code loop for whole courses. `course pull` exports a
+  blueprint to an editable directory using the shipped package decoder, and
+  `course push` now detects an existing blueprint by course code (else title)
+  and refuses by default, with `--replace` to recreate and `--new` to duplicate
+  on purpose. Previously every push created another blueprint.
+- Promoted the CLI from the `cli-probe` experiment into `main` (PR #937) and
+  retired `scripts/pika`, the earlier worktree-router that held the name,
+  rewriting its section in `docs/dev-workflow.md`.
+- Made the CLI runnable from anywhere. It must run with CWD at the repo root
+  because `src/lib` uses `@/` tsconfig aliases that tsx resolves from the
+  working directory, so `scripts/pika-global.sh` cds in but forwards the
+  caller's directory via `PIKA_ORIGIN_PWD`; repo-owned paths (`.env.local`, the
+  saved session) anchor to the repo through `__dirname`. Installed as a
+  dedicated checkout at `~/.pika-cli` on `main`, symlinked to `~/bin/pika`.
+- Made `smoke:pika-cli --full` tear down the blueprint and classroom it creates,
+  including when an assertion throws partway through (PR #938). Without it,
+  runs had accumulated nine duplicate blueprints and nine stray classrooms
+  locally; those were cleared, keeping the seeded `Test Classroom`.
+
+**Validation:**
+- Full smoke (`--full`) passes; three consecutive runs leave row counts
+  unchanged, `--keep` retains exactly one blueprint and classroom, and an
+  injected mid-phase failure tears down without leaking.
+- Course round-trip verified end to end: push, pull, guard refusing a duplicate,
+  edit, `push --replace`, then pull confirming the edit landed.
+- Global `pika` verified from an unrelated directory: files land in the caller's
+  cwd and nothing leaks into `~/.pika-cli`.
+- TypeScript and `pnpm check:architecture` (628 modules) clean; CI green on both
+  PRs.
+
+**Remaining:**
+- Use the CLI for real curriculum work and let that rank the next slice.
+  Unbuilt candidates: gradebook commands for agent-in-the-loop grading,
+  `assignment pull/push`, and creating a test from scratch.
+- `~/.pika-cli` does not self-update; run `git -C ~/.pika-cli pull` after CLI
+  changes land.
+
+## 2026-07-25 — Authoring system WYSIWYG rollout
+
+**Completed:**
+- Added governed `brief`, `compact`, `document`, and `markdown-safe` TipTap toolbar presets, accessible editor semantics, shared authored-content fields/save status, and a limited-Markdown WYSIWYG compatibility boundary with round-trip warnings.
+- Migrated assignment instructions, classwork materials, test question prompts, and teacher calendar direct entry to purpose-fit WYSIWYG while retaining structured answer/options/code/document inputs and explicit advanced Markdown modes.
+- Kept full document tools for student assignment submissions and class resources, no-toolbar editing for student daily reflections and calendar cells, and unified autosave status presentation.
+- Reworked the mobile week calendar into one aligned horizontal viewport and centered the active direct-entry cell; fixed mobile editor toolbar placement and shared dark-mode editor text.
+- Preserved existing Markdown/TipTap storage, autosave/history behavior, APIs, schema, and data.
+
+**Validation:**
+- `pnpm test --run` (427 files / 3,794 tests)
+- `pnpm lint`
+- `pnpm check:architecture` (631 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Teacher/student desktop/mobile light/dark Playwright matrix for assignment authoring, student submissions, test authoring, and calendar viewing/direct entry
+- Composite-widget accessibility checklist reviewed; keyboard behavior and semantic state covered by tests; no remaining manual follow-up
+- `git diff --check`
+
+**Remaining:**
+- Publish or merge the isolated `codex/authoring-system` worktree when ready; no schema rollout is required.
+
+## 2026-07-25 — Rebased and reviewed PR 832
+
+**Risk profile:** exam-mode
+
+**Model recommendation:** GPT-5.6 Terra — standard-risk application behavior review.
+
+**Completed:**
+- Rebased the test-answer completeness simplification from PR #832 onto current `origin/main` in a dedicated worktree.
+- Preserved the shared completeness predicate used by the student submit gate and TypeScript final-response validator; whitespace-only open responses remain incomplete.
+- Removed a stale test prop exposed by the rebase and repaired the old session-log edit so current continuity entries remain intact and chronological.
+- Completed an independent correctness and test-adequacy review with no actionable or merge-blocking findings.
+
+**Validation:**
+- Focused test-submit Vitest: 5 files / 49 tests.
+- Full Vitest suite.
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (631 modules / 0 allowances)
+- `pnpm build`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Push the rebased exact head to PR #832 and require fresh CI before merge.
+
+## 2026-07-25 — Design-system consolidation Phase 1
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra — documentation-only authority and
+consistency review.
+
+**Completed:**
+- Added root `DESIGN.md` as the canonical design entry point and documented the
+  source-of-truth order across principles, executable tokens, shared UI,
+  Tailwind aliases, stable/family-specific/experimental/legacy guidance, and
+  Git history.
+- Consolidated the still-useful compact-density and approachable-character
+  principles from the historical design-system document, replaced
+  `docs/core/design.md` with a compatibility redirect, and retired
+  `docs/design-system.md` without copying its obsolete raw colors, 36px target
+  guidance, or pre-token recipes.
+- Updated active AI instructions, prompts, documentation routing, governed UI
+  guidance, and `src/ui/README.md` to route design work through the new
+  authority.
+- Added documentation hierarchy tests covering the root authority, redirect,
+  historical-document disposition, active legacy governance, and AI routing.
+- Opened PR #948. Independent review found two non-blocking documentation-index
+  and redirect-test gaps; both were corrected in one remediation batch, and the
+  targeted re-review was clean.
+- Kept this phase documentation-only: no visual, component, token, Pal runtime,
+  dependency, schema, or application behavior changes.
+
+**Validation:**
+- Full Vitest suite.
+- `pnpm lint`.
+- Focused UI guidance, policy, and semantic-token contrast tests: 3 files / 24
+  tests.
+- UI policy scan: 202 registered native controls across 64 files.
+- Architecture boundaries: 631 modules / 0 deletion-only allowances.
+- `bash scripts/verify-env.sh`.
+- `git diff --check`.
+
+**Remaining:**
+- Require green exact-head CI and a clean final integration review before any
+  merge decision.
+- In Phase 2, add the missing portable foundation tokens and policy checks
+  before implementing the Pika-to-Pal semantic bridge.
+
+## 2026-07-25 — Pika-side Pal achievements pilot
+
+**Risk profile:** integration, privacy, database, cross-origin embed
+
+**Completed:**
+- Implemented the disabled-by-default `PAL_ENABLED` pilot on
+  `codex/pal-pilot`, with pinned Pal v1 contract fixtures and stable HMAC
+  learner/classroom/item/fact tokens. Outbound payloads exclude raw IDs,
+  assignment names, work, grades, deadlines, and teacher-maintained catalogs.
+- Drafted unapplied migration 111 for a service-role-only transactional
+  outbox, leases, retries, non-retryable visibility/requeue, and monotonic
+  learner/week opportunity revisions.
+- Wired authenticated session, new enrollment, the real daily-log autosave
+  creation path, genuine first assignment open, and first valid assignment
+  completion to the outbox. Duplicate daily logs and resubmissions retain one
+  fact identity.
+- Added daily Monday–Friday opportunity reconciliation across learner
+  enrollments and class days, including short weeks, schedule/archive changes,
+  completion floors, and terminal prior-week closure.
+- Added the student-only Achievements navigation item and secure
+  `/embed/roadmap` iframe with origin/source/nonce validation, short-lived
+  read-token handoff, bounded failure/retry, and light/dark appearance
+  messages. Pika retains its shell; Pal owns roadmap and reward rendering.
+- Added the Pika operations/rollout guide, including week-boundary rollout,
+  no historical backfill, at-least-once/out-of-order delivery, and current Pal
+  prerequisites. No migration was applied and no environment was enabled.
+
+**Validation:**
+- `pnpm test` (440 files / 3,850 tests).
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (648 modules / 0 allowances)
+- `pnpm check:ui-policy` (202 controls / 64 files)
+- `pnpm build`
+- Desktop/mobile and light/dark Playwright inspection using a temporary Pal
+  handshake harness; selected navigation, ready embed, and live theme changes
+  were verified.
+- `git diff --check`
+
+**Remaining:**
+- Apply migration 111 only through the separately authorized target-specific
+  process.
+- Complete Pal v1 ingest, read-token, and `/embed/roadmap` dependencies, then
+  run the real duplicate/retry/out-of-order vertical slice before enabling the
+  pilot or merging the integration branch to `main`.
+
+## 2026-07-25 — Pika-side Pal achievements pilot
+
+## 2026-07-26 — DESIGN.md product-conformance loop
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Sol high reasoning — cross-checking design
+authority against implemented owners, current product evidence, and a portable
+widget boundary requires repository-wide synthesis.
+
+**Completed:**
+- Audited the canonical root design contract against executable tokens,
+  Tailwind aliases, shared primitives, policy tests, representative product
+  surfaces, and the current Pal pilot footprint.
+- Used two Open Design passes to classify confirmed invariants, executable-only
+  behavior, migration gaps, governed legacy exceptions, and unverified Pal
+  work; the second independent pass gave the revised structure a qualified
+  pass and identified two final wording edits.
+- Refined `DESIGN.md` with an explicit claim-classification model, observed
+  Pika visual invariants, named adoption gaps, bounded classroom/auth/workspace
+  exceptions, evidence freshness requirements, risk-matched verification, a
+  conformance loop, and a provisional Pika-to-Pal handoff packet.
+- Kept exact visual values with their executable owners and retained the Pal
+  bridge detail only as a provisional handoff until the real package API can be
+  reviewed.
+- Added hierarchy-test coverage for the new classification, verification,
+  evidence, and provisional-contract language.
+- Kept the work documentation-only; no existing runtime UI, behavior, tokens,
+  dependencies, schema, migrations, or production state changed.
+- Opened PR #949. Independent review found that shell-light authentication
+  guidance overstated current legacy text-control conformance, the start
+  taxonomy did not explicitly define governed legacy/experimental guidance,
+  and the linked July evidence set did not identify its missing provenance.
+  One remediation batch classified the registered auth controls as Phase 6
+  migration debt, completed the taxonomy, and marked the older captures as a
+  historical evidence set rather than fresh conformance proof.
+- Targeted review then found that the observed-invariant definition still
+  called the linked evidence current. A second narrow remediation distinguished
+  current executable owners from recorded historical baselines and requires
+  refreshed captures before claiming current visual conformance.
+
+**Validation:**
+- Open Design revision board: structure, interaction, evidence integrity,
+  responsive breakpoints, visible 44px controls, and independent desktop render
+  inspection at 1280px.
+- Full Vitest suite: 427 files / 3,799 tests.
+- `pnpm exec tsc --noEmit --pretty false`.
+- `pnpm lint`.
+- Architecture boundaries: 631 modules / 0 deletion-only allowances.
+- UI policy scan: 202 registered native controls across 64 files.
+- `bash .codex/skills/pika-audit/scripts/audit.sh`.
+- `node scripts/trim-session-log.mjs --check`.
+- `git diff --check`.
+
+**Remaining:**
+- Complete targeted remediation review and exact-head CI for PR #949, and merge
+  only if the review gate is clean.
+- Keep future Pal custom-property names provisional until `@pal/widget`, the
+  Pika adapter, contract tests, and host captures are reviewed together.
+
+## 2026-07-26 — Portable design-foundation enforcement
+
+**Risk profile:** standard
+
+**Model recommendation:** GPT-5.6 Sol high reasoning — shared token aliases,
+class-merging behavior, repository-wide visual-value policy, and pixel-parity
+evidence require cross-layer verification.
+
+**Completed:**
+- Added host-neutral typography, minimum target, focus, motion, page-width,
+  density, layer-responsibility, and light/dark scrim variables while preserving
+  the implemented Pika values.
+- Exposed the foundations through Tailwind and migrated canonical page,
+  control, overlay, status, header, tooltip, tab, table, and floating-action
+  owners to semantic aliases.
+- Extended `tailwind-merge` so semantic ring-width and ring-offset aliases
+  remain distinct from semantic ring colours; the first focused test run caught
+  this before commit.
+- Added reduced-motion resolution for shared duration tokens. Normal light/dark
+  geometry and appearance remain unchanged; adopted transitions resolve to
+  zero only when reduced motion is requested.
+- Added an exact design-value policy for raw colours, arbitrary spacing, and raw
+  layers. The governed baseline records count, fingerprint, reason, and
+  migration owner, so additions, removals, and same-count substitutions fail
+  CI without an explicit registry update.
+- Added portable-foundation contract tests, updated affected component
+  contracts, wired the design policy into CI, and documented the foundation and
+  exception rules in `DESIGN.md`, stable guidance, and `src/ui/README.md`.
+- Added a repository PR conformance checklist and a durable visual-evidence
+  provenance template.
+- Independent review found that the first raw-value scanner missed arbitrary
+  Tailwind values/properties, literal inline styles, and CSS/SCSS, and that
+  caller-last overrides did not conflict with every new Tailwind alias.
+- Expanded the policy across TypeScript, JavaScript, CSS, and SCSS while
+  preserving `src/styles/tokens.css` as the explicit semantic-definition
+  boundary. Follow-up review also closed arbitrary color-property and
+  background-shorthand escapes. The exact baseline now governs 779 values
+  across 100 files.
+- Registered page-width, minimum-target, density (including negative bleed),
+  motion, easing, and layer aliases in `tailwind-merge`, with caller-last
+  regression coverage for every portable alias family.
+
+**Validation:**
+- Full Vitest suite: 429 files / 3,810 tests.
+- `pnpm lint`.
+- `pnpm build`.
+- `pnpm exec tsc --noEmit --pretty false`.
+- Architecture, UI policy, design policy, and semantic-token contrast checks.
+- Pika audit passed; composite accessibility checklist reviewed, with keyboard
+  behavior and semantic state covered by existing and updated tests.
+- Browser experience matrix: 18/18 across teacher/student, desktop/mobile, and
+  light/dark.
+- Pika UI verification screenshots reviewed for teacher desktop, teacher
+  mobile, student mobile, and mobile dark variants.
+- Direct current-`main` comparison: teacher/student light/dark classroom-index
+  captures were pixel-identical below the dynamic clock header; the login
+  capture was fully pixel-identical. Stored snapshot baselines are stale under
+  the current browser/runtime and were not rewritten in this change.
+- Remediation regressions: 13/13 focused policy/foundation tests; all six files
+  that timed out under full-suite parallel resource contention passed
+  sequentially (165/165).
+- `git diff --check`.
+
+**Remaining:**
+- Commit and publish the review remediation, complete targeted independent
+  review and exact-head CI, and merge only when both gates are clean.
+- Keep the public `--pal-*` bridge out of Pika until the actual `@pal/widget`
+  package API can be reviewed and contract-tested.
+
+## 2026-07-26 — Pika-to-Pal theme adapter
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Sol high reasoning — the small adapter still
+requires exact cross-repository contract and semantic-token drift checks.
+
+**Completed:**
+- Added a dormant, widget-scoped Pika theme boundary that aliases the reviewed
+  36-property Pal contract exclusively to existing Pika semantic tokens.
+- Vendored only Pal's dependency-free contract manifest while `@pal/widget`
+  remains private; no Pal components, styles, artwork, or behavior were copied.
+- Confirmed contract version 1 in `DESIGN.md` while keeping Pika ownership of
+  host layout, overlay placement, theme, density, focus, and motion.
+- Added drift tests for property completeness, allowed appearance attributes,
+  raw-value exclusion, and existence of every referenced Pika token.
+- Isolated this safe adapter from the broader draft Pal pilot after independent
+  review found rollout blockers in that cumulative branch.
+
+**Validation:**
+- Focused design/theme guidance tests: 17/17.
+- TypeScript, lint, production build, architecture check, UI policy, design
+  policy, and Pika audit passed.
+- No current route mounts the boundary, so existing Pika UI/UX is unchanged.
+
+**Remaining:**
+- Complete independent review and exact-head CI for the isolated adapter PR.
+- Replace the vendored manifest with a direct package import when Pal publishes
+  `@pal/widget`; mount it only as part of the separately reviewed native pilot.
+
+## 2026-07-26 — Pika-to-Pal widget theme contract
+
+**Risk profile:** cross-repository UI contract, accessibility, package release
+
+**Completed:**
+- Pal commit `7a6d869` defines theme contract v1 with 36 optional scoped
+  properties, explicit theme/density/viewport/motion provider values, portable
+  light/dark fallbacks, focus/target/motion handling, and contract tests.
+- Added the Pika `PalWidgetThemeBoundary` and one CSS-module adapter that maps
+  every Pal input to an existing Pika semantic token without copied raw values.
+- Vendored only Pal's dependency-free property manifest while `@pal/widget`
+  remains private; documented its upstream commit and mandatory deletion after
+  the package can be imported directly.
+- Updated `DESIGN.md`, the pilot runbook, startup context, and hierarchy tests
+  to record the confirmed native-widget boundary. The disabled iframe remains
+  an interim prototype and is not an enablement target.
+- Registered the interim iframe's two existing raw height utilities under the
+  native-widget release owner so current design-policy CI remains exact.
+
+**Validation:**
+- Pal widget tests: 37/37; Pal widget/web lint and typecheck passed.
+- Pal sandbox reviewed at 1440x900 and 390x844 in light/dark, including visible
+  keyboard focus and reward/companion layers; desktop is the default.
+- Pika adapter, hierarchy, startup-budget, and design-policy tests passed.
+- Pika audit, lint, typecheck, architecture, UI policy, design policy, build,
+  and `git diff --check` passed.
+- Full Pika suite passed 443/444 files and 3,870/3,871 tests; the sole
+  unrelated `TestDetailPanel` timeout passed in isolation in 0.54s.
+
+**Remaining:**
+- Publish a reviewed non-private `@pal/widget` package and import its contract
+  directly.
+- Replace the disabled iframe with the native provider/surfaces, then run the
+  authenticated Pika student visual matrix and real delivery vertical slice.
+- Migration 111 and feature enablement remain human-controlled.
+
+## 2026-07-26 — Versioned Course Blueprint lineage and proposals
+
+**Risk profile:** high — migration 111 changes reusable artifact identity and
+structural revision triggers, and adds atomic proposal application.
+
+**Completed:**
+- Defined Course Blueprint, Blueprint Draft, immutable Blueprint Version,
+  Artifact ID, Course Package, Change Proposal, and Classroom Archive
+  boundaries. Student work and classroom runtime state remain outside the
+  Blueprint.
+- Added package format v5 with UUIDv4 Artifact IDs and exact Blueprint
+  revision/version/editing-session provenance while retaining legacy package
+  import adapters.
+- Added stable Blueprint-to-classroom lineage for assignments, tests,
+  questions, submission requirements, lesson plans, classwork materials,
+  surveys, and survey questions.
+- Expanded the complete reusable structure boundary to include mixed classwork
+  ordering, assignment authenticity settings, and category gradebook defaults
+  while excluding releases, responses, grades, and other runtime/student data.
+- Added content-addressed immutable Blueprint Versions and made export and
+  classroom instantiation save/select an exact Version.
+- Added atomic, idempotent, stale-safe proposal storage/application for
+  repository, classroom, package, and Pika AI sources.
+- Completed the inverse update path from an immutable Blueprint Version into
+  an existing linked classroom. Pika now prepares a classroom-target proposal
+  against exact Blueprint, classroom, start-date, and class-day revisions and
+  applies the reviewed plan atomically.
+- Added live-classroom successor safety: attempted Tests, surveys with
+  responses, and assignments with student documents retain their historical
+  rows and receive new unpublished draft successors for content updates.
+  Blueprint removals retire lineage from future sync without deleting runtime
+  or student data.
+- Replaced destructive CLI replacement with pull-edit-propose-review/apply and
+  added proposal listing/application commands.
+- Added explicit Pika-managed versus repository-managed authority. Direct Pika
+  Draft edits are blocked in repository mode.
+- Routed classroom promotion and AI drafting through proposals rather than
+  direct Blueprint writes.
+- Added teacher Materials, Surveys, and Grading editors, AI targets, and a
+  Proposal review surface with operation-level diffs, actionable/stale states,
+  and repository read-only messaging.
+- Applied migrations 106-111 to shared local after a verified backup and
+  regenerated the database contract.
+- Published draft PR #952 after rebasing onto current `main`. Independent
+  security/migration and architecture/compatibility reviews found and the
+  first remediation batch fixed external publication-state authority, stale
+  classroom-source application, Version deletion cascades, concurrent proposal
+  replay, strict v4 file validation, archive ownership classification for
+  workflow-only classroom references, and current-main UI policy registration.
+- Added a database-backed CI contract for two-connection proposal replay,
+  source-classroom staleness, direct Version immutability, and Blueprint/user
+  cascade deletion.
+- Fixed the final CI integration issues: archive schema fixtures now include
+  declared non-owning Blueprint workflow references, and classroom structural
+  revision triggers honor the archive-restore transaction guard so a restored
+  classroom exactly preserves its verified source revision.
+
+**Validation:**
+- Full Vitest suite: 437 files / 3,851 tests.
+- Focused migration, Blueprint, Test, and assignment compatibility coverage:
+  7 files / 64 tests.
+- `pnpm run db:types:check`.
+- `pnpm exec tsc --noEmit`.
+- `pnpm lint`.
+- `pnpm build` (valid `.next/BUILD_ID`).
+- Pika audit.
+- Playwright teacher desktop/mobile, light/dark, empty/populated, Materials,
+  Grading, two-way Classroom Updates, and classroom-target proposal-detail
+  captures; student route redirect capture.
+- `git diff --check`.
+- Local history through 111, identity/runtime preservation checks, and
+  rollback-only Version, revision, proposal, and successor smokes.
+- Rebased-head full suite, generated database-type parity, TypeScript, lint,
+  build, UI/design policies, Pika audit, and the live versioned-Blueprint
+  database contract.
+- Exact local archive recovery rehearsal passed export, compaction,
+  ownership-fenced source cleanup, exact row/object restore, and all
+  idempotent replays.
+- PR #952 review-head CI exposed archive fixture/recovery integration gaps;
+  both failing paths pass locally after the final remediation.
+- Pre-migration backup:
+  `/Users/stew/Repos/.env/pika/backups/pika-local-pre-106-111-20260726T201121Z.dump`
+  (SHA-256 verified).
+
+**Remaining:**
+- Publish the final remediation, run final independent exact-head review, and
+  require exact-head CI before marking PR #952 ready. Leave it unmerged unless
+  explicit merge authority is provided.
+
+## 2026-07-27 — PR 951 rebase and hardening
+
+**Risk profile:** high — privacy contract, service-role SQL, transactional
+source writes, background delivery, and cross-repository integration.
+
+**Completed:**
+- Rebased `codex/pal-pilot` onto current `origin/main`; retained migration 111
+  without a sequence collision and dropped duplicate adapter content already
+  merged through PR 953.
+- Hardened Pal's authoritative v1 contract on Pal PR 39 at commit
+  `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`, then synchronized Pika's
+  vendored validator and privacy fixtures. Event envelopes and metadata are
+  both closed allow-lists.
+- Made enabled configuration fail closed; restricted Pal to HTTPS origins
+  (loopback HTTP only in development); required distinct 32-character minimum
+  integration/pseudonym secrets; capped read tokens at ten minutes.
+- Removed silent null-event fallbacks from authoritative learner transitions.
+  Empty/format-only logs no longer qualify, while empty autosaves emit
+  atomically when they first gain real content.
+- Preserved journal mood/minutes and optimistic version checks across the
+  Pal-enabled POST/PATCH transaction paths.
+- Added bounded missed-week recovery (12 periods/run) and a deadline-aware
+  outbox drain (20-row batches, concurrency 10, 10 batches/run) with remaining
+  ready-row reporting.
+- Added the CI-generated Pal tables/functions to
+  `src/types/database.generated.ts` and replaced new Pal persistence `any`
+  boundaries with the generated service-role client types.
+
+**Validation:**
+- Clean ephemeral Supabase replay confirmed migration 111 and generated types
+  are exact; no local or hosted migration was applied.
+- Focused hardening suite: 80/80 tests.
+- TypeScript, lint, architecture, UI policy, Pika audit-equivalent committed
+  diff scan, and `git diff --check` passed.
+- Independent security and operability reviewers found the lease/budget and
+  journal-field parity issues above; their remediation passes targeted review.
+
+**Remaining:**
+- Publish the final remediation commit and require exact-head CI plus final
+  independent security confirmation.
+- Keep PR 951 draft and `PAL_ENABLED=false`; the published native widget,
+  authenticated vertical slice, and one-time human authorization for the
+  named migration target remain rollout gates.
+
+## 2026-07-27 — Versioned Blueprint residual hardening
+
+**Risk profile:** runtime-platform — migration 111 trigger and proposal
+application invariants.
+
+**Completed:**
+- Replaced trigger-depth authorization for Blueprint Version deletion with
+  proof that the owning Blueprint or user is absent during an FK cascade.
+- Made proposal application preserve Pika's current planned-site publication
+  state at the SQL boundary.
+- Added live database contracts for unrelated nested-trigger deletion,
+  concurrent classroom-target proposal replay, and proposal attempts to
+  publish or unpublish a planned site.
+- Returned PR #952 to draft. The shared local database remains on the prior
+  migration 111 definition pending fresh, explicit application permission.
+
+**Validation:**
+- Full Vitest suite: 438 files / 3,854 tests.
+- Focused Blueprint migration/package/proposal/version tests: 4 files / 36
+  tests.
+- Isolated rollback-only PostgreSQL trigger simulation covering direct,
+  unrelated nested, Blueprint-cascade, and user-cascade deletion.
+- TypeScript, lint, build, database types, architecture/design/UI policies,
+  Pika audit, shell syntax, session-log check, and `git diff --check`.
+
+**Remaining:**
+- Publish the draft revision and require ephemeral migration replay, the live
+  versioned-Blueprint database contract, exact-head CI, and final review before
+  marking PR #952 ready again.
+
+## 2026-07-27 — PR 952 migration resequence
+
+**Risk profile:** high — migration ordering and local-history drift.
+
+**Completed:**
+- Rebased PR #952 onto current `origin/main`, preserving Pal and Blueprint
+  continuity entries.
+- Resequenced the branch-only Blueprint migration from 111 to 112 after Pal
+  claimed 111 on `main`; updated runtime errors, docs, and tests.
+- Kept the shared local database untouched because its earlier Blueprint-as-111
+  history requires separate reset or repair authorization.
+- Compacted current AI context under the enforced startup budget.
+
+**Validation:**
+- Full Vitest suite: 451 files / 3,933 tests.
+- Focused Blueprint/startup suite: 43 tests.
+- TypeScript, lint, architecture, design/UI policy, audit, ShellCheck, Bash
+  syntax, session-log validation, duplicate migration-prefix check, and diff
+  checks pass.
+
+**Remaining:**
+- Build, commit, force-push with lease, and require fresh 001–112 CI replay,
+  generated-type parity, database contracts, and exact-head review.
+
+## 2026-07-27 — Local migration-history reconciliation
+
+**Risk profile:** high — destructive local database reset.
+
+**Completed:**
+- Verified the feature worktree and local-only Supabase target, then confirmed
+  the ledger collision: local 111 contained the earlier Blueprint draft while
+  current 111 is Pal and Blueprint is 112.
+- Created and checksum-verified a full custom-format PostgreSQL backup.
+- With explicit authorization, reset only the local database without seed data
+  and replayed migrations 001–112.
+
+**Validation:**
+- Local migration ledger matches Pal 111 and Blueprint 112; push dry-run is a
+  no-op.
+- Generated database types match.
+- Live versioned-Blueprint database contract passed.
+- Pal outbox and Blueprint Version objects exist.
+
+**Remaining:**
+- The rebuilt local database contains no users or seed data. Recover prior data
+  only through a separately planned selective restore; a full restore would
+  reintroduce the old migration history.

@@ -31,14 +31,14 @@ describe('TeacherWorkSurfaceFloatingActionCluster', () => {
     )
 
     const cluster = screen.getByRole('button', { name: 'Jump to today' }).parentElement
-    expect(cluster).toHaveClass('fixed', 'top-[3.25rem]', 'z-40', 'w-max')
+    expect(cluster).toHaveClass('fixed', 'top-[3.25rem]', 'z-floating', 'w-max')
     expect(cluster?.className).toContain('max-w-[calc(100vw-1rem)]')
     expect(cluster).toHaveClass('rounded-lg', 'bg-surface/95', 'shadow-elevated', 'backdrop-blur')
     expect(cluster).toHaveClass('left-1/2')
     expect(cluster?.className).toContain('lg:left-[var(--main-content-center-x,50%)]')
     expect(cluster?.className).toContain('lg:transition-[left]')
-    expect(cluster?.className).toContain('lg:duration-200')
-    expect(cluster?.className).toContain('lg:ease-out')
+    expect(cluster?.className).toContain('lg:duration-standard')
+    expect(cluster?.className).toContain('lg:ease-standard')
   })
 
   it('renders the optional calendar date label in the scrollable action bar left slot', () => {

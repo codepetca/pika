@@ -22,6 +22,16 @@ vi.mock('@/components/editor', () => {
   }
 
   return {
+    ContentField: ({ children, hint, label, labelAccessory }: any) => (
+      <div>
+        <div>
+          <span>{label}</span>
+          {labelAccessory}
+        </div>
+        {hint ? <p>{hint}</p> : null}
+        {children}
+      </div>
+    ),
     RichTextEditor: ({ content, onBlur, onChange }: any) => (
       <div>
         <div data-testid="rich-text-editor">{extractText(content)}</div>
@@ -59,7 +69,6 @@ const classroom: Classroom = {
     outline: true,
     resources: true,
     assignments: true,
-    quizzes: true,
     tests: true,
     lesson_plans: true,
     announcements: true,

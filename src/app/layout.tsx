@@ -35,7 +35,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-screen bg-page">
+      <body className="min-h-screen bg-page font-sans">
         <ThemeProvider>
           <MarkdownPreferenceProvider>
             <TooltipProvider>

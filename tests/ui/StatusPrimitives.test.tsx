@@ -41,6 +41,8 @@ describe('status primitives', () => {
     expect(panel?.className).toContain('opacity-100')
     expect(panel?.className).toContain('flex')
     expect(panel?.className).toContain('grow')
+    expect(panel?.className).toContain('duration-fast')
+    expect(panel?.className).toContain('motion-reduce:transition-none')
   })
 
   it('hides inactive tab content while keeping the children mounted', () => {

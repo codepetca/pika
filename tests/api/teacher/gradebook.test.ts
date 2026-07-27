@@ -276,7 +276,7 @@ describe('GET /api/teacher/gradebook', () => {
     vi.clearAllMocks()
   })
 
-  it('returns inert legacy quiz response tombstones without querying quiz storage', async () => {
+  it('omits retired Quiz response fields', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({})
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -285,12 +285,12 @@ describe('GET /api/teacher/gradebook', () => {
 
     expect(response.status).toBe(200)
     expect(body.students).toHaveLength(1)
-    expect(body.students[0].quizzes_earned).toBeNull()
-    expect(body.students[0].quizzes_possible).toBeNull()
-    expect(body.students[0].quizzes_percent).toBeNull()
+    expect(body.students[0]).not.toHaveProperty('quizzes_earned')
+    expect(body.students[0]).not.toHaveProperty('quizzes_possible')
+    expect(body.students[0]).not.toHaveProperty('quizzes_percent')
     expect(body.students[0].final_percent).toBeNull()
-    expect(body.class_summary.quizzes).toEqual([])
-    expect(body.totals.quizzes).toBe(0)
+    expect(body.class_summary).not.toHaveProperty('quizzes')
+    expect(body.totals).not.toHaveProperty('quizzes')
     expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quizzes')
     expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quiz_questions')
     expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quiz_responses')
@@ -345,7 +345,7 @@ describe('GET /api/teacher/gradebook', () => {
         is_graded: true,
       },
     ])
-    expect(body.selected_student.quizzes).toEqual([])
+    expect(body.selected_student).not.toHaveProperty('quizzes')
     expect(body.selected_student.tests).toEqual([])
   })
 
@@ -507,7 +507,7 @@ describe('GET /api/teacher/gradebook', () => {
 
     expect(response.status).toBe(200)
     expect(body.students[0].assignments_percent).toBe(100)
-    expect(body.students[0].quizzes_percent).toBeNull()
+    expect(body.students[0]).not.toHaveProperty('quizzes_percent')
     expect(body.students[0].final_percent).toBe(100)
   })
 
@@ -524,7 +524,6 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.settings).toEqual({
       use_weights: false,
       assignments_weight: 50,
-      quizzes_weight: 20,
       tests_weight: 30,
     })
     expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('gradebook_settings')

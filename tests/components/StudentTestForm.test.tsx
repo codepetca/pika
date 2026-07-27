@@ -15,31 +15,6 @@ describe('StudentTestForm preview mode', () => {
     localStorage.clear()
   })
 
-  it('accepts legacy quizId as a compatibility alias', () => {
-    render(
-      <StudentTestForm
-        quizId="legacy-test-id"
-        questions={[
-          createMockTestQuestion({
-            id: 'q1',
-            question_text: 'Which option is correct?',
-            options: ['A', 'B'],
-            question_type: 'multiple_choice',
-            position: 0,
-          }),
-        ]}
-        assessmentType="test"
-        previewMode
-        onSubmitted={vi.fn()}
-      />
-    )
-
-    const titleArea = screen.getByText('Q1').closest('[data-question-title-id="q1"]')!
-    fireEvent.click(titleArea)
-
-    expect(JSON.parse(localStorage.getItem('pika:flagged-questions:legacy-test-id') || '[]')).toContain('q1')
-  })
-
   it('simulates submit without saving data', async () => {
     const onSubmitted = vi.fn()
 
@@ -55,7 +30,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -86,12 +60,41 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
       />
     )
 
     expect(screen.getByRole('textbox', { name: 'Response for question 1' })).toBeInTheDocument()
+  })
+
+  it('requires non-blank open responses before enabling submit', () => {
+    render(
+      <StudentTestForm
+        testId="test-open-response-submit-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Explain your reasoning.',
+            options: [],
+            question_type: 'open_response',
+            position: 0,
+          }),
+        ]}
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const submitButton = screen.getByRole('button', { name: 'Submit' })
+    const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+
+    expect(submitButton).toBeDisabled()
+
+    fireEvent.change(textbox, { target: { value: '   ' } })
+    expect(submitButton).toBeDisabled()
+
+    fireEvent.change(textbox, { target: { value: 'A clear explanation.' } })
+    expect(submitButton).toBeEnabled()
   })
 
   it('flags and unfags a question', async () => {
@@ -109,7 +112,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -152,7 +154,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -202,13 +203,12 @@ describe('StudentTestForm preview mode', () => {
             selected_option: 1,
           },
         }}
-        assessmentType="test"
         enableDraftAutosave
         onSubmitted={onSubmitted}
       />
     )
 
-    const actionPanel = screen.getByTestId('student-quiz-action-footer')
+    const actionPanel = screen.getByTestId('student-test-action-footer')
     const questionsStack = screen.getByText('Question 2?').closest('[data-question-id="q2"]')
       ?.parentElement
 
@@ -234,7 +234,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -267,7 +266,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         previewMode
         onSubmitted={onSubmitted}
       />
@@ -299,7 +297,6 @@ describe('StudentTestForm preview mode', () => {
             position: 0,
           }),
         ]}
-        assessmentType="test"
         apiBasePath="/api/student/tests"
         onAvailabilityLoss={onAvailabilityLoss}
         onSubmitted={onSubmitted}

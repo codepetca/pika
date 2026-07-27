@@ -417,7 +417,7 @@ function inferAffectedAreaFromUrl(value: unknown): string {
   if (typeof value !== 'string') return 'direct feedback'
   const url = value.toLowerCase()
   if (url.includes('assignments')) return 'assignments'
-  if (url.includes('tests') || url.includes('quizzes')) return 'assessments'
+  if (url.includes('tests')) return 'assessments'
   if (url.includes('calendar')) return 'calendar'
   if (url.includes('classrooms')) return 'classrooms'
   if (url.includes('teacher')) return 'teacher experience'

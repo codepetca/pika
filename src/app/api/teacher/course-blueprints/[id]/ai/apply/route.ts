@@ -2,16 +2,12 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { courseBlueprintAiApplySchema } from '@/lib/validations/course-blueprints'
+import { getCourseBlueprintDetail } from '@/lib/server/course-blueprints'
+import { getServiceRoleClient } from '@/lib/supabase'
 import {
-  updateCourseBlueprint,
-  getCourseBlueprintDetail,
-  syncCourseBlueprintAssignments,
-  syncCourseBlueprintAssessments,
-  syncCourseBlueprintLessonTemplates,
-} from '@/lib/server/course-blueprints'
-import { markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
-import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
-import { markdownToCourseBlueprintLessonTemplates } from '@/lib/course-blueprint-lesson-templates'
+  buildCourseBlueprintAiCandidate,
+  submitCourseBlueprintProposal,
+} from '@/lib/server/course-blueprint-proposals'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,54 +21,33 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async 
   if (!detailResult.detail) {
     return NextResponse.json({ error: detailResult.error }, { status: detailResult.status || 500 })
   }
-
-  if (target === 'overview' || target === 'outline' || target === 'resources') {
-    const key =
-      target === 'overview'
-        ? 'overview_markdown'
-        : target === 'outline'
-          ? 'outline_markdown'
-          : 'resources_markdown'
-    const result = await updateCourseBlueprint(user.id, id, { [key]: content } as any)
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status })
-    }
-    return NextResponse.json({ success: true })
+  if (detailResult.detail.authority_mode === 'repository') {
+    return NextResponse.json(
+      { error: 'This Blueprint is repository-managed and accepts repository proposals only' },
+      { status: 409 }
+    )
   }
 
-  if (target === 'assignments') {
-    const parsed = markdownToCourseBlueprintAssignments(content, detailResult.detail.assignments)
-    if (parsed.errors.length > 0) {
-      return NextResponse.json({ errors: parsed.errors }, { status: 400 })
-    }
-    const result = await syncCourseBlueprintAssignments(user.id, id, parsed.assignments)
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status })
-    }
-    return NextResponse.json({ success: true, warnings: parsed.warnings })
+  const candidate = buildCourseBlueprintAiCandidate(detailResult.detail, target, content)
+  if (!candidate.ok) {
+    return NextResponse.json(
+      { error: candidate.error, errors: candidate.errors },
+      { status: candidate.status }
+    )
   }
-
-  if (target === 'tests') {
-    const parsed = markdownToCourseBlueprintAssessments(content, detailResult.detail.assessments as any, 'test')
-    if (parsed.errors.length > 0) {
-      return NextResponse.json({ errors: parsed.errors }, { status: 400 })
-    }
-    const result = await syncCourseBlueprintAssessments(user.id, id, parsed.assessments as any, {
-      replaceTypes: ['test'],
-    })
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status })
-    }
-    return NextResponse.json({ success: true, warnings: parsed.warnings })
-  }
-
-  const parsed = markdownToCourseBlueprintLessonTemplates(content, detailResult.detail.lesson_templates)
-  if (parsed.errors.length > 0) {
-    return NextResponse.json({ errors: parsed.errors }, { status: 400 })
-  }
-  const result = await syncCourseBlueprintLessonTemplates(user.id, id, parsed.lesson_templates)
+  const result = await submitCourseBlueprintProposal({
+    supabase: getServiceRoleClient() as any,
+    teacherId: user.id,
+    base: candidate.base,
+    candidate: candidate.candidate,
+    source: 'ai',
+    idempotencyKey: crypto.randomUUID(),
+  })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
-  return NextResponse.json({ success: true, warnings: parsed.warnings })
+  return NextResponse.json(
+    { proposal: result.proposal, warnings: candidate.warnings },
+    { status: 201 }
+  )
 })

@@ -27,9 +27,6 @@ interface TestResultsRecord {
   test?: {
     status?: 'draft' | 'active' | 'closed'
   }
-  quiz?: {
-    status?: 'draft' | 'active' | 'closed'
-  }
   students?: Array<{
     student_id: string
     effective_access?: 'open' | 'closed'
@@ -96,12 +93,12 @@ async function createDraftOpenResponseTest(
   classroomId: string,
   title: string,
 ): Promise<AssessmentRecord> {
-  const created = await sendJson<{ quiz: AssessmentRecord }>(page, 'POST', '/api/teacher/tests', {
+  const created = await sendJson<{ test: AssessmentRecord }>(page, 'POST', '/api/teacher/tests', {
     classroom_id: classroomId,
     title,
   })
 
-  const testRecord = created.quiz
+  const testRecord = created.test
   const draft = await loadJson<{ draft: AssessmentDraftRecord }>(
     page,
     `/api/teacher/tests/${testRecord.id}/draft`,
@@ -227,7 +224,7 @@ async function prepareExamWindowForViewportCompliance(page: Page): Promise<void>
 }
 
 function getResultsStatus(results: TestResultsRecord): 'draft' | 'active' | 'closed' | undefined {
-  return results.test?.status ?? results.quiz?.status
+  return results.test?.status
 }
 
 test.describe('teacher exam mode', () => {

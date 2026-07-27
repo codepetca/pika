@@ -949,6 +949,7 @@ export type Database = {
       }
       assignment_submission_requirements: {
         Row: {
+          artifact_id: string
           assignment_id: string
           created_at: string
           id: string
@@ -956,11 +957,14 @@ export type Database = {
           label: string
           position: number
           required: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           type: string
           updated_at: string
           validation_policy_json: Json
         }
         Insert: {
+          artifact_id?: string
           assignment_id: string
           created_at?: string
           id?: string
@@ -968,11 +972,14 @@ export type Database = {
           label: string
           position?: number
           required?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           type: string
           updated_at?: string
           validation_policy_json?: Json
         }
         Update: {
+          artifact_id?: string
           assignment_id?: string
           created_at?: string
           id?: string
@@ -980,11 +987,20 @@ export type Database = {
           label?: string
           position?: number
           required?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           type?: string
           updated_at?: string
           validation_policy_json?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "assignment_submission_requirem_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assignment_submission_requirements_assignment_id_fkey"
             columns: ["assignment_id"]
@@ -996,6 +1012,8 @@ export type Database = {
       }
       assignments: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           created_at: string
           created_by: string
@@ -1010,11 +1028,15 @@ export type Database = {
           position: number
           released_at: string | null
           rich_instructions: Json | null
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           title: string
           track_authenticity: boolean
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           created_at?: string
           created_by: string
@@ -1029,11 +1051,15 @@ export type Database = {
           position?: number
           released_at?: string | null
           rich_instructions?: Json | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title: string
           track_authenticity?: boolean
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           created_at?: string
           created_by?: string
@@ -1048,6 +1074,8 @@ export type Database = {
           position?: number
           released_at?: string | null
           rich_instructions?: Json | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title?: string
           track_authenticity?: boolean
           updated_at?: string
@@ -1065,6 +1093,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -1163,6 +1198,7 @@ export type Database = {
       classroom_archive_operations: {
         Row: {
           adapter_chain: Json | null
+          archive_format_version: number
           archive_id: string | null
           artifact_sha256: string | null
           attempt_count: number
@@ -1175,12 +1211,15 @@ export type Database = {
           operation_type: string
           request_sha256: string
           resource_counts: Json
+          restore_contract_version: number
           retention: Json
           retryable: boolean | null
           snapshot_created_at: string
           snapshot_expires_at: string
           source_app_commit: string
+          source_contract_version: number
           source_object_cleanup_staged_at: string | null
+          source_resource_counts: Json
           source_revision: number
           source_schema_migration: string
           status: string
@@ -1195,6 +1234,7 @@ export type Database = {
         }
         Insert: {
           adapter_chain?: Json | null
+          archive_format_version?: number
           archive_id?: string | null
           artifact_sha256?: string | null
           attempt_count?: number
@@ -1207,12 +1247,15 @@ export type Database = {
           operation_type?: string
           request_sha256: string
           resource_counts?: Json
+          restore_contract_version?: number
           retention: Json
           retryable?: boolean | null
           snapshot_created_at: string
           snapshot_expires_at: string
           source_app_commit: string
+          source_contract_version?: number
           source_object_cleanup_staged_at?: string | null
+          source_resource_counts?: Json
           source_revision: number
           source_schema_migration: string
           status: string
@@ -1227,6 +1270,7 @@ export type Database = {
         }
         Update: {
           adapter_chain?: Json | null
+          archive_format_version?: number
           archive_id?: string | null
           artifact_sha256?: string | null
           attempt_count?: number
@@ -1239,12 +1283,15 @@ export type Database = {
           operation_type?: string
           request_sha256?: string
           resource_counts?: Json
+          restore_contract_version?: number
           retention?: Json
           retryable?: boolean | null
           snapshot_created_at?: string
           snapshot_expires_at?: string
           source_app_commit?: string
+          source_contract_version?: number
           source_object_cleanup_staged_at?: string | null
+          source_resource_counts?: Json
           source_revision?: number
           source_schema_migration?: string
           status?: string
@@ -1289,6 +1336,47 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_archive_resource_contract_versions: {
+        Row: {
+          actor_columns: string[]
+          export_position: number
+          format_version: number
+          parent_column: string | null
+          parent_table: string | null
+          primary_key_columns: string[]
+          restore_after: string[]
+          table_name: string
+        }
+        Insert: {
+          actor_columns?: string[]
+          export_position: number
+          format_version: number
+          parent_column?: string | null
+          parent_table?: string | null
+          primary_key_columns: string[]
+          restore_after: string[]
+          table_name: string
+        }
+        Update: {
+          actor_columns?: string[]
+          export_position?: number
+          format_version?: number
+          parent_column?: string | null
+          parent_table?: string | null
+          primary_key_columns?: string[]
+          restore_after?: string[]
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_archive_resource_versions_parent_fkey"
+            columns: ["format_version", "parent_table"]
+            isOneToOne: false
+            referencedRelation: "classroom_archive_resource_contract_versions"
+            referencedColumns: ["format_version", "table_name"]
+          },
+        ]
+      }
       classroom_archive_restore_expected_objects: {
         Row: {
           expected_byte_size: number
@@ -1324,6 +1412,7 @@ export type Database = {
       classroom_archive_restore_staging: {
         Row: {
           operation_id: string
+          restore_contract_version: number
           row_data: Json
           row_id: string
           staged_at: string
@@ -1331,6 +1420,7 @@ export type Database = {
         }
         Insert: {
           operation_id: string
+          restore_contract_version?: number
           row_data: Json
           row_id: string
           staged_at?: string
@@ -1338,6 +1428,7 @@ export type Database = {
         }
         Update: {
           operation_id?: string
+          restore_contract_version?: number
           row_data?: Json
           row_id?: string
           staged_at?: string
@@ -1352,11 +1443,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "classroom_archive_restore_staging_table_name_fkey"
-            columns: ["table_name"]
+            foreignKeyName: "classroom_archive_restore_staging_versioned_resource_fkey"
+            columns: ["restore_contract_version", "table_name"]
             isOneToOne: false
-            referencedRelation: "classroom_archive_resource_contract"
-            referencedColumns: ["table_name"]
+            referencedRelation: "classroom_archive_resource_contract_versions"
+            referencedColumns: ["format_version", "table_name"]
           },
         ]
       }
@@ -1408,16 +1499,19 @@ export type Database = {
         Row: {
           operation_id: string
           row_id: string
+          source_contract_version: number
           table_name: string
         }
         Insert: {
           operation_id: string
           row_id: string
+          source_contract_version?: number
           table_name: string
         }
         Update: {
           operation_id?: string
           row_id?: string
+          source_contract_version?: number
           table_name?: string
         }
         Relationships: [
@@ -1429,11 +1523,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "classroom_archive_snapshot_resources_table_name_fkey"
-            columns: ["table_name"]
+            foreignKeyName: "classroom_archive_snapshot_resources_versioned_resource_fkey"
+            columns: ["source_contract_version", "table_name"]
             isOneToOne: false
-            referencedRelation: "classroom_archive_resource_contract"
-            referencedColumns: ["table_name"]
+            referencedRelation: "classroom_archive_resource_contract_versions"
+            referencedColumns: ["format_version", "table_name"]
           },
         ]
       }
@@ -1947,6 +2041,117 @@ export type Database = {
           },
         ]
       }
+      classroom_retired_assessment_record_actors: {
+        Row: {
+          actor_id: string
+          id: string
+          record_id: string
+          source_column: string
+        }
+        Insert: {
+          actor_id: string
+          id: string
+          record_id: string
+          source_column: string
+        }
+        Update: {
+          actor_id?: string
+          id?: string
+          record_id?: string
+          source_column?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_retired_assessment_record_actors_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_retired_assessment_record_actors_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_retired_assessment_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classroom_retired_assessment_records: {
+        Row: {
+          checksum_algorithm: string
+          classroom_id: string
+          id: string
+          parent_source_resource: string | null
+          parent_source_row_id: string | null
+          payload: Json
+          payload_sha256: string
+          source_contract: string
+          source_contract_version: number
+          source_created_at: string | null
+          source_resource: string
+          source_row_id: string
+          source_updated_at: string | null
+        }
+        Insert: {
+          checksum_algorithm: string
+          classroom_id: string
+          id: string
+          parent_source_resource?: string | null
+          parent_source_row_id?: string | null
+          payload: Json
+          payload_sha256: string
+          source_contract: string
+          source_contract_version: number
+          source_created_at?: string | null
+          source_resource: string
+          source_row_id: string
+          source_updated_at?: string | null
+        }
+        Update: {
+          checksum_algorithm?: string
+          classroom_id?: string
+          id?: string
+          parent_source_resource?: string | null
+          parent_source_row_id?: string | null
+          payload?: Json
+          payload_sha256?: string
+          source_contract?: string
+          source_contract_version?: number
+          source_created_at?: string | null
+          source_resource?: string
+          source_row_id?: string
+          source_updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_retired_assessment__classroom_id_source_contract_fkey"
+            columns: [
+              "classroom_id",
+              "source_contract",
+              "source_contract_version",
+              "parent_source_resource",
+              "parent_source_row_id",
+            ]
+            isOneToOne: false
+            referencedRelation: "classroom_retired_assessment_records"
+            referencedColumns: [
+              "classroom_id",
+              "source_contract",
+              "source_contract_version",
+              "source_resource",
+              "source_row_id",
+            ]
+          },
+          {
+            foreignKeyName: "classroom_retired_assessment_records_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_roster: {
         Row: {
           classroom_id: string
@@ -2013,6 +2218,7 @@ export type Database = {
           position: number
           source_blueprint_id: string | null
           source_blueprint_origin: Json | null
+          source_blueprint_version_id: string | null
           start_date: string | null
           teacher_id: string
           term_label: string | null
@@ -2038,6 +2244,7 @@ export type Database = {
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
+          source_blueprint_version_id?: string | null
           start_date?: string | null
           teacher_id: string
           term_label?: string | null
@@ -2063,6 +2270,7 @@ export type Database = {
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
+          source_blueprint_version_id?: string | null
           start_date?: string | null
           teacher_id?: string
           term_label?: string | null
@@ -2079,6 +2287,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "classrooms_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "classrooms_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
@@ -2089,6 +2304,8 @@ export type Database = {
       }
       classwork_materials: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           content: Json
           created_at: string
@@ -2097,10 +2314,14 @@ export type Database = {
           is_draft: boolean
           position: number
           released_at: string | null
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           content?: Json
           created_at?: string
@@ -2109,10 +2330,14 @@ export type Database = {
           is_draft?: boolean
           position: number
           released_at?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           content?: Json
           created_at?: string
@@ -2121,6 +2346,8 @@ export type Database = {
           is_draft?: boolean
           position?: number
           released_at?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title?: string
           updated_at?: string
         }
@@ -2139,10 +2366,18 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "classwork_materials_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       course_blueprint_assessments: {
         Row: {
+          artifact_id: string
           assessment_type: string
           content: Json
           course_blueprint_id: string
@@ -2157,6 +2392,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           assessment_type: string
           content?: Json
           course_blueprint_id: string
@@ -2171,6 +2407,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           assessment_type?: string
           content?: Json
           course_blueprint_id?: string
@@ -2196,6 +2433,7 @@ export type Database = {
       }
       course_blueprint_assignments: {
         Row: {
+          artifact_id: string
           course_blueprint_id: string
           created_at: string
           default_due_days: number
@@ -2209,9 +2447,11 @@ export type Database = {
           position: number
           submission_requirements_json: Json
           title: string
+          track_authenticity: boolean
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           course_blueprint_id: string
           created_at?: string
           default_due_days?: number
@@ -2225,9 +2465,11 @@ export type Database = {
           position?: number
           submission_requirements_json?: Json
           title: string
+          track_authenticity?: boolean
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           course_blueprint_id?: string
           created_at?: string
           default_due_days?: number
@@ -2241,6 +2483,7 @@ export type Database = {
           position?: number
           submission_requirements_json?: Json
           title?: string
+          track_authenticity?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -2253,8 +2496,197 @@ export type Database = {
           },
         ]
       }
+      course_blueprint_change_proposals: {
+        Row: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_blueprint_revision?: number | null
+          applied_classroom_revision?: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          course_blueprint_id: string
+          created_at?: string
+          diff_json?: Json
+          id?: string
+          idempotency_key: string
+          operations_json?: Json
+          payload_schema_version?: number
+          rejected_at?: string | null
+          request_sha256: string
+          source_classroom_id?: string | null
+          source_kind: string
+          status?: string
+          target_classroom_id?: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at?: string
+          validation_errors?: Json
+        }
+        Update: {
+          applied_at?: string | null
+          applied_blueprint_revision?: number | null
+          applied_classroom_revision?: number | null
+          base_blueprint_revision?: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          course_blueprint_id?: string
+          created_at?: string
+          diff_json?: Json
+          id?: string
+          idempotency_key?: string
+          operations_json?: Json
+          payload_schema_version?: number
+          rejected_at?: string | null
+          request_sha256?: string
+          source_classroom_id?: string | null
+          source_kind?: string
+          status?: string
+          target_classroom_id?: string | null
+          target_kind?: string
+          teacher_id?: string
+          updated_at?: string
+          validation_errors?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_change_proposal_base_blueprint_version_id_fkey"
+            columns: ["base_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_source_classroom_id_fkey"
+            columns: ["source_classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_target_classroom_id_fkey"
+            columns: ["target_classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_editing_sessions: {
+        Row: {
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          classroom_id: string | null
+          closed_at: string | null
+          course_blueprint_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          package_sha256: string
+          status: string
+          teacher_id: string
+        }
+        Insert: {
+          base_blueprint_revision: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          classroom_id?: string | null
+          closed_at?: string | null
+          course_blueprint_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          package_sha256: string
+          status?: string
+          teacher_id: string
+        }
+        Update: {
+          base_blueprint_revision?: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          classroom_id?: string | null
+          closed_at?: string | null
+          course_blueprint_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          package_sha256?: string
+          status?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_editing_session_base_blueprint_version_id_fkey"
+            columns: ["base_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_editing_sessions_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_editing_sessions_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_editing_sessions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_blueprint_lesson_templates: {
         Row: {
+          artifact_id: string
           content_markdown: string
           course_blueprint_id: string
           created_at: string
@@ -2264,6 +2696,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           content_markdown?: string
           course_blueprint_id: string
           created_at?: string
@@ -2273,6 +2706,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           content_markdown?: string
           course_blueprint_id?: string
           created_at?: string
@@ -2284,6 +2718,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "course_blueprint_lesson_templates_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_materials: {
+        Row: {
+          artifact_id: string
+          content_markdown: string
+          course_blueprint_id: string
+          created_at: string
+          id: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artifact_id?: string
+          content_markdown?: string
+          course_blueprint_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          content_markdown?: string
+          course_blueprint_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_materials_course_blueprint_id_fkey"
             columns: ["course_blueprint_id"]
             isOneToOne: false
             referencedRelation: "course_blueprints"
@@ -2359,13 +2834,122 @@ export type Database = {
           },
         ]
       }
+      course_blueprint_surveys: {
+        Row: {
+          artifact_id: string
+          course_blueprint_id: string
+          created_at: string
+          dynamic_responses: boolean
+          id: string
+          position: number
+          questions_json: Json
+          show_results: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artifact_id?: string
+          course_blueprint_id: string
+          created_at?: string
+          dynamic_responses?: boolean
+          id?: string
+          position?: number
+          questions_json?: Json
+          show_results?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          course_blueprint_id?: string
+          created_at?: string
+          dynamic_responses?: boolean
+          id?: string
+          position?: number
+          questions_json?: Json
+          show_results?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_surveys_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_versions: {
+        Row: {
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          id: string
+          snapshot_json: Json
+          snapshot_schema_version: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind: string
+          source_metadata: Json
+          version_number: number
+        }
+        Insert: {
+          course_blueprint_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          snapshot_json: Json
+          snapshot_schema_version?: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind?: string
+          source_metadata?: Json
+          version_number: number
+        }
+        Update: {
+          course_blueprint_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          snapshot_json?: Json
+          snapshot_schema_version?: number
+          snapshot_sha256?: string
+          source_draft_revision?: number
+          source_kind?: string
+          source_metadata?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_versions_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_blueprints: {
         Row: {
+          authority_mode: string
           content_revision: number
           course_code: string
           created_at: string
           grade_level: string
+          gradebook_assignments_weight: number
+          gradebook_tests_weight: number
+          gradebook_use_weights: boolean
           id: string
+          latest_version_number: number
           outline_markdown: string
           overview_markdown: string
           planned_site_config: Json
@@ -2380,11 +2964,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          authority_mode?: string
           content_revision?: number
           course_code?: string
           created_at?: string
           grade_level?: string
+          gradebook_assignments_weight?: number
+          gradebook_tests_weight?: number
+          gradebook_use_weights?: boolean
           id?: string
+          latest_version_number?: number
           outline_markdown?: string
           overview_markdown?: string
           planned_site_config?: Json
@@ -2399,11 +2988,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          authority_mode?: string
           content_revision?: number
           course_code?: string
           created_at?: string
           grade_level?: string
+          gradebook_assignments_weight?: number
+          gradebook_tests_weight?: number
+          gradebook_use_weights?: boolean
           id?: string
+          latest_version_number?: number
           outline_markdown?: string
           overview_markdown?: string
           planned_site_config?: Json
@@ -2608,7 +3202,6 @@ export type Database = {
           assignments_weight: number
           classroom_id: string
           created_at: string
-          quizzes_weight: number
           tests_weight: number
           updated_at: string
           use_weights: boolean
@@ -2617,7 +3210,6 @@ export type Database = {
           assignments_weight?: number
           classroom_id: string
           created_at?: string
-          quizzes_weight?: number
           tests_weight?: number
           updated_at?: string
           use_weights?: boolean
@@ -2626,7 +3218,6 @@ export type Database = {
           assignments_weight?: number
           classroom_id?: string
           created_at?: string
-          quizzes_weight?: number
           tests_weight?: number
           updated_at?: string
           use_weights?: boolean
@@ -2643,30 +3234,42 @@ export type Database = {
       }
       lesson_plans: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           content: Json
           content_markdown: string | null
           created_at: string
           date: string
           id: string
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           content?: Json
           content_markdown?: string | null
           created_at?: string
           date: string
           id?: string
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           content?: Json
           content_markdown?: string | null
           created_at?: string
           date?: string
           id?: string
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2675,6 +3278,13 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_plans_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -2726,206 +3336,101 @@ export type Database = {
           },
         ]
       }
-      quiz_questions: {
+      pal_daily_log_week_configurations: {
         Row: {
-          correct_option: number | null
+          config_version: number
+          configured_at: string
           created_at: string
+          eligible_days: number
           id: string
-          options: Json
-          position: number
-          question_text: string
-          quiz_id: string
-          updated_at: string
+          period_key: string
+          period_status: string
+          student_id: string
         }
         Insert: {
-          correct_option?: number | null
+          config_version: number
+          configured_at: string
           created_at?: string
+          eligible_days: number
           id?: string
-          options: Json
-          position?: number
-          question_text: string
-          quiz_id: string
-          updated_at?: string
+          period_key: string
+          period_status: string
+          student_id: string
         }
         Update: {
-          correct_option?: number | null
+          config_version?: number
+          configured_at?: string
           created_at?: string
+          eligible_days?: number
           id?: string
-          options?: Json
-          position?: number
-          question_text?: string
-          quiz_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_questions_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quiz_responses: {
-        Row: {
-          id: string
-          question_id: string
-          quiz_id: string
-          selected_option: number
-          student_id: string
-          submitted_at: string
-        }
-        Insert: {
-          id?: string
-          question_id: string
-          quiz_id: string
-          selected_option: number
-          student_id: string
-          submitted_at?: string
-        }
-        Update: {
-          id?: string
-          question_id?: string
-          quiz_id?: string
-          selected_option?: number
+          period_key?: string
+          period_status?: string
           student_id?: string
-          submitted_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_responses_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "quiz_questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_responses_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_responses_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      quiz_student_scores: {
+      pal_event_outbox: {
         Row: {
+          attempts: number
           created_at: string
-          graded_at: string | null
-          graded_by: string | null
+          delivered_at: string | null
+          event_type: string
           id: string
-          manual_override_score: number | null
-          quiz_id: string
-          student_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          graded_at?: string | null
-          graded_by?: string | null
-          id?: string
-          manual_override_score?: number | null
-          quiz_id: string
-          student_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          graded_at?: string | null
-          graded_by?: string | null
-          id?: string
-          manual_override_score?: number | null
-          quiz_id?: string
-          student_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quiz_student_scores_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "quizzes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quiz_student_scores_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      quizzes: {
-        Row: {
-          classroom_id: string
-          created_at: string
-          created_by: string
-          gradebook_weight: number
-          id: string
-          include_in_final: boolean
-          opens_at: string | null
-          points_possible: number
-          position: number
-          show_results: boolean
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          payload: Json
+          source_id: string
+          source_kind: string
           status: string
-          title: string
+          student_id: string
           updated_at: string
         }
         Insert: {
-          classroom_id: string
+          attempts?: number
           created_at?: string
-          created_by: string
-          gradebook_weight?: number
+          delivered_at?: string | null
+          event_type: string
           id?: string
-          include_in_final?: boolean
-          opens_at?: string | null
-          points_possible?: number
-          position?: number
-          show_results?: boolean
+          idempotency_key: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_detail?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          payload: Json
+          source_id: string
+          source_kind: string
           status?: string
-          title: string
+          student_id: string
           updated_at?: string
         }
         Update: {
-          classroom_id?: string
+          attempts?: number
           created_at?: string
-          created_by?: string
-          gradebook_weight?: number
+          delivered_at?: string | null
+          event_type?: string
           id?: string
-          include_in_final?: boolean
-          opens_at?: string | null
-          points_possible?: number
-          position?: number
-          show_results?: boolean
+          idempotency_key?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_detail?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          source_id?: string
+          source_kind?: string
           status?: string
-          title?: string
+          student_id?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "quizzes_classroom_id_fkey"
-            columns: ["classroom_id"]
-            isOneToOne: false
-            referencedRelation: "classrooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quizzes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       report_card_rows: {
         Row: {
@@ -3054,6 +3559,7 @@ export type Database = {
       }
       survey_questions: {
         Row: {
+          artifact_id: string
           created_at: string
           id: string
           options: Json
@@ -3061,10 +3567,13 @@ export type Database = {
           question_text: string
           question_type: string
           response_max_chars: number
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           survey_id: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           created_at?: string
           id?: string
           options?: Json
@@ -3072,10 +3581,13 @@ export type Database = {
           question_text: string
           question_type?: string
           response_max_chars?: number
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           survey_id: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           created_at?: string
           id?: string
           options?: Json
@@ -3083,10 +3595,19 @@ export type Database = {
           question_text?: string
           question_type?: string
           response_max_chars?: number
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           survey_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_questions_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
@@ -3153,6 +3674,8 @@ export type Database = {
       }
       surveys: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           created_at: string
           created_by: string
@@ -3161,11 +3684,15 @@ export type Database = {
           opens_at: string | null
           position: number
           show_results: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           created_at?: string
           created_by: string
@@ -3174,11 +3701,15 @@ export type Database = {
           opens_at?: string | null
           position: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           created_at?: string
           created_by?: string
@@ -3187,6 +3718,8 @@ export type Database = {
           opens_at?: string | null
           position?: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -3204,6 +3737,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -3527,6 +4067,45 @@ export type Database = {
           },
         ]
       }
+      test_document_snapshot_storage_cleanup: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          status?: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          status?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       test_focus_events: {
         Row: {
           created_at: string
@@ -3582,6 +4161,7 @@ export type Database = {
           ai_reference_cache_key: string | null
           ai_reference_cache_model: string | null
           answer_key: string | null
+          artifact_id: string
           correct_option: number | null
           created_at: string
           id: string
@@ -3593,6 +4173,8 @@ export type Database = {
           response_max_chars: number
           response_monospace: boolean
           sample_solution: string | null
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           test_id: string
           updated_at: string
         }
@@ -3602,6 +4184,7 @@ export type Database = {
           ai_reference_cache_key?: string | null
           ai_reference_cache_model?: string | null
           answer_key?: string | null
+          artifact_id?: string
           correct_option?: number | null
           created_at?: string
           id?: string
@@ -3613,6 +4196,8 @@ export type Database = {
           response_max_chars?: number
           response_monospace?: boolean
           sample_solution?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           test_id: string
           updated_at?: string
         }
@@ -3622,6 +4207,7 @@ export type Database = {
           ai_reference_cache_key?: string | null
           ai_reference_cache_model?: string | null
           answer_key?: string | null
+          artifact_id?: string
           correct_option?: number | null
           created_at?: string
           id?: string
@@ -3633,10 +4219,19 @@ export type Database = {
           response_max_chars?: number
           response_monospace?: boolean
           sample_solution?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           test_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "test_questions_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "test_questions_test_id_fkey"
             columns: ["test_id"]
@@ -3795,6 +4390,8 @@ export type Database = {
       }
       tests: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           created_at: string
           created_by: string
@@ -3805,11 +4402,15 @@ export type Database = {
           points_possible: number
           position: number
           show_results: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           created_at?: string
           created_by: string
@@ -3820,11 +4421,15 @@ export type Database = {
           points_possible?: number
           position?: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           created_at?: string
           created_by?: string
@@ -3835,6 +4440,8 @@ export type Database = {
           points_possible?: number
           position?: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -3852,6 +4459,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -3985,6 +4599,84 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_course_blueprint_classroom_proposal_atomic: {
+        Args: {
+          p_classroom_plan: Json
+          p_classroom_plan_sha256: string
+          p_proposal_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      apply_course_blueprint_proposal_atomic: {
+        Args: {
+          p_candidate_sha256: string
+          p_candidate_snapshot: Json
+          p_proposal_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       begin_classroom_archive_compaction: {
         Args: {
           p_archive_id: string
@@ -3995,13 +4687,26 @@ export type Database = {
         }
         Returns: Json
       }
-      begin_classroom_archive_export: {
+      begin_classroom_archive_compaction_v2: {
         Args: {
+          p_archive_id: string
+          p_classroom_id: string
+          p_operation_id: string
+          p_request_sha256: string
+          p_restore_contract_version: number
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      begin_classroom_archive_export_v2: {
+        Args: {
+          p_archive_format_version: number
           p_classroom_id: string
           p_operation_id: string
           p_request_sha256: string
           p_retention: Json
           p_source_app_commit: string
+          p_source_contract_version: number
           p_source_schema_migration: string
           p_teacher_id: string
         }
@@ -4016,6 +4721,24 @@ export type Database = {
           p_operation_id: string
           p_request_sha256: string
           p_resource_counts: Json
+          p_storage_objects: Json
+          p_target_schema_migration: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      begin_classroom_archive_restore_v2: {
+        Args: {
+          p_adapter_chain: Json
+          p_archive_id: string
+          p_classroom_id: string
+          p_database_budget_bytes: number
+          p_operation_id: string
+          p_request_sha256: string
+          p_resource_counts: Json
+          p_restore_contract_version: number
+          p_source_contract_version: number
+          p_source_resource_counts: Json
           p_storage_objects: Json
           p_target_schema_migration: string
           p_teacher_id: string
@@ -4186,6 +4909,35 @@ export type Database = {
           storage_path: string
         }[]
       }
+      claim_pal_event_outbox: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          event_type: string
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          payload: Json
+          source_id: string
+          source_kind: string
+          status: string
+          student_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pal_event_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_test_ai_grading_run: {
         Args: {
           p_lease_seconds?: number
@@ -4220,6 +4972,56 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "test_ai_grading_runs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_test_document_snapshot_storage_cleanup: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_limit: number
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "test_document_snapshot_storage_cleanup"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_test_document_snapshot_storage_cleanup_path: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_storage_path: string
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "test_document_snapshot_storage_cleanup"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -4289,8 +5091,20 @@ export type Database = {
         }
         Returns: Json
       }
-      complete_classroom_archive_export: {
+      complete_classroom_archive_compaction_v2: {
         Args: {
+          p_actors: Json
+          p_operation_id: string
+          p_restore_contract_version: number
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
+      complete_classroom_archive_export_v2: {
+        Args: {
+          p_archive_format_version: number
+          p_archive_resource_counts: Json
           p_artifact_sha256: string
           p_compressed_byte_size: number
           p_content_sha256: string
@@ -4322,6 +5136,15 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_classroom_archive_restore_v2: {
+        Args: {
+          p_operation_id: string
+          p_restore_contract_version: number
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
       complete_classroom_archive_source_object_cleanup: {
         Args: {
           p_lease_token: string
@@ -4348,6 +5171,15 @@ export type Database = {
         Args: { p_extract_id: string; p_lease_token: string }
         Returns: boolean
       }
+      complete_pal_event_outbox: {
+        Args: { p_lease_token: string; p_outbox_id: string }
+        Returns: boolean
+      }
+      complete_test_document_snapshot_storage_cleanup: {
+        Args: { p_cleanup_id: string; p_lease_token: string }
+        Returns: boolean
+      }
+      count_pal_event_outbox_ready: { Args: never; Returns: number }
       create_assignment_ai_grading_run_atomic: {
         Args: {
           p_assignment_id: string
@@ -4395,6 +5227,23 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_assignment_doc_with_pal_event_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_pal_event: Json
+          p_student_id: string
+          p_viewed_at: string
+        }
+        Returns: Json
+      }
+      create_classroom_enrollment_with_pal_event_atomic: {
+        Args: {
+          p_classroom_id: string
+          p_pal_event: Json
+          p_student_id: string
+        }
+        Returns: Json
+      }
       create_course_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number
@@ -4406,6 +5255,109 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: Json
+      }
+      create_course_blueprint_atomic_v2: {
+        Args: {
+          p_expected_source_revision: number
+          p_operation_id: string
+          p_operation_type: string
+          p_plan: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      create_course_blueprint_classroom_proposal_atomic: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_diff: Json
+          p_expected_blueprint_revision: number
+          p_expected_classroom_revision: number
+          p_idempotency_key: string
+          p_operations: Json
+          p_request_sha256: string
+          p_target_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_course_blueprint_proposal_atomic: {
+        Args: {
+          p_base_blueprint_version_id: string
+          p_base_classroom_revision: number
+          p_blueprint_id: string
+          p_diff: Json
+          p_expected_blueprint_revision: number
+          p_idempotency_key: string
+          p_operations: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_source_kind: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_test_ai_grading_run_atomic: {
         Args: {
@@ -4447,6 +5399,48 @@ export type Database = {
       enqueue_assignment_artifact_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean
+      }
+      enqueue_pal_event: {
+        Args: {
+          p_event: Json
+          p_source_id: string
+          p_source_kind: string
+          p_student_id: string
+        }
+        Returns: {
+          attempts: number
+          created_at: string
+          delivered_at: string | null
+          event_type: string
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          payload: Json
+          source_id: string
+          source_kind: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pal_event_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      enqueue_test_document_snapshot_storage_cleanup_path: {
+        Args: { p_delay_seconds?: number; p_storage_path: string }
+        Returns: boolean
+      }
+      ensure_blueprint_json_artifact_ids: {
+        Args: { p_items: Json }
+        Returns: Json
       }
       fail_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
@@ -4514,6 +5508,19 @@ export type Database = {
           p_extract_id: string
           p_lease_token: string
         }
+        Returns: boolean
+      }
+      fail_pal_event_outbox: {
+        Args: {
+          p_error_code: string
+          p_error_detail: string
+          p_lease_token: string
+          p_outbox_id: string
+        }
+        Returns: boolean
+      }
+      fail_test_document_snapshot_storage_cleanup: {
+        Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
       }
       finalize_assignment_ai_grading_item_atomic: {
@@ -4632,6 +5639,18 @@ export type Database = {
         }
         Returns: Json
       }
+      instantiate_course_blueprint_atomic_v2: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_expected_content_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       is_classroom_archive_maintenance_mode: {
         Args: { p_mode: string }
         Returns: boolean
@@ -4639,6 +5658,18 @@ export type Database = {
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      record_pal_daily_log_week_configuration_atomic: {
+        Args: {
+          p_config_version: number
+          p_configured_at: string
+          p_eligible_days: number
+          p_pal_event: Json
+          p_period_key: string
+          p_period_status: string
+          p_student_id: string
+        }
         Returns: Json
       }
       remove_classroom_roster_entries_atomic: {
@@ -4692,6 +5723,7 @@ export type Database = {
       replace_assignment_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json }
         Returns: {
+          artifact_id: string
           assignment_id: string
           created_at: string
           id: string
@@ -4699,6 +5731,8 @@ export type Database = {
           label: string
           position: number
           required: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           type: string
           updated_at: string
           validation_policy_json: Json
@@ -4710,9 +5744,31 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      requeue_pal_event_outbox: {
+        Args: { p_outbox_id: string }
+        Returns: boolean
+      }
       resolve_classroom_archive_resource_classroom_id: {
         Args: { p_row_id: string; p_table_name: string }
         Returns: string
+      }
+      resolve_classroom_archive_resource_classroom_id_versioned: {
+        Args: {
+          p_contract_version: number
+          p_row_id: string
+          p_table_name: string
+        }
+        Returns: string
+      }
+      retry_pal_event_outbox: {
+        Args: {
+          p_error_code: string
+          p_error_detail: string
+          p_lease_token: string
+          p_next_attempt_at: string
+          p_outbox_id: string
+        }
+        Returns: boolean
       }
       return_assignment_docs_atomic: {
         Args: {
@@ -4839,6 +5895,37 @@ export type Database = {
         }
         Returns: Json
       }
+      save_course_blueprint_version_atomic: {
+        Args: {
+          p_blueprint_id: string
+          p_expected_draft_revision: number
+          p_snapshot: Json
+          p_snapshot_schema_version: number
+          p_snapshot_sha256: string
+          p_source_kind: string
+          p_source_metadata: Json
+          p_teacher_id: string
+        }
+        Returns: {
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          id: string
+          snapshot_json: Json
+          snapshot_schema_version: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind: string
+          source_metadata: Json
+          version_number: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
         Returns: Json
@@ -4902,9 +5989,31 @@ export type Database = {
         }
         Returns: boolean
       }
+      stage_classroom_archive_object_upload_v2: {
+        Args: {
+          p_archive_format_version: number
+          p_expected_byte_size: number
+          p_expected_sha256: string
+          p_operation_id: string
+          p_storage_bucket: string
+          p_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       stage_classroom_archive_restore_rows: {
         Args: {
           p_operation_id: string
+          p_rows: Json
+          p_table_name: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      stage_classroom_archive_restore_rows_v2: {
+        Args: {
+          p_operation_id: string
+          p_restore_contract_version: number
           p_rows: Json
           p_table_name: string
           p_teacher_id: string
@@ -4922,6 +6031,18 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_assignment_doc_with_pal_event_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_pal_event: Json
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_test_attempt_atomic: {
         Args: {
           p_responses: Json
@@ -4930,6 +6051,22 @@ export type Database = {
           p_test_id: string
         }
         Returns: Json
+      }
+      sync_test_document_snapshot_atomic: {
+        Args: {
+          p_document_id: string
+          p_expected_url: string
+          p_snapshot_content_type: string
+          p_snapshot_path: string
+          p_synced_at: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      test_document_snapshot_path_is_referenced: {
+        Args: { p_storage_path: string }
+        Returns: boolean
       }
       unsubmit_assignment_doc_atomic: {
         Args: { p_assignment_id: string; p_student_id: string }
@@ -4945,6 +6082,22 @@ export type Database = {
       }
       update_assignment_with_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
+        Returns: Json
+      }
+      update_test_documents_atomic: {
+        Args: {
+          p_documents: Json
+          p_expected_documents: Json
+          p_expected_status: string
+          p_show_results: boolean
+          p_status: string
+          p_teacher_id: string
+          p_test_id: string
+          p_title: string
+          p_update_show_results: boolean
+          p_update_status: boolean
+          p_update_title: boolean
+        }
         Returns: Json
       }
       update_test_student_access_atomic: {
@@ -4970,6 +6123,21 @@ export type Database = {
           p_source_entry_count: number
           p_suggested_agent: string
           p_title: string
+        }
+        Returns: Json
+      }
+      upsert_student_entry_with_pal_event_atomic: {
+        Args: {
+          p_classroom_id: string
+          p_date: string
+          p_expected_version?: number
+          p_minutes_reported?: number
+          p_mood?: string
+          p_on_time: boolean
+          p_pal_event: Json
+          p_rich_content: Json
+          p_student_id: string
+          p_text: string
         }
         Returns: Json
       }

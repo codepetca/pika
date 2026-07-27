@@ -82,6 +82,13 @@ const requiredStartupFiles = [
   '.ai/features.json',
   'docs/ai-instructions.md',
 ]
+const requiredStartupGuidanceFiles = [...requiredStartupFiles, 'docs/dev-workflow.md']
+const requiredWorkflowRecoveryFiles = [
+  '.ai/START-HERE.md',
+  '.ai/CURRENT.md',
+  'docs/ai-instructions.md',
+  'docs/dev-workflow.md',
+]
 
 describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
@@ -128,13 +135,44 @@ describe('AI startup docs', () => {
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
   })
 
-  it('keeps the manual startup prompt aligned with the required startup set', () => {
-    const prompt = readRepoFile('.codex/prompts/session-start.md')
+  it('keeps startup prompts aligned with the canonical guidance set', () => {
+    const prompts = ['.claude/commands/session-start.md', '.codex/prompts/session-start.md']
 
-    for (const file of requiredStartupFiles) {
-      expect(prompt).toContain(file)
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      for (const file of requiredStartupGuidanceFiles) {
+        expect(prompt).toContain(file)
+      }
+      expect(prompt).toContain('--orient-only')
     }
-    expect(prompt).toContain('--orient-only')
+  })
+
+  it('keeps workflow reset prompts aligned with the canonical recovery set', () => {
+    const prompts = ['.claude/commands/follow-workflow.md', '.codex/prompts/follow-workflow.md']
+
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      for (const file of requiredWorkflowRecoveryFiles) {
+        expect(prompt).toContain(file)
+      }
+      expect(prompt).toContain('git rev-parse --show-toplevel')
+      expect(prompt).toContain('detached HEAD')
+    }
+  })
+
+  it('keeps issue prompts on the canonical worktree workflow', () => {
+    const prompts = ['.claude/commands/work-on-issue.md', '.codex/prompts/work-on-issue.md']
+
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      expect(prompt).toContain('docs/workflow/handle-issue.md')
+      expect(prompt).toContain('docs/dev-workflow.md')
+      expect(prompt).not.toContain('$HOME/.codex/worktrees/pika/issue-')
+      expect(prompt).not.toContain('git -C "$HUB" worktree add')
+    }
   })
 
   it('documents both named and app-managed Codex worktree locations', () => {
@@ -399,6 +437,136 @@ describe('AI startup docs', () => {
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
     }
+  })
+
+  function runAuditOnChangedRoute(routePath: string, before: string[], after: string[]) {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+    const fullPath = join(repoRoot, routePath)
+
+    mkdirSync(dirname(fullPath), { recursive: true })
+    writeFileSync(fullPath, `${before.join('\n')}\n`)
+    commitAll(repoRoot, 'add route handler')
+    writeFileSync(fullPath, `${after.join('\n')}\n`)
+
+    try {
+      const result = spawnSync('bash', [scriptPath], { cwd: repoRoot, encoding: 'utf8' })
+      return { status: result.status, output: `${result.stdout}\n${result.stderr}` }
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  }
+
+  // Every route in the repo is written as `export const GET = withErrorHandler(...)`.
+  // The audit only recognised the legacy `export async function GET` form, so a new
+  // route written in the house style but missing the wrapper went unreported.
+  it('rejects an arrow-style route handler that is missing withErrorHandler', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      ['export const GET = async () => {', '  return Response.json({ ok: true })', '}'],
+      ['export const GET = async () => {', "  return Response.json({ ok: 'changed' })", '}'],
+    )
+
+    expect(status).not.toBe(0)
+    expect(output).toContain('no-withErrorHandler')
+    expect(output).toContain('src/app/api/profile/route.ts')
+  })
+
+  it('rejects a legacy function route handler that is missing withErrorHandler', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      ['export async function GET() {', '  return Response.json({ ok: true })', '}'],
+      ['export async function GET() {', "  return Response.json({ ok: 'changed' })", '}'],
+    )
+
+    expect(status).not.toBe(0)
+    expect(output).toContain('no-withErrorHandler')
+  })
+
+  it('allows an arrow-style route handler that is wrapped with withErrorHandler', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const GET = withErrorHandler('GetProfile', async () => {",
+        '  return Response.json({ ok: true })',
+        '})',
+      ],
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const GET = withErrorHandler('GetProfile', async () => {",
+        "  return Response.json({ ok: 'changed' })",
+        '})',
+      ],
+    )
+
+    expect(status).toBe(0)
+    expect(output).not.toContain('no-withErrorHandler')
+  })
+
+  // Every route imports withErrorHandler, so a file-level grep for the name
+  // passes any route that imports it and then forgets to wrap the handler.
+  it('rejects a handler that imports withErrorHandler without wrapping', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        'export const GET = async () => {',
+        '  return Response.json({ ok: true })',
+        '}',
+      ],
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        'export const GET = async () => {',
+        "  return Response.json({ ok: 'changed' })",
+        '}',
+      ],
+    )
+
+    expect(status).not.toBe(0)
+    expect(output).toContain('no-withErrorHandler')
+  })
+
+  it('allows a handler aliased to an already-wrapped handler', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const PUT = withErrorHandler('PutProfile', async () => {",
+        '  return Response.json({ ok: true })',
+        '})',
+        '',
+        'export const POST = PUT',
+      ],
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const PUT = withErrorHandler('PutProfile', async () => {",
+        "  return Response.json({ ok: 'changed' })",
+        '})',
+        '',
+        'export const POST = PUT',
+      ],
+    )
+
+    expect(status).toBe(0)
+    expect(output).not.toContain('no-withErrorHandler')
+  })
+
+  it('does not flag exported names that merely start with an HTTP method', () => {
+    const { status, output } = runAuditOnChangedRoute(
+      'src/app/api/profile/route.ts',
+      ['export const GETTER = 1', 'export const POSTAL_CODE = 2'],
+      ['export const GETTER = 3', 'export const POSTAL_CODE = 4'],
+    )
+
+    expect(status).toBe(0)
+    expect(output).not.toContain('no-withErrorHandler')
   })
 
   it('allows the canonical parseContentField definition to change', () => {

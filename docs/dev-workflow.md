@@ -107,44 +107,19 @@ Codex/Claude startup should repair a missing symlink before running the app or
 
 ## The `pika` command
 
-The `pika` script is a thin router that:
-- launches commands in a specific worktree
-- helps humans avoid opening agents in the hub by mistake
-- keeps human-launched AI sessions on a named worktree
-
-It is a convenience wrapper, not a requirement for Codex. Codex should create or
-open a git worktree natively and then operate from that worktree root.
-
-### Quick start
+`pika` is the teacher CLI: it drives Pika's teacher API headlessly so
+curriculum can be authored as versioned markdown instead of clicked through the
+UI. See [`scripts/pika-cli-README.md`](../scripts/pika-cli-README.md) for
+commands and setup.
 
 ```bash
-pika ls
-pika claude <worktree>
+pnpm pika help          # from any checkout of this repo
+pika help               # if the global launcher is installed
 ```
 
-### Available commands
-
-- `pika ls`
-  Lists available worktrees.
-
-- `pika claude <worktree> [-- <args...>]`
-  Launches Claude in the given worktree.
-
-  Alias: `pika ai <worktree>` (legacy)
-
-- `pika codex <worktree> [-- <args...>]`
-  Optional compatibility helper for launching Codex in the given named worktree.
-  Codex Desktop sessions do not need this.
-
-- `pika git <worktree> <git args...>`
-  Runs git in the resolved named worktree. Resolution checks
-  `$HOME/.codex/worktrees/pika` first, then the legacy
-  `$HOME/Repos/.worktrees/pika` path while old worktrees exist.
-
-Use `--` to pass through engine flags, for example:
-```bash
-pika claude my-worktree -- --model sonnet
-```
+A worktree-router script previously owned this name. It was retired once the
+worktree rules below became the canonical workflow; create and open worktrees
+with `git worktree` directly, as described above.
 
 ---
 

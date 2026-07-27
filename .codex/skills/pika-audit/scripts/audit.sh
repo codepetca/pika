@@ -23,6 +23,10 @@ declare -a COMPOSITE_FILES=()
 # variable. Keep a sentinel so no-test changes report audit violations.
 declare -a TEST_FILES=("__pika_no_changed_tests__")
 
+# Route handler exports, in either the legacy `export async function GET()` form
+# or the arrow form `export const GET = ...` used by every current route.
+HANDLER_EXPORT_RE='^[[:space:]]*export[[:space:]]+((async[[:space:]]+)?function|const|let|var)[[:space:]]+(GET|POST|PATCH|PUT|DELETE)[[:space:]]*[=(<:]'
+
 # Collect changed .ts/.tsx files
 CHANGED=$(git -C "$WORKTREE" diff --name-only HEAD 2>/dev/null || true)
 STAGED=$(git -C "$WORKTREE" diff --name-only --cached 2>/dev/null || true)
@@ -216,12 +220,23 @@ while IFS= read -r file; do
       HAS_WRAPPER=1
     fi
 
-    # Exported handler without withErrorHandler
-    if grep -qE 'export async function (GET|POST|PATCH|PUT|DELETE)' "$FULL" 2>/dev/null; then
-      if [[ "$HAS_WRAPPER" -eq 0 ]]; then
-        report_violation "no-withErrorHandler" "$file" "run /migrate-error-handler to wrap handlers"
+    # Exported handler without withErrorHandler, checked per handler rather than
+    # per file: every route imports withErrorHandler, so a file-level grep passes
+    # any route that imports it and then forgets to wrap the handler.
+    while IFS= read -r handler_line; do
+      [[ -z "$handler_line" ]] && continue
+
+      # Wrapped on the same line, e.g. `export const GET = withErrorHandler(...)`.
+      printf '%s' "$handler_line" | grep -q 'withErrorHandler' && continue
+
+      # `export const POST = PUT` aliases a handler checked on its own line.
+      if printf '%s' "$handler_line" | grep -qE '=[[:space:]]*[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*;?[[:space:]]*$'; then
+        continue
       fi
-    fi
+
+      report_violation "no-withErrorHandler" "$file" "run /migrate-error-handler to wrap handlers"
+      break
+    done < <(grep -hE "$HANDLER_EXPORT_RE" "$FULL" 2>/dev/null || true)
 
     # Manual catch blocks are only flagged for unwrapped route files.
     if [[ "$HAS_WRAPPER" -eq 0 ]]; then

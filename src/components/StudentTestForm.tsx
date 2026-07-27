@@ -5,6 +5,7 @@ import { Button, ConfirmDialog } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
   DEFAULT_OPEN_RESPONSE_MAX_CHARS,
+  isCompleteTestResponseForQuestion,
   normalizeTestResponses,
   type TestResponses,
 } from '@/lib/test-attempts'
@@ -15,17 +16,15 @@ import {
   isQuestionFlagged,
   toggleFlaggedQuestion,
 } from '@/lib/flag-questions'
-import type { TestAssessmentType, TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
+import type { TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
-  testId?: string
-  quizId?: string
+  testId: string
   questions: TestAssessmentQuestion[]
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
   previewMode?: boolean
   isInteractionLocked?: boolean
-  assessmentType?: TestAssessmentType
   apiBasePath?: string
   onAvailabilityLoss?: () => void
   onSubmitted: () => void
@@ -44,35 +43,24 @@ function isAssessmentAvailabilityError(message: string): boolean {
 }
 
 export function StudentTestForm({
-  testId: testIdProp,
-  quizId,
+  testId,
   questions,
   initialResponses,
   enableDraftAutosave = false,
   previewMode = false,
   isInteractionLocked = false,
-  assessmentType,
   apiBasePath = '/api/student/tests',
   onAvailabilityLoss,
   onSubmitted,
 }: Props) {
-  const resolvedTestId = testIdProp ?? quizId
-  if (!resolvedTestId) {
+  if (!testId) {
     throw new Error('StudentTestForm requires testId')
   }
-  const testId: string = resolvedTestId
 
   const OPEN_RESPONSE_TAB_INDENT = '\t'
   const OPEN_RESPONSE_TAB_SIZE = 4
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
-  const isTestMode =
-    assessmentType === 'test' ||
-    apiBasePath.includes('/tests') ||
-    enableDraftAutosave ||
-    questions.some((question) => question.question_type === 'open_response')
-  const isTestAssessment = assessmentType === 'test' || apiBasePath.includes('/tests')
-
   const [responses, setResponses] = useState<TestResponses>(
     normalizeTestResponses(initialResponses)
   )
@@ -91,27 +79,16 @@ export function StudentTestForm({
   const lastSavedResponsesRef = useRef('')
   const lastSaveAttemptAtRef = useRef(0)
 
-  const allAnswered = questions.every((question) => {
-    const response = responses[question.id]
-    const questionType =
-      question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
-    if (!response) return false
-    if (questionType === 'open_response') {
-      return response.question_type === 'open_response' && response.response_text.trim().length > 0
-    }
-    return response.question_type === 'multiple_choice'
-  })
+  const allAnswered = questions.every((question) =>
+    isCompleteTestResponseForQuestion(question, responses[question.id])
+  )
   const saveStatusLabel =
     saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Unsaved changes'
 
   const submitActions = (
     <div
-      data-testid="student-quiz-action-footer"
-      className={
-        isTestAssessment
-          ? 'rounded-xl border border-border bg-surface p-4 shadow-sm'
-          : 'sticky bottom-0 z-10 mt-auto rounded-lg border border-border bg-surface p-3 shadow-sm'
-      }
+      data-testid="student-test-action-footer"
+      className="rounded-xl border border-border bg-surface p-4 shadow-sm"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
@@ -244,16 +221,6 @@ export function StudentTestForm({
       }
     }, waitMs)
   }, [AUTOSAVE_MIN_INTERVAL_MS, saveDraft, shouldAutosave])
-
-  function toQuizSubmissionPayload(nextResponses: TestResponses): Record<string, number> {
-    const payload: Record<string, number> = {}
-    for (const [questionId, response] of Object.entries(nextResponses)) {
-      if (response.question_type === 'multiple_choice') {
-        payload[questionId] = response.selected_option
-      }
-    }
-    return payload
-  }
 
   function handleOptionSelect(questionId: string, optionIndex: number) {
     if (isInteractionLocked) return
@@ -421,7 +388,7 @@ export function StudentTestForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          responses: isTestMode ? responses : toQuizSubmissionPayload(responses),
+          responses,
         }),
       })
       const data = await res.json()
@@ -486,7 +453,7 @@ export function StudentTestForm({
                         <div className="flex-1">
                           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                             Q{index + 1}
-                            {isTestMode && typeof question.points === 'number'
+                            {typeof question.points === 'number'
                               ? ` · ${question.points} pts`
                               : ''}
                           </p>
@@ -591,10 +558,8 @@ export function StudentTestForm({
             </div>
           )}
 
-          {isTestAssessment ? submitActions : null}
+          {submitActions}
         </div>
-
-        {isTestAssessment ? null : submitActions}
       </div>
 
       <ConfirmDialog

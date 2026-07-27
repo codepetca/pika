@@ -40,7 +40,7 @@ describe('StudentTestsTab exam mode', () => {
       configurable: true,
       value: 768,
     })
-    invalidateCachedJSONMatching('student-assessments:')
+    invalidateCachedJSONMatching('student-tests:')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -55,8 +55,8 @@ describe('StudentTestsTab exam mode', () => {
     return { promise, resolve, reject }
   }
 
-  function jsonResponse(body: unknown): Response {
-    return { ok: true, json: async () => body } as Response
+  function jsonResponse(body: unknown, ok = true): Response {
+    return { ok, json: async () => body } as Response
   }
 
   function queueTestList() {
@@ -93,7 +93,7 @@ describe('StudentTestsTab exam mode', () => {
         questions: [
           {
             id: 'q1',
-            quiz_id: 'test-1',
+            test_id: 'test-1',
             question_text: '2 + 2 = ?',
             options: ['3', '4'],
             question_type: 'multiple_choice',
@@ -108,52 +108,98 @@ describe('StudentTestsTab exam mode', () => {
     })
   }
 
-  it('reads legacy quiz-keyed test payloads as a compatibility fallback', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      quizzes: [{
-        id: 'legacy-test-1',
-        title: 'Legacy-Keyed Test',
-        assessment_type: 'test',
-        status: 'active',
-        show_results: false,
-        position: 0,
-        student_status: 'not_started',
-      }],
-    }))
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      quiz: {
-        id: 'legacy-test-1',
-        title: 'Legacy-Keyed Test',
-        assessment_type: 'test',
-        status: 'active',
-        show_results: false,
-        position: 0,
-        student_status: 'not_started',
-      },
-      student_status: 'not_started',
-      questions: [
-        {
-          id: 'legacy-question-1',
-          quiz_id: 'legacy-test-1',
-          question_text: 'Legacy-keyed detail question',
-          options: ['A', 'B'],
-          question_type: 'multiple_choice',
-          points: 1,
-          response_max_chars: 5000,
+  it('shows a retryable error instead of an empty state when the tests list fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ error: 'Database unavailable' }, false))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Still unavailable' }, false))
+      .mockResolvedValueOnce(jsonResponse({
+        tests: [{
+          id: 'test-recovered',
+          title: 'Recovered Test',
+          assessment_type: 'test',
+          status: 'active',
+          show_results: false,
           position: 0,
-        },
-      ],
-      student_responses: {},
-      focus_summary: null,
-    }))
+          student_status: 'not_started',
+        }],
+      }))
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
-    expect(await screen.findByText('Legacy-Keyed Test')).toBeInTheDocument()
+    expect(await screen.findByText('Tests unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('No tests available.')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('Legacy-Keyed Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
-    expect(await screen.findByText('1 question · 1 pt total')).toBeInTheDocument()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Recovered Test')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Tests' })).toHaveFocus()
+    expect(screen.queryByText('Tests unavailable')).not.toBeInTheDocument()
+  })
+
+  it('keeps the current list visible when a background refresh fails', async () => {
+    queueTestList()
+    queueTestDetail()
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Refresh failed' }, false))
+
+    render(<StudentTestsTab classroom={classroom} />)
+
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    expect(await screen.findByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+
+    expect(await screen.findByText('Midterm Test')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tests could not be refreshed. Showing the last loaded list.',
+    )
+    expect(screen.queryByText('No tests available.')).not.toBeInTheDocument()
+  })
+
+  it('does not paint the previous classroom list while the next classroom loads', async () => {
+    const firstClassroom = createMockClassroom({ id: 'classroom-a', title: 'Classroom A' })
+    const secondClassroom = createMockClassroom({ id: 'classroom-b', title: 'Classroom B' })
+    const secondList = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=classroom-a')) {
+        return Promise.resolve(jsonResponse({
+          tests: [{
+            id: 'test-old',
+            title: 'Previous Classroom Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            student_status: 'not_started',
+          }],
+        }))
+      }
+      if (url.includes('/api/student/tests?classroom_id=classroom-b')) return secondList.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const { rerender } = render(
+      <StudentTestsTab classroom={firstClassroom} />
+    )
+
+    expect(await screen.findByText('Previous Classroom Test')).toBeInTheDocument()
+
+    rerender(<StudentTestsTab classroom={secondClassroom} />)
+
+    expect(screen.queryByText('Previous Classroom Test')).not.toBeInTheDocument()
+    expect(screen.getByText('Loading tests')).toBeInTheDocument()
+
+    await act(async () => {
+      secondList.resolve(jsonResponse({ tests: [] }))
+      await secondList.promise
+    })
+
+    expect(await screen.findByText('No tests available.')).toBeInTheDocument()
   })
 
   it('ignores stale assessment list responses after classroom changes', async () => {
@@ -169,14 +215,14 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     const { rerender } = render(
-      <StudentTestsTab classroom={firstClassroom} assessmentType="test" />
+      <StudentTestsTab classroom={firstClassroom} />
     )
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/student/tests?classroom_id=classroom-a')
     })
 
-    rerender(<StudentTestsTab classroom={secondClassroom} assessmentType="test" />)
+    rerender(<StudentTestsTab classroom={secondClassroom} />)
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/student/tests?classroom_id=classroom-b')
@@ -257,7 +303,7 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     const { rerender } = render(
-      <StudentTestsTab classroom={firstClassroom} assessmentType="test" />
+      <StudentTestsTab classroom={firstClassroom} />
     )
 
     await waitFor(() => {
@@ -270,7 +316,7 @@ describe('StudentTestsTab exam mode', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/student/tests/test-old')
     })
 
-    rerender(<StudentTestsTab classroom={secondClassroom} assessmentType="test" />)
+    rerender(<StudentTestsTab classroom={secondClassroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Current Classroom Test')).toBeInTheDocument()
@@ -291,7 +337,7 @@ describe('StudentTestsTab exam mode', () => {
         questions: [
           {
             id: 'q-stale',
-            quiz_id: 'test-old',
+            test_id: 'test-old',
             question_text: 'Stale detail question',
             options: ['A', 'B'],
             question_type: 'multiple_choice',
@@ -366,7 +412,7 @@ describe('StudentTestsTab exam mode', () => {
     queueTestList()
     queueTestDetail()
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -402,7 +448,7 @@ describe('StudentTestsTab exam mode', () => {
     queueTestList()
     queueTestDetail()
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -440,7 +486,7 @@ describe('StudentTestsTab exam mode', () => {
     window.addEventListener(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, handler)
 
     const { unmount } = render(
-      <StudentTestsTab classroom={classroom} assessmentType="test" />
+      <StudentTestsTab classroom={classroom} />
     )
 
     await waitFor(() => {
@@ -483,7 +529,7 @@ describe('StudentTestsTab exam mode', () => {
     const { requestFullscreen } = mockFullscreenSuccess()
 
     render(
-      <StudentTestsTab classroom={classroom} assessmentType="test" />
+      <StudentTestsTab classroom={classroom} />
     )
 
     await waitFor(() => {
@@ -544,7 +590,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -583,7 +629,7 @@ describe('StudentTestsTab exam mode', () => {
 
     mockFullscreenSuccess()
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -661,7 +707,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -700,7 +746,7 @@ describe('StudentTestsTab exam mode', () => {
 
     mockFullscreenSuccess()
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -780,7 +826,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -820,7 +866,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -900,7 +946,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use [Formula Sheet](https://example.com/formula.pdf). 2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -940,7 +986,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1030,7 +1076,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1072,7 +1118,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1186,7 +1232,7 @@ describe('StudentTestsTab exam mode', () => {
             student_status: 'not_started',
             questions: Array.from({ length: 12 }, (_, index) => ({
               id: `q${index + 1}`,
-              quiz_id: 'test-1',
+              test_id: 'test-1',
               question_text: `Question ${index + 1}?`,
               options: ['A', 'B'],
               question_type: 'multiple_choice' as const,
@@ -1203,7 +1249,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1224,7 +1270,7 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     const detailPane = screen.getByTestId('student-test-detail-pane')
-    const actionFooter = within(detailPane).getByTestId('student-quiz-action-footer')
+    const actionFooter = within(detailPane).getByTestId('student-test-action-footer')
     const questionsStack = screen.getByText('Question 12?').closest('[data-question-id="q12"]')
       ?.parentElement
 
@@ -1285,7 +1331,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -1314,7 +1360,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1418,7 +1464,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1448,7 +1494,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1545,7 +1591,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use the formula sheet.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1575,7 +1621,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1665,7 +1711,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1695,7 +1741,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1772,7 +1818,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -1800,7 +1846,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1865,7 +1911,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -1925,7 +1971,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1981,7 +2027,7 @@ describe('StudentTestsTab exam mode', () => {
       }),
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Closed Test')).toBeInTheDocument()
@@ -2035,7 +2081,7 @@ describe('StudentTestsTab exam mode', () => {
       }),
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Newest Active Test')).toBeInTheDocument()
@@ -2092,7 +2138,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use provided formulas.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -2127,7 +2173,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2207,7 +2253,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2247,7 +2293,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" isActive={false} />)
+    render(<StudentTestsTab classroom={classroom} isActive={false} />)
 
     await waitFor(() => {
       expect(screen.getByText('Final Test')).toBeInTheDocument()
@@ -2346,7 +2392,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2376,7 +2422,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2460,7 +2506,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2504,7 +2550,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2581,7 +2627,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2614,7 +2660,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2684,7 +2730,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2720,7 +2766,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2801,7 +2847,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Use documentation for this question.',
                 options: ['A', 'B'],
                 question_type: 'multiple_choice',
@@ -2837,7 +2883,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2931,7 +2977,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -2961,7 +3007,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3046,7 +3092,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3080,7 +3126,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3189,7 +3235,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3219,7 +3265,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3346,7 +3392,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3385,7 +3431,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3494,7 +3540,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3533,7 +3579,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3714,7 +3760,7 @@ describe('StudentTestsTab exam mode', () => {
               questions: [
                 {
                   id: 'q1',
-                  quiz_id: 'test-1',
+                  test_id: 'test-1',
                   question_text: 'Which HTTP method is usually used for partial updates?',
                   options: ['GET', 'POST', 'PATCH', 'DELETE'],
                   question_type: 'multiple_choice',
@@ -3757,7 +3803,7 @@ describe('StudentTestsTab exam mode', () => {
         throw new Error(`Unexpected fetch call: ${url}`)
       })
 
-      render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+      render(<StudentTestsTab classroom={classroom} />)
 
       await waitFor(() => {
         expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3888,7 +3934,7 @@ describe('StudentTestsTab exam mode', () => {
             questions: [
               {
                 id: 'q1',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: '2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
@@ -3898,7 +3944,7 @@ describe('StudentTestsTab exam mode', () => {
               },
               {
                 id: 'q2',
-                quiz_id: 'test-1',
+                test_id: 'test-1',
                 question_text: 'Explain one benefit of writing tests before implementation.',
                 options: [],
                 question_type: 'open_response',
@@ -3951,7 +3997,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()

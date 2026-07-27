@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { isPalEnabled } from '@/lib/server/pal-config'
+import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
+import { createClassroomEnrollmentWithPalEvent } from '@/lib/server/pal-source-writes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -176,22 +179,55 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
     }
   }
 
-  // Enroll student
-  const { data: enrollment, error: enrollError } = await supabase
-    .from('classroom_enrollments')
-    .insert({
-      classroom_id: classroom.id,
-      student_id: user.id,
+  let enrollment
+  if (isPalEnabled()) {
+    const occurredAt = new Date()
+    const palEvent = buildClassroomJoinedEvent({
+      learnerId: user.id,
+      classroomId: classroom.id,
+      occurredAt,
     })
-    .select()
-    .single()
 
-  if (enrollError) {
-    console.error('Error enrolling student:', enrollError)
-    return NextResponse.json(
-      { error: 'Failed to join classroom' },
-      { status: 500 }
-    )
+    try {
+      const result = await createClassroomEnrollmentWithPalEvent({
+        supabase,
+        classroomId: classroom.id,
+        studentId: user.id,
+        event: palEvent,
+      })
+      enrollment = result.enrollment
+      if (!result.created) {
+        return NextResponse.json({
+          success: true,
+          classroom,
+          alreadyEnrolled: true,
+        })
+      }
+    } catch (error) {
+      console.error('Error enrolling student with Pal outbox:', error)
+      return NextResponse.json(
+        { error: 'Failed to join classroom' },
+        { status: 500 }
+      )
+    }
+  } else {
+    const { data, error: enrollError } = await supabase
+      .from('classroom_enrollments')
+      .insert({
+        classroom_id: classroom.id,
+        student_id: user.id,
+      })
+      .select()
+      .single()
+
+    if (enrollError) {
+      console.error('Error enrolling student:', enrollError)
+      return NextResponse.json(
+        { error: 'Failed to join classroom' },
+        { status: 500 }
+      )
+    }
+    enrollment = data
   }
 
   if (effectiveRosterEntry?.first_name && effectiveRosterEntry?.last_name) {

@@ -9,6 +9,9 @@ Focus on the full result set, not only the first failure. The audit checks the h
 
 Treat the changed-test checks as a path-aware guardrail, not as proof that coverage is complete. They are meant to be cheap, explainable, and usually correct; edge cases still require human judgment.
 
+For changed UI files, use root `DESIGN.md` as the product contract and
+`src/ui/README.md` as the canonical component/token-usage reference.
+
 Also declare the task risk profile before reporting audit status:
 - `none`
 - `workspace-state`

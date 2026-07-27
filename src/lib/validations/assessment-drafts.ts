@@ -1,8 +1,5 @@
-import { validateAssessmentOptions } from '@/lib/assessments'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import type {
-  AssessmentDraftContent,
-  AssessmentDraftQuestion,
   TestDraftContent,
   TestDraftQuestion,
 } from '@/types'
@@ -64,77 +61,6 @@ function ensureUniqueQuestionIds<TQuestion extends { id: string }>(
     ids.add(question.id)
   }
   return null
-}
-
-export function validateAssessmentDraftContent(
-  input: unknown,
-): AssessmentDraftValidationResult<AssessmentDraftContent> {
-  if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
-
-  const title = parseTitle(input.title)
-  if (!title) return { valid: false, error: 'Title is required' }
-
-  const showResults = parseBoolean(input.show_results)
-  if (showResults === null) {
-    return { valid: false, error: 'show_results must be a boolean' }
-  }
-
-  if (!Array.isArray(input.questions)) {
-    return { valid: false, error: 'questions must be an array' }
-  }
-
-  const questions: AssessmentDraftQuestion[] = []
-
-  for (let index = 0; index < input.questions.length; index += 1) {
-    const rawQuestion = input.questions[index]
-    if (!isRecord(rawQuestion)) {
-      return { valid: false, error: `Q${index + 1}: Invalid question` }
-    }
-
-    const id = parseUuid(rawQuestion.id)
-    if (!id) {
-      return { valid: false, error: `Q${index + 1}: Invalid question id` }
-    }
-
-    const questionText = parseTitle(rawQuestion.question_text)
-    if (!questionText) {
-      return { valid: false, error: `Q${index + 1}: Question text is required` }
-    }
-
-    const options = parseStringArray(rawQuestion.options)
-    if (!options) {
-      return { valid: false, error: `Q${index + 1}: Options must be non-empty strings` }
-    }
-
-    const optionsValidation = validateAssessmentOptions(options)
-    if (!optionsValidation.valid) {
-      return { valid: false, error: `Q${index + 1}: ${optionsValidation.error}` }
-    }
-
-    questions.push({
-      id,
-      question_text: questionText,
-      options,
-    })
-  }
-
-  const duplicateError = ensureUniqueQuestionIds(questions)
-  if (duplicateError) {
-    return { valid: false, error: duplicateError }
-  }
-
-  return {
-    valid: true,
-    value: {
-      title,
-      show_results: showResults,
-      questions,
-      ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
-      ...(parseOptionalMarkdown(input.source_markdown) !== undefined
-        ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }
-        : {}),
-    },
-  }
 }
 
 export function validateTestDraftContent(

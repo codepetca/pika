@@ -75,7 +75,7 @@ describe('AppHeader classroom theme', () => {
     const header = screen.getByRole('banner')
 
     expect(header).toHaveAttribute('data-classroom-theme-color', 'rose')
-    expect(header).toHaveClass('classroom-theme-appbar')
+    expect(header).toHaveClass('classroom-theme-appbar', 'z-app-chrome')
     expect(header).not.toHaveClass('border')
     expect(header.getAttribute('style')).toContain('--classroom-accent-light')
     expect(header.getAttribute('style')).toContain('--classroom-accent-dark')

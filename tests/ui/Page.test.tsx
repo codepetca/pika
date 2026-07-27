@@ -15,10 +15,10 @@ describe('Page primitives', () => {
   it('applies canonical content widths without feature-local max-width classes', () => {
     const { rerender } = render(<PageLayout width="reading">Content</PageLayout>)
 
-    expect(screen.getByText('Content')).toHaveClass('max-w-2xl', 'mx-auto', 'w-full')
+    expect(screen.getByText('Content')).toHaveClass('max-w-reading', 'mx-auto', 'w-full')
 
     rerender(<PageLayout width="standard">Content</PageLayout>)
-    expect(screen.getByText('Content')).toHaveClass('max-w-4xl')
+    expect(screen.getByText('Content')).toHaveClass('max-w-standard')
   })
 
   it('preserves legacy className width overrides during migration', () => {
@@ -38,8 +38,11 @@ describe('Page primitives', () => {
     )
 
     const stack = screen.getByText('Dense teacher content')
-    expect(stack).toHaveClass('space-y-3')
-    expect(stack.parentElement).toHaveClass('px-3', 'pt-2')
+    expect(stack).toHaveClass('space-y-density-compact-stack-gap')
+    expect(stack.parentElement).toHaveClass(
+      'px-density-compact-gutter',
+      'pt-density-compact-content-top',
+    )
   })
 
   it('provides semantic page and section heading levels with governed typography', () => {
@@ -75,7 +78,7 @@ describe('Page primitives', () => {
   })
 
   it('preserves 44px targets and focus treatment for action buttons and menu items', () => {
-    expect(ACTIONBAR_BUTTON_CLASSNAME).toContain('min-h-11')
+    expect(ACTIONBAR_BUTTON_CLASSNAME).toContain('min-h-control')
     expect(ACTIONBAR_BUTTON_CLASSNAME).not.toContain('min-h-10')
     expect(ACTIONBAR_ICON_BUTTON_CLASSNAME).toContain('h-11')
     expect(ACTIONBAR_ICON_BUTTON_CLASSNAME).toContain('w-11')
@@ -89,7 +92,11 @@ describe('Page primitives', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open actions menu' }))
 
     const item = within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Archive' })
-    expect(item).toHaveClass('min-h-11', 'focus-visible:ring-2', 'focus-visible:ring-inset')
+    expect(item).toHaveClass(
+      'min-h-control',
+      'focus-visible:ring-foundation',
+      'focus-visible:ring-inset',
+    )
   })
 
   it('does not reclaim focus with menu keys after focus leaves the open menu', async () => {

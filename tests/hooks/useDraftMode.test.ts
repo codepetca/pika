@@ -21,7 +21,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useDraftMode>[0]> = {}
 function makeQuestion(overrides: Partial<TestAssessmentQuestion> = {}): TestAssessmentQuestion {
   return {
     id: 'q-1',
-    quiz_id: 'test-1',
+    test_id: 'test-1',
     question_text: 'What is 2+2?',
     question_type: 'multiple_choice',
     options: ['1', '2', '4', '5'],
@@ -47,46 +47,6 @@ describe('useDraftMode', () => {
         useDraftMode(makeOptions({ assessmentTitle: 'My Test' }))
       )
       expect(result.current.editTitle).toBe('My Test')
-    })
-
-    it('accepts legacy quizId and quizTitle option aliases', async () => {
-      const fetchSpy = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({ version: 2 }),
-      })
-      vi.stubGlobal('fetch', fetchSpy)
-
-      const { result } = renderHook(() =>
-        useDraftMode({
-          quizId: 'legacy-test-1',
-          quizTitle: 'Legacy Test',
-          showResults: false,
-          apiBasePath: '/api/teacher/tests',
-          onUpdate: vi.fn(),
-          onError: vi.fn(),
-          onQuestionsChange: vi.fn(),
-        })
-      )
-
-      expect(result.current.editTitle).toBe('Legacy Test')
-
-      await act(async () => {
-        await result.current.saveDraft({
-          title: 'Updated Title',
-          show_results: false,
-          questions: [],
-        })
-      })
-
-      await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/teacher/tests/legacy-test-1/draft'),
-          expect.objectContaining({ method: 'PATCH' })
-        )
-      })
-
-      vi.unstubAllGlobals()
     })
 
     it('initialises saveStatus as "saved"', () => {

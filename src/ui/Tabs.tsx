@@ -104,7 +104,7 @@ export function Tabs<TValue extends string>({
             onClick={() => activateItem(item)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              'min-h-11 shrink-0 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+              'min-h-control shrink-0 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
               variant === 'connected'
                 ? isActive
                   ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
@@ -143,7 +143,7 @@ export function TabPanel({
       aria-labelledby={labelledBy}
       tabIndex={focusable ? 0 : undefined}
       className={cn(
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+        'focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
         className,
       )}
     >

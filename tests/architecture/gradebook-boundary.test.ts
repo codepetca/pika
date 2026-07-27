@@ -26,23 +26,9 @@ describe('gradebook feature boundary', () => {
     expect(source).not.toContain("from '@/lib/api-handler'")
   })
 
-  it('keeps legacy quiz storage outside the active gradebook workflow', () => {
+  it('keeps retired Quiz contracts out of the active gradebook workflow', () => {
     const serverSource = read('src/lib/server/gradebook.ts')
     const calculationSource = read('src/lib/gradebook.ts')
-    const allowedServerQuizTombstones = [
-      'quizzes_weight: 20,',
-      'quizzes_earned: null,',
-      'quizzes_possible: null,',
-      'quizzes_percent: null,',
-      'quizzes: [],',
-      'quizzes: [],',
-      'quizzes: 0,',
-    ]
-    let activeServerSource = serverSource
-    for (const tombstone of allowedServerQuizTombstones) {
-      expect(activeServerSource).toContain(tombstone)
-      activeServerSource = activeServerSource.replace(tombstone, '')
-    }
 
     const serverImports = [...serverSource.matchAll(/from ['"]([^'"]+)['"]/g)]
       .map((match) => match[1])
@@ -60,7 +46,7 @@ describe('gradebook feature boundary', () => {
     expect(serverSource).not.toMatch(/\bimport\s*\(/)
     expect(serverSource).not.toMatch(/\bimport\s*['"]/)
     expect(serverSource).not.toMatch(/\brequire\s*\(/)
-    expect(activeServerSource).not.toMatch(/quiz/i)
+    expect(serverSource).not.toMatch(/quiz/i)
     expect(calculationSource).not.toContain('quizzes')
     expect(calculationSource).not.toContain('quiz')
   })

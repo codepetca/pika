@@ -226,7 +226,7 @@ describe('GET /api/student/tests/[id]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.test).toEqual(data.quiz)
+    expect(data).not.toHaveProperty('quiz')
     expect(data.test.id).toBe('test-1')
     expect(data.test.returned_at).toBeNull()
     expect(questionSelectColumns).not.toContain('correct_option')

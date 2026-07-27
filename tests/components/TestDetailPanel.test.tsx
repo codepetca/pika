@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useState, type ReactNode } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
@@ -116,82 +117,19 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
-  it('accepts legacy quiz and onQuizUpdate as compatibility aliases', async () => {
-    mockFetchForTest(sampleQuestions)
-    const legacyTest = makeTestWithStats({ title: 'Legacy Alias Test' })
-    const legacyOnQuizUpdate = vi.fn()
-
-    render(
-      <TestDetailPanel
-        quiz={legacyTest}
-        classroomId="classroom-1"
-        onQuizUpdate={legacyOnQuizUpdate}
-      />,
-      { wrapper: Wrapper }
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Legacy Alias Test')).toBeInTheDocument()
-    })
-  })
-
-  it('reads legacy quiz-keyed test detail payloads as a compatibility fallback', async () => {
-    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/tests/legacy-test/draft')) {
-        return Promise.resolve(jsonResponse({
-          draft: {
-            version: 1,
-            content: {
-              questions: [],
-            },
-          },
-        }))
-      }
-      if (url.endsWith('/api/teacher/tests/legacy-test')) {
-        return Promise.resolve(jsonResponse({
-          quiz: {
-            documents: [
-              { id: 'legacy-doc', title: 'Legacy Reference', source: 'text', content: 'Legacy detail' },
-            ],
-          },
-        }))
-      }
-      throw new Error(`Unexpected fetch: ${url}`)
-    })
-
-    render(
-      <TestDetailPanel
-        test={makeTestWithStats({ id: 'legacy-test', title: 'Legacy-Keyed Detail' })}
-        classroomId="classroom-1"
-        apiBasePath="/api/teacher/tests"
-        onTestUpdate={vi.fn()}
-      />,
-      { wrapper: Wrapper }
-    )
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Documents (1)' })).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Documents (1)' }))
-
-    expect(screen.getByText('Legacy Reference')).toBeInTheDocument()
-  })
-
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()
     const currentDraft = createDeferred<Response>()
     const staleQuestion = createMockTestQuestion({
       id: 'q-stale',
-      quiz_id: 'test-stale',
+      test_id: 'test-stale',
       question_text: 'Stale draft question',
       position: 0,
     })
     const currentQuestion = createMockTestQuestion({
       id: 'q-current',
-      quiz_id: 'test-current',
+      test_id: 'test-current',
       question_text: 'Current draft question',
       position: 0,
     })
@@ -360,116 +298,6 @@ describe('TestDetailPanel', () => {
     expect(screen.queryByText('Stale Reference')).not.toBeInTheDocument()
   })
 
-  it('invalidates stale loads when assessment type changes for the same id', async () => {
-    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    const staleQuizDraft = createDeferred<Response>()
-    const currentTestDraft = createDeferred<Response>()
-    let draftReads = 0
-
-    fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/tests/assessment-1/draft')) {
-        draftReads += 1
-        return draftReads === 1 ? staleQuizDraft.promise : currentTestDraft.promise
-      }
-      if (url.endsWith('/api/teacher/tests/assessment-1')) {
-        return Promise.resolve(jsonResponse({
-          test: {
-            documents: [
-              { id: 'doc-current', title: 'Current Test Reference', source: 'text', content: 'Current' },
-            ],
-          },
-        }))
-      }
-      throw new Error(`Unexpected fetch: ${url}`)
-    })
-
-    const sameIdQuiz = makeTestWithStats({
-      id: 'assessment-1',
-      title: 'Same Id Quiz',
-      assessment_type: 'quiz',
-    })
-    const sameIdTest = makeTestWithStats({
-      id: 'assessment-1',
-      title: 'Same Id Test',
-      assessment_type: 'test',
-    })
-    const { rerender } = render(
-      <TestDetailPanel test={sameIdQuiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />,
-      { wrapper: Wrapper }
-    )
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/assessment-1/draft')
-    })
-
-    rerender(
-      <TestDetailPanel test={sameIdTest} classroomId="classroom-1" onTestUpdate={vi.fn()} />
-    )
-
-    await waitFor(() => {
-      expect(draftReads).toBe(2)
-    })
-
-    await act(async () => {
-      currentTestDraft.resolve(jsonResponse({
-        draft: {
-          version: 1,
-          content: {
-            title: 'Same Id Test',
-            show_results: true,
-            questions: [
-              createMockTestQuestion({
-                id: 'q-current-test',
-                quiz_id: 'assessment-1',
-                assessment_type: 'test',
-                question_type: 'open_response',
-                question_text: 'Current same-id test question',
-                options: [],
-                correct_option: null,
-                points: 2,
-                position: 0,
-              }),
-            ],
-          },
-        },
-      }))
-      await currentTestDraft.promise
-    })
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Documents (1)' })).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Documents (1)' }))
-    expect(screen.getByText('Current Test Reference')).toBeInTheDocument()
-
-    await act(async () => {
-      staleQuizDraft.resolve(jsonResponse({
-        draft: {
-          version: 1,
-          content: {
-            title: 'Same Id Quiz',
-            show_results: true,
-            questions: [
-              createMockTestQuestion({
-                id: 'q-stale-quiz',
-                quiz_id: 'assessment-1',
-                question_text: 'Stale same-id quiz question',
-                position: 0,
-              }),
-            ],
-          },
-        },
-      }))
-      await staleQuizDraft.promise
-    })
-
-    expect(screen.getByText('Current Test Reference')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Questions (1)' }))
-    expect(screen.getByDisplayValue('Current same-id test question')).toBeInTheDocument()
-    expect(screen.queryByDisplayValue('Stale same-id quiz question')).not.toBeInTheDocument()
-  })
-
   describe('tabs', () => {    it('shows question count in Questions tab', async () => {
       mockFetchForTest(sampleQuestions)
       const testAssessment = makeTestWithStats()
@@ -624,7 +452,7 @@ describe('TestDetailPanel', () => {
         { wrapper: Wrapper }
       )
 
-      expect(await screen.findByLabelText('Question 1 prompt')).toHaveValue(
+      expect(await screen.findByLabelText('Question 1 prompt')).toHaveTextContent(
         'Explain the runtime complexity of your solution.'
       )
       expect(screen.getByLabelText('Question 1 points')).toHaveValue('6')
@@ -712,19 +540,22 @@ describe('TestDetailPanel', () => {
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
       expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()
       expect(within(editorPane).getByTestId('question-sq1-answer-section')).toHaveClass('bg-surface', 'p-px')
-      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveValue('Explain the runtime complexity of your solution.')
+      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent('Explain the runtime complexity of your solution.')
       expect(within(editorPane).getByLabelText('Question 1 answer key')).toHaveValue(
         'Look for linear-time reasoning and mention of hash-map tradeoffs.'
       )
       expect(within(editorPane).getByLabelText('Question 1 sample solution')).toHaveValue(
         'A good answer explains O(n) time and O(n) space.'
       )
-      expect(within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')).toBeInTheDocument()
+      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent(
+        'Explain the runtime complexity of your solution.'
+      )
       expect(
         within(editorPane).getByDisplayValue('Look for linear-time reasoning and mention of hash-map tradeoffs.')
       ).toBeInTheDocument()
-      expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
-      expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveValue('Which traversal visits the root node first?')
+      expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveTextContent(
+        'Which traversal visits the root node first?'
+      )
       expect(within(editorPane).getByLabelText('Question 2 option A correct answer')).not.toBeChecked()
       expect(within(editorPane).getByLabelText('Question 2 option B correct answer')).toBeChecked()
       expect(within(editorPane).getByLabelText('Question 2 option A')).toHaveValue('Inorder')
@@ -768,7 +599,9 @@ describe('TestDetailPanel', () => {
         expect(within(editorPane).getByRole('button', { name: 'Collapse all sections' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Collapse documents' })).toBeInTheDocument()
         expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(3)
-        expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
+        expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveTextContent(
+          'Which traversal visits the root node first?'
+        )
         expect(within(editorPane).queryByTestId('question-sq2-collapsed-summary')).not.toBeInTheDocument()
         expect(within(editorPane).getByDisplayValue('Inorder')).toBeInTheDocument()
         expect(within(editorPane).getByDisplayValue('Preorder')).toBeInTheDocument()
@@ -780,8 +613,8 @@ describe('TestDetailPanel', () => {
       await waitFor(() => {
         expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Expand documents' })).toBeInTheDocument()
-        expect(within(editorPane).queryByDisplayValue('Explain the runtime complexity of your solution.')).not.toBeInTheDocument()
-        expect(within(editorPane).queryByDisplayValue('Which traversal visits the root node first?')).not.toBeInTheDocument()
+        expect(within(editorPane).queryByLabelText('Question 1 prompt')).not.toBeInTheDocument()
+        expect(within(editorPane).queryByLabelText('Question 2 prompt')).not.toBeInTheDocument()
         expect(within(editorPane).getByTestId('question-sq1-collapsed-summary')).toHaveTextContent(
           'Explain the runtime complexity of your solution.'
         )
@@ -1096,7 +929,7 @@ describe('TestDetailPanel', () => {
       })
     })
 
-    it('keeps the markdown helper available for empty tests in summary-detail mode', async () => {
+    it('applies current test markdown fields and documents to an empty test', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -1108,6 +941,15 @@ describe('TestDetailPanel', () => {
               show_results: true,
               questions: [],
             },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 2,
+            content: {},
           },
         }),
       })
@@ -1147,12 +989,64 @@ describe('TestDetailPanel', () => {
 
       fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
       fireEvent.change(markdownEditor, {
-        target: { value: '# Test\nTitle: Empty Markdown Import Test\nShow Results: true\n' },
+        target: {
+          value: `# Test
+Title: Empty Markdown Import Test
+Show Results: true
+
+## Questions
+### Question 1
+ID: ${markdownQuestionId1}
+Type: open_response
+Points: 4
+Code: true
+Max Chars: 1200
+Prompt:
+Explain the implementation.
+Answer Key:
+Identify the relevant tradeoffs.
+Sample Solution:
+Use the current Test Markdown contract.
+
+## Documents
+### Document 1
+ID: 33333333-3333-4333-8333-333333333333
+Source: text
+Title: Reference
+Content:
+Current Test reference material.
+`,
+        },
       })
 
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+
       await waitFor(() => {
-        expect(within(markdownPane).getByRole('button', { name: 'Apply Markdown' })).toBeInTheDocument()
+        expect(fetchMock).toHaveBeenCalledTimes(3)
       })
+
+      const patchCall = fetchMock.mock.calls[2]
+      const patchBody = JSON.parse(String(patchCall?.[1]?.body))
+      expect(patchCall?.[0]).toBe('/api/teacher/tests/test-1/draft')
+      expect(patchCall?.[1]?.method).toBe('PATCH')
+      expect(patchBody.content.questions[0]).toMatchObject({
+        id: markdownQuestionId1,
+        question_type: 'open_response',
+        answer_key: 'Identify the relevant tradeoffs.',
+        sample_solution: 'Use the current Test Markdown contract.',
+        points: 4,
+        response_max_chars: 1200,
+        response_monospace: true,
+      })
+      expect(patchBody.content.source_markdown).toContain('## Documents')
+      expect(patchBody.documents).toEqual([
+        expect.objectContaining({
+          id: '33333333-3333-4333-8333-333333333333',
+          source: 'text',
+          title: 'Reference',
+          content: 'Current Test reference material.',
+        }),
+      ])
     })
 
     it('emits draft summary changes immediately for structured test edits before autosave completes', async () => {
@@ -1526,7 +1420,9 @@ describe('TestDetailPanel', () => {
         />
       )
 
-      expect(await screen.findByDisplayValue('Current switched test question')).toBeInTheDocument()
+      expect(await screen.findByLabelText('Question 1 prompt')).toHaveTextContent(
+        'Current switched test question'
+      )
 
       await act(async () => {
         staleSave.resolve(jsonResponse({
@@ -1550,8 +1446,10 @@ describe('TestDetailPanel', () => {
         await staleSave.promise
       })
 
-      expect(screen.getByDisplayValue('Current switched test question')).toBeInTheDocument()
-      expect(screen.queryByDisplayValue('Stale saved question')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Question 1 prompt')).toHaveTextContent(
+        'Current switched test question'
+      )
+      expect(screen.queryByText('Stale saved question')).not.toBeInTheDocument()
     })
 
     it('persists pending debounced saves after selected assessment changes', async () => {
@@ -1712,9 +1610,12 @@ describe('TestDetailPanel', () => {
         expect(within(editorPane).getByRole('button', { name: 'Expand question 3' })).toBeInTheDocument()
         expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(6)
         expect(within(editorPane).getByLabelText('Question 2 code response')).toBeChecked()
-        expect(
-          within(editorPane).getAllByDisplayValue('Explain the runtime complexity of your solution.')
-        ).toHaveLength(2)
+        expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent(
+          'Explain the runtime complexity of your solution.'
+        )
+        expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveTextContent(
+          'Explain the runtime complexity of your solution.'
+        )
         expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
           'Which traversal visits the root node first?'
         )
@@ -1826,11 +1727,11 @@ describe('TestDetailPanel', () => {
 
       const editorPane = await screen.findByTestId('test-question-editor-pane')
       const markdownPane = screen.getByTestId('test-question-markdown-pane')
-      const promptField = within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')
+      const user = userEvent.setup()
+      const promptField = within(editorPane).getByLabelText('Question 1 prompt')
 
-      fireEvent.change(promptField, {
-        target: { value: 'Explain the amortized runtime complexity of your solution.' },
-      })
+      promptField.focus()
+      await user.keyboard('{Control>}a{/Control}Explain the amortized runtime complexity of your solution.')
       fireEvent.blur(promptField)
 
       await waitFor(() => {
@@ -1989,7 +1890,9 @@ _None_
       fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
 
       await waitFor(() => {
-        expect(within(editorPane).getByDisplayValue('Updated prompt before save returns?')).toBeInTheDocument()
+        expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveTextContent(
+          'Updated prompt before save returns?'
+        )
         expect(within(markdownPane).getByTestId('markdown-helper-status')).toHaveTextContent('Applying markdown...')
       })
 
@@ -2656,18 +2559,18 @@ Prompt:
       fireEvent.click(screen.getByText('Questions (1)'))
 
       await waitFor(() => {
-        expect(screen.getByDisplayValue('Explain your reasoning')).toBeInTheDocument()
+        expect(screen.getByLabelText('Question 1 prompt')).toHaveTextContent('Explain your reasoning')
       })
 
-      const promptField = screen.getByPlaceholderText('Question 1')
-      expect(promptField.tagName).toBe('TEXTAREA')
+      const promptField = screen.getByLabelText('Question 1 prompt')
+      expect(promptField.tagName).toBe('DIV')
+      expect(promptField).toHaveAttribute('contenteditable', 'true')
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Character limit')).not.toBeInTheDocument()
       expect(screen.getByLabelText('Code')).toBeInTheDocument()
       expect(screen.getByText('Points')).toBeInTheDocument()
-      const promptFieldGridCheck = screen.getByDisplayValue('Explain your reasoning')
-      const gridContainer = promptFieldGridCheck.closest('div')?.parentElement
+      const gridContainer = promptField.closest('.simple-editor-wrapper')?.parentElement?.parentElement
       expect(gridContainer?.className).toContain('md:grid-cols-[16px_24px_minmax(0,1fr)_112px]')
       expect(screen.getByRole('button', { name: 'Add Grading Notes' })).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).not.toBeInTheDocument()
@@ -2774,7 +2677,7 @@ Prompt:
       fireEvent.click(screen.getByText('Questions (1)'))
 
       await waitFor(() => {
-        expect(screen.getByDisplayValue('Explain inertia.')).toBeInTheDocument()
+        expect(screen.getByLabelText('Question 1 prompt')).toHaveTextContent('Explain inertia.')
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Add Grading Notes' }))
@@ -2853,8 +2756,8 @@ Prompt:
         expect(screen.getByText('Questions (1)')).toBeInTheDocument()
       })
 
-      const promptField = screen.getByPlaceholderText('Question 1') as HTMLTextAreaElement
-      expect(promptField.value).toBe('')
+      const promptField = screen.getByLabelText('Question 1 prompt')
+      expect(promptField).toHaveTextContent('')
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 
       expect(fetchMock.mock.calls.some((call: any[]) => call[1]?.method === 'POST')).toBe(false)
@@ -2900,7 +2803,7 @@ Prompt:
           }
         }
 
-        if (url.match(/\/api\/teacher\/tests\/quiz-1\/documents\/.+\/sync$/) && options?.method === 'POST') {
+        if (url.match(/\/api\/teacher\/tests\/test-1\/documents\/.+\/sync$/) && options?.method === 'POST') {
           return {
             ok: true,
             json: async () => ({

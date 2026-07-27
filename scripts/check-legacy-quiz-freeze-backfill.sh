@@ -1,0 +1,972 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+PROJECT_ID="$(sed -n 's/^project_id = "\(.*\)"/\1/p' "$ROOT/supabase/config.toml" | head -n 1)"
+DB_CONTAINER="${CLASSROOM_ARCHIVE_DB_CONTAINER:-supabase_db_${PROJECT_ID}}"
+if [[ "$(docker inspect -f '{{.State.Running}}' "$DB_CONTAINER" 2>/dev/null || true)" != "true" ]]; then
+  echo "Supabase database container is not running: $DB_CONTAINER" >&2
+  exit 2
+fi
+
+TMP_DB="${LEGACY_QUIZ_BACKFILL_DATABASE_NAME:-pika_quiz_backfill_${RANDOM}_$$}"
+PREFLIGHT_OUTPUT="$(mktemp)"
+LOCK_OUTPUT="$(mktemp)"
+MIGRATION_OUTPUT="$(mktemp)"
+cleanup() {
+  if [[ -n "${LOCK_HOLDER_PID:-}" ]]; then
+    kill "$LOCK_HOLDER_PID" >/dev/null 2>&1 || true
+    wait "$LOCK_HOLDER_PID" >/dev/null 2>&1 || true
+  fi
+  rm -f \
+    "$PREFLIGHT_OUTPUT" \
+    "$LOCK_OUTPUT" \
+    "$MIGRATION_OUTPUT"
+  if [[ "${KEEP_LEGACY_QUIZ_BACKFILL_DATABASE:-false}" == "true" ]]; then
+    echo "Kept disposable legacy Quiz backfill database: $TMP_DB"
+    return
+  fi
+  docker exec "$DB_CONTAINER" dropdb -U postgres --if-exists "$TMP_DB" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+docker exec "$DB_CONTAINER" createdb -U postgres "$TMP_DB"
+docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 -c '
+  drop schema public;
+  create schema extensions;
+  create extension "uuid-ossp" with schema extensions;
+  create extension pgcrypto with schema extensions;
+  create extension pg_stat_statements with schema extensions;
+  create schema vault;
+  create extension supabase_vault with schema vault;
+' >/dev/null
+
+docker exec "$DB_CONTAINER" pg_dump -U postgres -d postgres --schema-only --no-owner --no-privileges \
+  --schema=public --schema=private --schema=auth --schema=storage \
+  | sed '/^SET log_min_messages =/d; /^CREATE SCHEMA extensions;/d; /^CREATE SCHEMA vault;/d' \
+  | docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+set client_min_messages = warning;
+do $$
+declare
+  v_policy record;
+begin
+  for v_policy in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'storage'
+  loop
+    execute format(
+      'drop policy %I on %I.%I',
+      v_policy.policyname,
+      v_policy.schemaname,
+      v_policy.tablename
+    );
+  end loop;
+end;
+$$;
+drop schema public cascade;
+drop schema private cascade;
+create schema public;
+SQL
+
+for migration in "$ROOT"/supabase/migrations/*.sql; do
+  if [[ "$(basename "$migration")" == 106_* ]]; then
+    break
+  fi
+  docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+    psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+    < "$migration" >/dev/null
+done
+
+CLASSROOM_ARCHIVE_DB_CONTAINER="$DB_CONTAINER" \
+CLASSROOM_ARCHIVE_DATABASE_NAME="$TMP_DB" \
+  bash "$ROOT/scripts/check-classroom-archive-restore-database.sh"
+CLASSROOM_ARCHIVE_DB_CONTAINER="$DB_CONTAINER" \
+CLASSROOM_ARCHIVE_DATABASE_NAME="$TMP_DB" \
+  bash "$ROOT/scripts/check-classroom-archive-v2-database.sh"
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.users (id, email, role, email_verified_at) values
+  ('61000000-0000-4000-8000-000000000001', 'quiz-backfill-teacher@example.invalid', 'teacher', clock_timestamp()),
+  ('61000000-0000-4000-8000-000000000002', 'quiz-backfill-student@example.invalid', 'student', clock_timestamp());
+
+insert into public.classrooms (id, teacher_id, title, class_code) values (
+  '62000000-0000-4000-8000-000000000001',
+  '61000000-0000-4000-8000-000000000001',
+  'Legacy Quiz backfill',
+  'QBACK106'
+);
+
+insert into public.course_blueprints (
+  id, teacher_id, title
+) values (
+  '62000000-0000-4000-8000-000000000002',
+  '61000000-0000-4000-8000-000000000001',
+  'Legacy Quiz backfill blueprint'
+);
+
+insert into public.course_blueprint_assessments (
+  id, course_blueprint_id, assessment_type, title, content, position
+) values (
+  '62000000-0000-4000-8000-000000000003',
+  '62000000-0000-4000-8000-000000000002',
+  'quiz',
+  'Blocking historical Quiz blueprint',
+  '{}'::jsonb,
+  0
+);
+
+insert into public.quizzes (
+  id, classroom_id, title, status, show_results, position, created_by,
+  created_at, updated_at, points_possible, include_in_final, opens_at,
+  gradebook_weight
+) values (
+  '63000000-0000-4000-8000-000000000001',
+  '62000000-0000-4000-8000-000000000001',
+  'Historical Quiz',
+  'closed',
+  true,
+  2,
+  '61000000-0000-4000-8000-000000000001',
+  '2026-01-02T03:04:05+00',
+  '2026-01-03T03:04:05+00',
+  12.50,
+  true,
+  '2026-01-04T03:04:05+00',
+  25
+);
+
+insert into public.quiz_questions (
+  id, quiz_id, question_text, options, position, created_at, updated_at,
+  correct_option
+) values (
+  '63000000-0000-4000-8000-000000000002',
+  '63000000-0000-4000-8000-000000000001',
+  'Historical question',
+  '["First","Second"]'::jsonb,
+  0,
+  '2026-01-02T03:05:05+00',
+  '2026-01-03T03:05:05+00',
+  1
+);
+
+insert into public.quiz_responses (
+  id, quiz_id, question_id, student_id, selected_option, submitted_at
+) values (
+  '63000000-0000-4000-8000-000000000003',
+  '63000000-0000-4000-8000-000000000001',
+  '63000000-0000-4000-8000-000000000002',
+  '61000000-0000-4000-8000-000000000002',
+  1,
+  '2026-01-05T03:04:05+00'
+);
+
+insert into public.quiz_student_scores (
+  id, quiz_id, student_id, manual_override_score, graded_at, graded_by,
+  created_at, updated_at
+) values (
+  '63000000-0000-4000-8000-000000000004',
+  '63000000-0000-4000-8000-000000000001',
+  '61000000-0000-4000-8000-000000000002',
+  9.25,
+  '2026-01-06T03:04:05+00',
+  'teacher',
+  '2026-01-06T03:04:05+00',
+  '2026-01-06T03:04:05+00'
+);
+
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by, created_at, updated_at
+) values (
+  '63000000-0000-4000-8000-000000000005',
+  'quiz',
+  '63000000-0000-4000-8000-000000000001',
+  '62000000-0000-4000-8000-000000000001',
+  '{"z":1.00,"a":{"b":2,"a":1},"0":"zero","10":"ten","tiny":0.0000001}'::jsonb,
+  3,
+  '61000000-0000-4000-8000-000000000001',
+  '61000000-0000-4000-8000-000000000001',
+  '2026-01-07T03:04:05+00',
+  '2026-01-08T03:04:05+00'
+);
+SQL
+
+if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
+  >"$PREFLIGHT_OUTPUT" 2>&1
+then
+  echo "Migration 106 accepted a legacy Quiz blueprint row." >&2
+  exit 1
+fi
+if ! grep -q "Legacy Quiz blueprint rows must be zero before retirement" "$PREFLIGHT_OUTPUT"; then
+  cat "$PREFLIGHT_OUTPUT" >&2
+  echo "Migration 106 failed for an unexpected blueprint preflight reason." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $rollback_proof$
+begin
+  if to_regclass('private.legacy_quiz_backfill_ledger') is not null
+    or exists (
+      select 1
+      from pg_trigger
+      where tgname = 'freeze_legacy_quizzes'
+        and not tgisinternal
+    )
+  then
+    raise exception 'Failed migration 106 attempt leaked schema changes';
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_assessments
+    where id = '62000000-0000-4000-8000-000000000003'
+      and assessment_type = 'quiz'
+  ) then
+    raise exception 'Failed migration 106 attempt changed the blocking blueprint row';
+  end if;
+end;
+$rollback_proof$;
+
+delete from public.course_blueprint_assessments
+where id = '62000000-0000-4000-8000-000000000003';
+SQL
+
+assert_lock_conflict_rolled_back() {
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $lock_conflict_rollback_proof$
+begin
+  if to_regclass('private.legacy_quiz_backfill_ledger') is not null
+    or exists (
+      select 1
+      from pg_trigger
+      where tgname = 'freeze_legacy_quizzes'
+        and not tgisinternal
+    )
+    or not exists (
+      select 1
+      from pg_constraint
+      where conrelid = 'public.course_blueprint_assessments'::regclass
+        and conname = 'course_blueprint_assessments_assessment_type_check'
+        and pg_get_constraintdef(oid) like '%quiz%'
+    )
+  then
+    raise exception 'Lock-conflict migration attempt leaked schema changes';
+  end if;
+end;
+$lock_conflict_rollback_proof$;
+SQL
+}
+
+rehearse_no_wait_lock_conflict() {
+  local marker="$1"
+  local fixture_sql="$2"
+  local description="$3"
+  local lock_ready=0
+  local lock_wait_started
+  local lock_wait_seconds
+
+  docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -qAt -v ON_ERROR_STOP=1 \
+    -c "$fixture_sql" >"$LOCK_OUTPUT" 2>&1 &
+  LOCK_HOLDER_PID=$!
+
+  for _ in {1..50}; do
+    lock_ready="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc \
+      "select count(*)
+       from pg_stat_activity
+       where datname = '$TMP_DB'
+         and pid <> pg_backend_pid()
+         and state = 'active'
+         and query like '%$marker%';")"
+    [[ "$lock_ready" -gt 0 ]] && break
+    sleep 0.1
+  done
+  if [[ "$lock_ready" -eq 0 ]]; then
+    cat "$LOCK_OUTPUT" >&2
+    echo "$description fixture did not acquire its conflicting lock." >&2
+    exit 1
+  fi
+
+  lock_wait_started=$SECONDS
+  if docker exec \
+    -e PGOPTIONS='-c client_min_messages=warning -c timezone=America/Toronto' \
+    -i "$DB_CONTAINER" \
+    psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+    < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
+    >"$PREFLIGHT_OUTPUT" 2>&1
+  then
+    echo "Migration 106 ignored the $description conflict." >&2
+    exit 1
+  fi
+  lock_wait_seconds=$((SECONDS - lock_wait_started))
+  if ! grep -q "could not obtain lock on relation" "$PREFLIGHT_OUTPUT"; then
+    cat "$PREFLIGHT_OUTPUT" >&2
+    echo "Migration 106 failed for an unexpected $description reason." >&2
+    exit 1
+  fi
+  if [[ "$lock_wait_seconds" -gt 3 ]]; then
+    echo "Migration 106 did not fail fast for $description: ${lock_wait_seconds}s" >&2
+    exit 1
+  fi
+  if ! wait "$LOCK_HOLDER_PID"; then
+    LOCK_HOLDER_PID=
+    cat "$LOCK_OUTPUT" >&2
+    echo "$description fixture was aborted instead of completing." >&2
+    exit 1
+  fi
+  LOCK_HOLDER_PID=
+  assert_lock_conflict_rolled_back
+}
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_classroom_parent_conflict" \
+  "begin;
+   select id
+   from public.classrooms
+   where id = '62000000-0000-4000-8000-000000000001'
+   for update;
+   select pg_sleep(4) /* legacy_quiz_backfill_classroom_parent_conflict */;
+   lock table public.classroom_retired_assessment_records in access share mode;
+   commit;" \
+  "classroom-parent-to-envelope-child traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_user_parent_conflict" \
+  "begin;
+   select id
+   from public.users
+   where id = '61000000-0000-4000-8000-000000000001'
+   for update;
+   select pg_sleep(4) /* legacy_quiz_backfill_user_parent_conflict */;
+   lock table public.classroom_retired_assessment_record_actors in access share mode;
+   commit;" \
+  "user-parent-to-envelope-actor traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_final_table_conflict" \
+  "begin;
+   lock table public.classroom_retired_assessment_record_actors in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_final_table_conflict */;
+   commit;" \
+  "final envelope table"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_drafts_quizzes_conflict" \
+  "begin;
+   lock table public.assessment_drafts in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_drafts_quizzes_conflict */;
+   lock table public.quizzes in access share mode;
+   commit;" \
+  "assessment_drafts-to-quizzes traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_scores_responses_conflict" \
+  "begin;
+   lock table public.quiz_student_scores in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_scores_responses_conflict */;
+   lock table public.quiz_responses in access share mode;
+   commit;" \
+  "quiz_student_scores-to-quiz_responses traversal"
+
+rehearse_no_wait_lock_conflict \
+  "legacy_quiz_backfill_envelope_source_conflict" \
+  "begin;
+   select revision
+   from public.classroom_archive_revisions
+   where classroom_id = '62000000-0000-4000-8000-000000000001'
+   for update;
+   lock table public.classroom_retired_assessment_records in access share mode;
+   select pg_sleep(4) /* legacy_quiz_backfill_envelope_source_conflict */;
+   lock table public.assessment_drafts in access share mode;
+   lock table public.quizzes in access share mode;
+   select count(*)
+   from public.classroom_retired_assessment_records
+   where classroom_id = '62000000-0000-4000-8000-000000000001';
+   commit;" \
+  "envelope-to-source archive traversal"
+
+ARCHIVE_ENVELOPE_COUNT="$(tail -n 1 "$LOCK_OUTPUT")"
+if [[ "$ARCHIVE_ENVELOPE_COUNT" -ne 0 ]]; then
+  cat "$LOCK_OUTPUT" >&2
+  echo "Concurrent archive reader did not retain the coherent pre-backfill graph." >&2
+  exit 1
+fi
+
+if ! docker exec \
+  -e PGOPTIONS='-c client_min_messages=warning -c timezone=America/Toronto' \
+  -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/106_freeze_and_backfill_legacy_quiz.sql" \
+  >"$MIGRATION_OUTPUT" 2>&1
+then
+  cat "$MIGRATION_OUTPUT" >&2
+  echo "Migration 106 failed after all conflicting transactions completed." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $contract$
+begin
+  if (
+    select count(*)
+    from private.legacy_quiz_backfill_ledger
+    where source_count = 1
+      and envelope_count = 1
+      and source_aggregate_sha256 = envelope_aggregate_sha256
+  ) <> 5 then
+    raise exception 'Backfill ledger does not prove five-resource parity';
+  end if;
+  if (select count(*) from public.quizzes) <> 1
+    or (select count(*) from public.quiz_questions) <> 1
+    or (select count(*) from public.quiz_responses) <> 1
+    or (select count(*) from public.quiz_student_scores) <> 1
+    or (
+      select count(*)
+      from public.assessment_drafts
+      where assessment_type = 'quiz'
+    ) <> 1
+  then
+    raise exception 'Backfill changed the retained legacy Quiz source rows';
+  end if;
+  if (
+    select count(*)
+    from public.classroom_retired_assessment_records
+    where source_contract = 'pika.classroom-archive@1/legacy-quiz'
+  ) <> 5 then
+    raise exception 'Backfill did not create all retired-assessment records';
+  end if;
+  if (
+    select count(*)
+    from public.classroom_retired_assessment_record_actors
+  ) <> 5 then
+    raise exception 'Backfill did not normalize all actor references';
+  end if;
+end;
+$contract$;
+
+do $write_freeze$
+begin
+  begin
+    update public.quizzes set title = 'blocked';
+    raise exception 'Legacy Quiz update unexpectedly succeeded';
+  exception when feature_not_supported then null;
+  end;
+
+  begin
+    delete from public.quiz_questions;
+    raise exception 'Legacy Quiz delete unexpectedly succeeded';
+  exception when feature_not_supported then null;
+  end;
+
+  begin
+    insert into public.assessment_drafts (
+      assessment_type, assessment_id, classroom_id, content, version,
+      created_by, updated_by
+    ) values (
+      'quiz',
+      '63000000-0000-4000-8000-000000000009',
+      '62000000-0000-4000-8000-000000000001',
+      '{}'::jsonb,
+      1,
+      '61000000-0000-4000-8000-000000000001',
+      '61000000-0000-4000-8000-000000000001'
+    );
+    raise exception 'Legacy Quiz draft insert unexpectedly succeeded';
+  exception when feature_not_supported then null;
+  end;
+
+  insert into public.tests (
+    id, classroom_id, title, status, show_results, created_by
+  ) values (
+    '63000000-0000-4000-8000-000000000010',
+    '62000000-0000-4000-8000-000000000001',
+    'Current Test',
+    'draft',
+    false,
+    '61000000-0000-4000-8000-000000000001'
+  );
+  insert into public.assessment_drafts (
+    assessment_type, assessment_id, classroom_id, content, version,
+    created_by, updated_by
+  ) values (
+    'test',
+    '63000000-0000-4000-8000-000000000010',
+    '62000000-0000-4000-8000-000000000001',
+    '{}'::jsonb,
+    1,
+    '61000000-0000-4000-8000-000000000001',
+    '61000000-0000-4000-8000-000000000001'
+  );
+
+  begin
+    insert into public.course_blueprint_assessments (
+      course_blueprint_id, assessment_type, title, content, position
+    ) values (
+      '62000000-0000-4000-8000-000000000002',
+      'quiz',
+      'blocked',
+      '{}'::jsonb,
+      0
+    );
+    raise exception 'Legacy Quiz blueprint insert unexpectedly succeeded';
+  exception when check_violation then null;
+  end;
+end;
+$write_freeze$;
+SQL
+
+echo "Legacy Quiz freeze and backfill database contract passes."
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.classroom_archive_operations (
+  id,
+  teacher_id,
+  classroom_id,
+  operation_type,
+  request_sha256,
+  status,
+  source_revision,
+  source_schema_migration,
+  source_app_commit,
+  retention,
+  archive_id,
+  storage_bucket,
+  storage_path,
+  artifact_sha256,
+  content_sha256,
+  compressed_byte_size,
+  uncompressed_byte_size,
+  target_schema_migration,
+  adapter_chain,
+  error_code,
+  retryable,
+  snapshot_created_at,
+  snapshot_expires_at
+)
+select
+  operation_id,
+  '61000000-0000-4000-8000-000000000001'::uuid,
+  '62000000-0000-4000-8000-000000000001'::uuid,
+  operation_type,
+  repeat(request_character, 64),
+  'failed',
+  1,
+  '106_freeze_and_backfill_legacy_quiz',
+  'abcdef1',
+  '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+  operation_id,
+  case when operation_type = 'compact' then 'classroom-archives' end,
+  case when operation_type = 'compact' then 'retryable/contract/probe.tar.gz' end,
+  case when operation_type = 'compact' then repeat('a', 64) end,
+  case when operation_type = 'compact' then repeat('b', 64) end,
+  case when operation_type = 'compact' then 1 end,
+  case when operation_type = 'compact' then 1 end,
+  case when operation_type = 'restore'
+    then '083_resumable_classroom_archive_restore'
+  end,
+  case when operation_type = 'restore' then '[]'::jsonb end,
+  'retryable_contract_probe',
+  true,
+  clock_timestamp(),
+  clock_timestamp() + interval '1 hour'
+from (
+  values
+    ('68000000-0000-4000-8000-000000000001'::uuid, 'export', '1'),
+    ('68000000-0000-4000-8000-000000000002'::uuid, 'restore', '2'),
+    ('68000000-0000-4000-8000-000000000003'::uuid, 'compact', '3')
+) probe(operation_id, operation_type, request_character);
+SQL
+
+if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/107_classroom_archive_v2_direct_source.sql" \
+  >"$MIGRATION_OUTPUT" 2>&1; then
+  echo "Migration 107 accepted retryable archive operations." >&2
+  exit 1
+fi
+if ! grep -q 'Cannot activate archive-v2 while an archive operation is active' \
+  "$MIGRATION_OUTPUT"; then
+  cat "$MIGRATION_OUTPUT" >&2
+  echo "Migration 107 failed for an unexpected retryable-operation reason." >&2
+  exit 1
+fi
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  -c "delete from public.classroom_archive_operations where error_code = 'retryable_contract_probe';" \
+  >/dev/null
+
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/107_classroom_archive_v2_direct_source.sql" >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+begin;
+
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = '62000000-0000-4000-8000-000000000001';
+
+do $direct_v2$
+declare
+  v_operation_id constant uuid := '67000000-0000-4000-8000-000000000001';
+  v_compaction_id constant uuid := '67000000-0000-4000-8000-000000000002';
+  v_teacher_id constant uuid := '61000000-0000-4000-8000-000000000001';
+  v_classroom_id constant uuid := '62000000-0000-4000-8000-000000000001';
+  v_result jsonb;
+  v_counts jsonb;
+  v_actors jsonb;
+  v_resource record;
+  v_rows jsonb;
+begin
+  if exists (
+    select 1
+    from public.assessment_drafts
+    where assessment_type = 'quiz'
+  ) or exists (
+    select 1
+    from public.classroom_retired_assessment_records
+    where source_contract = 'pika.classroom-archive@1/legacy-quiz'
+  ) or exists (
+    select 1 from public.quizzes
+  ) or exists (
+    select 1 from public.quiz_questions
+  ) or exists (
+    select 1 from public.quiz_responses
+  ) or exists (
+    select 1 from public.quiz_student_scores
+  ) then
+    raise exception 'Direct archive-v2 activation retained disposable Quiz data';
+  end if;
+
+  v_result := public.begin_classroom_archive_export_v2(
+    v_operation_id,
+    v_teacher_id,
+    v_classroom_id,
+    repeat('7', 64),
+    '107_classroom_archive_v2_direct_source',
+    'abcdef1234567890',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    2,
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or (v_result->>'source_contract_version')::integer <> 2
+    or (v_result->>'archive_format_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 begin failed: %', v_result;
+  end if;
+
+  v_counts := v_result->'resource_counts';
+  if (select count(*) from jsonb_object_keys(v_counts)) <> 40
+    or v_counts ?| array[
+      'quizzes',
+      'quiz_questions',
+      'quiz_responses',
+      'quiz_student_scores'
+    ]
+    or (v_counts->>'classroom_retired_assessment_records')::integer <> 0
+    or (v_counts->>'classroom_retired_assessment_record_actors')::integer <> 0
+  then
+    raise exception 'Direct archive-v2 counts are invalid: %', v_counts;
+  end if;
+  if exists (
+    select 1
+    from public.classroom_archive_snapshot_resources
+    where operation_id = v_operation_id
+      and (
+        source_contract_version <> 2
+        or table_name in (
+          'quizzes',
+          'quiz_questions',
+          'quiz_responses',
+          'quiz_student_scores'
+        )
+      )
+  ) then
+    raise exception 'Direct archive-v2 snapshot contains a legacy contract row';
+  end if;
+
+  if not public.stage_classroom_archive_object_upload_v2(
+    v_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_classroom_id,
+      v_operation_id
+    ),
+    repeat('8', 64),
+    1024,
+    2
+  ) then
+    raise exception 'Direct archive-v2 upload intent failed';
+  end if;
+
+  select jsonb_agg(
+    jsonb_build_object(
+      'actor_id',
+      actor_id,
+      'role',
+      snapshot->>'role'
+    )
+    order by actor_id
+  )
+  into v_actors
+  from public.classroom_archive_snapshot_actors
+  where operation_id = v_operation_id;
+
+  v_result := public.complete_classroom_archive_export_v2(
+    v_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_classroom_id,
+      v_operation_id
+    ),
+    repeat('8', 64),
+    repeat('9', 64),
+    1024,
+    2048,
+    v_counts,
+    2,
+    v_counts,
+    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
+    '{
+      "read_back_verified": true,
+      "artifact_checksum_verified": true,
+      "manifest_verified": true,
+      "resource_checksums_verified": true,
+      "resource_counts_verified": true,
+      "storage_objects_verified": true,
+      "actor_snapshots_verified": true,
+      "verified_at": "2026-07-23T12:00:00Z"
+    }'::jsonb
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'completed'
+    or (v_result->>'source_contract_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 completion failed: %', v_result;
+  end if;
+
+  v_result := public.begin_classroom_archive_compaction_v2(
+    v_compaction_id,
+    v_teacher_id,
+    v_classroom_id,
+    v_operation_id,
+    repeat('a', 64),
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or (v_result->>'source_contract_version')::integer <> 2
+    or (v_result->>'archive_format_version')::integer <> 2
+    or (v_result->>'restore_contract_version')::integer <> 2
+  then
+    raise exception 'Direct archive-v2 compaction begin failed: %', v_result;
+  end if;
+
+  for v_resource in
+    select table_name, primary_key_columns[1] as primary_key_column
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    execute format(
+      'select coalesce(jsonb_agg(to_jsonb(source) order by source.%I), ''[]''::jsonb)
+       from public.%I source
+       where public.resolve_classroom_archive_resource_classroom_id(%L, source.%I) = $1',
+      v_resource.primary_key_column,
+      v_resource.table_name,
+      v_resource.table_name,
+      v_resource.primary_key_column
+    ) into v_rows using v_classroom_id;
+    if jsonb_array_length(v_rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows(
+        v_compaction_id,
+        v_teacher_id,
+        v_resource.table_name,
+        v_rows
+      );
+    end if;
+  end loop;
+
+  v_result := public.stage_classroom_archive_compaction_objects(
+    v_compaction_id,
+    v_teacher_id,
+    '[]'::jsonb
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Direct archive-v2 compaction cleanup staging failed: %', v_result;
+  end if;
+
+  v_result := public.complete_classroom_archive_compaction_v2(
+    v_compaction_id,
+    v_teacher_id,
+    coalesce(v_actors, '[]'::jsonb),
+    jsonb_build_object(
+      'operation_id', v_compaction_id,
+      'archive_id', v_operation_id,
+      'artifact_sha256', repeat('8', 64),
+      'content_sha256', repeat('9', 64),
+      'verified_at', clock_timestamp(),
+      'read_back_verified', true,
+      'artifact_checksum_verified', true,
+      'manifest_verified', true,
+      'resource_checksums_verified', true,
+      'resource_counts_verified', true,
+      'storage_objects_verified', true,
+      'actor_snapshots_verified', true,
+      'schema_adapter_verified', true,
+      'actor_references_resolved', true,
+      'source_object_cleanup_staged', true
+    ),
+    2
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'completed'
+    or exists (
+      select 1 from public.classrooms where id = v_classroom_id
+    )
+    or not exists (
+      select 1
+      from public.classroom_cold_tombstones
+      where classroom_id = v_classroom_id
+        and archive_id = v_operation_id
+    )
+  then
+    raise exception 'Direct archive-v2 compaction failed: %', v_result;
+  end if;
+end;
+$direct_v2$;
+
+rollback;
+SQL
+
+echo "Classroom archive-v2 direct source database contract passes."
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+update public.classroom_archive_resource_contract
+set actor_columns = array[]::text[]
+where table_name = 'tests';
+SQL
+
+if docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/108_drop_legacy_quiz_schema.sql" \
+  >"$MIGRATION_OUTPUT" 2>&1; then
+  echo "Migration 108 unexpectedly accepted a drifted archive-v2 registry." >&2
+  exit 1
+fi
+
+if ! grep -Fq \
+  'Live archive registry does not exactly match source contract 2' \
+  "$MIGRATION_OUTPUT"; then
+  cat "$MIGRATION_OUTPUT" >&2
+  echo "Migration 108 did not report the expected archive-v2 registry drift." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $registry_drift$
+begin
+  if not exists (
+    select 1
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 1
+  )
+    or to_regclass('public.quizzes') is null
+  then
+    raise exception 'Migration 108 changed legacy contracts after registry drift';
+  end if;
+end;
+$registry_drift$;
+
+update public.classroom_archive_resource_contract as live
+set
+  primary_key_columns = versioned.primary_key_columns,
+  parent_table = versioned.parent_table,
+  parent_column = versioned.parent_column,
+  actor_columns = versioned.actor_columns,
+  restore_after = versioned.restore_after,
+  export_position = versioned.export_position
+from public.classroom_archive_resource_contract_versions as versioned
+where versioned.format_version = 2
+  and versioned.table_name = live.table_name
+  and live.table_name = 'tests';
+SQL
+
+echo "Migration 108 rejects archive-v2 registry drift without removing Quiz contracts."
+
+docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  < "$ROOT/supabase/migrations/108_drop_legacy_quiz_schema.sql" >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $hard_removal$
+begin
+  if to_regclass('public.quizzes') is not null
+    or to_regclass('public.quiz_questions') is not null
+    or to_regclass('public.quiz_responses') is not null
+    or to_regclass('public.quiz_student_scores') is not null
+    or exists (
+      select 1
+      from pg_proc procedure_record
+      join pg_namespace namespace on namespace.oid = procedure_record.pronamespace
+      where namespace.nspname in ('public', 'private')
+        and procedure_record.proname ~* '(^|_)quiz(zes)?(_|$)'
+    )
+    or exists (
+      select 1
+      from pg_attribute attribute_record
+      join pg_class relation on relation.oid = attribute_record.attrelid
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      where namespace.nspname in ('public', 'private')
+        and attribute_record.attnum > 0
+        and not attribute_record.attisdropped
+        and attribute_record.attname ~* '(^|_)quiz(zes)?(_|$)'
+    )
+  then
+    raise exception 'Migration 108 retained a legacy Quiz catalog contract';
+  end if;
+
+  if to_regclass('public.tests') is null
+    or to_regclass('public.test_questions') is null
+    or to_regclass('public.test_responses') is null
+    or to_regclass('public.test_attempts') is null
+  then
+    raise exception 'Migration 108 removed part of the Tests schema';
+  end if;
+
+  if exists (
+    select 1
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 1
+  ) or (
+    select count(*)
+    from public.classroom_archive_resource_contract_versions
+    where format_version = 2
+  ) <> 40 then
+    raise exception 'Migration 108 changed the direct archive-v2 contract';
+  end if;
+end;
+$hard_removal$;
+SQL
+
+echo "Legacy Quiz schema hard-removal database contract passes."
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+  -c 'grant usage on schema storage, extensions to service_role; grant select, insert, update, delete on storage.objects to service_role;' >/dev/null
+
+CLASSROOM_ARCHIVE_DB_CONTAINER="$DB_CONTAINER" \
+CLASSROOM_ARCHIVE_DATABASE_NAME="$TMP_DB" \
+  bash "$ROOT/scripts/check-classroom-archive-database.sh"
+CLASSROOM_ARCHIVE_DB_CONTAINER="$DB_CONTAINER" \
+CLASSROOM_ARCHIVE_DATABASE_NAME="$TMP_DB" \
+  bash "$ROOT/scripts/check-classroom-archive-compaction-database.sh"

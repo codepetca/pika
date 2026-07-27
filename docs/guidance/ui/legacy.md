@@ -4,11 +4,15 @@ These patterns still exist in the repo, but they should not be treated as defaul
 
 ## Legacy Patterns
 
-### 1. `docs/design-system.md` as a co-equal source of truth
+### 1. The retired `docs/design-system.md` guidance
 
-- The file still contains older raw-color and pre-token examples such as `bg-white`, `text-gray-900`, and hard-coded blue/gray styling guidance.
-- Keep it as historical context only.
-- New UI work should use `docs/core/design.md`, `src/ui/README.md`, and this UI canon instead.
+- The historical file was deleted after its still-useful density and product-character principles
+  moved into [`DESIGN.md`](/DESIGN.md).
+- Its raw-color examples, 36px interactive targets, pre-token component recipes, and completed
+  migration checklist are obsolete and must not be restored or copied.
+- Git history is the provenance source if the old document needs to be investigated. Do not create
+  a searchable archive copy.
+- New UI work uses `DESIGN.md`, `src/ui/README.md`, and this governed UI canon.
 
 ### 2. Feature-local surface styling that bypasses canonized primitives
 

@@ -170,7 +170,7 @@ describe('GET /api/student/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.tests).toEqual(data.quizzes)
+    expect(data).not.toHaveProperty('quizzes')
     expect(data.tests).toHaveLength(1)
     expect(data.tests[0].id).toBe('test-1')
   })

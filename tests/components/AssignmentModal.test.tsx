@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
@@ -70,7 +71,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
     })
 
-    it('renders a markdown-only instructions editor with formatting buttons and a preview modal', async () => {
+    it('renders WYSIWYG instructions with markdown-safe formatting and a preview modal', async () => {
       const onClose = vi.fn()
 
       render(
@@ -86,34 +87,24 @@ describe('AssignmentModal', () => {
       expect(screen.queryByText('Author Markdown')).not.toBeInTheDocument()
       expect(screen.queryByText(/Legacy Rich Text Editor/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/Supported markdown:/i)).not.toBeInTheDocument()
-      expect(screen.queryByText('Instructions')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument()
+      expect(screen.getByText('Instructions')).toBeInTheDocument()
+      const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
+      expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
+      expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Italic' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Bullet list' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'List options' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Underline' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Block formatting' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
 
-      const instructions = screen.getByPlaceholderText('Assignment instructions') as HTMLTextAreaElement
-      instructions.focus()
-      instructions.setSelectionRange(0, 8)
-
-      fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
-
-      expect(instructions).toHaveValue('**Original** instructions')
-      expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
-
-      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-
-      expect(instructions).toHaveValue('Original instructions')
-      expect(screen.getByRole('button', { name: 'Redo' })).toBeEnabled()
-
-      fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
-
-      expect(instructions).toHaveValue('**Original** instructions')
+      const instructions = screen.getByRole('textbox', { name: 'Instructions' })
+      expect(instructions).toHaveTextContent('Original instructions')
+      expect(screen.getByText('Students see this before they begin.')).toBeInTheDocument()
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
 
@@ -149,11 +140,11 @@ describe('AssignmentModal', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
       })
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Assignment instructions')).toHaveValue('Original instructions')
+      expect(screen.getByRole('textbox', { name: 'Instructions' })).toHaveTextContent('Original instructions')
     })
 
     it('places required submissions above instructions with compact split add actions', () => {
@@ -169,7 +160,7 @@ describe('AssignmentModal', () => {
 
       const requiredSubmissions = screen.getByText('Required submissions')
       const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
-      const instructions = screen.getByPlaceholderText('Assignment instructions')
+      const instructions = screen.getByRole('textbox', { name: 'Instructions' })
 
       expect(requiredSubmissions.compareDocumentPosition(instructions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       expect(requirementsGroup.queryByText('None')).not.toBeInTheDocument()
@@ -916,8 +907,8 @@ describe('AssignmentModal', () => {
         />
       )
 
-      // Initially shows "Saving..." during creation
-      expect(screen.getByText('Saving...')).toBeInTheDocument()
+      // Initially shows the shared saving status during creation
+      expect(screen.getByRole('status')).toHaveTextContent('Saving…')
 
       // After creation, shows "Saved"
       await waitFor(() => {
@@ -1258,6 +1249,57 @@ describe('AssignmentModal', () => {
 
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Modified title' } })
       expect(screen.getByText('Unsaved')).toBeInTheDocument()
+    })
+
+    it('flushes edited instructions immediately when focus leaves the editor', async () => {
+      const user = userEvent.setup()
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          assignment: {
+            ...baseAssignment,
+            instructions_markdown: 'Updated instructions',
+          },
+        }),
+      })
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      const instructions = screen.getByRole('textbox', { name: 'Instructions' })
+      expect(instructions).toHaveTextContent('Original instructions')
+      const title = screen.getByLabelText(/Title/)
+      await waitFor(() => {
+        expect(title).toHaveFocus()
+      })
+
+      const timeoutSpy = vi.spyOn(global, 'setTimeout')
+      try {
+        instructions.focus()
+        await user.keyboard('{Control>}a{/Control}Updated instructions')
+        expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 3000)
+        expect(fetchMock).not.toHaveBeenCalled()
+
+        title.focus()
+
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+        const [url, options] = fetchMock.mock.calls[0]
+        expect(url).toBe('/api/teacher/assignments/assignment-1')
+        expect(options.method).toBe('PATCH')
+        expect(JSON.parse(options.body)).toEqual({
+          instructions_markdown: 'Updated instructions',
+        })
+      } finally {
+        timeoutSpy.mockRestore()
+      }
     })
 
     it('saves and closes on Escape key when there are changes', async () => {

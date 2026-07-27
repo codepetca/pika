@@ -195,4 +195,4 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ---
 
-For architecture, see `docs/core/architecture.md`. For testing, see `docs/core/tests.md`. For UI, see `docs/core/design.md`.
+For architecture, see `docs/core/architecture.md`. For testing, see `docs/core/tests.md`. For UI, see `DESIGN.md`.

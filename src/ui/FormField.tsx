@@ -1,6 +1,6 @@
 'use client'
 
-import { cloneElement, isValidElement, useId, type ReactElement } from 'react'
+import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from 'react'
 import { cn } from './utils'
 
 type FormControlProps = {
@@ -26,6 +26,8 @@ export interface FormFieldProps {
   required?: boolean
   /** Keep the label available to assistive tech without showing it visually */
   hideLabel?: boolean
+  /** Optional status or action displayed on the label row */
+  labelAccessory?: ReactNode
   /** Exactly one form control (Input, Select, Textarea, etc.) */
   children: ReactElement<FormControlProps>
   /** Additional class names for the wrapper */
@@ -33,7 +35,7 @@ export interface FormFieldProps {
 }
 
 // Styles are kept inline as they're simple and don't need CVA variants
-const labelStyles = 'block text-sm font-medium text-text-default mb-1'
+const labelStyles = 'block text-sm font-medium text-text-default'
 const errorStyles = 'mt-1 text-sm text-danger'
 const hintStyles = 'mt-1 text-sm text-text-muted'
 const requiredMarkerStyles = 'text-danger ml-1'
@@ -64,6 +66,7 @@ export function FormField({
   hint,
   required,
   hideLabel,
+  labelAccessory,
   children,
   className,
 }: FormFieldProps) {
@@ -90,10 +93,13 @@ export function FormField({
 
   return (
     <div className={cn('w-full', className)}>
-      <label id={labelId} htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
-        {label}
-        {required && <span className={requiredMarkerStyles} aria-hidden="true">*</span>}
-      </label>
+      <div className="mb-1 flex min-h-5 items-center justify-between gap-3">
+        <label id={labelId} htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
+          {label}
+          {required && <span className={requiredMarkerStyles} aria-hidden="true">*</span>}
+        </label>
+        {labelAccessory}
+      </div>
       {enhancedChild}
       {hint && (
         <p id={hintId} className={hintStyles}>

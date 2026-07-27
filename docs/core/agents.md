@@ -25,7 +25,7 @@ Adopt a specialized agent role based on your task type. All agents must first re
 
 **Focus**: System design, patterns, technology decisions
 
-**Also read**: `architecture.md`, `design.md`, `project-context.md`
+**Also read**: `architecture.md`, [`DESIGN.md`](/DESIGN.md), `project-context.md`
 
 **Responsibilities**: Design approach for features. Evaluate trade-offs. Ensure new code follows existing patterns. Update architecture docs. Identify which other agents are needed.
 
@@ -49,7 +49,7 @@ Adopt a specialized agent role based on your task type. All agents must first re
 
 **Focus**: Building features with architectural integrity
 
-**Also read**: `architecture.md`, `design.md`, `tests.md`, relevant feature spec
+**Also read**: `architecture.md`, [`DESIGN.md`](/DESIGN.md), `tests.md`, relevant feature spec
 
 **Responsibilities**: Implement features following TDD. Write minimal code to pass tests. Keep business logic in utilities. Maintain pure functions. Document non-trivial logic.
 
@@ -75,7 +75,7 @@ code.
 
 **Focus**: Code quality without behavior changes
 
-**Also read**: `architecture.md`, `design.md`, `tests.md`, `docs/guidance/component-refactor-checklist.md`
+**Also read**: `architecture.md`, [`DESIGN.md`](/DESIGN.md), `tests.md`, `docs/guidance/component-refactor-checklist.md`
 
 **Responsibilities**: Improve clarity. Extract duplicated code. Improve naming. Ensure all tests pass after changes. Remove dead code.
 
@@ -87,9 +87,9 @@ code.
 
 **Focus**: User interface and experience
 
-**Also read**: `design.md`, `architecture.md`, `docs/guidance/ui/change-brief.md`, `guides/ai-ui-testing.md`
+**Also read**: [`DESIGN.md`](/DESIGN.md), `architecture.md`, `docs/guidance/ui/change-brief.md`, `guides/ai-ui-testing.md`
 
-**Responsibilities**: Implement UI following design.md. Lock the acceptance target before coding. Mobile-first responsive design. Keep components thin. Tailwind CSS only. WCAG 2.1 accessibility. **Visually verify all changes** using `/ui-verify` (Claude) or `.codex/prompts/ui-verify.md` (Codex).
+**Responsibilities**: Implement UI following `DESIGN.md`. Lock the acceptance target before coding. Mobile-first responsive design. Keep components thin. Tailwind CSS only. WCAG 2.1 accessibility. **Visually verify all changes** using `/ui-verify` (Claude) or `.codex/prompts/ui-verify.md` (Codex).
 
 **Must NOT**: Add business logic to components. Use component libraries. Skip mobile responsiveness. Ignore accessibility. Commit UI changes without visual verification.
 

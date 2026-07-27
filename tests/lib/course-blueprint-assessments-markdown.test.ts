@@ -5,31 +5,10 @@ import {
 } from '@/lib/course-blueprint-assessments-markdown'
 
 describe('courseBlueprintAssessmentsToMarkdown', () => {
-  it('falls back to assessment titles when content blobs are incomplete', () => {
-    const markdown = courseBlueprintAssessmentsToMarkdown(
-      [
-        {
-          id: 'assessment-1',
-          assessment_type: 'quiz',
-          title: 'Check-in quiz',
-          content: {},
-          documents: [],
-          points_possible: 40,
-          gradebook_weight: 35,
-          include_in_final: false,
-          position: 0,
-        },
-      ] as any,
-      'quiz'
-    )
-
-    expect(markdown).toContain('Title: Check-in quiz')
-    expect(markdown).toContain('## Questions')
-  })
-
   it('round-trips assessment grading configuration', () => {
     const markdown = courseBlueprintAssessmentsToMarkdown([
       {
+        artifact_id: '11111111-1111-4111-8111-111111111111',
         assessment_type: 'test',
         title: 'Unit test',
         content: {
@@ -56,14 +35,27 @@ describe('courseBlueprintAssessmentsToMarkdown', () => {
       },
     ], 'test')
 
+    expect(markdown).toContain('Artifact ID: 11111111-1111-4111-8111-111111111111')
     const parsed = markdownToCourseBlueprintAssessments(markdown, [], 'test')
 
     expect(parsed.errors).toEqual([])
     expect(parsed.assessments[0]).toEqual(expect.objectContaining({
+      artifact_id: '11111111-1111-4111-8111-111111111111',
       points_possible: 40,
       gradebook_weight: 35,
       include_in_final: false,
     }))
+  })
+
+  it('rejects missing assessment artifact ids in the identity-aware format', () => {
+    const parsed = markdownToCourseBlueprintAssessments(
+      'Title: Unit test\nShow Results: false\nPoints Possible: 10\nGradebook Weight: 10\nInclude In Final: true\n\n## Questions',
+      [],
+      'test',
+      { requireArtifactIds: true }
+    )
+
+    expect(parsed.errors).toContain('Test 1: missing Artifact ID')
   })
 
   it('round-trips fractional points without treating question content as grading metadata', () => {

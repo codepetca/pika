@@ -10,6 +10,9 @@ import {
   courseBlueprintLessonTemplatesToMarkdown,
   type CourseBlueprintLessonTemplateMarkdownRecord,
 } from '@/lib/course-blueprint-lesson-templates'
+import { courseBlueprintMaterialsToMarkdown } from '@/lib/course-blueprint-materials'
+import { courseBlueprintSurveysToMarkdown } from '@/lib/course-blueprint-surveys'
+import { courseBlueprintGradingToMarkdown } from '@/lib/course-blueprint-grading'
 import type { CourseBlueprintDetail, TestDraftContent } from '@/types'
 import { analyzeCourseBlueprintCompleteness } from '@/lib/course-blueprint-package'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
@@ -22,6 +25,20 @@ type SuggestTarget =
   | 'assignments'
   | 'tests'
   | 'lesson-plans'
+  | 'materials'
+  | 'surveys'
+  | 'grading'
+
+function nextFreePositions(count: number, occupied: number[]): number[] {
+  const used = new Set(occupied)
+  const positions: number[] = []
+  let candidate = 0
+  while (positions.length < count) {
+    if (!used.has(candidate)) positions.push(candidate)
+    candidate += 1
+  }
+  return positions
+}
 
 export function suggestCourseBlueprintDraft(
   detail: CourseBlueprintDetail,
@@ -110,6 +127,10 @@ This course blueprint is designed for ${detail.grade_level || 'the target grade 
   }
 
   if (target === 'assignments') {
+    const positions = nextFreePositions(
+      3,
+      [...detail.materials, ...detail.surveys].map((item) => item.position),
+    )
     const assignments: CourseBlueprintAssignmentMarkdownRecord[] = [
       {
         title: `${detail.subject || detail.title} kickoff reflection`,
@@ -119,7 +140,7 @@ This course blueprint is designed for ${detail.grade_level || 'the target grade 
         points_possible: 10,
         include_in_final: true,
         is_draft: true,
-        position: 0,
+        position: positions[0],
       },
       {
         title: `${detail.subject || detail.title} practice task`,
@@ -129,7 +150,7 @@ This course blueprint is designed for ${detail.grade_level || 'the target grade 
         points_possible: 20,
         include_in_final: true,
         is_draft: true,
-        position: 1,
+        position: positions[1],
       },
       {
         title: `${detail.subject || detail.title} applied checkpoint`,
@@ -139,7 +160,7 @@ This course blueprint is designed for ${detail.grade_level || 'the target grade 
         points_possible: 30,
         include_in_final: true,
         is_draft: true,
-        position: 2,
+        position: positions[2],
       },
     ]
 
@@ -194,6 +215,67 @@ This course blueprint is designed for ${detail.grade_level || 'the target grade 
     return {
       target,
       content: courseBlueprintAssessmentsToMarkdown(tests, 'test'),
+      analysis,
+    }
+  }
+
+  if (target === 'materials') {
+    const [position] = nextFreePositions(
+      1,
+      [...detail.assignments, ...detail.surveys].map((item) => item.position),
+    )
+    return {
+      target,
+      content: courseBlueprintMaterialsToMarkdown([{
+        title: `${detail.subject || detail.title} course guide`,
+        content_markdown: `## How to use this course\n\nReview the weekly outline, complete classwork in order, and ask for feedback early.${promptNote}`,
+        position,
+      }]),
+      analysis,
+    }
+  }
+
+  if (target === 'surveys') {
+    const [position] = nextFreePositions(
+      1,
+      [...detail.assignments, ...detail.materials].map((item) => item.position),
+    )
+    return {
+      target,
+      content: courseBlueprintSurveysToMarkdown([{
+        title: 'Course check-in',
+        show_results: false,
+        dynamic_responses: false,
+        questions_json: [
+          {
+            question_type: 'multiple_choice',
+            question_text: 'How confident do you feel about the current course work?',
+            options: ['Not yet confident', 'Developing', 'Confident', 'Very confident'],
+            response_max_chars: 500,
+            position: 0,
+          },
+          {
+            question_type: 'short_text',
+            question_text: `What would help you make progress next?${promptNote}`,
+            options: [],
+            response_max_chars: 500,
+            position: 1,
+          },
+        ],
+        position,
+      }]),
+      analysis,
+    }
+  }
+
+  if (target === 'grading') {
+    return {
+      target,
+      content: courseBlueprintGradingToMarkdown({
+        use_weights: true,
+        assignments_weight: 70,
+        tests_weight: 30,
+      }),
       analysis,
     }
   }

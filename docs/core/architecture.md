@@ -63,7 +63,7 @@ src/
 │   ├── ai-grading.ts              # AI grading for assignments (OpenAI)
 │   ├── ai-test-grading.ts         # AI grading for tests (OpenAI, gpt-5-nano)
 │   ├── server/
-│   │   ├── assessment-drafts.ts   # Legacy quiz + current test draft system (JSON Patch)
+│   │   ├── assessment-drafts.ts   # Test draft system (JSON Patch)
 │   │   └── tests.ts               # Test query helpers
 │   ├── assignments.ts, assessments.ts, test-responses.ts, scheduling.ts …
 │   └── auth.ts, crypto.ts, timezone.ts, attendance.ts …
@@ -117,7 +117,7 @@ tests/                             # Vitest unit + API suites
   ```
 - Common tokens: `bg-page`, `bg-surface`, `bg-surface-2`, `text-text-default`, `text-text-muted`,
   `border-border`, `text-primary`, `text-danger`, `text-success`, `text-warning`
-- Full token reference: `src/ui/README.md` | Design rules: `docs/core/design.md`
+- Full token reference: `src/ui/README.md` | Design rules: `DESIGN.md`
 
 ### Authentication (Current And WorkOS-Ready)
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session.
@@ -188,8 +188,10 @@ Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshne
 
 ### Assessments Pattern
 Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.
-Some database history and compatibility response keys still retain legacy quiz naming during the contract transition.
-Before changing remaining `quiz` / `quizzes` names, load
+The active database, API, package, and TypeScript contracts are Tests-only.
+Historical migrations retain their original names, and the archive-v1 reader
+identifies retired Quiz resources only to discard them while restoring other
+classroom data. Before changing that boundary, load
 [`docs/guidance/legacy-quiz-contract-cleanup.md`](../guidance/legacy-quiz-contract-cleanup.md).
 
 - **Test status**: `getStudentTestStatus()` from `@/lib/tests` — uses `returned_at` field
@@ -197,6 +199,7 @@ Before changing remaining `quiz` / `quizzes` names, load
 - **Draft persistence**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading core**: `src/lib/grading/*` owns versioned assignment, test, and repository-review profiles, structured-output execution, provider adapters, bounded provenance contracts, and identity-free teacher-review eval metrics. The architecture gate permits this directory to import only other grading-core modules and external packages; Pika database, server, route, UI, and shared application adapters remain outside it so the core stays extractable.
+- **Canonical grading guide**: read [`docs/guidance/grading-architecture.md`](../guidance/grading-architecture.md) before changing grading profiles, provider egress, provenance, persistence, teacher-review evals, or the Pika/Gradex boundary.
 - **Test grading compatibility adapter**: `src/lib/ai-test-grading.ts` owns roster-aware sanitization, reference-answer SHA-256 caching, score buckets, and pseudonymous batch mapping before invoking the internal core.
 - **Repository-review compatibility adapter**: `src/lib/repo-review-ai.ts` owns evidence sanitization, pseudonymous change references, deterministic fallback feedback, and Pika result formatting before invoking the internal core. GitHub fetching, identity mapping, metrics, run orchestration, and persistence remain Pika-owned.
 
@@ -390,7 +393,7 @@ Existing indexes (migration 038):
 - `test_questions` — `test_id`, `question_text`, `question_type` (`multiple_choice` | `open_response`), `options`, `correct_option`, `points`, `order`, `reference_answer`, `reference_answer_cache_key`
 - `test_responses` — `student_id`, `test_id`, `question_id`, `selected_option`, `response_text`, `score`, `feedback`, `graded_at`, `ai_grading_model`, `returned`
 - `test_attempts` — `student_id`, `test_id`; tracks submission/return lifecycle
-- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative editing with JSON Patch. Legacy quiz drafts may exist for imported/historical data, but product UI no longer creates quizzes.
+- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative Test editing with JSON Patch.
 
 ### Content
 - `announcements` — `classroom_id`, `content` (markdown text), `created_by`, timestamps
@@ -433,4 +436,4 @@ Existing indexes (migration 038):
 
 ---
 
-For UI/UX patterns see `docs/core/design.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`; for routing architecture see `docs/core/route-patterns.md`.
+For UI/UX principles and routing see `DESIGN.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`; for routing architecture see `docs/core/route-patterns.md`.
