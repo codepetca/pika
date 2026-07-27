@@ -46,6 +46,7 @@ describe('teacher course blueprint bulk routes', () => {
       points_possible: 12.5,
       include_in_final: true,
       is_draft: true,
+      track_authenticity: false,
       position: 0,
     }
     const assessment = {

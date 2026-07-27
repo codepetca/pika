@@ -12,10 +12,19 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintMergeApply', asy
   const { id } = await context.params
   const body = applyBlueprintMergeSchema.parse(await request.json())
 
-  const result = await applyBlueprintMergeSuggestions(user.id, id, body.classroomId, body.areas)
+  const result = await applyBlueprintMergeSuggestions(
+    user.id,
+    id,
+    body.classroomId,
+    body.areas,
+    {
+      expectedBlueprintRevision: body.expectedBlueprintRevision,
+      expectedClassroomRevision: body.expectedClassroomRevision,
+    }
+  )
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ proposal: result.proposal }, { status: 201 })
 })

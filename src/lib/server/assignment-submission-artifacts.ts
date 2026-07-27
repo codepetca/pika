@@ -17,6 +17,8 @@ const STORAGE_REMOVE_CHUNK_SIZE = 1000
 const timestampSchema = z.string().datetime({ offset: true })
 
 const assignmentRowSchema = z.object({
+  artifact_id: z.string().uuid(),
+  blueprint_archived_at: timestampSchema.nullable(),
   classroom_id: z.string().min(1),
   created_at: timestampSchema,
   created_by: z.string().min(1),
@@ -31,6 +33,8 @@ const assignmentRowSchema = z.object({
   position: z.number().int(),
   released_at: timestampSchema.nullable(),
   rich_instructions: assignmentSubmissionContentSchema.nullable(),
+  source_artifact_id: z.string().uuid().nullable(),
+  source_blueprint_version_id: z.string().uuid().nullable(),
   title: z.string(),
   track_authenticity: z.boolean(),
   updated_at: timestampSchema,

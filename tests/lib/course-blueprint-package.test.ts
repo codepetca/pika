@@ -22,8 +22,9 @@ const V2_BUNDLE = JSON.parse(
 )
 
 const DETAIL: CourseBlueprintDetail = {
-  id: 'blueprint-1',
-  teacher_id: 'teacher-1',
+  id: '10000000-0000-4000-8000-000000000000',
+  teacher_id: '20000000-0000-4000-8000-000000000000',
+  content_revision: 7,
   title: 'Computer Science 11',
   subject: 'Computer Science',
   grade_level: 'Grade 11',
@@ -32,6 +33,9 @@ const DETAIL: CourseBlueprintDetail = {
   overview_markdown: '# Overview\nCourse summary',
   outline_markdown: '# Outline\n- Unit 1',
   resources_markdown: '# Resources\n- IDE',
+  gradebook_use_weights: true,
+  gradebook_assignments_weight: 65,
+  gradebook_tests_weight: 35,
   planned_site_slug: 'computer-science-11',
   planned_site_published: true,
   planned_site_config: {
@@ -47,8 +51,9 @@ const DETAIL: CourseBlueprintDetail = {
   updated_at: '2026-01-01T00:00:00Z',
   assignments: [
     {
-      id: 'assignment-1',
-      course_blueprint_id: 'blueprint-1',
+      id: '30000000-0000-4000-8000-000000000000',
+      artifact_id: '31000000-0000-4000-8000-000000000000',
+      course_blueprint_id: '10000000-0000-4000-8000-000000000000',
       title: 'Kickoff reflection',
       instructions_markdown: 'Write a short reflection.',
       default_due_days: -2,
@@ -57,6 +62,7 @@ const DETAIL: CourseBlueprintDetail = {
       gradebook_weight: 15,
       include_in_final: true,
       is_draft: true,
+      track_authenticity: true,
       position: 0,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
@@ -64,8 +70,9 @@ const DETAIL: CourseBlueprintDetail = {
   ],
   assessments: [
     {
-      id: 'assessment-2',
-      course_blueprint_id: 'blueprint-1',
+      id: '40000000-0000-4000-8000-000000000000',
+      artifact_id: '41000000-0000-4000-8000-000000000000',
+      course_blueprint_id: '10000000-0000-4000-8000-000000000000',
       assessment_type: 'test',
       title: 'Unit 1 test',
       content: {
@@ -98,11 +105,45 @@ const DETAIL: CourseBlueprintDetail = {
   ],
   lesson_templates: [
     {
-      id: 'lesson-1',
-      course_blueprint_id: 'blueprint-1',
+      id: '50000000-0000-4000-8000-000000000000',
+      artifact_id: '51000000-0000-4000-8000-000000000000',
+      course_blueprint_id: '10000000-0000-4000-8000-000000000000',
       title: 'Course launch',
       content_markdown: 'Review expectations.',
       position: 0,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+  ],
+  materials: [
+    {
+      id: '60000000-0000-4000-8000-000000000000',
+      artifact_id: '61000000-0000-4000-8000-000000000000',
+      course_blueprint_id: '10000000-0000-4000-8000-000000000000',
+      title: 'Reference sheet',
+      content_markdown: 'Use this during the unit.',
+      position: 1,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+  ],
+  surveys: [
+    {
+      id: '70000000-0000-4000-8000-000000000000',
+      artifact_id: '71000000-0000-4000-8000-000000000000',
+      course_blueprint_id: '10000000-0000-4000-8000-000000000000',
+      title: 'Unit reflection',
+      show_results: false,
+      dynamic_responses: true,
+      questions_json: [{
+        id: '72000000-0000-4000-8000-000000000000',
+        question_type: 'short_text',
+        question_text: 'What should we revisit?',
+        options: [],
+        response_max_chars: 800,
+        position: 0,
+      }],
+      position: 2,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
     },
@@ -118,28 +159,52 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
-    expect(parsed.blueprint.planned_site_published).toBe(true)
+    expect(parsed.blueprint.planned_site_published).toBe(false)
     expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
+    expect(parsed.blueprint).toEqual(expect.objectContaining({
+      gradebook_use_weights: true,
+      gradebook_assignments_weight: 65,
+      gradebook_tests_weight: 35,
+    }))
     expect(parsed.assignments).toHaveLength(1)
     expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      artifact_id: '31000000-0000-4000-8000-000000000000',
       default_due_days: -2,
       points_possible: 10.5,
       gradebook_weight: 15,
+      track_authenticity: true,
     }))
     expect(parsed.assessments).toHaveLength(1)
     expect(parsed.assessments[0].assessment_type).toBe('test')
     expect(parsed.assessments[0]).toEqual(expect.objectContaining({
+      artifact_id: '41000000-0000-4000-8000-000000000000',
       points_possible: 50.5,
       gradebook_weight: 30,
       include_in_final: false,
     }))
     expect(parsed.lesson_templates).toHaveLength(1)
+    expect(parsed.lesson_templates[0]?.artifact_id).toBe(
+      '51000000-0000-4000-8000-000000000000'
+    )
+    expect(parsed.materials[0]).toEqual(expect.objectContaining({
+      artifact_id: '61000000-0000-4000-8000-000000000000',
+      position: 1,
+    }))
+    expect(parsed.surveys[0]).toEqual(expect.objectContaining({
+      artifact_id: '71000000-0000-4000-8000-000000000000',
+      position: 2,
+      questions_json: [
+        expect.objectContaining({
+          id: '72000000-0000-4000-8000-000000000000',
+        }),
+      ],
+    }))
   })
 
   it('omits classroom snapshot ownership from exported blueprint documents', () => {
     const detail = structuredClone(DETAIL)
     detail.assessments[0].documents = [{
-      id: 'doc-1',
+      id: '60000000-0000-4000-8000-000000000000',
       title: 'Reference',
       source: 'link',
       url: 'https://docs.example.com/reference',
@@ -171,7 +236,11 @@ describe('course blueprint package', () => {
 
     expect(decoded).not.toBeNull()
     expect(decoded?.manifest.title).toBe('Computer Science 11')
-    expect(decoded?.manifest.version).toBe('4')
+    expect(decoded?.manifest.version).toBe('5')
+    expect(decoded?.manifest).toEqual(expect.objectContaining({
+      blueprint_id: '10000000-0000-4000-8000-000000000000',
+      source_draft_revision: 7,
+    }))
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
@@ -193,6 +262,9 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.title).toBe('Legacy Computer Science')
     expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
     expect(parsed.assessments).toEqual([])
+    expect(parsed.assignments.every((assignment) =>
+      /^[0-9a-f-]{36}$/.test(assignment.artifact_id ?? '')
+    )).toBe(true)
   })
 
   it('decodes a version 2 archive while discarding retired Quiz content', () => {
@@ -207,7 +279,7 @@ describe('course blueprint package', () => {
     expect(parsed.assessments).toEqual([])
   })
 
-  it.each(['1', '5'])('rejects unsupported package version %s', (version) => {
+  it.each(['1', '6'])('rejects unsupported package version %s', (version) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
       ...bundle,
@@ -217,7 +289,7 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual(['Invalid course package bundle'])
   })
 
-  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 4 file %s', (fileName) => {
+  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 5 file %s', (fileName) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
       ...bundle,
@@ -227,17 +299,114 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual(['Invalid course package bundle'])
   })
 
-  it('rejects an archive with an unsupported manifest version', () => {
-    const archive = encodeCourseBlueprintPackageArchive(buildCourseBlueprintExportBundle(DETAIL))
-    const versionMarker = new TextEncoder().encode('"version": "4"')
+  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 4 file %s', (fileName) => {
+    const current = buildCourseBlueprintExportBundle(DETAIL)
+    const parsed = parseCourseBlueprintImportBundle({
+      manifest: {
+        version: '4',
+        exported_at: current.manifest.exported_at,
+        title: current.manifest.title,
+        subject: current.manifest.subject,
+        grade_level: current.manifest.grade_level,
+        course_code: current.manifest.course_code,
+        term_template: current.manifest.term_template,
+        planned_site_slug: current.manifest.planned_site_slug,
+        planned_site_published: current.manifest.planned_site_published,
+        planned_site_config: current.manifest.planned_site_config,
+      },
+      files: {
+        'course-overview.md': current.files['course-overview.md'],
+        'course-outline.md': current.files['course-outline.md'],
+        'resources.md': current.files['resources.md'],
+        'assignments.md': current.files['assignments.md'],
+        'tests.md': current.files['tests.md'],
+        'lesson-plans.md': current.files['lesson-plans.md'],
+        [fileName]: 'Unexpected content',
+      },
+    })
+
+    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+  })
+
+  it('rejects a version 4 archive containing retired Quiz content', () => {
+    const archive = encodeCourseBlueprintPackageArchive({
+      ...structuredClone(V2_BUNDLE),
+      manifest: {
+        ...structuredClone(V2_BUNDLE.manifest),
+        planned_site_config: undefined,
+      },
+    })
+    const versionMarker = new TextEncoder().encode('"version": "2"')
     const markerOffset = archive.findIndex((byte, index) =>
       versionMarker.every((markerByte, markerIndex) => archive[index + markerIndex] === markerByte)
     )
     expect(markerOffset).toBeGreaterThanOrEqual(0)
-    archive[markerOffset + versionMarker.length - 2] = '5'.charCodeAt(0)
+    archive[markerOffset + versionMarker.length - 2] = '4'.charCodeAt(0)
 
     expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
     expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
+  })
+
+  it('rejects an archive with an unsupported manifest version', () => {
+    const archive = encodeCourseBlueprintPackageArchive(buildCourseBlueprintExportBundle(DETAIL))
+    const versionMarker = new TextEncoder().encode('"version": "5"')
+    const markerOffset = archive.findIndex((byte, index) =>
+      versionMarker.every((markerByte, markerIndex) => archive[index + markerIndex] === markerByte)
+    )
+    expect(markerOffset).toBeGreaterThanOrEqual(0)
+    archive[markerOffset + versionMarker.length - 2] = '6'.charCodeAt(0)
+
+    expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
+    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
+  })
+
+  it('rejects a version 5 package when a reusable artifact id is missing', () => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    const parsed = parseCourseBlueprintImportBundle({
+      ...bundle,
+      files: {
+        ...bundle.files,
+        'assignments.md': bundle.files['assignments.md'].replace(
+          /^Artifact ID:.*\n/m,
+          ''
+        ),
+      },
+    })
+
+    expect(parsed.errors).toContain(
+      'Assignment "Kickoff reflection" is missing Artifact ID'
+    )
+  })
+
+  it('rejects a version 5 package when a test question id is missing', () => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    const parsed = parseCourseBlueprintImportBundle({
+      ...bundle,
+      files: {
+        ...bundle.files,
+        'tests.md': bundle.files['tests.md'].replace(/^ID:.*\n/m, ''),
+      },
+    })
+
+    expect(parsed.errors).toContain('Test 1: Question 1: ID is required')
+  })
+
+  it('rejects duplicate artifact ids across a version 5 package', () => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    const parsed = parseCourseBlueprintImportBundle({
+      ...bundle,
+      files: {
+        ...bundle.files,
+        'lesson-plans.md': bundle.files['lesson-plans.md'].replace(
+          '51000000-0000-4000-8000-000000000000',
+          '31000000-0000-4000-8000-000000000000'
+        ),
+      },
+    })
+
+    expect(parsed.errors).toContain(
+      'Lesson 1 duplicates Artifact ID "31000000-0000-4000-8000-000000000000"'
+    )
   })
 
   it('rejects oversized archives and oversized package files', () => {

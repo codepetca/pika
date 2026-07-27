@@ -11,117 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Internal repository-review grading profile and provenance
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5.4 - this slice crosses structured provider contracts, sanitization, deterministic fallback semantics, revision fencing, and transactional database provenance.
-
-**Completed:**
-- Moved ambiguous-change classification and repository-review feedback into versioned, strict, bounded grading-core profiles using the shared OpenAI Responses provider, 25-second timeouts, minimal reasoning, and classification batches capped at 50 changes.
-- Preserved Pika ownership of GitHub access, student identity mapping, sanitization, deterministic metrics, heuristic fallback, teacher workflow, and run orchestration; remote Gradex remains disabled.
-- Added truthful per-result provenance for both model output and local heuristic fallback, with actual model/request/token metadata and zero provider requests for deterministic local grades.
-- Added migration 103 with bounded result provenance, model/provenance linkage, an additive provenance-aware wrapper around the migration-087 completion RPC, completed-run replay preservation, exact student-row matching, and atomic propagation to assignment documents.
-- Extended the database harness for service-role isolation, zero-request heuristic persistence, replay, and rollback on invalid provenance. Updated generated types and rollout/architecture guidance. No migration was applied locally, no live model call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (405 files / 3,642 tests)
-- Focused repository-review/core/migration suite (7 files / 30 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (621 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
-- `git diff --check`
-
-**Remaining:**
-- Confirm migration 103 replay, database harness behavior, and generated-type parity in ephemeral PR CI; complete independent review and merge only after the assignment/test stack is approved.
-- Add teacher-correction evaluation capture and offline comparison metrics across assignment, test, and repository-review grading.
-
-## 2026-07-22 — Identity-free teacher grading reviews
-
-**Risk profile:** async-grading, database, privacy, grading-quality
-
-**Model recommendation:** GPT-5.4 - this slice crosses teacher outcome semantics, rolling-safe grading persistence, strict privacy contracts, and deterministic eval design.
-
-**Completed:**
-- Added a strict `grading-review-v1` core contract that cannot represent student identity, source assessment IDs, submission content, or raw feedback, plus deterministic summaries for criterion/overall score error, acceptance/edit rates, feedback dispositions, and model/profile counts.
-- Added migration 104 with bounded `ai_grading_review` snapshots on assignment documents and test responses. Provenance-aware AI writes initialize reviews; manual edits update final outcomes; assignment/test return marks reviews final; test grade clearing records dismissal; changed student work and legacy AI replacement clear stale reviews.
-- Kept repository-review grading on the assignment-document lifecycle, preserved existing routes and teacher UI, and prevented review-only test metadata updates from advancing response revisions.
-- Added synthetic accepted, edited, dismissed, and pending fixtures plus `pnpm eval:grading-reviews` for free offline evaluation. Remote Gradex remains disabled, the existing Gradex archive extract is unchanged, and no live model call was made.
-- Extended assignment/test database harnesses for suggestion preservation, correction capture, return finalization, dismissal, privacy rejection, legacy-writer clearing, and test revision stability; updated generated/refined types and rollout/privacy guidance.
-- No migration was applied locally or remotely. The local Docker database had no Pika schema, so fresh migration replay and database harness execution remain PR CI gates.
-
-**Validation:**
-- `pnpm test` (407 files / 3,657 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (622 modules / 0 allowances)
-- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
-- `git diff --check`
-
-**Remaining:**
-- Require fresh PR CI to replay migrations 001-104, verify generated type parity, and execute both atomic grading database harnesses.
-- Complete independent review and obtain external approval before merging the stacked grading PRs.
-- After the pilot collects 10-20 teacher-reviewed outcomes, add an explicit local-admin export of minimum sanitized grading inputs for paid candidate prompt/model comparisons.
-
-## 2026-07-22 — Enforced grading-core isolation
-
-**Risk profile:** async-grading, foundational architecture
-
-**Model recommendation:** GPT-5.4 - enforcing extraction boundaries requires repository-wide import analysis while preserving existing grading policy behavior.
-
-**Completed:**
-- Added an architecture rule that prevents every `src/lib/grading/**` module from importing Pika-owned database, server, route, UI, shared application, or type modules, including type-only imports.
-- Moved the canonical Pika test prompt guidelines into the versioned grading profile directory and retained the old application path as a compatibility re-export, preserving current consumers and prompt output.
-- Added a regression test proving the boundary rejects both runtime Supabase and type-only database dependencies while allowing grading-core imports.
-- Documented the enforced extraction boundary. No route, UI, schema, provider, prompt text, production state, or remote Gradex behavior changed.
-
-**Validation:**
-- `pnpm test` (407 files / 3,658 tests)
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- focused architecture and test-grading suites (3 files / 43 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika audit
-- `git diff --check`
-
-**Remaining:**
-- Run the full repository gates and exact-head PR CI, then obtain the required external code-owner approval before merging the grading stack.
-- Apply migrations 100-104 only with explicit target permission, deploy with remote Gradex disabled, and collect 10-20 teacher-reviewed outcomes before adding paid replay comparisons.
-
-## 2026-07-22 — Corrected total-score grading eval error
-
-**Risk profile:** none
-
-**Model recommendation:** Current coding model - the correction is a small deterministic TypeScript aggregation change with focused regression coverage.
-
-**Completed:**
-- Changed overall grading-review error to compare the summed suggested score with the summed final score instead of adding absolute criterion errors.
-- Added a regression scenario where opposite criterion corrections leave the total score unchanged while criterion-level errors remain visible.
-- Preserved acceptance, feedback, and per-criterion metric behavior; no migration, provider, grading prompt, route, or production state changed.
-- Pushed the correction to PR 911 and completed a bounded cumulative self-review with no new findings; the existing independent-review budget for this stack was already exhausted.
-
-**Validation:**
-- `pnpm test` (407 files / 3,659 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Focused teacher-correction eval suite (1 file / 6 tests)
-- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-- Pika changed-file audit
-- Vercel preview checks at `769059be`
-
-**CI note:**
-- GitHub Actions did not trigger for the correction because PR 911 targets the stacked feature branch `codex/internal-repo-review-grading`, while the workflows listen only for pull requests into `main` or `production`. Full CI passed at the immediately preceding PR head; all correction-affected gates passed locally at `769059be`.
-
-**Remaining:**
-- After the lower stack lands and PR 911 is retargeted to `main`, require exact-head GitHub Actions and the repository's external approval before merge.
-
 ## 2026-07-22 — Hardened Daily and attendance read states
 
 **Risk profile:** workspace-state
@@ -1266,6 +1155,95 @@ requires exact cross-repository contract and semantic-token drift checks.
   authenticated Pika student visual matrix and real delivery vertical slice.
 - Migration 111 and feature enablement remain human-controlled.
 
+## 2026-07-26 — Versioned Course Blueprint lineage and proposals
+
+**Risk profile:** high — migration 111 changes reusable artifact identity and
+structural revision triggers, and adds atomic proposal application.
+
+**Completed:**
+- Defined Course Blueprint, Blueprint Draft, immutable Blueprint Version,
+  Artifact ID, Course Package, Change Proposal, and Classroom Archive
+  boundaries. Student work and classroom runtime state remain outside the
+  Blueprint.
+- Added package format v5 with UUIDv4 Artifact IDs and exact Blueprint
+  revision/version/editing-session provenance while retaining legacy package
+  import adapters.
+- Added stable Blueprint-to-classroom lineage for assignments, tests,
+  questions, submission requirements, lesson plans, classwork materials,
+  surveys, and survey questions.
+- Expanded the complete reusable structure boundary to include mixed classwork
+  ordering, assignment authenticity settings, and category gradebook defaults
+  while excluding releases, responses, grades, and other runtime/student data.
+- Added content-addressed immutable Blueprint Versions and made export and
+  classroom instantiation save/select an exact Version.
+- Added atomic, idempotent, stale-safe proposal storage/application for
+  repository, classroom, package, and Pika AI sources.
+- Completed the inverse update path from an immutable Blueprint Version into
+  an existing linked classroom. Pika now prepares a classroom-target proposal
+  against exact Blueprint, classroom, start-date, and class-day revisions and
+  applies the reviewed plan atomically.
+- Added live-classroom successor safety: attempted Tests, surveys with
+  responses, and assignments with student documents retain their historical
+  rows and receive new unpublished draft successors for content updates.
+  Blueprint removals retire lineage from future sync without deleting runtime
+  or student data.
+- Replaced destructive CLI replacement with pull-edit-propose-review/apply and
+  added proposal listing/application commands.
+- Added explicit Pika-managed versus repository-managed authority. Direct Pika
+  Draft edits are blocked in repository mode.
+- Routed classroom promotion and AI drafting through proposals rather than
+  direct Blueprint writes.
+- Added teacher Materials, Surveys, and Grading editors, AI targets, and a
+  Proposal review surface with operation-level diffs, actionable/stale states,
+  and repository read-only messaging.
+- Applied migrations 106-111 to shared local after a verified backup and
+  regenerated the database contract.
+- Published draft PR #952 after rebasing onto current `main`. Independent
+  security/migration and architecture/compatibility reviews found and the
+  first remediation batch fixed external publication-state authority, stale
+  classroom-source application, Version deletion cascades, concurrent proposal
+  replay, strict v4 file validation, archive ownership classification for
+  workflow-only classroom references, and current-main UI policy registration.
+- Added a database-backed CI contract for two-connection proposal replay,
+  source-classroom staleness, direct Version immutability, and Blueprint/user
+  cascade deletion.
+- Fixed the final CI integration issues: archive schema fixtures now include
+  declared non-owning Blueprint workflow references, and classroom structural
+  revision triggers honor the archive-restore transaction guard so a restored
+  classroom exactly preserves its verified source revision.
+
+**Validation:**
+- Full Vitest suite: 437 files / 3,851 tests.
+- Focused migration, Blueprint, Test, and assignment compatibility coverage:
+  7 files / 64 tests.
+- `pnpm run db:types:check`.
+- `pnpm exec tsc --noEmit`.
+- `pnpm lint`.
+- `pnpm build` (valid `.next/BUILD_ID`).
+- Pika audit.
+- Playwright teacher desktop/mobile, light/dark, empty/populated, Materials,
+  Grading, two-way Classroom Updates, and classroom-target proposal-detail
+  captures; student route redirect capture.
+- `git diff --check`.
+- Local history through 111, identity/runtime preservation checks, and
+  rollback-only Version, revision, proposal, and successor smokes.
+- Rebased-head full suite, generated database-type parity, TypeScript, lint,
+  build, UI/design policies, Pika audit, and the live versioned-Blueprint
+  database contract.
+- Exact local archive recovery rehearsal passed export, compaction,
+  ownership-fenced source cleanup, exact row/object restore, and all
+  idempotent replays.
+- PR #952 review-head CI exposed archive fixture/recovery integration gaps;
+  both failing paths pass locally after the final remediation.
+- Pre-migration backup:
+  `/Users/stew/Repos/.env/pika/backups/pika-local-pre-106-111-20260726T201121Z.dump`
+  (SHA-256 verified).
+
+**Remaining:**
+- Publish the final remediation, run final independent exact-head review, and
+  require exact-head CI before marking PR #952 ready. Leave it unmerged unless
+  explicit merge authority is provided.
+
 ## 2026-07-27 — PR 951 rebase and hardening
 
 **Risk profile:** high — privacy contract, service-role SQL, transactional
@@ -1309,3 +1287,81 @@ source writes, background delivery, and cross-repository integration.
 - Keep PR 951 draft and `PAL_ENABLED=false`; the published native widget,
   authenticated vertical slice, and one-time human authorization for the
   named migration target remain rollout gates.
+
+## 2026-07-27 — Versioned Blueprint residual hardening
+
+**Risk profile:** runtime-platform — migration 111 trigger and proposal
+application invariants.
+
+**Completed:**
+- Replaced trigger-depth authorization for Blueprint Version deletion with
+  proof that the owning Blueprint or user is absent during an FK cascade.
+- Made proposal application preserve Pika's current planned-site publication
+  state at the SQL boundary.
+- Added live database contracts for unrelated nested-trigger deletion,
+  concurrent classroom-target proposal replay, and proposal attempts to
+  publish or unpublish a planned site.
+- Returned PR #952 to draft. The shared local database remains on the prior
+  migration 111 definition pending fresh, explicit application permission.
+
+**Validation:**
+- Full Vitest suite: 438 files / 3,854 tests.
+- Focused Blueprint migration/package/proposal/version tests: 4 files / 36
+  tests.
+- Isolated rollback-only PostgreSQL trigger simulation covering direct,
+  unrelated nested, Blueprint-cascade, and user-cascade deletion.
+- TypeScript, lint, build, database types, architecture/design/UI policies,
+  Pika audit, shell syntax, session-log check, and `git diff --check`.
+
+**Remaining:**
+- Publish the draft revision and require ephemeral migration replay, the live
+  versioned-Blueprint database contract, exact-head CI, and final review before
+  marking PR #952 ready again.
+
+## 2026-07-27 — PR 952 migration resequence
+
+**Risk profile:** high — migration ordering and local-history drift.
+
+**Completed:**
+- Rebased PR #952 onto current `origin/main`, preserving Pal and Blueprint
+  continuity entries.
+- Resequenced the branch-only Blueprint migration from 111 to 112 after Pal
+  claimed 111 on `main`; updated runtime errors, docs, and tests.
+- Kept the shared local database untouched because its earlier Blueprint-as-111
+  history requires separate reset or repair authorization.
+- Compacted current AI context under the enforced startup budget.
+
+**Validation:**
+- Full Vitest suite: 451 files / 3,933 tests.
+- Focused Blueprint/startup suite: 43 tests.
+- TypeScript, lint, architecture, design/UI policy, audit, ShellCheck, Bash
+  syntax, session-log validation, duplicate migration-prefix check, and diff
+  checks pass.
+
+**Remaining:**
+- Build, commit, force-push with lease, and require fresh 001–112 CI replay,
+  generated-type parity, database contracts, and exact-head review.
+
+## 2026-07-27 — Local migration-history reconciliation
+
+**Risk profile:** high — destructive local database reset.
+
+**Completed:**
+- Verified the feature worktree and local-only Supabase target, then confirmed
+  the ledger collision: local 111 contained the earlier Blueprint draft while
+  current 111 is Pal and Blueprint is 112.
+- Created and checksum-verified a full custom-format PostgreSQL backup.
+- With explicit authorization, reset only the local database without seed data
+  and replayed migrations 001–112.
+
+**Validation:**
+- Local migration ledger matches Pal 111 and Blueprint 112; push dry-run is a
+  no-op.
+- Generated database types match.
+- Live versioned-Blueprint database contract passed.
+- Pal outbox and Blueprint Version objects exist.
+
+**Remaining:**
+- The rebuilt local database contains no users or seed data. Recover prior data
+  only through a separately planned selective restore; a full restore would
+  reintroduce the old migration history.

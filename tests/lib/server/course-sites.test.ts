@@ -6,16 +6,38 @@ import {
   getPublishedActualCourseSite,
   getPublishedPlannedCourseSite,
 } from '@/lib/server/course-sites'
-import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
+import {
+  makeQueryBuilder,
+  makeSupabaseFromQueues as makeStrictSupabaseFromQueues,
+} from '../../support/supabase'
+
+function makeSupabaseFromQueues(queues: Record<string, any[]>) {
+  const emptyRows = () => Array.from(
+    { length: 12 },
+    () => makeQueryBuilder({ data: [], error: null }),
+  )
+  const emptyMaybeSingle = () => Array.from(
+    { length: 12 },
+    () => makeQueryBuilder({ data: null, error: null }),
+  )
+  return makeStrictSupabaseFromQueues({
+    course_blueprint_materials: emptyRows(),
+    course_blueprint_surveys: emptyRows(),
+    classwork_materials: emptyRows(),
+    surveys: emptyRows(),
+    gradebook_settings: emptyMaybeSingle(),
+    ...queues,
+  })
+}
 
 let mockSupabase: any
 
 const mockGetCourseBlueprintDetail = vi.fn()
-const mockAssertTeacherOwnsCourseBlueprint = vi.fn()
-const mockSyncAssignments = vi.fn()
-const mockSyncAssessments = vi.fn()
-const mockSyncLessons = vi.fn()
-const mockUpdateBlueprint = vi.fn()
+const mockBuildBlueprintSnapshot = vi.fn((detail: any) => ({
+  blueprint_id: detail.id,
+  draft_revision: detail.content_revision,
+}))
+const mockSubmitProposal = vi.fn()
 const mockAssertTeacherOwnsClassroom = vi.fn()
 const mockHydrateClassroomRecord = vi.fn((row) => ({
   ...row,
@@ -33,12 +55,15 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/lib/server/course-blueprints', () => ({
-  assertTeacherOwnsCourseBlueprint: (...args: any[]) => mockAssertTeacherOwnsCourseBlueprint(...args),
   getCourseBlueprintDetail: (...args: any[]) => mockGetCourseBlueprintDetail(...args),
-  syncCourseBlueprintAssignments: (...args: any[]) => mockSyncAssignments(...args),
-  syncCourseBlueprintAssessments: (...args: any[]) => mockSyncAssessments(...args),
-  syncCourseBlueprintLessonTemplates: (...args: any[]) => mockSyncLessons(...args),
-  updateCourseBlueprint: (...args: any[]) => mockUpdateBlueprint(...args),
+}))
+
+vi.mock('@/lib/server/course-blueprint-versions', () => ({
+  buildCourseBlueprintSnapshot: (...args: any[]) => mockBuildBlueprintSnapshot(...args),
+}))
+
+vi.mock('@/lib/server/course-blueprint-proposals', () => ({
+  submitCourseBlueprintProposal: (...args: any[]) => mockSubmitProposal(...args),
 }))
 
 vi.mock('@/lib/server/classrooms', () => ({
@@ -200,14 +225,10 @@ describe('course-sites server helpers', () => {
       ok: true,
       classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
     })
-    mockAssertTeacherOwnsCourseBlueprint.mockResolvedValue({
+    mockSubmitProposal.mockResolvedValue({
       ok: true,
-      blueprint: { id: 'b-1', teacher_id: 'teacher-1' },
+      proposal: { id: 'proposal-1', status: 'needs_review' },
     })
-    mockSyncAssignments.mockResolvedValue({ ok: true })
-    mockSyncAssessments.mockResolvedValue({ ok: true })
-    mockSyncLessons.mockResolvedValue({ ok: true })
-    mockUpdateBlueprint.mockResolvedValue({ ok: true })
   })
 
   it('loads a published planned site and handles missing slugs', async () => {
@@ -282,6 +303,8 @@ describe('course-sites server helpers', () => {
     mockGetCourseBlueprintDetail.mockResolvedValue({
       detail: {
         id: 'b-1',
+        content_revision: 7,
+        authority_mode: 'pika',
         overview_markdown: 'Blueprint overview',
         outline_markdown: 'Blueprint outline',
         resources_markdown: 'Blueprint resources',
@@ -319,8 +342,21 @@ describe('course-sites server helpers', () => {
     })
   })
 
-  it('applies selected merge areas back into the blueprint and builds section content', async () => {
+  it('turns selected classroom merge areas into a revision-bound proposal', async () => {
     seedActualSiteSupabase()
+    mockGetCourseBlueprintDetail.mockResolvedValue({
+      detail: {
+        id: 'b-1',
+        content_revision: 7,
+        authority_mode: 'pika',
+        overview_markdown: 'Old',
+        outline_markdown: 'Old',
+        resources_markdown: 'Old',
+        assignments: [],
+        assessments: [],
+        lesson_templates: [],
+      },
+    })
 
     await expect(applyBlueprintMergeSuggestions('teacher-1', 'b-1', 'c-1', [
       'overview',
@@ -329,28 +365,21 @@ describe('course-sites server helpers', () => {
       'assignments',
       'tests',
       'lesson-plans',
-    ])).resolves.toEqual({ ok: true })
+    ], {
+      expectedBlueprintRevision: 7,
+      expectedClassroomRevision: 1,
+    })).resolves.toEqual({
+      ok: true,
+      proposal: { id: 'proposal-1', status: 'needs_review' },
+    })
 
-    expect(mockUpdateBlueprint).toHaveBeenCalledWith('teacher-1', 'b-1', { overview_markdown: 'Actual overview' })
-    expect(mockUpdateBlueprint).toHaveBeenCalledWith('teacher-1', 'b-1', { outline_markdown: 'Actual outline' })
-    expect(mockUpdateBlueprint).toHaveBeenCalledWith('teacher-1', 'b-1', { resources_markdown: 'Actual resources' })
-    expect(mockSyncAssignments).toHaveBeenCalledWith(
-      'teacher-1',
-      'b-1',
-      expect.arrayContaining([expect.objectContaining({ title: 'Essay' })])
-    )
-    expect(mockSyncAssessments).toHaveBeenCalledTimes(1)
-    expect(mockSyncAssessments).toHaveBeenCalledWith(
-      'teacher-1',
-      'b-1',
-      expect.arrayContaining([expect.objectContaining({ title: 'Unit Test' })]),
-      { replaceTypes: ['test'] }
-    )
-    expect(mockSyncLessons).toHaveBeenCalledWith(
-      'teacher-1',
-      'b-1',
-      expect.arrayContaining([expect.objectContaining({ title: 'Lesson 1 (2026-04-16)' })])
-    )
+    expect(mockSubmitProposal).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId: 'teacher-1',
+      source: 'classroom',
+      expectedBlueprintRevision: 7,
+      sourceClassroomId: 'c-1',
+      baseClassroomRevision: 1,
+    }))
 
     expect(buildMarkdownSectionContent('Hello')).toEqual(
       expect.objectContaining({ type: 'doc' })

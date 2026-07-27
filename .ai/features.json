@@ -1,8 +1,8 @@
 {
   "meta": {
-    "project": "pika", "lastUpdated": "2026-07-25", "phase": "Pal Achievements Pilot",
+    "project": "pika", "lastUpdated": "2026-07-27", "phase": "Versioned Course Blueprint Lineage",
     "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.", "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 15, "passing": 13, "failing": 2
+    "totalFeatures": 16, "passing": 14, "failing": 2
   },
   "features": [
     {
@@ -119,6 +119,7 @@
       "issueRefs": ["#889", "#890", "#891", "#893", "#894", "#895", "#896", "#897", "#898", "#899", "#900", "#902", "#903", "#904", "#905"],
       "blockedBy": [], "addedDate": "2026-07-16"
     },
-    {"id":"epic-pal-achievements-pilot","phase":"Pal Pilot","description":"Feature-gated Pika facts, outbox, weekly config, and native Pal widget","passes":false,"verification":"Tests plus duplicate-safe vertical slice","issueRefs":["pal#32","pal#35"],"blockedBy":[],"addedDate":"2026-07-25"}
+    {"id":"epic-pal-achievements-pilot","phase":"Pal Pilot","description":"Feature-gated Pika facts, outbox, weekly config, and native Pal widget","passes":false,"verification":"Tests plus duplicate-safe vertical slice","issueRefs":["pal#32","pal#35"],"blockedBy":[],"addedDate":"2026-07-25"},
+    {"id":"epic-versioned-course-blueprint-lineage","phase":"Course Authoring","description":"Stable artifact lineage, immutable Versions, authority, and stale-safe proposals","passes":true,"verification":"Migration 112 replay/contracts; shared local reset and verified through Pal 111 plus Blueprint 112.","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-26"}
   ]
 }

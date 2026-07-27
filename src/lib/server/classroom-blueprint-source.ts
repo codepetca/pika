@@ -11,6 +11,7 @@ import type {
   AssignmentSubmissionRequirement,
   Classroom,
   ClassroomResources,
+  GradebookSettings,
   TestDocument,
   TestDraftContent,
 } from '@/types'
@@ -19,7 +20,13 @@ export type ClassroomBlueprintSource = {
   classroom: Classroom
   resources: ClassroomResources | null
   resources_markdown: string
+  grading: Pick<
+    GradebookSettings,
+    'use_weights' | 'assignments_weight' | 'tests_weight'
+  >
   assignments: Array<{
+    artifact_id: string
+    source_artifact_id: string | null
     title: string
     instructions_markdown: string
     submission_requirements_json: AssignmentSubmissionRequirement[]
@@ -29,9 +36,12 @@ export type ClassroomBlueprintSource = {
     gradebook_weight: number | null
     include_in_final: boolean
     is_draft: boolean
+    track_authenticity: boolean
     position: number
   }>
   tests: Array<{
+    artifact_id: string
+    source_artifact_id: string | null
     assessment_type: 'test'
     title: string
     content: TestDraftContent
@@ -42,8 +52,33 @@ export type ClassroomBlueprintSource = {
     position: number
   }>
   lesson_templates: Array<{
+    artifact_id: string
+    source_artifact_id: string | null
     title: string
     content_markdown: string
+    position: number
+  }>
+  materials: Array<{
+    artifact_id: string
+    source_artifact_id: string | null
+    title: string
+    content_markdown: string
+    position: number
+  }>
+  surveys: Array<{
+    artifact_id: string
+    source_artifact_id: string | null
+    title: string
+    show_results: boolean
+    dynamic_responses: boolean
+    questions_json: Array<{
+      id: string
+      question_type: 'multiple_choice' | 'short_text' | 'link'
+      question_text: string
+      options: string[]
+      response_max_chars: number
+      position: number
+    }>
     position: number
   }>
   announcements: Announcement[]
@@ -110,15 +145,28 @@ export async function loadClassroomBlueprintSource(
     assignmentsResult,
     testsResult,
     lessonPlansResult,
+    materialsResult,
+    surveysResult,
+    gradebookResult,
     announcementsResult,
   ] = await Promise.all([
     supabase.from('classroom_resources').select('*').eq('classroom_id', classroomId).maybeSingle(),
     supabase.from('assignments').select('*').eq('classroom_id', classroomId)
+      .is('blueprint_archived_at', null)
       .order('position', { ascending: true }).order('id', { ascending: true }),
     supabase.from('tests').select('*').eq('classroom_id', classroomId)
+      .is('blueprint_archived_at', null)
       .order('position', { ascending: true }).order('id', { ascending: true }),
     supabase.from('lesson_plans').select('*').eq('classroom_id', classroomId)
+      .is('blueprint_archived_at', null)
       .order('date', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('classwork_materials').select('*').eq('classroom_id', classroomId)
+      .is('blueprint_archived_at', null)
+      .order('position', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('surveys').select('*').eq('classroom_id', classroomId)
+      .is('blueprint_archived_at', null)
+      .order('position', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('gradebook_settings').select('*').eq('classroom_id', classroomId).maybeSingle(),
     supabase.from('announcements').select('*').eq('classroom_id', classroomId)
       .order('created_at', { ascending: false }).order('id', { ascending: true }),
   ])
@@ -127,6 +175,9 @@ export async function loadClassroomBlueprintSource(
     assignmentsResult.error ||
     testsResult.error ||
     lessonPlansResult.error ||
+    materialsResult.error ||
+    surveysResult.error ||
+    gradebookResult.error ||
     announcementsResult.error ||
     resourcesResult.error
   ) {
@@ -135,6 +186,9 @@ export async function loadClassroomBlueprintSource(
       assignmentsResult.error ||
         testsResult.error ||
         lessonPlansResult.error ||
+        materialsResult.error ||
+        surveysResult.error ||
+        gradebookResult.error ||
         announcementsResult.error ||
         resourcesResult.error
     )
@@ -223,6 +277,30 @@ export async function loadClassroomBlueprintSource(
     },
   }))
 
+  const surveyRows = (surveysResult.data || []) as Array<Record<string, any>>
+  const surveyIds = surveyRows.map((survey) => String(survey.id))
+  let surveyQuestionRows: Array<Record<string, any>> = []
+  if (surveyIds.length > 0) {
+    const { data, error } = await supabase
+      .from('survey_questions')
+      .select('*')
+      .in('survey_id', surveyIds)
+      .order('position', { ascending: true })
+      .order('id', { ascending: true })
+    if (error) {
+      console.error('Error loading classroom blueprint survey questions:', error)
+      return { ok: false, status: 500, error: 'Failed to load classroom content' }
+    }
+    surveyQuestionRows = (data || []) as Array<Record<string, any>>
+  }
+  const questionsBySurveyId = new Map<string, Array<Record<string, any>>>()
+  surveyQuestionRows.forEach((question) => {
+    const surveyId = String(question.survey_id)
+    const questions = questionsBySurveyId.get(surveyId) || []
+    questions.push(question)
+    questionsBySurveyId.set(surveyId, questions)
+  })
+
   const finalRevisionResult = await supabase
     .from('classrooms')
     .select('blueprint_source_revision')
@@ -243,18 +321,38 @@ export async function loadClassroomBlueprintSource(
       classroom,
       resources,
       resources_markdown: resourcesMarkdown,
+      grading: {
+        use_weights: Boolean(gradebookResult.data?.use_weights),
+        assignments_weight: Number(gradebookResult.data?.assignments_weight ?? 70),
+        tests_weight: Number(gradebookResult.data?.tests_weight ?? 30),
+      },
       assignments: assignmentRows.map((assignment) => ({
+        artifact_id: assignment.source_artifact_id ?? assignment.artifact_id ?? assignment.id,
+        source_artifact_id: assignment.source_artifact_id ?? null,
         title: assignment.title,
         instructions_markdown: getAssignmentInstructionsMarkdown(assignment as any).markdown,
-        submission_requirements_json: requirementsByAssignmentId.get(String(assignment.id)) || [],
+        submission_requirements_json: (
+          requirementsByAssignmentId.get(String(assignment.id)) || []
+        ).map((requirement) => ({
+          ...requirement,
+          id: (requirement as AssignmentSubmissionRequirement & {
+            artifact_id?: string
+            source_artifact_id?: string | null
+          }).source_artifact_id
+            ?? (requirement as AssignmentSubmissionRequirement & { artifact_id?: string }).artifact_id
+            ?? requirement.id,
+        })),
         ...getReusableAssignmentTiming(classroom.start_date ?? null, assignment.due_at ?? null),
         points_possible: assignment.points_possible ?? null,
         gradebook_weight: assignment.gradebook_weight ?? null,
         include_in_final: assignment.include_in_final ?? true,
         is_draft: true,
+        track_authenticity: assignment.track_authenticity === true,
         position: assignment.position ?? 0,
       })),
       tests: tests.map((test) => ({
+          artifact_id: test.source_artifact_id ?? test.artifact_id ?? test.id,
+          source_artifact_id: test.source_artifact_id ?? null,
           assessment_type: 'test' as const,
           title: test.title,
           content: test.content,
@@ -265,9 +363,34 @@ export async function loadClassroomBlueprintSource(
           position: test.position ?? 0,
         })),
       lesson_templates: ((lessonPlansResult.data || []) as Array<Record<string, any>>).map((plan, index) => ({
+        artifact_id: plan.source_artifact_id ?? plan.artifact_id ?? plan.id,
+        source_artifact_id: plan.source_artifact_id ?? null,
         title: lessonTemplateTitleMode === 'generic' ? `Lesson ${index + 1}` : `Lesson ${index + 1} (${plan.date})`,
         content_markdown: getLessonPlanMarkdown(plan as any).markdown,
         position: index,
+      })),
+      materials: ((materialsResult.data || []) as Array<Record<string, any>>).map((material) => ({
+        artifact_id: material.source_artifact_id ?? material.artifact_id ?? material.id,
+        source_artifact_id: material.source_artifact_id ?? null,
+        title: material.title,
+        content_markdown: tiptapToMarkdown(material.content).markdown,
+        position: material.position ?? 0,
+      })),
+      surveys: surveyRows.map((survey) => ({
+        artifact_id: survey.source_artifact_id ?? survey.artifact_id ?? survey.id,
+        source_artifact_id: survey.source_artifact_id ?? null,
+        title: survey.title,
+        show_results: survey.show_results !== false,
+        dynamic_responses: survey.dynamic_responses === true,
+        questions_json: (questionsBySurveyId.get(String(survey.id)) || []).map((question) => ({
+          id: question.source_artifact_id ?? question.artifact_id ?? question.id,
+          question_type: question.question_type,
+          question_text: question.question_text,
+          options: Array.isArray(question.options) ? question.options : [],
+          response_max_chars: question.response_max_chars ?? 500,
+          position: question.position ?? 0,
+        })),
+        position: survey.position ?? 0,
       })),
       announcements: (announcementsResult.data || []) as Announcement[],
     },

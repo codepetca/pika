@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
+  CLASSROOM_NON_OWNING_REFERENCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   auditClassroomResourceSchema,
@@ -39,7 +40,7 @@ function archiveResourceFiles() {
 }
 
 function contractRelationships() {
-  return CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
+  const ownedRelationships = CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
     const ownershipRelationships = resource.scope.kind === 'root'
       ? []
       : resource.restore_after.map((parent) => ({
@@ -56,6 +57,13 @@ function contractRelationships() {
     }))
     return [...ownershipRelationships, ...actorRelationships]
   })
+  return [
+    ...ownedRelationships,
+    ...CLASSROOM_NON_OWNING_REFERENCES.map((relationship) => ({
+      ...relationship,
+      child_columns: [...relationship.child_columns],
+    })),
+  ]
 }
 
 function contractPrimaryKeys() {
@@ -185,6 +193,30 @@ describe('classroom data inventory', () => {
     }))
   })
 
+  it('keeps Blueprint workflow references outside classroom archive ownership', () => {
+    const audit = auditClassroomResourceSchema(
+      contractRelationships(),
+      contractPrimaryKeys(),
+    )
+
+    expect(audit.ok).toBe(true)
+    expect(audit.untracked_tables).not.toContain('course_blueprint_change_proposals')
+    expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
+
+    const missingReference = contractRelationships().filter((relationship) =>
+      !(relationship.child_table === 'course_blueprint_editing_sessions' &&
+        relationship.child_columns.includes('classroom_id'))
+    )
+    expect(
+      auditClassroomResourceSchema(missingReference, contractPrimaryKeys()),
+    ).toEqual(expect.objectContaining({
+      ok: false,
+      stale_non_owning_references: [
+        'course_blueprint_editing_sessions.classroom_id->classrooms',
+      ],
+    }))
+  })
+
   it('detects stale resources, missing restore dependencies, and invalid selection keys', () => {
     const relationships = contractRelationships()
     const withoutReportCardRows = relationships.filter((relationship) =>
@@ -254,8 +286,8 @@ describe('classroom data inventory', () => {
 
 describe('classroom artifact contracts', () => {
   it('keeps reusable blueprints explicitly non-recoverable and student-free', () => {
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('4')
-    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3', '4'])
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.manifest_version).toBe('5')
+    expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.supported_import_versions).toEqual(['2', '3', '4', '5'])
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.recoverable_classroom_backup).toBe(false)
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('student_work')
     expect(COURSE_BLUEPRINT_TRANSFER_CONTRACT.excluded_data).toContain('grades_and_feedback')

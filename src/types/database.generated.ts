@@ -949,6 +949,7 @@ export type Database = {
       }
       assignment_submission_requirements: {
         Row: {
+          artifact_id: string
           assignment_id: string
           created_at: string
           id: string
@@ -956,11 +957,14 @@ export type Database = {
           label: string
           position: number
           required: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           type: string
           updated_at: string
           validation_policy_json: Json
         }
         Insert: {
+          artifact_id?: string
           assignment_id: string
           created_at?: string
           id?: string
@@ -968,11 +972,14 @@ export type Database = {
           label: string
           position?: number
           required?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           type: string
           updated_at?: string
           validation_policy_json?: Json
         }
         Update: {
+          artifact_id?: string
           assignment_id?: string
           created_at?: string
           id?: string
@@ -980,11 +987,20 @@ export type Database = {
           label?: string
           position?: number
           required?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           type?: string
           updated_at?: string
           validation_policy_json?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "assignment_submission_requirem_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assignment_submission_requirements_assignment_id_fkey"
             columns: ["assignment_id"]
@@ -996,6 +1012,8 @@ export type Database = {
       }
       assignments: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           created_at: string
           created_by: string
@@ -1010,11 +1028,15 @@ export type Database = {
           position: number
           released_at: string | null
           rich_instructions: Json | null
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           title: string
           track_authenticity: boolean
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           created_at?: string
           created_by: string
@@ -1029,11 +1051,15 @@ export type Database = {
           position?: number
           released_at?: string | null
           rich_instructions?: Json | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title: string
           track_authenticity?: boolean
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           created_at?: string
           created_by?: string
@@ -1048,6 +1074,8 @@ export type Database = {
           position?: number
           released_at?: string | null
           rich_instructions?: Json | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title?: string
           track_authenticity?: boolean
           updated_at?: string
@@ -1065,6 +1093,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -2183,6 +2218,7 @@ export type Database = {
           position: number
           source_blueprint_id: string | null
           source_blueprint_origin: Json | null
+          source_blueprint_version_id: string | null
           start_date: string | null
           teacher_id: string
           term_label: string | null
@@ -2208,6 +2244,7 @@ export type Database = {
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
+          source_blueprint_version_id?: string | null
           start_date?: string | null
           teacher_id: string
           term_label?: string | null
@@ -2233,6 +2270,7 @@ export type Database = {
           position?: number
           source_blueprint_id?: string | null
           source_blueprint_origin?: Json | null
+          source_blueprint_version_id?: string | null
           start_date?: string | null
           teacher_id?: string
           term_label?: string | null
@@ -2249,6 +2287,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "classrooms_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "classrooms_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
@@ -2259,6 +2304,8 @@ export type Database = {
       }
       classwork_materials: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           content: Json
           created_at: string
@@ -2267,10 +2314,14 @@ export type Database = {
           is_draft: boolean
           position: number
           released_at: string | null
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           content?: Json
           created_at?: string
@@ -2279,10 +2330,14 @@ export type Database = {
           is_draft?: boolean
           position: number
           released_at?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           content?: Json
           created_at?: string
@@ -2291,6 +2346,8 @@ export type Database = {
           is_draft?: boolean
           position?: number
           released_at?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           title?: string
           updated_at?: string
         }
@@ -2309,10 +2366,18 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "classwork_materials_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       course_blueprint_assessments: {
         Row: {
+          artifact_id: string
           assessment_type: string
           content: Json
           course_blueprint_id: string
@@ -2327,6 +2392,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           assessment_type: string
           content?: Json
           course_blueprint_id: string
@@ -2341,6 +2407,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           assessment_type?: string
           content?: Json
           course_blueprint_id?: string
@@ -2366,6 +2433,7 @@ export type Database = {
       }
       course_blueprint_assignments: {
         Row: {
+          artifact_id: string
           course_blueprint_id: string
           created_at: string
           default_due_days: number
@@ -2379,9 +2447,11 @@ export type Database = {
           position: number
           submission_requirements_json: Json
           title: string
+          track_authenticity: boolean
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           course_blueprint_id: string
           created_at?: string
           default_due_days?: number
@@ -2395,9 +2465,11 @@ export type Database = {
           position?: number
           submission_requirements_json?: Json
           title: string
+          track_authenticity?: boolean
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           course_blueprint_id?: string
           created_at?: string
           default_due_days?: number
@@ -2411,6 +2483,7 @@ export type Database = {
           position?: number
           submission_requirements_json?: Json
           title?: string
+          track_authenticity?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -2423,8 +2496,197 @@ export type Database = {
           },
         ]
       }
+      course_blueprint_change_proposals: {
+        Row: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_blueprint_revision?: number | null
+          applied_classroom_revision?: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          course_blueprint_id: string
+          created_at?: string
+          diff_json?: Json
+          id?: string
+          idempotency_key: string
+          operations_json?: Json
+          payload_schema_version?: number
+          rejected_at?: string | null
+          request_sha256: string
+          source_classroom_id?: string | null
+          source_kind: string
+          status?: string
+          target_classroom_id?: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at?: string
+          validation_errors?: Json
+        }
+        Update: {
+          applied_at?: string | null
+          applied_blueprint_revision?: number | null
+          applied_classroom_revision?: number | null
+          base_blueprint_revision?: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          course_blueprint_id?: string
+          created_at?: string
+          diff_json?: Json
+          id?: string
+          idempotency_key?: string
+          operations_json?: Json
+          payload_schema_version?: number
+          rejected_at?: string | null
+          request_sha256?: string
+          source_classroom_id?: string | null
+          source_kind?: string
+          status?: string
+          target_classroom_id?: string | null
+          target_kind?: string
+          teacher_id?: string
+          updated_at?: string
+          validation_errors?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_change_proposal_base_blueprint_version_id_fkey"
+            columns: ["base_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_source_classroom_id_fkey"
+            columns: ["source_classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_target_classroom_id_fkey"
+            columns: ["target_classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_change_proposals_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_editing_sessions: {
+        Row: {
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          classroom_id: string | null
+          closed_at: string | null
+          course_blueprint_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          package_sha256: string
+          status: string
+          teacher_id: string
+        }
+        Insert: {
+          base_blueprint_revision: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          classroom_id?: string | null
+          closed_at?: string | null
+          course_blueprint_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          package_sha256: string
+          status?: string
+          teacher_id: string
+        }
+        Update: {
+          base_blueprint_revision?: number
+          base_blueprint_version_id?: string | null
+          base_classroom_revision?: number | null
+          classroom_id?: string | null
+          closed_at?: string | null
+          course_blueprint_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          package_sha256?: string
+          status?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_editing_session_base_blueprint_version_id_fkey"
+            columns: ["base_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_editing_sessions_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_editing_sessions_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_editing_sessions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_blueprint_lesson_templates: {
         Row: {
+          artifact_id: string
           content_markdown: string
           course_blueprint_id: string
           created_at: string
@@ -2434,6 +2696,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           content_markdown?: string
           course_blueprint_id: string
           created_at?: string
@@ -2443,6 +2706,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           content_markdown?: string
           course_blueprint_id?: string
           created_at?: string
@@ -2454,6 +2718,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "course_blueprint_lesson_templates_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_materials: {
+        Row: {
+          artifact_id: string
+          content_markdown: string
+          course_blueprint_id: string
+          created_at: string
+          id: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artifact_id?: string
+          content_markdown?: string
+          course_blueprint_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          content_markdown?: string
+          course_blueprint_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_materials_course_blueprint_id_fkey"
             columns: ["course_blueprint_id"]
             isOneToOne: false
             referencedRelation: "course_blueprints"
@@ -2529,13 +2834,122 @@ export type Database = {
           },
         ]
       }
+      course_blueprint_surveys: {
+        Row: {
+          artifact_id: string
+          course_blueprint_id: string
+          created_at: string
+          dynamic_responses: boolean
+          id: string
+          position: number
+          questions_json: Json
+          show_results: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artifact_id?: string
+          course_blueprint_id: string
+          created_at?: string
+          dynamic_responses?: boolean
+          id?: string
+          position?: number
+          questions_json?: Json
+          show_results?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artifact_id?: string
+          course_blueprint_id?: string
+          created_at?: string
+          dynamic_responses?: boolean
+          id?: string
+          position?: number
+          questions_json?: Json
+          show_results?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_surveys_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_versions: {
+        Row: {
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          id: string
+          snapshot_json: Json
+          snapshot_schema_version: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind: string
+          source_metadata: Json
+          version_number: number
+        }
+        Insert: {
+          course_blueprint_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          snapshot_json: Json
+          snapshot_schema_version?: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind?: string
+          source_metadata?: Json
+          version_number: number
+        }
+        Update: {
+          course_blueprint_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          snapshot_json?: Json
+          snapshot_schema_version?: number
+          snapshot_sha256?: string
+          source_draft_revision?: number
+          source_kind?: string
+          source_metadata?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_versions_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_blueprints: {
         Row: {
+          authority_mode: string
           content_revision: number
           course_code: string
           created_at: string
           grade_level: string
+          gradebook_assignments_weight: number
+          gradebook_tests_weight: number
+          gradebook_use_weights: boolean
           id: string
+          latest_version_number: number
           outline_markdown: string
           overview_markdown: string
           planned_site_config: Json
@@ -2550,11 +2964,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          authority_mode?: string
           content_revision?: number
           course_code?: string
           created_at?: string
           grade_level?: string
+          gradebook_assignments_weight?: number
+          gradebook_tests_weight?: number
+          gradebook_use_weights?: boolean
           id?: string
+          latest_version_number?: number
           outline_markdown?: string
           overview_markdown?: string
           planned_site_config?: Json
@@ -2569,11 +2988,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          authority_mode?: string
           content_revision?: number
           course_code?: string
           created_at?: string
           grade_level?: string
+          gradebook_assignments_weight?: number
+          gradebook_tests_weight?: number
+          gradebook_use_weights?: boolean
           id?: string
+          latest_version_number?: number
           outline_markdown?: string
           overview_markdown?: string
           planned_site_config?: Json
@@ -2810,30 +3234,42 @@ export type Database = {
       }
       lesson_plans: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           content: Json
           content_markdown: string | null
           created_at: string
           date: string
           id: string
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           content?: Json
           content_markdown?: string | null
           created_at?: string
           date: string
           id?: string
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           content?: Json
           content_markdown?: string | null
           created_at?: string
           date?: string
           id?: string
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2842,6 +3278,13 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_plans_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -3116,6 +3559,7 @@ export type Database = {
       }
       survey_questions: {
         Row: {
+          artifact_id: string
           created_at: string
           id: string
           options: Json
@@ -3123,10 +3567,13 @@ export type Database = {
           question_text: string
           question_type: string
           response_max_chars: number
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           survey_id: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
           created_at?: string
           id?: string
           options?: Json
@@ -3134,10 +3581,13 @@ export type Database = {
           question_text: string
           question_type?: string
           response_max_chars?: number
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           survey_id: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
           created_at?: string
           id?: string
           options?: Json
@@ -3145,10 +3595,19 @@ export type Database = {
           question_text?: string
           question_type?: string
           response_max_chars?: number
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           survey_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_questions_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
@@ -3215,6 +3674,8 @@ export type Database = {
       }
       surveys: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           created_at: string
           created_by: string
@@ -3223,11 +3684,15 @@ export type Database = {
           opens_at: string | null
           position: number
           show_results: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           created_at?: string
           created_by: string
@@ -3236,11 +3701,15 @@ export type Database = {
           opens_at?: string | null
           position: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           created_at?: string
           created_by?: string
@@ -3249,6 +3718,8 @@ export type Database = {
           opens_at?: string | null
           position?: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -3266,6 +3737,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -3683,6 +4161,7 @@ export type Database = {
           ai_reference_cache_key: string | null
           ai_reference_cache_model: string | null
           answer_key: string | null
+          artifact_id: string
           correct_option: number | null
           created_at: string
           id: string
@@ -3694,6 +4173,8 @@ export type Database = {
           response_max_chars: number
           response_monospace: boolean
           sample_solution: string | null
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           test_id: string
           updated_at: string
         }
@@ -3703,6 +4184,7 @@ export type Database = {
           ai_reference_cache_key?: string | null
           ai_reference_cache_model?: string | null
           answer_key?: string | null
+          artifact_id?: string
           correct_option?: number | null
           created_at?: string
           id?: string
@@ -3714,6 +4196,8 @@ export type Database = {
           response_max_chars?: number
           response_monospace?: boolean
           sample_solution?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           test_id: string
           updated_at?: string
         }
@@ -3723,6 +4207,7 @@ export type Database = {
           ai_reference_cache_key?: string | null
           ai_reference_cache_model?: string | null
           answer_key?: string | null
+          artifact_id?: string
           correct_option?: number | null
           created_at?: string
           id?: string
@@ -3734,10 +4219,19 @@ export type Database = {
           response_max_chars?: number
           response_monospace?: boolean
           sample_solution?: string | null
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           test_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "test_questions_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "test_questions_test_id_fkey"
             columns: ["test_id"]
@@ -3896,6 +4390,8 @@ export type Database = {
       }
       tests: {
         Row: {
+          artifact_id: string
+          blueprint_archived_at: string | null
           classroom_id: string
           created_at: string
           created_by: string
@@ -3906,11 +4402,15 @@ export type Database = {
           points_possible: number
           position: number
           show_results: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id: string
           created_at?: string
           created_by: string
@@ -3921,11 +4421,15 @@ export type Database = {
           points_possible?: number
           position?: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          artifact_id?: string
+          blueprint_archived_at?: string | null
           classroom_id?: string
           created_at?: string
           created_by?: string
@@ -3936,6 +4440,8 @@ export type Database = {
           points_possible?: number
           position?: number
           show_results?: boolean
+          source_artifact_id?: string | null
+          source_blueprint_version_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -3953,6 +4459,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tests_source_blueprint_version_id_fkey"
+            columns: ["source_blueprint_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -4086,6 +4599,84 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_course_blueprint_classroom_proposal_atomic: {
+        Args: {
+          p_classroom_plan: Json
+          p_classroom_plan_sha256: string
+          p_proposal_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      apply_course_blueprint_proposal_atomic: {
+        Args: {
+          p_candidate_sha256: string
+          p_candidate_snapshot: Json
+          p_proposal_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       begin_classroom_archive_compaction: {
         Args: {
           p_archive_id: string
@@ -4665,6 +5256,109 @@ export type Database = {
         }
         Returns: Json
       }
+      create_course_blueprint_atomic_v2: {
+        Args: {
+          p_expected_source_revision: number
+          p_operation_id: string
+          p_operation_type: string
+          p_plan: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      create_course_blueprint_classroom_proposal_atomic: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_diff: Json
+          p_expected_blueprint_revision: number
+          p_expected_classroom_revision: number
+          p_idempotency_key: string
+          p_operations: Json
+          p_request_sha256: string
+          p_target_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_course_blueprint_proposal_atomic: {
+        Args: {
+          p_base_blueprint_version_id: string
+          p_base_classroom_revision: number
+          p_blueprint_id: string
+          p_diff: Json
+          p_expected_blueprint_revision: number
+          p_idempotency_key: string
+          p_operations: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_source_kind: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_test_ai_grading_run_atomic: {
         Args: {
           p_eligible_student_count: number
@@ -4743,6 +5437,10 @@ export type Database = {
       enqueue_test_document_snapshot_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean
+      }
+      ensure_blueprint_json_artifact_ids: {
+        Args: { p_items: Json }
+        Returns: Json
       }
       fail_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
@@ -4941,6 +5639,18 @@ export type Database = {
         }
         Returns: Json
       }
+      instantiate_course_blueprint_atomic_v2: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_expected_content_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       is_classroom_archive_maintenance_mode: {
         Args: { p_mode: string }
         Returns: boolean
@@ -5013,6 +5723,7 @@ export type Database = {
       replace_assignment_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json }
         Returns: {
+          artifact_id: string
           assignment_id: string
           created_at: string
           id: string
@@ -5020,6 +5731,8 @@ export type Database = {
           label: string
           position: number
           required: boolean
+          source_artifact_id: string | null
+          source_blueprint_version_id: string | null
           type: string
           updated_at: string
           validation_policy_json: Json
@@ -5181,6 +5894,37 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: Json
+      }
+      save_course_blueprint_version_atomic: {
+        Args: {
+          p_blueprint_id: string
+          p_expected_draft_revision: number
+          p_snapshot: Json
+          p_snapshot_schema_version: number
+          p_snapshot_sha256: string
+          p_source_kind: string
+          p_source_metadata: Json
+          p_teacher_id: string
+        }
+        Returns: {
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          id: string
+          snapshot_json: Json
+          snapshot_schema_version: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind: string
+          source_metadata: Json
+          version_number: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }

@@ -1,8 +1,14 @@
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type { TestDocument, TestDraftContent } from '@/types'
+import {
+  isCourseBlueprintArtifactId,
+  resolveCourseBlueprintArtifactId,
+  type CourseBlueprintArtifactParseOptions,
+} from '@/lib/course-blueprint-artifact-identity'
 
 export interface CourseBlueprintAssessmentMarkdownRecord {
   id?: string
+  artifact_id?: string
   assessment_type: 'test'
   title: string
   content: TestDraftContent
@@ -44,6 +50,7 @@ function splitMarkdownDocuments(markdown: string): string[] {
 }
 
 function extractGradingFields(document: string) {
+  let artifactId: string | undefined
   let pointsPossible: number | null | undefined
   let gradebookWeight: number | undefined
   let includeInFinal: boolean | undefined
@@ -59,7 +66,7 @@ function extractGradingFields(document: string) {
       continue
     }
 
-    const fieldMatch = line.match(/^(Points Possible|Gradebook Weight|Include In Final):\s*(.*)$/i)
+    const fieldMatch = line.match(/^(Artifact ID|Points Possible|Gradebook Weight|Include In Final):\s*(.*)$/i)
     if (!fieldMatch) {
       contentLines.push(line)
       continue
@@ -67,7 +74,9 @@ function extractGradingFields(document: string) {
 
     const key = fieldMatch[1].toLowerCase()
     const value = fieldMatch[2].trim()
-    if (key === 'points possible') {
+    if (key === 'artifact id') {
+      artifactId = value
+    } else if (key === 'points possible') {
       pointsPossible = value.toLowerCase() === 'none' || value === '' ? null : Number(value)
     } else if (key === 'gradebook weight') {
       gradebookWeight = Number(value)
@@ -95,6 +104,7 @@ function extractGradingFields(document: string) {
 
   return {
     markdown: contentLines.join('\n'),
+    artifactId,
     pointsPossible,
     gradebookWeight,
     includeInFinal,
@@ -121,6 +131,7 @@ export function courseBlueprintAssessmentsToMarkdown(
       lines.splice(
         2,
         0,
+        ...(assessment.artifact_id ? [`Artifact ID: ${assessment.artifact_id}`] : []),
         `Points Possible: ${assessment.points_possible ?? 'none'}`,
         `Gradebook Weight: ${assessment.gradebook_weight ?? 10}`,
         `Include In Final: ${assessment.include_in_final !== false ? 'true' : 'false'}`
@@ -134,7 +145,8 @@ export function courseBlueprintAssessmentsToMarkdown(
 export function markdownToCourseBlueprintAssessments(
   markdown: string,
   existingAssessments: CourseBlueprintAssessmentMarkdownRecord[],
-  assessmentType: 'test'
+  assessmentType: 'test',
+  options: CourseBlueprintArtifactParseOptions = {}
 ): CourseBlueprintAssessmentsParseResult {
   const errors: string[] = []
   const warnings: string[] = []
@@ -144,12 +156,31 @@ export function markdownToCourseBlueprintAssessments(
       .filter((assessment) => assessment.assessment_type === assessmentType)
       .map((assessment) => [assessment.title.toLowerCase(), assessment])
   )
+  const existingByArtifactId = new Map(
+    existingAssessments
+      .filter((assessment) => isCourseBlueprintArtifactId(assessment.artifact_id))
+      .map((assessment) => [assessment.artifact_id!, assessment])
+  )
+  const seenArtifactIds = new Set<string>()
   const seenTitles = new Set<string>()
   const documents = splitMarkdownDocuments(markdown)
 
   documents.forEach((document, index) => {
     const existing = existingAssessments[index]
     const gradingFields = extractGradingFields(document)
+    const artifactId = resolveCourseBlueprintArtifactId(gradingFields.artifactId, options)
+    if (gradingFields.artifactId && !artifactId) {
+      errors.push(`Test ${index + 1}: invalid Artifact ID`)
+      return
+    }
+    if (!artifactId && options.requireArtifactIds) {
+      errors.push(`Test ${index + 1}: missing Artifact ID`)
+      return
+    }
+    if (artifactId && seenArtifactIds.has(artifactId)) {
+      errors.push(`Test ${index + 1}: duplicate Artifact ID "${artifactId}"`)
+      return
+    }
     if (gradingFields.errors.length > 0) {
       gradingFields.errors.forEach((error) => errors.push(`Test ${index + 1}: ${error}`))
       return
@@ -159,16 +190,21 @@ export function markdownToCourseBlueprintAssessments(
       existingQuestions:
         (existing?.content as TestDraftContent | undefined)?.questions?.map((question) => ({ id: question.id })) ?? [],
       existingDocuments: existing?.documents ?? [],
+      requireIds: options.requireArtifactIds,
     })
     if (parsed.errors.length > 0 || !parsed.draftContent) {
       parsed.errors.forEach((error) => errors.push(`Test ${index + 1}: ${error}`))
       return
     }
     const titleKey = parsed.draftContent.title.toLowerCase()
-    const matchingExisting = existingByTitle.get(titleKey)
+    const matchingExisting = artifactId
+      ? existingByArtifactId.get(artifactId)
+      : existingByTitle.get(titleKey)
     seenTitles.add(titleKey)
+    if (artifactId) seenArtifactIds.add(artifactId)
     assessments.push({
       id: matchingExisting?.id,
+      artifact_id: artifactId ?? matchingExisting?.artifact_id,
       assessment_type: 'test',
       title: parsed.draftContent.title,
       content: parsed.draftContent,

@@ -52,10 +52,14 @@ function makeAssignment(overrides: Record<string, unknown> = {}) {
 
 function makeAssignmentRpcRow(overrides: Record<string, unknown> = {}) {
   const { classrooms: _classrooms, ...assignment } = makeAssignment({
+    artifact_id: '10000000-0000-4000-8000-000000000010',
+    blueprint_archived_at: null,
     classroom_id: 'classroom-1',
     gradebook_weight: 1,
     include_in_final: true,
     points_possible: 100,
+    source_artifact_id: null,
+    source_blueprint_version_id: null,
     ...overrides,
   })
   return assignment

@@ -363,6 +363,8 @@ export const COURSE_BLUEPRINT_TRANSFER_CONTRACT = {
     'assignment_templates',
     'assessment_templates',
     'lesson_plan_templates',
+    'classwork_material_templates',
+    'survey_templates',
     'grading_configuration',
     'submission_requirement_templates',
     'planned_site_configuration',

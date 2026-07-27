@@ -5,8 +5,16 @@ This is the teacher-facing contract for portable course files.
 ## Naming Decision
 
 - **Course Blueprint** is the reusable plan teachers edit in Pika.
+- **Blueprint Draft** is its one editable state.
+- **Blueprint Version** is an immutable snapshot used to create and compare classrooms.
+- **Artifact ID** is the stable UUID of a reusable assignment, Test, question,
+  document, submission requirement, or lesson across packages, versions, and
+  classrooms.
 - **Course Package** is the portable exported file teachers can move between Pika, a repo, Codex, Claude, or another editing workflow.
 - The official exported file extension is `.course-package.tar`.
+
+Identity, versioning, classroom provenance, and proposal behavior are defined
+in [`course-blueprint-identity-versioning.md`](./course-blueprint-identity-versioning.md).
 
 ## Package Format
 
@@ -19,27 +27,39 @@ A course package is a tar archive with these root files:
 - `assignments.md`
 - `tests.md`
 - `lesson-plans.md`
+- `classwork-materials.md`
+- `surveys.md`
 
-`manifest.json` stores package metadata and planned-site publishing settings. The Markdown files store the editable teacher-authored course content.
+`manifest.json` stores package metadata, gradebook category defaults, and
+planned-site publishing settings. The Markdown files store the editable
+teacher-authored course content.
 
-The canonical export manifest version is `4`. Pika imports versions `2`, `3`,
-and `4`, and rejects other versions. Version `2` is an import-only compatibility
+The canonical export manifest version is `5`. Pika imports versions `2`, `3`,
+`4`, and `5`, and rejects other versions. Version `2` is an import-only compatibility
 boundary: Pika imports its reusable course, assignment, Test, and lesson-plan
 content while discarding `quizzes.md`. Version `3` package manifests are
 normalized to the current planned-site configuration; unknown retired
-configuration keys are ignored. Version `4` rejects unknown manifest fields
-and undeclared files. The version identifies the portable content contract; it
-is independent of the database migration number.
+configuration keys are ignored. Versions `4` and `5` reject unknown manifest
+fields and undeclared files. Version `5` adds the Blueprint ID, source Draft
+revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
+Missing, malformed, or duplicate Artifact IDs fail version `5` validation;
+legacy versions receive IDs once during import. The package format version is
+independent of both the database migration number and the Blueprint's own
+Version number.
 
 ## Included
 
 - Course title, subject, grade level, course code, and term template
 - Planned course site slug, published flag, and section visibility
 - Course overview, outline, and resources
-- Assignment plans, default due offsets, default due times, points, gradebook weights, final-grade inclusion, and draft state
+- Assignment plans, default due offsets, default due times, authenticity
+  tracking, points, gradebook weights, final-grade inclusion, and draft state
 - Test definitions, point scales, gradebook weights, and final-grade inclusion represented in Markdown
 - Test document metadata/content when represented by the test Markdown format; classroom-specific link snapshot paths and sync timestamps are removed
 - Lesson plan templates
+- Ungraded classwork materials
+- Survey definitions and questions
+- Gradebook mode and assignment/test category weights
 
 ## Excluded
 
@@ -53,10 +73,14 @@ Imported, captured, and instantiated link documents retain their reusable source
 2. Extract the archive.
 3. Edit the Markdown files in a repo, Codex, or Claude. Keep the filenames and `manifest.json` at the archive root.
 4. Repack the root files into a tar archive.
-5. Import the course package in Pika.
-6. Review the resulting Course Blueprint before using it to create a classroom or publishing its planned course site.
+5. Push the package to Pika as a Change Proposal against the exported Draft
+   revision.
+6. Review the diff in Pika and explicitly apply it. A stale proposal never
+   writes to the Draft.
 
-Do not use this package for automatic `actual -> blueprint` sync. Classroom changes should be reviewed and explicitly saved back into a Course Blueprint.
+Importing a package without an existing Blueprint lineage may create a new
+Blueprint. Pushing a package for an existing Blueprint never deletes and
+recreates it.
 
 ## Atomic Operation Contract
 
@@ -76,7 +100,10 @@ Successful and failed API responses include `operation_id` when a ledger-backed 
 
 ## Rollout And Recovery
 
-Apply `081_atomic_blueprint_round_trips.sql` before deploying application code that calls the new RPCs. The application deliberately fails closed with HTTP `503` when the migration is absent; it does not fall back to the former table-by-table writes.
+Apply `081_atomic_blueprint_round_trips.sql` and
+`112_versioned_course_blueprint_identity.sql` before deploying the
+identity-aware application code. The application deliberately fails closed
+with HTTP `503` when a required migration is absent.
 
 The migration is additive, so the previous application version can run while it is being applied. If the application deployment must be rolled back, leave the migration and ledger in place. Do not drop the functions, triggers, revision columns, or ledger until all deployed application versions no longer reference them.
 

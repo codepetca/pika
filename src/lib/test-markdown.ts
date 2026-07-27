@@ -8,7 +8,7 @@ import type { TestDocument, TestDraftContent, TestDraftQuestion, TestQuestionTyp
 export { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 
 const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const FIELD_KEYS = new Set([
   'id',
@@ -77,6 +77,7 @@ export interface ParseTestMarkdownOptions {
   defaultShowResults?: boolean
   existingQuestions?: Array<{ id: string }>
   existingDocuments?: TestDocument[]
+  requireIds?: boolean
 }
 
 function parseBoolean(value: string): boolean | null {
@@ -340,6 +341,11 @@ function parseQuestionBlock(
   }
 
   const questionType = coerceQuestionType(parsed.question_type)
+  if (options.requireIds && !parsed.id) {
+    errors.push(`${questionLabel}: ID is required`)
+  } else if (options.requireIds && !UUID_RE.test(parsed.id || '')) {
+    errors.push(`${questionLabel}: ID must be a UUID`)
+  }
   const fallbackQuestionId = options.existingQuestions?.[index]?.id
   const nextId = chooseId(parsed.id, fallbackQuestionId)
   const points = parsed.points ?? defaultPointsForQuestionType(questionType)
@@ -448,6 +454,11 @@ function parseDocumentBlock(
   }
 
   const source = parsed.source ?? 'link'
+  if (options.requireIds && !parsed.id) {
+    errors.push(`${documentLabel}: ID is required`)
+  } else if (options.requireIds && !UUID_RE.test(parsed.id || '')) {
+    errors.push(`${documentLabel}: ID must be a UUID`)
+  }
   const fallbackDocId = options.existingDocuments?.[index]?.id
   const id = chooseId(parsed.id, fallbackDocId)
   const title = (parsed.title || '').trim()
