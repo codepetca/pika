@@ -120,6 +120,6 @@
       "blockedBy": [], "addedDate": "2026-07-16"
     },
     {"id":"epic-pal-achievements-pilot","phase":"Pal Pilot","description":"Feature-gated Pika facts, outbox, weekly config, and native Pal widget","passes":false,"verification":"Tests plus duplicate-safe vertical slice","issueRefs":["pal#32","pal#35"],"blockedBy":[],"addedDate":"2026-07-25"},
-    {"id":"epic-versioned-course-blueprint-lineage","phase":"Course Authoring","description":"Stable artifact lineage, immutable Versions, authority, and stale-safe proposals","passes":true,"verification":"Migration 112 replay/contracts; shared local still maps the earlier Blueprint draft to 111 and needs authorized reconciliation.","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-26"}
+    {"id":"epic-versioned-course-blueprint-lineage","phase":"Course Authoring","description":"Stable artifact lineage, immutable Versions, authority, and stale-safe proposals","passes":true,"verification":"Migration 112 replay/contracts; shared local reset and verified through Pal 111 plus Blueprint 112.","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-26"}
   ]
 }

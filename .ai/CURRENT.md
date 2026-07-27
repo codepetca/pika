@@ -1,6 +1,6 @@
 Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
-local still maps an earlier Blueprint draft to 111; do not push, reset, or
-repair it without separate explicit authorization.
+local was backed up, reset without seed data, and cleanly replayed through 112;
+its migration history and generated types now match this branch.
 
 ## Current Context
 

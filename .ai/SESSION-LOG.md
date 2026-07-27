@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Corrected total-score grading eval error
-
-**Risk profile:** none
-
-**Model recommendation:** Current coding model - the correction is a small deterministic TypeScript aggregation change with focused regression coverage.
-
-**Completed:**
-- Changed overall grading-review error to compare the summed suggested score with the summed final score instead of adding absolute criterion errors.
-- Added a regression scenario where opposite criterion corrections leave the total score unchanged while criterion-level errors remain visible.
-- Preserved acceptance, feedback, and per-criterion metric behavior; no migration, provider, grading prompt, route, or production state changed.
-- Pushed the correction to PR 911 and completed a bounded cumulative self-review with no new findings; the existing independent-review budget for this stack was already exhausted.
-
-**Validation:**
-- `pnpm test` (407 files / 3,659 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Focused teacher-correction eval suite (1 file / 6 tests)
-- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-- Pika changed-file audit
-- Vercel preview checks at `769059be`
-
-**CI note:**
-- GitHub Actions did not trigger for the correction because PR 911 targets the stacked feature branch `codex/internal-repo-review-grading`, while the workflows listen only for pull requests into `main` or `production`. Full CI passed at the immediately preceding PR head; all correction-affected gates passed locally at `769059be`.
-
-**Remaining:**
-- After the lower stack lands and PR 911 is retargeted to `main`, require exact-head GitHub Actions and the repository's external approval before merge.
-
 ## 2026-07-22 — Hardened Daily and attendance read states
 
 **Risk profile:** workspace-state
@@ -1372,3 +1341,27 @@ application invariants.
 **Remaining:**
 - Build, commit, force-push with lease, and require fresh 001–112 CI replay,
   generated-type parity, database contracts, and exact-head review.
+
+## 2026-07-27 — Local migration-history reconciliation
+
+**Risk profile:** high — destructive local database reset.
+
+**Completed:**
+- Verified the feature worktree and local-only Supabase target, then confirmed
+  the ledger collision: local 111 contained the earlier Blueprint draft while
+  current 111 is Pal and Blueprint is 112.
+- Created and checksum-verified a full custom-format PostgreSQL backup.
+- With explicit authorization, reset only the local database without seed data
+  and replayed migrations 001–112.
+
+**Validation:**
+- Local migration ledger matches Pal 111 and Blueprint 112; push dry-run is a
+  no-op.
+- Generated database types match.
+- Live versioned-Blueprint database contract passed.
+- Pal outbox and Blueprint Version objects exist.
+
+**Remaining:**
+- The rebuilt local database contains no users or seed data. Recover prior data
+  only through a separately planned selective restore; a full restore would
+  reintroduce the old migration history.
