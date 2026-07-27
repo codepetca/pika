@@ -39,11 +39,34 @@ export type PalDailyLogCompletion = {
 export type PalWeeklyConfigurationRevision = PalWeeklyConfiguration
 
 const PAGE_SIZE = 500
+export const MAX_PAL_WEEKLY_CATCH_UP_PERIODS = 12
 
 function addCalendarDays(day: string, amount: number): string {
   const date = new Date(`${day}T00:00:00Z`)
   date.setUTCDate(date.getUTCDate() + amount)
   return date.toISOString().slice(0, 10)
+}
+
+export function palWeeklyCatchUpPeriodStarts(input: {
+  oldestOpenPeriodStart: string | null
+  currentPeriodStart: string
+  maxPeriods?: number
+}): { periods: string[]; remaining: boolean } {
+  if (
+    !input.oldestOpenPeriodStart
+    || input.oldestOpenPeriodStart >= input.currentPeriodStart
+  ) {
+    return { periods: [], remaining: false }
+  }
+
+  const maxPeriods = input.maxPeriods ?? MAX_PAL_WEEKLY_CATCH_UP_PERIODS
+  const periods: string[] = []
+  let period = input.oldestOpenPeriodStart
+  while (period < input.currentPeriodStart && periods.length < maxPeriods) {
+    periods.push(period)
+    period = addCalendarDays(period, 7)
+  }
+  return { periods, remaining: period < input.currentPeriodStart }
 }
 
 function activityDayForTimestamp(value: string): string | null {
@@ -354,9 +377,21 @@ async function syncPeriod(input: {
 export async function syncPalWeeklyConfigurations(input: {
   supabase?: SupabaseLike
   now?: Date
-} = {}): Promise<{ status: 'disabled' | 'ok'; configured: number; closed: number }> {
+} = {}): Promise<{
+  status: 'disabled' | 'ok'
+  configured: number
+  closed: number
+  catchUpPeriods: number
+  remainingCatchUp: boolean
+}> {
   if (!isPalEnabled()) {
-    return { status: 'disabled', configured: 0, closed: 0 }
+    return {
+      status: 'disabled',
+      configured: 0,
+      closed: 0,
+      catchUpPeriods: 0,
+      remainingCatchUp: false,
+    }
   }
 
   const supabase = input.supabase ?? getServiceRoleClient()
@@ -364,15 +399,37 @@ export async function syncPalWeeklyConfigurations(input: {
   const activityDay = formatDateInToronto(now)
   const currentPeriodStart = palPeriodKeyForActivityDay(activityDay)
     .replace(/^pika-week-/, '')
-  const previousPeriodStart = addCalendarDays(currentPeriodStart, -7)
-
-  const closed = await syncPeriod({
-    supabase,
-    periodStart: previousPeriodStart,
-    periodStatus: 'closed',
-    createIfMissing: false,
-    configuredAt: now,
+  const currentPeriodKey = palPeriodKeyForActivityDay(currentPeriodStart)
+  const { data: oldestOpenRows, error: oldestOpenError } = await supabase
+    .from('pal_daily_log_week_configurations')
+    .select('period_key')
+    .eq('period_status', 'open')
+    .lt('period_key', currentPeriodKey)
+    .order('period_key', { ascending: true })
+    .limit(1)
+  if (oldestOpenError) {
+    throw new Error(`Failed to find Pal weekly catch-up boundary: ${oldestOpenError.message}`)
+  }
+  const oldestPeriodKey = oldestOpenRows?.[0]?.period_key
+  const oldestOpenPeriodStart = typeof oldestPeriodKey === 'string'
+    && oldestPeriodKey.startsWith('pika-week-')
+    ? oldestPeriodKey.replace(/^pika-week-/, '')
+    : null
+  const catchUp = palWeeklyCatchUpPeriodStarts({
+    oldestOpenPeriodStart,
+    currentPeriodStart,
   })
+
+  let closed = 0
+  for (const periodStart of catchUp.periods) {
+    closed += await syncPeriod({
+      supabase,
+      periodStart,
+      periodStatus: 'closed',
+      createIfMissing: false,
+      configuredAt: now,
+    })
+  }
   const configured = await syncPeriod({
     supabase,
     periodStart: currentPeriodStart,
@@ -381,5 +438,11 @@ export async function syncPalWeeklyConfigurations(input: {
     configuredAt: now,
   })
 
-  return { status: 'ok', configured, closed }
+  return {
+    status: 'ok',
+    configured,
+    closed,
+    catchUpPeriods: catchUp.periods.length,
+    remainingCatchUp: catchUp.remaining,
+  }
 }

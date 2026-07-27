@@ -11,11 +11,19 @@ const enrollmentResultSchema = z.object({
   enrollment: z.object({ id: z.string().min(1) }).passthrough(),
 }).strip()
 
-const entryResultSchema = z.object({
-  ok: z.literal(true),
-  created: z.boolean(),
-  entry: z.object({ id: z.string().min(1) }).passthrough(),
-}).strip()
+const entryResultSchema = z.discriminatedUnion('ok', [
+  z.object({
+    ok: z.literal(true),
+    created: z.boolean(),
+    entry: z.object({ id: z.string().min(1) }).passthrough(),
+  }).strip(),
+  z.object({
+    ok: z.literal(false),
+    status: z.literal(409),
+    error: z.string().min(1),
+    entry: z.object({ id: z.string().min(1) }).passthrough().nullable(),
+  }).strip(),
+])
 
 const assignmentDocResultSchema = z.object({
   ok: z.literal(true),
@@ -58,6 +66,7 @@ export async function upsertStudentEntryWithPalEvent(input: {
   minutesReported?: number | null
   mood?: string | null
   onTime: boolean
+  expectedVersion?: number | null
   event: v1.DailyLogCompletedEvent | null
 }) {
   const { data, error } = await input.supabase.rpc(
@@ -71,6 +80,7 @@ export async function upsertStudentEntryWithPalEvent(input: {
       p_minutes_reported: input.minutesReported ?? null,
       p_mood: input.mood ?? null,
       p_on_time: input.onTime,
+      p_expected_version: input.expectedVersion ?? null,
       p_pal_event: input.event,
     },
   )

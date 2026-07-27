@@ -179,20 +179,16 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       let createdByThisRequest = true
 
       if (isPalEnabled()) {
-        let palEvent = null
         const effectiveReleaseAt = assignment.released_at ?? assignment.created_at
-        if (effectiveReleaseAt) {
-          try {
-            palEvent = buildLearningItemViewedEvent({
-              learnerId: user.id,
-              itemId: assignmentId,
-              occurredAt: viewedAt,
-              releasedAt: effectiveReleaseAt,
-            })
-          } catch (error) {
-            console.error('Failed to build Pal assignment view event:', error)
-          }
+        if (!effectiveReleaseAt) {
+          throw new Error('Assignment is missing its authoritative release timestamp')
         }
+        const palEvent = buildLearningItemViewedEvent({
+          learnerId: user.id,
+          itemId: assignmentId,
+          occurredAt: viewedAt,
+          releasedAt: effectiveReleaseAt,
+        })
 
         try {
           const result = await createAssignmentDocWithPalEvent({

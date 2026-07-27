@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  MAX_PAL_WEEKLY_CATCH_UP_PERIODS,
+  palWeeklyCatchUpPeriodStarts,
   planPalWeeklyConfigurationRevisions,
   type PalClassDay,
   type PalEnrollmentSchedule,
@@ -28,6 +30,26 @@ function classDays(
 }
 
 describe('Pal Weekly Rhythm source configuration', () => {
+  it('enumerates every missed open week before the current period', () => {
+    expect(palWeeklyCatchUpPeriodStarts({
+      oldestOpenPeriodStart: '2026-08-24',
+      currentPeriodStart: '2026-09-14',
+    })).toEqual({
+      periods: ['2026-08-24', '2026-08-31', '2026-09-07'],
+      remaining: false,
+    })
+  })
+
+  it('bounds catch-up work and reports when another run is needed', () => {
+    const catchUp = palWeeklyCatchUpPeriodStarts({
+      oldestOpenPeriodStart: '2026-01-05',
+      currentPeriodStart: '2026-09-14',
+    })
+
+    expect(catchUp.periods).toHaveLength(MAX_PAL_WEEKLY_CATCH_UP_PERIODS)
+    expect(catchUp.remaining).toBe(true)
+  })
+
   it('reports the actual short-week opportunity count instead of assuming five days', () => {
     const revisions = planPalWeeklyConfigurationRevisions({
       periodStart,

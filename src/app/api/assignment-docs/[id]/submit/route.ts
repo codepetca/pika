@@ -132,19 +132,14 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   }
 
   const palEnabled = isPalEnabled()
-  let palEvent = null
-  if (palEnabled) {
-    try {
-      palEvent = buildLearningItemCompletedEvent({
+  const palEvent = palEnabled
+    ? buildLearningItemCompletedEvent({
         learnerId: user.id,
         itemId: assignmentId,
         occurredAt: new Date(),
         dueAt: assignment.due_at,
       })
-    } catch (error) {
-      console.error('Failed to build Pal assignment completion event:', error)
-    }
-  }
+    : null
 
   const submitResult = await submitAssignmentDocAtomic({
     supabase,

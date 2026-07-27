@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { withErrorHandler } from '@/lib/api-handler'
-import { deliverPalOutboxBatch } from '@/lib/server/pal-outbox'
+import { drainPalOutbox } from '@/lib/server/pal-outbox'
 import { syncPalWeeklyConfigurations } from '@/lib/server/pal-weekly-config'
 
 export const dynamic = 'force-dynamic'
@@ -29,13 +29,13 @@ export const GET = withErrorHandler('GetPalPilotSync', async (request: NextReque
     weekly = { status: 'error', error: 'weekly_sync_failed' }
   }
 
-  let delivery: Awaited<ReturnType<typeof deliverPalOutboxBatch>> | {
+  let delivery: Awaited<ReturnType<typeof drainPalOutbox>> | {
     status: 'error'
     error: 'outbox_delivery_failed'
   }
 
   try {
-    delivery = await deliverPalOutboxBatch()
+    delivery = await drainPalOutbox()
   } catch (error) {
     console.error('Pal outbox delivery failed', error)
     delivery = { status: 'error', error: 'outbox_delivery_failed' }

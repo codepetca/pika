@@ -11,6 +11,7 @@ import {
 } from '@/lib/tiptap-content'
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { withErrorHandler } from '@/lib/api-handler'
+import { hasQualifyingDailyLogContent } from '@/lib/attendance'
 import { isPalEnabled } from '@/lib/server/pal-config'
 import { buildDailyLogCompletedEvent } from '@/lib/server/pal-events'
 import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
@@ -254,16 +255,13 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   let entry
 
   if (isPalEnabled()) {
-    let palEvent = null
-    try {
-      palEvent = buildDailyLogCompletedEvent({
+    const palEvent = hasQualifyingDailyLogContent(entryText)
+      ? buildDailyLogCompletedEvent({
         learnerId: user.id,
         activityDay: date,
         occurredAt: now,
       })
-    } catch (error) {
-      console.error('Failed to build Pal daily log event:', error)
-    }
+      : null
 
     try {
       const result = await upsertStudentEntryWithPalEvent({
@@ -276,8 +274,15 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
         minutesReported: minutes_reported,
         mood,
         onTime,
+        expectedVersion: existing?.version ?? null,
         event: palEvent,
       })
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: result.error, entry: result.entry },
+          { status: result.status },
+        )
+      }
       entry = result.entry
     } catch (error) {
       console.error('Error saving entry with Pal outbox:', error)
@@ -456,16 +461,13 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     const onTime = isOnTime(now, date)
 
     if (isPalEnabled()) {
-      let palEvent = null
-      try {
-        palEvent = buildDailyLogCompletedEvent({
+      const palEvent = hasQualifyingDailyLogContent(entryText)
+        ? buildDailyLogCompletedEvent({
           learnerId: user.id,
           activityDay: date,
           occurredAt: now,
         })
-      } catch (error) {
-        console.error('Failed to build Pal daily log event:', error)
-      }
+        : null
 
       try {
         const result = await upsertStudentEntryWithPalEvent({
@@ -476,8 +478,15 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
           text: entryText,
           richContent: content,
           onTime,
+          expectedVersion: null,
           event: palEvent,
         })
+        if (!result.ok) {
+          return NextResponse.json(
+            { error: result.error, entry: result.entry },
+            { status: result.status },
+          )
+        }
         return NextResponse.json({ entry: result.entry })
       } catch (error) {
         console.error('Error creating entry with Pal outbox:', error)
@@ -551,6 +560,43 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
   const now = new Date()
   const onTime = isOnTime(now, date)
   const nextVersion = currentVersion + 1
+
+  if (isPalEnabled()) {
+    const palEvent = hasQualifyingDailyLogContent(entryText)
+      ? buildDailyLogCompletedEvent({
+        learnerId: user.id,
+        activityDay: date,
+        occurredAt: now,
+      })
+      : null
+
+    try {
+      const result = await upsertStudentEntryWithPalEvent({
+        supabase,
+        studentId: user.id,
+        classroomId: classroom_id,
+        date,
+        text: entryText,
+        richContent: nextContent,
+        onTime,
+        expectedVersion: currentVersion,
+        event: palEvent,
+      })
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: result.error, entry: result.entry },
+          { status: result.status },
+        )
+      }
+      return NextResponse.json({ entry: result.entry })
+    } catch (error) {
+      console.error('Error updating entry with Pal outbox:', error)
+      return NextResponse.json(
+        { error: 'Failed to update entry' },
+        { status: 500 },
+      )
+    }
+  }
 
   const { data, error } = await supabase
     .from('entries')

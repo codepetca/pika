@@ -1,13 +1,13 @@
 import { createHmac } from 'node:crypto'
 
 import { formatDateInToronto } from '@/lib/timezone'
-import { requirePalEnvironment } from '@/lib/server/pal-config'
+import { requirePalPseudonymSecret } from '@/lib/server/pal-config'
 import { v1 } from '@/vendor/pal-contract'
 
 type PalTokenKind = 'learner' | 'classroom' | 'item' | 'session' | 'fact'
 
 function requiredSecret(explicitSecret?: string): string {
-  const secret = explicitSecret?.trim() || requirePalEnvironment().pseudonymSecret
+  const secret = explicitSecret?.trim() || requirePalPseudonymSecret()
   if (!secret) {
     throw new Error('PAL_PSEUDONYM_SECRET is not configured')
   }
@@ -192,12 +192,12 @@ export function buildLearningItemViewedEvent(
 export function buildLearningItemCompletedEvent(
   input: CommonEventInput & {
     itemId: string
-    dueAt: string
+    dueAt: string | null
   },
 ): v1.LearningItemCompletedEvent {
   const secret = requiredSecret(input.pseudonymSecret)
-  const dueAt = new Date(input.dueAt)
-  if (Number.isNaN(dueAt.getTime())) {
+  const dueAt = input.dueAt === null ? null : new Date(input.dueAt)
+  if (dueAt && Number.isNaN(dueAt.getTime())) {
     throw new Error('Cannot classify a Pal item completion without a valid due timestamp')
   }
 
@@ -214,7 +214,10 @@ export function buildLearningItemCompletedEvent(
       item_token: pseudonymizePalRef('item', input.itemId, secret),
       kind: 'assignment',
       period_key: palPeriodKeyForInstant(input.occurredAt),
-      timing: input.occurredAt.getTime() <= dueAt.getTime() ? 'on_time' : 'late',
+      // An assignment without a deadline cannot be late.
+      timing: dueAt === null || input.occurredAt.getTime() <= dueAt.getTime()
+        ? 'on_time'
+        : 'late',
     },
   })
 }

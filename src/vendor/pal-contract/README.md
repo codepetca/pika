@@ -1,8 +1,8 @@
 # Vendored Pal event contract
 
 This directory copies `packages/contract/src` from the Pal repository at commit
-`db9f22e22cbf971744bea7a78a8306f2ae787d65` (the contract landed by Pal PR
-#35).
+`cd9fc872b646b8c91551fd44f9b4b36725ab0fe4` (the contract landed by Pal PR
+#35 and was hardened on Pal PR #39).
 
 The only Pika-local adaptation removes the `.js` suffix from three relative
 imports so Next.js resolves the vendored TypeScript source during its production

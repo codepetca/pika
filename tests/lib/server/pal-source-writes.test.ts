@@ -69,12 +69,16 @@ describe('Pal transactional source writes', () => {
       text: 'Reflection',
       richContent: { type: 'doc', content: [] },
       onTime: true,
+      expectedVersion: 4,
       event,
     })
 
     expect(supabase.rpc).toHaveBeenCalledWith(
       'upsert_student_entry_with_pal_event_atomic',
-      expect.objectContaining({ p_pal_event: event }),
+      expect.objectContaining({
+        p_expected_version: 4,
+        p_pal_event: event,
+      }),
     )
   })
 

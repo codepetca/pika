@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildSessionStartedEvent } from '@/lib/server/pal-events'
 import {
   deliverPalOutboxBatch,
+  drainPalOutbox,
   enqueueStandalonePalEvent,
 } from '@/lib/server/pal-outbox'
 
@@ -167,6 +168,26 @@ describe('Pal outbox adapter', () => {
     })
   })
 
+  it('quarantines envelope privacy violations without contacting Pal', async () => {
+    const supabase = buildSupabase([claimedRow({
+      ...event,
+      email: 'learner@example.com',
+    })])
+    const fetchImpl = vi.fn<typeof fetch>()
+
+    await expect(deliverPalOutboxBatch({
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toMatchObject({ nonRetryable: 1 })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(supabase.calls.at(-1)).toMatchObject({
+      name: 'fail_pal_event_outbox',
+      args: { p_error_code: 'invalid_envelope' },
+    })
+  })
+
   it('quarantines permanent HTTP failures for operator reconciliation', async () => {
     const supabase = buildSupabase([claimedRow()])
     const fetchImpl = vi.fn<typeof fetch>(async () =>
@@ -185,5 +206,43 @@ describe('Pal outbox adapter', () => {
         p_error_detail: 'Pal returned HTTP 422',
       },
     })
+  })
+
+  it('drains more than one class-day of events and reports no ready backlog', async () => {
+    const batchSizes = [50, 50, 20]
+    let claim = 0
+    const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
+      if (name === 'claim_pal_event_outbox') {
+        const count = batchSizes[claim++] ?? 0
+        return {
+          data: Array.from({ length: count }, (_, index) => ({
+            id: `${String(claim).padStart(8, '0')}-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+            payload: event,
+            attempts: 1,
+            lease_token: `${String(claim + 100).padStart(8, '0')}-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          })),
+          error: null,
+        }
+      }
+      if (name === 'count_pal_event_outbox_ready') {
+        return { data: 0, error: null }
+      }
+      return { data: true, error: null }
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+
+    await expect(drainPalOutbox({
+      supabase: { rpc },
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toMatchObject({
+      claimed: 120,
+      delivered: 120,
+      batches: 3,
+      remainingReady: 0,
+      stoppedReason: 'drained',
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(120)
+    expect(rpc).toHaveBeenCalledWith('count_pal_event_outbox_ready')
   })
 })

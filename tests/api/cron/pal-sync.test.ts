@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockDeliverPalOutboxBatch, mockSyncPalWeeklyConfigurations } = vi.hoisted(() => ({
-  mockDeliverPalOutboxBatch: vi.fn(),
+const { mockDrainPalOutbox, mockSyncPalWeeklyConfigurations } = vi.hoisted(() => ({
+  mockDrainPalOutbox: vi.fn(),
   mockSyncPalWeeklyConfigurations: vi.fn(),
 }))
 
 vi.mock('@/lib/server/pal-outbox', () => ({
-  deliverPalOutboxBatch: mockDeliverPalOutboxBatch,
+  drainPalOutbox: mockDrainPalOutbox,
 }))
 vi.mock('@/lib/server/pal-weekly-config', () => ({
   syncPalWeeklyConfigurations: mockSyncPalWeeklyConfigurations,
@@ -22,13 +22,18 @@ describe('GET /api/cron/pal-sync', () => {
       status: 'ok',
       configured: 2,
       closed: 1,
+      catchUpPeriods: 1,
+      remainingCatchUp: false,
     })
-    mockDeliverPalOutboxBatch.mockResolvedValue({
+    mockDrainPalOutbox.mockResolvedValue({
       status: 'ok',
       claimed: 3,
       delivered: 3,
       retrying: 0,
       nonRetryable: 0,
+      batches: 1,
+      remainingReady: 0,
+      stoppedReason: 'drained',
     })
   })
 
@@ -49,17 +54,26 @@ describe('GET /api/cron/pal-sync', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
       status: 'ok',
-      weekly: { status: 'ok', configured: 2, closed: 1 },
+      weekly: {
+        status: 'ok',
+        configured: 2,
+        closed: 1,
+        catchUpPeriods: 1,
+        remainingCatchUp: false,
+      },
       delivery: {
         status: 'ok',
         claimed: 3,
         delivered: 3,
         retrying: 0,
         nonRetryable: 0,
+        batches: 1,
+        remainingReady: 0,
+        stoppedReason: 'drained',
       },
     })
     expect(mockSyncPalWeeklyConfigurations.mock.invocationCallOrder[0])
-      .toBeLessThan(mockDeliverPalOutboxBatch.mock.invocationCallOrder[0])
+      .toBeLessThan(mockDrainPalOutbox.mock.invocationCallOrder[0])
   })
 
   it('still drains the delivery outbox when weekly reconciliation fails', async () => {
@@ -79,13 +93,16 @@ describe('GET /api/cron/pal-sync', () => {
         delivered: 3,
         retrying: 0,
         nonRetryable: 0,
+        batches: 1,
+        remainingReady: 0,
+        stoppedReason: 'drained',
       },
     })
-    expect(mockDeliverPalOutboxBatch).toHaveBeenCalledOnce()
+    expect(mockDrainPalOutbox).toHaveBeenCalledOnce()
   })
 
   it('reports a partial run when delivery fails after weekly reconciliation', async () => {
-    mockDeliverPalOutboxBatch.mockRejectedValue(new Error('delivery unavailable'))
+    mockDrainPalOutbox.mockRejectedValue(new Error('delivery unavailable'))
 
     const response = await GET(new Request('http://localhost/api/cron/pal-sync', {
       headers: { Authorization: 'Bearer cron-secret' },
@@ -94,7 +111,13 @@ describe('GET /api/cron/pal-sync', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
       status: 'partial',
-      weekly: { status: 'ok', configured: 2, closed: 1 },
+      weekly: {
+        status: 'ok',
+        configured: 2,
+        closed: 1,
+        catchUpPeriods: 1,
+        remainingCatchUp: false,
+      },
       delivery: { status: 'error', error: 'outbox_delivery_failed' },
     })
   })

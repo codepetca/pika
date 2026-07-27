@@ -104,11 +104,19 @@ describe('Pika Pal v1 event builder', () => {
       occurredAt: new Date('2026-09-17T04:00:00.000Z'),
       dueAt: '2026-09-17T03:59:00.000Z',
     })
+    const noDeadline = buildLearningItemCompletedEvent({
+      ...common,
+      occurredAt: new Date('2026-09-17T04:00:00.000Z'),
+      dueAt: null,
+    })
 
     expect(early.metadata.timing).toBe('within_24h_of_release')
     expect(later.metadata.timing).toBe('later')
     expect(onTime.metadata.timing).toBe('on_time')
     expect(late.metadata.timing).toBe('late')
-    expect(JSON.stringify([early, later, onTime, late])).not.toMatch(/released_at|due_at/)
+    expect(noDeadline.metadata.timing).toBe('on_time')
+    expect(JSON.stringify([early, later, onTime, late, noDeadline])).not.toMatch(
+      /released_at|due_at/,
+    )
   })
 })

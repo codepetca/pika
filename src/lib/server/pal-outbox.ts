@@ -21,6 +21,12 @@ export type PalOutboxDeliverySummary = {
   nonRetryable: number
 }
 
+export type PalOutboxDrainSummary = PalOutboxDeliverySummary & {
+  batches: number
+  remainingReady: number
+  stoppedReason: 'disabled' | 'empty' | 'drained' | 'batch_limit' | 'time_limit'
+}
+
 function retryDelayMs(attempts: number): number {
   return Math.min(30_000 * 2 ** Math.max(0, attempts - 1), 6 * 60 * 60 * 1000)
 }
@@ -205,5 +211,74 @@ export async function deliverPalOutboxBatch(input: {
     }
   }
 
+  return summary
+}
+
+export async function drainPalOutbox(input: {
+  supabase?: SupabaseLike
+  fetchImpl?: typeof fetch
+  now?: Date
+  batchSize?: number
+  maxBatches?: number
+  maxDurationMs?: number
+  clock?: () => number
+} = {}): Promise<PalOutboxDrainSummary> {
+  const batchSize = input.batchSize ?? 50
+  const maxBatches = input.maxBatches ?? 10
+  const maxDurationMs = input.maxDurationMs ?? 8_000
+  const clock = input.clock ?? Date.now
+  const startedAt = clock()
+  const summary: PalOutboxDrainSummary = {
+    status: 'ok',
+    claimed: 0,
+    delivered: 0,
+    retrying: 0,
+    nonRetryable: 0,
+    batches: 0,
+    remainingReady: 0,
+    stoppedReason: 'empty',
+  }
+
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    if (batch > 0 && clock() - startedAt >= maxDurationMs) {
+      summary.stoppedReason = 'time_limit'
+      break
+    }
+
+    const delivered = await deliverPalOutboxBatch({
+      supabase: input.supabase,
+      fetchImpl: input.fetchImpl,
+      now: input.now,
+      limit: batchSize,
+    })
+    if (delivered.status === 'disabled') {
+      return { ...summary, status: 'disabled', stoppedReason: 'disabled' }
+    }
+
+    summary.batches += 1
+    summary.claimed += delivered.claimed
+    summary.delivered += delivered.delivered
+    summary.retrying += delivered.retrying
+    summary.nonRetryable += delivered.nonRetryable
+
+    if (delivered.claimed === 0) {
+      summary.stoppedReason = summary.claimed === 0 ? 'empty' : 'drained'
+      break
+    }
+    if (delivered.claimed < batchSize) {
+      summary.stoppedReason = 'drained'
+      break
+    }
+    summary.stoppedReason = batch + 1 === maxBatches
+      ? 'batch_limit'
+      : summary.stoppedReason
+  }
+
+  const supabase = input.supabase ?? getServiceRoleClient()
+  const { data, error } = await supabase.rpc('count_pal_event_outbox_ready')
+  if (error) {
+    throw new Error(`Failed to count ready Pal outbox rows: ${error.message ?? 'unknown error'}`)
+  }
+  summary.remainingReady = z.number().int().nonnegative().parse(data)
   return summary
 }

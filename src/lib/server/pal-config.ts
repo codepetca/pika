@@ -1,5 +1,53 @@
-export function isPalEnabled(): boolean {
+function isPalFlagEnabled(): boolean {
   return process.env.PAL_ENABLED?.trim().toLowerCase() === 'true'
+}
+
+export function isPalEnabled(): boolean {
+  if (!isPalFlagEnabled()) return false
+  requirePalEnvironment()
+  return true
+}
+
+export function requirePalPseudonymSecret(): string {
+  const secret = process.env.PAL_PSEUDONYM_SECRET?.trim()
+  if (!secret) {
+    throw new Error('PAL_PSEUDONYM_SECRET is not configured')
+  }
+  return secret
+}
+
+function parsePalOrigin(rawUrl: string): string {
+  let url: URL
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    throw new Error('PAL_API_URL must be an absolute URL')
+  }
+
+  if (
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error('PAL_API_URL must contain only an origin')
+  }
+
+  if (url.protocol === 'https:') return url.origin
+
+  const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+  if (
+    url.protocol === 'http:' &&
+    process.env.NODE_ENV !== 'production' &&
+    loopbackHosts.has(url.hostname)
+  ) {
+    return url.origin
+  }
+
+  throw new Error(
+    'PAL_API_URL must use HTTPS (HTTP is allowed only for loopback development)',
+  )
 }
 
 export function requirePalEnvironment(): {
@@ -16,18 +64,9 @@ export function requirePalEnvironment(): {
       'PAL_ENABLED requires PAL_API_URL, PAL_INTEGRATION_SECRET, and PAL_PSEUDONYM_SECRET',
     )
   }
-  let parsedApiUrl: URL
-  try {
-    parsedApiUrl = new URL(apiUrl)
-  } catch {
-    throw new Error('PAL_API_URL must be a valid http or https URL')
-  }
-  if (parsedApiUrl.protocol !== 'https:' && parsedApiUrl.protocol !== 'http:') {
-    throw new Error('PAL_API_URL must be a valid http or https URL')
-  }
 
   return {
-    apiUrl: parsedApiUrl.toString().replace(/\/+$/, ''),
+    apiUrl: parsePalOrigin(apiUrl),
     integrationSecret,
     pseudonymSecret,
   }
@@ -36,16 +75,6 @@ export function requirePalEnvironment(): {
 export function getPalEmbedUrl(): string | null {
   if (!isPalEnabled()) return null
 
-  const apiUrl = process.env.PAL_API_URL?.trim()
-  if (!apiUrl) return null
-
-  try {
-    const parsedApiUrl = new URL(apiUrl)
-    if (parsedApiUrl.protocol !== 'https:' && parsedApiUrl.protocol !== 'http:') {
-      return null
-    }
-    return new URL('/embed/roadmap', parsedApiUrl).toString()
-  } catch {
-    return null
-  }
+  const { apiUrl } = requirePalEnvironment()
+  return new URL('/embed/roadmap', apiUrl).toString()
 }

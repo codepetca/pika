@@ -182,16 +182,11 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
   let enrollment
   if (isPalEnabled()) {
     const occurredAt = new Date()
-    let palEvent = null
-    try {
-      palEvent = buildClassroomJoinedEvent({
-        learnerId: user.id,
-        classroomId: classroom.id,
-        occurredAt,
-      })
-    } catch (error) {
-      console.error('Failed to build Pal classroom join event:', error)
-    }
+    const palEvent = buildClassroomJoinedEvent({
+      learnerId: user.id,
+      classroomId: classroom.id,
+      occurredAt,
+    })
 
     try {
       const result = await createClassroomEnrollmentWithPalEvent({

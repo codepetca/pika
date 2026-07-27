@@ -32,6 +32,13 @@ learner widget reads. `PAL_INTEGRATION_SECRET` authenticates Pika's backend.
 `PAL_PSEUDONYM_SECRET` creates stable HMAC tokens and must never be shared with
 Pal or the browser.
 
+`PAL_API_URL` must be an HTTPS origin with no credentials, path, query, or
+fragment. Loopback HTTP is allowed only outside production. When
+`PAL_ENABLED=true`, incomplete or unsafe configuration fails at the feature
+gate instead of silently running authoritative learner actions without their
+achievement fact. Authenticated-session telemetry remains best-effort so an
+adapter outage cannot invalidate a genuine login.
+
 When the switch is false or absent:
 
 - Achievements is absent from student navigation.
@@ -73,7 +80,7 @@ point forward, so a clean pilot comparison should start at a week boundary.
 Learner action
   -> Pika validates and commits its authoritative source record
   -> the same database transaction inserts a privacy-safe Pal event
-  -> daily sync claims a bounded outbox batch with a lease
+  -> daily sync drains bounded outbox batches with leases
   -> POST <PAL_API_URL>/api/v1/events
   -> 2xx marks delivered
   -> network/408/429/5xx schedules bounded exponential retry
@@ -102,9 +109,11 @@ unsubmit/resubmit, so a second submission cannot create a second version 1
 fact.
 
 All event builders execute the exact dependency-free validator copied from
-Pal commit `db9f22e22cbf971744bea7a78a8306f2ae787d65`. Its matching valid and
-invalid fixtures live in `tests/fixtures/pal-contract-v1`. Change the contract
-in Pal first, then replace the vendored source and fixtures together.
+Pal commit `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`. Its matching valid and
+invalid fixtures live in `tests/fixtures/pal-contract-v1`. Both the event
+envelope and each event's metadata are closed allow-lists; unexpected fields
+are rejected before delivery. Change the contract in Pal first, then replace
+the vendored source and fixtures together.
 
 ## Weekly Rhythm
 
@@ -113,17 +122,21 @@ currently enrolled learner and revises any existing configuration affected by
 a schedule change, midweek enrollment, withdrawal, or archive. It unions class
 days across classrooms, so the same date counts once.
 
-The prior week is closed once. Eligible days can fall when an unmet
-opportunity disappears, but never below the number of distinct completion
-dates Pika already asserted. Short weeks therefore reach Pal as their actual
-opportunity count; Pal owns the grace-day target and recurring Weekly Rhythm
-award.
+Every open week before the current week is closed once. Recovery handles up to
+12 missed periods per daily run and reports whether another catch-up run is
+needed. Eligible days can fall when an unmet opportunity disappears, but never
+below the number of distinct completion dates Pika already asserted. Short
+weeks therefore reach Pal as their actual opportunity count; Pal owns the
+grace-day target and recurring Weekly Rhythm award.
 
 ## Delivery and reconciliation
 
 Vercel calls `GET /api/cron/pal-sync` daily with
 `Authorization: Bearer <CRON_SECRET>`. It reconciles weekly configurations
-before draining one delivery batch.
+before draining up to 10 batches of 50 events within an eight-second worker
+budget. The response reports batches, stop reason, and the number of rows still
+ready, so capacity exhaustion is visible rather than silently deferred for a
+day.
 
 The same credential protects the focused outbox operations:
 
@@ -166,7 +179,8 @@ package release.
 The integration secret and raw learner ID never enter the browser. The token
 is supplied only through Pal's learner client. An unavailable or incomplete Pal
 implementation produces a bounded retry state while the rest of Pika remains
-usable.
+usable. Pika rejects malformed or already-expired read tokens and caps accepted
+token lifetime at ten minutes, with a small allowance for server clock skew.
 
 ## Verification
 

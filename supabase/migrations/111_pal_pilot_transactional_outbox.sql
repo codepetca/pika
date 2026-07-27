@@ -230,6 +230,7 @@ create or replace function public.upsert_student_entry_with_pal_event_atomic(
   p_minutes_reported integer,
   p_mood text,
   p_on_time boolean,
+  p_expected_version integer,
   p_pal_event jsonb
 )
 returns jsonb
@@ -265,6 +266,16 @@ begin
   for update;
 
   if found then
+    if p_expected_version is not null
+      and coalesce(v_entry.version, 1) <> p_expected_version then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 409,
+        'error', 'Entry has been updated elsewhere',
+        'entry', to_jsonb(v_entry)
+      );
+    end if;
+
     update public.entries
     set text = p_text,
         rich_content = p_rich_content,
@@ -275,6 +286,15 @@ begin
     where id = v_entry.id
     returning * into v_entry;
   else
+    if p_expected_version is not null then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 409,
+        'error', 'Entry has been updated elsewhere',
+        'entry', null
+      );
+    end if;
+
     insert into public.entries (
       student_id,
       classroom_id,
@@ -631,6 +651,22 @@ begin
 end;
 $$;
 
+create or replace function public.count_pal_event_outbox_ready()
+returns bigint
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select count(*)
+  from public.pal_event_outbox
+  where (
+    status = 'pending' and next_attempt_at <= now()
+  ) or (
+    status = 'processing' and lease_expires_at <= now()
+  );
+$$;
+
 create or replace function public.complete_pal_event_outbox(
   p_outbox_id uuid,
   p_lease_token uuid
@@ -739,7 +775,7 @@ revoke all on function public.enqueue_pal_event(uuid, text, text, jsonb)
   from public, anon, authenticated;
 revoke all on function public.create_classroom_enrollment_with_pal_event_atomic(uuid, uuid, jsonb)
   from public, anon, authenticated;
-revoke all on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, integer, text, boolean, jsonb)
+revoke all on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, integer, text, boolean, integer, jsonb)
   from public, anon, authenticated;
 revoke all on function public.create_assignment_doc_with_pal_event_atomic(uuid, uuid, timestamptz, jsonb)
   from public, anon, authenticated;
@@ -748,6 +784,8 @@ revoke all on function public.submit_assignment_doc_with_pal_event_atomic(uuid, 
 revoke all on function public.record_pal_daily_log_week_configuration_atomic(uuid, text, integer, text, integer, timestamptz, jsonb)
   from public, anon, authenticated;
 revoke all on function public.claim_pal_event_outbox(integer, integer)
+  from public, anon, authenticated;
+revoke all on function public.count_pal_event_outbox_ready()
   from public, anon, authenticated;
 revoke all on function public.complete_pal_event_outbox(uuid, uuid)
   from public, anon, authenticated;
@@ -762,7 +800,7 @@ grant execute on function public.enqueue_pal_event(uuid, text, text, jsonb)
   to service_role;
 grant execute on function public.create_classroom_enrollment_with_pal_event_atomic(uuid, uuid, jsonb)
   to service_role;
-grant execute on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, integer, text, boolean, jsonb)
+grant execute on function public.upsert_student_entry_with_pal_event_atomic(uuid, uuid, date, text, jsonb, integer, text, boolean, integer, jsonb)
   to service_role;
 grant execute on function public.create_assignment_doc_with_pal_event_atomic(uuid, uuid, timestamptz, jsonb)
   to service_role;
@@ -771,6 +809,8 @@ grant execute on function public.submit_assignment_doc_with_pal_event_atomic(uui
 grant execute on function public.record_pal_daily_log_week_configuration_atomic(uuid, text, integer, text, integer, timestamptz, jsonb)
   to service_role;
 grant execute on function public.claim_pal_event_outbox(integer, integer)
+  to service_role;
+grant execute on function public.count_pal_event_outbox_ready()
   to service_role;
 grant execute on function public.complete_pal_event_outbox(uuid, uuid)
   to service_role;

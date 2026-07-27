@@ -7,9 +7,8 @@ export async function recordPalAuthenticatedSession(input: {
   sessionId: string
   occurredAt?: Date
 }): Promise<void> {
-  if (!isPalEnabled()) return
-
   try {
+    if (!isPalEnabled()) return
     await enqueueStandalonePalEvent({
       studentId: input.studentId,
       sourceKind: 'authenticated_session',
