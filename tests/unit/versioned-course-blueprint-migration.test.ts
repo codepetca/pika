@@ -30,7 +30,13 @@ describe('versioned course blueprint migration contract', () => {
     expect(migration).toContain('create table if not exists public.course_blueprint_versions')
     expect(migration).toContain('snapshot_sha256 text not null')
     expect(migration).toContain('before update or delete on public.course_blueprint_versions')
-    expect(migration).toContain("if tg_op = 'DELETE' and pg_trigger_depth() > 1")
+    expect(migration).not.toContain('pg_trigger_depth()')
+    expect(migration).toMatch(
+      /if tg_op = 'DELETE'[\s\S]{0,500}not exists \([\s\S]{0,160}from public\.course_blueprints/
+    )
+    expect(migration).toMatch(
+      /if tg_op = 'DELETE'[\s\S]{0,700}not exists \([\s\S]{0,160}from public\.users/
+    )
     expect(migration).toContain(
       'foreign key (created_by) references public.users (id) on delete cascade'
     )
@@ -54,6 +60,12 @@ describe('versioned course blueprint migration contract', () => {
     ).toHaveLength(2)
     expect(migration).toMatch(
       /apply_course_blueprint_proposal_atomic[\s\S]*v_source_classroom\.blueprint_source_revision[\s\S]*v_proposal\.base_classroom_revision/
+    )
+    expect(migration).toMatch(
+      /planned_site_published = v_blueprint\.planned_site_published/
+    )
+    expect(migration).not.toMatch(
+      /planned_site_published = coalesce\([\s\S]{0,120}p_candidate_snapshot/
     )
   })
 

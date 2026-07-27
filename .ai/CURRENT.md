@@ -1,6 +1,6 @@
-Focus: PR #952 implements Blueprint lineage and live-safe classroom updates.
-Shared local is through migration 111. Both remediation batches pass locally;
-final exact-head review/CI is pending.
+Focus: PR #952 is draft while the three residual Blueprint P3 risks are
+hardened. Shared local still has the prior migration 111 definition; revised
+ephemeral database CI is pending.
 
 Environment rules: `docs/dev-workflow.md`.
 - Worktrees: `$HOME/.codex/worktrees/pika/` or

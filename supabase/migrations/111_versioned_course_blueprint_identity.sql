@@ -221,9 +221,21 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  -- Direct Version deletion remains forbidden, while an FK cascade from an
-  -- intentional Blueprint (or owning user) deletion may erase the whole graph.
-  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+  -- A Version may disappear only after one of its owning rows has already
+  -- disappeared in the same FK-cascade transaction. Trigger nesting alone is
+  -- not authority because an unrelated future trigger could also be nested.
+  if tg_op = 'DELETE' and (
+    not exists (
+      select 1
+      from public.course_blueprints
+      where id = old.course_blueprint_id
+    )
+    or not exists (
+      select 1
+      from public.users
+      where id = old.created_by
+    )
+  ) then
     return old;
   end if;
   raise exception 'Blueprint Versions are immutable' using errcode = '55000';
@@ -2128,10 +2140,9 @@ begin
       30
     ),
     planned_site_slug = nullif(p_candidate_snapshot->'planned_site'->>'slug', ''),
-    planned_site_published = coalesce(
-      (p_candidate_snapshot->'planned_site'->>'published')::boolean,
-      false
-    ),
+    -- Publication is operational Pika state. Proposal snapshots may edit the
+    -- reusable site draft but cannot publish or unpublish the public site.
+    planned_site_published = v_blueprint.planned_site_published,
     planned_site_config = coalesce(
       p_candidate_snapshot->'planned_site'->'config',
       '{}'::jsonb

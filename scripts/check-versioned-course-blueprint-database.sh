@@ -79,6 +79,34 @@ DIRECT_DELETE_RESULT="$(run_psql -c "
     end;
   end
   \$contract\$;
+
+  create temp table nested_blueprint_version_delete_probe (
+    version_id uuid not null
+  );
+  create function pg_temp.try_nested_blueprint_version_delete()
+  returns trigger
+  language plpgsql
+  as \$probe\$
+  begin
+    delete from public.course_blueprint_versions where id = new.version_id;
+    return new;
+  end
+  \$probe\$;
+  create trigger try_nested_blueprint_version_delete
+    after insert on nested_blueprint_version_delete_probe
+    for each row execute function pg_temp.try_nested_blueprint_version_delete();
+  do \$contract\$
+  begin
+    begin
+      insert into nested_blueprint_version_delete_probe (version_id)
+      values ('$VERSION_ID');
+      raise exception 'Unrelated nested trigger deleted a Blueprint Version';
+    exception when object_not_in_prerequisite_state then
+      null;
+    end;
+  end
+  \$contract\$;
+
   select count(*) from public.course_blueprint_versions where id = '$VERSION_ID';
 ")"
 if [[ "${DIRECT_DELETE_RESULT##*$'\n'}" != "1" ]]; then
@@ -119,6 +147,44 @@ RESULT_ONE=''
 RESULT_TWO=''
 if [[ -z "$PROPOSAL_ONE" || "$PROPOSAL_ONE" != "$PROPOSAL_TWO" ]]; then
   echo "Concurrent proposal retries did not replay one proposal." >&2
+  exit 1
+fi
+
+CLASSROOM_PROPOSAL_SQL="
+select (
+  public.create_course_blueprint_classroom_proposal_atomic(
+    '$TEACHER_ID'::uuid,
+    '$BLUEPRINT_ID'::uuid,
+    '$VERSION_ID'::uuid,
+    '$CLASSROOM_ID'::uuid,
+    (select content_revision from public.course_blueprints where id = '$BLUEPRINT_ID'),
+    (select blueprint_source_revision from public.classrooms where id = '$CLASSROOM_ID'),
+    '85000000-0000-4000-8000-000000000003'::uuid,
+    '[]'::jsonb,
+    '{}'::jsonb,
+    repeat('1', 64)
+  )
+).id;
+"
+
+RESULT_ONE="$(mktemp)"
+RESULT_TWO="$(mktemp)"
+run_psql -c "$CLASSROOM_PROPOSAL_SQL" >"$RESULT_ONE" &
+PID_ONE=$!
+run_psql -c "$CLASSROOM_PROPOSAL_SQL" >"$RESULT_TWO" &
+PID_TWO=$!
+wait "$PID_ONE"
+wait "$PID_TWO"
+CLASSROOM_PROPOSAL_ONE="$(tr -d '[:space:]' <"$RESULT_ONE")"
+CLASSROOM_PROPOSAL_TWO="$(tr -d '[:space:]' <"$RESULT_TWO")"
+rm -f "$RESULT_ONE" "$RESULT_TWO"
+RESULT_ONE=''
+RESULT_TWO=''
+if [[
+  -z "$CLASSROOM_PROPOSAL_ONE"
+  || "$CLASSROOM_PROPOSAL_ONE" != "$CLASSROOM_PROPOSAL_TWO"
+]]; then
+  echo "Concurrent classroom-target proposal retries did not replay one proposal." >&2
   exit 1
 fi
 
@@ -166,6 +232,120 @@ begin
     <> 'Versioned Blueprint'
   then
     raise exception 'Stale classroom proposal changed the Blueprint';
+  end if;
+end
+\$contract\$;
+
+update public.course_blueprints
+set authority_mode = 'repository'
+where id = '$BLUEPRINT_ID';
+
+do \$contract\$
+declare
+  v_proposal public.course_blueprint_change_proposals;
+  v_candidate jsonb;
+  v_revision bigint;
+begin
+  select content_revision into v_revision
+  from public.course_blueprints
+  where id = '$BLUEPRINT_ID';
+
+  v_candidate := jsonb_build_object(
+    'blueprint_id', '$BLUEPRINT_ID',
+    'draft_revision', v_revision,
+    'metadata', jsonb_build_object(
+      'title', 'Publication Guard',
+      'subject', '',
+      'grade_level', '',
+      'course_code', '',
+      'term_template', ''
+    ),
+    'sections', jsonb_build_object(
+      'overview_markdown', '',
+      'outline_markdown', '',
+      'resources_markdown', ''
+    ),
+    'grading', jsonb_build_object(
+      'use_weights', false,
+      'assignments_weight', 70,
+      'tests_weight', 30
+    ),
+    'planned_site', jsonb_build_object(
+      'slug', 'publication-guard',
+      'published', true,
+      'config', '{}'::jsonb
+    ),
+    'assignments', '[]'::jsonb,
+    'assessments', '[]'::jsonb,
+    'lesson_templates', '[]'::jsonb,
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb
+  );
+
+  v_proposal := public.create_course_blueprint_proposal_atomic(
+    '$TEACHER_ID',
+    '$BLUEPRINT_ID',
+    '85000000-0000-4000-8000-000000000004',
+    'repository',
+    v_revision,
+    null,
+    null,
+    null,
+    '[]'::jsonb,
+    jsonb_build_object('candidate_sha256', repeat('2', 64)),
+    repeat('3', 64)
+  );
+  perform public.apply_course_blueprint_proposal_atomic(
+    '$TEACHER_ID',
+    v_proposal.id,
+    v_candidate,
+    repeat('2', 64)
+  );
+  if (
+    select planned_site_published
+    from public.course_blueprints
+    where id = '$BLUEPRINT_ID'
+  ) then
+    raise exception 'Repository proposal published a planned site';
+  end if;
+
+  update public.course_blueprints
+  set planned_site_published = true
+  where id = '$BLUEPRINT_ID';
+  select content_revision into v_revision
+  from public.course_blueprints
+  where id = '$BLUEPRINT_ID';
+  v_candidate := jsonb_set(
+    jsonb_set(v_candidate, '{draft_revision}', to_jsonb(v_revision)),
+    '{planned_site,published}',
+    'false'::jsonb
+  );
+
+  v_proposal := public.create_course_blueprint_proposal_atomic(
+    '$TEACHER_ID',
+    '$BLUEPRINT_ID',
+    '85000000-0000-4000-8000-000000000005',
+    'repository',
+    v_revision,
+    null,
+    null,
+    null,
+    '[]'::jsonb,
+    jsonb_build_object('candidate_sha256', repeat('4', 64)),
+    repeat('5', 64)
+  );
+  perform public.apply_course_blueprint_proposal_atomic(
+    '$TEACHER_ID',
+    v_proposal.id,
+    v_candidate,
+    repeat('4', 64)
+  );
+  if not (
+    select planned_site_published
+    from public.course_blueprints
+    where id = '$BLUEPRINT_ID'
+  ) then
+    raise exception 'Repository proposal unpublished a planned site';
   end if;
 end
 \$contract\$;

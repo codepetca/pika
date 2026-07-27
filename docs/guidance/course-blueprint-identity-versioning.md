@@ -248,6 +248,9 @@ rejects the proposal as stale. Normal teaching and runtime activity continue.
 - New assignments, Tests, materials, and surveys enter classrooms as
   unpublished drafts.
 - Repository, package, or AI input never publishes content.
+- Applying any Change Proposal preserves the Blueprint's current planned-site
+  publication state. Publishing or unpublishing remains a separate explicit
+  Pika operation rather than proposal content.
 - An attempted Test is not overwritten; an accepted update creates a new
   unpublished draft successor while the historical Test remains intact.
 - A survey with responses follows the same successor rule.

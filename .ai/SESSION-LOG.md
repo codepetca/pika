@@ -11,6 +11,54 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-07-21 — Durable assignment grading provenance
+
+**Risk profile:** async-grading
+
+**Completed:**
+- Fixed the cumulative PR #906 review finding that versioned assignment grading metadata was computed but not durably persisted.
+- Added a strict, bounded, pseudonymous provenance contract containing only provider/model, profile/rubric/prompt/policy versions, provider request count, and nullable token usage.
+- Added migration 101 with an `assignment_docs.ai_grading_provenance` JSONB contract and additive service-role-only wrappers around the existing direct-grade and durable-item atomic RPCs, preserving rolling compatibility for old application instances.
+- Added a compatibility trigger that clears provenance whenever legacy direct, durable, batch, repository-review, manual-grade, or missing-work writers replace grade/audit fields without supplying replacement provenance.
+- Routed native Pika assignment grading through both provenance-aware persistence paths while legacy Gradex, missing-work, and repository-review callers write null provenance until their profiles migrate.
+- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, replay preservation, and stale-provenance clearing across old direct, durable, batch, and missing-work writers; updated generated and refined database contracts.
+- No migration was applied locally, no live model call was made, and no production state changed.
+
+**Validation:**
+- `pnpm test` (401 files / 3,619 tests after rebasing onto `origin/main`)
+- Focused grading, persistence, migration, Gradex compatibility, and database-contract suites (9 files / 64 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (619 modules / 0 allowances)
+- `pnpm build`
+- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+**Remaining:**
+- Confirm migration replay, generated-type parity, and the database-backed provenance contract in PR CI, then complete the final independent re-review.
+- Obtain required external approval before merge; continue with test and repository-review profile migration after this assignment foundation lands.
+
+## 2026-07-22 — Phase 3 assignment accessibility evidence
+
+**Completed:**
+- Audited the remaining non-mobile assignment backlog against current `main` and confirmed #891 already shipped polite atomic save announcements and the shared restore-confirmation dialog.
+- Replaced the assignment suite's hand-built confirmation stub with the real `ConfirmDialog`, added focused initial-focus coverage, and locked the visible save-status live-region attributes with regression assertions.
+- Updated the product audit and current context to remove completed assignment work from the backlog. No runtime UI, API, schema, migration, production state, or production data changed.
+
+**Validation:**
+- `pnpm test tests/components/StudentAssignmentEditor.save-submit.test.tsx tests/ui/ModalLayer.test.tsx` (2 files / 52 tests)
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm check:ui-policy` (215 controls / 67 files)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Complete repository gates, independent review, and merge this evidence slice. Then start Daily/Attendance; assignment mobile UX remains deferred and Gradex remains owned by a separate session.
+
 ## 2026-07-22 — Internal repository-review grading profile and provenance
 
 **Risk profile:** async-grading
@@ -1397,3 +1445,33 @@ structural revision triggers, and adds atomic proposal application.
 - Publish the final remediation, run final independent exact-head review, and
   require exact-head CI before marking PR #952 ready. Leave it unmerged unless
   explicit merge authority is provided.
+
+## 2026-07-27 — Versioned Blueprint residual hardening
+
+**Risk profile:** runtime-platform — migration 111 trigger and proposal
+application invariants.
+
+**Completed:**
+- Replaced trigger-depth authorization for Blueprint Version deletion with
+  proof that the owning Blueprint or user is absent during an FK cascade.
+- Made proposal application preserve Pika's current planned-site publication
+  state at the SQL boundary.
+- Added live database contracts for unrelated nested-trigger deletion,
+  concurrent classroom-target proposal replay, and proposal attempts to
+  publish or unpublish a planned site.
+- Returned PR #952 to draft. The shared local database remains on the prior
+  migration 111 definition pending fresh, explicit application permission.
+
+**Validation:**
+- Full Vitest suite: 438 files / 3,854 tests.
+- Focused Blueprint migration/package/proposal/version tests: 4 files / 36
+  tests.
+- Isolated rollback-only PostgreSQL trigger simulation covering direct,
+  unrelated nested, Blueprint-cascade, and user-cascade deletion.
+- TypeScript, lint, build, database types, architecture/design/UI policies,
+  Pika audit, shell syntax, session-log check, and `git diff --check`.
+
+**Remaining:**
+- Publish the draft revision and require ephemeral migration replay, the live
+  versioned-Blueprint database contract, exact-head CI, and final review before
+  marking PR #952 ready again.
