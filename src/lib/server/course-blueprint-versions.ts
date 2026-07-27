@@ -344,7 +344,7 @@ export async function saveCourseBlueprintVersion(args: {
       ok: false,
       status: missing ? 503 : error.code === '40001' ? 409 : 500,
       error: missing
-        ? 'Blueprint Versions require migration 111 to be applied'
+        ? 'Blueprint Versions require migration 112 to be applied'
         : error.code === '40001'
           ? 'Blueprint Draft changed while saving the Version; review and retry'
           : 'Failed to save Blueprint Version',

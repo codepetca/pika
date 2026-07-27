@@ -101,7 +101,7 @@ Successful and failed API responses include `operation_id` when a ledger-backed 
 ## Rollout And Recovery
 
 Apply `081_atomic_blueprint_round_trips.sql` and
-`111_versioned_course_blueprint_identity.sql` before deploying the
+`112_versioned_course_blueprint_identity.sql` before deploying the
 identity-aware application code. The application deliberately fails closed
 with HTTP `503` when a required migration is absent.
 

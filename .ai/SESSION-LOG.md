@@ -11,134 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Durable assignment grading provenance
-
-**Risk profile:** async-grading
-
-**Completed:**
-- Fixed the cumulative PR #906 review finding that versioned assignment grading metadata was computed but not durably persisted.
-- Added a strict, bounded, pseudonymous provenance contract containing only provider/model, profile/rubric/prompt/policy versions, provider request count, and nullable token usage.
-- Added migration 101 with an `assignment_docs.ai_grading_provenance` JSONB contract and additive service-role-only wrappers around the existing direct-grade and durable-item atomic RPCs, preserving rolling compatibility for old application instances.
-- Added a compatibility trigger that clears provenance whenever legacy direct, durable, batch, repository-review, manual-grade, or missing-work writers replace grade/audit fields without supplying replacement provenance.
-- Routed native Pika assignment grading through both provenance-aware persistence paths while legacy Gradex, missing-work, and repository-review callers write null provenance until their profiles migrate.
-- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, replay preservation, and stale-provenance clearing across old direct, durable, batch, and missing-work writers; updated generated and refined database contracts.
-- No migration was applied locally, no live model call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (401 files / 3,619 tests after rebasing onto `origin/main`)
-- Focused grading, persistence, migration, Gradex compatibility, and database-contract suites (9 files / 64 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (619 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-**Remaining:**
-- Confirm migration replay, generated-type parity, and the database-backed provenance contract in PR CI, then complete the final independent re-review.
-- Obtain required external approval before merge; continue with test and repository-review profile migration after this assignment foundation lands.
-
-## 2026-07-22 — Phase 3 assignment accessibility evidence
-
-**Completed:**
-- Audited the remaining non-mobile assignment backlog against current `main` and confirmed #891 already shipped polite atomic save announcements and the shared restore-confirmation dialog.
-- Replaced the assignment suite's hand-built confirmation stub with the real `ConfirmDialog`, added focused initial-focus coverage, and locked the visible save-status live-region attributes with regression assertions.
-- Updated the product audit and current context to remove completed assignment work from the backlog. No runtime UI, API, schema, migration, production state, or production data changed.
-
-**Validation:**
-- `pnpm test tests/components/StudentAssignmentEditor.save-submit.test.tsx tests/ui/ModalLayer.test.tsx` (2 files / 52 tests)
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm check:ui-policy` (215 controls / 67 files)
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Complete repository gates, independent review, and merge this evidence slice. Then start Daily/Attendance; assignment mobile UX remains deferred and Gradex remains owned by a separate session.
-
-## 2026-07-22 — Internal repository-review grading profile and provenance
-
-**Risk profile:** async-grading
-
-**Model recommendation:** GPT-5.4 - this slice crosses structured provider contracts, sanitization, deterministic fallback semantics, revision fencing, and transactional database provenance.
-
-**Completed:**
-- Moved ambiguous-change classification and repository-review feedback into versioned, strict, bounded grading-core profiles using the shared OpenAI Responses provider, 25-second timeouts, minimal reasoning, and classification batches capped at 50 changes.
-- Preserved Pika ownership of GitHub access, student identity mapping, sanitization, deterministic metrics, heuristic fallback, teacher workflow, and run orchestration; remote Gradex remains disabled.
-- Added truthful per-result provenance for both model output and local heuristic fallback, with actual model/request/token metadata and zero provider requests for deterministic local grades.
-- Added migration 103 with bounded result provenance, model/provenance linkage, an additive provenance-aware wrapper around the migration-087 completion RPC, completed-run replay preservation, exact student-row matching, and atomic propagation to assignment documents.
-- Extended the database harness for service-role isolation, zero-request heuristic persistence, replay, and rollback on invalid provenance. Updated generated types and rollout/architecture guidance. No migration was applied locally, no live model call was made, and no production state changed.
-
-**Validation:**
-- `pnpm test` (405 files / 3,642 tests)
-- Focused repository-review/core/migration suite (7 files / 30 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (621 modules / 0 allowances)
-- `pnpm build`
-- `bash -n scripts/check-atomic-assignment-feedback-returns.sh`
-- `git diff --check`
-
-**Remaining:**
-- Confirm migration 103 replay, database harness behavior, and generated-type parity in ephemeral PR CI; complete independent review and merge only after the assignment/test stack is approved.
-- Add teacher-correction evaluation capture and offline comparison metrics across assignment, test, and repository-review grading.
-
-## 2026-07-22 — Identity-free teacher grading reviews
-
-**Risk profile:** async-grading, database, privacy, grading-quality
-
-**Model recommendation:** GPT-5.4 - this slice crosses teacher outcome semantics, rolling-safe grading persistence, strict privacy contracts, and deterministic eval design.
-
-**Completed:**
-- Added a strict `grading-review-v1` core contract that cannot represent student identity, source assessment IDs, submission content, or raw feedback, plus deterministic summaries for criterion/overall score error, acceptance/edit rates, feedback dispositions, and model/profile counts.
-- Added migration 104 with bounded `ai_grading_review` snapshots on assignment documents and test responses. Provenance-aware AI writes initialize reviews; manual edits update final outcomes; assignment/test return marks reviews final; test grade clearing records dismissal; changed student work and legacy AI replacement clear stale reviews.
-- Kept repository-review grading on the assignment-document lifecycle, preserved existing routes and teacher UI, and prevented review-only test metadata updates from advancing response revisions.
-- Added synthetic accepted, edited, dismissed, and pending fixtures plus `pnpm eval:grading-reviews` for free offline evaluation. Remote Gradex remains disabled, the existing Gradex archive extract is unchanged, and no live model call was made.
-- Extended assignment/test database harnesses for suggestion preservation, correction capture, return finalization, dismissal, privacy rejection, legacy-writer clearing, and test revision stability; updated generated/refined types and rollout/privacy guidance.
-- No migration was applied locally or remotely. The local Docker database had no Pika schema, so fresh migration replay and database harness execution remain PR CI gates.
-
-**Validation:**
-- `pnpm test` (407 files / 3,657 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (622 modules / 0 allowances)
-- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
-- `git diff --check`
-
-**Remaining:**
-- Require fresh PR CI to replay migrations 001-104, verify generated type parity, and execute both atomic grading database harnesses.
-- Complete independent review and obtain external approval before merging the stacked grading PRs.
-- After the pilot collects 10-20 teacher-reviewed outcomes, add an explicit local-admin export of minimum sanitized grading inputs for paid candidate prompt/model comparisons.
-
-## 2026-07-22 — Enforced grading-core isolation
-
-**Risk profile:** async-grading, foundational architecture
-
-**Model recommendation:** GPT-5.4 - enforcing extraction boundaries requires repository-wide import analysis while preserving existing grading policy behavior.
-
-**Completed:**
-- Added an architecture rule that prevents every `src/lib/grading/**` module from importing Pika-owned database, server, route, UI, shared application, or type modules, including type-only imports.
-- Moved the canonical Pika test prompt guidelines into the versioned grading profile directory and retained the old application path as a compatibility re-export, preserving current consumers and prompt output.
-- Added a regression test proving the boundary rejects both runtime Supabase and type-only database dependencies while allowing grading-core imports.
-- Documented the enforced extraction boundary. No route, UI, schema, provider, prompt text, production state, or remote Gradex behavior changed.
-
-**Validation:**
-- `pnpm test` (407 files / 3,658 tests)
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- focused architecture and test-grading suites (3 files / 43 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika audit
-- `git diff --check`
-
-**Remaining:**
-- Run the full repository gates and exact-head PR CI, then obtain the required external code-owner approval before merging the grading stack.
-- Apply migrations 100-104 only with explicit target permission, deploy with remote Gradex disabled, and collect 10-20 teacher-reviewed outcomes before adding paid replay comparisons.
-
 ## 2026-07-22 — Corrected total-score grading eval error
 
 **Risk profile:** none
@@ -1314,49 +1186,6 @@ requires exact cross-repository contract and semantic-token drift checks.
   authenticated Pika student visual matrix and real delivery vertical slice.
 - Migration 111 and feature enablement remain human-controlled.
 
-## 2026-07-27 — PR 951 rebase and hardening
-
-**Risk profile:** high — privacy contract, service-role SQL, transactional
-source writes, background delivery, and cross-repository integration.
-
-**Completed:**
-- Rebased `codex/pal-pilot` onto current `origin/main`; retained migration 111
-  without a sequence collision and dropped duplicate adapter content already
-  merged through PR 953.
-- Hardened Pal's authoritative v1 contract on Pal PR 39 at commit
-  `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`, then synchronized Pika's
-  vendored validator and privacy fixtures. Event envelopes and metadata are
-  both closed allow-lists.
-- Made enabled configuration fail closed; restricted Pal to HTTPS origins
-  (loopback HTTP only in development); required distinct 32-character minimum
-  integration/pseudonym secrets; capped read tokens at ten minutes.
-- Removed silent null-event fallbacks from authoritative learner transitions.
-  Empty/format-only logs no longer qualify, while empty autosaves emit
-  atomically when they first gain real content.
-- Preserved journal mood/minutes and optimistic version checks across the
-  Pal-enabled POST/PATCH transaction paths.
-- Added bounded missed-week recovery (12 periods/run) and a deadline-aware
-  outbox drain (20-row batches, concurrency 10, 10 batches/run) with remaining
-  ready-row reporting.
-- Added the CI-generated Pal tables/functions to
-  `src/types/database.generated.ts` and replaced new Pal persistence `any`
-  boundaries with the generated service-role client types.
-
-**Validation:**
-- Clean ephemeral Supabase replay confirmed migration 111 and generated types
-  are exact; no local or hosted migration was applied.
-- Focused hardening suite: 80/80 tests.
-- TypeScript, lint, architecture, UI policy, Pika audit-equivalent committed
-  diff scan, and `git diff --check` passed.
-- Independent security and operability reviewers found the lease/budget and
-  journal-field parity issues above; their remediation passes targeted review.
-
-**Remaining:**
-- Publish the final remediation commit and require exact-head CI plus final
-  independent security confirmation.
-- Keep PR 951 draft and `PAL_ENABLED=false`; the published native widget,
-  authenticated vertical slice, and one-time human authorization for the
-  named migration target remain rollout gates.
 ## 2026-07-26 — Versioned Course Blueprint lineage and proposals
 
 **Risk profile:** high — migration 111 changes reusable artifact identity and
@@ -1446,6 +1275,50 @@ structural revision triggers, and adds atomic proposal application.
   require exact-head CI before marking PR #952 ready. Leave it unmerged unless
   explicit merge authority is provided.
 
+## 2026-07-27 — PR 951 rebase and hardening
+
+**Risk profile:** high — privacy contract, service-role SQL, transactional
+source writes, background delivery, and cross-repository integration.
+
+**Completed:**
+- Rebased `codex/pal-pilot` onto current `origin/main`; retained migration 111
+  without a sequence collision and dropped duplicate adapter content already
+  merged through PR 953.
+- Hardened Pal's authoritative v1 contract on Pal PR 39 at commit
+  `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`, then synchronized Pika's
+  vendored validator and privacy fixtures. Event envelopes and metadata are
+  both closed allow-lists.
+- Made enabled configuration fail closed; restricted Pal to HTTPS origins
+  (loopback HTTP only in development); required distinct 32-character minimum
+  integration/pseudonym secrets; capped read tokens at ten minutes.
+- Removed silent null-event fallbacks from authoritative learner transitions.
+  Empty/format-only logs no longer qualify, while empty autosaves emit
+  atomically when they first gain real content.
+- Preserved journal mood/minutes and optimistic version checks across the
+  Pal-enabled POST/PATCH transaction paths.
+- Added bounded missed-week recovery (12 periods/run) and a deadline-aware
+  outbox drain (20-row batches, concurrency 10, 10 batches/run) with remaining
+  ready-row reporting.
+- Added the CI-generated Pal tables/functions to
+  `src/types/database.generated.ts` and replaced new Pal persistence `any`
+  boundaries with the generated service-role client types.
+
+**Validation:**
+- Clean ephemeral Supabase replay confirmed migration 111 and generated types
+  are exact; no local or hosted migration was applied.
+- Focused hardening suite: 80/80 tests.
+- TypeScript, lint, architecture, UI policy, Pika audit-equivalent committed
+  diff scan, and `git diff --check` passed.
+- Independent security and operability reviewers found the lease/budget and
+  journal-field parity issues above; their remediation passes targeted review.
+
+**Remaining:**
+- Publish the final remediation commit and require exact-head CI plus final
+  independent security confirmation.
+- Keep PR 951 draft and `PAL_ENABLED=false`; the published native widget,
+  authenticated vertical slice, and one-time human authorization for the
+  named migration target remain rollout gates.
+
 ## 2026-07-27 — Versioned Blueprint residual hardening
 
 **Risk profile:** runtime-platform — migration 111 trigger and proposal
@@ -1475,3 +1348,27 @@ application invariants.
 - Publish the draft revision and require ephemeral migration replay, the live
   versioned-Blueprint database contract, exact-head CI, and final review before
   marking PR #952 ready again.
+
+## 2026-07-27 — PR 952 migration resequence
+
+**Risk profile:** high — migration ordering and local-history drift.
+
+**Completed:**
+- Rebased PR #952 onto current `origin/main`, preserving Pal and Blueprint
+  continuity entries.
+- Resequenced the branch-only Blueprint migration from 111 to 112 after Pal
+  claimed 111 on `main`; updated runtime errors, docs, and tests.
+- Kept the shared local database untouched because its earlier Blueprint-as-111
+  history requires separate reset or repair authorization.
+- Compacted current AI context under the enforced startup budget.
+
+**Validation:**
+- Full Vitest suite: 451 files / 3,933 tests.
+- Focused Blueprint/startup suite: 43 tests.
+- TypeScript, lint, architecture, design/UI policy, audit, ShellCheck, Bash
+  syntax, session-log validation, duplicate migration-prefix check, and diff
+  checks pass.
+
+**Remaining:**
+- Build, commit, force-push with lease, and require fresh 001–112 CI replay,
+  generated-type parity, database contracts, and exact-head review.

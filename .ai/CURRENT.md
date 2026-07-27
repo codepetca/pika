@@ -1,33 +1,14 @@
-Focus: PR #952 is draft while the three residual Blueprint P3 risks are
-hardened. Shared local still has the prior migration 111 definition; revised
-ephemeral database CI is pending.
+Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
+local still maps an earlier Blueprint draft to 111; do not push, reset, or
+repair it without separate explicit authorization.
 
-Environment rules: `docs/dev-workflow.md`.
+## Current Context
+
+- `DESIGN.md` is canonical; product status: `.ai/features.json`.
+- Pal remains disabled; its widget package is an external dependency.
 - Worktrees: `$HOME/.codex/worktrees/pika/` or
-  `$HOME/.codex/worktrees/<id>/pika`.
-- Env: `$HOME/Repos/.env/pika/.env.local`; collaborators may copy
-  `.env.example`.
-
-## Current Focus
-
-- Design consolidation and portable foundations through PR 950 are on `main`;
-  root `DESIGN.md` is canonical.
-- The Pal pilot remains disabled; migration 111 is human-applied and the native
-  widget package is an external release dependency.
-- Product status: `.ai/features.json`; mobile is deferred and Gradex is owned
-  by a separate session.
-
-## Environment
-
-- Hub: `$HOME/Repos/pika`.
-- Worktrees: `$HOME/.codex/worktrees/pika/` (named), `$HOME/.codex/worktrees/<id>/pika` (app-managed).
-- Maintainer env: `$HOME/Repos/.env/pika/.env.local`; collaborators use local `.env.example` copies.
-- Worktree/env rules: `docs/dev-workflow.md`.
-
-## Invariants And Hazards
-
-- Deadlines/attendance use `America/Toronto`; business logic belongs in `src/lib/*` or server modules.
-- API routes use `withErrorHandler`; UI uses semantic tokens and `@/ui`.
-- Migrations need one-time target/migration permission; never infer reset, repair, rollback, seed, or cleanup permission.
-- Use dedicated worktrees. After session-log updates, run `node scripts/trim-session-log.mjs`.
-- `main` accepts linear history; `production` uses the protected PR flow.
+  `$HOME/.codex/worktrees/<id>/pika`; maintainer env:
+  `$HOME/Repos/.env/pika/.env.local`; collaborators may copy `.env.example`.
+- Toronto deadlines, server logic, `withErrorHandler`, semantic tokens, and
+  human-controlled migrations are invariants. Workflow: `docs/dev-workflow.md`.
+- Trim session logs after updates. `production` uses the protected PR flow.

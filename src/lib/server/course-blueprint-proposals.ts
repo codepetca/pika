@@ -145,7 +145,7 @@ export async function submitCourseBlueprintProposal(args: {
       ok: false,
       status: missing ? 503 : error.code === '23505' ? 409 : 500,
       error: missing
-        ? 'Blueprint proposals require migration 111 to be applied'
+        ? 'Blueprint proposals require migration 112 to be applied'
         : error.code === '23505'
           ? 'Proposal idempotency key was already used for different content'
           : 'Failed to submit Blueprint proposal',
@@ -347,7 +347,7 @@ export async function submitClassroomBlueprintProposal(args: {
       ok: false,
       status: missing ? 503 : error.code === '23505' ? 409 : 500,
       error: missing
-        ? 'Classroom Blueprint proposals require migration 111 to be applied'
+        ? 'Classroom Blueprint proposals require migration 112 to be applied'
         : error.code === '23505'
           ? 'Proposal idempotency key was already used for different content'
           : 'Failed to prepare classroom Blueprint proposal',
@@ -388,7 +388,7 @@ export async function applyPersistedClassroomBlueprintProposal(args: {
       ok: false,
       status: missing ? 503 : error.code === '40001' ? 409 : 500,
       error: missing
-        ? 'Classroom Blueprint proposal application requires migration 111 to be applied'
+        ? 'Classroom Blueprint proposal application requires migration 112 to be applied'
         : error.code === '40001'
           ? 'Classroom proposal is stale; review it again against the current classroom'
           : 'Failed to apply classroom Blueprint proposal',
@@ -618,7 +618,7 @@ export async function applyPersistedCourseBlueprintProposal(args: {
             ? 409
             : 500,
       error: missing
-        ? 'Blueprint proposal application requires migration 111 to be applied'
+        ? 'Blueprint proposal application requires migration 112 to be applied'
         : error.code === '40001'
           ? 'Blueprint proposal is stale; rebuild it against the current Draft'
           : error.code === '55000'

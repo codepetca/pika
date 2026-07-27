@@ -119,25 +119,7 @@
       "issueRefs": ["#889", "#890", "#891", "#893", "#894", "#895", "#896", "#897", "#898", "#899", "#900", "#902", "#903", "#904", "#905"],
       "blockedBy": [], "addedDate": "2026-07-16"
     },
-    {
-      "id": "epic-pal-achievements-pilot",
-      "phase": "Pal Pilot",
-      "description": "Feature-gated Pika facts, outbox, weekly config, and native Pal widget",
-      "passes": false,
-      "verification": "Tests plus duplicate-safe vertical slice",
-      "issueRefs": ["pal#32", "pal#35"],
-      "blockedBy": [],
-      "addedDate": "2026-07-25"
-    },
-    {
-      "id": "epic-versioned-course-blueprint-lineage",
-      "phase": "Phase 8 — Course Authoring",
-      "description": "Stable reusable-artifact lineage, immutable Blueprint Versions, explicit Pika/repository authority, and stale-safe repository, classroom, package, and AI proposals",
-      "passes": true,
-      "verification": "Shared local is through 111 after a verified backup. Rollback smokes pass for revisions, immutable Versions, classroom proposal application, and assignment/Test successor safety. Package, repository, classroom, AI, and instantiation paths are covered by tests. Full Vitest 434/3831, database types, TypeScript, lint, build, audit, and UI checks pass.",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-07-26"
-    }
+    {"id":"epic-pal-achievements-pilot","phase":"Pal Pilot","description":"Feature-gated Pika facts, outbox, weekly config, and native Pal widget","passes":false,"verification":"Tests plus duplicate-safe vertical slice","issueRefs":["pal#32","pal#35"],"blockedBy":[],"addedDate":"2026-07-25"},
+    {"id":"epic-versioned-course-blueprint-lineage","phase":"Course Authoring","description":"Stable artifact lineage, immutable Versions, authority, and stale-safe proposals","passes":true,"verification":"Migration 112 replay/contracts; shared local still maps the earlier Blueprint draft to 111 and needs authorized reconciliation.","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-26"}
   ]
 }
