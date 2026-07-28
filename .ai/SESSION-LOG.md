@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Hardened Daily and attendance read states
-
-**Risk profile:** workspace-state
-
-**Model recommendation:** GPT-5.6 Terra (high) - this slice crosses shared classroom schedule state, cached student work, teacher history selection, and asynchronous retry boundaries.
-
-**Completed:**
-- Added an explicit class-schedule error and snapshot contract. Cold failures block with retry; failed refreshes retain the last valid teacher/student workspace with a compact retry warning.
-- Added explicit student Daily entry and teacher selected-student history failures, retry behavior, and persistent cached-snapshot recovery without replacing usable data with false empty states.
-- Prevented previous-classroom Daily content from painting during classroom switches and prevented stale load-more responses from appending one student's logs to another student's history.
-- Announced student Daily save status through a polite atomic live region and exposed save failures as alerts.
-- Preserved the existing class-wide teacher table and student journal composition. Mobile workspace redesign and Gradex remained out of scope.
-
-**Validation:**
-- Focused Daily/Attendance and classroom integration suites (5 files / 72 tests)
-- Full repository suite before the final provider-scope remediation (407 files / 3,670 tests); exact-head PR CI is required
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit and composite-widget accessibility checklist
-- Playwright experience matrix (18 cases across both roles, desktop/mobile, light/dark)
-- Exact failure/stale-state screenshots for teacher and student; no horizontal overflow at 390px
-- Three independent review passes; five findings fixed in two remediation batches; the first remediation re-reviews are clean and the final provider-scope re-review is pending
-
-**Remaining:**
-- Require exact-head PR CI and repository approval before merge.
-- Defer Daily/Attendance mobile history/table modes until the later mobile UX phase; continue Phase 3 with Tests desktop/accessibility while Gradex remains separately owned.
-
 ## 2026-07-22 — Scoped Daily history across student switches
 
 **Risk profile:** none
@@ -1365,3 +1336,35 @@ application invariants.
 - The rebuilt local database contains no users or seed data. Recover prior data
   only through a separately planned selective restore; a full restore would
   reintroduce the old migration history.
+
+## 2026-07-28 — Submitted-requirement Blueprint capture fix
+
+**Risk profile:** runtime-platform — submitted-work integrity trigger and
+service-role Blueprint capture.
+
+**Completed:**
+- Diagnosed the production Codepet Labs capture failure as migration 099's
+  requirement guard rejecting migration 112's stable identity-only update
+  after assignment documents had been submitted.
+- Added migration 113, which permits only service-role, transaction-marked
+  updates where the three Blueprint lineage columns are the sole differences.
+  Requirement ownership and pedagogical fields remain immutable.
+- Added safe RPC diagnostics that log the database error code without database
+  message, detail, or row content.
+- Expanded the live versioned-Blueprint database contract to capture an
+  assignment with one link requirement and four submitted documents, prove the
+  documents remain byte-for-byte unchanged, verify lineage mapping, reject a
+  forged authenticated marker, and reject service-role content changes.
+
+**Validation:**
+- Full Vitest suite: 452 files / 3,936 tests.
+- Live local PostgreSQL contract passed twice consecutively with exact fixture
+  cleanup.
+- Production build, generated database types, lint, Bash syntax, focused
+  migration/server tests, migration numbering, Pika audit, and diff checks
+  passed.
+
+**Remaining:**
+- Publish and review the fix PR.
+- Applying migration 113 to production requires a fresh one-time authorization
+  naming production and migration 113; no production mutation was performed.
