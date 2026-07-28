@@ -466,6 +466,12 @@ async function executeBlueprintOperation(
   const { data, error } = await supabase.rpc(rpcName, args)
 
   if (error) {
+    console.error('[blueprint-operation-rpc-error]', JSON.stringify({
+      operation_id: operationId,
+      operation_type: operationType,
+      rpc_name: rpcName,
+      database_error_code: error.code ?? 'unknown',
+    }))
     const result: BlueprintOperationResult = isMissingBlueprintOperationRpcError(error)
       ? {
           ok: false,

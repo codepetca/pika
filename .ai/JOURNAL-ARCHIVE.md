@@ -15526,3 +15526,33 @@
 
 **Remaining:**
 - After the lower stack lands and PR 911 is retargeted to `main`, require exact-head GitHub Actions and the repository's external approval before merge.
+
+<!-- pika-session-log-archive-batch:41254a35a1c50266b214cfd9ec89752ebb2a4e357dcc47e4d69168936566d732 -->
+## 2026-07-22 — Hardened Daily and attendance read states
+
+**Risk profile:** workspace-state
+
+**Model recommendation:** GPT-5.6 Terra (high) - this slice crosses shared classroom schedule state, cached student work, teacher history selection, and asynchronous retry boundaries.
+
+**Completed:**
+- Added an explicit class-schedule error and snapshot contract. Cold failures block with retry; failed refreshes retain the last valid teacher/student workspace with a compact retry warning.
+- Added explicit student Daily entry and teacher selected-student history failures, retry behavior, and persistent cached-snapshot recovery without replacing usable data with false empty states.
+- Prevented previous-classroom Daily content from painting during classroom switches and prevented stale load-more responses from appending one student's logs to another student's history.
+- Announced student Daily save status through a polite atomic live region and exposed save failures as alerts.
+- Preserved the existing class-wide teacher table and student journal composition. Mobile workspace redesign and Gradex remained out of scope.
+
+**Validation:**
+- Focused Daily/Attendance and classroom integration suites (5 files / 72 tests)
+- Full repository suite before the final provider-scope remediation (407 files / 3,670 tests); exact-head PR CI is required
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright experience matrix (18 cases across both roles, desktop/mobile, light/dark)
+- Exact failure/stale-state screenshots for teacher and student; no horizontal overflow at 390px
+- Three independent review passes; five findings fixed in two remediation batches; the first remediation re-reviews are clean and the final provider-scope re-review is pending
+
+**Remaining:**
+- Require exact-head PR CI and repository approval before merge.
+- Defer Daily/Attendance mobile history/table modes until the later mobile UX phase; continue Phase 3 with Tests desktop/accessibility while Gradex remains separately owned.
