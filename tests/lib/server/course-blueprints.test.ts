@@ -428,6 +428,27 @@ describe('course-blueprints server helpers', () => {
     expect(deleteBuilder.delete).toHaveBeenCalled()
   })
 
+  it('blocks deletion while repository authority is active', async () => {
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: 'b-1',
+            teacher_id: 'teacher-1',
+            authority_mode: 'repository',
+          },
+          error: null,
+        }),
+      ],
+    })
+
+    await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'This Blueprint is repository-managed. Switch to Pika as Editor before deleting it.',
+    })
+  })
+
   it('rejects a mixed-revision blueprint detail snapshot', async () => {
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
