@@ -153,6 +153,9 @@ describe('TeacherBlueprintsPage', () => {
       if (url === '/api/teacher/course-blueprints/b-2' && method === 'PATCH') {
         return Promise.resolve(jsonResponse({ blueprint: blueprintDetail }))
       }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'DELETE') {
+        return Promise.resolve(jsonResponse({ success: true }))
+      }
       return Promise.reject(new Error(`Unexpected fetch: ${url}`))
     }) as any)
   })
@@ -248,6 +251,36 @@ describe('TeacherBlueprintsPage', () => {
 
     await waitFor(() => {
       expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
+    })
+  })
+
+  it('warns about linked classrooms before deleting the selected Blueprint', async () => {
+    render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Course Blueprint' }))
+
+    expect(screen.getByRole('dialog', { name: 'Delete Blueprint Two?' })).toBeInTheDocument()
+    expect(screen.getByText(
+      '1 linked classroom will stay intact, but its Blueprint connection will be removed. This cannot be undone.',
+    )).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/teacher/course-blueprints/b-2',
+        { method: 'DELETE' },
+      )
+    })
+    expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
+    expect(mockPush).toHaveBeenCalledWith('/teacher/blueprints')
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
     })
   })
 })

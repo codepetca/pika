@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, FormField, Input } from '@/ui'
+import { Button, ConfirmDialog, FormField, Input } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
 import { CreateBlueprintModal } from '@/components/CreateBlueprintModal'
@@ -158,6 +158,8 @@ export default function TeacherBlueprintsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [showCreateClassroom, setShowCreateClassroom] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState<EditorTab>('overview')
   const [drafts, setDrafts] = useState<DraftState>(emptyDraftState())
   const [meta, setMeta] = useState({
@@ -398,6 +400,39 @@ export default function TeacherBlueprintsPage() {
       setError(err.message || 'Failed to save metadata')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function deleteSelectedBlueprint() {
+    if (!selectedBlueprintId || !detail) return
+
+    const blueprintId = selectedBlueprintId
+    setDeleting(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/course-blueprints/${blueprintId}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete course blueprint')
+      }
+
+      const remainingBlueprints = blueprints.filter(
+        (blueprint) => blueprint.id !== blueprintId,
+      )
+      detailRequestIdRef.current += 1
+      invalidateTeacherBlueprints()
+      setBlueprints(remainingBlueprints)
+      setDetail(null)
+      setSelectedBlueprintId(remainingBlueprints[0]?.id || null)
+      setShowDeleteConfirm(false)
+      router.push('/teacher/blueprints')
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete course blueprint')
+      setShowDeleteConfirm(false)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -782,6 +817,13 @@ export default function TeacherBlueprintsPage() {
                 ...(plannedSite.published && plannedSite.slug
                   ? [{ id: 'open-planned-site', label: 'Open Planned Site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
                   : []),
+                {
+                  id: 'delete-blueprint',
+                  label: 'Delete Course Blueprint',
+                  destructive: true,
+                  disabled: deleting,
+                  onSelect: () => setShowDeleteConfirm(true),
+                },
               ]
             : []),
         ]}
@@ -1442,6 +1484,28 @@ export default function TeacherBlueprintsPage() {
           setShowCreateClassroom(false)
           router.push(`/classrooms/${classroom.id}?tab=attendance`)
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title={detail ? `Delete ${detail.title}?` : 'Delete Course Blueprint?'}
+        description={
+          detail?.linked_classrooms.length
+            ? `${detail.linked_classrooms.length} linked ${
+                detail.linked_classrooms.length === 1 ? 'classroom will' : 'classrooms will'
+              } stay intact, but ${
+                detail.linked_classrooms.length === 1 ? 'its' : 'their'
+              } Blueprint connection will be removed. This cannot be undone.`
+            : 'This permanently deletes the Course Blueprint and its saved Versions. This cannot be undone.'
+        }
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+        confirmVariant="danger"
+        isCancelDisabled={deleting}
+        isConfirmDisabled={deleting}
+        onCancel={() => {
+          if (!deleting) setShowDeleteConfirm(false)
+        }}
+        onConfirm={deleteSelectedBlueprint}
       />
     </PageLayout>
   )

@@ -15581,3 +15581,24 @@
 
 **Remaining:**
 - Require independent rereview and exact-head PR CI before merge.
+
+<!-- pika-session-log-archive-batch:e4d3a8b389b122dcec157c07b9e681a005b5056088c418c44a4cf6dd01ed7850 -->
+## 2026-07-22 — Backported student classwork test isolation
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a localized test-only cache-isolation correction with no runtime behavior change.
+
+**Completed:**
+- Reset the student assignment, material, and survey request-cache namespaces before every `StudentAssignmentsTab` test.
+- Removed the obsolete workaround that expected an already-viewed assignment to open its instructions modal automatically.
+- Aligned `main` with the deterministic test behavior already proven on `production`; no application, schema, grading, or deployment behavior changed.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx` (1 file / 12 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+
+**Remaining:**
+- Require exact-head PR CI and normal protected merge into `main`.
