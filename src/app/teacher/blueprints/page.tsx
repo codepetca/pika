@@ -101,6 +101,12 @@ type MarkdownEditorTab = Exclude<
 
 type DraftState = Record<MarkdownEditorTab, string>
 
+type BlueprintDeleteTarget = {
+  id: string
+  title: string
+  linkedClassroomCount: number
+}
+
 type BlueprintProposal = {
   id: string
   source_kind: 'classroom' | 'package' | 'repository' | 'ai' | 'blueprint'
@@ -158,7 +164,7 @@ export default function TeacherBlueprintsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [showCreateClassroom, setShowCreateClassroom] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<BlueprintDeleteTarget | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState<EditorTab>('overview')
   const [drafts, setDrafts] = useState<DraftState>(emptyDraftState())
@@ -217,6 +223,8 @@ export default function TeacherBlueprintsPage() {
     }
   }, [detail])
   const repositoryManaged = detail?.authority_mode === 'repository'
+  const canDeleteSelectedBlueprint =
+    detail?.id === selectedBlueprintId && !repositoryManaged
   const actionableProposalCount = useMemo(
     () => proposals.filter((proposal) =>
       proposal.status === 'ready' || proposal.status === 'needs_review'
@@ -404,9 +412,18 @@ export default function TeacherBlueprintsPage() {
   }
 
   async function deleteSelectedBlueprint() {
-    if (!selectedBlueprintId || !detail) return
+    if (
+      !deleteTarget
+      || detail?.id !== deleteTarget.id
+      || selectedBlueprintId !== deleteTarget.id
+      || detail.authority_mode === 'repository'
+    ) {
+      setDeleteTarget(null)
+      setError('The selected Course Blueprint changed. Review it before deleting.')
+      return
+    }
 
-    const blueprintId = selectedBlueprintId
+    const blueprintId = deleteTarget.id
     setDeleting(true)
     setError('')
     try {
@@ -426,14 +443,29 @@ export default function TeacherBlueprintsPage() {
       setBlueprints(remainingBlueprints)
       setDetail(null)
       setSelectedBlueprintId(remainingBlueprints[0]?.id || null)
-      setShowDeleteConfirm(false)
+      setDeleteTarget(null)
       router.push('/teacher/blueprints')
     } catch (err: any) {
       setError(err.message || 'Failed to delete course blueprint')
-      setShowDeleteConfirm(false)
+      setDeleteTarget(null)
     } finally {
       setDeleting(false)
     }
+  }
+
+  function openDeleteConfirm() {
+    if (!canDeleteSelectedBlueprint || !detail) return
+    setDeleteTarget({
+      id: detail.id,
+      title: detail.title,
+      linkedClassroomCount: detail.linked_classrooms.length,
+    })
+  }
+
+  function selectBlueprint(blueprintId: string) {
+    setDeleteTarget(null)
+    setDetail(null)
+    setSelectedBlueprintId(blueprintId)
   }
 
   async function changeAuthorityMode() {
@@ -817,13 +849,15 @@ export default function TeacherBlueprintsPage() {
                 ...(plannedSite.published && plannedSite.slug
                   ? [{ id: 'open-planned-site', label: 'Open Planned Site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
                   : []),
-                {
-                  id: 'delete-blueprint',
-                  label: 'Delete Course Blueprint',
-                  destructive: true,
-                  disabled: deleting,
-                  onSelect: () => setShowDeleteConfirm(true),
-                },
+                ...(canDeleteSelectedBlueprint
+                  ? [{
+                      id: 'delete-blueprint',
+                      label: 'Delete Course Blueprint',
+                      destructive: true,
+                      disabled: deleting,
+                      onSelect: openDeleteConfirm,
+                    }]
+                  : []),
               ]
             : []),
         ]}
@@ -867,7 +901,7 @@ export default function TeacherBlueprintsPage() {
                   <button
                     key={blueprint.id}
                     type="button"
-                    onClick={() => setSelectedBlueprintId(blueprint.id)}
+                    onClick={() => selectBlueprint(blueprint.id)}
                     className={`w-full rounded-card border px-3 py-3 text-left transition-colors ${
                       selectedBlueprintId === blueprint.id
                         ? 'border-primary bg-info-bg'
@@ -1487,14 +1521,14 @@ export default function TeacherBlueprintsPage() {
       />
 
       <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title={detail ? `Delete ${detail.title}?` : 'Delete Course Blueprint?'}
+        isOpen={deleteTarget !== null}
+        title={deleteTarget ? `Delete ${deleteTarget.title}?` : 'Delete Course Blueprint?'}
         description={
-          detail?.linked_classrooms.length
-            ? `${detail.linked_classrooms.length} linked ${
-                detail.linked_classrooms.length === 1 ? 'classroom will' : 'classrooms will'
+          deleteTarget?.linkedClassroomCount
+            ? `${deleteTarget.linkedClassroomCount} linked ${
+                deleteTarget.linkedClassroomCount === 1 ? 'classroom will' : 'classrooms will'
               } stay intact, but ${
-                detail.linked_classrooms.length === 1 ? 'its' : 'their'
+                deleteTarget.linkedClassroomCount === 1 ? 'its' : 'their'
               } Blueprint connection will be removed. This cannot be undone.`
             : 'This permanently deletes the Course Blueprint and its saved Versions. This cannot be undone.'
         }
@@ -1503,7 +1537,7 @@ export default function TeacherBlueprintsPage() {
         isCancelDisabled={deleting}
         isConfirmDisabled={deleting}
         onCancel={() => {
-          if (!deleting) setShowDeleteConfirm(false)
+          if (!deleting) setDeleteTarget(null)
         }}
         onConfirm={deleteSelectedBlueprint}
       />

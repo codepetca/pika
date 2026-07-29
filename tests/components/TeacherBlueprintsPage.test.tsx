@@ -67,6 +67,7 @@ const blueprintList = [
 const blueprintDetail = {
   id: 'b-2',
   teacher_id: 'teacher-1',
+  authority_mode: 'pika',
   title: 'Blueprint Two',
   subject: 'Computer Science',
   grade_level: 'Grade 11',
@@ -154,6 +155,9 @@ describe('TeacherBlueprintsPage', () => {
         return Promise.resolve(jsonResponse({ blueprint: blueprintDetail }))
       }
       if (url === '/api/teacher/course-blueprints/b-2' && method === 'DELETE') {
+        return Promise.resolve(jsonResponse({ success: true }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'DELETE') {
         return Promise.resolve(jsonResponse({ success: true }))
       }
       return Promise.reject(new Error(`Unexpected fetch: ${url}`))
@@ -282,5 +286,71 @@ describe('TeacherBlueprintsPage', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
     })
+  })
+
+  it('never offers deletion for stale detail during a Blueprint selection change', async () => {
+    let resolveBlueprintOne: ((response: Response) => void) | undefined
+    const delayedBlueprintOne = new Promise<Response>((resolve) => {
+      resolveBlueprintOne = resolve
+    })
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'GET') {
+        return delayedBlueprintOne
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+
+    expect(screen.queryByRole('button', { name: 'Delete Course Blueprint' })).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await act(async () => {
+      resolveBlueprintOne?.(jsonResponse({ blueprint: blueprintOneDetail }))
+      await delayedBlueprintOne
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Course Blueprint' }))
+    expect(screen.getByRole('dialog', { name: 'Delete Blueprint One?' })).toBeInTheDocument()
+    expect(screen.getByText(
+      'This permanently deletes the Course Blueprint and its saved Versions. This cannot be undone.',
+    )).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/teacher/course-blueprints/b-1',
+        { method: 'DELETE' },
+      )
+    })
+  })
+
+  it('does not offer deletion while repository authority is active', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return Promise.resolve(jsonResponse({
+          blueprint: { ...blueprintDetail, authority_mode: 'repository' },
+        }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Repository-managed')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: 'Delete Course Blueprint' })).toBeNull()
   })
 })

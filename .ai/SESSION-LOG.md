@@ -1353,18 +1353,29 @@ ownership-checked deletion endpoint.
 - Added confirmation copy that distinguishes unlinked Blueprints from linked
   Blueprints, whose classrooms remain intact while their Blueprint connection
   is removed.
+- Bound each confirmation to the exact loaded Blueprint and suppress deletion
+  while a newly selected Blueprint is loading, preventing stale-detail deletion
+  races.
+- Hid deletion while repository authority is active and added the matching
+  server-side 409 guard; teachers can switch authority back to Pika before
+  deleting.
 - Kept the Blueprint list, selected detail, route, and request cache consistent
   after deletion.
 - Added component coverage for confirmation, endpoint invocation, cache
-  invalidation, route cleanup, and selecting the next Blueprint.
+  invalidation, route cleanup, selecting the next Blueprint, stale selection,
+  and repository authority. Added server coverage for the repository guard.
 
 **Validation:**
-- Full Vitest suite: 452 files / 3,937 tests.
+- Full pre-review Vitest suite: 452 files / 3,937 tests.
+- Post-review focused suite: 2 files / 23 tests.
 - Production build, TypeScript, Pika audit, and diff checks passed.
 - Visually verified desktop and mobile layouts, light and dark themes, default,
   overflow-menu, and confirmation states. The student role safely redirects
   away from the teacher-only route.
+- Independent review identified and the implementation resolved the
+  stale-detail deletion race and repository-authority bypass.
 
 **Remaining:**
-- Publish, review, merge, and release the deletion control.
+- Complete targeted re-review and exact-head CI, then merge and release the
+  deletion control.
 - Use the released control to remove the temporary production smoke Blueprint.
