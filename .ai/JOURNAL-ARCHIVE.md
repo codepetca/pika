@@ -15556,3 +15556,28 @@
 **Remaining:**
 - Require exact-head PR CI and repository approval before merge.
 - Defer Daily/Attendance mobile history/table modes until the later mobile UX phase; continue Phase 3 with Tests desktop/accessibility while Gradex remains separately owned.
+
+<!-- pika-session-log-archive-batch:e0e0b6b8c2908e9ac39ea0411d74612b15a0fa119b5360e7d1eb59f46771bbab -->
+## 2026-07-22 — Scoped Daily history across student switches
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (high) - the fix is narrow, but correctness depends on React commit and effect ordering across student identity changes.
+
+**Completed:**
+- Remounted only the selected-student history state when the classroom/student scope changes, preventing the prior student's entries from committing beneath the next student's inspector heading.
+- Initialized each scoped history view from that student's preview so the privacy fix does not introduce a false empty-state flash.
+- Added a layout-effect regression test that observes the transition commit before passive effects run.
+- Preserved the existing teacher Daily table and inspector UI; no student, mobile, schema, migration, or production behavior changed.
+
+**Validation:**
+- `pnpm test` (407 files / 3,672 tests)
+- Focused Daily history and attendance suites (2 files / 25 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- Pika changed-file audit
+- Teacher Daily desktop screenshots after sequential student selection in light and dark themes; no horizontal overflow
+
+**Remaining:**
+- Require independent rereview and exact-head PR CI before merge.
