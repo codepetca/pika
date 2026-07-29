@@ -181,6 +181,43 @@ describe('atomic blueprint operation contracts', () => {
     }))
   })
 
+  it('logs the safe database error code when an atomic RPC fails', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          code: '23514',
+          message: 'sensitive database detail',
+          details: 'sensitive row detail',
+        },
+      }),
+    }
+
+    await createCourseBlueprintAtomic({
+      supabase,
+      operationId,
+      teacherId: '30000000-0000-4000-8000-000000000020',
+      operationType: 'capture',
+      sourceClassroomId: '40000000-0000-4000-8000-000000000020',
+      expectedSourceRevision: 12,
+      plan: createPlan(),
+    })
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[blueprint-operation-rpc-error]',
+      JSON.stringify({
+        operation_id: operationId,
+        operation_type: 'capture',
+        rpc_name: 'create_course_blueprint_atomic_v2',
+        database_error_code: '23514',
+      }),
+    )
+    expect(errorSpy.mock.calls.flat().join(' ')).not.toContain('sensitive database detail')
+    expect(errorSpy.mock.calls.flat().join(' ')).not.toContain('sensitive row detail')
+  })
+
   it('passes the source revision into capture without making it part of the write plan', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {})
     const supabase = {
