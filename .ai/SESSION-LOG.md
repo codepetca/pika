@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Hardened Tests list read states
-
-**Risk profile:** workspace-state
-
-**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses cached teacher/student lists, controlled workspace URLs, classroom transitions, and asynchronous retry boundaries.
-
-**Completed:**
-- Added explicit teacher and student Tests list loading, cold-error, successful-empty, and failed-refresh contracts with retry controls.
-- Preserved the last valid list when refresh fails, rejected non-successful student list responses, and replaced one-off refresh cache keys with canonical invalidation.
-- Scoped rendered list snapshots and errors to the active classroom so another classroom's tests cannot paint during navigation.
-- Kept controlled teacher test URLs intact until a successful list snapshot proves the selected test is invalid.
-- Resolved independent review feedback by moving focus from a replaced Retry button to a stable named Tests region for both failed and successful retries.
-- Preserved the existing desktop list-first composition. Mobile UX, Gradex, schema, migrations, and production state were unchanged.
-
-**Validation:**
-- Focused teacher/student Tests list suites (3 files / 110 tests)
-- Full repository suite before the focus-only remediation (407 files / 3,680 tests); exact-head PR CI is required
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit and composite-widget accessibility checklist
-- Playwright desktop matrix for both roles in light/dark across normal, cold-error, and preserved-refresh-error states (12 captures; no horizontal overflow)
-- Post-remediation teacher/student desktop light/dark captures (4 captures; no layout change or horizontal overflow)
-- `git diff --check`
-
-**Remaining:**
-- Require targeted remediation review and exact-head PR CI before merge.
-- Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.
-
 ## 2026-07-22 — Added canonical grading architecture guide
 
 **Risk profile:** none
@@ -1379,3 +1349,35 @@ ownership-checked deletion endpoint.
 - Complete targeted re-review and exact-head CI, then merge and release the
   deletion control.
 - Use the released control to remove the temporary production smoke Blueprint.
+
+## 2026-07-29 — Archived classroom Use again foundation
+
+**Risk profile:** reusable course lineage and archived-classroom UX.
+
+**Completed:**
+- Added a compact **Use again** action to hot archived classroom cards while
+  preserving the separate Restore action and cold-archive recovery boundary.
+- Compared reusable classroom content with its exact source Blueprint Version
+  and current Draft, normalizing expected instantiation transformations.
+- Reused the current Draft when safe, promoted classroom-only changes through
+  the atomic proposal path, and routed concurrent classroom/Draft changes to
+  review without silently choosing a side.
+- Created and linked a Pika-managed Blueprint copy for legacy archived
+  classrooms with no lineage; no student or runtime data enters the copy.
+- Opened normal classroom creation with the prepared Blueprint selected and
+  added a direct review handoff to Classroom Updates.
+- Documented the archive and Blueprint-version contracts for the flow.
+
+**Validation:**
+- Full Vitest suite: 454 files / 3,948 tests.
+- Focused final suites: 5 files / 50 tests, plus copy-only Blueprint coverage.
+- TypeScript, lint, production build, Pika audit, and diff checks.
+- Playwright teacher matrix: desktop/mobile and light/dark for the archived
+  card and conflict dialog. Student classrooms were checked and are unaffected.
+- Composite-widget checklist reviewed; existing ConfirmDialog keyboard/focus
+  behavior and semantic roles are covered, with no manual follow-up.
+
+**Remaining:**
+- Publish for independent review and exact-head CI before merge.
+- A later slice can replace the advanced Classroom Updates conflict handoff
+  with a more guided normal-user reconciliation surface.

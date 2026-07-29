@@ -1,6 +1,9 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
-import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
+import {
+  assertTeacherCanMutateClassroom,
+  assertTeacherOwnsClassroom,
+} from '@/lib/server/classrooms'
 import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   buildCourseBlueprintExportBundle,
@@ -48,6 +51,7 @@ type BlueprintOwnershipResult =
 
 type BlueprintOperationOptions = {
   operationId?: string
+  copyOnly?: boolean
 }
 
 function getSupabase() {
@@ -1119,7 +1123,9 @@ export async function createCourseBlueprintFromClassroom(
   input: { title?: string },
   options: BlueprintOperationOptions = {},
 ) {
-  const classroomAccess = await assertTeacherCanMutateClassroom(teacherId, classroomId)
+  const classroomAccess = options.copyOnly
+    ? await assertTeacherOwnsClassroom(teacherId, classroomId)
+    : await assertTeacherCanMutateClassroom(teacherId, classroomId)
   if (!classroomAccess.ok) return classroomAccess
 
   const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
@@ -1168,9 +1174,11 @@ export async function createCourseBlueprintFromClassroom(
     supabase,
     operationId,
     teacherId,
-    operationType: 'capture',
-    sourceClassroomId: classroomId,
-    expectedSourceRevision: source.classroom.blueprint_source_revision ?? 1,
+    operationType: options.copyOnly ? 'import' : 'capture',
+    sourceClassroomId: options.copyOnly ? null : classroomId,
+    expectedSourceRevision: options.copyOnly
+      ? undefined
+      : source.classroom.blueprint_source_revision ?? 1,
     plan,
   })
   if (!operation.ok) return operation

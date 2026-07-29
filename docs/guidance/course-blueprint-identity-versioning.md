@@ -135,6 +135,21 @@ Version. A classroom always records the exact Version it used.
 The portable package format version is independent of a teacher's Blueprint
 version number.
 
+### Archived Classroom Reuse
+
+For a hot archived classroom, **Use again** compares its reusable projection
+with both its source Version and the current Blueprint Draft:
+
+- if the classroom still matches its source Version, use the current Draft;
+- if only the classroom changed, submit and atomically apply those reusable
+  changes before classroom creation;
+- if the classroom and Draft both changed, require review; and
+- if the classroom has no Blueprint lineage, create and link a Pika-managed
+  Blueprint copy without including runtime or student data.
+
+The action always creates a new classroom through normal Blueprint
+instantiation. It never restores or clones the archived classroom record.
+
 ## Classroom Provenance
 
 Instantiation preserves lineage at every reusable artifact boundary:
