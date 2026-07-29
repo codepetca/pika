@@ -69,6 +69,19 @@ Pika already has a substantial visual foundation. New work should refine the
 current product rather than introduce a broad visual redesign without evidence
 and explicit product approval.
 
+### Content and guidance
+
+- Default screens show headings, labels, state, and actions. Do not add
+  instructional paragraphs when the interface is self-evident.
+- Put optional explanation in contextual help, such as a tooltip or help
+  affordance, instead of permanent page copy.
+- Use a dismissible one-time first-visit message when a workflow needs longer
+  orientation.
+- Keep placeholders short. Search placeholders use one or two words and do not
+  enumerate searchable fields.
+- Reserve persistent explanatory copy for risk, irreversible effects, errors,
+  recovery, or important data boundaries.
+
 ### Observed visual language
 
 Current executable owners and representative recorded teacher, student,
