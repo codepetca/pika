@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Scoped Daily history across student switches
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5.6 Terra (high) - the fix is narrow, but correctness depends on React commit and effect ordering across student identity changes.
-
-**Completed:**
-- Remounted only the selected-student history state when the classroom/student scope changes, preventing the prior student's entries from committing beneath the next student's inspector heading.
-- Initialized each scoped history view from that student's preview so the privacy fix does not introduce a false empty-state flash.
-- Added a layout-effect regression test that observes the transition commit before passive effects run.
-- Preserved the existing teacher Daily table and inspector UI; no student, mobile, schema, migration, or production behavior changed.
-
-**Validation:**
-- `pnpm test` (407 files / 3,672 tests)
-- Focused Daily history and attendance suites (2 files / 25 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- Pika changed-file audit
-- Teacher Daily desktop screenshots after sequential student selection in light and dark themes; no horizontal overflow
-
-**Remaining:**
-- Require independent rereview and exact-head PR CI before merge.
-
 ## 2026-07-22 — Backported student classwork test isolation
 
 **Risk profile:** none
@@ -1368,3 +1344,20 @@ service-role Blueprint capture.
 - Publish and review the fix PR.
 - Applying migration 113 to production requires a fresh one-time authorization
   naming production and migration 113; no production mutation was performed.
+
+## 2026-07-29 — Minimal guidance design contract
+
+**Risk profile:** none — documentation-only design guidance.
+
+**Completed:**
+- Added a canonical content-and-guidance contract to `DESIGN.md`.
+- Established minimal default screens, contextual optional help, dismissible
+  first-visit orientation, short search placeholders, and narrow exceptions for
+  persistent explanatory copy.
+
+**Validation:**
+- Markdown diff review and `git diff --check`.
+
+**Remaining:**
+- Apply the contract incrementally when Blueprint and other product surfaces
+  are deliberately revised.
