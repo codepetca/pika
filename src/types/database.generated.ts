@@ -4599,6 +4599,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_archived_classroom_blueprint_proposal_atomic: {
+        Args: {
+          p_candidate_sha256: string
+          p_candidate_snapshot: Json
+          p_classroom_id: string
+          p_expected_classroom_revision: number
+          p_proposal_id: string
+          p_result_snapshot_sha256: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       apply_course_blueprint_classroom_proposal_atomic: {
         Args: {
           p_classroom_plan: Json
@@ -4676,6 +4718,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      archived_classroom_blueprint_snapshot_from_plan: {
+        Args: {
+          p_blueprint_id: string
+          p_draft_revision: number
+          p_plan: Json
+        }
+        Returns: Json
       }
       begin_classroom_archive_compaction: {
         Args: {
@@ -5180,6 +5230,21 @@ export type Database = {
         Returns: boolean
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
+      course_blueprint_canonical_jsonb_text: {
+        Args: { p_value: Json }
+        Returns: string
+      }
+      create_archived_classroom_blueprint_atomic: {
+        Args: {
+          p_expected_source_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       create_assignment_ai_grading_run_atomic: {
         Args: {
           p_assignment_id: string

@@ -645,6 +645,11 @@ export async function applyArchivedClassroomCourseBlueprintProposal(args: {
   | { ok: false; status: number; error: string }
 > {
   const candidateSha256 = hashCourseBlueprintSnapshot(args.candidate)
+  const resultSnapshot = {
+    ...structuredClone(args.candidate),
+    draft_revision: args.candidate.draft_revision + 1,
+  }
+  const resultSnapshotSha256 = hashCourseBlueprintSnapshot(resultSnapshot)
   const { data, error } = await args.supabase.rpc(
     'apply_archived_classroom_blueprint_proposal_atomic',
     {
@@ -654,6 +659,7 @@ export async function applyArchivedClassroomCourseBlueprintProposal(args: {
       p_proposal_id: uuidSchema.parse(args.proposalId),
       p_candidate_snapshot: parseDatabaseJson(args.candidate),
       p_candidate_sha256: candidateSha256,
+      p_result_snapshot_sha256: resultSnapshotSha256,
     },
   )
 

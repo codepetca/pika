@@ -283,6 +283,13 @@ describe('archived classroom reuse', () => {
 
   it('tracks reusable site visibility without comparing publication state', () => {
     const base = snapshot()
+    const operationalBlueprintChange = snapshot({
+      planned_site: {
+        ...base.planned_site,
+        slug: 'new-runtime-slug',
+        published: true,
+      },
+    })
     const classroom = snapshot({
       planned_site: {
         slug: 'runtime-slug',
@@ -296,7 +303,7 @@ describe('archived classroom reuse', () => {
 
     expect(classifyArchivedClassroomReuseSnapshots({
       baseVersion: base,
-      currentBlueprint: base,
+      currentBlueprint: operationalBlueprintChange,
       currentClassroom: classroom,
       appliedLessonArtifactIds: new Set(),
     })).toEqual(expect.objectContaining({

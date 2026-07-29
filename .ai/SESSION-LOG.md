@@ -1382,11 +1382,19 @@ classroom lineage.
 - Included reusable public-site visibility defaults in capture, comparison,
   suggestions, and promotion while excluding operational slug/publication
   state.
+- Completed root and nested artifact lineage mapping for both initial archived
+  capture and later promotion, including exact source Version IDs.
+- Made initial Version hashing match Pika's recursive canonical JSON and pass
+  the canonical result digest from TypeScript for promoted Versions.
+- Regenerated the Supabase function contracts for all migration 114 RPCs and
+  internal helpers after CI applied the migration successfully.
 
 **Validation:**
 - Focused suites: 6 files / 57 tests.
 - Full Vitest suite: 455 files / 3,956 tests.
 - TypeScript, lint, production build, migration contract, and diff checks pass.
+- Post-review lineage/digest suites: 6 files / 47 tests; TypeScript and lint
+  pass.
 
 **Remaining:**
 - Run Pika audit, complete targeted re-review and exact-head CI.

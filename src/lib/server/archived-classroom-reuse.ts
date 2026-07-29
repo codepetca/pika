@@ -51,9 +51,12 @@ export type ArchivedClassroomReuseResult =
   | ArchivedClassroomReuseReview
   | { ok: false; status: number; error: string }
 
-function withoutDraftRevision(snapshot: CourseBlueprintSnapshot) {
+function reusableBlueprintContent(snapshot: CourseBlueprintSnapshot) {
   const { draft_revision: _draftRevision, ...content } = snapshot
-  return content
+  return {
+    ...content,
+    planned_site: { config: snapshot.planned_site.config },
+  }
 }
 
 function normalizeVersionForClassroom(
@@ -101,8 +104,8 @@ export function classifyArchivedClassroomReuseSnapshots(args: {
     args.appliedLessonArtifactIds,
   )
   const blueprintChanged =
-    hashCanonicalJson(withoutDraftRevision(args.baseVersion))
-    !== hashCanonicalJson(withoutDraftRevision(args.currentBlueprint))
+    hashCanonicalJson(reusableBlueprintContent(args.baseVersion))
+    !== hashCanonicalJson(reusableBlueprintContent(args.currentBlueprint))
   const classroomChanged =
     hashCanonicalJson(classroomReusableContent(classroomBaseline))
     !== hashCanonicalJson(classroomReusableContent(args.currentClassroom))
