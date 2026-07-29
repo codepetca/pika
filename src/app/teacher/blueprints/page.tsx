@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, FormField, Input } from '@/ui'
+import { Button, ConfirmDialog, FormField, Input } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
 import { CreateBlueprintModal } from '@/components/CreateBlueprintModal'
@@ -101,6 +101,12 @@ type MarkdownEditorTab = Exclude<
 
 type DraftState = Record<MarkdownEditorTab, string>
 
+type BlueprintDeleteTarget = {
+  id: string
+  title: string
+  linkedClassroomCount: number
+}
+
 type BlueprintProposal = {
   id: string
   source_kind: 'classroom' | 'package' | 'repository' | 'ai' | 'blueprint'
@@ -158,6 +164,8 @@ export default function TeacherBlueprintsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [showCreateClassroom, setShowCreateClassroom] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<BlueprintDeleteTarget | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState<EditorTab>('overview')
   const [drafts, setDrafts] = useState<DraftState>(emptyDraftState())
   const [meta, setMeta] = useState({
@@ -215,6 +223,8 @@ export default function TeacherBlueprintsPage() {
     }
   }, [detail])
   const repositoryManaged = detail?.authority_mode === 'repository'
+  const canDeleteSelectedBlueprint =
+    detail?.id === selectedBlueprintId && !repositoryManaged
   const actionableProposalCount = useMemo(
     () => proposals.filter((proposal) =>
       proposal.status === 'ready' || proposal.status === 'needs_review'
@@ -399,6 +409,63 @@ export default function TeacherBlueprintsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function deleteSelectedBlueprint() {
+    if (
+      !deleteTarget
+      || detail?.id !== deleteTarget.id
+      || selectedBlueprintId !== deleteTarget.id
+      || detail.authority_mode === 'repository'
+    ) {
+      setDeleteTarget(null)
+      setError('The selected Course Blueprint changed. Review it before deleting.')
+      return
+    }
+
+    const blueprintId = deleteTarget.id
+    setDeleting(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/course-blueprints/${blueprintId}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete course blueprint')
+      }
+
+      const remainingBlueprints = blueprints.filter(
+        (blueprint) => blueprint.id !== blueprintId,
+      )
+      detailRequestIdRef.current += 1
+      invalidateTeacherBlueprints()
+      setBlueprints(remainingBlueprints)
+      setDetail(null)
+      setSelectedBlueprintId(remainingBlueprints[0]?.id || null)
+      setDeleteTarget(null)
+      router.push('/teacher/blueprints')
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete course blueprint')
+      setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function openDeleteConfirm() {
+    if (!canDeleteSelectedBlueprint || !detail) return
+    setDeleteTarget({
+      id: detail.id,
+      title: detail.title,
+      linkedClassroomCount: detail.linked_classrooms.length,
+    })
+  }
+
+  function selectBlueprint(blueprintId: string) {
+    setDeleteTarget(null)
+    setDetail(null)
+    setSelectedBlueprintId(blueprintId)
   }
 
   async function changeAuthorityMode() {
@@ -782,6 +849,15 @@ export default function TeacherBlueprintsPage() {
                 ...(plannedSite.published && plannedSite.slug
                   ? [{ id: 'open-planned-site', label: 'Open Planned Site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
                   : []),
+                ...(canDeleteSelectedBlueprint
+                  ? [{
+                      id: 'delete-blueprint',
+                      label: 'Delete Course Blueprint',
+                      destructive: true,
+                      disabled: deleting,
+                      onSelect: openDeleteConfirm,
+                    }]
+                  : []),
               ]
             : []),
         ]}
@@ -825,7 +901,7 @@ export default function TeacherBlueprintsPage() {
                   <button
                     key={blueprint.id}
                     type="button"
-                    onClick={() => setSelectedBlueprintId(blueprint.id)}
+                    onClick={() => selectBlueprint(blueprint.id)}
                     className={`w-full rounded-card border px-3 py-3 text-left transition-colors ${
                       selectedBlueprintId === blueprint.id
                         ? 'border-primary bg-info-bg'
@@ -1442,6 +1518,28 @@ export default function TeacherBlueprintsPage() {
           setShowCreateClassroom(false)
           router.push(`/classrooms/${classroom.id}?tab=attendance`)
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title={deleteTarget ? `Delete ${deleteTarget.title}?` : 'Delete Course Blueprint?'}
+        description={
+          deleteTarget?.linkedClassroomCount
+            ? `${deleteTarget.linkedClassroomCount} linked ${
+                deleteTarget.linkedClassroomCount === 1 ? 'classroom will' : 'classrooms will'
+              } stay intact, but ${
+                deleteTarget.linkedClassroomCount === 1 ? 'its' : 'their'
+              } Blueprint connection will be removed. This cannot be undone.`
+            : 'This permanently deletes the Course Blueprint and its saved Versions. This cannot be undone.'
+        }
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+        confirmVariant="danger"
+        isCancelDisabled={deleting}
+        isConfirmDisabled={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null)
+        }}
+        onConfirm={deleteSelectedBlueprint}
       />
     </PageLayout>
   )
