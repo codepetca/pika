@@ -15633,3 +15633,24 @@
 **Remaining:**
 - Require targeted remediation review and exact-head PR CI before merge.
 - Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.
+
+<!-- pika-session-log-archive-batch:1d4a8a3a3f21343cdba541ef596c78ee067b028840c0db789273c841e7b0078e -->
+## 2026-07-22 — Added canonical grading architecture guide
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a documentation-only reconciliation of implemented grading boundaries and contracts.
+
+**Completed:**
+- Added one canonical guide covering grading layers, assignment/test/repository-review flows, versioning, sanitization, atomic persistence, teacher-review evals, calibration limits, and the Pika/Gradex boundary.
+- Routed grading work to the guide from the AI instruction table and core architecture.
+- Updated current context to reflect verified migrations through 104.
+- Documented current implementation separately from future Gradex and paid replay work; no runtime, schema, provider, grading, or deployment behavior changed.
+
+**Validation:**
+- Verified referenced source paths and relative documentation links.
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Require exact-head PR CI and normal protected merge into `main`.

@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Added canonical grading architecture guide
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5.6 Terra (medium) - this is a documentation-only reconciliation of implemented grading boundaries and contracts.
-
-**Completed:**
-- Added one canonical guide covering grading layers, assignment/test/repository-review flows, versioning, sanitization, atomic persistence, teacher-review evals, calibration limits, and the Pika/Gradex boundary.
-- Routed grading work to the guide from the AI instruction table and core architecture.
-- Updated current context to reflect verified migrations through 104.
-- Documented current implementation separately from future Gradex and paid replay work; no runtime, schema, provider, grading, or deployment behavior changed.
-
-**Validation:**
-- Verified referenced source paths and relative documentation links.
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Require exact-head PR CI and normal protected merge into `main`.
-
 ## 2026-07-23 — Separated Tests authoring from grading
 
 **Risk profile:** none
@@ -1381,3 +1361,33 @@ ownership-checked deletion endpoint.
 - Publish for independent review and exact-head CI before merge.
 - A later slice can replace the advanced Classroom Updates conflict handoff
   with a more guided normal-user reconciliation surface.
+
+## 2026-07-29 — Archived classroom Use again review remediation
+
+**Risk profile:** high — concurrent Blueprint graph creation and archived
+classroom lineage.
+
+**Completed:**
+- Added migration 114 with a classroom-row transaction fence so unlinked
+  archived capture and lineage linking commit together; concurrent or
+  crash/retry requests reuse one linked Blueprint.
+- Added an archive-specific proposal finalizer that locks and rechecks the hot
+  archive before changing the Blueprint, then saves the resulting immutable
+  Version and advances source provenance in the same transaction.
+- Made simultaneous classroom and Draft changes require review even when both
+  sides independently reached matching current content.
+- Replaced current-calendar lesson inference with persisted lesson artifact
+  lineage, preventing overflow templates from becoming false deletions after
+  calendar edits.
+- Included reusable public-site visibility defaults in capture, comparison,
+  suggestions, and promotion while excluding operational slug/publication
+  state.
+
+**Validation:**
+- Focused suites: 6 files / 57 tests.
+- Full Vitest suite: 455 files / 3,956 tests.
+- TypeScript, lint, production build, migration contract, and diff checks pass.
+
+**Remaining:**
+- Run Pika audit, complete targeted re-review and exact-head CI.
+- Migration 114 requires explicit target authorization before application.

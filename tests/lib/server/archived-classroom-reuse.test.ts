@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   classifyArchivedClassroomReuseSnapshots,
+  decideArchivedClassroomReuse,
   prepareArchivedClassroomReuse,
 } from '@/lib/server/archived-classroom-reuse'
 
@@ -10,8 +11,7 @@ const mockCreateCourseBlueprintFromClassroom = vi.fn()
 const mockGetCourseBlueprintDetail = vi.fn()
 const mockGetBlueprintMergeSuggestionSet = vi.fn()
 const mockApplyBlueprintMergeSuggestions = vi.fn()
-const mockApplyPersistedCourseBlueprintProposal = vi.fn()
-const mockArchivedLinkMaybeSingle = vi.fn()
+const mockApplyArchivedClassroomCourseBlueprintProposal = vi.fn()
 
 vi.mock('@/lib/server/classrooms', () => ({
   assertTeacherOwnsClassroom: (...args: any[]) =>
@@ -41,20 +41,17 @@ vi.mock('@/lib/server/course-blueprint-proposals', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/course-blueprint-proposals')>()
   return {
     ...actual,
-    applyPersistedCourseBlueprintProposal: (...args: any[]) =>
-      mockApplyPersistedCourseBlueprintProposal(...args),
+    applyArchivedClassroomCourseBlueprintProposal: (...args: any[]) =>
+      mockApplyArchivedClassroomCourseBlueprintProposal(...args),
   }
 })
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => {
     const builder: Record<string, any> = {}
-    builder.update = vi.fn(() => builder)
     builder.eq = vi.fn(() => builder)
     builder.not = vi.fn(() => builder)
-    builder.is = vi.fn(() => builder)
     builder.select = vi.fn(() => builder)
-    builder.maybeSingle = (...args: any[]) => mockArchivedLinkMaybeSingle(...args)
     return {
       rpc: vi.fn(),
       from: vi.fn(() => builder),
@@ -129,10 +126,6 @@ describe('archived classroom reuse', () => {
         archived_at: '2026-07-01T00:00:00.000Z',
       },
     })
-    mockArchivedLinkMaybeSingle.mockResolvedValue({
-      data: { id: '30000000-0000-4000-8000-000000000001' },
-      error: null,
-    })
   })
 
   it('ignores expected classroom-instantiation transformations', () => {
@@ -194,7 +187,9 @@ describe('archived classroom reuse', () => {
       baseVersion: base,
       currentBlueprint: base,
       currentClassroom,
-      classDayCount: 1,
+      appliedLessonArtifactIds: new Set([
+        '60000000-0000-4000-8000-000000000001',
+      ]),
     })).toEqual(expect.objectContaining({
       blueprintChanged: false,
       classroomChanged: false,
@@ -215,7 +210,7 @@ describe('archived classroom reuse', () => {
       baseVersion: base,
       currentBlueprint: blueprintChanged,
       currentClassroom: base,
-      classDayCount: 0,
+      appliedLessonArtifactIds: new Set(),
     })).toEqual(expect.objectContaining({
       blueprintChanged: true,
       classroomChanged: false,
@@ -224,7 +219,7 @@ describe('archived classroom reuse', () => {
       baseVersion: base,
       currentBlueprint: base,
       currentClassroom: classroomChanged,
-      classDayCount: 0,
+      appliedLessonArtifactIds: new Set(),
     })).toEqual(expect.objectContaining({
       blueprintChanged: false,
       classroomChanged: true,
@@ -238,11 +233,75 @@ describe('archived classroom reuse', () => {
       baseVersion: base,
       currentBlueprint: matchingChanges,
       currentClassroom: matchingChanges,
-      classDayCount: 0,
+      appliedLessonArtifactIds: new Set(),
     })).toEqual(expect.objectContaining({
       blueprintChanged: true,
       classroomChanged: true,
-      currentCourseMatchesClassroom: true,
+    }))
+    expect(decideArchivedClassroomReuse({
+      blueprintChanged: true,
+      classroomChanged: true,
+      authorityMode: 'pika',
+    })).toBe('review')
+  })
+
+  it('uses persisted lesson lineage instead of the current calendar size', () => {
+    const appliedLessonId = '60000000-0000-4000-8000-000000000001'
+    const overflowLessonId = '60000000-0000-4000-8000-000000000002'
+    const base = snapshot({
+      lesson_templates: [
+        {
+          artifact_id: appliedLessonId,
+          title: 'Lesson 1',
+          content_markdown: 'Applied',
+          position: 0,
+        },
+        {
+          artifact_id: overflowLessonId,
+          title: 'Lesson 2',
+          content_markdown: 'Overflow',
+          position: 1,
+        },
+      ],
+    })
+    const classroom = snapshot({
+      lesson_templates: [base.lesson_templates[0]],
+    })
+
+    expect(classifyArchivedClassroomReuseSnapshots({
+      baseVersion: base,
+      currentBlueprint: base,
+      currentClassroom: classroom,
+      appliedLessonArtifactIds: new Set([appliedLessonId]),
+    })).toEqual(expect.objectContaining({
+      classroomChanged: false,
+      classroomBaseline: expect.objectContaining({
+        lesson_templates: [base.lesson_templates[0]],
+      }),
+    }))
+  })
+
+  it('tracks reusable site visibility without comparing publication state', () => {
+    const base = snapshot()
+    const classroom = snapshot({
+      planned_site: {
+        slug: 'runtime-slug',
+        published: true,
+        config: {
+          ...base.planned_site.config,
+          tests: false,
+        },
+      },
+    })
+
+    expect(classifyArchivedClassroomReuseSnapshots({
+      baseVersion: base,
+      currentBlueprint: base,
+      currentClassroom: classroom,
+      appliedLessonArtifactIds: new Set(),
+    })).toEqual(expect.objectContaining({
+      blueprintChanged: false,
+      classroomChanged: true,
     }))
   })
 
@@ -310,7 +369,7 @@ describe('archived classroom reuse', () => {
         diff_json: { candidate_snapshot: snapshot() },
       },
     })
-    mockApplyPersistedCourseBlueprintProposal.mockResolvedValue({
+    mockApplyArchivedClassroomCourseBlueprintProposal.mockResolvedValue({
       ok: true,
       proposal: { status: 'applied' },
     })
@@ -331,7 +390,12 @@ describe('archived classroom reuse', () => {
         expectedClassroomRevision: 2,
       },
     )
-    expect(mockApplyPersistedCourseBlueprintProposal).toHaveBeenCalledOnce()
+    expect(mockApplyArchivedClassroomCourseBlueprintProposal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classroomId: '30000000-0000-4000-8000-000000000001',
+        expectedClassroomRevision: 2,
+      }),
+    )
     expect(result).toEqual(expect.objectContaining({
       ok: true,
       status: 'ready',
@@ -374,5 +438,35 @@ describe('archived classroom reuse', () => {
         + '&reviewClassroom=30000000-0000-4000-8000-000000000001',
     })
     expect(mockApplyBlueprintMergeSuggestions).not.toHaveBeenCalled()
+  })
+
+  it('requires review when both legacy sources reach matching content', async () => {
+    mockLoadClassroomBlueprintSource.mockResolvedValue({
+      ok: true,
+      source: legacySource(),
+    })
+    mockGetCourseBlueprintDetail.mockResolvedValue({
+      detail: {
+        id: '20000000-0000-4000-8000-000000000001',
+        title: 'Course',
+        content_revision: 5,
+        authority_mode: 'pika',
+      },
+    })
+    mockGetBlueprintMergeSuggestionSet.mockResolvedValue({
+      ok: true,
+      suggestionSet: { suggestions: [] },
+    })
+
+    const result = await prepareArchivedClassroomReuse({
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '30000000-0000-4000-8000-000000000001',
+      operationId: '70000000-0000-4000-8000-000000000001',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      status: 'review_required',
+    }))
   })
 })

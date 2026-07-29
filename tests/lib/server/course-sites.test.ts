@@ -104,7 +104,10 @@ vi.mock('@/lib/timezone', () => ({
   nowInToronto: vi.fn(() => new Date('2026-04-15T12:00:00Z')),
 }))
 
-function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
+function seedActualSiteSupabase(
+  sourceBlueprintId = 'b-1',
+  actualSiteConfig: Record<string, unknown> = { lesson_plan_scope: 'current_week' },
+) {
   mockSupabase = makeSupabaseFromQueues({
     classrooms: [
       makeQueryBuilder({
@@ -114,7 +117,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
           title: 'CS 11',
           actual_site_slug: 'cs11',
           actual_site_published: true,
-          actual_site_config: { lesson_plan_scope: 'current_week' },
+          actual_site_config: actualSiteConfig,
           blueprint_source_revision: 1,
           source_blueprint_id: sourceBlueprintId,
           course_overview_markdown: 'Actual overview',
@@ -127,7 +130,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
           id: 'c-1',
           teacher_id: 'teacher-1',
           title: 'CS 11',
-          actual_site_config: { lesson_plan_scope: 'current_week' },
+          actual_site_config: actualSiteConfig,
           blueprint_source_revision: 1,
           source_blueprint_id: sourceBlueprintId,
           course_overview_markdown: 'Actual overview',
@@ -316,7 +319,15 @@ describe('course-sites server helpers', () => {
       },
     })
 
-    seedActualSiteSupabase()
+    seedActualSiteSupabase('b-1', {
+      overview: true,
+      outline: true,
+      resources: true,
+      assignments: true,
+      tests: false,
+      lesson_plans: true,
+      lesson_plan_scope: 'current_week',
+    })
     const result = await getBlueprintMergeSuggestionSet('teacher-1', 'b-1', 'c-1')
     expect(result).toEqual(
       expect.objectContaining({
@@ -329,6 +340,7 @@ describe('course-sites server helpers', () => {
             expect.objectContaining({ area: 'assignments' }),
             expect.objectContaining({ area: 'tests' }),
             expect.objectContaining({ area: 'lesson-plans' }),
+            expect.objectContaining({ area: 'site-visibility' }),
           ]),
         }),
       })
@@ -343,7 +355,15 @@ describe('course-sites server helpers', () => {
   })
 
   it('turns selected classroom merge areas into a revision-bound proposal', async () => {
-    seedActualSiteSupabase()
+    seedActualSiteSupabase('b-1', {
+      overview: true,
+      outline: true,
+      resources: true,
+      assignments: true,
+      tests: false,
+      lesson_plans: true,
+      lesson_plan_scope: 'current_week',
+    })
     mockGetCourseBlueprintDetail.mockResolvedValue({
       detail: {
         id: 'b-1',
@@ -365,6 +385,7 @@ describe('course-sites server helpers', () => {
       'assignments',
       'tests',
       'lesson-plans',
+      'site-visibility',
     ], {
       expectedBlueprintRevision: 7,
       expectedClassroomRevision: 1,
@@ -380,6 +401,11 @@ describe('course-sites server helpers', () => {
       sourceClassroomId: 'c-1',
       baseClassroomRevision: 1,
     }))
+    expect(mockBuildBlueprintSnapshot).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        planned_site_config: expect.objectContaining({ tests: false }),
+      }),
+    )
 
     expect(buildMarkdownSectionContent('Hello')).toEqual(
       expect.objectContaining({ type: 'doc' })

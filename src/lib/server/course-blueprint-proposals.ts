@@ -633,6 +633,64 @@ export async function applyPersistedCourseBlueprintProposal(args: {
     : { ok: false, status: 500, error: 'Blueprint proposal transaction returned an invalid response' }
 }
 
+export async function applyArchivedClassroomCourseBlueprintProposal(args: {
+  supabase: Pick<SupabaseClient<any>, 'rpc'>
+  teacherId: string
+  classroomId: string
+  expectedClassroomRevision: number
+  proposalId: string
+  candidate: CourseBlueprintSnapshot
+}): Promise<
+  | { ok: true; proposal: CourseBlueprintProposalRecord }
+  | { ok: false; status: number; error: string }
+> {
+  const candidateSha256 = hashCourseBlueprintSnapshot(args.candidate)
+  const { data, error } = await args.supabase.rpc(
+    'apply_archived_classroom_blueprint_proposal_atomic',
+    {
+      p_teacher_id: args.teacherId,
+      p_classroom_id: uuidSchema.parse(args.classroomId),
+      p_expected_classroom_revision: args.expectedClassroomRevision,
+      p_proposal_id: uuidSchema.parse(args.proposalId),
+      p_candidate_snapshot: parseDatabaseJson(args.candidate),
+      p_candidate_sha256: candidateSha256,
+    },
+  )
+
+  if (error) {
+    const missing = error.code === '42883'
+      || error.code === 'PGRST202'
+      || (error.message || '').includes(
+        'apply_archived_classroom_blueprint_proposal_atomic',
+      )
+    return {
+      ok: false,
+      status:
+        missing
+          ? 503
+          : error.code === '40001' || error.code === '55000'
+            ? 409
+            : 500,
+      error: missing
+        ? 'Archived classroom reuse requires migration 114 to be applied'
+        : error.code === '40001'
+          ? 'The archived classroom changed; review the course again'
+          : error.code === '55000'
+            ? 'Proposal source does not match the selected Blueprint authority'
+            : 'Failed to apply archived classroom changes',
+    }
+  }
+
+  const parsed = parseProposalRpcResult(data)
+  return parsed.success
+    ? { ok: true, proposal: parsed.data }
+    : {
+        ok: false,
+        status: 500,
+        error: 'Archived classroom proposal transaction returned an invalid response',
+      }
+}
+
 export function serializeCourseBlueprintProposalCandidate(
   candidate: CourseBlueprintSnapshot
 ): string {

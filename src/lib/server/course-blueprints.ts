@@ -35,6 +35,7 @@ import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import {
   buildCreateBlueprintWritePlan,
   buildInstantiateBlueprintWritePlan,
+  createArchivedClassroomBlueprintAtomic,
   createCourseBlueprintAtomic,
   instantiateCourseBlueprintAtomic,
   resolveBlueprintOperationId,
@@ -1152,7 +1153,9 @@ export async function createCourseBlueprintFromClassroom(
       gradebook_tests_weight: source.grading?.tests_weight ?? 30,
       planned_site_slug: null,
       planned_site_published: false,
-      planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+      planned_site_config: normalizePlannedCourseSiteConfig(
+        source.classroom.actual_site_config,
+      ),
     },
     assignments: source.assignments.map((assignment) => ({
       ...assignment,
@@ -1170,17 +1173,26 @@ export async function createCourseBlueprintFromClassroom(
     surveys: source.surveys || [],
     manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
   })
-  const operation = await createCourseBlueprintAtomic({
-    supabase,
-    operationId,
-    teacherId,
-    operationType: options.copyOnly ? 'import' : 'capture',
-    sourceClassroomId: options.copyOnly ? null : classroomId,
-    expectedSourceRevision: options.copyOnly
-      ? undefined
-      : source.classroom.blueprint_source_revision ?? 1,
-    plan,
-  })
+  const expectedSourceRevision =
+    source.classroom.blueprint_source_revision ?? 1
+  const operation = options.copyOnly
+    ? await createArchivedClassroomBlueprintAtomic({
+        supabase,
+        operationId,
+        teacherId,
+        sourceClassroomId: classroomId,
+        expectedSourceRevision,
+        plan,
+      })
+    : await createCourseBlueprintAtomic({
+        supabase,
+        operationId,
+        teacherId,
+        operationType: 'capture',
+        sourceClassroomId: classroomId,
+        expectedSourceRevision,
+        plan,
+      })
   if (!operation.ok) return operation
   if (!operation.blueprint_id) {
     return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }

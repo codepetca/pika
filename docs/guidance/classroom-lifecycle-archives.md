@@ -315,7 +315,8 @@ semantics:
 - `archived_hot` classrooms remain ordinary classroom rows and retain open and restore controls.
   **Use again** prepares reusable course content through the Course Blueprint workflow, then opens
   normal classroom creation. It never copies students, submissions, grades, attendance, or other
-  runtime history.
+  runtime history. Blueprint capture/linking and classroom-only promotion are classroom-locked
+  transactions that recheck `archived_at`, ownership, lineage, and structural revision.
   Permanent removal is not available through the classroom route or teacher UI; future hot-data
   removal must run only through the verified compaction state machine.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as

@@ -1085,6 +1085,12 @@ describe('course-blueprints server helpers', () => {
           blueprint_source_revision: 9,
           course_overview_markdown: '',
           course_outline_markdown: '',
+          actual_site_config: {
+            ...DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+            tests: false,
+            announcements: false,
+            lesson_plan_scope: 'all',
+          },
         },
         resources_markdown: '',
         assignments: [],
@@ -1154,12 +1160,19 @@ describe('course-blueprints server helpers', () => {
     }))
     expect(mockAssertTeacherCanMutateClassroom).not.toHaveBeenCalled()
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic_v2',
+      'create_archived_classroom_blueprint_atomic',
       expect.objectContaining({
         p_operation_id: operationId,
-        p_operation_type: 'import',
-        p_source_classroom_id: null,
-        p_expected_source_revision: null,
+        p_source_classroom_id: 'c-archived',
+        p_expected_source_revision: 9,
+        p_plan: expect.objectContaining({
+          blueprint: expect.objectContaining({
+            planned_site_config: {
+              ...DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+              tests: false,
+            },
+          }),
+        }),
       }),
     )
   })

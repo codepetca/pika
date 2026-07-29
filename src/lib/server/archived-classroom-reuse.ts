@@ -4,7 +4,7 @@ import {
   hashCanonicalJson,
 } from '@/lib/server/course-blueprint-versions'
 import {
-  applyPersistedCourseBlueprintProposal,
+  applyArchivedClassroomCourseBlueprintProposal,
   buildClassroomCourseBlueprintSnapshot,
 } from '@/lib/server/course-blueprint-proposals'
 import {
@@ -18,7 +18,6 @@ import {
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { COURSE_BLUEPRINT_PACKAGE_VERSION } from '@/lib/course-blueprint-package'
 
 type ReusableArea =
   | 'overview'
@@ -30,6 +29,7 @@ type ReusableArea =
   | 'materials'
   | 'surveys'
   | 'grading'
+  | 'site-visibility'
 
 type ArchivedClassroomReuseReady = {
   ok: true
@@ -58,7 +58,7 @@ function withoutDraftRevision(snapshot: CourseBlueprintSnapshot) {
 
 function normalizeVersionForClassroom(
   snapshot: CourseBlueprintSnapshot,
-  classDayCount: number,
+  appliedLessonArtifactIds: ReadonlySet<string>,
 ): CourseBlueprintSnapshot {
   return {
     ...structuredClone(snapshot),
@@ -71,7 +71,9 @@ function normalizeVersionForClassroom(
       ...assessment,
       points_possible: assessment.points_possible ?? 100,
     })),
-    lesson_templates: snapshot.lesson_templates.slice(0, classDayCount),
+    lesson_templates: snapshot.lesson_templates.filter((lesson) =>
+      appliedLessonArtifactIds.has(lesson.artifact_id),
+    ),
   }
 }
 
@@ -79,6 +81,7 @@ function classroomReusableContent(snapshot: CourseBlueprintSnapshot) {
   return {
     sections: snapshot.sections,
     grading: snapshot.grading,
+    planned_site: { config: snapshot.planned_site.config },
     assignments: snapshot.assignments,
     assessments: snapshot.assessments,
     lesson_templates: snapshot.lesson_templates,
@@ -91,15 +94,11 @@ export function classifyArchivedClassroomReuseSnapshots(args: {
   baseVersion: CourseBlueprintSnapshot
   currentBlueprint: CourseBlueprintSnapshot
   currentClassroom: CourseBlueprintSnapshot
-  classDayCount: number
+  appliedLessonArtifactIds: ReadonlySet<string>
 }) {
   const classroomBaseline = normalizeVersionForClassroom(
     args.baseVersion,
-    args.classDayCount,
-  )
-  const currentBlueprintForClassroom = normalizeVersionForClassroom(
-    args.currentBlueprint,
-    args.classDayCount,
+    args.appliedLessonArtifactIds,
   )
   const blueprintChanged =
     hashCanonicalJson(withoutDraftRevision(args.baseVersion))
@@ -107,16 +106,24 @@ export function classifyArchivedClassroomReuseSnapshots(args: {
   const classroomChanged =
     hashCanonicalJson(classroomReusableContent(classroomBaseline))
     !== hashCanonicalJson(classroomReusableContent(args.currentClassroom))
-  const currentCourseMatchesClassroom =
-    hashCanonicalJson(classroomReusableContent(currentBlueprintForClassroom))
-    === hashCanonicalJson(classroomReusableContent(args.currentClassroom))
 
   return {
     blueprintChanged,
     classroomChanged,
-    currentCourseMatchesClassroom,
     classroomBaseline,
   }
+}
+
+export function decideArchivedClassroomReuse(args: {
+  blueprintChanged: boolean
+  classroomChanged: boolean
+  authorityMode: 'pika' | 'repository'
+}): 'ready' | 'review' | 'promote' {
+  if (!args.classroomChanged) return 'ready'
+  if (args.blueprintChanged || args.authorityMode === 'repository') {
+    return 'review'
+  }
+  return 'promote'
 }
 
 function changedReusableAreas(
@@ -142,6 +149,9 @@ function changedReusableAreas(
   if (changed(blueprint.materials, classroom.materials)) areas.push('materials')
   if (changed(blueprint.surveys, classroom.surveys)) areas.push('surveys')
   if (changed(blueprint.grading, classroom.grading)) areas.push('grading')
+  if (changed(blueprint.planned_site.config, classroom.planned_site.config)) {
+    areas.push('site-visibility')
+  }
 
   return areas
 }
@@ -202,9 +212,11 @@ async function applyClassroomChanges(args: {
     }
   }
 
-  const applied = await applyPersistedCourseBlueprintProposal({
+  const applied = await applyArchivedClassroomCourseBlueprintProposal({
     supabase: getServiceRoleClient() as any,
     teacherId: args.teacherId,
+    classroomId: args.classroomId,
+    expectedClassroomRevision: args.classroomRevision,
     proposalId: proposalResult.proposal.id,
     candidate,
   })
@@ -250,34 +262,6 @@ export async function prepareArchivedClassroomReuse(args: {
       { operationId: args.operationId, copyOnly: true },
     )
     if (!created.ok) return created
-
-    const linked = await getServiceRoleClient()
-      .from('classrooms')
-      .update({
-        source_blueprint_id: created.blueprint.id,
-        source_blueprint_origin: {
-          blueprint_id: created.blueprint.id,
-          blueprint_title: created.blueprint.title,
-          blueprint_content_revision: created.blueprint.content_revision,
-          package_manifest_version: COURSE_BLUEPRINT_PACKAGE_VERSION,
-          package_exported_at: new Date().toISOString(),
-          operation_id: created.operation_id,
-        },
-      })
-      .eq('id', args.classroomId)
-      .eq('teacher_id', args.teacherId)
-      .eq('blueprint_source_revision', source.classroom.blueprint_source_revision)
-      .not('archived_at', 'is', null)
-      .is('source_blueprint_id', null)
-      .select('id')
-      .maybeSingle()
-    if (linked.error || !linked.data) {
-      return {
-        ok: false,
-        status: 409,
-        error: 'The archived classroom changed while preparing this course; retry',
-      }
-    }
     return {
       ok: true,
       status: 'ready',
@@ -316,7 +300,6 @@ export async function prepareArchivedClassroomReuse(args: {
       args.classroomId,
     )
     if (!suggestions.ok) return suggestions
-    if (suggestions.suggestionSet.suggestions.length === 0) return ready()
 
     const sourceRevision =
       source.classroom.source_blueprint_origin?.blueprint_content_revision
@@ -326,6 +309,7 @@ export async function prepareArchivedClassroomReuse(args: {
     ) {
       return review()
     }
+    if (suggestions.suggestionSet.suggestions.length === 0) return ready()
 
     const areas = suggestions.suggestionSet.suggestions
       .map((suggestion) => suggestion.area)
@@ -343,7 +327,7 @@ export async function prepareArchivedClassroomReuse(args: {
   }
 
   const supabase = getServiceRoleClient()
-  const [versionResult, classDaysResult] = await Promise.all([
+  const [versionResult, lessonProvenanceResult] = await Promise.all([
     supabase
       .from('course_blueprint_versions')
       .select('course_blueprint_id,source_draft_revision,snapshot_json')
@@ -351,13 +335,14 @@ export async function prepareArchivedClassroomReuse(args: {
       .eq('course_blueprint_id', blueprint.id)
       .single(),
     supabase
-      .from('class_days')
-      .select('id', { count: 'exact', head: true })
-      .eq('classroom_id', args.classroomId),
+      .from('lesson_plans')
+      .select('source_artifact_id')
+      .eq('classroom_id', args.classroomId)
+      .not('source_artifact_id', 'is', null),
   ])
   if (versionResult.error || !versionResult.data) return review()
-  if (classDaysResult.error) {
-    return { ok: false, status: 500, error: 'Failed to inspect classroom calendar' }
+  if (lessonProvenanceResult.error) {
+    return { ok: false, status: 500, error: 'Failed to inspect lesson provenance' }
   }
 
   const baseVersion =
@@ -373,21 +358,21 @@ export async function prepareArchivedClassroomReuse(args: {
     baseVersion,
     currentBlueprint,
     currentClassroom,
-    classDayCount: classDaysResult.count ?? 0,
+    appliedLessonArtifactIds: new Set(
+      (lessonProvenanceResult.data || [])
+        .map((lesson) => lesson.source_artifact_id)
+        .filter((id): id is string => typeof id === 'string'),
+    ),
   })
 
-  if (
-    !classification.classroomChanged
-    || classification.currentCourseMatchesClassroom
-  ) {
-    return ready()
-  }
-  if (
-    classification.blueprintChanged
-    || blueprint.authority_mode === 'repository'
-  ) {
-    return review()
-  }
+  const decision = decideArchivedClassroomReuse({
+    blueprintChanged: classification.blueprintChanged,
+    classroomChanged: classification.classroomChanged,
+    authorityMode:
+      blueprint.authority_mode === 'repository' ? 'repository' : 'pika',
+  })
+  if (decision === 'ready') return ready()
+  if (decision === 'review') return review()
 
   const areas = changedReusableAreas(
     classification.classroomBaseline,
