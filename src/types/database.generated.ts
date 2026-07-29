@@ -4720,11 +4720,7 @@ export type Database = {
         }
       }
       archived_classroom_blueprint_snapshot_from_plan: {
-        Args: {
-          p_blueprint_id: string
-          p_draft_revision: number
-          p_plan: Json
-        }
+        Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
         Returns: Json
       }
       begin_classroom_archive_compaction: {
