@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Backported student classwork test isolation
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5.6 Terra (medium) - this is a localized test-only cache-isolation correction with no runtime behavior change.
-
-**Completed:**
-- Reset the student assignment, material, and survey request-cache namespaces before every `StudentAssignmentsTab` test.
-- Removed the obsolete workaround that expected an already-viewed assignment to open its instructions modal automatically.
-- Aligned `main` with the deterministic test behavior already proven on `production`; no application, schema, grading, or deployment behavior changed.
-
-**Validation:**
-- `pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx` (1 file / 12 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `git diff --check`
-
-**Remaining:**
-- Require exact-head PR CI and normal protected merge into `main`.
-
 ## 2026-07-22 — Hardened Tests list read states
 
 **Risk profile:** workspace-state
@@ -1361,3 +1341,41 @@ service-role Blueprint capture.
 **Remaining:**
 - Apply the contract incrementally when Blueprint and other product surfaces
   are deliberately revised.
+
+## 2026-07-29 — Course Blueprint deletion control
+
+**Risk profile:** none — teacher-owned Blueprint UI over the existing
+ownership-checked deletion endpoint.
+
+**Completed:**
+- Added a destructive Course Blueprint action to the desktop action bar and
+  mobile overflow menu.
+- Added confirmation copy that distinguishes unlinked Blueprints from linked
+  Blueprints, whose classrooms remain intact while their Blueprint connection
+  is removed.
+- Bound each confirmation to the exact loaded Blueprint and suppress deletion
+  while a newly selected Blueprint is loading, preventing stale-detail deletion
+  races.
+- Hid deletion while repository authority is active and added the matching
+  server-side 409 guard; teachers can switch authority back to Pika before
+  deleting.
+- Kept the Blueprint list, selected detail, route, and request cache consistent
+  after deletion.
+- Added component coverage for confirmation, endpoint invocation, cache
+  invalidation, route cleanup, selecting the next Blueprint, stale selection,
+  and repository authority. Added server coverage for the repository guard.
+
+**Validation:**
+- Full pre-review Vitest suite: 452 files / 3,937 tests.
+- Post-review focused suite: 2 files / 23 tests.
+- Production build, TypeScript, Pika audit, and diff checks passed.
+- Visually verified desktop and mobile layouts, light and dark themes, default,
+  overflow-menu, and confirmation states. The student role safely redirects
+  away from the teacher-only route.
+- Independent review identified and the implementation resolved the
+  stale-detail deletion race and repository-authority bypass.
+
+**Remaining:**
+- Complete targeted re-review and exact-head CI, then merge and release the
+  deletion control.
+- Use the released control to remove the temporary production smoke Blueprint.

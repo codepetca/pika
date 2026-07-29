@@ -366,6 +366,13 @@ export async function updateCourseBlueprint(
 export async function deleteCourseBlueprint(teacherId: string, blueprintId: string) {
   const ownership = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
   if (!ownership.ok) return ownership
+  if (ownership.blueprint.authority_mode === 'repository') {
+    return {
+      ok: false as const,
+      status: 409,
+      error: 'This Blueprint is repository-managed. Switch to Pika as Editor before deleting it.',
+    }
+  }
 
   const supabase = getSupabase()
   const { error } = await supabase.from('course_blueprints').delete().eq('id', blueprintId)
