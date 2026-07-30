@@ -94,7 +94,7 @@ describe('CreateClassroomModal', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'From Course Blueprint' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'From course blueprint' }))
   }
 
   it('keeps the primary Next path as a blank-classroom flow', async () => {
@@ -114,7 +114,7 @@ describe('CreateClassroomModal', () => {
     expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
   })
 
-  it('routes From Blueprint through a separate source step before calendar selection', async () => {
+  it('routes From course blueprint through a separate source step before calendar selection', async () => {
     renderModal()
 
     await openBlueprintSourceStep()
@@ -261,14 +261,27 @@ describe('CreateClassroomModal', () => {
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    renderModal({ initialBlueprintId: mockBlueprint.id, onSuccess })
+    renderModal({
+      presetBlueprint: { id: mockBlueprint.id, title: mockBlueprint.title },
+      onSuccess,
+    })
 
     fireEvent.change(getClassroomNameInput(), {
       target: { value: 'Computer Science 11 - Period 2' },
     })
 
+    expect(screen.getByText('Course Blueprint')).toBeInTheDocument()
+    expect(screen.getByText(mockBlueprint.title)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Choose classroom creation path' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(await screen.findByRole('combobox', { name: /course blueprint/i })).toHaveValue(mockBlueprint.id)
+    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getClassroomNameInput()).toHaveValue('Computer Science 11 - Period 2')
+    expect(screen.getByText(mockBlueprint.title)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
@@ -285,8 +298,10 @@ describe('CreateClassroomModal', () => {
     expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Computer Science 11 - Period 2' })
   })
 
-  it('preserves the preselected blueprint flow when launched from the blueprints page', async () => {
-    renderModal({ initialBlueprintId: mockBlueprint.id })
+  it('locks a preset blueprint when launched from the blueprints page', async () => {
+    renderModal({
+      presetBlueprint: { id: mockBlueprint.id, title: mockBlueprint.title },
+    })
 
     fireEvent.change(getClassroomNameInput(), {
       target: { value: 'Computer Science 11 - Period 2' },
@@ -294,8 +309,7 @@ describe('CreateClassroomModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    const blueprintSelect = await screen.findByRole('combobox', { name: /course blueprint/i })
-    expect(blueprintSelect).toHaveValue(mockBlueprint.id)
-    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
+    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
   })
 })

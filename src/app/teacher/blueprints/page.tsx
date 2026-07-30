@@ -163,7 +163,10 @@ export default function TeacherBlueprintsPage() {
   const [loadingList, setLoadingList] = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
-  const [showCreateClassroom, setShowCreateClassroom] = useState(false)
+  const [classroomBlueprintPreset, setClassroomBlueprintPreset] = useState<{
+    id: string
+    title: string
+  } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<BlueprintDeleteTarget | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState<EditorTab>('overview')
@@ -859,6 +862,16 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
+  function openCreateClassroom() {
+    if (!selectedBlueprintId) return
+    const blueprint = blueprints.find((candidate) => candidate.id === selectedBlueprintId)
+    if (!blueprint) return
+    setClassroomBlueprintPreset({
+      id: blueprint.id,
+      title: blueprint.title,
+    })
+  }
+
   return (
     <PageLayout width="wide">
       <PageActionBar
@@ -874,7 +887,7 @@ export default function TeacherBlueprintsPage() {
           { id: 'import-package', label: 'Import Course Package', onSelect: () => importInputRef.current?.click() },
           ...(selectedBlueprintId
             ? [
-                { id: 'create-classroom', label: 'Use for Classroom', primary: true, onSelect: () => setShowCreateClassroom(true) },
+                { id: 'create-classroom', label: 'Use for Classroom', primary: true, onSelect: openCreateClassroom },
                 { id: 'export-package', label: 'Export Course Package', onSelect: handleExport },
                 ...(plannedSite.published && plannedSite.slug
                   ? [{ id: 'open-planned-site', label: 'Open Planned Site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
@@ -1541,11 +1554,11 @@ export default function TeacherBlueprintsPage() {
       />
 
       <CreateClassroomModal
-        isOpen={showCreateClassroom}
-        onClose={() => setShowCreateClassroom(false)}
-        initialBlueprintId={selectedBlueprintId}
+        isOpen={classroomBlueprintPreset !== null}
+        onClose={() => setClassroomBlueprintPreset(null)}
+        presetBlueprint={classroomBlueprintPreset}
         onSuccess={(classroom) => {
-          setShowCreateClassroom(false)
+          setClassroomBlueprintPreset(null)
           router.push(`/classrooms/${classroom.id}?tab=attendance`)
         }}
       />

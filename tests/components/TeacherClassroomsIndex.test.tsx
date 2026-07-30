@@ -14,13 +14,13 @@ const push = vi.hoisted(() => vi.fn())
 vi.mock('@/components/CreateClassroomModal', () => ({
   CreateClassroomModal: ({
     isOpen,
-    initialBlueprintId,
+    presetBlueprint,
   }: {
     isOpen: boolean
-    initialBlueprintId?: string | null
+    presetBlueprint?: { id: string; title: string } | null
   }) => isOpen ? (
     <div role="dialog" data-testid="create-classroom-modal">
-      Blueprint: {initialBlueprintId || 'none'}
+      Blueprint: {presetBlueprint?.id || 'none'} ({presetBlueprint?.title || 'untitled'})
     </div>
   ) : null,
 }))
@@ -188,7 +188,7 @@ describe('TeacherClassroomsIndex', () => {
       },
     ))
     expect(await screen.findByTestId('create-classroom-modal')).toHaveTextContent(
-      'Blueprint: 20000000-0000-4000-8000-000000000002',
+      'Blueprint: 20000000-0000-4000-8000-000000000002 (Reusable course)',
     )
   })
 
