@@ -313,11 +313,16 @@ The teacher Archived view combines two representations without pretending they h
 semantics:
 
 - `archived_hot` classrooms remain ordinary classroom rows and retain open and restore controls.
+  **Use again** prepares reusable course content through the Course Blueprint workflow, then opens
+  normal classroom creation. It never copies students, submissions, grades, attendance, or other
+  runtime history. Blueprint capture/linking and classroom-only promotion are classroom-locked
+  transactions that recheck `archived_at`, ownership, lineage, and structural revision.
   Permanent removal is not available through the classroom route or teacher UI; future hot-data
   removal must run only through the verified compaction state machine.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
   **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
-  classroom routes until the archive is restored to `archived_hot`.
+  classroom routes until the archive is restored to `archived_hot`; **Use again** is therefore
+  unavailable while the classroom remains cold.
 
 `GET /api/teacher/classrooms?archived=true` returns both lists. The cold list is validated against
 the shared classroom-lifecycle Zod contract. During a backward-compatible rollout, a missing

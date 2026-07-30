@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, ConfirmDialog, FormField, Input } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -211,6 +211,8 @@ export default function TeacherBlueprintsPage() {
   selectedBlueprintIdRef.current = selectedBlueprintId
   const preferredBlueprintId = searchParams.get('blueprint')
   const fromClassroomId = searchParams.get('fromClassroom')
+  const reviewClassroomId = searchParams.get('reviewClassroom')
+  const openedReviewClassroomRef = useRef<string | null>(null)
 
   const counts = useMemo(() => {
     if (!detail) return null
@@ -654,7 +656,9 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
-  async function loadMergeSuggestions(classroomId = mergeClassroomId) {
+  const loadMergeSuggestions = useCallback(async (
+    classroomId = mergeClassroomId,
+  ) => {
     if (!selectedBlueprintId || !classroomId) return
     setMergeLoading(true)
     setError('')
@@ -676,7 +680,33 @@ export default function TeacherBlueprintsPage() {
     } finally {
       setMergeLoading(false)
     }
-  }
+  }, [mergeClassroomId, selectedBlueprintId])
+
+  useEffect(() => {
+    if (
+      !reviewClassroomId
+      || !preferredBlueprintId
+      || selectedBlueprintId !== preferredBlueprintId
+      || detail?.id !== preferredBlueprintId
+      || !detail.linked_classrooms.some(
+        (classroom) => classroom.id === reviewClassroomId,
+      )
+      || openedReviewClassroomRef.current === reviewClassroomId
+    ) {
+      return
+    }
+
+    openedReviewClassroomRef.current = reviewClassroomId
+    setMergeClassroomId(reviewClassroomId)
+    setActiveTab('sync')
+    loadMergeSuggestions(reviewClassroomId)
+  }, [
+    detail,
+    loadMergeSuggestions,
+    preferredBlueprintId,
+    reviewClassroomId,
+    selectedBlueprintId,
+  ])
 
   async function applyMergeSuggestions() {
     if (!selectedBlueprintId || !mergeClassroomId || !mergeSuggestions) return

@@ -34,6 +34,7 @@ import {
   fetchTeacherClassrooms,
   invalidateTeacherClassrooms,
 } from '@/lib/teacher-classrooms-client'
+import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 
 interface Props {
@@ -48,17 +49,26 @@ type PendingAction =
   | { mode: 'restore-cold'; archive: ClassroomColdArchiveSummary }
   | null
 
+type ReuseReview = {
+  classroomTitle: string
+  reviewUrl: string
+} | null
+
 export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
   const coldRestoreOperationIdsRef = useRef(new Map<string, string>())
+  const reuseOperationIdsRef = useRef(new Map<string, string>())
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
   const [coldArchives, setColdArchives] = useState<ClassroomColdArchiveSummary[]>([])
   const [coldArchiveRestoreEnabled, setColdArchiveRestoreEnabled] = useState(false)
   const [view, setView] = useState<ViewMode>('active')
   const [showCreate, setShowCreate] = useState(false)
+  const [reuseBlueprintId, setReuseBlueprintId] = useState<string | null>(null)
+  const [reuseReview, setReuseReview] = useState<ReuseReview>(null)
+  const [reusingClassroomId, setReusingClassroomId] = useState<string | null>(null)
   const [isEditingClassrooms, setIsEditingClassrooms] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -296,6 +306,49 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }
 
+  async function prepareArchivedClassroomAgain(classroom: Classroom) {
+    let operationId = reuseOperationIdsRef.current.get(classroom.id)
+    if (!operationId) {
+      operationId = crypto.randomUUID()
+      reuseOperationIdsRef.current.set(classroom.id, operationId)
+    }
+
+    setReusingClassroomId(classroom.id)
+    setError('')
+    try {
+      const response = await fetch(
+        `/api/teacher/classrooms/${classroom.id}/use-again`,
+        {
+          method: 'POST',
+          headers: { 'Idempotency-Key': operationId },
+        },
+      )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to prepare this course')
+      }
+      if (data.status === 'review_required') {
+        setReuseReview({
+          classroomTitle: classroom.title,
+          reviewUrl: data.review_url,
+        })
+        return
+      }
+      if (data.status !== 'ready' || typeof data.blueprint_id !== 'string') {
+        throw new Error('Failed to prepare this course')
+      }
+
+      reuseOperationIdsRef.current.delete(classroom.id)
+      invalidateTeacherBlueprints()
+      setReuseBlueprintId(data.blueprint_id)
+      setShowCreate(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to prepare this course')
+    } finally {
+      setReusingClassroomId(null)
+    }
+  }
+
   async function handleConfirmAction() {
     if (!pendingAction) return
 
@@ -467,13 +520,26 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           </div>
                         )}
                       </button>
-                      <div className="flex items-center lg:justify-end">
+                      <div className="flex items-center gap-2 lg:justify-end">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="xs"
+                          onClick={() => prepareArchivedClassroomAgain(c)}
+                          loading={reusingClassroomId === c.id}
+                          disabled={
+                            openingClassroomId !== null
+                            || (reusingClassroomId !== null && reusingClassroomId !== c.id)
+                          }
+                        >
+                          {reusingClassroomId === c.id ? 'Preparing' : 'Use again'}
+                        </Button>
                         <Button
                           type="button"
                           variant="surface"
                           size="xs"
                           onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
-                          disabled={openingClassroomId !== null}
+                          disabled={openingClassroomId !== null || reusingClassroomId !== null}
                         >
                           Restore
                         </Button>
@@ -558,9 +624,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
       <CreateClassroomModal
         isOpen={showCreate}
-        onClose={() => setShowCreate(false)}
+        initialBlueprintId={reuseBlueprintId}
+        onClose={() => {
+          setShowCreate(false)
+          setReuseBlueprintId(null)
+        }}
         onSuccess={(created) => {
           setShowCreate(false)
+          setReuseBlueprintId(null)
           setActiveClassrooms((prev) => [created, ...prev])
           openClassroom(created)
         }}
@@ -576,6 +647,21 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         isCancelDisabled={isProcessing}
         onCancel={() => (isProcessing ? null : setPendingAction(null))}
         onConfirm={handleConfirmAction}
+      />
+
+      <ConfirmDialog
+        isOpen={reuseReview !== null}
+        title={`Review changes to ${reuseReview?.classroomTitle || 'this course'}?`}
+        description="Both versions changed. Review which course changes to keep."
+        confirmLabel="Review changes"
+        cancelLabel="Cancel"
+        onCancel={() => setReuseReview(null)}
+        onConfirm={() => {
+          if (!reuseReview) return
+          reuseOperationIdsRef.current.clear()
+          router.push(reuseReview.reviewUrl)
+          setReuseReview(null)
+        }}
       />
     </PageLayout>
   )

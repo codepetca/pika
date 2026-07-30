@@ -37,6 +37,7 @@ function makeSupabaseFromQueues(queues: Record<string, any[]>) {
 
 let mockSupabase: any
 const mockAssertTeacherCanMutateClassroom = vi.fn()
+const mockAssertTeacherOwnsClassroom = vi.fn()
 const mockLoadClassroomBlueprintSource = vi.fn()
 
 vi.mock('@/lib/supabase', () => ({
@@ -45,6 +46,7 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/server/classrooms', () => ({
   assertTeacherCanMutateClassroom: (...args: any[]) => mockAssertTeacherCanMutateClassroom(...args),
+  assertTeacherOwnsClassroom: (...args: any[]) => mockAssertTeacherOwnsClassroom(...args),
 }))
 
 vi.mock('@/lib/server/classroom-blueprint-source', () => ({
@@ -55,6 +57,7 @@ describe('course-blueprints server helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAssertTeacherCanMutateClassroom.mockReset()
+    mockAssertTeacherOwnsClassroom.mockReset()
     mockLoadClassroomBlueprintSource.mockReset()
   })
 
@@ -1060,6 +1063,118 @@ describe('course-blueprints server helpers', () => {
     expect(mockSupabase.from).not.toHaveBeenCalledWith('test_responses')
     expect(mockSupabase.from).not.toHaveBeenCalledWith('attendance')
     expect(mockSupabase.from).not.toHaveBeenCalledWith('announcements')
+  })
+
+  it('copies an archived classroom without asking the capture RPC to mutate it', async () => {
+    const operationId = '10000000-0000-4000-8000-000000000020'
+    const blueprintId = '20000000-0000-4000-8000-000000000020'
+    mockAssertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true,
+      classroom: {
+        id: 'c-archived',
+        teacher_id: 'teacher-1',
+        archived_at: '2026-07-01T00:00:00.000Z',
+      },
+    })
+    mockLoadClassroomBlueprintSource.mockResolvedValue({
+      ok: true,
+      source: {
+        classroom: {
+          id: 'c-archived',
+          title: 'Archived course',
+          blueprint_source_revision: 9,
+          course_overview_markdown: '',
+          course_outline_markdown: '',
+          actual_site_config: {
+            ...DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+            tests: false,
+            announcements: false,
+            lesson_plan_scope: 'all',
+          },
+        },
+        resources_markdown: '',
+        assignments: [],
+        tests: [],
+        lesson_templates: [],
+        materials: [],
+        surveys: [],
+      },
+    })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: blueprintId,
+            teacher_id: 'teacher-1',
+            content_revision: 1,
+            title: 'Archived course',
+            overview_markdown: '',
+            outline_markdown: '',
+            resources_markdown: '',
+            planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+          },
+          error: null,
+        }),
+        makeQueryBuilder({ data: { content_revision: 1 }, error: null }),
+      ],
+      course_blueprint_assignments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_assessments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({ data: [], error: null })],
+      classrooms: [
+        makeQueryBuilder({
+          data: [{ id: 'c-archived', title: 'Archived course' }],
+          error: null,
+        }),
+      ],
+    })
+    mockSupabase.rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        status: 201,
+        operation_id: operationId,
+        operation_type: 'import',
+        replayed: false,
+        blueprint_id: blueprintId,
+        result_content_revision: 1,
+        counts: {
+          assignments: 0,
+          assessments: 0,
+          lesson_templates: 0,
+          materials: 0,
+          surveys: 0,
+        },
+      },
+      error: null,
+    })
+
+    const result = await createCourseBlueprintFromClassroom(
+      'teacher-1',
+      'c-archived',
+      {},
+      { operationId, copyOnly: true },
+    )
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      blueprint: expect.objectContaining({ id: blueprintId }),
+    }))
+    expect(mockAssertTeacherCanMutateClassroom).not.toHaveBeenCalled()
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'create_archived_classroom_blueprint_atomic',
+      expect.objectContaining({
+        p_operation_id: operationId,
+        p_source_classroom_id: 'c-archived',
+        p_expected_source_revision: 9,
+        p_plan: expect.objectContaining({
+          blueprint: expect.objectContaining({
+            planned_site_config: {
+              ...DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+              tests: false,
+            },
+          }),
+        }),
+      }),
+    )
   })
 
   it('records classroom-link failure without a best-effort blueprint delete', async () => {
