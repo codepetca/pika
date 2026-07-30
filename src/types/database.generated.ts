@@ -5339,7 +5339,15 @@ export type Database = {
         Args: { p_classroom_id: string }
         Returns: undefined
       }
+      classroom_purge_normalize_percent_escapes: {
+        Args: { p_value: string }
+        Returns: string
+      }
       classroom_purge_percent_decode: {
+        Args: { p_value: string }
+        Returns: string
+      }
+      classroom_purge_percent_encode_path: {
         Args: { p_value: string }
         Returns: string
       }
@@ -5358,6 +5366,10 @@ export type Database = {
           p_storage_path: string
         }
         Returns: boolean
+      }
+      classroom_purge_url_candidates: {
+        Args: { p_value: string }
+        Returns: string[]
       }
       cleanup_assignment_doc_save_operations: {
         Args: { p_completed_before: string }

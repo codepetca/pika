@@ -349,7 +349,8 @@ Migrations `115_hot_archived_classroom_purge.sql`,
 `116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
 `117_hot_archived_classroom_purge_review_hardening.sql`,
 `118_hot_archived_classroom_purge_reservation_lifetime.sql`,
-and `119_hot_archived_classroom_purge_canonical_path_matching.sql`,
+`119_hot_archived_classroom_purge_canonical_path_matching.sql`, and
+`120_hot_archived_classroom_purge_isolated_url_matching.sql`,
 `src/lib/server/classroom-purge.ts`, and
 `/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
 classrooms. The confirmation surface states that deletion cannot be undone and removes all student
@@ -402,6 +403,11 @@ Migration 119 compares decoded JSON string scalars and once-percent-decoded URL 
 serialized JSON text. Valid managed paths containing quotes, control characters, percent escapes,
 or other URL-encoded characters therefore participate in both the external-sharing scan and the
 active writer reservation without relying on representation-sensitive substring matching.
+
+Migration 120 prevents unrelated malformed escapes in rich text from poisoning that matching. It
+compares a canonical percent-encoded path against normalized field text without decoding the field,
+then decodes only isolated URL candidates as a compatibility fallback. Invalid `%FF` or `%00` text
+elsewhere in the same markdown value cannot hide a later managed URL.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The

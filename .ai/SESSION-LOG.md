@@ -1491,10 +1491,20 @@ classroom lineage.
   managed files, preserves two shared files plus the Blueprint and accounts, and redacts every
   terminal path. The fixture, 144-relationship schema audit, 32 focused tests, TypeScript, lint,
   generated-type check, diff check, and Pika audit pass.
+- Targeted security review found that invalid `%FF` or `%00` escapes elsewhere in one markdown
+  field could poison migration 119's whole-field compatibility decode. With explicit authorization
+  for one further remediation batch, migration
+  `120_hot_archived_classroom_purge_isolated_url_matching.sql` now compares a canonically encoded
+  path against normalized field text without decoding it and limits decoding to isolated URLs.
+- With fresh exact one-time local authorization, migration 120 applied successfully and local
+  history/types align through 120. The real Storage fixture proves poisoned-field encoded sharing
+  and reservation behavior while still deleting eight files, preserving two shared files plus the
+  Blueprint/accounts, and redacting terminal paths. The fixture, 144-relationship schema audit,
+  37 focused tests, TypeScript, lint, generated-type check, diff check, and Pika audit pass.
 
 **Remaining:**
-- Production migration history is aligned through 116. Migrations 117 through 119 are hard deployment
+- Production migration history is aligned through 116. Migrations 117 through 120 are hard deployment
   prerequisites and have not been authorized or applied outside local Supabase.
 - The application feature is still only in draft PR #963 and has not been deployed. No staging
-  migration, production migrations 117-119, application deployment, classroom purge, or Storage
+  migration, production migrations 117-120, application deployment, classroom purge, or Storage
   deletion is authorized by the consumed local migration permission.

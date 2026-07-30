@@ -188,7 +188,8 @@ async function main() {
         teacher_id: teacher.id,
         title: `Purge fixture Blueprint ${suffix}`,
         overview_markdown:
-          `Preserved shared upload: ${sharedBlueprintImageUrl}\n`
+          'Unrelated malformed escape: https://example.invalid/%FF\n'
+          + `Preserved shared upload: ${sharedBlueprintImageUrl}\n`
           + `Preserved encoded upload: ${encodedSharedImageUrl}`,
       }),
     )
@@ -551,12 +552,13 @@ async function main() {
       .from('course_blueprints')
       .update({
         resources_markdown:
-          `Encoded path must be blocked during purge: ${encodedDeleteDocumentUrl}`,
+          'Unrelated NUL escape: https://example.invalid/%00\n'
+          + `Encoded path must be blocked during purge: ${encodedDeleteDocumentUrl}`,
       })
       .eq('id', blueprintId)
     assertFixture(
       encodedReservedReference.error?.message.includes('being permanently deleted'),
-      'Blueprint writer acquired a URL-encoded path reserved for deletion',
+      'Poisoned Blueprint field acquired a URL-encoded path reserved for deletion',
     )
     const deletedReservations = dataOrThrow(
       'read post-delete path reservation',
