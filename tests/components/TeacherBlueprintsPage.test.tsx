@@ -33,7 +33,17 @@ vi.mock('@/components/CreateBlueprintModal', () => ({
 }))
 
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: () => null,
+  CreateClassroomModal: ({
+    isOpen,
+    presetBlueprint,
+  }: {
+    isOpen: boolean
+    presetBlueprint?: { id: string; title: string } | null
+  }) => isOpen ? (
+    <div role="dialog" data-testid="create-classroom-modal">
+      Blueprint: {presetBlueprint?.id || 'none'} ({presetBlueprint?.title || 'untitled'})
+    </div>
+  ) : null,
 }))
 
 vi.mock('@/components/Spinner', () => ({
@@ -275,6 +285,35 @@ describe('TeacherBlueprintsPage', () => {
 
     expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
     expect(screen.queryByDisplayValue('Blueprint Two')).toBeNull()
+  })
+
+  it('locks the selected Blueprint for classroom creation while detail is loading', async () => {
+    let resolveDelayedDetail: ((response: Response) => void) | undefined
+    const delayedDetail = new Promise<Response>((resolve) => {
+      resolveDelayedDetail = resolve
+    })
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return delayedDetail
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Use for Classroom' }))
+
+    expect(await screen.findByTestId('create-classroom-modal')).toHaveTextContent(
+      'Blueprint: b-2 (Blueprint Two)',
+    )
+
+    await act(async () => {
+      resolveDelayedDetail?.(jsonResponse({ blueprint: blueprintDetail }))
+      await delayedDetail
+    })
   })
 
   it('invalidates blueprint caches before reloading after saving metadata', async () => {
