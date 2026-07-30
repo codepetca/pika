@@ -5,12 +5,18 @@ function storageAdapter(args: {
   removeError?: unknown
   listError?: unknown
   listedObjects?: Array<{ name: string }>
+  listedPages?: Array<Array<{ name: string }>>
 }) {
   const remove = vi.fn().mockResolvedValue({ error: args.removeError || null })
-  const list = vi.fn().mockResolvedValue({
-    data: args.listedObjects || [],
+  const list = vi.fn().mockImplementation(async (
+    _path: string,
+    options: { limit: number; offset: number },
+  ) => ({
+    data: args.listedPages
+      ? args.listedPages[Math.floor(options.offset / options.limit)] || []
+      : args.listedObjects || [],
     error: args.listError || null,
-  })
+  }))
   const from = vi.fn(() => ({ remove, list }))
   return { adapter: { from }, from, remove, list }
 }
@@ -29,6 +35,7 @@ describe('classroom purge storage cleanup', () => {
     expect(mock.remove).toHaveBeenCalledWith(['teacher/classroom/submission.png'])
     expect(mock.list).toHaveBeenCalledWith('teacher/classroom', {
       limit: 100,
+      offset: 0,
       search: 'submission.png',
     })
   })
@@ -54,6 +61,26 @@ describe('classroom purge storage cleanup', () => {
       'submission-images',
       'teacher/classroom/image.png',
     )).rejects.toThrow('storage_delete_not_verified')
+  })
+
+  it('checks every matching page before declaring the exact key absent', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      name: `image-${index}.png`,
+    }))
+    const mock = storageAdapter({
+      listedPages: [firstPage, [{ name: 'image.png' }]],
+    })
+
+    await expect(deleteClassroomPurgeStorageObject(
+      mock.adapter,
+      'submission-images',
+      'teacher/classroom/image.png',
+    )).rejects.toThrow('storage_delete_not_verified')
+    expect(mock.list).toHaveBeenLastCalledWith('teacher/classroom', {
+      limit: 100,
+      offset: 100,
+      search: 'image.png',
+    })
   })
 
   it('surfaces retryable delete errors without checking a different object', async () => {

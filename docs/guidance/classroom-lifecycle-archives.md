@@ -345,39 +345,48 @@ data.
 
 ### Permanent Hot-Archive Deletion
 
-Migrations `115_hot_archived_classroom_purge.sql` and
-`116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
+Migrations `115_hot_archived_classroom_purge.sql`,
+`116_hot_archived_classroom_purge_trigger_reconciliation.sql`, and
+`117_hot_archived_classroom_purge_review_hardening.sql`,
 `src/lib/server/classroom-purge.ts`, and
 `/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
 classrooms. The confirmation surface states that deletion cannot be undone and removes all student
 work, submissions, tests, grades, attendance and logs, feedback, roster data, and uploads. Its
 impact summary reports students, exact classroom-owned relational rows, managed files and bytes,
-verified archives, and related Gradex extracts. Course Blueprints, immutable Blueprint Versions,
-and user accounts remain outside purge ownership and are preserved.
+verified archives, related Gradex extracts, and interrupted archive/Gradex uploads still represented
+only by operational cleanup ledgers. Course Blueprints, immutable Blueprint Versions, and user
+accounts remain outside purge ownership and are preserved.
 
 The begin transaction locks the classroom through the shared lifecycle advisory lock, rejects
-active archive, restore, compaction, grading, repository review, Blueprint proposal, or Blueprint
-editing work, and installs a durable fence. The fence freezes every table in
-`classroom_archive_resource_contract` and the non-owning archive/Blueprint operation tables, closing
-the race between conflict preflight and operation creation. It then snapshots exact resource row
-membership. Finalization is impossible until the application has staged and sealed a complete
-managed-object inventory.
+active archive, restore, compaction, storage-cleanup lease, grading, repository review, Blueprint
+proposal, or Blueprint editing work, and installs a durable fence. The fence freezes every table in
+`classroom_archive_resource_contract`, the non-owning archive/Blueprint operation tables, and the
+archive/Gradex cleanup ledgers, closing the race between conflict preflight and operation creation.
+It then snapshots exact resource row membership. Finalization is impossible until the application
+has staged and sealed a complete managed-object inventory.
 
 Each object in `assignment-artifacts`, `submission-images`, `test-documents`,
 `classroom-archives`, and `gradex-analytics-extracts` receives a retryable lease. A worker deletes
-only the exact canonical key, verifies exact absence through a bucket-directory listing, and then
-marks the object terminal
-while redacting its raw path. A conservative database reconciliation preserves any path referenced
-outside the purge membership or by reusable Blueprint data. Once every object is deleted or
-explicitly preserved, one transaction rechecks the source revision and active-operation fence,
-reconciles archive/extract and storage-cleanup ledgers, nulls or expires non-owning classroom
-workflow references, and deletes the exact relational membership child-first. Count drift rolls the
-transaction back.
+only the exact canonical key, verifies exact absence across every matching bucket-directory page,
+and then marks the object terminal while redacting its raw path. A shared/exclusive advisory-lock
+barrier serializes managed-reference writers with the pre-seal and pre-claim sharing checks.
+Classroom and Blueprint writers cannot acquire a path reserved for deletion; a newly shared path
+moves only from deletion to redacted preservation, never in the opposite direction. Once every
+object is deleted or explicitly preserved, one transaction rechecks the source revision and
+active-operation fence, reconciles archive/extract and storage-cleanup ledgers, nulls or expires
+non-owning classroom workflow references, and deletes the exact relational membership child-first.
+Count drift rolls the transaction back.
 
 The finalizer sets a transaction-local purge marker. Migration 116 scopes existing submitted-work
 integrity and routine storage-cleanup triggers to normal writes, allowing only the already-fenced,
 exact purge membership to be deleted without weakening submission protection elsewhere or creating
 duplicate cleanup jobs.
+
+Migration 117 closes independent-review findings before application rollout. It treats cleanup-only
+archive and Gradex objects as sealed purge inventory, blocks live cleanup workers, rechecks shared
+classroom/Blueprint and external operational references immediately before deletion, redacts
+preserved paths, and binds storage-reference writers to the same transaction barrier. The
+destructive local database fixture and teacher/student Playwright matrix are required CI gates.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The

@@ -176,4 +176,24 @@ describe('teacher classroom purge routes', () => {
 
     expect(response.status).toBe(404)
   })
+
+  it('does not tick an operation through a different classroom URL', async () => {
+    const otherClassroomId = '40000000-0000-4000-8000-000000000001'
+    const response = await tickPurge(
+      new NextRequest(
+        `http://localhost/api/teacher/classrooms/${otherClassroomId}/purge/${OPERATION_ID}/tick`,
+        { method: 'POST' },
+      ),
+      {
+        params: Promise.resolve({
+          id: otherClassroomId,
+          operationId: OPERATION_ID,
+        }),
+      } as never,
+    )
+
+    expect(response.status).toBe(404)
+    expect(mocks.status).toHaveBeenCalledWith(TEACHER_ID, OPERATION_ID)
+    expect(mocks.tick).not.toHaveBeenCalled()
+  })
 })

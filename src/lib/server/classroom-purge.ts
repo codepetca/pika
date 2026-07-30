@@ -78,7 +78,7 @@ type PurgeStorageAdapter = {
     remove(paths: string[]): PromiseLike<{ error: unknown }>
     list(
       path: string,
-      options: { limit: number; search: string },
+      options: { limit: number; offset: number; search: string },
     ): PromiseLike<{
       data: Array<{ name: string }> | null
       error: unknown
@@ -193,9 +193,10 @@ async function readOperationalObjects(
 ): Promise<{
   archiveObjects: StorageObject[]
   gradexObjects: StorageObject[]
+  cleanupObjects: StorageObject[]
   bytes: number
 }> {
-  const [archives, extracts] = await Promise.all([
+  const [archives, extracts, operations] = await Promise.all([
     supabase
       .from('classroom_archives')
       .select('storage_bucket,storage_path,compressed_byte_size')
@@ -204,12 +205,58 @@ async function readOperationalObjects(
       .from('classroom_gradex_extracts')
       .select('storage_bucket,storage_path,compressed_byte_size')
       .eq('classroom_id', classroomId),
+    supabase
+      .from('classroom_archive_operations')
+      .select('id,storage_bucket,storage_path,compressed_byte_size')
+      .eq('classroom_id', classroomId),
   ])
   if (archives.error) {
     throw new ClassroomPurgeError(archives.error.code, 'Could not inventory classroom archives', 500, true)
   }
   if (extracts.error) {
     throw new ClassroomPurgeError(extracts.error.code, 'Could not inventory Gradex extracts', 500, true)
+  }
+  if (operations.error) {
+    throw new ClassroomPurgeError(
+      operations.error.code,
+      'Could not inventory classroom storage operations',
+      500,
+      true,
+    )
+  }
+  const operationIds = (operations.data || []).map((row) => row.id)
+  const [archiveCleanup, gradexCleanup] = operationIds.length === 0
+    ? [
+        { data: [], error: null },
+        { data: [], error: null },
+      ]
+    : await Promise.all([
+        supabase
+          .from('classroom_archive_object_upload_cleanup')
+          .select('storage_bucket,storage_path,expected_byte_size,status')
+          .in('operation_id', operationIds)
+          .neq('status', 'deleted'),
+        supabase
+          .from('classroom_gradex_extract_cleanup')
+          .select('storage_bucket,storage_path,status')
+          .in('operation_id', operationIds)
+          .neq('status', 'deleted'),
+      ])
+  if (archiveCleanup.error) {
+    throw new ClassroomPurgeError(
+      archiveCleanup.error.code,
+      'Could not inventory interrupted classroom archive uploads',
+      500,
+      true,
+    )
+  }
+  if (gradexCleanup.error) {
+    throw new ClassroomPurgeError(
+      gradexCleanup.error.code,
+      'Could not inventory interrupted Gradex uploads',
+      500,
+      true,
+    )
   }
   const archiveObjects = (archives.data || []).map((row) => ({
     bucket: row.storage_bucket as 'classroom-archives',
@@ -219,9 +266,41 @@ async function readOperationalObjects(
     bucket: row.storage_bucket as 'gradex-analytics-extracts',
     path: row.storage_path,
   }))
-  const bytes = [...(archives.data || []), ...(extracts.data || [])]
-    .reduce((total, row) => total + Number(row.compressed_byte_size || 0), 0)
-  return { archiveObjects, gradexObjects, bytes }
+  const operationObjects = (operations.data || []).flatMap((row) => {
+    const bucket = purgeObjectSchema.shape.storage_bucket.safeParse(row.storage_bucket)
+    return bucket.success && row.storage_path
+      ? [{ bucket: bucket.data, path: row.storage_path }]
+      : []
+  })
+  const archiveCleanupObjects = (archiveCleanup.data || []).map((row) => ({
+    bucket: purgeObjectSchema.shape.storage_bucket.parse(row.storage_bucket),
+    path: row.storage_path,
+  }))
+  const gradexCleanupObjects = (gradexCleanup.data || []).map((row) => ({
+    bucket: purgeObjectSchema.shape.storage_bucket.parse(row.storage_bucket),
+    path: row.storage_path,
+  }))
+  const cleanupObjects = uniqueObjects([
+    ...operationObjects,
+    ...archiveCleanupObjects,
+    ...gradexCleanupObjects,
+  ])
+  const byteSizes = new Map<string, number>()
+  for (const row of [...(archives.data || []), ...(extracts.data || []), ...(operations.data || [])]) {
+    if (!row.storage_bucket || !row.storage_path) continue
+    byteSizes.set(
+      `${row.storage_bucket}\0${row.storage_path}`,
+      Number(row.compressed_byte_size || 0),
+    )
+  }
+  for (const row of archiveCleanup.data || []) {
+    byteSizes.set(
+      `${row.storage_bucket}\0${row.storage_path}`,
+      Number(row.expected_byte_size || 0),
+    )
+  }
+  const bytes = [...byteSizes.values()].reduce((total, size) => total + size, 0)
+  return { archiveObjects, gradexObjects, cleanupObjects, bytes }
 }
 
 async function readStableInventory(
@@ -252,6 +331,7 @@ async function readStableInventory(
       ...sourceObjects,
       ...operational.archiveObjects,
       ...operational.gradexObjects,
+      ...operational.cleanupObjects,
     ])
     const sizes = await Promise.all(sourceObjects.map(async (object) => {
       const value = await reader.readStorageObjectSize(object.bucket, object.path)
@@ -403,6 +483,10 @@ export async function startClassroomPurge(args: {
       })),
     })
   }
+  parseRpcResult(await rpc(supabase, 'reconcile_classroom_purge_object_sharing', {
+    p_operation_id: args.operationId,
+    p_teacher_id: args.teacherId,
+  }))
   parseRpcResult(await rpc(supabase, 'seal_classroom_purge_inventory', {
     p_operation_id: args.operationId,
     p_teacher_id: args.teacherId,
@@ -573,14 +657,21 @@ export async function deleteClassroomPurgeStorageObject(
   const separator = path.lastIndexOf('/')
   const directory = separator === -1 ? '' : path.slice(0, separator)
   const objectName = separator === -1 ? path : path.slice(separator + 1)
-  const verification = await bucket.list(directory, {
-    limit: 100,
-    search: objectName,
-  })
-  if (verification.error) throw verification.error
-  if ((verification.data || []).some((object) => object.name === objectName)) {
-    throw new Error('storage_delete_not_verified')
+  const pageSize = 100
+  for (let offset = 0; offset < 100_000; offset += pageSize) {
+    const verification = await bucket.list(directory, {
+      limit: pageSize,
+      offset,
+      search: objectName,
+    })
+    if (verification.error) throw verification.error
+    const page = verification.data || []
+    if (page.some((object) => object.name === objectName)) {
+      throw new Error('storage_delete_not_verified')
+    }
+    if (page.length < pageSize) return
   }
+  throw new Error('storage_delete_verification_exhausted')
 }
 
 export async function runClassroomPurgeSafetyNet(

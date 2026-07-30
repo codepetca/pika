@@ -168,6 +168,11 @@ Test password-based flows:
   retention, idempotent replay, fixture-row teardown, and clearing of the operation id from the
   retained one-way path fence. Its guard rejects non-loopback targets and non-local service-role
   credentials before any write.
+- The permanent-deletion CI fixture creates verified and interrupted archive/Gradex objects across
+  all five managed buckets, a shared Blueprint reference, submitted and graded student work, roster
+  and log data, then runs the real resumable purge. It proves cleanup-only objects are deleted,
+  reserved paths reject new classroom/Blueprint writers, shared paths and reusable accounts survive,
+  every terminal ledger path is redacted, and fixture teardown leaves no generated rows or objects.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

@@ -65,6 +65,9 @@ async function main() {
   const archiveId = randomUUID()
   const gradexOperationId = randomUUID()
   const gradexExtractId = randomUUID()
+  const failedArchiveOperationId = randomUUID()
+  const failedArchiveId = randomUUID()
+  const failedGradexOperationId = randomUUID()
   const now = new Date()
   const nowIso = now.toISOString()
   const priorIso = new Date(now.getTime() - 60_000).toISOString()
@@ -96,6 +99,21 @@ async function main() {
       bucket: 'gradex-analytics-extracts',
       path: `purge-fixture/${fixtureId}/gradex.tar.gz`,
       contentType: 'application/gzip',
+    },
+    {
+      bucket: 'classroom-archives',
+      path: `purge-fixture/${fixtureId}/interrupted-classroom.tar.gz`,
+      contentType: 'application/gzip',
+    },
+    {
+      bucket: 'gradex-analytics-extracts',
+      path: `purge-fixture/${fixtureId}/interrupted-gradex.tar.gz`,
+      contentType: 'application/gzip',
+    },
+    {
+      bucket: 'submission-images',
+      path: `purge-fixture/${fixtureId}/shared-blueprint.png`,
+      contentType: 'image/png',
     },
   ] as const
 
@@ -130,6 +148,12 @@ async function main() {
     const submissionImageUrl =
       `${supabaseUrl}/storage/v1/object/public/submission-images/`
       + storageObjects[1].path
+    const sharedBlueprintImageUrl =
+      `${supabaseUrl}/storage/v1/object/public/submission-images/`
+      + storageObjects[7].path
+    const testDocumentUrl =
+      `${supabaseUrl}/storage/v1/object/public/test-documents/`
+      + storageObjects[2].path
 
     dataOrThrow(
       'insert fixture Blueprint',
@@ -137,6 +161,7 @@ async function main() {
         id: blueprintId,
         teacher_id: teacher.id,
         title: `Purge fixture Blueprint ${suffix}`,
+        overview_markdown: `Preserved shared upload: ${sharedBlueprintImageUrl}`,
       }),
     )
     dataOrThrow(
@@ -148,7 +173,8 @@ async function main() {
         class_code: `PURGE-${suffix}`,
         archived_at: nowIso,
         source_blueprint_id: blueprintId,
-        course_overview_markdown: `Fixture upload: ${submissionImageUrl}`,
+        course_overview_markdown:
+          `Fixture upload: ${submissionImageUrl}\nShared: ${sharedBlueprintImageUrl}`,
       }),
     )
     dataOrThrow(
@@ -381,16 +407,94 @@ async function main() {
         delete_after: expiryIso,
       }),
     )
+    dataOrThrow(
+      'insert interrupted archive operation',
+      await supabase.from('classroom_archive_operations').insert({
+        id: failedArchiveOperationId,
+        teacher_id: teacher.id,
+        classroom_id: classroomId,
+        operation_type: 'export',
+        request_sha256: '1'.repeat(64),
+        status: 'failed',
+        source_revision: revision,
+        source_schema_migration: '117_hot_archived_classroom_purge_review_hardening',
+        source_app_commit: 'purge-fixture',
+        retention: {},
+        archive_id: failedArchiveId,
+        storage_bucket: 'classroom-archives',
+        storage_path: storageObjects[5].path,
+        error_code: 'fixture_interrupted_upload',
+        retryable: false,
+        snapshot_created_at: priorIso,
+        snapshot_expires_at: priorIso,
+        archive_format_version: 2,
+        source_contract_version: 2,
+        restore_contract_version: 2,
+      }),
+    )
+    dataOrThrow(
+      'insert interrupted archive upload cleanup',
+      await supabase.from('classroom_archive_object_upload_cleanup').insert({
+        operation_id: failedArchiveOperationId,
+        storage_bucket: 'classroom-archives',
+        storage_path: storageObjects[5].path,
+        expected_sha256: '2'.repeat(64),
+        expected_byte_size: 32,
+        status: 'pending',
+        next_attempt_at: expiryIso,
+      }),
+    )
+    dataOrThrow(
+      'insert interrupted Gradex operation',
+      await supabase.from('classroom_archive_operations').insert({
+        id: failedGradexOperationId,
+        teacher_id: teacher.id,
+        classroom_id: classroomId,
+        operation_type: 'gradex_extract',
+        request_sha256: '3'.repeat(64),
+        status: 'failed',
+        source_revision: revision,
+        source_schema_migration: '117_hot_archived_classroom_purge_review_hardening',
+        source_app_commit: 'purge-fixture',
+        retention: { delete_after: expiryIso },
+        archive_id: archiveId,
+        storage_bucket: 'gradex-analytics-extracts',
+        storage_path: storageObjects[6].path,
+        error_code: 'fixture_interrupted_upload',
+        retryable: false,
+        snapshot_created_at: priorIso,
+        snapshot_expires_at: priorIso,
+        archive_format_version: 2,
+        source_contract_version: 2,
+        restore_contract_version: 2,
+      }),
+    )
+    dataOrThrow(
+      'insert interrupted Gradex upload cleanup',
+      await supabase.from('classroom_gradex_extract_cleanup').insert({
+        operation_id: failedGradexOperationId,
+        storage_bucket: 'gradex-analytics-extracts',
+        storage_path: storageObjects[6].path,
+        delete_after: expiryIso,
+        status: 'pending',
+        next_attempt_at: expiryIso,
+      }),
+    )
 
     const impact = await getClassroomPurgeImpact(teacher.id, classroomId)
-    assertFixture(impact.managed_file_count === 5, 'Fixture did not inventory all five files')
+    assertFixture(
+      impact.managed_file_count === 8,
+      'Fixture did not inventory verified, interrupted, and shared files',
+    )
     assertFixture(impact.student_count === 1, 'Fixture did not inventory the student')
-    for (const object of storageObjects) {
-      assertFixture(
-        impact.storage_counts[object.bucket] === 1,
-        `Fixture did not inventory ${object.bucket}`,
-      )
-    }
+    assertFixture(impact.storage_counts['assignment-artifacts'] === 1, 'Artifact inventory drift')
+    assertFixture(impact.storage_counts['submission-images'] === 2, 'Image inventory drift')
+    assertFixture(impact.storage_counts['test-documents'] === 1, 'Test document inventory drift')
+    assertFixture(impact.storage_counts['classroom-archives'] === 2, 'Archive inventory drift')
+    assertFixture(
+      impact.storage_counts['gradex-analytics-extracts'] === 2,
+      'Gradex inventory drift',
+    )
 
     let status = await startClassroomPurge({
       teacherId: teacher.id,
@@ -398,7 +502,18 @@ async function main() {
       operationId: purgeOperationId,
       confirmation: 'DELETE',
     })
-    for (let tick = 0; tick < 12 && status.status !== 'completed'; tick += 1) {
+    const reservedReference = await supabase
+      .from('course_blueprints')
+      .update({
+        resources_markdown: `Must be blocked during purge: ${testDocumentUrl}`,
+      })
+      .eq('id', blueprintId)
+    assertFixture(
+      reservedReference.error?.message.includes('being permanently deleted'),
+      'Blueprint writer acquired a storage path reserved for deletion',
+    )
+
+    for (let tick = 0; tick < 18 && status.status !== 'completed'; tick += 1) {
       status = await tickClassroomPurge(teacher.id, purgeOperationId)
     }
     const objectDiagnostics = status.status === 'completed'
@@ -415,8 +530,9 @@ async function main() {
       `Fixture purge did not complete: ${JSON.stringify({ status, objectDiagnostics })}`,
     )
     assertFixture(
-      status.storage_object_counts.deleted === 5,
-      'Fixture purge did not record all five deleted objects',
+      status.storage_object_counts.deleted === 7
+        && status.storage_object_counts.preserved === 1,
+      'Fixture purge did not record seven deletions and one shared preservation',
     )
 
     const classroom = dataOrThrow(
@@ -481,13 +597,16 @@ async function main() {
         .select('status,storage_path')
         .eq('operation_id', purgeOperationId),
     )
-    assertFixture(purgeObjects.length === 5, 'Purge object ledger is incomplete')
+    assertFixture(purgeObjects.length === 8, 'Purge object ledger is incomplete')
     assertFixture(
-      purgeObjects.every((object) => object.status === 'deleted' && object.storage_path === null),
+      purgeObjects.every((object) =>
+        (object.status === 'deleted' || object.status === 'preserved')
+        && object.storage_path === null
+      ),
       'Purge object ledger retained a storage path or non-terminal object',
     )
 
-    for (const object of storageObjects) {
+    for (const object of storageObjects.slice(0, 7)) {
       const separator = object.path.lastIndexOf('/')
       const directory = object.path.slice(0, separator)
       const objectName = object.path.slice(separator + 1)
@@ -502,11 +621,28 @@ async function main() {
         `${object.bucket}/${object.path} survived the purge`,
       )
     }
+    const sharedSeparator = storageObjects[7].path.lastIndexOf('/')
+    const sharedListing = dataOrThrow(
+      'verify shared Blueprint upload preservation',
+      await supabase.storage.from(storageObjects[7].bucket).list(
+        storageObjects[7].path.slice(0, sharedSeparator),
+        {
+          limit: 100,
+          search: storageObjects[7].path.slice(sharedSeparator + 1),
+        },
+      ),
+    )
+    assertFixture(
+      sharedListing.some((candidate) =>
+        candidate.name === storageObjects[7].path.slice(sharedSeparator + 1)
+      ),
+      'Shared Blueprint upload was deleted',
+    )
 
     process.stdout.write(
       `Hot archived classroom purge fixture passed: `
-      + `${impact.relational_row_count} relational rows and 5 managed files deleted; `
-      + 'Blueprint and user accounts preserved.\n',
+      + `${impact.relational_row_count} relational rows and 7 managed files deleted; `
+      + 'one shared file, Blueprint, and user accounts preserved.\n',
     )
   } catch (error) {
     primaryError = error
@@ -525,7 +661,12 @@ async function main() {
       delete from public.classroom_gradex_extracts where id = '${gradexExtractId}';
       delete from public.classroom_archives where id = '${archiveId}';
       delete from public.classroom_archive_operations
-        where id in ('${archiveOperationId}', '${gradexOperationId}');
+        where id in (
+          '${archiveOperationId}',
+          '${gradexOperationId}',
+          '${failedArchiveOperationId}',
+          '${failedGradexOperationId}'
+        );
       delete from public.classrooms where id = '${classroomId}';
       delete from public.course_blueprints where id = '${blueprintId}';
       commit;

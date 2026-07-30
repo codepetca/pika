@@ -1457,9 +1457,23 @@ classroom lineage.
   added drift regression coverage, and documented the redacted minimal terminal audit ledger.
   The exact local schema audit now passes across 144 foreign-key relationships; 36 focused tests,
   TypeScript, lint, diff checks, and the Pika audit pass.
+- Independent security and architecture review found cleanup-only archive/Gradex objects, a
+  shared-reference writer race, bounded Storage absence checks, raw preserved-object paths in the
+  terminal ledger, and an API route-identity ordering issue. Migration
+  `117_hot_archived_classroom_purge_review_hardening.sql` and its application changes now inventory
+  interrupted cleanup objects, reserve shared-path writers, recheck references before deletion,
+  paginate absence verification, redact preserved paths, and validate classroom ownership before
+  ticking an operation.
+- With exact one-time local authorization, migration 117 applied successfully and generated
+  database types match the local schema. The expanded destructive fixture deleted 11 relational
+  rows and seven managed files, preserved one Blueprint-shared file plus the reusable Blueprint and
+  user accounts, and proved writer reservation. The 144-relationship schema audit, TypeScript,
+  lint, production build, Pika audit, 3,995 non-flaky full-suite tests, the isolated rerun of one
+  timing-sensitive UI test, and the 26-case teacher/student desktop/mobile Playwright matrix pass.
 
 **Remaining:**
-- Production migration history is aligned through 116; the application feature is still only in
-  draft PR #963 and has not been deployed.
-- All one-time migration authorizations are consumed; no staging migration, application deployment,
-  classroom purge, or additional production operation is authorized.
+- Production migration history is aligned through 116. Migration 117 is a hard deployment
+  prerequisite and has not been authorized or applied outside local Supabase.
+- The application feature is still only in draft PR #963 and has not been deployed. No staging
+  migration, production migration 117, application deployment, classroom purge, or Storage deletion
+  is authorized by the consumed local migration permission.

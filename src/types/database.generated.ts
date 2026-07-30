@@ -5331,6 +5331,14 @@ export type Database = {
         Args: { p_classroom_id: string }
         Returns: undefined
       }
+      classroom_purge_storage_path_has_external_operation_reference: {
+        Args: {
+          p_operation_id: string
+          p_storage_bucket: string
+          p_storage_path: string
+        }
+        Returns: boolean
+      }
       classroom_purge_storage_path_is_shared: {
         Args: {
           p_operation_id: string
@@ -6003,6 +6011,10 @@ export type Database = {
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      reconcile_classroom_purge_object_sharing: {
+        Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
       record_pal_daily_log_week_configuration_atomic: {

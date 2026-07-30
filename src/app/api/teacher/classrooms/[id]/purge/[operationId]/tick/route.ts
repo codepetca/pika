@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
-import { tickClassroomPurge } from '@/lib/server/classroom-purge'
+import {
+  getClassroomPurgeStatus,
+  tickClassroomPurge,
+} from '@/lib/server/classroom-purge'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,13 +28,16 @@ export const POST = withErrorHandler(
         throw new ApiError(400, 'Request body must be valid JSON')
       }
     }
-    const operation = await tickClassroomPurge(
+    const parsedOperationId = uuidSchema.parse(operationId)
+    const parsedClassroomId = uuidSchema.parse(id)
+    const existingOperation = await getClassroomPurgeStatus(
       user.id,
-      uuidSchema.parse(operationId),
+      parsedOperationId,
     )
-    if (operation.classroom_id !== uuidSchema.parse(id)) {
+    if (existingOperation.classroom_id !== parsedClassroomId) {
       return NextResponse.json({ error: 'Permanent deletion not found' }, { status: 404 })
     }
+    const operation = await tickClassroomPurge(user.id, parsedOperationId)
     return NextResponse.json({ operation }, {
       status: operation.status === 'completed' ? 200 : 202,
     })
