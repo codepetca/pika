@@ -570,6 +570,32 @@ export async function getBlueprintMergeSuggestionSet(
     })
   }
 
+  const currentSiteVisibility = normalizePlannedCourseSiteConfig(
+    blueprint.planned_site_config,
+  )
+  const sourceSiteVisibility = normalizePlannedCourseSiteConfig(
+    source.classroom.actual_site_config,
+  )
+  if (
+    JSON.stringify(currentSiteVisibility)
+    !== JSON.stringify(sourceSiteVisibility)
+  ) {
+    const visibleCount = (config: typeof currentSiteVisibility) =>
+      Object.values(config).filter(Boolean).length
+    suggestions.push({
+      area: 'site-visibility',
+      title: 'Site visibility',
+      summary: 'Classroom site visibility differs from the Blueprint defaults.',
+      items: [{
+        key: 'site-visibility',
+        label: 'Reusable page defaults',
+        operation: 'update',
+        current_summary: `${visibleCount(currentSiteVisibility)} sections visible`,
+        proposed_summary: `${visibleCount(sourceSiteVisibility)} sections visible`,
+      }],
+    })
+  }
+
   return {
     ok: true,
     suggestionSet: {
@@ -598,6 +624,7 @@ export async function applyBlueprintMergeSuggestions(
     | 'materials'
     | 'surveys'
     | 'grading'
+    | 'site-visibility'
   >,
   expected: {
     expectedBlueprintRevision: number
@@ -743,6 +770,11 @@ export async function applyBlueprintMergeSuggestions(
     candidateDetail.gradebook_use_weights = sourceGrading.use_weights
     candidateDetail.gradebook_assignments_weight = sourceGrading.assignments_weight
     candidateDetail.gradebook_tests_weight = sourceGrading.tests_weight
+  }
+  if (areas.includes('site-visibility')) {
+    candidateDetail.planned_site_config = normalizePlannedCourseSiteConfig(
+      source.classroom.actual_site_config,
+    )
   }
 
   let base
