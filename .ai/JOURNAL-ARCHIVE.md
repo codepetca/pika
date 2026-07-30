@@ -15654,3 +15654,35 @@
 
 **Remaining:**
 - Require exact-head PR CI and normal protected merge into `main`.
+
+<!-- pika-session-log-archive-batch:1d25b4cce3bb1e2f92016e825cf4d30a20724974c5faea0ade21719e22d19ae3 -->
+## 2026-07-23 — Separated Tests authoring from grading
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses route-backed workspace mode, dialog accessibility, and a large teacher Tests coordinator while preserving existing grading behavior.
+
+**Completed:**
+- Preserved the grading-first, class-wide Tests table and prior decision not to restore large Authoring/Grading tabs.
+- Replaced the icon-only pencil with a visible `Edit Test` command so teachers can distinguish test construction from student-work review without leaving the selected test.
+- Gave the editor dialog an explicit accessible `Edit test` name and visible mode label.
+- Extracted authoring-only dialog, markdown-view, and title-portal composition into `TeacherTestAuthoringDialog`, reducing state and presentation ownership in `TeacherTestsTab`.
+- Left APIs, grading behavior, schema, migrations, Gradex, production state, student UI, and deferred mobile UX unchanged.
+
+**Validation:**
+- Focused teacher Tests authoring/workspace suites (2 files / 67 tests)
+- Full repository suite (407 files / 3,680 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- Composite-widget accessibility checklist: reviewed; keyboard focus return and dialog semantics covered by tests; no remaining manual accessibility follow-up
+- In-app browser visual matrix: teacher Tests grading table plus `Edit Test` and `New Test` dialog states at desktop and mobile breakpoints in light and dark themes; no viewport overflow, clipped controls, or grading-workspace regression observed
+- Keyboard verification: tab focus showed the browser focus outline on `Edit test title`, and closing the dialog returned focus to `Edit Test`
+- The in-app browser capture compositor tiled each screenshot; the repeated rendered tiles and measured DOM bounds agreed, with dialog and document widths contained in every tested viewport
+- `git diff --check`
+
+**Remaining:**
+- Complete targeted independent rereview and exact-head PR CI.
+- Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
