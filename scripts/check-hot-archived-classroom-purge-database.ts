@@ -68,6 +68,8 @@ async function main() {
   const failedArchiveOperationId = randomUUID()
   const failedArchiveId = randomUUID()
   const failedGradexOperationId = randomUUID()
+  const externalArchiveOperationId = randomUUID()
+  const externalClassroomId = randomUUID()
   const now = new Date()
   const nowIso = now.toISOString()
   const priorIso = new Date(now.getTime() - 60_000).toISOString()
@@ -512,6 +514,56 @@ async function main() {
       reservedReference.error?.message.includes('being permanently deleted'),
       'Blueprint writer acquired a storage path reserved for deletion',
     )
+    const deletedReservations = dataOrThrow(
+      'read post-delete path reservation',
+      await supabase
+        .from('classroom_purge_objects')
+        .select('storage_bucket,storage_path')
+        .eq('operation_id', purgeOperationId)
+        .eq('status', 'deleted')
+        .not('storage_path', 'is', null)
+        .limit(1),
+    )
+    const deletedReservation = deletedReservations[0]
+    assertFixture(
+      deletedReservation?.storage_path,
+      'Deleted managed file lost its reservation before relational finalization',
+    )
+    const postDeleteBlueprintReference = await supabase
+      .from('course_blueprints')
+      .update({
+        resources_markdown:
+          `Must remain blocked after Storage deletion: ${deletedReservation.storage_path}`,
+      })
+      .eq('id', blueprintId)
+    assertFixture(
+      postDeleteBlueprintReference.error?.message.includes('being permanently deleted'),
+      'Blueprint writer acquired a deleted path before purge finalization',
+    )
+    const externalOperationalReference = await supabase
+      .from('classroom_archive_operations')
+      .insert({
+        id: externalArchiveOperationId,
+        teacher_id: teacher.id,
+        classroom_id: externalClassroomId,
+        operation_type: 'export',
+        request_sha256: '4'.repeat(64),
+        status: 'failed',
+        source_revision: 1,
+        source_schema_migration: '118_hot_archived_classroom_purge_reservation_lifetime',
+        source_app_commit: 'purge-fixture',
+        retention: { delete_after: expiryIso },
+        storage_bucket: deletedReservation.storage_bucket,
+        storage_path: deletedReservation.storage_path,
+        error_code: 'fixture_external_reference',
+        retryable: false,
+        snapshot_created_at: priorIso,
+        snapshot_expires_at: priorIso,
+      })
+    assertFixture(
+      externalOperationalReference.error?.message.includes('being permanently deleted'),
+      'Archive writer acquired a managed path reserved by another classroom purge',
+    )
 
     for (let tick = 0; tick < 18 && status.status !== 'completed'; tick += 1) {
       status = await tickClassroomPurge(teacher.id, purgeOperationId)
@@ -665,7 +717,8 @@ async function main() {
           '${archiveOperationId}',
           '${gradexOperationId}',
           '${failedArchiveOperationId}',
-          '${failedGradexOperationId}'
+          '${failedGradexOperationId}',
+          '${externalArchiveOperationId}'
         );
       delete from public.classrooms where id = '${classroomId}';
       delete from public.course_blueprints where id = '${blueprintId}';

@@ -1470,10 +1470,21 @@ classroom lineage.
   user accounts, and proved writer reservation. The 144-relationship schema audit, TypeScript,
   lint, production build, Pika audit, 3,995 non-flaky full-suite tests, the isolated rerun of one
   timing-sensitive UI test, and the 26-case teacher/student desktop/mobile Playwright matrix pass.
+- Targeted security re-review found that the reservation ended after Storage deletion but before
+  relational finalization and that external archive/Gradex path writers did not join the global
+  barrier. Migration `118_hot_archived_classroom_purge_reservation_lifetime.sql` retains deleted
+  paths as active reservations until the atomic completion transition, enrolls all external
+  operational path writers, fails closed on unreservable active deleted rows, and redacts paths at
+  completion.
+- With fresh exact one-time local authorization, migration 118 applied successfully and local
+  history/types align through 118. The destructive fixture now also proves a Blueprint write remains
+  blocked after object deletion and another classroom's archive operation cannot acquire the
+  reserved path. The fixture, 144-relationship schema audit, 27 focused tests, TypeScript, lint,
+  generated-type check, diff check, and Pika audit pass.
 
 **Remaining:**
-- Production migration history is aligned through 116. Migration 117 is a hard deployment
-  prerequisite and has not been authorized or applied outside local Supabase.
+- Production migration history is aligned through 116. Migrations 117 and 118 are hard deployment
+  prerequisites and have not been authorized or applied outside local Supabase.
 - The application feature is still only in draft PR #963 and has not been deployed. No staging
-  migration, production migration 117, application deployment, classroom purge, or Storage deletion
-  is authorized by the consumed local migration permission.
+  migration, production migrations 117-118, application deployment, classroom purge, or Storage
+  deletion is authorized by the consumed local migration permission.

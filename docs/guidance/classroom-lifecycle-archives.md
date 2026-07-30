@@ -347,7 +347,8 @@ data.
 
 Migrations `115_hot_archived_classroom_purge.sql`,
 `116_hot_archived_classroom_purge_trigger_reconciliation.sql`, and
-`117_hot_archived_classroom_purge_review_hardening.sql`,
+`117_hot_archived_classroom_purge_review_hardening.sql`, and
+`118_hot_archived_classroom_purge_reservation_lifetime.sql`,
 `src/lib/server/classroom-purge.ts`, and
 `/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
 classrooms. The confirmation surface states that deletion cannot be undone and removes all student
@@ -368,14 +369,17 @@ has staged and sealed a complete managed-object inventory.
 Each object in `assignment-artifacts`, `submission-images`, `test-documents`,
 `classroom-archives`, and `gradex-analytics-extracts` receives a retryable lease. A worker deletes
 only the exact canonical key, verifies exact absence across every matching bucket-directory page,
-and then marks the object terminal while redacting its raw path. A shared/exclusive advisory-lock
+and then marks the object deleted while retaining its raw path only as an active reservation. A
+shared/exclusive advisory-lock
 barrier serializes managed-reference writers with the pre-seal and pre-claim sharing checks.
-Classroom and Blueprint writers cannot acquire a path reserved for deletion; a newly shared path
-moves only from deletion to redacted preservation, never in the opposite direction. Once every
-object is deleted or explicitly preserved, one transaction rechecks the source revision and
-active-operation fence, reconciles archive/extract and storage-cleanup ledgers, nulls or expires
-non-owning classroom workflow references, and deletes the exact relational membership child-first.
-Count drift rolls the transaction back.
+Classroom, Blueprint, archive, and Gradex operational writers cannot acquire a path reserved for
+deletion, including after the object has left Storage but before relational finalization. A newly
+shared path moves only from deletion to redacted preservation, never in the opposite direction.
+Once every object is deleted or explicitly preserved, one transaction rechecks the source revision
+and active-operation fence, reconciles archive/extract and storage-cleanup ledgers, nulls or expires
+non-owning classroom workflow references, deletes the exact relational membership child-first, and
+redacts every retained object path at the same completion linearization point. Count drift rolls
+the transaction back.
 
 The finalizer sets a transaction-local purge marker. Migration 116 scopes existing submitted-work
 integrity and routine storage-cleanup triggers to normal writes, allowing only the already-fenced,
@@ -387,6 +391,11 @@ archive and Gradex objects as sealed purge inventory, blocks live cleanup worker
 classroom/Blueprint and external operational references immediately before deletion, redacts
 preserved paths, and binds storage-reference writers to the same transaction barrier. The
 destructive local database fixture and teacher/student Playwright matrix are required CI gates.
+
+Migration 118 keeps the reservation for a successfully deleted object live until relational
+finalization and enrolls archive, Gradex extract, archive-operation, and cleanup-ledger writers in
+the same shared barrier. It fails closed on rollout if an active pre-existing deleted row has
+already lost the path needed to reserve it. Completion atomically redacts all remaining paths.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The
