@@ -1447,9 +1447,14 @@ classroom lineage.
   `assignment-artifacts`, `submission-images`, `test-documents`, `classroom-archives`, and
   `gradex-analytics-extracts`; preserved the reusable Blueprint and teacher/student accounts; and
   cleaned all generated fixture rows and Storage paths.
+- With fresh exact one-time production authorization, migration
+  `116_hot_archived_classroom_purge_trigger_reconciliation.sql` applied successfully. After one
+  retryable Supabase API 502 during verification, migration history aligned through 116 and a
+  linked dry run reported the production database up to date. No application deployment,
+  classroom purge, data cleanup, or Storage deletion was executed.
 
 **Remaining:**
-- Production remains through migration 115. Migration 116 requires separate exact production
-  authorization before the application feature is deployed.
-- The one-time local migration authorization is consumed; no staging migration or additional
-  production operation is authorized.
+- Production migration history is aligned through 116; the application feature is still only in
+  draft PR #963 and has not been deployed.
+- All one-time migration authorizations are consumed; no staging migration, application deployment,
+  classroom purge, or additional production operation is authorized.
