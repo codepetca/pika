@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Retired legacy Quiz API response aliases
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass crosses student and teacher API producers, client normalizers, component consumers, and contract documentation.
-
-**Completed:**
-- Closed the internal Tests API compatibility window and removed legacy `quiz` / `quizzes` response aliases from active student and teacher Tests routes.
-- Removed quiz-key fallback reads and compatibility fixtures while preserving current `test` / `tests` handling for optional and error payloads.
-- Added route assertions and an architecture ratchet preventing the retired response helpers from returning.
-- Documented the cutoff, older-client risk, code-only rollback, and remaining database, archive, gradebook, package, component, URL, and automation compatibility boundaries.
-- Left schema, migrations, persisted `quiz_id` fields, archive v1 resources, gradebook tombstones, and course package compatibility unchanged.
-
-**Validation:**
-- Focused Tests API/client/component suites (12 files / 208 tests)
-- Full repository suite (408 files / 3,674 tests)
-
 ## 2026-07-23 — Hardened standalone test preview
 
 **Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
@@ -1395,3 +1378,30 @@ classroom lineage.
 
 **Remaining:**
 - Publish the branch and confirm the real pull-request CI run on GitHub.
+
+## 2026-07-30 — Prepared Blueprint classroom wizard refinement
+
+**Risk profile:** none — teacher-only wizard copy and navigation.
+
+**Completed:**
+- Renamed the optional classroom creation path to **From course blueprint**.
+- Made **Use again** and Blueprint-page launches carry a fixed Blueprint
+  identity and title into classroom creation.
+- Skipped the redundant Blueprint picker for prepared launches and showed the
+  selected Course Blueprint as a concise read-only value on the Name step.
+- Kept normal classroom creation unchanged: primary Next creates a blank
+  classroom, while the split-menu path opens the Blueprint picker.
+- Added regression coverage for the prepared Name -> Calendar -> Name flow,
+  exact Blueprint instantiation, and the normal picker path.
+
+**Validation:**
+- Full Vitest suite passed, including SplitButton keyboard/focus coverage.
+- TypeScript, lint, architecture, design policy, UI policy, Pika audit, and
+  production build pass.
+- Playwright teacher verification passed on desktop/mobile and light/dark for
+  normal and prepared launches; student desktop/mobile views are unaffected.
+- Composite-widget checklist reviewed: keyboard behavior covered, semantic
+  roles/state covered by tests, and no manual follow-up remains.
+
+**Remaining:**
+- Publish for independent review and exact-head CI before merge.

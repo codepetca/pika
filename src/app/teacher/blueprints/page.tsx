@@ -1543,7 +1543,11 @@ export default function TeacherBlueprintsPage() {
       <CreateClassroomModal
         isOpen={showCreateClassroom}
         onClose={() => setShowCreateClassroom(false)}
-        initialBlueprintId={selectedBlueprintId}
+        presetBlueprint={
+          detail?.id === selectedBlueprintId
+            ? { id: detail.id, title: detail.title }
+            : null
+        }
         onSuccess={(classroom) => {
           setShowCreateClassroom(false)
           router.push(`/classrooms/${classroom.id}?tab=attendance`)

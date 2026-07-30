@@ -66,7 +66,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [coldArchiveRestoreEnabled, setColdArchiveRestoreEnabled] = useState(false)
   const [view, setView] = useState<ViewMode>('active')
   const [showCreate, setShowCreate] = useState(false)
-  const [reuseBlueprintId, setReuseBlueprintId] = useState<string | null>(null)
+  const [reuseBlueprint, setReuseBlueprint] = useState<{
+    id: string
+    title: string
+  } | null>(null)
   const [reuseReview, setReuseReview] = useState<ReuseReview>(null)
   const [reusingClassroomId, setReusingClassroomId] = useState<string | null>(null)
   const [isEditingClassrooms, setIsEditingClassrooms] = useState(false)
@@ -334,13 +337,20 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         })
         return
       }
-      if (data.status !== 'ready' || typeof data.blueprint_id !== 'string') {
+      if (
+        data.status !== 'ready'
+        || typeof data.blueprint_id !== 'string'
+        || typeof data.blueprint_title !== 'string'
+      ) {
         throw new Error('Failed to prepare this course')
       }
 
       reuseOperationIdsRef.current.delete(classroom.id)
       invalidateTeacherBlueprints()
-      setReuseBlueprintId(data.blueprint_id)
+      setReuseBlueprint({
+        id: data.blueprint_id,
+        title: data.blueprint_title,
+      })
       setShowCreate(true)
     } catch (err: any) {
       setError(err.message || 'Failed to prepare this course')
@@ -624,14 +634,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
       <CreateClassroomModal
         isOpen={showCreate}
-        initialBlueprintId={reuseBlueprintId}
+        presetBlueprint={reuseBlueprint}
         onClose={() => {
           setShowCreate(false)
-          setReuseBlueprintId(null)
+          setReuseBlueprint(null)
         }}
         onSuccess={(created) => {
           setShowCreate(false)
-          setReuseBlueprintId(null)
+          setReuseBlueprint(null)
           setActiveClassrooms((prev) => [created, ...prev])
           openClassroom(created)
         }}

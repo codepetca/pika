@@ -15686,3 +15686,21 @@
 **Remaining:**
 - Complete targeted independent rereview and exact-head PR CI.
 - Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
+
+<!-- pika-session-log-archive-batch:7330c944556cb96d53a3e9700b2784c150c12853dfc4b9d3e6915432306c67f0 -->
+## 2026-07-23 — Retired legacy Quiz API response aliases
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses student and teacher API producers, client normalizers, component consumers, and contract documentation.
+
+**Completed:**
+- Closed the internal Tests API compatibility window and removed legacy `quiz` / `quizzes` response aliases from active student and teacher Tests routes.
+- Removed quiz-key fallback reads and compatibility fixtures while preserving current `test` / `tests` handling for optional and error payloads.
+- Added route assertions and an architecture ratchet preventing the retired response helpers from returning.
+- Documented the cutoff, older-client risk, code-only rollback, and remaining database, archive, gradebook, package, component, URL, and automation compatibility boundaries.
+- Left schema, migrations, persisted `quiz_id` fields, archive v1 resources, gradebook tombstones, and course package compatibility unchanged.
+
+**Validation:**
+- Focused Tests API/client/component suites (12 files / 208 tests)
+- Full repository suite (408 files / 3,674 tests)

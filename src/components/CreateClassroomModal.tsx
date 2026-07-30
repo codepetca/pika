@@ -18,15 +18,20 @@ interface CreateClassroomModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (classroom: any) => void
-  initialBlueprintId?: string | null
+  presetBlueprint?: {
+    id: string
+    title: string
+  } | null
 }
 
 export function CreateClassroomModal({
   isOpen,
   onClose,
   onSuccess,
-  initialBlueprintId = null,
+  presetBlueprint = null,
 }: CreateClassroomModalProps) {
+  const presetBlueprintId = presetBlueprint?.id || ''
+  const presetBlueprintTitle = presetBlueprint?.title || ''
   const startMonthId = useId()
   const endMonthId = useId()
   const importInputRef = useRef<HTMLInputElement | null>(null)
@@ -35,8 +40,8 @@ export function CreateClassroomModal({
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
   const [availableBlueprints, setAvailableBlueprints] = useState<CourseBlueprint[]>([])
-  const [creationMode, setCreationMode] = useState<CreationMode>(initialBlueprintId ? 'blueprint' : 'blank')
-  const [selectedBlueprintId, setSelectedBlueprintId] = useState(initialBlueprintId || '')
+  const [creationMode, setCreationMode] = useState<CreationMode>(presetBlueprintId ? 'blueprint' : 'blank')
+  const [selectedBlueprintId, setSelectedBlueprintId] = useState(presetBlueprintId)
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
   const [selectedSemester, setSelectedSemester] = useState<Semester>('semester1')
 
@@ -56,8 +61,12 @@ export function CreateClassroomModal({
     let isCurrent = true
     const loadGeneration = blueprintLoadGenerationRef.current + 1
     blueprintLoadGenerationRef.current = loadGeneration
-    setCreationMode(initialBlueprintId ? 'blueprint' : 'blank')
-    setSelectedBlueprintId(initialBlueprintId || '')
+    setCreationMode(presetBlueprintId ? 'blueprint' : 'blank')
+    setSelectedBlueprintId(presetBlueprintId)
+    if (presetBlueprintId) {
+      setAvailableBlueprints([])
+      return
+    }
     fetchTeacherBlueprints()
       .then((blueprints) => {
         if (isCurrent && blueprintLoadGenerationRef.current === loadGeneration) setAvailableBlueprints(blueprints)
@@ -68,7 +77,7 @@ export function CreateClassroomModal({
     return () => {
       isCurrent = false
     }
-  }, [initialBlueprintId, isOpen])
+  }, [isOpen, presetBlueprintId])
 
   function getSemesterYears() {
     const now = new Date()
@@ -100,16 +109,24 @@ export function CreateClassroomModal({
   function resetForm() {
     setStep('name')
     setTitle('')
-    setCreationMode(initialBlueprintId ? 'blueprint' : 'blank')
-    setSelectedBlueprintId(initialBlueprintId || '')
+    setCreationMode(presetBlueprintId ? 'blueprint' : 'blank')
+    setSelectedBlueprintId(presetBlueprintId)
     setCalendarMode('preset')
     setSelectedSemester('semester1')
     setError('')
   }
 
   function proceedFromName(nextMode: CreationMode) {
+    if (presetBlueprintId) {
+      setCreationMode('blueprint')
+      setSelectedBlueprintId(presetBlueprintId)
+      setStep('calendar')
+      setError('')
+      return
+    }
+
     setCreationMode(nextMode)
-    if (nextMode === 'blank' && !initialBlueprintId) {
+    if (nextMode === 'blank') {
       setSelectedBlueprintId('')
       setStep('calendar')
     } else {
@@ -249,7 +266,9 @@ export function CreateClassroomModal({
 
   const { semester1Year, semester2Year } = getSemesterYears()
   const progressSteps: WizardStep[] =
-    creationMode === 'blueprint' || step === 'blueprint'
+    presetBlueprintId
+      ? ['name', 'calendar']
+      : creationMode === 'blueprint' || step === 'blueprint'
       ? ['name', 'blueprint', 'calendar']
       : ['name', 'calendar']
   const canContinueFromBlueprintStep = !!selectedBlueprintId
@@ -301,6 +320,14 @@ export function CreateClassroomModal({
                 autoFocus
               />
             </FormField>
+            {presetBlueprintId ? (
+              <div className="mt-4">
+                <p className="text-sm text-text-muted">Course Blueprint</p>
+                <p className="mt-1 text-sm font-medium text-text-default">
+                  {presetBlueprintTitle}
+                </p>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -478,7 +505,13 @@ export function CreateClassroomModal({
               ? handleClose
               : () => {
                   if (step === 'calendar') {
-                    setStep(creationMode === 'blueprint' ? 'blueprint' : 'name')
+                    setStep(
+                      presetBlueprintId
+                        ? 'name'
+                        : creationMode === 'blueprint'
+                          ? 'blueprint'
+                          : 'name',
+                    )
                   } else {
                     setStep('name')
                   }
@@ -491,31 +524,42 @@ export function CreateClassroomModal({
           {step === 'name' ? 'Cancel' : 'Back'}
         </Button>
         {step === 'name' ? (
-          <SplitButton
-            label="Next"
-            onPrimaryClick={() => {
-              if (!title) return
-              proceedFromName(initialBlueprintId ? 'blueprint' : 'blank')
-            }}
-            options={[
-              {
-                id: 'from-blueprint',
-                label: 'From Course Blueprint',
-                onSelect: () => {
-                  if (!title) return
-                  proceedFromName('blueprint')
+          presetBlueprintId ? (
+            <Button
+              type="button"
+              onClick={() => proceedFromName('blueprint')}
+              disabled={isBusy || !title}
+              className="flex-1"
+            >
+              Next
+            </Button>
+          ) : (
+            <SplitButton
+              label="Next"
+              onPrimaryClick={() => {
+                if (!title) return
+                proceedFromName('blank')
+              }}
+              options={[
+                {
+                  id: 'from-blueprint',
+                  label: 'From course blueprint',
+                  onSelect: () => {
+                    if (!title) return
+                    proceedFromName('blueprint')
+                  },
                 },
-              },
-            ]}
-            disabled={isBusy || !title}
-            className="flex-1"
-            size="md"
-            toggleAriaLabel="Choose classroom creation path"
-            menuPlacement="up"
-            primaryButtonProps={{
-              className: 'min-w-0 flex-1 justify-center',
-            }}
-          />
+              ]}
+              disabled={isBusy || !title}
+              className="flex-1"
+              size="md"
+              toggleAriaLabel="Choose classroom creation path"
+              menuPlacement="up"
+              primaryButtonProps={{
+                className: 'min-w-0 flex-1 justify-center',
+              }}
+            />
+          )
         ) : step === 'blueprint' ? (
           <Button
             type="button"
