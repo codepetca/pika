@@ -1400,3 +1400,56 @@ classroom lineage.
 
 **Remaining:**
 - None.
+## 2026-07-30 — Hot archived classroom permanent deletion
+
+**Risk profile:** critical — irreversible classroom-wide relational and managed-storage deletion.
+
+**Completed:**
+- Audited the full 40-table classroom ownership graph, archive/restore/compaction operations,
+  grading and Blueprint workflows, managed storage buckets, Blueprint lineage, and the narrower
+  roster-removal contract before implementation.
+- Added migration 115 with an exact row-membership snapshot, cross-workflow advisory/write fence,
+  sealed storage inventory, retryable per-object leases, shared-reference preservation, explicit
+  archive/Gradex/cleanup reconciliation, and atomic child-first relational finalization.
+- Preserved Course Blueprints, immutable Blueprint Versions, and user accounts; non-owning
+  classroom workflow references are explicitly reconciled.
+- Added owner-only impact/start/status/tick APIs, a daily authenticated safety-net worker, and a
+  teacher confirmation dialog requiring the exact classroom name or `DELETE`.
+- Limited the UI and database contract to hot archived classrooms. Cold archived classroom
+  deletion and comprehensive individual-student purging remain explicit follow-up scopes.
+- Added concurrency, partial-failure, authorization, exact storage cleanup, retry, confirmation,
+  keyboard/focus, and teacher/student boundary coverage.
+
+**Validation:**
+- Full Vitest suite after the initial implementation: 458 files / 3,977 tests.
+- Final focused suites: 5 files / 58 tests.
+- TypeScript, lint, production build, feature inventory validation, diff checks, and Pika audit pass.
+- Playwright matrix: teacher and student, desktop and mobile, light and dark; 10/10 checks pass.
+- Composite-widget checklist reviewed: keyboard behavior and semantic dialog state are covered;
+  no manual accessibility follow-up remains.
+- With exact one-time authorization, migrations
+  `114_atomic_archived_classroom_blueprint_reuse.sql` and
+  `115_hot_archived_classroom_purge.sql` were applied successfully to local Supabase. Migration
+  history records both through 115, generated database types match the applied local schema, and
+  the focused 5-file / 58-test suite plus TypeScript and diff checks pass after application.
+- With separate exact one-time production authorization, the dedicated worktree was linked to the
+  same production Pika Supabase project verified from the hub and migration
+  `115_hot_archived_classroom_purge.sql` was applied successfully. Post-apply migration history
+  aligns through 115 and a linked dry run reports that production is up to date. No classroom purge,
+  data cleanup, or Storage deletion was executed.
+- The real local fixture exposed ambiguous download-based Storage absence responses and existing
+  submitted-work integrity triggers that blocked the fenced finalizer. Storage verification now
+  uses an exact directory listing, and migration
+  `116_hot_archived_classroom_purge_trigger_reconciliation.sql` scopes the existing integrity and
+  cleanup triggers away from the transaction-local purge finalizer without weakening normal writes.
+- With exact one-time local authorization, migration 116 applied successfully. A purpose-built
+  hot-archived classroom fixture then deleted 11 relational rows and one object from each of
+  `assignment-artifacts`, `submission-images`, `test-documents`, `classroom-archives`, and
+  `gradex-analytics-extracts`; preserved the reusable Blueprint and teacher/student accounts; and
+  cleaned all generated fixture rows and Storage paths.
+
+**Remaining:**
+- Production remains through migration 115. Migration 116 requires separate exact production
+  authorization before the application feature is deployed.
+- The one-time local migration authorization is consumed; no staging migration or additional
+  production operation is authorized.

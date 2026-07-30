@@ -218,7 +218,7 @@ Restore is idempotent and fail-closed:
 
 Migration 083 implements restore as bounded, resumable staging rather than one large JSON RPC.
 Every batch is limited to 500 rows and 1 MiB, must match the current table's exact columns, and must
-arrive parent-first. Finalization rejects conflicting hot rows and commits all 42 resources in one
+arrive parent-first. Finalization rejects conflicting hot rows and commits all 40 resources in one
 transaction. A transaction-local restore context prevents normal blueprint and archive revision
 triggers from mutating replayed values; the archived revision is restored explicitly. PostgreSQL,
 not the application, records final referential-integrity evidence after all inserts and ownership
@@ -317,8 +317,9 @@ semantics:
   normal classroom creation. It never copies students, submissions, grades, attendance, or other
   runtime history. Blueprint capture/linking and classroom-only promotion are classroom-locked
   transactions that recheck `archived_at`, ownership, lineage, and structural revision.
-  Permanent removal is not available through the classroom route or teacher UI; future hot-data
-  removal must run only through the verified compaction state machine.
+  **Delete permanently** starts a separate, irreversible purge operation. It is available only to
+  the owning teacher, requires the exact classroom name or `DELETE`, and is never implemented as a
+  classroom-row `DELETE` request or an assumed foreign-key cascade.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
   **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
   classroom routes until the archive is restored to `archived_hot`; **Use again** is therefore
@@ -341,6 +342,53 @@ archive restore attempt and retains it after a failed request or failed list ref
 key only after the restore succeeds and the refreshed archive state is confirmed. Listing a stored
 archive never downloads its object, expands archive contents, compacts another classroom, or purges
 data.
+
+### Permanent Hot-Archive Deletion
+
+Migrations `115_hot_archived_classroom_purge.sql` and
+`116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
+`src/lib/server/classroom-purge.ts`, and
+`/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
+classrooms. The confirmation surface states that deletion cannot be undone and removes all student
+work, submissions, tests, grades, attendance and logs, feedback, roster data, and uploads. Its
+impact summary reports students, exact classroom-owned relational rows, managed files and bytes,
+verified archives, and related Gradex extracts. Course Blueprints, immutable Blueprint Versions,
+and user accounts remain outside purge ownership and are preserved.
+
+The begin transaction locks the classroom through the shared lifecycle advisory lock, rejects
+active archive, restore, compaction, grading, repository review, Blueprint proposal, or Blueprint
+editing work, and installs a durable fence. The fence freezes every table in
+`classroom_archive_resource_contract` and the non-owning archive/Blueprint operation tables, closing
+the race between conflict preflight and operation creation. It then snapshots exact resource row
+membership. Finalization is impossible until the application has staged and sealed a complete
+managed-object inventory.
+
+Each object in `assignment-artifacts`, `submission-images`, `test-documents`,
+`classroom-archives`, and `gradex-analytics-extracts` receives a retryable lease. A worker deletes
+only the exact canonical key, verifies exact absence through a bucket-directory listing, and then
+marks the object terminal
+while redacting its raw path. A conservative database reconciliation preserves any path referenced
+outside the purge membership or by reusable Blueprint data. Once every object is deleted or
+explicitly preserved, one transaction rechecks the source revision and active-operation fence,
+reconciles archive/extract and storage-cleanup ledgers, nulls or expires non-owning classroom
+workflow references, and deletes the exact relational membership child-first. Count drift rolls the
+transaction back.
+
+The finalizer sets a transaction-local purge marker. Migration 116 scopes existing submitted-work
+integrity and routine storage-cleanup triggers to normal writes, allowing only the already-fenced,
+exact purge membership to be deleted without weakening submission protection elsewhere or creating
+duplicate cleanup jobs.
+
+The teacher dialog drives bounded retry ticks for immediate feedback. The authenticated daily
+history-cleanup cron is a safety net for crash-abandoned or browser-closed operations. Both callers
+use the same durable leases and finalizer, so retries cannot skip inventory or repeat a completed
+destructive transition.
+
+Cold archived classroom deletion is intentionally not part of migration 115. Comprehensive
+individual-student purging is also a follow-up because current roster removal is enrollment
+management rather than an all-history privacy purge. Neither follow-up is required atomically for
+hot-classroom deletion because the classroom-wide membership snapshot already includes all students
+and all classroom-owned data.
 
 ## Cold Compaction
 

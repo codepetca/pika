@@ -15656,6 +15656,7 @@
 - Require exact-head PR CI and normal protected merge into `main`.
 
 <!-- pika-session-log-archive-batch:1d25b4cce3bb1e2f92016e825cf4d30a20724974c5faea0ade21719e22d19ae3 -->
+<!-- pika-session-log-archive-batch:75c21b3035befbf4f74e392fb0accb7efa24e213102a4141822bcee091bdc9ad -->
 ## 2026-07-23 — Separated Tests authoring from grading
 
 **Risk profile:** none

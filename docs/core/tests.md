@@ -124,7 +124,7 @@ Test password-based flows:
   origin and allowlisted discovery paths.
 - API tests cover teacher auth boundaries, UUID idempotency keys, retention validation, and
   migration/version fail-closed behavior.
-- Database-backed CI replays every migration, audits the 44-resource ownership graph and actual
+- Database-backed CI replays every migration, audits the 40-resource ownership graph and actual
   primary keys, and proves revision triggers, atomic membership snapshots, idempotent replay,
   stale-source rejection, private buckets, service-role-only RPCs, staging cleanup, and immutable
   verified metadata.
@@ -134,7 +134,7 @@ Test password-based flows:
   isolation.
 - Production canary contract tests prove immutable plan digests, deterministic and distinct phase
   operation UUIDs, exact hosted target/credential/acknowledgement binding, cleanup-gate rejection,
-  complete 42-resource evidence, exact aggregate-digest validation, hot and cold crash resumption,
+  complete 40-resource evidence, exact aggregate-digest validation, hot and cold crash resumption,
   journal-failure-tolerant cold recovery, ambiguous export/compaction/restore reconciliation,
   same-operation restore retry, deterministic restored-path projection, and post-restore row,
   revision, and source-object drift rejection. The operator runner additionally verifies actual tar
