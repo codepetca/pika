@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Separated Tests authoring from grading
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses route-backed workspace mode, dialog accessibility, and a large teacher Tests coordinator while preserving existing grading behavior.
-
-**Completed:**
-- Preserved the grading-first, class-wide Tests table and prior decision not to restore large Authoring/Grading tabs.
-- Replaced the icon-only pencil with a visible `Edit Test` command so teachers can distinguish test construction from student-work review without leaving the selected test.
-- Gave the editor dialog an explicit accessible `Edit test` name and visible mode label.
-- Extracted authoring-only dialog, markdown-view, and title-portal composition into `TeacherTestAuthoringDialog`, reducing state and presentation ownership in `TeacherTestsTab`.
-- Left APIs, grading behavior, schema, migrations, Gradex, production state, student UI, and deferred mobile UX unchanged.
-
-**Validation:**
-- Focused teacher Tests authoring/workspace suites (2 files / 67 tests)
-- Full repository suite (407 files / 3,680 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (624 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- Composite-widget accessibility checklist: reviewed; keyboard focus return and dialog semantics covered by tests; no remaining manual accessibility follow-up
-- In-app browser visual matrix: teacher Tests grading table plus `Edit Test` and `New Test` dialog states at desktop and mobile breakpoints in light and dark themes; no viewport overflow, clipped controls, or grading-workspace regression observed
-- Keyboard verification: tab focus showed the browser focus outline on `Edit test title`, and closing the dialog returned focus to `Edit Test`
-- The in-app browser capture compositor tiled each screenshot; the repeated rendered tiles and measured DOM bounds agreed, with dialog and document widths contained in every tested viewport
-- `git diff --check`
-
-**Remaining:**
-- Complete targeted independent rereview and exact-head PR CI.
-- Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
-
 ## 2026-07-23 — Retired legacy Quiz API response aliases
 
 **Risk profile:** none
@@ -1399,3 +1368,30 @@ classroom lineage.
 **Remaining:**
 - Run Pika audit, complete targeted re-review and exact-head CI.
 - Migration 114 requires explicit target authorization before application.
+
+## 2026-07-30 — Simplify GitHub Actions usage
+
+**Risk profile:** runtime-platform.
+
+**Completed:**
+- Changed comprehensive CI to run for pull requests to `main` and `production`
+  or by manual dispatch, removing duplicate post-merge branch runs.
+- Added per-PR concurrency so newer commits cancel stale CI runs.
+- Folded UI import, design-value, and dark-class policies into the required
+  Test & Build job and retired the separate UI Policy workflow.
+- Limited coverage artifact uploads to failed Test & Build jobs.
+- Added workflow contract coverage and updated the existing policy tests to
+  prove the consolidated CI wiring.
+- Enabled strict up-to-date required status checks in the active `main` and
+  `production` GitHub rulesets while preserving the required Test & Build
+  context and existing review rules.
+
+**Validation:**
+- `actionlint .github/workflows/ci.yml`.
+- Architecture, UI policy, design policy, dark-class, lint, and production
+  build checks pass.
+- Full coverage suite: 456 files / 3,960 tests.
+- New and updated workflow contract suites: 3 files / 23 tests.
+
+**Remaining:**
+- Publish the branch and confirm the real pull-request CI run on GitHub.
