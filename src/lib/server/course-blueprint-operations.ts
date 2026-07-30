@@ -403,6 +403,7 @@ export type BlueprintOperationResult = z.infer<typeof blueprintOperationResultSc
 
 type BlueprintRpcName =
   | 'create_course_blueprint_atomic_v2'
+  | 'create_archived_classroom_blueprint_atomic'
   | 'instantiate_course_blueprint_atomic_v2'
 type SupabaseRpcClient = Pick<SupabaseClient<any>, 'rpc'>
 
@@ -548,6 +549,41 @@ export async function createCourseBlueprintAtomic(args: {
     },
     args.operationId,
     args.operationType,
+  )
+}
+
+export async function createArchivedClassroomBlueprintAtomic(args: {
+  supabase: SupabaseRpcClient
+  operationId: string
+  teacherId: string
+  sourceClassroomId: string
+  expectedSourceRevision: number
+  plan: CreateBlueprintWritePlan
+}): Promise<BlueprintOperationResult> {
+  const plan = createBlueprintWritePlanSchema.parse(args.plan)
+  const expectedSourceRevision = z.number().int().positive().parse(
+    args.expectedSourceRevision,
+  )
+  const requestSha256 = hashBlueprintOperationRequest({
+    operation_type: 'archived_reuse',
+    source_classroom_id: args.sourceClassroomId,
+    expected_source_revision: expectedSourceRevision,
+    plan,
+  })
+
+  return executeBlueprintOperation(
+    args.supabase,
+    'create_archived_classroom_blueprint_atomic',
+    {
+      p_operation_id: args.operationId,
+      p_teacher_id: args.teacherId,
+      p_request_sha256: requestSha256,
+      p_source_classroom_id: args.sourceClassroomId,
+      p_expected_source_revision: expectedSourceRevision,
+      p_plan: parseDatabaseJson(plan),
+    },
+    args.operationId,
+    'import',
   )
 }
 

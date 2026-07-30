@@ -1,6 +1,9 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
-import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
+import {
+  assertTeacherCanMutateClassroom,
+  assertTeacherOwnsClassroom,
+} from '@/lib/server/classrooms'
 import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   buildCourseBlueprintExportBundle,
@@ -32,6 +35,7 @@ import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import {
   buildCreateBlueprintWritePlan,
   buildInstantiateBlueprintWritePlan,
+  createArchivedClassroomBlueprintAtomic,
   createCourseBlueprintAtomic,
   instantiateCourseBlueprintAtomic,
   resolveBlueprintOperationId,
@@ -48,6 +52,7 @@ type BlueprintOwnershipResult =
 
 type BlueprintOperationOptions = {
   operationId?: string
+  copyOnly?: boolean
 }
 
 function getSupabase() {
@@ -1119,7 +1124,9 @@ export async function createCourseBlueprintFromClassroom(
   input: { title?: string },
   options: BlueprintOperationOptions = {},
 ) {
-  const classroomAccess = await assertTeacherCanMutateClassroom(teacherId, classroomId)
+  const classroomAccess = options.copyOnly
+    ? await assertTeacherOwnsClassroom(teacherId, classroomId)
+    : await assertTeacherCanMutateClassroom(teacherId, classroomId)
   if (!classroomAccess.ok) return classroomAccess
 
   const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
@@ -1146,7 +1153,9 @@ export async function createCourseBlueprintFromClassroom(
       gradebook_tests_weight: source.grading?.tests_weight ?? 30,
       planned_site_slug: null,
       planned_site_published: false,
-      planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+      planned_site_config: normalizePlannedCourseSiteConfig(
+        source.classroom.actual_site_config,
+      ),
     },
     assignments: source.assignments.map((assignment) => ({
       ...assignment,
@@ -1164,15 +1173,26 @@ export async function createCourseBlueprintFromClassroom(
     surveys: source.surveys || [],
     manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
   })
-  const operation = await createCourseBlueprintAtomic({
-    supabase,
-    operationId,
-    teacherId,
-    operationType: 'capture',
-    sourceClassroomId: classroomId,
-    expectedSourceRevision: source.classroom.blueprint_source_revision ?? 1,
-    plan,
-  })
+  const expectedSourceRevision =
+    source.classroom.blueprint_source_revision ?? 1
+  const operation = options.copyOnly
+    ? await createArchivedClassroomBlueprintAtomic({
+        supabase,
+        operationId,
+        teacherId,
+        sourceClassroomId: classroomId,
+        expectedSourceRevision,
+        plan,
+      })
+    : await createCourseBlueprintAtomic({
+        supabase,
+        operationId,
+        teacherId,
+        operationType: 'capture',
+        sourceClassroomId: classroomId,
+        expectedSourceRevision,
+        plan,
+      })
   if (!operation.ok) return operation
   if (!operation.blueprint_id) {
     return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }

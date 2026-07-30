@@ -11,6 +11,20 @@ import type { Classroom } from '@/types'
 
 const push = vi.hoisted(() => vi.fn())
 
+vi.mock('@/components/CreateClassroomModal', () => ({
+  CreateClassroomModal: ({
+    isOpen,
+    initialBlueprintId,
+  }: {
+    isOpen: boolean
+    initialBlueprintId?: string | null
+  }) => isOpen ? (
+    <div role="dialog" data-testid="create-classroom-modal">
+      Blueprint: {initialBlueprintId || 'none'}
+    </div>
+  ) : null,
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
   usePathname: () => '/classrooms',
@@ -116,7 +130,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
-  it('keeps archived classrooms restore-only and never issues classroom DELETE requests', async () => {
+  it('offers reuse and restore without ever issuing classroom DELETE requests', async () => {
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
       classrooms: [
         createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
@@ -130,8 +144,89 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
     expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use again' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
+  it('prepares an archived classroom and opens creation with its Blueprint selected', async () => {
+    const archived = createMockClassroom({
+      id: 'archived-1',
+      title: 'Archived',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(
+      '10000000-0000-4000-8000-000000000001',
+    )
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        status: 'ready',
+        blueprint_id: '20000000-0000-4000-8000-000000000002',
+        blueprint_title: 'Reusable course',
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Use again' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/teacher/classrooms/archived-1/use-again',
+      {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': '10000000-0000-4000-8000-000000000001',
+        },
+      },
+    ))
+    expect(await screen.findByTestId('create-classroom-modal')).toHaveTextContent(
+      'Blueprint: 20000000-0000-4000-8000-000000000002',
+    )
+  })
+
+  it('sends simultaneous classroom and Blueprint changes to review', async () => {
+    const archived = createMockClassroom({
+      id: 'archived-1',
+      title: 'Archived',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        status: 'review_required',
+        blueprint_id: 'blueprint-1',
+        blueprint_title: 'Reusable course',
+        review_url: '/teacher/blueprints?blueprint=blueprint-1&reviewClassroom=archived-1',
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Use again' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(
+      'Both versions changed. Review which course changes to keep.',
+    )).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Review changes' }))
+    expect(push).toHaveBeenCalledWith(
+      '/teacher/blueprints?blueprint=blueprint-1&reviewClassroom=archived-1',
+    )
   })
 
   it('hides the create button after the first classroom unless edit mode is enabled', async () => {

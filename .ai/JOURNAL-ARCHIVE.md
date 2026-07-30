@@ -15602,3 +15602,55 @@
 
 **Remaining:**
 - Require exact-head PR CI and normal protected merge into `main`.
+
+<!-- pika-session-log-archive-batch:e3fddc5f00fa3d63e47815776933b28930f4634c7857ec22b5a005b7274e69c9 -->
+## 2026-07-22 — Hardened Tests list read states
+
+**Risk profile:** workspace-state
+
+**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses cached teacher/student lists, controlled workspace URLs, classroom transitions, and asynchronous retry boundaries.
+
+**Completed:**
+- Added explicit teacher and student Tests list loading, cold-error, successful-empty, and failed-refresh contracts with retry controls.
+- Preserved the last valid list when refresh fails, rejected non-successful student list responses, and replaced one-off refresh cache keys with canonical invalidation.
+- Scoped rendered list snapshots and errors to the active classroom so another classroom's tests cannot paint during navigation.
+- Kept controlled teacher test URLs intact until a successful list snapshot proves the selected test is invalid.
+- Resolved independent review feedback by moving focus from a replaced Retry button to a stable named Tests region for both failed and successful retries.
+- Preserved the existing desktop list-first composition. Mobile UX, Gradex, schema, migrations, and production state were unchanged.
+
+**Validation:**
+- Focused teacher/student Tests list suites (3 files / 110 tests)
+- Full repository suite before the focus-only remediation (407 files / 3,680 tests); exact-head PR CI is required
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright desktop matrix for both roles in light/dark across normal, cold-error, and preserved-refresh-error states (12 captures; no horizontal overflow)
+- Post-remediation teacher/student desktop light/dark captures (4 captures; no layout change or horizontal overflow)
+- `git diff --check`
+
+**Remaining:**
+- Require targeted remediation review and exact-head PR CI before merge.
+- Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.
+
+<!-- pika-session-log-archive-batch:1d4a8a3a3f21343cdba541ef596c78ee067b028840c0db789273c841e7b0078e -->
+## 2026-07-22 — Added canonical grading architecture guide
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a documentation-only reconciliation of implemented grading boundaries and contracts.
+
+**Completed:**
+- Added one canonical guide covering grading layers, assignment/test/repository-review flows, versioning, sanitization, atomic persistence, teacher-review evals, calibration limits, and the Pika/Gradex boundary.
+- Routed grading work to the guide from the AI instruction table and core architecture.
+- Updated current context to reflect verified migrations through 104.
+- Documented current implementation separately from future Gradex and paid replay work; no runtime, schema, provider, grading, or deployment behavior changed.
+
+**Validation:**
+- Verified referenced source paths and relative documentation links.
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Require exact-head PR CI and normal protected merge into `main`.

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   applyPersistedClassroomBlueprintProposal,
+  applyArchivedClassroomCourseBlueprintProposal,
   buildClassroomCourseBlueprintSnapshot,
   countUntrackedClassroomBlueprintArtifacts,
   applyPersistedCourseBlueprintProposal,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/server/course-blueprint-proposals'
 import { buildCourseBlueprintExportBundle } from '@/lib/course-blueprint-package'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
+import { hashCourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import type { CourseBlueprintDetail } from '@/types'
 
 const base: CourseBlueprintSnapshot = {
@@ -259,6 +261,39 @@ describe('persisted course blueprint proposals', () => {
         p_proposal_id: proposalRow.id,
         p_candidate_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
       })
+    )
+  })
+
+  it('supplies the canonical resulting Version digest for archived promotion', async () => {
+    const candidate = structuredClone(base)
+    candidate.sections.overview_markdown = 'Changed'
+    const appliedRow = {
+      ...proposalRow,
+      status: 'applied',
+      applied_blueprint_revision: 5,
+      applied_at: '2026-07-26T01:00:00.000Z',
+    }
+    const rpc = vi.fn().mockResolvedValue({ data: appliedRow, error: null })
+
+    const result = await applyArchivedClassroomCourseBlueprintProposal({
+      supabase: { rpc } as any,
+      teacherId: proposalRow.teacher_id,
+      classroomId: '50000000-0000-4000-8000-000000000000',
+      expectedClassroomRevision: 3,
+      proposalId: proposalRow.id,
+      candidate,
+    })
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    expect(rpc).toHaveBeenCalledWith(
+      'apply_archived_classroom_blueprint_proposal_atomic',
+      expect.objectContaining({
+        p_candidate_sha256: hashCourseBlueprintSnapshot(candidate),
+        p_result_snapshot_sha256: hashCourseBlueprintSnapshot({
+          ...candidate,
+          draft_revision: 5,
+        }),
+      }),
     )
   })
 

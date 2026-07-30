@@ -1224,6 +1224,7 @@ export type BlueprintMergeSuggestionArea =
   | 'materials'
   | 'surveys'
   | 'grading'
+  | 'site-visibility'
   | 'announcements'
 
 export type BlueprintMergeSuggestionOperation = 'add' | 'update' | 'remove'

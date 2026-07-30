@@ -11,56 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-22 — Hardened Tests list read states
-
-**Risk profile:** workspace-state
-
-**Model recommendation:** GPT-5.6 Terra (high) - the slice crosses cached teacher/student lists, controlled workspace URLs, classroom transitions, and asynchronous retry boundaries.
-
-**Completed:**
-- Added explicit teacher and student Tests list loading, cold-error, successful-empty, and failed-refresh contracts with retry controls.
-- Preserved the last valid list when refresh fails, rejected non-successful student list responses, and replaced one-off refresh cache keys with canonical invalidation.
-- Scoped rendered list snapshots and errors to the active classroom so another classroom's tests cannot paint during navigation.
-- Kept controlled teacher test URLs intact until a successful list snapshot proves the selected test is invalid.
-- Resolved independent review feedback by moving focus from a replaced Retry button to a stable named Tests region for both failed and successful retries.
-- Preserved the existing desktop list-first composition. Mobile UX, Gradex, schema, migrations, and production state were unchanged.
-
-**Validation:**
-- Focused teacher/student Tests list suites (3 files / 110 tests)
-- Full repository suite before the focus-only remediation (407 files / 3,680 tests); exact-head PR CI is required
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit and composite-widget accessibility checklist
-- Playwright desktop matrix for both roles in light/dark across normal, cold-error, and preserved-refresh-error states (12 captures; no horizontal overflow)
-- Post-remediation teacher/student desktop light/dark captures (4 captures; no layout change or horizontal overflow)
-- `git diff --check`
-
-**Remaining:**
-- Require targeted remediation review and exact-head PR CI before merge.
-- Continue Tests with authoring/grading mode separation; defer mobile navigation and Gradex to their separately owned phases.
-
-## 2026-07-22 — Added canonical grading architecture guide
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5.6 Terra (medium) - this is a documentation-only reconciliation of implemented grading boundaries and contracts.
-
-**Completed:**
-- Added one canonical guide covering grading layers, assignment/test/repository-review flows, versioning, sanitization, atomic persistence, teacher-review evals, calibration limits, and the Pika/Gradex boundary.
-- Routed grading work to the guide from the AI instruction table and core architecture.
-- Updated current context to reflect verified migrations through 104.
-- Documented current implementation separately from future Gradex and paid replay work; no runtime, schema, provider, grading, or deployment behavior changed.
-
-**Validation:**
-- Verified referenced source paths and relative documentation links.
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Require exact-head PR CI and normal protected merge into `main`.
-
 ## 2026-07-23 — Separated Tests authoring from grading
 
 **Risk profile:** none
@@ -1379,3 +1329,73 @@ ownership-checked deletion endpoint.
 - Complete targeted re-review and exact-head CI, then merge and release the
   deletion control.
 - Use the released control to remove the temporary production smoke Blueprint.
+
+## 2026-07-29 — Archived classroom Use again foundation
+
+**Risk profile:** reusable course lineage and archived-classroom UX.
+
+**Completed:**
+- Added a compact **Use again** action to hot archived classroom cards while
+  preserving the separate Restore action and cold-archive recovery boundary.
+- Compared reusable classroom content with its exact source Blueprint Version
+  and current Draft, normalizing expected instantiation transformations.
+- Reused the current Draft when safe, promoted classroom-only changes through
+  the atomic proposal path, and routed concurrent classroom/Draft changes to
+  review without silently choosing a side.
+- Created and linked a Pika-managed Blueprint copy for legacy archived
+  classrooms with no lineage; no student or runtime data enters the copy.
+- Opened normal classroom creation with the prepared Blueprint selected and
+  added a direct review handoff to Classroom Updates.
+- Documented the archive and Blueprint-version contracts for the flow.
+
+**Validation:**
+- Full Vitest suite: 454 files / 3,948 tests.
+- Focused final suites: 5 files / 50 tests, plus copy-only Blueprint coverage.
+- TypeScript, lint, production build, Pika audit, and diff checks.
+- Playwright teacher matrix: desktop/mobile and light/dark for the archived
+  card and conflict dialog. Student classrooms were checked and are unaffected.
+- Composite-widget checklist reviewed; existing ConfirmDialog keyboard/focus
+  behavior and semantic roles are covered, with no manual follow-up.
+
+**Remaining:**
+- Publish for independent review and exact-head CI before merge.
+- A later slice can replace the advanced Classroom Updates conflict handoff
+  with a more guided normal-user reconciliation surface.
+
+## 2026-07-29 — Archived classroom Use again review remediation
+
+**Risk profile:** high — concurrent Blueprint graph creation and archived
+classroom lineage.
+
+**Completed:**
+- Added migration 114 with a classroom-row transaction fence so unlinked
+  archived capture and lineage linking commit together; concurrent or
+  crash/retry requests reuse one linked Blueprint.
+- Added an archive-specific proposal finalizer that locks and rechecks the hot
+  archive before changing the Blueprint, then saves the resulting immutable
+  Version and advances source provenance in the same transaction.
+- Made simultaneous classroom and Draft changes require review even when both
+  sides independently reached matching current content.
+- Replaced current-calendar lesson inference with persisted lesson artifact
+  lineage, preventing overflow templates from becoming false deletions after
+  calendar edits.
+- Included reusable public-site visibility defaults in capture, comparison,
+  suggestions, and promotion while excluding operational slug/publication
+  state.
+- Completed root and nested artifact lineage mapping for both initial archived
+  capture and later promotion, including exact source Version IDs.
+- Made initial Version hashing match Pika's recursive canonical JSON and pass
+  the canonical result digest from TypeScript for promoted Versions.
+- Regenerated the Supabase function contracts for all migration 114 RPCs and
+  internal helpers after CI applied the migration successfully.
+
+**Validation:**
+- Focused suites: 6 files / 57 tests.
+- Full Vitest suite: 455 files / 3,956 tests.
+- TypeScript, lint, production build, migration contract, and diff checks pass.
+- Post-review lineage/digest suites: 6 files / 47 tests; TypeScript and lint
+  pass.
+
+**Remaining:**
+- Run Pika audit, complete targeted re-review and exact-head CI.
+- Migration 114 requires explicit target authorization before application.

@@ -157,6 +157,22 @@ describe('TeacherBlueprintsPage', () => {
       if (url === '/api/teacher/course-blueprints/b-2' && method === 'DELETE') {
         return Promise.resolve(jsonResponse({ success: true }))
       }
+      if (
+        url === '/api/teacher/course-blueprints/b-2/merge-suggestions?classroomId=c-9'
+        && method === 'GET'
+      ) {
+        return Promise.resolve(jsonResponse({
+          suggestion_set: {
+            classroom_id: 'c-9',
+            classroom_title: 'Semester 2',
+            classroom_revision: 2,
+            blueprint_id: 'b-2',
+            blueprint_revision: 4,
+            generated_at: '2026-07-29T00:00:00.000Z',
+            suggestions: [],
+          },
+        }))
+      }
       if (url === '/api/teacher/course-blueprints/b-1' && method === 'DELETE') {
         return Promise.resolve(jsonResponse({ success: true }))
       }
@@ -202,6 +218,23 @@ describe('TeacherBlueprintsPage', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('opens classroom change review from the archived reuse handoff', async () => {
+    searchParamsMap = new Map([
+      ['blueprint', 'b-2'],
+      ['reviewClassroom', 'c-9'],
+    ])
+
+    render(<TeacherBlueprintsPage />)
+
+    expect(await screen.findByRole('button', {
+      name: 'Save Classroom Changes to Blueprint',
+    })).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Semester 2')).toBeInTheDocument()
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      '/api/teacher/course-blueprints/b-2/merge-suggestions?classroomId=c-9',
+    ))
   })
 
   it('ignores stale detail responses after selecting a different blueprint', async () => {
