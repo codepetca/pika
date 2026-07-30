@@ -173,8 +173,8 @@ Test password-based flows:
   and log data, then runs the real resumable purge. It proves cleanup-only objects are deleted,
   reserved paths reject classroom/Blueprint writers both before and after Storage deletion,
   another classroom's archive writer cannot acquire a reserved path, shared paths and reusable
-  accounts survive, every terminal ledger path is redacted, and fixture teardown leaves no
-  generated rows or objects.
+  accounts survive, URL-encoded paths are matched for both sharing and reservation, every
+  terminal ledger path is redacted, and fixture teardown leaves no generated rows or objects.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

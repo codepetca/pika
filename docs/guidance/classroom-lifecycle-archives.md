@@ -346,9 +346,10 @@ data.
 ### Permanent Hot-Archive Deletion
 
 Migrations `115_hot_archived_classroom_purge.sql`,
-`116_hot_archived_classroom_purge_trigger_reconciliation.sql`, and
-`117_hot_archived_classroom_purge_review_hardening.sql`, and
+`116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
+`117_hot_archived_classroom_purge_review_hardening.sql`,
 `118_hot_archived_classroom_purge_reservation_lifetime.sql`,
+and `119_hot_archived_classroom_purge_canonical_path_matching.sql`,
 `src/lib/server/classroom-purge.ts`, and
 `/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
 classrooms. The confirmation surface states that deletion cannot be undone and removes all student
@@ -396,6 +397,11 @@ Migration 118 keeps the reservation for a successfully deleted object live until
 finalization and enrolls archive, Gradex extract, archive-operation, and cleanup-ledger writers in
 the same shared barrier. It fails closed on rollout if an active pre-existing deleted row has
 already lost the path needed to reserve it. Completion atomically redacts all remaining paths.
+
+Migration 119 compares decoded JSON string scalars and once-percent-decoded URL values rather than
+serialized JSON text. Valid managed paths containing quotes, control characters, percent escapes,
+or other URL-encoded characters therefore participate in both the external-sharing scan and the
+active writer reservation without relying on representation-sensitive substring matching.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The

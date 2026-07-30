@@ -117,6 +117,16 @@ async function main() {
       path: `purge-fixture/${fixtureId}/shared-blueprint.png`,
       contentType: 'image/png',
     },
+    {
+      bucket: 'submission-images',
+      path: `purge-fixture/${fixtureId}/encoded shared.png`,
+      contentType: 'image/png',
+    },
+    {
+      bucket: 'test-documents',
+      path: `purge-fixture/${fixtureId}/encoded delete.pdf`,
+      contentType: 'application/pdf',
+    },
   ] as const
 
   let primaryError: unknown
@@ -147,15 +157,29 @@ async function main() {
       )
     }
 
-    const submissionImageUrl =
-      `${supabaseUrl}/storage/v1/object/public/submission-images/`
-      + storageObjects[1].path
-    const sharedBlueprintImageUrl =
-      `${supabaseUrl}/storage/v1/object/public/submission-images/`
-      + storageObjects[7].path
-    const testDocumentUrl =
-      `${supabaseUrl}/storage/v1/object/public/test-documents/`
-      + storageObjects[2].path
+    const publicStorageUrl = (bucket: string, path: string) =>
+      `${supabaseUrl}/storage/v1/object/public/${encodeURIComponent(bucket)}/`
+      + path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
+    const submissionImageUrl = publicStorageUrl(
+      storageObjects[1].bucket,
+      storageObjects[1].path,
+    )
+    const sharedBlueprintImageUrl = publicStorageUrl(
+      storageObjects[7].bucket,
+      storageObjects[7].path,
+    )
+    const testDocumentUrl = publicStorageUrl(
+      storageObjects[2].bucket,
+      storageObjects[2].path,
+    )
+    const encodedSharedImageUrl = publicStorageUrl(
+      storageObjects[8].bucket,
+      storageObjects[8].path,
+    )
+    const encodedDeleteDocumentUrl = publicStorageUrl(
+      storageObjects[9].bucket,
+      storageObjects[9].path,
+    )
 
     dataOrThrow(
       'insert fixture Blueprint',
@@ -163,7 +187,9 @@ async function main() {
         id: blueprintId,
         teacher_id: teacher.id,
         title: `Purge fixture Blueprint ${suffix}`,
-        overview_markdown: `Preserved shared upload: ${sharedBlueprintImageUrl}`,
+        overview_markdown:
+          `Preserved shared upload: ${sharedBlueprintImageUrl}\n`
+          + `Preserved encoded upload: ${encodedSharedImageUrl}`,
       }),
     )
     dataOrThrow(
@@ -176,7 +202,9 @@ async function main() {
         archived_at: nowIso,
         source_blueprint_id: blueprintId,
         course_overview_markdown:
-          `Fixture upload: ${submissionImageUrl}\nShared: ${sharedBlueprintImageUrl}`,
+          `Fixture upload: ${submissionImageUrl}\n`
+          + `Shared: ${sharedBlueprintImageUrl}\n`
+          + `Encoded shared: ${encodedSharedImageUrl}`,
       }),
     )
     dataOrThrow(
@@ -288,6 +316,11 @@ async function main() {
           title: 'Fixture test document',
           source: 'upload',
           snapshot_path: storageObjects[2].path,
+        }, {
+          id: randomUUID(),
+          title: 'Fixture encoded-path test document',
+          source: 'upload',
+          snapshot_path: storageObjects[9].path,
         }],
       }),
     )
@@ -485,13 +518,13 @@ async function main() {
 
     const impact = await getClassroomPurgeImpact(teacher.id, classroomId)
     assertFixture(
-      impact.managed_file_count === 8,
+      impact.managed_file_count === 10,
       'Fixture did not inventory verified, interrupted, and shared files',
     )
     assertFixture(impact.student_count === 1, 'Fixture did not inventory the student')
     assertFixture(impact.storage_counts['assignment-artifacts'] === 1, 'Artifact inventory drift')
-    assertFixture(impact.storage_counts['submission-images'] === 2, 'Image inventory drift')
-    assertFixture(impact.storage_counts['test-documents'] === 1, 'Test document inventory drift')
+    assertFixture(impact.storage_counts['submission-images'] === 3, 'Image inventory drift')
+    assertFixture(impact.storage_counts['test-documents'] === 2, 'Test document inventory drift')
     assertFixture(impact.storage_counts['classroom-archives'] === 2, 'Archive inventory drift')
     assertFixture(
       impact.storage_counts['gradex-analytics-extracts'] === 2,
@@ -513,6 +546,17 @@ async function main() {
     assertFixture(
       reservedReference.error?.message.includes('being permanently deleted'),
       'Blueprint writer acquired a storage path reserved for deletion',
+    )
+    const encodedReservedReference = await supabase
+      .from('course_blueprints')
+      .update({
+        resources_markdown:
+          `Encoded path must be blocked during purge: ${encodedDeleteDocumentUrl}`,
+      })
+      .eq('id', blueprintId)
+    assertFixture(
+      encodedReservedReference.error?.message.includes('being permanently deleted'),
+      'Blueprint writer acquired a URL-encoded path reserved for deletion',
     )
     const deletedReservations = dataOrThrow(
       'read post-delete path reservation',
@@ -582,9 +626,9 @@ async function main() {
       `Fixture purge did not complete: ${JSON.stringify({ status, objectDiagnostics })}`,
     )
     assertFixture(
-      status.storage_object_counts.deleted === 7
-        && status.storage_object_counts.preserved === 1,
-      'Fixture purge did not record seven deletions and one shared preservation',
+      status.storage_object_counts.deleted === 8
+        && status.storage_object_counts.preserved === 2,
+      'Fixture purge did not record eight deletions and two shared preservations',
     )
 
     const classroom = dataOrThrow(
@@ -649,7 +693,7 @@ async function main() {
         .select('status,storage_path')
         .eq('operation_id', purgeOperationId),
     )
-    assertFixture(purgeObjects.length === 8, 'Purge object ledger is incomplete')
+    assertFixture(purgeObjects.length === 10, 'Purge object ledger is incomplete')
     assertFixture(
       purgeObjects.every((object) =>
         (object.status === 'deleted' || object.status === 'preserved')
@@ -658,7 +702,7 @@ async function main() {
       'Purge object ledger retained a storage path or non-terminal object',
     )
 
-    for (const object of storageObjects.slice(0, 7)) {
+    for (const object of [...storageObjects.slice(0, 7), storageObjects[9]]) {
       const separator = object.path.lastIndexOf('/')
       const directory = object.path.slice(0, separator)
       const objectName = object.path.slice(separator + 1)
@@ -690,11 +734,28 @@ async function main() {
       ),
       'Shared Blueprint upload was deleted',
     )
+    const encodedSharedSeparator = storageObjects[8].path.lastIndexOf('/')
+    const encodedSharedListing = dataOrThrow(
+      'verify encoded shared Blueprint upload preservation',
+      await supabase.storage.from(storageObjects[8].bucket).list(
+        storageObjects[8].path.slice(0, encodedSharedSeparator),
+        {
+          limit: 100,
+          search: storageObjects[8].path.slice(encodedSharedSeparator + 1),
+        },
+      ),
+    )
+    assertFixture(
+      encodedSharedListing.some((candidate) =>
+        candidate.name === storageObjects[8].path.slice(encodedSharedSeparator + 1)
+      ),
+      'Encoded shared Blueprint upload was deleted',
+    )
 
     process.stdout.write(
       `Hot archived classroom purge fixture passed: `
-      + `${impact.relational_row_count} relational rows and 7 managed files deleted; `
-      + 'one shared file, Blueprint, and user accounts preserved.\n',
+      + `${impact.relational_row_count} relational rows and 8 managed files deleted; `
+      + 'two shared files, Blueprint, and user accounts preserved.\n',
     )
   } catch (error) {
     primaryError = error

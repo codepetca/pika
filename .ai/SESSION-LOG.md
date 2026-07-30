@@ -1481,10 +1481,20 @@ classroom lineage.
   blocked after object deletion and another classroom's archive operation cannot acquire the
   reserved path. The fixture, 144-relationship schema audit, 27 focused tests, TypeScript, lint,
   generated-type check, diff check, and Pika audit pass.
+- Final integration review found representation-sensitive matching for URL-encoded or JSON-escaped
+  managed paths. With explicit authorization for one extra remediation batch, migration
+  `119_hot_archived_classroom_purge_canonical_path_matching.sql` now compares decoded JSON scalar
+  strings and once-percent-decoded URL values in both sharing scans and writer reservations.
+- With fresh exact one-time local authorization, migration 119 applied successfully and local
+  history/types align through 119. The real Storage fixture uses accepted space-containing keys to
+  prove encoded shared-path preservation and encoded reserved-path rejection; it deletes eight
+  managed files, preserves two shared files plus the Blueprint and accounts, and redacts every
+  terminal path. The fixture, 144-relationship schema audit, 32 focused tests, TypeScript, lint,
+  generated-type check, diff check, and Pika audit pass.
 
 **Remaining:**
-- Production migration history is aligned through 116. Migrations 117 and 118 are hard deployment
+- Production migration history is aligned through 116. Migrations 117 through 119 are hard deployment
   prerequisites and have not been authorized or applied outside local Supabase.
 - The application feature is still only in draft PR #963 and has not been deployed. No staging
-  migration, production migrations 117-118, application deployment, classroom purge, or Storage
+  migration, production migrations 117-119, application deployment, classroom purge, or Storage
   deletion is authorized by the consumed local migration permission.

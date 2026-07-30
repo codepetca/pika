@@ -5327,9 +5327,21 @@ export type Database = {
         Args: { p_classroom_id: string }
         Returns: string
       }
+      classroom_purge_jsonb_references_storage_path: {
+        Args: { p_payload: Json; p_storage_path: string }
+        Returns: boolean
+      }
+      classroom_purge_jsonb_text_values: {
+        Args: { p_payload: Json }
+        Returns: string[]
+      }
       classroom_purge_lock: {
         Args: { p_classroom_id: string }
         Returns: undefined
+      }
+      classroom_purge_percent_decode: {
+        Args: { p_value: string }
+        Returns: string
       }
       classroom_purge_storage_path_has_external_operation_reference: {
         Args: {
