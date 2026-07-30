@@ -71,8 +71,8 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
 } as const satisfies Record<string, readonly string[]>
 
 // These are workflow references to a classroom, not classroom-owned state.
-// They remain outside classroom archives and must be rebuilt or expired by the
-// Blueprint workflow rather than restored as part of a classroom.
+// They remain outside classroom archives and must be rebuilt, expired, or
+// reconciled by their owning workflow rather than restored with a classroom.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
   {
     child_table: 'course_blueprint_change_proposals',
@@ -86,6 +86,11 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
   },
   {
     child_table: 'course_blueprint_editing_sessions',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'classroom_purge_fences',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
   },

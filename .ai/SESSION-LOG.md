@@ -1452,6 +1452,11 @@ classroom lineage.
   retryable Supabase API 502 during verification, migration history aligned through 116 and a
   linked dry run reported the production database up to date. No application deployment,
   classroom purge, data cleanup, or Storage deletion was executed.
+- PR #963's database-backed ownership audit identified the temporary purge fence as an undeclared
+  classroom foreign-key descendant. Classified that edge as a non-owning workflow reference,
+  added drift regression coverage, and documented the redacted minimal terminal audit ledger.
+  The exact local schema audit now passes across 144 foreign-key relationships; 36 focused tests,
+  TypeScript, lint, diff checks, and the Pika audit pass.
 
 **Remaining:**
 - Production migration history is aligned through 116; the application feature is still only in

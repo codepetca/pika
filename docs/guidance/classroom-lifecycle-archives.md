@@ -157,9 +157,9 @@ Workflow records may hold a classroom reference without being owned by that
 classroom. Those exceptional edges must be declared in
 `CLASSROOM_NON_OWNING_REFERENCES`; the audit verifies the declared foreign key
 still exists and excludes that edge from archive ownership traversal. Blueprint
-change proposals and short-lived external editing sessions use this boundary
-because they are rebuilt or expired by the Blueprint workflow, not restored as
-classroom state.
+change proposals, short-lived external editing sessions, and the temporary
+permanent-deletion fence use this boundary because their owning workflow
+reconciles them instead of restoring them as classroom state.
 
 The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
 
@@ -378,6 +378,11 @@ The finalizer sets a transaction-local purge marker. Migration 116 scopes existi
 integrity and routine storage-cleanup triggers to normal writes, allowing only the already-fenced,
 exact purge membership to be deleted without weakening submission protection elsewhere or creating
 duplicate cleanup jobs.
+
+After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
+the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The
+remaining classroom and teacher ids, aggregate counts, object hashes, terminal statuses, and
+timestamps are purge audit metadata, not restorable classroom content.
 
 The teacher dialog drives bounded retry ticks for immediate feedback. The authenticated daily
 history-cleanup cron is a safety net for crash-abandoned or browser-closed operations. Both callers
