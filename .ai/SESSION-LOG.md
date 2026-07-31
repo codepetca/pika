@@ -1523,6 +1523,9 @@ authorization boundaries.
 - Restored canonical Storage-path validation on archive cleanup completion and made the fixture
   follow the production worker contract: claim the reserved source, physically delete it, then
   complete ledger reconciliation. Completion continues to fail closed while the object exists.
+- Made cold compaction and restore trigger context checks null-safe, so an absent optional
+  maintenance setting is treated as an ordinary lifecycle change rather than accidentally entering
+  privileged maintenance logic.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;

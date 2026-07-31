@@ -187,7 +187,7 @@ declare
   v_coverage public.classroom_managed_storage_coverage;
   v_object_count integer;
 begin
-  if current_setting('pika.classroom_archive_compaction', true) <> 'on' then
+  if current_setting('pika.classroom_archive_compaction', true) is distinct from 'on' then
     if exists (
       select 1 from public.managed_storage_objects object
       where object.classroom_id = new.classroom_id
@@ -301,7 +301,7 @@ declare
   v_current_count integer;
   v_restore_operation_id uuid;
 begin
-  if current_setting('pika.classroom_archive_restore', true) <> 'on' then
+  if current_setting('pika.classroom_archive_restore', true) is distinct from 'on' then
     if exists (
       select 1 from public.managed_storage_objects object
       where object.cold_classroom_id = old.classroom_id

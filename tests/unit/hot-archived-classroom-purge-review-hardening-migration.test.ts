@@ -166,6 +166,21 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain("'pika.classroom_archive_compaction_operation_id'")
   })
 
+  it('treats an absent archive maintenance setting as an ordinary lifecycle change', () => {
+    expect(migration).toContain(
+      "current_setting('pika.classroom_archive_compaction', true) is distinct from 'on'",
+    )
+    expect(migration).toContain(
+      "current_setting('pika.classroom_archive_restore', true) is distinct from 'on'",
+    )
+    expect(migration).not.toContain(
+      "current_setting('pika.classroom_archive_compaction', true) <> 'on'",
+    )
+    expect(migration).not.toContain(
+      "current_setting('pika.classroom_archive_restore', true) <> 'on'",
+    )
+  })
+
   it('permits the legacy compaction dry-run only with its local proof, while ordinary deletes stay guarded', () => {
     const wrapper = migration.indexOf(
       'create or replace function public.complete_classroom_archive_compaction(',
