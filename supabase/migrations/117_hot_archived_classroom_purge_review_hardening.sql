@@ -3727,6 +3727,7 @@ begin
   update public.classroom_purge_objects
   set
     status = 'deleted',
+    storage_path = null,
     lease_token = null,
     lease_expires_at = null,
     last_error_code = null,

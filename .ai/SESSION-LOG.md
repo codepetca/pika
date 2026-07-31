@@ -1535,6 +1535,9 @@ authorization boundaries.
 - Added an early exact purge-fence check to the server start path. A competing operation now returns
   `classroom_purge_active` before rebuilding an inventory that the running purge is mutating, while
   a replay with the same operation id resumes through the durable tick path.
+- Restored terminal purge-ledger path redaction in migration 117's rewritten completion RPC. Deleted
+  rows retain only their hashed identity and audit timestamps; raw paths, leases, and retry errors
+  are cleared.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;

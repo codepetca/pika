@@ -97,6 +97,19 @@ describe('explicit managed-file ownership migration', () => {
     expect(cleanup).toContain("'..' = any(string_to_array(p_storage_path, '/'))")
   })
 
+  it('redacts raw Storage paths when purge-object deletion is complete', () => {
+    const completionStart = migration.indexOf(
+      'create or replace function public.complete_classroom_purge_object(',
+    )
+    const completionEnd = migration.indexOf('$$;', completionStart)
+    const completion = migration.slice(completionStart, completionEnd)
+
+    expect(completion).toContain("status = 'deleted'")
+    expect(completion).toContain('storage_path = null')
+    expect(completion).toContain('lease_token = null')
+    expect(completion).toContain('last_error_code = null')
+  })
+
   it('attaches legacy test ownership without recording a semantic classroom edit', () => {
     const functionStart = migration.indexOf(
       'create or replace function public.attach_legacy_test_document_managed_object(',
