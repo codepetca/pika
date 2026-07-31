@@ -136,6 +136,7 @@ async function main() {
   const fixtureId = randomUUID()
   const classroomId = randomUUID()
   const blueprintId = randomUUID()
+  const otherTeacherId = randomUUID()
   const purgeOperationId = randomUUID()
   const competingPurgeOperationId = randomUUID()
   const assignmentId = randomUUID()
@@ -170,19 +171,23 @@ async function main() {
 
     const teachers = dataOrThrow(
       'read fixture teachers',
-      await supabase.from('users').select('id,email').eq('role', 'teacher').limit(2),
+      await supabase.from('users').select('id,email').eq('role', 'teacher').limit(1),
     )
     const students = dataOrThrow(
       'read fixture student',
       await supabase.from('users').select('id,email').eq('role', 'student').limit(1),
     )
     const teacher = teachers[0]
-    const otherTeacher = teachers[1]
     const student = students[0]
     assertFixture(teacher, 'Local fixture requires one seeded teacher')
-    assertFixture(otherTeacher, 'Local fixture requires two seeded teachers for authorization checks')
     assertFixture(student, 'Local fixture requires one seeded student')
     teacherId = teacher.id
+
+    dataOrThrow('insert authorization probe teacher', await supabase.from('users').insert({
+      id: otherTeacherId,
+      email: `purge-fixture-${suffix}@example.invalid`,
+      role: 'teacher',
+    }))
 
     dataOrThrow('insert fixture Blueprint', await supabase.from('course_blueprints').insert({
       id: blueprintId,
@@ -515,7 +520,7 @@ async function main() {
 
     await expectFailure(
       'other teacher impact read',
-      () => getClassroomPurgeImpact(otherTeacher.id, classroomId),
+      () => getClassroomPurgeImpact(otherTeacherId, classroomId),
       ['classroom_not_found'],
     )
     let status = await startClassroomPurge({
@@ -523,7 +528,7 @@ async function main() {
     })
     await expectFailure(
       'other teacher purge claim',
-      () => tickClassroomPurge(otherTeacher.id, purgeOperationId),
+      () => tickClassroomPurge(otherTeacherId, purgeOperationId),
       ['P0002'],
     )
     await expectFailure(
@@ -595,6 +600,9 @@ async function main() {
     const blueprint = dataOrThrow('verify Blueprint preservation', await supabase
       .from('course_blueprints').select('id').eq('id', blueprintId).maybeSingle())
     assertFixture(blueprint, 'Reusable Blueprint was deleted')
+    const preservedUsers = dataOrThrow('verify user account preservation', await supabase
+      .from('users').select('id').in('id', [teacher.id, otherTeacherId, student.id]))
+    assertFixture(preservedUsers.length === 3, 'Purge deleted a user account')
     for (const object of [...managedObjects.filter((item) => item.owner === 'classroom'), ...operationalObjects]) {
       assertFixture(!await storageObjectExists(supabase, object), `${object.bucket}/${object.path} survived purge`)
     }
@@ -653,6 +661,7 @@ async function main() {
           '${failedArchiveOperationId}', '${failedGradexOperationId}');
       delete from public.classrooms where id = '${classroomId}';
       delete from public.course_blueprints where id = '${blueprintId}';
+      delete from public.users where id = '${otherTeacherId}';
       commit;
     `
     try {

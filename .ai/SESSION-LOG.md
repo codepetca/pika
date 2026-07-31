@@ -1529,6 +1529,9 @@ authorization boundaries.
 - Kept shared database fixtures compatible with pre-117 schema replays by conditionally cleaning
   managed coverage and registering/verifying managed objects only when those contracts exist. The
   disposable legacy Quiz/archive compatibility rehearsal now passes through compaction again.
+- Made the destructive purge fixture self-contained: it creates its own non-owner teacher for
+  authorization checks, verifies the owner, non-owner, and student accounts all survive deletion,
+  and removes only the fixture-owned probe account during teardown.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;
