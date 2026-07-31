@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Retired legacy Quiz API response aliases
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass crosses student and teacher API producers, client normalizers, component consumers, and contract documentation.
-
-**Completed:**
-- Closed the internal Tests API compatibility window and removed legacy `quiz` / `quizzes` response aliases from active student and teacher Tests routes.
-- Removed quiz-key fallback reads and compatibility fixtures while preserving current `test` / `tests` handling for optional and error payloads.
-- Added route assertions and an architecture ratchet preventing the retired response helpers from returning.
-- Documented the cutoff, older-client risk, code-only rollback, and remaining database, archive, gradebook, package, component, URL, and automation compatibility boundaries.
-- Left schema, migrations, persisted `quiz_id` fields, archive v1 resources, gradebook tombstones, and course package compatibility unchanged.
-
-**Validation:**
-- Focused Tests API/client/component suites (12 files / 208 tests)
-- Full repository suite (408 files / 3,674 tests)
-
 ## 2026-07-23 — Hardened standalone test preview
 
 **Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
@@ -1395,3 +1378,25 @@ classroom lineage.
 
 **Remaining:**
 - Publish the branch and confirm the real pull-request CI run on GitHub.
+
+## 2026-07-31 — Tightened commit prompt worktree guardrails
+
+**Risk profile:** none
+
+**Completed:**
+- Added the missing repo-root guard to the Codex `commit-and-pr` prompt so it
+  now resolves `git rev-parse --show-toplevel` and stops in the hub checkout at
+  `$HOME/Repos/pika` before any commit/push flow.
+- Extended the startup-doc regression suite to require both the Claude and
+  Codex commit prompts to include the canonical worktree safety checks:
+  repo-root resolution, hub-checkout stop, detached-HEAD stop, and no
+  force-push guidance.
+- Installed local dependencies in this app-managed worktree so the focused
+  startup-doc suite could run here.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`
+
+**Remaining:**
+- None.
