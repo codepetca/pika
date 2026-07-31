@@ -1501,10 +1501,20 @@ classroom lineage.
   and reservation behavior while still deleting eight files, preserving two shared files plus the
   Blueprint/accounts, and redacting terminal paths. The fixture, 144-relationship schema audit,
   37 focused tests, TypeScript, lint, generated-type check, diff check, and Pika audit pass.
+- Targeted security review found that malformed query or fragment escapes could still poison
+  compatibility decoding of one target URL whose pathname used an equivalent noncanonical escape.
+  With explicit authorization for one additional remediation batch, migration
+  `121_hot_archived_classroom_purge_url_path_isolation.sql` strips query and fragment before
+  pathname decoding.
+- With fresh exact one-time local authorization, migration 121 applied successfully and local
+  history/types align through 121. The real Storage fixture proves `%61` pathname preservation with
+  a poisoned fragment and `%2F` reservation rejection with a poisoned query while retaining all
+  prior deletion and preservation invariants. The fixture, 144-relationship schema audit, 40
+  focused tests, TypeScript, lint, generated-type check, diff check, and Pika audit pass.
 
 **Remaining:**
-- Production migration history is aligned through 116. Migrations 117 through 120 are hard deployment
+- Production migration history is aligned through 116. Migrations 117 through 121 are hard deployment
   prerequisites and have not been authorized or applied outside local Supabase.
 - The application feature is still only in draft PR #963 and has not been deployed. No staging
-  migration, production migrations 117-120, application deployment, classroom purge, or Storage
+  migration, production migrations 117-121, application deployment, classroom purge, or Storage
   deletion is authorized by the consumed local migration permission.

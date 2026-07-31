@@ -175,7 +175,8 @@ Test password-based flows:
   another classroom's archive writer cannot acquire a reserved path, shared paths and reusable
   accounts survive, URL-encoded paths are matched for both sharing and reservation even when the
   same field contains unrelated invalid `%FF` or `%00` escapes, every terminal ledger path is
-  redacted, and fixture teardown leaves no generated rows or objects.
+  redacted, and fixture teardown leaves no generated rows or objects. The encoded-path cases also
+  cover aliased `%61`/`%2F` path spellings whose query or fragment contains invalid escapes.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

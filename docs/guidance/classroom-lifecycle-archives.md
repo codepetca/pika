@@ -349,8 +349,9 @@ Migrations `115_hot_archived_classroom_purge.sql`,
 `116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
 `117_hot_archived_classroom_purge_review_hardening.sql`,
 `118_hot_archived_classroom_purge_reservation_lifetime.sql`,
-`119_hot_archived_classroom_purge_canonical_path_matching.sql`, and
-`120_hot_archived_classroom_purge_isolated_url_matching.sql`,
+`119_hot_archived_classroom_purge_canonical_path_matching.sql`,
+`120_hot_archived_classroom_purge_isolated_url_matching.sql`, and
+`121_hot_archived_classroom_purge_url_path_isolation.sql`,
 `src/lib/server/classroom-purge.ts`, and
 `/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
 classrooms. The confirmation surface states that deletion cannot be undone and removes all student
@@ -408,6 +409,11 @@ Migration 120 prevents unrelated malformed escapes in rich text from poisoning t
 compares a canonical percent-encoded path against normalized field text without decoding the field,
 then decodes only isolated URL candidates as a compatibility fallback. Invalid `%FF` or `%00` text
 elsewhere in the same markdown value cannot hide a later managed URL.
+
+Migration 121 limits each compatibility decode to the URL scheme, authority, and pathname. Query
+and fragment text cannot poison path matching because neither is part of the Storage object key.
+Equivalent URL paths using encoded unreserved characters or encoded separators still resolve to
+the reserved key even when their query or fragment contains invalid escapes.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The

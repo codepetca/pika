@@ -180,6 +180,12 @@ async function main() {
       storageObjects[9].bucket,
       storageObjects[9].path,
     )
+    const aliasedSharedImageUrl = encodedSharedImageUrl
+      .replace('/encoded%20shared.png', '/%65ncoded%20shared.png')
+      + '#%FF'
+    const aliasedDeleteDocumentUrl = encodedDeleteDocumentUrl
+      .replace('/encoded%20delete.pdf', '%2Fencoded%20delete.pdf')
+      + '?x=%00'
 
     dataOrThrow(
       'insert fixture Blueprint',
@@ -190,7 +196,7 @@ async function main() {
         overview_markdown:
           'Unrelated malformed escape: https://example.invalid/%FF\n'
           + `Preserved shared upload: ${sharedBlueprintImageUrl}\n`
-          + `Preserved encoded upload: ${encodedSharedImageUrl}`,
+          + `Preserved aliased upload: ${aliasedSharedImageUrl}`,
       }),
     )
     dataOrThrow(
@@ -553,12 +559,12 @@ async function main() {
       .update({
         resources_markdown:
           'Unrelated NUL escape: https://example.invalid/%00\n'
-          + `Encoded path must be blocked during purge: ${encodedDeleteDocumentUrl}`,
+          + `Aliased path must be blocked during purge: ${aliasedDeleteDocumentUrl}`,
       })
       .eq('id', blueprintId)
     assertFixture(
       encodedReservedReference.error?.message.includes('being permanently deleted'),
-      'Poisoned Blueprint field acquired a URL-encoded path reserved for deletion',
+      'Blueprint acquired an aliased path with a poisoned query during purge',
     )
     const deletedReservations = dataOrThrow(
       'read post-delete path reservation',
