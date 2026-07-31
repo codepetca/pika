@@ -570,19 +570,27 @@ async function main() {
       !await storageObjectExists(supabase, { bucket: 'submission-images', path: unmanagedPath }),
       'Rejected unreserved upload left a physical Storage object behind',
     )
-    const reservedRewrite = await supabase.storage.from(managedObjects[0].bucket).upload(
-      managedObjects[0].path,
+    let fencedManagedObject: FixtureObject | undefined
+    for (const object of managedObjects.filter((candidate) => candidate.owner === 'classroom')) {
+      if (await storageObjectExists(supabase, object)) {
+        fencedManagedObject = object
+        break
+      }
+    }
+    assertFixture(fencedManagedObject, 'Purge fixture had no remaining managed object to fence')
+    const reservedRewrite = await supabase.storage.from(fencedManagedObject.bucket).upload(
+      fencedManagedObject.path,
       new TextEncoder().encode('must be fenced'),
-      { contentType: managedObjects[0].contentType, upsert: true },
+      { contentType: fencedManagedObject.contentType, upsert: true },
     )
     assertFixture(
       reservedRewrite.error,
       'Purge fence accepted a write to an exact reserved path',
     )
     const reservedDownload = dataOrThrow('download reserved purge object', await supabase.storage
-      .from(managedObjects[0].bucket).download(managedObjects[0].path))
+      .from(fencedManagedObject.bucket).download(fencedManagedObject.path))
     assertFixture(
-      await reservedDownload.text() === `Pika owned fixture ${managedObjects[0].id}`,
+      await reservedDownload.text() === `Pika owned fixture ${fencedManagedObject.id}`,
       'Rejected reserved-path overwrite changed the stored bytes',
     )
 
