@@ -1516,6 +1516,13 @@ authorization boundaries.
 - Replayed migrations 001–117 successfully in exact-head GitHub CI, then reconciled the checked-in
   generated database types from that disposable CI schema without applying migration 117 to any
   persistent local, hosted, or production database.
+- Reconciled the existing database fixtures with the intentional managed-coverage deletion fence;
+  qualified deferred ownership constraints for the empty-search-path compaction RPC; made coverage
+  initialization idempotent across rolled-back dry runs; and registered the compaction fixture's
+  physical source object so hot-to-cold ownership is exercised instead of bypassed.
+- Restored canonical Storage-path validation on archive cleanup completion and made the fixture
+  follow the production worker contract: claim the reserved source, physically delete it, then
+  complete ledger reconciliation. Completion continues to fail closed while the object exists.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;
@@ -1524,6 +1531,8 @@ authorization boundaries.
 - Migration 117 was not applied to any persistent local or hosted target. GitHub CI replayed it only
   in its disposable database; no rollout gate, Storage object, or production environment was
   modified.
+- Exact-head CI iterations cleared schema replay, generated-type drift, atomic grading/submission,
+  Blueprint, and archive lifecycle contracts before reaching the hardened compaction cleanup flow.
 
 **Remaining:**
 - Keep PR #963 draft. Fresh named local authorization is required before replaying migration 117 or

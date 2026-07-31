@@ -930,6 +930,15 @@ begin
   ) then
     raise exception 'Wrong source-object cleanup lease completed work';
   end if;
+
+  perform set_config('storage.allow_delete_query', 'true', true);
+  delete from storage.objects
+  where bucket_id = v_claim.storage_bucket
+    and name = v_claim.storage_path;
+  if found is not true then
+    raise exception 'Claimed source object was not deleted before completion';
+  end if;
+
   if not public.complete_classroom_archive_source_object_cleanup(
     v_claim.operation_id,
     v_claim.storage_bucket,
