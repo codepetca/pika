@@ -308,9 +308,9 @@ async function main() {
       update public.managed_storage_objects set next_attempt_at = clock_timestamp()
       where id = '${cleanupProbe.id}' and status = 'cleanup_pending';
     `)
-    const retryLease = randomUUID()
+    const managedCleanupRetryLease = randomUUID()
     const retryClaims = await rpc(supabase, 'claim_managed_storage_cleanup', {
-      p_lease_token: retryLease, p_limit: 1, p_lease_seconds: 60,
+      p_lease_token: managedCleanupRetryLease, p_limit: 1, p_lease_seconds: 60,
     }) as Array<{ id: string; lease_token: string; attempt_count: number }>
     const retriedCleanup = retryClaims.find((row) => row.id === cleanupProbe.id)
     assertFixture(retriedCleanup?.attempt_count === 2, 'Managed cleanup did not resume after failure')
@@ -535,10 +535,10 @@ async function main() {
       ['classroom_purge_active'],
     )
 
-    const retryLease = randomUUID()
+    const purgeObjectRetryLease = randomUUID()
     const retryClaim = (await rpc(supabase, 'claim_classroom_purge_object', {
       p_operation_id: purgeOperationId, p_teacher_id: teacher.id,
-      p_lease_token: retryLease, p_lease_seconds: 60,
+      p_lease_token: purgeObjectRetryLease, p_lease_seconds: 60,
     }) as Array<{ id: string; lease_token: string }>)[0]
     assertFixture(retryClaim, 'Fixture could not claim a purge object for retry proof')
     assertFixture(await rpc(supabase, 'fail_classroom_purge_object', {
