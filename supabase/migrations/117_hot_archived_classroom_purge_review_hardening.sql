@@ -985,8 +985,8 @@ begin
   -- admits it only with this marker and an exact snapshot-ready operation.
   perform set_config('pika.classroom_archive_compaction_dry_run', 'on', true);
   set constraints
-    managed_storage_objects_classroom_id_fkey,
-    classroom_managed_storage_coverage_classroom_id_fkey
+    public.managed_storage_objects_classroom_id_fkey,
+    public.classroom_managed_storage_coverage_classroom_id_fkey
     deferred;
   return public.complete_classroom_archive_compaction_legacy_117(
     p_operation_id,

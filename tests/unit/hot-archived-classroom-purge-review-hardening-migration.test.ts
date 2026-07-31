@@ -184,10 +184,10 @@ describe('explicit managed-file ownership migration', () => {
     expect(dryRunMarker).toBeGreaterThan(wrapper)
     expect(deferredFks).toBeGreaterThan(dryRunMarker)
     expect(migration.slice(deferredFks, deleteGuard)).toContain(
-      'managed_storage_objects_classroom_id_fkey',
+      'public.managed_storage_objects_classroom_id_fkey',
     )
     expect(migration.slice(deferredFks, deleteGuard)).toContain(
-      'classroom_managed_storage_coverage_classroom_id_fkey',
+      'public.classroom_managed_storage_coverage_classroom_id_fkey',
     )
     expect(guardMarker).toBeGreaterThan(deleteGuard)
     expect(migration.slice(guardMarker, ordinaryDeleteFailure)).toContain("operation.status = 'snapshot_ready'")
