@@ -368,8 +368,9 @@ instantiation completes. Internal managed-object ids are not exported in Course 
 
 All new uploads reserve exact ownership before writing Storage and atomically adopt the reservation
 after Storage confirms the object. Failed or abandoned uploads become leased, retryable cleanup work.
-The Storage trigger rejects unreserved writes once enforcement is enabled, rejects ordinary deletes
-of managed objects, and permanently fences any exact key that has entered a purge ledger. Test link
+The Storage trigger rejects unreserved source writes once enforcement is enabled, rejects ordinary
+deletes of managed objects, and permanently fences writes to any exact key in all five purge buckets
+once that key has entered a purge ledger. Test link
 snapshots are no longer copied while a teacher merely browses authoring or preview screens. They are
 created at the explicit manual-sync or test-activation boundary, so teacher-authored uploads remain
 stable source material while execution copies are classroom-owned and disposable.
@@ -419,7 +420,9 @@ Migration 117 is fail-closed when installed: `enforce_ownership` and
 deploy dual-compatible producers; backfill every classroom and investigate blocked/shared paths;
 report global orphans; enable the cleanup worker; enable Storage ownership enforcement; run a named
 hot-archive canary; then enable hot purge for the application. Rollback turns the gates off and stops
-workers without discarding durable ledgers. Applying migration 117, setting either database gate,
+workers without discarding durable ledgers. Turning either database gate off stops new purge leases
+and relational finalization; a worker that already received a lease may still record the result of
+its issued Storage deletion so the ledger remains resumable. Applying migration 117, setting either database gate,
 enabling the worker, or running a destructive canary each requires its own named authorization.
 Migration 117 preserves the legacy assignment save/submit RPC signatures for a migration-first
 deployment, but moves their implementations behind non-callable private names. The compatibility

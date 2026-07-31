@@ -445,6 +445,43 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain(
       'on public.classroom_purge_objects (storage_bucket, storage_path_sha256)',
     )
+    const triggerStart = migration.indexOf(
+      'create or replace function public.enforce_managed_storage_object_ownership()',
+    )
+    const triggerEnd = migration.indexOf('$$;', triggerStart)
+    const trigger = migration.slice(triggerStart, triggerEnd)
+    const permanentReservation = trigger.indexOf(
+      "and v_bucket in (\n      'assignment-artifacts',",
+    )
+    const managedSourceEarlyReturn = trigger.indexOf(
+      "if v_bucket not in ('assignment-artifacts', 'submission-images', 'test-documents')",
+    )
+    expect(permanentReservation).toBeGreaterThanOrEqual(0)
+    expect(trigger).toContain("'classroom-archives'")
+    expect(trigger).toContain("'gradex-analytics-extracts'")
+    expect(permanentReservation).toBeLessThan(managedSourceEarlyReturn)
+  })
+
+  it('stops active purge claims and finalization when either rollout gate is disabled', () => {
+    const claimStart = migration.indexOf(
+      'create or replace function public.claim_classroom_purge_object(',
+    )
+    const claimEnd = migration.indexOf('$$;', claimStart)
+    const claim = migration.slice(claimStart, claimEnd)
+    const finalizerStart = migration.indexOf(
+      'create or replace function public.finalize_hot_archived_classroom_purge(',
+    )
+    const finalizerEnd = migration.indexOf('$$;', finalizerStart)
+    const finalizer = migration.slice(finalizerStart, finalizerEnd)
+
+    expect(claim).toContain('from public.managed_storage_settings')
+    expect(claim).toContain('and enforce_ownership')
+    expect(claim).toContain('and hot_classroom_purge_enabled')
+    expect(finalizer).toContain("'error_code', 'classroom_purge_disabled'")
+    expect(finalizer).toContain("'error_code', 'managed_storage_enforcement_required'")
+    expect(finalizer).toContain(
+      'public.managed_storage_identity_sha256(\n       storage_object.bucket_id,',
+    )
   })
 
   it('preserves non-retryable relational finalizer failures', () => {

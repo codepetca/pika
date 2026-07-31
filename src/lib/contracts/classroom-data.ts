@@ -109,6 +109,11 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     parent_table: 'classrooms',
     child_columns: ['target_classroom_id'],
   },
+  {
+    child_table: 'legacy_blueprint_classroom_storage_reconciliations',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
 ] as const satisfies readonly ClassroomSchemaRelationship[]
 
 export const classroomResourceInventorySchema = z.array(classroomResourceSchema).min(1).superRefine(

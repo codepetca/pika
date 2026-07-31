@@ -3283,19 +3283,33 @@ declare
   v_object public.managed_storage_objects;
   v_enforce boolean;
 begin
+  if tg_op <> 'DELETE'
+    and v_bucket in (
+      'assignment-artifacts',
+      'submission-images',
+      'test-documents',
+      'classroom-archives',
+      'gradex-analytics-extracts'
+    )
+  then
+    perform public.managed_storage_exact_lock(v_bucket, v_path);
+    if exists (
+      select 1
+      from public.classroom_purge_objects purge_object
+      where purge_object.storage_bucket = v_bucket
+        and purge_object.storage_path_sha256 =
+          public.managed_storage_identity_sha256(v_bucket, v_path)
+    ) then
+      raise exception 'storage_path_permanently_reserved' using errcode = '55000';
+    end if;
+  end if;
+
   if v_bucket not in ('assignment-artifacts', 'submission-images', 'test-documents') then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
 
-  perform public.managed_storage_exact_lock(v_bucket, v_path);
-  if tg_op <> 'DELETE' and exists (
-    select 1
-    from public.classroom_purge_objects purge_object
-    where purge_object.storage_bucket = v_bucket
-      and purge_object.storage_path_sha256 =
-        public.managed_storage_identity_sha256(v_bucket, v_path)
-  ) then
-    raise exception 'storage_path_permanently_reserved' using errcode = '55000';
+  if tg_op = 'DELETE' then
+    perform public.managed_storage_exact_lock(v_bucket, v_path);
   end if;
 
   select * into v_object
@@ -4114,6 +4128,18 @@ begin
   if p_lease_seconds < 15 or p_lease_seconds > 300 then
     raise exception 'invalid_classroom_purge_lease' using errcode = '22023';
   end if;
+  -- Disabling either rollout gate is the authoritative emergency stop for
+  -- new destructive work. An already-issued lease may still record its
+  -- deletion through complete_classroom_purge_object.
+  if not exists (
+    select 1
+    from public.managed_storage_settings
+    where singleton
+      and enforce_ownership
+      and hot_classroom_purge_enabled
+  ) then
+    return;
+  end if;
   if not exists (
     select 1 from public.classroom_purge_operations
     where id = p_operation_id
@@ -4270,6 +4296,8 @@ declare
   v_result jsonb;
   v_error_code text;
   v_retryable boolean := true;
+  v_enabled boolean;
+  v_enforced boolean;
 begin
   select * into v_operation
   from public.classroom_purge_operations
@@ -4282,6 +4310,23 @@ begin
     return jsonb_build_object(
       'ok', true, 'status', 200, 'operation_id', p_operation_id,
       'operation_status', 'completed', 'replayed', true
+    );
+  end if;
+  select hot_classroom_purge_enabled, enforce_ownership
+  into v_enabled, v_enforced
+  from public.managed_storage_settings
+  where singleton;
+  if not coalesce(v_enabled, false) then
+    return jsonb_build_object(
+      'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',
+      'error', 'Permanent classroom deletion is not enabled'
+    );
+  end if;
+  if not coalesce(v_enforced, false) then
+    return jsonb_build_object(
+      'ok', false, 'status', 503,
+      'error_code', 'managed_storage_enforcement_required',
+      'error', 'Managed storage ownership enforcement is not enabled'
     );
   end if;
   if exists (
@@ -4299,7 +4344,10 @@ begin
     from public.classroom_purge_objects object
     join storage.objects storage_object
       on storage_object.bucket_id = object.storage_bucket
-     and storage_object.name = object.storage_path
+     and public.managed_storage_identity_sha256(
+       storage_object.bucket_id,
+       storage_object.name
+     ) = object.storage_path_sha256
     where object.operation_id = p_operation_id
       and object.disposition = 'delete'
   ) then

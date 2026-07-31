@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Staged the additive archive-v2 contract locally
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Added migration `105_classroom_archive_v2_contract.sql` with private retired
-  assessment envelopes, a version-keyed archive registry, operation contract
-  pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
-  preserving every deployed v1 RPC and source table.
-- Validated archive-v2 export through deterministic v1 Quiz adaptation and
-  validated the explicit v1/v2-to-envelope restore path. Kept current
-  application export and restore on v1 because compaction remains v1-only and
-  migration 105 is not hosted.
-- Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
-  fail closed until the freeze/backfill pass provides direct v2 snapshots.
-- Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
-  with actor references; added a direct v1-to-v2 archive/restore round trip.
-- Applied migration 105 only to the local validation database after explicit
-  authorization. The first attempt rolled back on deferred FK ordering; moved
-  the version-registry FK creation after seed rows and validated the corrected
-  schema. No hosted database was changed.
-- Regenerated `src/types/database.generated.ts` and added a transactional v2
-  database harness to CI. Legacy v1 export/restore/compaction and Gradex
-  database harnesses remain green.
-
-**Validation:**
-- Full repository suite at the final head: 412 files / 3,710 tests.
-- Focused final suite: 20 files / 232 tests.
-- Local v1 export, v1 restore, v1 compaction, Gradex, and v2 export/restore
-  database contracts.
-- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm run db:types:check`, migration
-  filename/static checks, `git diff --check`, and Pika changed-file audit.
-
-**Remaining:**
-- Run architecture/build/full final validation at the exact head.
-- Open the PR, independently review and remediate it, then require exact-head CI.
-- Migration 105 still requires separate explicit authorization for every hosted
-  target. The next implementation pass is the atomic freeze/backfill ledger.
-
 ## 2026-07-23 — Closed archive-v2 contract review blockers
 
 **Risk profile:** runtime-platform
@@ -1542,3 +1503,38 @@ zero-downtime rollout
   PR publication each require separate authorization.
 - Cold archived classroom deletion and comprehensive individual-student purging remain follow-up
   scopes; ambiguous legacy sharing remains fail-closed/manual.
+
+## 2026-07-31 — Published PR #963 hardening and fixed review blockers
+
+**Risk profile:** migration, destructive-data, storage race, rollout rollback, CI contract
+
+**Completed:**
+- Committed and pushed the locally verified managed-ownership redesign to draft PR #963 at
+  `7338a79a`, and corrected the PR description to distinguish local migration/fixture evidence
+  from untouched production state.
+- Classified the transient legacy Classroom/Blueprint reconciliation ledger as a non-owning
+  Classroom workflow reference, fixing the current-head schema ownership audit without adding it
+  to classroom archive or purge payload membership.
+- Extended permanent purge reservations to reject exact-key writes in all five purge buckets,
+  including classroom archives and Gradex extracts, before the managed-source-bucket early return.
+  Finalization now checks reappearance by retained bucket/path hash after raw path redaction.
+- Made both rollout gates an authoritative emergency stop for active operations: no new purge
+  object lease or relational finalization occurs while either gate is off. An already-issued lease
+  may still record authoritative deletion completion so retry evidence remains coherent.
+- Extended the database-backed purge fixture to disable each gate mid-operation and prove no
+  progress, then resume after re-enable. It also completes and redacts one object from each
+  operational bucket and proves exact-path recreation is rejected before finalization.
+
+**Validation:**
+- Initial independent review: architecture/compatibility reviewer found no blocker; security
+  reviewer found the two accepted storage-race and emergency-stop blockers fixed above.
+- Current-head CI before remediation: Test & Build and Browser Experience Matrix passed;
+  Architecture Database Contracts exposed the accepted non-owning-reference omission.
+- Local schema ownership audit passes with 165 foreign-key relationships.
+- Focused remediation suite: 4 files / 50 tests; TypeScript, lint, architecture boundaries,
+  SQLFluff PostgreSQL parse, and `git diff --check` pass.
+
+**Remaining:**
+- Push the single remediation batch, require current-head CI (including the database-backed purge
+  fixture), and run one targeted security re-review before considering the draft review complete.
+- Do not merge, deploy, apply migration 117 to a hosted target, or change any production gate.

@@ -75,17 +75,30 @@ function runSql(databaseUrl: string, sql: string): string {
   }).trim()
 }
 
-function setRolloutGates(databaseUrl: string, enabled: boolean) {
-  const value = enabled ? 'true' : 'false'
+function setRolloutGateState(
+  databaseUrl: string,
+  enforceOwnership: boolean,
+  hotClassroomPurgeEnabled: boolean,
+) {
+  const enforceValue = enforceOwnership ? 'true' : 'false'
+  const purgeValue = hotClassroomPurgeEnabled ? 'true' : 'false'
   const result = runSql(databaseUrl, `
     update public.managed_storage_settings
-    set enforce_ownership = ${value}, hot_classroom_purge_enabled = ${value},
+    set enforce_ownership = ${enforceValue},
+        hot_classroom_purge_enabled = ${purgeValue},
         updated_at = clock_timestamp()
     where singleton;
     select enforce_ownership::text || ':' || hot_classroom_purge_enabled::text
     from public.managed_storage_settings where singleton;
   `)
-  assertFixture(result === `${value}:${value}`, 'Fixture could not set both rollout gates exactly')
+  assertFixture(
+    result === `${enforceValue}:${purgeValue}`,
+    'Fixture could not set the rollout gates exactly',
+  )
+}
+
+function setRolloutGates(databaseUrl: string, enabled: boolean) {
+  setRolloutGateState(databaseUrl, enabled, enabled)
 }
 
 async function storageObjectExists(
@@ -539,6 +552,124 @@ async function main() {
       }),
       ['classroom_purge_active'],
     )
+
+    for (const gate of [
+      {
+        enforceOwnership: false,
+        hotClassroomPurgeEnabled: true,
+        errorCode: 'managed_storage_enforcement_required',
+      },
+      {
+        enforceOwnership: true,
+        hotClassroomPurgeEnabled: false,
+        errorCode: 'classroom_purge_disabled',
+      },
+    ]) {
+      const progressBefore = runSql(databaseUrl, `
+        select jsonb_build_object(
+          'operation_attempts', operation.attempt_count,
+          'object_attempts', coalesce(sum(object.attempt_count), 0),
+          'deleted', count(*) filter (where object.status = 'deleted')
+        )
+        from public.classroom_purge_operations operation
+        join public.classroom_purge_objects object
+          on object.operation_id = operation.id
+        where operation.id = '${purgeOperationId}'
+        group by operation.attempt_count;
+      `)
+      setRolloutGateState(
+        databaseUrl,
+        gate.enforceOwnership,
+        gate.hotClassroomPurgeEnabled,
+      )
+      await expectFailure(
+        `purge tick with ${gate.errorCode}`,
+        () => tickClassroomPurge(teacher.id, purgeOperationId),
+        [gate.errorCode],
+      )
+      const progressAfter = runSql(databaseUrl, `
+        select jsonb_build_object(
+          'operation_attempts', operation.attempt_count,
+          'object_attempts', coalesce(sum(object.attempt_count), 0),
+          'deleted', count(*) filter (where object.status = 'deleted')
+        )
+        from public.classroom_purge_operations operation
+        join public.classroom_purge_objects object
+          on object.operation_id = operation.id
+        where operation.id = '${purgeOperationId}'
+        group by operation.attempt_count;
+      `)
+      assertFixture(
+        progressAfter === progressBefore,
+        `Disabled gate ${gate.errorCode} allowed purge progress`,
+      )
+    }
+    setRolloutGates(databaseUrl, true)
+
+    // Complete one object in each operational bucket, then prove the permanent
+    // hash reservation still rejects exact-key recreation after raw-path
+    // redaction and before relational finalization.
+    for (const operationalObject of operationalObjects.slice(0, 2)) {
+      runSql(databaseUrl, `
+        update public.classroom_purge_objects
+        set next_attempt_at = '${expiryIso}'::timestamptz
+        where operation_id = '${purgeOperationId}'
+          and status in ('pending', 'failed');
+        update public.classroom_purge_objects
+        set next_attempt_at = clock_timestamp()
+        where operation_id = '${purgeOperationId}'
+          and storage_bucket = '${operationalObject.bucket}'
+          and storage_path = '${operationalObject.path}'
+          and status in ('pending', 'failed');
+      `)
+      const operationalLease = randomUUID()
+      const operationalClaim = (await rpc(supabase, 'claim_classroom_purge_object', {
+        p_operation_id: purgeOperationId,
+        p_teacher_id: teacher.id,
+        p_lease_token: operationalLease,
+        p_lease_seconds: 60,
+      }) as Array<{
+        id: string
+        storage_bucket: string
+        storage_path: string
+        lease_token: string
+      }>)[0]
+      assertFixture(
+        operationalClaim?.storage_bucket === operationalObject.bucket
+          && operationalClaim.storage_path === operationalObject.path,
+        'Fixture could not isolate an operational purge object',
+      )
+      dataOrThrow(
+        `remove reserved ${operationalObject.bucket} object`,
+        await supabase.storage.from(operationalObject.bucket).remove([operationalObject.path]),
+      )
+      assertFixture(await rpc(supabase, 'complete_classroom_purge_object', {
+        p_object_id: operationalClaim.id,
+        p_teacher_id: teacher.id,
+        p_lease_token: operationalClaim.lease_token,
+      }) === true, 'Operational purge object did not complete')
+      const reservedOperationalWrite = await supabase.storage
+        .from(operationalObject.bucket)
+        .upload(
+          operationalObject.path,
+          new TextEncoder().encode('must remain permanently reserved'),
+          { contentType: operationalObject.contentType, upsert: false },
+        )
+      assertFixture(
+        reservedOperationalWrite.error,
+        `Permanent reservation accepted ${operationalObject.bucket} recreation`,
+      )
+      assertFixture(
+        !await storageObjectExists(supabase, operationalObject),
+        `Rejected ${operationalObject.bucket} recreation left bytes behind`,
+      )
+    }
+    runSql(databaseUrl, `
+      update public.classroom_purge_objects
+      set next_attempt_at = clock_timestamp()
+      where operation_id = '${purgeOperationId}'
+        and status in ('pending', 'failed');
+    `)
 
     const purgeObjectRetryLease = randomUUID()
     const retryClaim = (await rpc(supabase, 'claim_classroom_purge_object', {

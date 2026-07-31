@@ -203,6 +203,9 @@ describe('classroom data inventory', () => {
     expect(audit.untracked_tables).not.toContain('course_blueprint_change_proposals')
     expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
     expect(audit.untracked_tables).not.toContain('classroom_purge_fences')
+    expect(audit.untracked_tables).not.toContain(
+      'legacy_blueprint_classroom_storage_reconciliations',
+    )
 
     const missingReference = contractRelationships().filter((relationship) =>
       !(relationship.child_table === 'course_blueprint_editing_sessions' &&
@@ -226,6 +229,18 @@ describe('classroom data inventory', () => {
       ok: false,
       stale_non_owning_references: [
         'classroom_purge_fences.classroom_id->classrooms',
+      ],
+    }))
+
+    const missingLegacyReconciliation = contractRelationships().filter((relationship) =>
+      relationship.child_table !== 'legacy_blueprint_classroom_storage_reconciliations'
+    )
+    expect(
+      auditClassroomResourceSchema(missingLegacyReconciliation, contractPrimaryKeys()),
+    ).toEqual(expect.objectContaining({
+      ok: false,
+      stale_non_owning_references: [
+        'legacy_blueprint_classroom_storage_reconciliations.classroom_id->classrooms',
       ],
     }))
   })
