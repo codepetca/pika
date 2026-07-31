@@ -3810,7 +3810,9 @@ begin
 
   select hot_classroom_purge_enabled, enforce_ownership
   into v_enabled, v_enforced
-  from public.managed_storage_settings where singleton;
+  from public.managed_storage_settings
+  where singleton
+  for share;
   if not coalesce(v_enabled, false) then
     return jsonb_build_object(
       'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',
@@ -4124,6 +4126,8 @@ set search_path = public
 as $$
 declare
   v_candidate public.classroom_purge_objects;
+  v_enabled boolean;
+  v_enforced boolean;
 begin
   if p_lease_seconds < 15 or p_lease_seconds > 300 then
     raise exception 'invalid_classroom_purge_lease' using errcode = '22023';
@@ -4131,13 +4135,12 @@ begin
   -- Disabling either rollout gate is the authoritative emergency stop for
   -- new destructive work. An already-issued lease may still record its
   -- deletion through complete_classroom_purge_object.
-  if not exists (
-    select 1
-    from public.managed_storage_settings
-    where singleton
-      and enforce_ownership
-      and hot_classroom_purge_enabled
-  ) then
+  select hot_classroom_purge_enabled, enforce_ownership
+  into v_enabled, v_enforced
+  from public.managed_storage_settings
+  where singleton
+  for share;
+  if not coalesce(v_enabled, false) or not coalesce(v_enforced, false) then
     return;
   end if;
   if not exists (
@@ -4299,6 +4302,14 @@ declare
   v_enabled boolean;
   v_enforced boolean;
 begin
+  -- Settings-first lock ordering serializes operator rollback with both new
+  -- leases and relational finalization. A gate UPDATE that commits first is
+  -- observed here; an UPDATE that starts later waits for this transaction.
+  select hot_classroom_purge_enabled, enforce_ownership
+  into v_enabled, v_enforced
+  from public.managed_storage_settings
+  where singleton
+  for share;
   select * into v_operation
   from public.classroom_purge_operations
   where id = p_operation_id and teacher_id = p_teacher_id
@@ -4312,10 +4323,6 @@ begin
       'operation_status', 'completed', 'replayed', true
     );
   end if;
-  select hot_classroom_purge_enabled, enforce_ownership
-  into v_enabled, v_enforced
-  from public.managed_storage_settings
-  where singleton;
   if not coalesce(v_enabled, false) then
     return jsonb_build_object(
       'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',

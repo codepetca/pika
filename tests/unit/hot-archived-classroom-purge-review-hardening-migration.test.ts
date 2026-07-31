@@ -473,10 +473,19 @@ describe('explicit managed-file ownership migration', () => {
     )
     const finalizerEnd = migration.indexOf('$$;', finalizerStart)
     const finalizer = migration.slice(finalizerStart, finalizerEnd)
+    const beginStart = migration.indexOf(
+      'create or replace function public.begin_hot_archived_classroom_purge(',
+    )
+    const beginEnd = migration.indexOf('$$;', beginStart)
+    const begin = migration.slice(beginStart, beginEnd)
 
     expect(claim).toContain('from public.managed_storage_settings')
-    expect(claim).toContain('and enforce_ownership')
-    expect(claim).toContain('and hot_classroom_purge_enabled')
+    expect(claim).toContain('for share')
+    expect(begin).toContain('for share')
+    expect(finalizer).toContain('for share')
+    expect(finalizer.indexOf('from public.managed_storage_settings')).toBeLessThan(
+      finalizer.indexOf('from public.classroom_purge_operations'),
+    )
     expect(finalizer).toContain("'error_code', 'classroom_purge_disabled'")
     expect(finalizer).toContain("'error_code', 'managed_storage_enforcement_required'")
     expect(finalizer).toContain(

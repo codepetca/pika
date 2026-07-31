@@ -1521,13 +1521,20 @@ zero-downtime rollout
 - Made both rollout gates an authoritative emergency stop for active operations: no new purge
   object lease or relational finalization occurs while either gate is off. An already-issued lease
   may still record authoritative deletion completion so retry evidence remains coherent.
+- Serialized begin, claim, and finalization with gate updates by taking the singleton settings row
+  `FOR SHARE` before destructive locks. A gate disable that commits first is observed by the RPC;
+  one that starts later waits until the already-authorized transaction commits.
 - Extended the database-backed purge fixture to disable each gate mid-operation and prove no
   progress, then resume after re-enable. It also completes and redacts one object from each
-  operational bucket and proves exact-path recreation is rejected before finalization.
+  operational bucket and proves exact-path recreation is rejected before finalization. Dedicated
+  concurrent PostgreSQL sessions also prove claim/finalizer decisions hold the settings lock and
+  prevent a gate update from committing through them.
 
 **Validation:**
 - Initial independent review: architecture/compatibility reviewer found no blocker; security
-  reviewer found the two accepted storage-race and emergency-stop blockers fixed above.
+  reviewer found the two accepted storage-race and emergency-stop blockers fixed above. The first
+  targeted re-review exposed the accepted missing settings-row serialization, fixed in the second
+  remediation batch.
 - Current-head CI before remediation: Test & Build and Browser Experience Matrix passed;
   Architecture Database Contracts exposed the accepted non-owning-reference omission.
 - Local schema ownership audit passes with 165 foreign-key relationships.
@@ -1535,6 +1542,6 @@ zero-downtime rollout
   SQLFluff PostgreSQL parse, and `git diff --check` pass.
 
 **Remaining:**
-- Push the single remediation batch, require current-head CI (including the database-backed purge
-  fixture), and run one targeted security re-review before considering the draft review complete.
+- Push the second remediation batch, require current-head CI (including the database-backed purge
+  fixture), and run one final targeted security re-review before considering the draft review complete.
 - Do not merge, deploy, apply migration 117 to a hosted target, or change any production gate.

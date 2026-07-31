@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import {
   getClassroomPurgeImpact,
@@ -73,6 +73,76 @@ function runSql(databaseUrl: string, sql: string): string {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   }).trim()
+}
+
+function runSqlAsync(databaseUrl: string, sql: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'psql',
+      [databaseUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atq', '-c', sql],
+      { encoding: 'utf8' },
+      (error, stdout) => {
+        if (error) reject(error)
+        else resolve(stdout.trim())
+      },
+    )
+  })
+}
+
+async function waitForSleepingSqlSession(databaseUrl: string, applicationName: string) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const waitEvent = runSql(databaseUrl, `
+      select coalesce((
+        select wait_event
+        from pg_stat_activity
+        where application_name = '${applicationName}'
+      ), '');
+    `)
+    if (waitEvent === 'PgSleep') return
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  throw new Error(`Timed out waiting for ${applicationName}`)
+}
+
+async function assertRolloutGateUpdateBlocked(input: {
+  databaseUrl: string
+  applicationName: string
+  destructiveSql: string
+}) {
+  const holder = runSqlAsync(input.databaseUrl, `
+    begin;
+    set local application_name = '${input.applicationName}';
+    ${input.destructiveSql}
+    select pg_sleep(2);
+    rollback;
+  `)
+  await waitForSleepingSqlSession(input.databaseUrl, input.applicationName)
+  let updateError: unknown
+  try {
+    runSql(input.databaseUrl, `
+      set lock_timeout = '250ms';
+      update public.managed_storage_settings
+      set hot_classroom_purge_enabled = false
+      where singleton;
+    `)
+  } catch (error) {
+    updateError = error
+  }
+  await holder
+  const stderr = updateError && typeof updateError === 'object' && 'stderr' in updateError
+    ? String((updateError as { stderr?: unknown }).stderr)
+    : ''
+  assertFixture(
+    stderr.includes('canceling statement due to lock timeout'),
+    `${input.applicationName} did not serialize a concurrent gate update`,
+  )
+  assertFixture(
+    runSql(input.databaseUrl, `
+      select enforce_ownership::text || ':' || hot_classroom_purge_enabled::text
+      from public.managed_storage_settings where singleton;
+    `) === 'true:true',
+    `${input.applicationName} allowed a gate update to commit`,
+  )
 }
 
 function setRolloutGateState(
@@ -552,6 +622,30 @@ async function main() {
       }),
       ['classroom_purge_active'],
     )
+
+    await assertRolloutGateUpdateBlocked({
+      databaseUrl,
+      applicationName: `purge_claim_gate_lock_${suffix}`,
+      destructiveSql: `
+        select count(*)
+        from public.claim_classroom_purge_object(
+          '${purgeOperationId}',
+          '${teacher.id}',
+          '${randomUUID()}',
+          60
+        );
+      `,
+    })
+    await assertRolloutGateUpdateBlocked({
+      databaseUrl,
+      applicationName: `purge_finalize_gate_lock_${suffix}`,
+      destructiveSql: `
+        select public.finalize_hot_archived_classroom_purge(
+          '${purgeOperationId}',
+          '${teacher.id}'
+        );
+      `,
+    })
 
     for (const gate of [
       {
