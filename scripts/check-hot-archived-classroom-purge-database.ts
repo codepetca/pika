@@ -556,14 +556,19 @@ async function main() {
     `)
 
     const unmanagedPath = `purge-fixture/${fixtureId}/unmanaged-write.png`
+    createdStorageObjects.push({ bucket: 'submission-images', path: unmanagedPath })
     const unmanagedWrite = await supabase.storage.from('submission-images').upload(
       unmanagedPath,
       new TextEncoder().encode('must be rejected'),
       { contentType: 'image/png', upsert: false },
     )
     assertFixture(
-      unmanagedWrite.error?.message.includes('managed_storage_owner_required'),
+      unmanagedWrite.error,
       'Ownership enforcement accepted an unreserved source-bucket write',
+    )
+    assertFixture(
+      !await storageObjectExists(supabase, { bucket: 'submission-images', path: unmanagedPath }),
+      'Rejected unreserved upload left a physical Storage object behind',
     )
     const reservedRewrite = await supabase.storage.from(managedObjects[0].bucket).upload(
       managedObjects[0].path,
@@ -571,8 +576,14 @@ async function main() {
       { contentType: managedObjects[0].contentType, upsert: true },
     )
     assertFixture(
-      reservedRewrite.error?.message.includes('storage_path_permanently_reserved'),
+      reservedRewrite.error,
       'Purge fence accepted a write to an exact reserved path',
+    )
+    const reservedDownload = dataOrThrow('download reserved purge object', await supabase.storage
+      .from(managedObjects[0].bucket).download(managedObjects[0].path))
+    assertFixture(
+      await reservedDownload.text() === `Pika owned fixture ${managedObjects[0].id}`,
+      'Rejected reserved-path overwrite changed the stored bytes',
     )
 
     await Promise.all([
