@@ -438,7 +438,7 @@ begin
     'verified',
     encode(extensions.digest(convert_to('[]', 'UTF8'), 'sha256'), 'hex'),
     clock_timestamp()
-  );
+  ) on conflict (classroom_id) do nothing;
   return new;
 end;
 $$;

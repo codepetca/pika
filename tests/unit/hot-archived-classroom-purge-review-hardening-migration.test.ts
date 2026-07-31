@@ -206,6 +206,18 @@ describe('explicit managed-file ownership migration', () => {
     expect(compactionCall).toBeGreaterThan(v2Wrapper)
   })
 
+  it('keeps coverage initialization idempotent for compaction dry-run restore', () => {
+    const initializer = migration.indexOf(
+      'create or replace function public.initialize_classroom_managed_storage_coverage()',
+    )
+    const initializerEnd = migration.indexOf('$$;', initializer)
+
+    expect(initializer).toBeGreaterThanOrEqual(0)
+    expect(migration.slice(initializer, initializerEnd)).toContain(
+      'on conflict (classroom_id) do nothing',
+    )
+  })
+
   it('blocks conflicts and retries object deletion with durable leases', () => {
     expect(migration).toContain("return 'classroom_storage_cleanup_active';")
     expect(migration).toContain("return 'classroom_grading_operation_active';")
