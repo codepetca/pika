@@ -107,6 +107,36 @@ values (
   '{"size":10}'::jsonb
 );
 
+insert into public.managed_storage_objects (
+  id,
+  storage_bucket,
+  storage_path,
+  classroom_id,
+  purpose,
+  status,
+  created_by_user_id,
+  data_subject_user_id,
+  resource_type,
+  resource_id,
+  content_type,
+  byte_size,
+  ready_at
+) values (
+  '29000000-0000-4000-8000-000000000022',
+  'assignment-artifacts',
+  'teacher/classroom/success.txt',
+  '21000000-0000-4000-8000-000000000022',
+  'student_assignment_artifact',
+  'ready',
+  '11000000-0000-4000-8000-000000000021',
+  '11000000-0000-4000-8000-000000000022',
+  'assignment_submission_artifact',
+  '28000000-0000-4000-8000-000000000022',
+  'text/plain',
+  10,
+  clock_timestamp()
+);
+
 create function public.reject_test_classroom_archive_compaction()
 returns trigger
 language plpgsql
@@ -163,6 +193,18 @@ declare
     {"actor_id":"11000000-0000-4000-8000-000000000022","role":"student"}
   ]'::jsonb;
 begin
+  perform public.verify_classroom_managed_storage_coverage(
+    v_teacher_id,
+    v_success_classroom_id,
+    (
+      select revision
+      from public.classroom_archive_revisions
+      where classroom_id = v_success_classroom_id
+    ),
+    1,
+    repeat('7', 64)
+  );
+
   v_result := public.begin_classroom_archive_export_v2(
     v_rollback_archive_id,
     v_teacher_id,
