@@ -58,7 +58,7 @@ describe('hot archived classroom purge review hardening migration', () => {
   it('serializes content writers and rejects reserved managed paths', () => {
     expect(migration).toContain('pg_advisory_xact_lock_shared(')
     expect(migration).toContain(
-      "object.status in ('pending', 'processing', 'failed')",
+      "object.status in ('pending', 'processing', 'failed', 'deleted')",
     )
     expect(migration).toContain(
       "'classroom_purge_storage_reservation_' || v_table",

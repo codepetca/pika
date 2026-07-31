@@ -1511,10 +1511,25 @@ classroom lineage.
   a poisoned fragment and `%2F` reservation rejection with a poisoned query while retaining all
   prior deletion and preservation invariants. The fixture, 144-relationship schema audit, 40
   focused tests, TypeScript, lint, generated-type check, diff check, and Pika audit pass.
+- Because production remains at 116, exact authorization was granted to consolidate all unshipped
+  hardening from local migrations 117-121 into one migration 117 and reset/reseed local Supabase.
+  The consolidated migration also aligns database matching with application WHATWG special-URL
+  behavior for case-insensitive schemes, backslashes, and dot segments. Files 118-121 were removed.
+- Consolidated migration replay exposed two statement-ordering defects left by the mechanical
+  merge; each failed 117 transaction rolled back cleanly. Migration 117 now defines canonical
+  matchers, the reservation trigger function, trigger installation, revocation, and comments in
+  dependency order, with a static ordering regression. A final authorized local-only push applied
+  only migration 117, local history and generated types align through 117, and `pnpm seed`
+  completed against the verified loopback target.
+- The final consolidated destructive fixture deleted 11 classroom-owned relational rows and eight
+  managed files while preserving two shared files, the reusable Course Blueprint, and teacher and
+  student accounts. The 144-relationship database audit, 44 focused migration tests, full
+  465-file / 4,019-test suite, TypeScript, lint, production build, generated-type check, diff
+  checks, and Pika audit pass.
 
 **Remaining:**
-- Production migration history is aligned through 116. Migrations 117 through 121 are hard deployment
-  prerequisites and have not been authorized or applied outside local Supabase.
+- Production migration history is aligned through 116. Consolidated migration 117 is a hard
+  deployment prerequisite and has not been authorized or applied outside local Supabase.
 - The application feature is still only in draft PR #963 and has not been deployed. No staging
-  migration, production migrations 117-121, application deployment, classroom purge, or Storage
+  migration, production migration 117, application deployment, classroom purge, or Storage
   deletion is authorized by the consumed local migration permission.

@@ -348,10 +348,6 @@ data.
 Migrations `115_hot_archived_classroom_purge.sql`,
 `116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
 `117_hot_archived_classroom_purge_review_hardening.sql`,
-`118_hot_archived_classroom_purge_reservation_lifetime.sql`,
-`119_hot_archived_classroom_purge_canonical_path_matching.sql`,
-`120_hot_archived_classroom_purge_isolated_url_matching.sql`, and
-`121_hot_archived_classroom_purge_url_path_isolation.sql`,
 `src/lib/server/classroom-purge.ts`, and
 `/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
 classrooms. The confirmation surface states that deletion cannot be undone and removes all student
@@ -389,31 +385,16 @@ integrity and routine storage-cleanup triggers to normal writes, allowing only t
 exact purge membership to be deleted without weakening submission protection elsewhere or creating
 duplicate cleanup jobs.
 
-Migration 117 closes independent-review findings before application rollout. It treats cleanup-only
-archive and Gradex objects as sealed purge inventory, blocks live cleanup workers, rechecks shared
-classroom/Blueprint and external operational references immediately before deletion, redacts
-preserved paths, and binds storage-reference writers to the same transaction barrier. The
-destructive local database fixture and teacher/student Playwright matrix are required CI gates.
-
-Migration 118 keeps the reservation for a successfully deleted object live until relational
-finalization and enrolls archive, Gradex extract, archive-operation, and cleanup-ledger writers in
-the same shared barrier. It fails closed on rollout if an active pre-existing deleted row has
-already lost the path needed to reserve it. Completion atomically redacts all remaining paths.
-
-Migration 119 compares decoded JSON string scalars and once-percent-decoded URL values rather than
-serialized JSON text. Valid managed paths containing quotes, control characters, percent escapes,
-or other URL-encoded characters therefore participate in both the external-sharing scan and the
-active writer reservation without relying on representation-sensitive substring matching.
-
-Migration 120 prevents unrelated malformed escapes in rich text from poisoning that matching. It
-compares a canonical percent-encoded path against normalized field text without decoding the field,
-then decodes only isolated URL candidates as a compatibility fallback. Invalid `%FF` or `%00` text
-elsewhere in the same markdown value cannot hide a later managed URL.
-
-Migration 121 limits each compatibility decode to the URL scheme, authority, and pathname. Query
-and fragment text cannot poison path matching because neither is part of the Storage object key.
-Equivalent URL paths using encoded unreserved characters or encoded separators still resolve to
-the reserved key even when their query or fragment contains invalid escapes.
+Migration 117 consolidates all independent-review hardening before application rollout. It treats
+cleanup-only archive and Gradex objects as sealed purge inventory, blocks live cleanup workers,
+rechecks shared classroom/Blueprint and external operational references immediately before
+deletion, and binds every managed-path writer to the same transaction barrier. Deleted-object
+reservations remain live until atomic finalization and terminal paths are redacted. Path matching
+uses decoded JSON scalar values plus canonical and WHATWG-aligned special-URL normalization:
+case-insensitive schemes, backslash separators, dot segments, encoded unreserved characters, and
+encoded separators resolve consistently with application inventory. Query, fragment, and unrelated
+invalid `%FF` or `%00` text cannot poison matching. The destructive local database fixture and
+teacher/student Playwright matrix are required CI gates.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The

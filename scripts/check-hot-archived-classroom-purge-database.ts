@@ -181,11 +181,16 @@ async function main() {
       storageObjects[9].path,
     )
     const aliasedSharedImageUrl = encodedSharedImageUrl
-      .replace('/encoded%20shared.png', '/%65ncoded%20shared.png')
+      .replace('/encoded%20shared.png', '/alias/../%65ncoded%20shared.png')
+      .replace(/^http:/i, 'HTTP:')
       + '#%FF'
     const aliasedDeleteDocumentUrl = encodedDeleteDocumentUrl
       .replace('/encoded%20delete.pdf', '%2Fencoded%20delete.pdf')
       + '?x=%00'
+    const whatwgDeleteDocumentUrl = encodedDeleteDocumentUrl
+      .replace('/encoded%20delete.pdf', '\\alias\\..\\encoded%20delete.pdf')
+      .replace(/^http:/i, 'HtTp:')
+      + '#%FF'
 
     dataOrThrow(
       'insert fixture Blueprint',
@@ -566,6 +571,17 @@ async function main() {
       encodedReservedReference.error?.message.includes('being permanently deleted'),
       'Blueprint acquired an aliased path with a poisoned query during purge',
     )
+    const whatwgReservedReference = await supabase
+      .from('course_blueprints')
+      .update({
+        resources_markdown:
+          `WHATWG alias must be blocked during purge: ${whatwgDeleteDocumentUrl}`,
+      })
+      .eq('id', blueprintId)
+    assertFixture(
+      whatwgReservedReference.error?.message.includes('being permanently deleted'),
+      'Blueprint acquired an uppercase backslash/dot alias during purge',
+    )
     const deletedReservations = dataOrThrow(
       'read post-delete path reservation',
       await supabase
@@ -602,7 +618,7 @@ async function main() {
         request_sha256: '4'.repeat(64),
         status: 'failed',
         source_revision: 1,
-        source_schema_migration: '118_hot_archived_classroom_purge_reservation_lifetime',
+        source_schema_migration: '117_hot_archived_classroom_purge_review_hardening',
         source_app_commit: 'purge-fixture',
         retention: { delete_after: expiryIso },
         storage_bucket: deletedReservation.storage_bucket,

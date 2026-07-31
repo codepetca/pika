@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  'supabase/migrations/120_hot_archived_classroom_purge_isolated_url_matching.sql',
+  'supabase/migrations/117_hot_archived_classroom_purge_review_hardening.sql',
   'utf8',
 )
 
@@ -38,25 +38,26 @@ describe('hot archived classroom purge isolated URL migration', () => {
       'create or replace function public.classroom_purge_url_candidates',
     )
     expect(migration).toContain(
-      "regexp_matches(p_value, '(https?://[^[:space:]]+)', 'g')",
+      "regexp_matches(p_value, '(https?://[^[:space:]]+)', 'gi')",
     )
 
-    const matcher = migration.indexOf(
+    const matcher = migration.lastIndexOf(
       'create or replace function public.classroom_purge_jsonb_references_storage_path',
     )
     const urls = migration.indexOf(
       'public.classroom_purge_url_candidates(candidate.value)',
       matcher,
     )
-    const decoder = migration.indexOf(
-      'public.classroom_purge_percent_decode(url.value)',
+    const normalizer = migration.indexOf(
+      'public.classroom_purge_normalize_special_url_path(url.value)',
       urls,
     )
+    const matcherEnd = migration.indexOf('$$;', matcher)
 
     expect(matcher).toBeGreaterThanOrEqual(0)
     expect(urls).toBeGreaterThan(matcher)
-    expect(decoder).toBeGreaterThan(urls)
-    expect(migration.slice(matcher)).not.toContain(
+    expect(normalizer).toBeGreaterThan(urls)
+    expect(migration.slice(matcher, matcherEnd)).not.toContain(
       'public.classroom_purge_percent_decode(candidate.value)',
     )
   })

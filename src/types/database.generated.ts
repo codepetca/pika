@@ -5343,6 +5343,10 @@ export type Database = {
         Args: { p_value: string }
         Returns: string
       }
+      classroom_purge_normalize_special_url_path: {
+        Args: { p_candidate: string }
+        Returns: string
+      }
       classroom_purge_percent_decode: {
         Args: { p_value: string }
         Returns: string
