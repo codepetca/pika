@@ -37,7 +37,10 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
 } from '@/lib/course-site-publishing'
-import { stripTestDocumentInternalOwnership } from '@/lib/test-documents'
+import {
+  isCurrentPikaManagedTestDocumentUrl,
+  stripTestDocumentInternalOwnership,
+} from '@/lib/test-documents'
 import {
   createCourseBlueprintArtifactId,
   isCourseBlueprintArtifactId,
@@ -75,6 +78,41 @@ export type CourseBlueprintPackageFileName =
 export type CourseBlueprintPackageBundle = {
   manifest: CoursePackageManifest
   files: Record<CourseBlueprintPackageFileName, string>
+}
+
+export class CourseBlueprintPackagePortabilityError extends Error {
+  constructor(public readonly errors: string[]) {
+    super(errors[0] || 'The course package contains non-portable test documents')
+    this.name = 'CourseBlueprintPackagePortabilityError'
+  }
+}
+
+function testDocumentPortabilityErrors(
+  assessments: Array<Pick<CourseBlueprintAssessmentMarkdownRecord, 'title' | 'documents'>>,
+): string[] {
+  return assessments.flatMap((assessment) => assessment.documents.flatMap((document) => {
+    if (document.managed_object_id) {
+      return [
+        `Test "${assessment.title}" includes uploaded document "${document.title}". `
+          + 'Replace it with an external link or remove it before exporting.',
+      ]
+    }
+    if (document.url && isCurrentPikaManagedTestDocumentUrl(document.url)) {
+      return [
+        `Test "${assessment.title}" document "${document.title}" points to Pika-managed storage. `
+          + 'Replace it with an external link or remove it before importing.',
+      ]
+    }
+    return []
+  }))
+}
+
+export function validateCourseBlueprintPackagePortability(
+  detail: Pick<CourseBlueprintDetail, 'assessments'>,
+): string[] {
+  return testDocumentPortabilityErrors(
+    detail.assessments.filter((assessment) => assessment.assessment_type === 'test'),
+  )
 }
 
 export type CourseBlueprintImportResult = {
@@ -442,6 +480,11 @@ export function buildCourseBlueprintExportBundle(
   detail: CourseBlueprintDetail,
   source?: Parameters<typeof buildCoursePackageManifest>[1]
 ): CourseBlueprintPackageBundle {
+  const portabilityErrors = validateCourseBlueprintPackagePortability(detail)
+  if (portabilityErrors.length > 0) {
+    throw new CourseBlueprintPackagePortabilityError(portabilityErrors)
+  }
+
   const assignments = detail.assignments.map((assignment) => ({
     id: assignment.id,
     artifact_id: assignment.artifact_id,
@@ -680,6 +723,7 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         return []
       })
     : []
+  const portabilityErrors = testDocumentPortabilityErrors(parsedContent.assessments)
 
   return {
     manifest,
@@ -719,6 +763,7 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       ...surveyResult.errors,
       ...identityErrors,
       ...positionErrors,
+      ...portabilityErrors,
     ],
   }
 }

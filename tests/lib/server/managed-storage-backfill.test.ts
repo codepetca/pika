@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   ManagedStorageBackfillError,
   backfillAllClassroomManagedStorage,
+  collectManagedStorageBackfillCandidates,
 } from '@/lib/server/managed-storage-backfill'
 
 const teacherId = '10000000-0000-4000-8000-000000000001'
@@ -10,6 +11,39 @@ const secondClassroomId = '30000000-0000-4000-8000-000000000003'
 const testId = '40000000-0000-4000-8000-000000000004'
 
 describe('managed storage legacy backfill', () => {
+  it('uses assignment artifacts and execution snapshots in the exact candidate inventory', () => {
+    const candidates = collectManagedStorageBackfillCandidates({
+      supabaseUrl: 'https://project.supabase.co',
+      resources: {
+        assignment_submission_artifacts: [{
+          id: 'artifact',
+          assignment_doc_id: '60000000-0000-4000-8000-000000000006',
+          student_id: '70000000-0000-4000-8000-000000000007',
+          storage_path: 'legacy/artifact.png',
+        }],
+        tests: [{
+          id: testId,
+          documents: [{
+            id: 'snapshot',
+            source: 'link',
+            url: 'https://example.invalid/source',
+            snapshot_path: 'legacy/snapshot.pdf',
+          }],
+        }],
+      },
+    })
+    expect(candidates.map(({ bucket, path, purpose }) => ({ bucket, path, purpose })))
+      .toEqual([{
+        bucket: 'assignment-artifacts',
+        path: 'legacy/artifact.png',
+        purpose: 'student_assignment_artifact',
+      }, {
+        bucket: 'test-documents',
+        path: 'legacy/snapshot.pdf',
+        purpose: 'test_execution_snapshot',
+      }])
+  })
+
   it('rejects a cross-classroom shared path before writing ownership', async () => {
     const rpc = vi.fn()
     const sharedArtifact = {
@@ -25,6 +59,7 @@ describe('managed storage legacy backfill', () => {
       classrooms: [firstClassroomId, secondClassroomId].map((classroomId) => ({
         classroomId,
         teacherId,
+        expectedSourceRevision: 3,
         resources: { assignment_submission_artifacts: [sharedArtifact] },
       })),
     })).rejects.toMatchObject<ManagedStorageBackfillError>({
@@ -84,6 +119,7 @@ describe('managed storage legacy backfill', () => {
       classrooms: [{
         classroomId: firstClassroomId,
         teacherId,
+        expectedSourceRevision: 3,
         resources: {
           tests: [{
             id: testId,
@@ -102,5 +138,38 @@ describe('managed storage legacy backfill', () => {
       'attach_legacy_test_document_managed_object',
       'verify_classroom_managed_storage_coverage',
     ])
+  })
+
+  it('rejects all-class revision drift before the first ownership write', async () => {
+    const rpc = vi.fn()
+    const from = vi.fn(() => ({
+      select: () => ({
+        eq: (_column: string, classroomId: string) => ({
+          single: async () => ({
+            data: { revision: classroomId === secondClassroomId ? 4 : 3 },
+            error: null,
+          }),
+        }),
+      }),
+    }))
+    await expect(backfillAllClassroomManagedStorage({
+      inventoryScope: 'all_classrooms',
+      supabase: { rpc, from },
+      supabaseUrl: 'https://project.supabase.co',
+      classrooms: [{
+        classroomId: firstClassroomId,
+        teacherId,
+        expectedSourceRevision: 3,
+        resources: {},
+      }, {
+        classroomId: secondClassroomId,
+        teacherId,
+        expectedSourceRevision: 3,
+        resources: {},
+      }],
+    })).rejects.toMatchObject<ManagedStorageBackfillError>({
+      code: 'legacy_storage_revision_drift',
+    })
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

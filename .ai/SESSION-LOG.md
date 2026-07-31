@@ -11,97 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Retired legacy Quiz UI wrappers
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass crosses shared Test component contracts, draft identity, exam-mode E2E setup, and the legacy retirement ratchet without changing rendered behavior.
-
-**Completed:**
-- Removed unused `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` component and hook aliases after confirming no production callers remained.
-- Made current Test identity and update props explicit and required.
-- Renamed the internal student action-footer automation id from `student-quiz-action-footer` to `student-test-action-footer`.
-- Updated student and teacher exam-mode E2E setup to decode the current `test` API response key.
-- Removed the final quiz-keyed Tests list payload type from assessment URL-state E2E setup after independent review.
-- Added an architecture ratchet preventing retired UI aliases and the old automation id from returning.
-- Preserved the `tab=quizzes&quizId=...` old-link tombstone, persisted `quiz_id` fields, schema, archives, gradebook tombstones, and course package compatibility.
-
-**Validation:**
-- Focused wrapper and component suites (7 files / 115 tests)
-- Full repository suite (408 files / 3,670 tests)
-- Exam-mode Playwright discovery (10 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (624 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- `git diff --check`
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.
-
-## 2026-07-23 — Retired standalone legacy Quiz Markdown
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass removes an isolated compatibility parser/serializer and consolidates the shared editor on its already-current Test Markdown contract.
-
-**Completed:**
-- Removed `src/lib/quiz-markdown.ts` and its dedicated compatibility test after confirming no package, archive, import, or persisted-data reader depended on it.
-- Consolidated `TestDetailPanel` draft serialization, Markdown parsing, document handling, and question-field preservation on `testToMarkdown` / `markdownToTest`.
-- Added an architecture ratchet preventing the retired module and its assessment/quiz Markdown aliases from returning.
-- Updated the cleanup guide to identify unreachable quiz-mode rendering as the next implementation pass.
-- Preserved persisted `quiz_id` fields, schema, archives, gradebook tombstones, course package compatibility, and the `tab=quizzes` URL tombstone.
-
-**Validation:**
-- Focused Markdown, component, and architecture suites (3 files / 53 tests)
-- Full repository suite (407 files / 3,666 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- `git diff --check`
-
-**Remaining:**
-- Run full repository validation, independent PR review, and exact-head CI before merge.
-- Next prove and remove unreachable quiz-mode rendering and wording from current Test components.
-
-## 2026-07-23 — Retired unreachable Quiz rendering
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass traces Test-only callers through large teacher and student components, removes dead rendering/contracts, and preserves persistence and compatibility boundaries.
-
-**Completed:**
-- Removed assessment-mode switches and unreachable quiz submission, result, list-badge, authoring, preview, and grading branches from active Test components.
-- Consolidated student Test form submissions and returned results on current structured Test payloads.
-- Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
-- Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
-- Preserved authoring-preview freshness with uncached reads and a request-generation guard so a late stale response cannot replace a newer refresh.
-- Updated the governed native-control registry for the removed controls and modules.
-- Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
-- Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
-- Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
-
-**Validation:**
-- Focused component and architecture suites (7 files / 118 tests)
-- Full repository suite (407 files / 3,662 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (621 modules / 0 allowances)
-- `pnpm run check:ui-policy` (207 registered native controls / 65 files)
-- `pnpm build`
-- Pika changed-file audit
-- Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
-- `git diff --check`
-- Independent review found one blocking in-flight preview freshness regression; fixed with a request-generation guard and deferred-response regression coverage.
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
-
 ## 2026-07-23 — Designed legacy Quiz schema retirement
 
 **Risk profile:** none
@@ -1347,27 +1256,6 @@ classroom lineage.
 **Remaining:**
 - Publish the branch and confirm the real pull-request CI run on GitHub.
 
-## 2026-07-31 — Tightened commit prompt worktree guardrails
-
-**Risk profile:** none
-
-**Completed:**
-- Added the missing repo-root guard to the Codex `commit-and-pr` prompt so it
-  now resolves `git rev-parse --show-toplevel` and stops in the hub checkout at
-  `$HOME/Repos/pika` before any commit/push flow.
-- Extended the startup-doc regression suite to require both the Claude and
-  Codex commit prompts to include the canonical worktree safety checks:
-  repo-root resolution, hub-checkout stop, detached-HEAD stop, and no
-  force-push guidance.
-- Installed local dependencies in this app-managed worktree so the focused
-  startup-doc suite could run here.
-
-**Validation:**
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
-- `git diff --check`
-
-**Remaining:**
-- None.
 ## 2026-07-30 — Hot archived classroom permanent deletion
 
 **Risk profile:** critical — irreversible classroom-wide relational and managed-storage deletion.
@@ -1502,6 +1390,28 @@ classroom lineage.
   migration, production migration 117, application deployment, classroom purge, or Storage
   deletion is authorized by the consumed local migration permission.
 
+## 2026-07-31 — Tightened commit prompt worktree guardrails
+
+**Risk profile:** none
+
+**Completed:**
+- Added the missing repo-root guard to the Codex `commit-and-pr` prompt so it
+  now resolves `git rev-parse --show-toplevel` and stops in the hub checkout at
+  `$HOME/Repos/pika` before any commit/push flow.
+- Extended the startup-doc regression suite to require both the Claude and
+  Codex commit prompts to include the canonical worktree safety checks:
+  repo-root resolution, hub-checkout stop, detached-HEAD stop, and no
+  force-push guidance.
+- Installed local dependencies in this app-managed worktree so the focused
+  startup-doc suite could run here.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`
+
+**Remaining:**
+- None.
+
 ## 2026-07-31 — Replaced inferred file sharing with explicit managed ownership
 
 **Risk profile:** destructive-data, authorization, storage, concurrency, archive/restore, Blueprint lineage, UI
@@ -1537,3 +1447,80 @@ classroom lineage.
   locally; only then regenerate database types and run the destructive exact-ownership fixture.
 - Deployment, rollout gates, cleanup worker enablement, production migration 117, cold archived
   classroom deletion, and comprehensive individual-student purging remain out of scope.
+
+## 2026-07-31 — Added managed-storage rollout readiness and exact purge fixture coverage
+
+**Risk profile:** destructive-data, authorization, storage ownership, concurrency, operator rollout
+
+**Completed:**
+- Rebuilt the local purge fixture around explicit classroom-owned managed objects and independent
+  Course Blueprint physical copies. It now exercises managed-cleanup claim exclusion, failure and
+  retry, exact purge retry, concurrent purge ticks, wrong-teacher rejection, unreserved-write and
+  permanent-path fencing, physical deletion/preservation, ownership reconciliation, and terminal
+  path/lease/error redaction. Both database rollout gates are reset to false in an outer `finally`.
+- Added `pnpm managed-storage:readiness`, a report/dry-run-by-default all-class operator command. It
+  binds hosted API and database targets to one project ref, requires separate production/local
+  execution opt-ins, a clean production commit and exact acknowledgement, refuses execution while
+  either rollout gate is enabled, supports idempotent resume, reports coverage and global orphans,
+  and never changes either gate.
+- Redacted readiness findings to bucket names plus SHA-256 path fingerprints; raw Storage paths stay
+  internal to the in-memory comparison and require separately authorized database investigation.
+- Exported the backfill's exact candidate collector so readiness analysis and writes cover identical
+  artifact, inline-image, teacher-material, snapshot, and legacy references. Added expected revision
+  evidence, an all-class preflight before the first write, per-class before/after checks, and a final
+  operator recheck so stale resources cannot be verified against a newer revision.
+- Added focused operator/backfill regressions, CI report-mode coverage, and rollout runbook guidance.
+
+**Validation:**
+- ESLint passed for all touched TypeScript; 9 focused Vitest regressions passed; full TypeScript
+  checking and `git diff --check` passed.
+- A read-only local readiness smoke reached the connected Supabase target and failed closed because
+  that running instance does not have migration 117. No migration was applied, no rollout gate was
+  enabled, and the destructive fixture was not run against an incompatible database.
+
+**Remaining:**
+- Migration 117 still requires fresh named authorization before any local or hosted application.
+  After an authorized replay, run the CI-wired report and destructive fixture against that exact
+  schema; production execution and every rollout-gate change remain separately authorized actions.
+
+## 2026-07-31 — Closed managed-ownership deletion review findings
+
+**Risk profile:** destructive-data, schema mismatch, backfill correctness, storage, concurrency,
+archive/restore, Blueprint lineage
+
+**Model recommendation:** GPT-5.6 Sol - the review crosses immutable Blueprint lineage, resumable
+Storage copies, cold-compaction transactions, exact ownership backfill, and destructive purge
+authorization boundaries.
+
+**Completed:**
+- Rebasing draft PR #963 onto `origin/main` preserved migration numbering at 115–117 and resolved
+  the continuity-log conflict without touching migration targets.
+- Fixed Blueprint instantiation copy adoption to validate `source_blueprint_id`; copy-bearing
+  operations now remain running until adoption, resume before replay, keep historical Versions
+  immutable and free of classroom-owned file references, append a final adopted Version, and relink
+  classroom artifact lineage to it.
+- Made course packages fail closed before Version/session creation when uploaded Pika-managed Test
+  documents cannot be portable; imports reject current-project managed URLs instead of retaining a
+  dangling URL after ownership ids are stripped.
+- Added explicit cold tombstone/archive file ownership and coverage. Verified hot ownership moves
+  atomically during compaction, source cleanup decrements cold coverage, and restore releases cold
+  sources only after exact replacement objects exist. Migration 085's rolled-back delete preflight
+  uses immediate-by-default deferred FKs scoped to the exact compaction operation; ordinary and
+  cold deletion remain blocked.
+- Bound restore and compaction lifecycle triggers to the exact wrapper operation id, kept legacy
+  Test ownership attachment revision-neutral, added a report/dry-run-by-default all-class readiness
+  command with stable revisions and hashed path evidence, and rebuilt the local purge fixture around
+  independent classroom and Blueprint physical copies.
+
+**Validation:**
+- Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;
+  design/UI policies; PostgreSQL SQLFluff parse; `git diff --check`; Pika audit.
+- Focused final lifecycle regression: 49 tests covering migration contract, compaction, and restore.
+- Migration 117 was not applied or replayed; no database target, rollout gate, Storage object, or
+  production environment was modified.
+
+**Remaining:**
+- Keep PR #963 draft. Fresh named local authorization is required before replaying migration 117,
+  regenerating database types, or running the destructive exact-ownership fixture. Hosted migration,
+  backfill execution, orphan remediation, gate changes, canaries, and deployment remain separately
+  authorized actions.

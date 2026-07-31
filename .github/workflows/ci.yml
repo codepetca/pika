@@ -98,6 +98,7 @@ jobs:
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
           export SUPABASE_SECRET_KEY
           pnpm seed
+          pnpm managed-storage:readiness report --dry-run
           pnpm verify:hot-classroom-purge-local
 
       - name: Rehearse full classroom archive recovery on local Supabase

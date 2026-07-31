@@ -410,6 +410,27 @@ hot-archive canary; then enable hot purge for the application. Rollback turns th
 workers without discarding durable ledgers. Applying migration 117, setting either database gate,
 enabling the worker, or running a destructive canary each requires its own named authorization.
 
+Use `pnpm managed-storage:readiness` as the readiness and legacy-backfill operator command. With no
+subcommand it is a report/dry-run: it reads a stable, exact all-classroom resource graph, coverage,
+the managed-object registry, and the three source Storage buckets; reports per-classroom progress,
+cross-classroom references, missing objects, and global unowned orphans; and writes nothing. Save
+the JSON evidence with `pnpm managed-storage:readiness report --json --expected-project-ref REF`.
+The direct database URL must be supplied as `MANAGED_STORAGE_READINESS_DATABASE_URL`; hosted API and
+database targets are independently bound to the same `--expected-project-ref`. Durable text and JSON
+evidence contains only bucket names and SHA-256 path fingerprints, never raw Storage paths; resolving
+a fingerprint to an exact path requires a separate, explicitly authorized database investigation.
+
+After resolving every shared or missing reference, run `execute` (or `resume` after interruption).
+Registration uses deterministic object ids and same-owner upserts, so a rerun safely resumes partial
+work. The command refuses writes if either rollout gate is already enabled, if the all-classroom set
+or any source revision drifts, or if target safeguards fail. Hosted execution additionally requires
+a clean checkout at the deployed commit, `MANAGED_STORAGE_BACKFILL_ALLOW_PRODUCTION=1`, and the exact
+acknowledgement printed by a rejected attempt (`BACKFILL MANAGED STORAGE REF AT COMMIT`). Local
+execution instead requires `PIKA_ALLOW_LOCAL_MANAGED_STORAGE_BACKFILL=1`. Global orphans remain
+reported for a separately authorized cleanup and keep `ready_for_enforcement` false. The command
+never changes `enforce_ownership` or `hot_classroom_purge_enabled`; enabling either remains a separate
+operator action with separate authorization.
+
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The
 remaining classroom and teacher ids, aggregate counts, object hashes, terminal statuses, and

@@ -31,6 +31,7 @@ function makeSupabaseFromQueues(queues: Record<string, any[]>) {
   return makeStrictSupabaseFromQueues({
     course_blueprint_materials: emptyBlueprintRows(),
     course_blueprint_surveys: emptyBlueprintRows(),
+    course_blueprint_operations: emptyBlueprintRows(),
     ...queues,
   })
 }

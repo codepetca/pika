@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   analyzeCourseBlueprintCompleteness,
   buildCourseBlueprintExportBundle,
@@ -152,6 +152,10 @@ const DETAIL: CourseBlueprintDetail = {
 }
 
 describe('course blueprint package', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('exports and re-imports the portable package bundle', () => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle(bundle)
@@ -226,6 +230,43 @@ describe('course blueprint package', () => {
       }),
     ])
     expect(parsed.assessments[0].documents[0]).not.toHaveProperty('snapshot_path')
+  })
+
+  it('rejects uploaded Pika documents before stripping their ownership', () => {
+    const detail = structuredClone(DETAIL)
+    detail.assessments[0].documents = [{
+      id: '60000000-0000-4000-8000-000000000000',
+      title: 'Uploaded reference',
+      source: 'upload',
+      url: 'https://pika.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+      managed_object_id: '61000000-0000-4000-8000-000000000000',
+    }]
+
+    expect(() => buildCourseBlueprintExportBundle(detail)).toThrow(
+      'Replace it with an external link or remove it before exporting.',
+    )
+  })
+
+  it('rejects current-project managed URLs on import but keeps external instance links', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const detail = structuredClone(DETAIL)
+    detail.assessments[0].documents = [{
+      id: '60000000-0000-4000-8000-000000000000',
+      title: 'External reference',
+      source: 'link',
+      url: 'https://old.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    }]
+    const externalBundle = buildCourseBlueprintExportBundle(detail)
+    expect(parseCourseBlueprintImportBundle(externalBundle).errors).toEqual([])
+
+    const currentBundle = structuredClone(externalBundle)
+    currentBundle.files['tests.md'] = currentBundle.files['tests.md'].replace(
+      'https://old.supabase.co',
+      'https://current.supabase.co',
+    )
+    expect(parseCourseBlueprintImportBundle(currentBundle).errors).toContainEqual(
+      expect.stringContaining('points to Pika-managed storage'),
+    )
   })
 
   it('exports and re-imports the tar package archive', () => {

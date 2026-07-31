@@ -7,6 +7,7 @@ import {
 import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   buildCourseBlueprintExportBundle,
+  validateCourseBlueprintPackagePortability,
   decodeCourseBlueprintPackageArchive,
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportBundle,
@@ -92,6 +93,34 @@ async function finishBlueprintStorageCopies(
       operation_id: operationId,
     }
   }
+}
+
+async function finishPendingBlueprintStorageCopies(
+  supabase: SupabaseClient,
+  teacherId: string,
+  operationId: string,
+) {
+  const { data, error } = await (supabase as any)
+    .from('course_blueprint_operations')
+    .select('status, storage_copy_status')
+    .eq('id', operationId)
+    .eq('teacher_id', teacherId)
+    .maybeSingle()
+  if (error) {
+    return {
+      ok: false as const,
+      status: 500,
+      error: 'Failed to inspect the Blueprint operation before retrying',
+      operation_id: operationId,
+    }
+  }
+  if (
+    data?.status === 'running'
+    && ['copying', 'failed'].includes(data.storage_copy_status)
+  ) {
+    return finishBlueprintStorageCopies(teacherId, operationId)
+  }
+  return null
 }
 
 export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
@@ -1064,6 +1093,16 @@ export async function exportCourseBlueprintBundle(teacherId: string, blueprintId
     return { ok: false as const, status: detailResult.status || 500, error: detailResult.error || 'Failed to load blueprint' }
   }
 
+  const portabilityErrors = validateCourseBlueprintPackagePortability(detailResult.detail)
+  if (portabilityErrors.length > 0) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: portabilityErrors[0],
+      errors: portabilityErrors,
+    }
+  }
+
   const supabase = getSupabase()
   const versionResult = await saveCourseBlueprintVersion({
     supabase,
@@ -1132,11 +1171,22 @@ export async function importCourseBlueprintBundle(
 ) {
   const parsed = parseCourseBlueprintImportBundle(bundle)
   if (parsed.errors.length > 0 || !parsed.manifest) {
-    return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
+    return {
+      ok: false as const,
+      status: 400,
+      error: parsed.errors[0] || 'Invalid course package',
+      errors: parsed.errors,
+    }
   }
 
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
+  const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
+    supabase,
+    teacherId,
+    operationId,
+  )
+  if (pendingStorageCopyFailure) return pendingStorageCopyFailure
   const plan = buildCreateBlueprintWritePlan({
     blueprint: parsed.blueprint,
     assignments: parsed.assignments.map((assignment) => ({
@@ -1228,6 +1278,12 @@ export async function createCourseBlueprintFromClassroom(
   const blueprintTitle = input.title?.trim() || source.classroom.title
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
+  const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
+    supabase,
+    teacherId,
+    operationId,
+  )
+  if (pendingStorageCopyFailure) return pendingStorageCopyFailure
   const plan = buildCreateBlueprintWritePlan({
     blueprint: {
       title: blueprintTitle,
@@ -1337,6 +1393,13 @@ export async function createClassroomFromBlueprint(
   }
 
   const supabase = getSupabase()
+  const operationId = resolveBlueprintOperationId(options.operationId)
+  const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
+    supabase,
+    teacherId,
+    operationId,
+  )
+  if (pendingStorageCopyFailure) return pendingStorageCopyFailure
   const versionResult = await saveCourseBlueprintVersion({
     supabase,
     teacherId,
@@ -1346,7 +1409,6 @@ export async function createClassroomFromBlueprint(
     sourceMetadata: { reason: 'classroom_instantiation' },
   })
   if (!versionResult.ok) return versionResult
-  const operationId = resolveBlueprintOperationId(options.operationId)
   const themeColor = input.themeColor || getDefaultClassroomThemeColor(`${teacherId}:${operationId}`)
   const planResult = buildInstantiateBlueprintWritePlan({
     detail: detailResult.detail,

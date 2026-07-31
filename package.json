@@ -18,6 +18,7 @@
     "verify:classroom-archive-recovery": "bash scripts/check-classroom-archive-recovery-drill.sh",
     "verify:classroom-archive-inventory": "tsx scripts/inventory-classroom-archives.ts",
     "verify:hot-classroom-purge-local": "tsx scripts/check-hot-archived-classroom-purge-database.ts",
+    "managed-storage:readiness": "tsx scripts/run-managed-storage-readiness.ts",
     "canary:classroom-archive-production": "tsx scripts/run-classroom-archive-production-canary.ts",
     "db:types:generate": "bash scripts/supabase-types.sh generate",
     "db:types:check": "bash scripts/supabase-types.sh check",

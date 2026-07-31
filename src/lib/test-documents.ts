@@ -37,6 +37,23 @@ export function isValidHttpUrl(value: string): boolean {
   }
 }
 
+export function isCurrentPikaManagedTestDocumentUrl(
+  value: string,
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): boolean {
+  if (!supabaseUrl) return false
+
+  try {
+    const candidate = new URL(value)
+    const configured = new URL(supabaseUrl)
+    return candidate.origin === configured.origin
+      && /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/test-documents(?:\/|$)/
+        .test(candidate.pathname)
+  } catch {
+    return false
+  }
+}
+
 function normalizeTestDocumentSource(value: unknown): TestDocumentSource {
   if (value === 'upload') return 'upload'
   if (value === 'text') return 'text'

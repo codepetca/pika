@@ -11,7 +11,7 @@ type BackfillClient = {
   ): PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
 }
 
-type Candidate = {
+export type ManagedStorageBackfillCandidate = {
   bucket: 'assignment-artifacts' | 'submission-images' | 'test-documents'
   path: string
   purpose: 'student_assignment_artifact' | 'student_inline_image'
@@ -34,6 +34,11 @@ export class ManagedStorageBackfillError extends Error {
   }
 }
 
+function storageReferenceLabel(bucket: string, path: string): string {
+  const fingerprint = createHash('sha256').update(path, 'utf8').digest('hex')
+  return `${bucket} path_sha256=${fingerprint}`
+}
+
 function deterministicObjectId(classroomId: string, bucket: string, path: string): string {
   const bytes = createHash('sha256')
     .update(`${classroomId}\0${bucket}\0${path}`)
@@ -48,7 +53,7 @@ function deterministicObjectId(classroomId: string, bucket: string, path: string
 function managedUrlReference(
   value: unknown,
   supabaseUrl: string,
-): { bucket: Candidate['bucket']; path: string } | null {
+): { bucket: ManagedStorageBackfillCandidate['bucket']; path: string } | null {
   if (typeof value !== 'string') return null
   try {
     const url = new URL(value)
@@ -57,7 +62,7 @@ function managedUrlReference(
       /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/,
     )
     if (!match) return null
-    const bucket = decodeURIComponent(match[1]) as Candidate['bucket']
+    const bucket = decodeURIComponent(match[1]) as ManagedStorageBackfillCandidate['bucket']
     if (!['assignment-artifacts', 'submission-images', 'test-documents'].includes(bucket)) {
       return null
     }
@@ -71,12 +76,12 @@ function managedUrlReference(
   }
 }
 
-function collectCandidates(input: {
+export function collectManagedStorageBackfillCandidates(input: {
   resources: Record<string, Array<Record<string, unknown>>>
   supabaseUrl: string
-}): Candidate[] {
-  const candidates = new Map<string, Candidate>()
-  const add = (candidate: Candidate) => {
+}): ManagedStorageBackfillCandidate[] {
+  const candidates = new Map<string, ManagedStorageBackfillCandidate>()
+  const add = (candidate: ManagedStorageBackfillCandidate) => {
     const key = `${candidate.bucket}\0${candidate.path}`
     const current = candidates.get(key)
     if (
@@ -89,7 +94,10 @@ function collectCandidates(input: {
     ) {
       throw new ManagedStorageBackfillError(
         'legacy_storage_reference_ambiguous',
-        `Legacy file has conflicting classroom references: ${candidate.bucket}/${candidate.path}`,
+        `Legacy file has conflicting classroom references: ${storageReferenceLabel(
+          candidate.bucket,
+          candidate.path,
+        )}`,
       )
     }
     candidates.set(key, current || candidate)
@@ -187,11 +195,18 @@ async function backfillClassroomManagedStorage(input: {
   supabase: BackfillClient
   teacherId: string
   classroomId: string
+  expectedSourceRevision: number
   supabaseUrl: string
   resources: Record<string, Array<Record<string, unknown>>>
 }) {
   const revisionBefore = await readRevision(input.supabase, input.classroomId)
-  const candidates = collectCandidates(input)
+  if (revisionBefore !== input.expectedSourceRevision) {
+    throw new ManagedStorageBackfillError(
+      'legacy_storage_revision_drift',
+      'Classroom changed after its legacy file ownership was inventoried',
+    )
+  }
+  const candidates = collectManagedStorageBackfillCandidates(input)
   const adopted: Array<{ bucket: string; path: string; objectId: string }> = []
 
   for (const candidate of candidates) {
@@ -248,7 +263,10 @@ async function backfillClassroomManagedStorage(input: {
   }
 
   const revisionAfter = await readRevision(input.supabase, input.classroomId)
-  if (revisionAfter !== revisionBefore) {
+  if (
+    revisionAfter !== revisionBefore
+    || revisionAfter !== input.expectedSourceRevision
+  ) {
     throw new ManagedStorageBackfillError(
       'legacy_storage_revision_drift',
       'Classroom changed while its legacy file ownership was being inventoried',
@@ -288,12 +306,13 @@ export async function backfillAllClassroomManagedStorage(input: {
   classrooms: Array<{
     teacherId: string
     classroomId: string
+    expectedSourceRevision: number
     resources: Record<string, Array<Record<string, unknown>>>
   }>
 }) {
   const ownerByReference = new Map<string, string>()
   for (const classroom of input.classrooms) {
-    for (const candidate of collectCandidates({
+    for (const candidate of collectManagedStorageBackfillCandidates({
       resources: classroom.resources,
       supabaseUrl: input.supabaseUrl,
     })) {
@@ -302,10 +321,26 @@ export async function backfillAllClassroomManagedStorage(input: {
       if (currentOwner && currentOwner !== classroom.classroomId) {
         throw new ManagedStorageBackfillError(
           'legacy_storage_reference_shared',
-          `Legacy file is referenced by multiple classrooms: ${candidate.bucket}/${candidate.path}`,
+          `Legacy file is referenced by multiple classrooms: ${storageReferenceLabel(
+            candidate.bucket,
+            candidate.path,
+          )}`,
         )
       }
       ownerByReference.set(reference, classroom.classroomId)
+    }
+  }
+
+  // Validate the complete all-class snapshot before the first ownership write.
+  // A rerun is safe because registrations are deterministic and same-owner
+  // idempotent, but a known-stale snapshot must never begin writing.
+  for (const classroom of input.classrooms) {
+    const currentRevision = await readRevision(input.supabase, classroom.classroomId)
+    if (currentRevision !== classroom.expectedSourceRevision) {
+      throw new ManagedStorageBackfillError(
+        'legacy_storage_revision_drift',
+        'Classroom changed after the all-class legacy storage inventory',
+      )
     }
   }
 
@@ -316,6 +351,7 @@ export async function backfillAllClassroomManagedStorage(input: {
       supabaseUrl: input.supabaseUrl,
       teacherId: classroom.teacherId,
       classroomId: classroom.classroomId,
+      expectedSourceRevision: classroom.expectedSourceRevision,
       resources: classroom.resources,
     }))
   }

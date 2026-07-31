@@ -1,7 +1,9 @@
 Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. Migration 117 and every rollout gate remain
-unapplied/disabled pending fresh named authorization; production remains through
-116. The application, tests, docs, and teacher/student UI matrix pass locally.
+single-scope managed-file ownership. Review hardening now preserves immutable
+Blueprint Versions, reconciles cold compaction/restore ownership, and adds a
+guarded all-class readiness command. Migration 117 remains unapplied, generated
+types are intentionally pending an authorized replay, every rollout gate remains
+disabled, and production remains through 116.
 
 ## Current Context
 

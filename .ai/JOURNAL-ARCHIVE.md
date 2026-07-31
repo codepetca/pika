@@ -15738,3 +15738,96 @@
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
 - Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.
+
+<!-- pika-session-log-archive-batch:00873c838be7b4543a447ae869b25ded8a6dfa35075a6ad0e60f8a7aab8440bc -->
+## 2026-07-23 — Retired legacy Quiz UI wrappers
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses shared Test component contracts, draft identity, exam-mode E2E setup, and the legacy retirement ratchet without changing rendered behavior.
+
+**Completed:**
+- Removed unused `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` component and hook aliases after confirming no production callers remained.
+- Made current Test identity and update props explicit and required.
+- Renamed the internal student action-footer automation id from `student-quiz-action-footer` to `student-test-action-footer`.
+- Updated student and teacher exam-mode E2E setup to decode the current `test` API response key.
+- Removed the final quiz-keyed Tests list payload type from assessment URL-state E2E setup after independent review.
+- Added an architecture ratchet preventing retired UI aliases and the old automation id from returning.
+- Preserved the `tab=quizzes&quizId=...` old-link tombstone, persisted `quiz_id` fields, schema, archives, gradebook tombstones, and course package compatibility.
+
+**Validation:**
+- Focused wrapper and component suites (7 files / 115 tests)
+- Full repository suite (408 files / 3,670 tests)
+- Exam-mode Playwright discovery (10 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.
+
+## 2026-07-23 — Retired standalone legacy Quiz Markdown
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass removes an isolated compatibility parser/serializer and consolidates the shared editor on its already-current Test Markdown contract.
+
+**Completed:**
+- Removed `src/lib/quiz-markdown.ts` and its dedicated compatibility test after confirming no package, archive, import, or persisted-data reader depended on it.
+- Consolidated `TestDetailPanel` draft serialization, Markdown parsing, document handling, and question-field preservation on `testToMarkdown` / `markdownToTest`.
+- Added an architecture ratchet preventing the retired module and its assessment/quiz Markdown aliases from returning.
+- Updated the cleanup guide to identify unreachable quiz-mode rendering as the next implementation pass.
+- Preserved persisted `quiz_id` fields, schema, archives, gradebook tombstones, course package compatibility, and the `tab=quizzes` URL tombstone.
+
+**Validation:**
+- Focused Markdown, component, and architecture suites (3 files / 53 tests)
+- Full repository suite (407 files / 3,666 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Run full repository validation, independent PR review, and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and wording from current Test components.
+
+<!-- pika-session-log-archive-batch:949770d9b0ceaf9f2d4cd8175490ac5be5e2b3d9490b9f3db515ffa37991581a -->
+## 2026-07-23 — Retired unreachable Quiz rendering
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass traces Test-only callers through large teacher and student components, removes dead rendering/contracts, and preserves persistence and compatibility boundaries.
+
+**Completed:**
+- Removed assessment-mode switches and unreachable quiz submission, result, list-badge, authoring, preview, and grading branches from active Test components.
+- Consolidated student Test form submissions and returned results on current structured Test payloads.
+- Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
+- Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
+- Preserved authoring-preview freshness with uncached reads and a request-generation guard so a late stale response cannot replace a newer refresh.
+- Updated the governed native-control registry for the removed controls and modules.
+- Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
+- Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
+- Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
+
+**Validation:**
+- Focused component and architecture suites (7 files / 118 tests)
+- Full repository suite (407 files / 3,662 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (621 modules / 0 allowances)
+- `pnpm run check:ui-policy` (207 registered native controls / 65 files)
+- `pnpm build`
+- Pika changed-file audit
+- Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
+- `git diff --check`
+- Independent review found one blocking in-flight preview freshness regression; fixed with a request-generation guard and deferred-response regression coverage.
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
