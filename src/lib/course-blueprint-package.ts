@@ -37,7 +37,7 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
 } from '@/lib/course-site-publishing'
-import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import { stripTestDocumentInternalOwnership } from '@/lib/test-documents'
 import {
   createCourseBlueprintArtifactId,
   isCourseBlueprintArtifactId,
@@ -466,7 +466,7 @@ export function buildCourseBlueprintExportBundle(
       assessment_type: 'test' as const,
       title: assessment.title,
       content: assessment.content as any,
-      documents: stripTestDocumentSnapshots(assessment.documents),
+      documents: stripTestDocumentInternalOwnership(assessment.documents),
       points_possible: assessment.points_possible,
       gradebook_weight: assessment.gradebook_weight,
       include_in_final: assessment.include_in_final,

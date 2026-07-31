@@ -8,7 +8,7 @@ import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { fetchJSON } from '@/lib/request-cache'
-import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
+import { normalizeTestDocuments } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
 
@@ -86,7 +86,6 @@ export function TeacherTestPreviewPage({
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
   const [loadedTestId, setLoadedTestId] = useState<string | null>(null)
   const fullscreenActiveRef = useRef(false)
-  const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
   const previewOwnerRef = useRef(testId)
   const previewRequestIdRef = useRef(0)
   const backToDocumentsButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -286,7 +285,6 @@ export function TeacherTestPreviewPage({
   }, [loadPreviewData, testId])
 
   useEffect(() => {
-    autoSyncAttemptedRef.current.clear()
     returnFocusDocumentIdRef.current = null
     setActiveDoc(null)
   }, [testId])
@@ -305,49 +303,6 @@ export function TeacherTestPreviewPage({
       window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
     }
   }, [classroomId, listenForUpdates, loadPreviewData])
-
-  useEffect(() => {
-    if (loadedTestId !== testId) return
-
-    const staleDoc = normalizeTestDocuments(documents).find((doc) => {
-      if (!isLinkDocumentSnapshotStale(doc)) return false
-      const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
-      return !autoSyncAttemptedRef.current.has(attemptKey)
-    })
-
-    if (!staleDoc) return
-
-    const attemptKey = `${staleDoc.id}:${staleDoc.url || ''}:${staleDoc.synced_at || ''}:${staleDoc.snapshot_path || ''}`
-    autoSyncAttemptedRef.current.add(attemptKey)
-
-    let isCancelled = false
-
-    void (async () => {
-      try {
-        const response = await fetch(`/api/teacher/tests/${testId}/documents/${staleDoc.id}/sync`, {
-          method: 'POST',
-        })
-        const data = await response.json()
-        if (!response.ok || isCancelled) {
-          if (!response.ok) {
-            console.error(`Auto-sync failed for ${staleDoc.title}:`, data?.error || 'Unknown error')
-          }
-          return
-        }
-
-        const responseTest = readTestFromPayload<{ documents?: unknown }>(data)
-        setDocuments(normalizeTestDocuments(responseTest?.documents))
-      } catch (error) {
-        if (!isCancelled) {
-          console.error(`Auto-sync failed for ${staleDoc.title}:`, error)
-        }
-      }
-    })()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [documents, loadedTestId, testId])
 
   function handleClosePreview() {
     if (onClose) {

@@ -388,10 +388,93 @@ async function mapWithConcurrency<T, R>(
 
 async function downloadStorageObjects(
   supabase: SupabaseClient,
+  classroomId: string,
   resources: Record<string, unknown[]>,
   supabaseUrl: string,
 ): Promise<ClassroomArchiveStorageObject[]> {
-  const references = discoverClassroomStorageReferences(resources, supabaseUrl)
+  type ArchiveSourceReference = {
+    bucket: ClassroomArchiveStorageObject['bucket']
+    path: string
+    managedObjectId?: string
+    managedPurpose?: ClassroomArchiveStorageObject['managedPurpose']
+    createdByUserId?: string | null
+    dataSubjectUserId?: string | null
+    resourceType?: string | null
+    resourceId?: string | null
+  }
+  let useExactOwnership = false
+  try {
+    const coverageResponse = await (supabase as any)
+      .from('classroom_managed_storage_coverage')
+      .select('status')
+      .eq('classroom_id', classroomId)
+      .maybeSingle()
+    useExactOwnership = !coverageResponse?.error
+      && coverageResponse?.data?.status === 'verified'
+  } catch {
+    // Archive export remains compatible during the migration-first/backfill
+    // rollout. Purge itself never uses this legacy discovery path.
+    useExactOwnership = false
+  }
+  let references: ArchiveSourceReference[] = discoverClassroomStorageReferences(
+    resources,
+    supabaseUrl,
+  )
+  if (useExactOwnership) {
+    const managedResponse = await (supabase as any)
+      .from('managed_storage_objects')
+      .select('id,storage_bucket,storage_path,status,purpose,created_by_user_id,data_subject_user_id,resource_type,resource_id')
+      .eq('classroom_id', classroomId)
+      .order('storage_bucket', { ascending: true })
+      .order('storage_path', { ascending: true })
+    if (managedResponse.error) {
+      throw new ClassroomArchiveExportError(
+        'archive_managed_storage_inventory_failed',
+        'Classroom file ownership could not be read',
+        503,
+        true,
+      )
+    }
+    const managedRows = z.array(z.object({
+      id: z.string().uuid(),
+      storage_bucket: z.enum([
+        'assignment-artifacts',
+        'submission-images',
+        'test-documents',
+      ]),
+      storage_path: z.string().min(1),
+      status: z.literal('ready'),
+      purpose: z.enum([
+        'student_assignment_artifact',
+        'student_inline_image',
+        'teacher_test_material',
+        'test_execution_snapshot',
+        'legacy_classroom_file',
+      ]),
+      created_by_user_id: z.string().uuid().nullable(),
+      data_subject_user_id: z.string().uuid().nullable(),
+      resource_type: z.string().nullable(),
+      resource_id: z.string().uuid().nullable(),
+    }).strict()).safeParse(managedResponse.data || [])
+    if (!managedRows.success) {
+      throw new ClassroomArchiveExportError(
+        'archive_managed_storage_unsettled',
+        'Classroom files are still being prepared or cleaned up',
+        409,
+        true,
+      )
+    }
+    references = managedRows.data.map((row) => ({
+      bucket: row.storage_bucket,
+      path: row.storage_path,
+      managedObjectId: row.id,
+      managedPurpose: row.purpose,
+      createdByUserId: row.created_by_user_id,
+      dataSubjectUserId: row.data_subject_user_id,
+      resourceType: row.resource_type,
+      resourceId: row.resource_id,
+    }))
+  }
   return mapWithConcurrency(references, 4, async (reference) => {
     const { data, error } = await supabase.storage.from(reference.bucket).download(reference.path)
     if (error || !data) {
@@ -407,6 +490,14 @@ async function downloadStorageObjects(
       sourcePath: reference.path,
       contentType: data.type || null,
       bytes: new Uint8Array(await data.arrayBuffer()),
+      ...(reference.managedObjectId ? {
+        managedObjectId: reference.managedObjectId,
+        managedPurpose: reference.managedPurpose,
+        createdByUserId: reference.createdByUserId,
+        dataSubjectUserId: reference.dataSubjectUserId,
+        resourceType: reference.resourceType,
+        resourceId: reference.resourceId,
+      } : {}),
     }
   })
 }
@@ -622,6 +713,7 @@ export async function exportClassroomArchive(args: {
     const actors = await loadActorSnapshots(args.supabase, args.operationId)
     const storageObjects = await downloadStorageObjects(
       args.supabase,
+      args.classroomId,
       resources,
       args.supabaseUrl,
     )

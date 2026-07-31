@@ -53,6 +53,8 @@ function renderTeacherClassroomsIndex(initialClassrooms: Classroom[]) {
 }
 
 describe('TeacherClassroomsIndex', () => {
+  // These archived-classroom interaction tests exercise ClassroomPurgeDialog
+  // through its real owner so opener focus restoration is covered end to end.
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
@@ -204,6 +206,56 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Delete permanently' })).toHaveFocus()
+  })
+
+  it('fails closed when managed-file ownership coverage is not verified', async () => {
+    const archived = createMockClassroom({
+      id: 'archived-1',
+      title: 'Archived Biology',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        impact: {
+          classroom_id: archived.id,
+          classroom_title: archived.title,
+          relational_row_count: 2,
+          student_count: 1,
+          managed_file_count: 1,
+          managed_file_bytes: 100,
+          missing_file_count: 0,
+          archive_count: 0,
+          gradex_extract_count: 0,
+          resource_counts: { classrooms: 1, classroom_roster: 1 },
+          storage_counts: { 'submission-images': 1 },
+          conflicting_operation: null,
+          ownership_coverage_status: 'pending',
+          deletion_available: false,
+          unavailable_reason: 'Classroom file ownership must be reconciled before deletion.',
+        },
+        operation: null,
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(
+      'Classroom file ownership must be reconciled before deletion.',
+    )).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'DELETE' },
+    })
+    expect(within(dialog).getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
   })
 
   it('completes a resumable purge and removes the hot archive row', async () => {

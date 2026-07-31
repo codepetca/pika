@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Hardened standalone test preview
-
-**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
-
-**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
-
-**Completed:**
-- Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
-- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
-- Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
-- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
-- Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
-- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
-- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
-- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
-- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
-- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
-
-**Validation:**
-- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
-- Full repository suite (413 files / 3,712 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (625 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- `git diff --check`
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.
-
 ## 2026-07-23 — Retired legacy Quiz UI wrappers
 
 **Risk profile:** none
@@ -1533,3 +1501,39 @@ classroom lineage.
 - The application feature is still only in draft PR #963 and has not been deployed. No staging
   migration, production migration 117, application deployment, classroom purge, or Storage
   deletion is authorized by the consumed local migration permission.
+
+## 2026-07-31 — Replaced inferred file sharing with explicit managed ownership
+
+**Risk profile:** destructive-data, authorization, storage, concurrency, archive/restore, Blueprint lineage, UI
+
+**Completed:**
+- Reworked unshipped migration 117 around an exact `(bucket, path)` registry in which each source
+  object has one classroom or Course Blueprint lifecycle owner; user ids are attribution only.
+- Added fail-closed ownership coverage, legacy global backfill, Storage write/delete enforcement,
+  leased cleanup, permanent purge reservations, exact database absence checks, and two operator
+  gates that default off.
+- Converted assignment artifacts, inline student images, teacher test uploads, and execution
+  snapshots to reserve-before-upload/adopt-after-upload ownership. Link snapshots now run only on
+  explicit sync or test activation, not while browsing authoring/preview screens.
+- Added durable verified physical copies from classrooms to Blueprints and from Blueprints to new
+  classrooms, atomic document ownership rewrites, explicit Blueprint file deletion, package-id
+  stripping, and exact archive/restore managed-object manifests.
+- Replaced purge URL/JSON inference with verified exact classroom ownership plus archive, Gradex,
+  and interrupted-cleanup ledgers. Course Blueprints and users remain outside purge membership.
+- Added cleanup, copy, backfill, upload, partial-failure, retry, authorization, archive/restore,
+  confirmation, focus, and rollout-gate regressions. Updated lifecycle rollout guidance.
+
+**Validation:**
+- Full Vitest suite: 465 files / 4,009 tests; TypeScript, lint, production build, SQLFluff
+  PostgreSQL parse, diff checks, and Pika audit pass.
+- Playwright verification passes for teacher available/blocked dialogs on desktop/mobile and
+  light/dark, plus student desktop/mobile boundaries with no deletion control.
+- Migration 117 was not applied or replayed. Local runtime still lacks the new managed ownership
+  tables, proving this session did not consume migration authorization. Generated database types
+  therefore remain intentionally unchanged.
+
+**Remaining:**
+- Keep PR #963 draft. A fresh exact authorization is required before applying migration 117 even
+  locally; only then regenerate database types and run the destructive exact-ownership fixture.
+- Deployment, rollout gates, cleanup worker enablement, production migration 117, cold archived
+  classroom deletion, and comprehensive individual-student purging remain out of scope.

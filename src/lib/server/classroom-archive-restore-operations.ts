@@ -506,6 +506,20 @@ export async function restoreClassroomArchive(args: {
       left.storage_bucket.localeCompare(right.storage_bucket)
       || left.storage_path.localeCompare(right.storage_path)
     ))
+    const managedObjects = plan.storageObjects.map((object) => ({
+      managed_object_id: object.managedObjectId,
+      storage_bucket: object.bucket,
+      storage_path: object.restorePath,
+      purpose: object.managedPurpose,
+      created_by_user_id: object.createdByUserId,
+      data_subject_user_id: object.dataSubjectUserId,
+      resource_type: object.resourceType,
+      resource_id: object.resourceId,
+      content_type: object.contentType,
+    })).sort((left, right) => (
+      left.storage_bucket.localeCompare(right.storage_bucket)
+      || left.storage_path.localeCompare(right.storage_path)
+    ))
     if (
       canonicalJsonStringify(plan.sourceResourceCounts) !==
       canonicalJsonStringify(metadata.resource_counts)
@@ -517,7 +531,9 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_restore_v2', {
+    const beginResponse = await (args.supabase as any).rpc(
+      'begin_classroom_archive_restore_managed_v2',
+      {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_classroom_id: args.classroomId,
@@ -526,17 +542,19 @@ export async function restoreClassroomArchive(args: {
         archiveId: args.archiveId,
         classroomId: args.classroomId,
         targetSchemaMigration: plan.targetSchemaMigration,
-        storageObjects,
+        storageObjects: managedObjects,
       }),
       p_target_schema_migration: plan.targetSchemaMigration,
       p_adapter_chain: plan.adapterChain,
       p_resource_counts: resourceCounts,
       p_storage_objects: storageObjects,
+      p_managed_objects: managedObjects,
       p_database_budget_bytes: args.databaseBudgetBytes,
       p_source_contract_version: plan.sourceContractVersion,
       p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
       p_source_resource_counts: plan.sourceResourceCounts,
-    })
+      },
+    )
     if (beginResponse.error) {
       const missingMigration = isMissingRestoreV2Rpc(beginResponse.error)
       throw new ClassroomArchiveRestoreError(
@@ -544,7 +562,7 @@ export async function restoreClassroomArchive(args: {
           ? 'classroom_archive_restore_migration_required'
           : 'classroom_archive_restore_begin_failed',
         missingMigration
-          ? 'Classroom archive restore requires migration 107'
+          ? 'Managed classroom archive restore requires migration 117'
           : 'Classroom archive-v2 restore could not start',
         503,
         true,

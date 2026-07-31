@@ -357,44 +357,58 @@ verified archives, related Gradex extracts, and interrupted archive/Gradex uploa
 only by operational cleanup ledgers. Course Blueprints, immutable Blueprint Versions, and user
 accounts remain outside purge ownership and are preserved.
 
-The begin transaction locks the classroom through the shared lifecycle advisory lock, rejects
-active archive, restore, compaction, storage-cleanup lease, grading, repository review, Blueprint
-proposal, or Blueprint editing work, and installs a durable fence. The fence freezes every table in
-`classroom_archive_resource_contract`, the non-owning archive/Blueprint operation tables, and the
-archive/Gradex cleanup ledgers, closing the race between conflict preflight and operation creation.
-It then snapshots exact resource row membership. Finalization is impossible until the application
-has staged and sealed a complete managed-object inventory.
+Migration 117 replaces URL and JSON reference inference with `managed_storage_objects`, an exact
+registry keyed by `(storage_bucket, storage_path)`. Every source object has exactly one lifecycle
+owner: a classroom or a Course Blueprint. User ids are attribution and data-subject metadata only;
+deleting a classroom never deletes a user account. Classroom ownership covers student assignment
+artifacts, inline submission images, teacher test materials, execution snapshots, and reconciled
+legacy objects. Reusable teacher test material is physically copied to Blueprint-owned storage
+before Blueprint capture/import completes, and copied back to new classroom-owned storage before
+instantiation completes. Internal managed-object ids are not exported in Course Packages.
 
-Each object in `assignment-artifacts`, `submission-images`, `test-documents`,
-`classroom-archives`, and `gradex-analytics-extracts` receives a retryable lease. A worker deletes
-only the exact canonical key, verifies exact absence across every matching bucket-directory page,
-and then marks the object deleted while retaining its raw path only as an active reservation. A
-shared/exclusive advisory-lock
-barrier serializes managed-reference writers with the pre-seal and pre-claim sharing checks.
-Classroom, Blueprint, archive, and Gradex operational writers cannot acquire a path reserved for
-deletion, including after the object has left Storage but before relational finalization. A newly
-shared path moves only from deletion to redacted preservation, never in the opposite direction.
-Once every object is deleted or explicitly preserved, one transaction rechecks the source revision
-and active-operation fence, reconciles archive/extract and storage-cleanup ledgers, nulls or expires
-non-owning classroom workflow references, deletes the exact relational membership child-first, and
-redacts every retained object path at the same completion linearization point. Count drift rolls
-the transaction back.
+All new uploads reserve exact ownership before writing Storage and atomically adopt the reservation
+after Storage confirms the object. Failed or abandoned uploads become leased, retryable cleanup work.
+The Storage trigger rejects unreserved writes once enforcement is enabled, rejects ordinary deletes
+of managed objects, and permanently fences any exact key that has entered a purge ledger. Test link
+snapshots are no longer copied while a teacher merely browses authoring or preview screens. They are
+created at the explicit manual-sync or test-activation boundary, so teacher-authored uploads remain
+stable source material while execution copies are classroom-owned and disposable.
+
+Existing classrooms begin with `classroom_managed_storage_coverage.status = pending`. A global
+backfill inventories all classroom references before writing ownership, rejects cross-classroom path
+sharing, records exact legacy ownership, injects managed ids into test documents, and verifies a
+stable classroom revision plus inventory digest. Ambiguous or unreferenced global Storage orphans
+are reported for a separate operator cleanup; purge never guesses their owner. New classrooms start
+with verified empty coverage and remain exact through managed writes.
+
+The begin transaction locks the classroom through the shared lifecycle advisory lock, requires both
+operator rollout gates and verified ownership coverage, rejects active archive, restore, compaction,
+storage cleanup, grading, repository review, Blueprint copy/proposal, or Blueprint editing work, and
+installs a durable fence. In that same transaction it snapshots exact managed objects plus archive,
+Gradex, and interrupted-upload ledger objects. Every object receives a retryable lease. A worker
+deletes only the exact key; the database checks authoritative `storage.objects` absence before
+accepting completion. Storage errors, lost leases, browser closure, or database-finalization errors
+leave resumable evidence instead of relying on foreign-key cascades or best-effort compensation.
+
+Once every exact object is absent, one transaction deletes the corresponding managed ownership rows,
+rechecks that no classroom-owned object remains, reconciles archive/extract and cleanup ledgers, and
+invokes the migration-115 child-first relational finalizer. Count or ownership drift rolls the whole
+finalization transaction back. Course Blueprints—including their independently owned files—and user
+accounts are outside classroom purge membership and remain intact.
 
 The finalizer sets a transaction-local purge marker. Migration 116 scopes existing submitted-work
 integrity and routine storage-cleanup triggers to normal writes, allowing only the already-fenced,
 exact purge membership to be deleted without weakening submission protection elsewhere or creating
 duplicate cleanup jobs.
 
-Migration 117 consolidates all independent-review hardening before application rollout. It treats
-cleanup-only archive and Gradex objects as sealed purge inventory, blocks live cleanup workers,
-rechecks shared classroom/Blueprint and external operational references immediately before
-deletion, and binds every managed-path writer to the same transaction barrier. Deleted-object
-reservations remain live until atomic finalization and terminal paths are redacted. Path matching
-uses decoded JSON scalar values plus canonical and WHATWG-aligned special-URL normalization:
-case-insensitive schemes, backslash separators, dot segments, encoded unreserved characters, and
-encoded separators resolve consistently with application inventory. Query, fragment, and unrelated
-invalid `%FF` or `%00` text cannot poison matching. The destructive local database fixture and
-teacher/student Playwright matrix are required CI gates.
+Migration 117 is fail-closed when installed: `enforce_ownership` and
+`hot_classroom_purge_enabled` both default to `false`, and the generic cleanup worker also requires
+`MANAGED_STORAGE_CLEANUP_ENABLED=true`. Rollout is staged: apply and replay-verify the migration;
+deploy dual-compatible producers; backfill every classroom and investigate blocked/shared paths;
+report global orphans; enable the cleanup worker; enable Storage ownership enforcement; run a named
+hot-archive canary; then enable hot purge for the application. Rollback turns the gates off and stops
+workers without discarding durable ledgers. Applying migration 117, setting either database gate,
+enabling the worker, or running a destructive canary each requires its own named authorization.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The
@@ -406,7 +420,7 @@ history-cleanup cron is a safety net for crash-abandoned or browser-closed opera
 use the same durable leases and finalizer, so retries cannot skip inventory or repeat a completed
 destructive transition.
 
-Cold archived classroom deletion is intentionally not part of migration 115. Comprehensive
+Cold archived classroom deletion is intentionally not part of migration 117. Comprehensive
 individual-student purging is also a follow-up because current roster removal is enrollment
 management rather than an all-history privacy purge. Neither follow-up is required atomically for
 hot-classroom deletion because the classroom-wide membership snapshot already includes all students

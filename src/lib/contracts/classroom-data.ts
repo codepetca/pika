@@ -94,6 +94,21 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
   },
+  {
+    child_table: 'managed_storage_objects',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'classroom_managed_storage_coverage',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'course_blueprint_storage_copy_items',
+    parent_table: 'classrooms',
+    child_columns: ['target_classroom_id'],
+  },
 ] as const satisfies readonly ClassroomSchemaRelationship[]
 
 export const classroomResourceInventorySchema = z.array(classroomResourceSchema).min(1).superRefine(

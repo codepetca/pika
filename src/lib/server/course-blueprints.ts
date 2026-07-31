@@ -31,7 +31,10 @@ import type {
   TestDraftContent,
 } from '@/types'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
-import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import {
+  stripTestDocumentInternalOwnership,
+  stripTestDocumentSnapshots,
+} from '@/lib/test-documents'
 import {
   buildCreateBlueprintWritePlan,
   buildInstantiateBlueprintWritePlan,
@@ -41,8 +44,14 @@ import {
   resolveBlueprintOperationId,
 } from '@/lib/server/course-blueprint-operations'
 import { saveCourseBlueprintVersion } from '@/lib/server/course-blueprint-versions'
+import {
+  CourseBlueprintStorageCopyError,
+  resumeCourseBlueprintStorageCopies,
+} from '@/lib/server/course-blueprint-storage-copies'
 import { createCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
 import { createHash, randomUUID } from 'node:crypto'
+import { managedStorageObjectSchema } from '@/lib/server/managed-storage'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -57,6 +66,32 @@ type BlueprintOperationOptions = {
 
 function getSupabase() {
   return getServiceRoleClient()
+}
+
+async function finishBlueprintStorageCopies(
+  teacherId: string,
+  operationId: string,
+) {
+  try {
+    await resumeCourseBlueprintStorageCopies({ teacherId, operationId })
+    return null
+  } catch (error) {
+    const copyError = error instanceof CourseBlueprintStorageCopyError
+      ? error
+      : new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_failed',
+          true,
+          error instanceof Error ? error.message : 'Course material copy failed',
+        )
+    return {
+      ok: false as const,
+      status: copyError.retryable ? 503 : 409,
+      error: copyError.message,
+      error_code: copyError.code,
+      retryable: copyError.retryable,
+      operation_id: operationId,
+    }
+  }
 }
 
 export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
@@ -380,8 +415,57 @@ export async function deleteCourseBlueprint(teacherId: string, blueprintId: stri
   }
 
   const supabase = getSupabase()
-  const { error } = await supabase.from('course_blueprints').delete().eq('id', blueprintId)
-  if (error) return { ok: false as const, status: 500, error: 'Failed to delete course blueprint' }
+  const begin = await (supabase as any).rpc('begin_course_blueprint_managed_deletion', {
+    p_teacher_id: teacherId,
+    p_blueprint_id: blueprintId,
+  })
+  if (begin.error) {
+    return {
+      ok: false as const,
+      status: 503,
+      error: 'Course Blueprint deletion is paused and can be retried.',
+    }
+  }
+
+  for (let processed = 0; processed < 500; processed += 1) {
+    const leaseToken = randomUUID()
+    const claim = await (supabase as any).rpc('claim_course_blueprint_managed_cleanup', {
+      p_teacher_id: teacherId,
+      p_blueprint_id: blueprintId,
+      p_lease_token: leaseToken,
+      p_lease_seconds: 120,
+    })
+    if (claim.error) {
+      return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
+    }
+    const objects = managedStorageObjectSchema.array().parse(claim.data || [])
+    const object = objects[0]
+    if (!object) break
+    const removal = await supabase.storage.from(object.storage_bucket).remove([object.storage_path])
+    if (removal.error && !missingStorageObjectEvidence(removal.error)) {
+      await (supabase as any).rpc('fail_managed_storage_cleanup', {
+        p_object_id: object.id,
+        p_lease_token: leaseToken,
+        p_error_code: 'course_blueprint_storage_delete_failed',
+      })
+      return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
+    }
+    const completed = await (supabase as any).rpc('complete_managed_storage_cleanup', {
+      p_object_id: object.id,
+      p_lease_token: leaseToken,
+    })
+    if (completed.error || completed.data !== true) {
+      return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
+    }
+  }
+
+  const finalized = await (supabase as any).rpc('finalize_course_blueprint_managed_deletion', {
+    p_teacher_id: teacherId,
+    p_blueprint_id: blueprintId,
+  })
+  if (finalized.error || finalized.data !== true) {
+    return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
+  }
   return { ok: true as const }
 }
 
@@ -1064,6 +1148,7 @@ export async function importCourseBlueprintBundle(
     assessments: parsed.assessments.map((assessment) => ({
       ...assessment,
       artifact_id: assessment.artifact_id!,
+      documents: stripTestDocumentInternalOwnership(assessment.documents),
       points_possible: assessment.points_possible ?? null,
       gradebook_weight: assessment.gradebook_weight ?? 10,
       include_in_final: assessment.include_in_final !== false,
@@ -1098,6 +1183,11 @@ export async function importCourseBlueprintBundle(
   if (!operation.blueprint_id) {
     return { ok: false as const, status: 500, error: 'Atomic blueprint import returned no blueprint id' }
   }
+  const storageCopyFailure = await finishBlueprintStorageCopies(
+    teacherId,
+    operation.operation_id,
+  )
+  if (storageCopyFailure) return storageCopyFailure
 
   const detailResult = await getCourseBlueprintDetail(teacherId, operation.blueprint_id)
   if (!detailResult.detail) {
@@ -1197,6 +1287,11 @@ export async function createCourseBlueprintFromClassroom(
   if (!operation.blueprint_id) {
     return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }
   }
+  const storageCopyFailure = await finishBlueprintStorageCopies(
+    teacherId,
+    operation.operation_id,
+  )
+  if (storageCopyFailure) return storageCopyFailure
 
   const detailResult = await getCourseBlueprintDetail(teacherId, operation.blueprint_id)
   if (!detailResult.detail) {
@@ -1274,6 +1369,11 @@ export async function createClassroomFromBlueprint(
   if (!operation.classroom_id) {
     return { ok: false as const, status: 500, error: 'Atomic blueprint instantiation returned no classroom id' }
   }
+  const storageCopyFailure = await finishBlueprintStorageCopies(
+    teacherId,
+    operation.operation_id,
+  )
+  if (storageCopyFailure) return storageCopyFailure
 
   const { data: classroom, error: classroomError } = await supabase
     .from('classrooms')

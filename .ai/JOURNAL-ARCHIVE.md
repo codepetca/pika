@@ -15705,3 +15705,36 @@
 **Validation:**
 - Focused Tests API/client/component suites (12 files / 208 tests)
 - Full repository suite (408 files / 3,674 tests)
+
+<!-- pika-session-log-archive-batch:80268ba2b43533f95eafa92db251ea35111b8b8d6d122d6a2f930b8d26758784 -->
+## 2026-07-23 — Hardened standalone test preview
+
+**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
+
+**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
+
+**Completed:**
+- Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
+- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
+- Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
+- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
+- Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
+- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
+- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
+- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
+- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
+- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
+
+**Validation:**
+- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
+- Full repository suite (413 files / 3,712 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (625 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.

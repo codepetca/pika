@@ -339,8 +339,10 @@ export function TestDocumentsEditor({
     setUploading(true)
     setError('')
     try {
+      const documentId = crypto.randomUUID()
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('document_id', documentId)
       const uploadRes = await fetch(`${apiBasePath}/${testId}/documents/upload`, {
         method: 'POST',
         body: formData,
@@ -354,10 +356,11 @@ export function TestDocumentsEditor({
       const nextDocs = [
         ...localDocs,
         {
-          id: crypto.randomUUID(),
+          id: documentId,
           title: String(title).trim().slice(0, 120),
           url: String(uploadData.url || ''),
           source: 'upload' as const,
+          managed_object_id: String(uploadData.managed_object_id || ''),
         },
       ]
 

@@ -10,13 +10,14 @@ import {
   loadUserGitHubIdentity,
 } from '@/lib/server/assignment-submission-artifacts'
 import {
-  adoptProvisionalAssignmentArtifactStorageCleanup,
-  assignmentArtifactStoragePathIsReferenced,
-  createProvisionalAssignmentArtifactStorageCleanup,
-  enqueueAssignmentArtifactStorageCleanupPath,
   removeQueuedAssignmentArtifactStoragePath,
-  type ProvisionalAssignmentArtifactStorageCleanup,
 } from '@/lib/server/assignment-artifact-storage-cleanup'
+import {
+  adoptManagedStorageUpload,
+  queueManagedStorageCleanup,
+  queueManagedStorageCleanupPath,
+  reserveManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 import {
   getGitHubIdentityValidationFromArtifact,
   normalizeGitHubLogin,
@@ -50,52 +51,16 @@ function submittedArtifactMutationResponse() {
 
 async function compensateUploadedArtifact(input: {
   supabase: ReturnType<typeof getServiceRoleClient>
-  storagePath: string
-  provisionalCleanup: ProvisionalAssignmentArtifactStorageCleanup | null
+  objectId: string
 }): Promise<void> {
-  const isReferenced = await assignmentArtifactStoragePathIsReferenced(input)
-  if (isReferenced === true) {
-    if (input.provisionalCleanup) {
-      await adoptProvisionalAssignmentArtifactStorageCleanup({
-        supabase: input.supabase,
-        cleanup: input.provisionalCleanup,
-      })
-    }
-    return
-  }
-  if (isReferenced === null) {
-    if (!input.provisionalCleanup) {
-      await enqueueAssignmentArtifactStorageCleanupPath({
-        supabase: input.supabase,
-        storagePath: input.storagePath,
-      })
-    }
-    return
-  }
-
-  let removed = false
   try {
-    const removal = await input.supabase.storage
-      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-      .remove([input.storagePath])
-    removed = !removal.error
-  } catch {
-    removed = false
-  }
-
-  if (removed && input.provisionalCleanup) {
-    await adoptProvisionalAssignmentArtifactStorageCleanup({
+    await queueManagedStorageCleanup({
       supabase: input.supabase,
-      cleanup: input.provisionalCleanup,
+      objectId: input.objectId,
+      errorCode: 'assignment_artifact_save_failed',
     })
-    return
-  }
-
-  if (!removed && !input.provisionalCleanup) {
-    await enqueueAssignmentArtifactStorageCleanupPath({
-      supabase: input.supabase,
-      storagePath: input.storagePath,
-    })
+  } catch (cleanupError) {
+    console.error('Failed to queue managed assignment artifact cleanup:', cleanupError)
   }
 }
 
@@ -176,6 +141,7 @@ async function loadStudentAssignmentContext(opts: {
   return {
     kind: 'context' as const,
     supabase,
+    classroomId: assignment.classroom_id,
     requirement: requirement as AssignmentSubmissionRequirement,
     doc,
   }
@@ -302,14 +268,22 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
   }
 
   const ext = file.name.split('.').pop() || 'png'
-  const storagePath = `${user.id}/${assignmentId}/${requirement.id}-${Date.now()}-${crypto.randomUUID()}.${ext}`
-  const provisionalCleanup = await createProvisionalAssignmentArtifactStorageCleanup({
+  const managedObjectId = crypto.randomUUID()
+  const storagePath = `classrooms/${result.classroomId}/students/${user.id}/assignments/${assignmentId}/${managedObjectId}.${ext}`
+  await reserveManagedStorageUpload({
     supabase,
-    storagePath,
+    objectId: managedObjectId,
+    bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
+    path: storagePath,
+    classroomId: result.classroomId,
+    purpose: 'student_assignment_artifact',
+    createdByUserId: user.id,
+    dataSubjectUserId: user.id,
+    resourceType: 'assignment_doc',
+    resourceId: doc.id,
+    contentType: file.type,
+    byteSize: file.size,
   })
-  if (!provisionalCleanup) {
-    throw new Error('Failed to protect image upload with durable cleanup evidence')
-  }
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const { error: uploadError } = await supabase.storage
@@ -320,7 +294,18 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     })
 
   if (uploadError) {
+    await compensateUploadedArtifact({ supabase, objectId: managedObjectId })
     throw new Error('Failed to upload image')
+  }
+
+  try {
+    await adoptManagedStorageUpload({
+      supabase,
+      objectId: managedObjectId,
+    })
+  } catch (adoptionError) {
+    await compensateUploadedArtifact({ supabase, objectId: managedObjectId })
+    throw adoptionError
   }
 
   let artifact: unknown = null
@@ -360,12 +345,19 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     artifact = save.data
     error = save.error
   } catch (saveError) {
-    await compensateUploadedArtifact({ supabase, storagePath, provisionalCleanup })
+    const committed = await supabase
+      .from('assignment_submission_artifacts')
+      .select('id')
+      .eq('storage_path', storagePath)
+      .maybeSingle()
+    if (committed.error || !committed.data) {
+      await compensateUploadedArtifact({ supabase, objectId: managedObjectId })
+    }
     throw saveError
   }
 
   if (error || !artifact) {
-    await compensateUploadedArtifact({ supabase, storagePath, provisionalCleanup })
+    await compensateUploadedArtifact({ supabase, objectId: managedObjectId })
 
     if (isSubmittedArtifactMutationError(error)) {
       return submittedArtifactMutationResponse()
@@ -376,16 +368,19 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     throw new Error('Failed to save image artifact')
   }
 
-  await adoptProvisionalAssignmentArtifactStorageCleanup({
-    supabase,
-    cleanup: provisionalCleanup,
-  })
-
   if (previousArtifact?.storage_path && previousArtifact.storage_path !== storagePath) {
-    await removeQueuedAssignmentArtifactStoragePath({
+    const managed = await queueManagedStorageCleanupPath({
       supabase,
-      storagePath: previousArtifact.storage_path,
+      bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
+      path: previousArtifact.storage_path,
+      errorCode: 'assignment_artifact_replaced',
     })
+    if (!managed) {
+      await removeQueuedAssignmentArtifactStoragePath({
+        supabase,
+        storagePath: previousArtifact.storage_path,
+      })
+    }
   }
 
   return NextResponse.json({ artifact: await withSignedImageUrl(supabase, artifact as AssignmentSubmissionArtifact) })
@@ -408,12 +403,21 @@ export const DELETE = withErrorHandler('DeleteAssignmentSubmissionArtifact', asy
     return NextResponse.json({ error: deletion.error }, { status: deletion.status })
   }
 
-  const cleanup = deletion.storagePath
-    ? await removeQueuedAssignmentArtifactStoragePath({
-        supabase,
-        storagePath: deletion.storagePath,
-      })
-    : { completed: true }
+  let cleanup = { completed: true }
+  if (deletion.storagePath) {
+    const managed = await queueManagedStorageCleanupPath({
+      supabase,
+      bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
+      path: deletion.storagePath,
+      errorCode: 'assignment_artifact_deleted',
+    })
+    cleanup = managed
+      ? { completed: false }
+      : await removeQueuedAssignmentArtifactStoragePath({
+          supabase,
+          storagePath: deletion.storagePath,
+        })
+  }
 
   return NextResponse.json(
     { ok: true, cleanup_pending: !cleanup.completed },

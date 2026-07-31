@@ -3,9 +3,6 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import {
-  discoverClassroomStorageReferences,
-} from '@/lib/server/classroom-archive-format'
-import {
   createSupabaseClassroomArchiveInventoryReader,
   readClassroomArchiveResourceGraph,
 } from '@/lib/server/classroom-archive-inventory'
@@ -38,6 +35,7 @@ const purgeOperationRowSchema = z.object({
   retryable: z.boolean().nullable(),
   error_code: z.string().nullable(),
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
+  attempt_count: z.number().int().positive(),
   completed_at: z.string().datetime({ offset: true }).nullable(),
 }).strict()
 
@@ -54,6 +52,33 @@ const purgeObjectSchema = z.object({
   storage_path: z.string().min(1),
   lease_token: z.string().uuid(),
 }).passthrough()
+
+const managedStorageObjectRowSchema = z.object({
+  id: z.string().uuid(),
+  storage_bucket: z.enum([
+    'assignment-artifacts',
+    'submission-images',
+    'test-documents',
+  ]),
+  storage_path: z.string().min(1),
+  byte_size: z.coerce.number().int().nonnegative().nullable(),
+  status: z.enum([
+    'pending_upload',
+    'ready',
+    'cleanup_pending',
+    'cleanup_processing',
+    'purging',
+  ]),
+}).strict()
+
+const storageCoverageRowSchema = z.object({
+  status: z.enum(['pending', 'verified', 'blocked']),
+}).strict()
+
+const managedStorageSettingsSchema = z.object({
+  enforce_ownership: z.boolean(),
+  hot_classroom_purge_enabled: z.boolean(),
+}).strict()
 
 type PurgeStorageBucket = z.infer<typeof purgeObjectSchema>['storage_bucket']
 type ServiceClient = ReturnType<typeof getServiceRoleClient>
@@ -76,20 +101,11 @@ type StorageObject = {
 type PurgeStorageAdapter = {
   from(bucket: string): {
     remove(paths: string[]): PromiseLike<{ error: unknown }>
-    list(
-      path: string,
-      options: { limit: number; offset: number; search: string },
-    ): PromiseLike<{
-      data: Array<{ name: string }> | null
-      error: unknown
-    }>
   }
 }
 
 type Inventory = {
   impact: ClassroomPurgeImpact
-  resources: Record<string, Array<Record<string, unknown>>>
-  objects: StorageObject[]
   sourceRevision: number
 }
 
@@ -321,11 +337,57 @@ async function readStableInventory(
       await reader.readRevision(classroomId),
     )
     const resources = await readClassroomArchiveResourceGraph(reader, classroomId)
-    const sourceObjects = discoverClassroomStorageReferences(resources, supabaseUrl)
-      .map((reference) => ({
-        bucket: reference.bucket as PurgeStorageBucket,
-        path: reference.path,
-      }))
+    const [managedResult, coverageResult, settingsResult] = await Promise.all([
+      (supabase as any)
+        .from('managed_storage_objects')
+        .select('id,storage_bucket,storage_path,byte_size,status')
+        .eq('classroom_id', classroomId),
+      (supabase as any)
+        .from('classroom_managed_storage_coverage')
+        .select('status')
+        .eq('classroom_id', classroomId)
+        .maybeSingle(),
+      (supabase as any)
+        .from('managed_storage_settings')
+        .select('enforce_ownership,hot_classroom_purge_enabled')
+        .eq('singleton', true)
+        .single(),
+    ])
+    if (managedResult.error) {
+      throw new ClassroomPurgeError(
+        managedResult.error.code || 'managed_storage_inventory_failed',
+        'Could not inventory classroom files',
+        500,
+        true,
+      )
+    }
+    if (coverageResult.error) {
+      throw new ClassroomPurgeError(
+        coverageResult.error.code || 'managed_storage_coverage_failed',
+        'Could not verify classroom file ownership',
+        500,
+        true,
+      )
+    }
+    if (settingsResult.error) {
+      throw new ClassroomPurgeError(
+        settingsResult.error.code || 'managed_storage_settings_failed',
+        'Permanent deletion is not available yet',
+        503,
+        true,
+      )
+    }
+    const managedObjects = z.array(managedStorageObjectRowSchema).parse(
+      managedResult.data || [],
+    )
+    const coverage = storageCoverageRowSchema.parse(
+      coverageResult.data || { status: 'pending' },
+    )
+    const settings = managedStorageSettingsSchema.parse(settingsResult.data)
+    const sourceObjects = managedObjects.map((object) => ({
+      bucket: object.storage_bucket as PurgeStorageBucket,
+      path: object.storage_path,
+    }))
     const operational = await readOperationalObjects(supabase, classroomId)
     const objects = uniqueObjects([
       ...sourceObjects,
@@ -333,9 +395,13 @@ async function readStableInventory(
       ...operational.gradexObjects,
       ...operational.cleanupObjects,
     ])
-    const sizes = await Promise.all(sourceObjects.map(async (object) => {
-      const value = await reader.readStorageObjectSize(object.bucket, object.path)
-      return value === null ? null : z.number().int().nonnegative().parse(value)
+    const sizes = await Promise.all(managedObjects.map(async (object) => {
+      const value = await reader.readStorageObjectSize(
+        object.storage_bucket,
+        object.storage_path,
+      )
+      if (value === null) return null
+      return z.number().int().nonnegative().parse(value)
     }))
     const revisionAfter = z.number().int().positive().parse(
       await reader.readRevision(classroomId),
@@ -380,8 +446,23 @@ async function readStableInventory(
       resource_counts: resourceCounts,
       storage_counts: storageCounts,
       conflicting_operation: conflict,
+      ownership_coverage_status: coverage.status,
+      deletion_available:
+        coverage.status === 'verified'
+        && settings.enforce_ownership
+        && settings.hot_classroom_purge_enabled
+        && conflict === null,
+      unavailable_reason: coverage.status !== 'verified'
+        ? 'Classroom file ownership must be reconciled before deletion.'
+        : !settings.enforce_ownership
+          ? 'Managed file ownership enforcement is not enabled.'
+          : !settings.hot_classroom_purge_enabled
+            ? 'Permanent classroom deletion is not enabled.'
+            : conflict
+              ? 'Finish the active classroom operation before deleting permanently.'
+              : null,
     })
-    return { impact, resources, objects, sourceRevision }
+    return { impact, sourceRevision }
   }
   throw new ClassroomPurgeError(
     'classroom_inventory_unstable',
@@ -438,6 +519,16 @@ export async function startClassroomPurge(args: {
       true,
     )
   }
+  if (!inventory.impact.deletion_available) {
+    throw new ClassroomPurgeError(
+      inventory.impact.ownership_coverage_status !== 'verified'
+        ? 'classroom_storage_coverage_incomplete'
+        : 'classroom_purge_disabled',
+      inventory.impact.unavailable_reason || 'Permanent deletion is not available',
+      inventory.impact.ownership_coverage_status !== 'verified' ? 409 : 503,
+      false,
+    )
+  }
 
   const requestSha256 = canonicalRequestHash({
     classroom_id: args.classroomId,
@@ -459,40 +550,6 @@ export async function startClassroomPurge(args: {
     return getClassroomPurgeStatus(args.teacherId, args.operationId)
   }
 
-  const fencedInventory = await readStableInventory(supabase, args.teacherId, args.classroomId)
-  if (
-    begin.source_revision !== undefined
-    && fencedInventory.sourceRevision !== begin.source_revision
-  ) {
-    throw new ClassroomPurgeError(
-      'classroom_inventory_drift',
-      'Classroom inventory changed before deletion was fenced',
-      409,
-      false,
-    )
-  }
-
-  for (let offset = 0; offset < fencedInventory.objects.length; offset += 100) {
-    const batch = fencedInventory.objects.slice(offset, offset + 100)
-    await rpc(supabase, 'stage_classroom_purge_objects', {
-      p_operation_id: args.operationId,
-      p_teacher_id: args.teacherId,
-      p_objects: batch.map((object) => ({
-        ...object,
-        disposition: 'delete',
-      })),
-    })
-  }
-  parseRpcResult(await rpc(supabase, 'reconcile_classroom_purge_object_sharing', {
-    p_operation_id: args.operationId,
-    p_teacher_id: args.teacherId,
-  }))
-  parseRpcResult(await rpc(supabase, 'seal_classroom_purge_inventory', {
-    p_operation_id: args.operationId,
-    p_teacher_id: args.teacherId,
-    p_expected_object_count: fencedInventory.objects.length,
-  }))
-
   await tickClassroomPurge(args.teacherId, args.operationId)
   return getClassroomPurgeStatus(args.teacherId, args.operationId)
 }
@@ -505,7 +562,7 @@ export async function getClassroomPurgeStatus(
   const supabase = getServiceRoleClient()
   const db = untyped(supabase)
   const operationQuery = db.from('classroom_purge_operations').select(
-    'id,classroom_id,teacher_id,status,retryable,error_code,resource_counts,completed_at',
+    'id,classroom_id,teacher_id,status,retryable,error_code,resource_counts,attempt_count,completed_at',
   ) as {
     eq(column: string, value: string): {
       eq(column: string, value: string): {
@@ -546,6 +603,7 @@ export async function getClassroomPurgeStatus(
     status: operation.status,
     retryable: operation.retryable,
     error_code: operation.error_code,
+    attempt_count: operation.attempt_count,
     resource_counts: operation.resource_counts,
     storage_object_counts: storageObjectCounts,
     completed_at: operation.completed_at,
@@ -654,24 +712,6 @@ export async function deleteClassroomPurgeStorageObject(
   if (removal.error && !missingStorageObjectEvidence(removal.error)) {
     throw removal.error
   }
-  const separator = path.lastIndexOf('/')
-  const directory = separator === -1 ? '' : path.slice(0, separator)
-  const objectName = separator === -1 ? path : path.slice(separator + 1)
-  const pageSize = 100
-  for (let offset = 0; offset < 100_000; offset += pageSize) {
-    const verification = await bucket.list(directory, {
-      limit: pageSize,
-      offset,
-      search: objectName,
-    })
-    if (verification.error) throw verification.error
-    const page = verification.data || []
-    if (page.some((object) => object.name === objectName)) {
-      throw new Error('storage_delete_not_verified')
-    }
-    if (page.length < pageSize) return
-  }
-  throw new Error('storage_delete_verification_exhausted')
 }
 
 export async function runClassroomPurgeSafetyNet(

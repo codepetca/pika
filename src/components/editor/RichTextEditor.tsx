@@ -138,8 +138,12 @@ async function compressImage(file: File): Promise<File> {
 
 async function uploadImage(
   file: File,
-  onProgress?: (event: { progress: number }) => void
+  onProgress?: (event: { progress: number }) => void,
+  owner?: { assignmentDocId: string },
 ): Promise<string> {
+  if (!owner) {
+    throw new Error('Image uploads require a classroom assignment document')
+  }
   onProgress?.({ progress: 5 })
 
   // Compress image before upload
@@ -147,6 +151,7 @@ async function uploadImage(
 
   const formData = new FormData()
   formData.append('file', processedFile)
+  formData.append('assignment_doc_id', owner.assignmentDocId)
 
   onProgress?.({ progress: 20 })
 
@@ -171,10 +176,11 @@ async function uploadImage(
 async function handleImageFile(
   editor: Editor,
   file: File,
-  onError?: (message: string) => void
+  onError?: (message: string) => void,
+  owner?: { assignmentDocId: string },
 ): Promise<boolean> {
   try {
-    const url = await uploadImage(file)
+    const url = await uploadImage(file, undefined, owner)
     editor
       .chain()
       .focus()
@@ -211,6 +217,8 @@ export interface RichTextEditorProps {
   className?: string
   /** Enable image upload via button, paste, and drag-drop */
   enableImageUpload?: boolean
+  /** Exact classroom assignment document that owns uploaded images. */
+  imageUploadOwner?: { assignmentDocId: string }
   /** Callback when image upload fails */
   onImageUploadError?: (message: string) => void
   required?: boolean
@@ -329,6 +337,7 @@ export function RichTextEditor({
   showToolbar = true,
   className = '',
   enableImageUpload = false,
+  imageUploadOwner,
   onImageUploadError,
   required,
   'aria-required': ariaRequired,
@@ -440,11 +449,11 @@ export function RichTextEditor({
             accept: IMAGE_ACCEPT,
             maxSize: IMAGE_MAX_SIZE,
             limit: 1,
-            upload: uploadImage,
+            upload: (file, onProgress) => uploadImage(file, onProgress, imageUploadOwner),
           }),
         ]
       : []),
-  ], [enableImageUpload, placeholder])
+  ], [enableImageUpload, imageUploadOwner, placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -561,7 +570,7 @@ export function RichTextEditor({
       if (!imageFile) return
 
       event.preventDefault()
-      handleImageFile(editor, imageFile, onImageUploadError)
+      handleImageFile(editor, imageFile, onImageUploadError, imageUploadOwner)
     }
 
     const handleDrop = (event: DragEvent) => {
@@ -573,7 +582,7 @@ export function RichTextEditor({
 
       event.preventDefault()
       event.stopPropagation()
-      handleImageFile(editor, imageFile, onImageUploadError)
+      handleImageFile(editor, imageFile, onImageUploadError, imageUploadOwner)
     }
 
     const handleDragOver = (event: DragEvent) => {
@@ -594,7 +603,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [editor, enableImageUpload, onImageUploadError])
+  }, [editor, enableImageUpload, imageUploadOwner, onImageUploadError])
 
   if (!editor) {
     return null

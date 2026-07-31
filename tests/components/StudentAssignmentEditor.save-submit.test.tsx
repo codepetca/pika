@@ -59,9 +59,19 @@ const largeDraft = {
 }
 
 vi.mock('@/components/editor', () => ({
-  RichTextEditor: ({ content, onBlur, onChange, onKeystroke }: any) => (
+  RichTextEditor: ({
+    content,
+    enableImageUpload,
+    imageUploadOwner,
+    onBlur,
+    onChange,
+    onKeystroke,
+  }: any) => (
     <div>
       <output data-testid="editor-content">{JSON.stringify(content)}</output>
+      <output data-testid="image-upload-scope">
+        {enableImageUpload ? imageUploadOwner?.assignmentDocId : 'disabled'}
+      </output>
       <button type="button" onClick={() => onChange(olderInFlightDraft)}>Edit older response</button>
       <button type="button" onClick={() => onChange(latestDraft)}>Edit response</button>
       <button type="button" onClick={() => onChange(savedDraft)}>Revert response</button>
@@ -200,6 +210,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
       expect.anything(),
     )
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
+    expect(screen.getByTestId('image-upload-scope')).toHaveTextContent('doc-1')
     const saveStatus = screen.getByTestId('assignment-save-status')
     expect(saveStatus).toHaveTextContent('Unsaved')
     expect(saveStatus).toHaveAttribute('role', 'status')
@@ -220,6 +231,41 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     })
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
     expect(screen.queryByText(/not submitted.*try again/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps inline image upload disabled until the student document exists', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/history')) {
+        return { ok: true, json: async () => ({ history: [] }) }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(),
+            doc: null,
+            feedback_entries: [],
+            submission_requirements: [],
+            submission_artifacts: [],
+            wasFirstView: false,
+          }),
+        }
+      }
+      throw new Error(`Unexpected request: ${url}`)
+    })
+
+    render(
+      <StudentAssignmentEditor
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    expect(screen.getByTestId('image-upload-scope')).toHaveTextContent('disabled')
   })
 
   it('submits the pending editor snapshot before React rerenders', async () => {

@@ -1,7 +1,11 @@
-import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
+import {
+  normalizeTestDocuments,
+  preserveCurrentTestDocumentSnapshots,
+} from '@/lib/test-documents'
 import {
   removeQueuedTestDocumentSnapshotPath,
 } from '@/lib/server/test-document-snapshot-storage-cleanup'
+import { queueManagedStorageCleanup } from '@/lib/server/managed-storage'
 import type { TestDocument } from '@/types'
 
 type SupabaseLike = any
@@ -99,6 +103,32 @@ export async function updateTestDocumentsAtomic(
   }
 
   const cleanupPaths = parseCleanupPaths(result.cleanup_paths)
+  const nextManagedIds = new Set(
+    documents.flatMap((document) => [
+      document.managed_object_id,
+      document.snapshot_managed_object_id,
+    ]).filter((value): value is string => Boolean(value)),
+  )
+  const removedManagedIds = normalizeTestDocuments(input.expectedDocuments)
+    .flatMap((document) => [
+      document.managed_object_id,
+      document.snapshot_managed_object_id,
+    ])
+    .filter((value): value is string => Boolean(value) && !nextManagedIds.has(value!))
+  for (const objectId of new Set(removedManagedIds)) {
+    try {
+      await queueManagedStorageCleanup({
+        supabase: input.supabase,
+        objectId,
+        errorCode: 'test_document_removed',
+      })
+    } catch (cleanupError) {
+      console.error('Failed to queue removed managed test document:', {
+        objectId,
+        cleanupError,
+      })
+    }
+  }
   for (const storagePath of cleanupPaths) {
     try {
       await removeQueuedTestDocumentSnapshotPath({

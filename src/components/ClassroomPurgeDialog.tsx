@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, FileArchive, Users } from 'lucide-react'
 import { Button, ContentDialog, FormField, Input } from '@/ui'
+import { fetchJSON } from '@/lib/request-cache'
 import type {
   ClassroomPurgeImpact,
   ClassroomPurgeStatus,
@@ -70,12 +71,15 @@ export function ClassroomPurgeDialog({
     setConfirmation('')
     setError('')
     setIsLoading(true)
-    fetch(`/api/teacher/classrooms/${classroomId}/purge`, { cache: 'no-store' })
-      .then(async (response) => {
-        const body = await response.json() as PurgeResponse
-        if (!response.ok || !body.impact) {
-          throw new Error(body.error || 'Could not prepare permanent deletion')
-        }
+    fetchJSON<PurgeResponse>(
+      `/api/teacher/classrooms/${classroomId}/purge`,
+      {
+        init: { cache: 'no-store' },
+        errorMessage: 'Could not prepare permanent deletion',
+      },
+    )
+      .then((body) => {
+        if (!body.impact) throw new Error(body.error || 'Could not prepare permanent deletion')
         if (!mountedRef.current) return
         setImpact(body.impact)
         setOperation(body.operation || null)
@@ -253,6 +257,11 @@ export function ClassroomPurgeDialog({
               Finish the active classroom operation before deleting permanently.
             </p>
           ) : null}
+          {impact && !impact.deletion_available ? (
+            <p className="rounded-control border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
+              {impact.unavailable_reason || 'Permanent deletion is not available for this classroom yet.'}
+            </p>
+          ) : null}
           {error ? (
             <p className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">
               {error}
@@ -275,6 +284,7 @@ export function ClassroomPurgeDialog({
               loading={isWorking}
               disabled={
                 isLoading
+                || impact?.deletion_available === false
                 || Boolean(impact?.conflicting_operation)
                 || (!operation && !isConfirmed)
                 || operation?.status === 'completed'

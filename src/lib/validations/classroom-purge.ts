@@ -21,6 +21,9 @@ export const classroomPurgeImpactSchema = z.object({
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
   storage_counts: z.record(z.string(), z.number().int().nonnegative()),
   conflicting_operation: z.string().min(1).nullable(),
+  ownership_coverage_status: z.enum(['pending', 'verified', 'blocked']),
+  deletion_available: z.boolean(),
+  unavailable_reason: z.string().min(1).nullable(),
 }).strict()
 
 export const classroomPurgeStartRequestSchema = z.object({
@@ -38,6 +41,7 @@ export const classroomPurgeStatusSchema = z.object({
   status: classroomPurgeOperationStatusSchema,
   retryable: z.boolean().nullable(),
   error_code: z.string().nullable(),
+  attempt_count: z.number().int().positive(),
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
   storage_object_counts: z.record(z.string(), z.number().int().nonnegative()),
   completed_at: z.string().datetime({ offset: true }).nullable(),

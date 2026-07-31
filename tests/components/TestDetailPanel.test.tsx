@@ -2987,7 +2987,7 @@ Prompt:
       })
     })
 
-    it('auto-syncs stale link documents when a teacher opens the test', async () => {
+    it('does not auto-sync stale link documents when a teacher opens the test', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
         if (url.includes('/draft')) {
@@ -3069,12 +3069,10 @@ Prompt:
         expect(screen.getByRole('tab', { name: /Documents/ })).toBeInTheDocument()
       })
 
-      await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith(
-          '/api/teacher/tests/test-1/documents/doc-1/sync',
-          expect.objectContaining({ method: 'POST' })
-        )
-      })
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/documents/doc-1/sync',
+        expect.objectContaining({ method: 'POST' })
+      )
     })
 
     it('adds a text document and sends text content in documents payload', async () => {

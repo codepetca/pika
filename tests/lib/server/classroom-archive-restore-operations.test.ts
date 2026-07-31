@@ -145,7 +145,7 @@ function createSupabaseMock(options: {
   let metadataReads = 0
   let operationResourceCounts = counts
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === 'begin_classroom_archive_restore_v2') {
+    if (name === 'begin_classroom_archive_restore_managed_v2') {
       if (options.v2Unavailable) {
         return { data: null, error: { code: 'PGRST202', message: 'missing v2 function' } }
       }
@@ -364,7 +364,7 @@ describe('classroom archive restore coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: true, status: 201, replayed: false }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore_v2',
+      'begin_classroom_archive_restore_managed_v2',
       'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
@@ -404,7 +404,7 @@ describe('classroom archive restore coordinator', () => {
       error_code: 'classroom_archive_restore_migration_required',
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore_v2',
+      'begin_classroom_archive_restore_managed_v2',
     ])
   })
 
@@ -427,7 +427,7 @@ describe('classroom archive restore coordinator', () => {
       error_code: 'classroom_archive_restore_begin_failed',
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore_v2',
+      'begin_classroom_archive_restore_managed_v2',
     ])
   })
 
@@ -470,7 +470,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: true,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore_v2',
+      'begin_classroom_archive_restore_managed_v2',
     ])
   })
 
@@ -491,7 +491,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: false,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_restore_v2',
+      'begin_classroom_archive_restore_managed_v2',
       'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
       'fail_classroom_archive_restore',

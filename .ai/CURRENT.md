@@ -1,6 +1,7 @@
-Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
-local was backed up, reset without seed data, and cleanly replayed through 112;
-its migration history and generated types now match this branch.
+Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
+single-scope managed-file ownership. Migration 117 and every rollout gate remain
+unapplied/disabled pending fresh named authorization; production remains through
+116. The application, tests, docs, and teacher/student UI matrix pass locally.
 
 ## Current Context
 

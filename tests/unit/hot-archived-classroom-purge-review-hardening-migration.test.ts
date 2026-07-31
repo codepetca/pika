@@ -6,90 +6,82 @@ const migration = readFileSync(
   'utf8',
 )
 
-describe('hot archived classroom purge review hardening migration', () => {
-  it('blocks purge start while archive or Gradex cleanup owns a live lease', () => {
-    expect(migration).toContain('classroom_archive_object_upload_cleanup cleanup')
-    expect(migration).toContain('classroom_gradex_extract_cleanup cleanup')
-    expect(migration).toContain("cleanup.status = 'processing'")
+describe('explicit managed-file ownership migration', () => {
+  it('gives every source object exactly one classroom or Blueprint lifecycle owner', () => {
+    expect(migration).toContain('create table public.managed_storage_objects')
+    expect(migration).toContain('check (num_nonnulls(classroom_id, course_blueprint_id) = 1)')
+    expect(migration).toContain('unique (storage_bucket, storage_path)')
+    expect(migration).toContain('created_by_user_id uuid references public.users (id) on delete set null')
+    expect(migration).toContain('data_subject_user_id uuid references public.users (id) on delete set null')
+  })
+
+  it('keeps rollout and purge disabled when the migration is merely installed', () => {
+    expect(migration).toContain('enforce_ownership boolean not null default false')
+    expect(migration).toContain('hot_classroom_purge_enabled boolean not null default false')
+    expect(migration).toContain("coverage.status = 'verified'")
+    expect(migration).toContain("'error_code', 'classroom_purge_disabled'")
+    expect(migration).toContain("'error_code', 'managed_storage_enforcement_required'")
+  })
+
+  it('uses exact bucket and path ownership instead of URL or JSON sharing scans', () => {
+    expect(migration).toContain('public.managed_storage_identity_sha256(')
+    expect(migration).toContain('object.storage_bucket = v_bucket')
+    expect(migration).toContain('object.storage_path = v_path')
+    expect(migration).toContain('drop function if exists public.classroom_purge_url_candidates')
+    expect(migration).toContain('drop function if exists public.classroom_purge_jsonb_references_storage_path')
+    expect(migration).not.toContain('create or replace function public.classroom_purge_url_candidates')
+  })
+
+  it('plans, verifies, and atomically adopts durable Blueprint file copies', () => {
+    expect(migration).toContain('create table public.course_blueprint_storage_copy_items')
+    expect(migration).toContain('create or replace function public.claim_course_blueprint_storage_copy')
+    expect(migration).toContain('create or replace function public.complete_course_blueprint_storage_copy')
+    expect(migration).toContain('create or replace function public.adopt_course_blueprint_storage_copies')
+    expect(migration).toContain('public.rewrite_managed_storage_document_owner(')
+    expect(migration).toContain("current_setting('pika.blueprint_storage_adoption', true) = 'on'")
+  })
+
+  it('restores exact ownership and preserves it through hot-to-cold source cleanup', () => {
+    expect(migration).toContain('create table public.classroom_archive_restore_managed_objects')
+    expect(migration).toContain('create or replace function public.begin_classroom_archive_restore_managed_v2')
+    expect(migration).toContain('complete_classroom_archive_restore_legacy_117')
+    expect(migration).toContain('create or replace function public.complete_classroom_archive_source_object_cleanup')
+    expect(migration).toContain('Classroom archive source object is still present')
+  })
+
+  it('blocks conflicts and retries object deletion with durable leases', () => {
     expect(migration).toContain("return 'classroom_storage_cleanup_active';")
+    expect(migration).toContain("return 'classroom_grading_operation_active';")
+    expect(migration).toContain("return 'classroom_blueprint_operation_active';")
+    expect(migration).toContain('for update skip locked')
+    expect(migration).toContain('attempt_count = object.attempt_count + 1')
+    expect(migration).toContain('classroom_purge_storage_object_still_present')
   })
 
-  it('uses an exclusive pre-seal barrier and never reverses preservation', () => {
-    const reconcile = migration.indexOf(
-      'create or replace function public.reconcile_classroom_purge_object_sharing',
+  it('explicitly reconciles managed rows before the child-first relational finalizer', () => {
+    const managedDelete = migration.indexOf('delete from public.managed_storage_objects object')
+    const legacyFinalize = migration.indexOf(
+      'public.finalize_hot_archived_classroom_purge_legacy_117(',
+      managedDelete,
     )
-    const exclusiveLock = migration.indexOf(
-      "hashtextextended('pika-classroom-purge-storage-references', 0)",
-      reconcile,
-    )
-    const sharedCheck = migration.indexOf(
-      'public.classroom_purge_storage_path_is_shared(',
-      exclusiveLock,
-    )
-    const preserve = migration.indexOf("disposition = 'preserve_shared'", sharedCheck)
-
-    expect(reconcile).toBeGreaterThanOrEqual(0)
-    expect(exclusiveLock).toBeGreaterThan(reconcile)
-    expect(sharedCheck).toBeGreaterThan(exclusiveLock)
-    expect(preserve).toBeGreaterThan(sharedCheck)
-    expect(migration).not.toContain("disposition = 'delete',\n        status = 'pending'")
+    expect(managedDelete).toBeGreaterThanOrEqual(0)
+    expect(legacyFinalize).toBeGreaterThan(managedDelete)
+    expect(migration).toContain('classroom_purge_storage_owner_drift')
+    expect(migration).toContain('reject_classroom_delete_with_managed_storage')
   })
 
-  it('rechecks shared and operational references immediately before claim', () => {
-    const claim = migration.indexOf(
-      'create or replace function public.claim_classroom_purge_object',
-    )
-    const sharedCheck = migration.indexOf(
-      'public.classroom_purge_storage_path_is_shared(',
-      claim,
-    )
-    const externalCheck = migration.indexOf(
-      'public.classroom_purge_storage_path_has_external_operation_reference(',
-      sharedCheck,
-    )
-    const processing = migration.indexOf("status = 'processing'", externalCheck)
-
-    expect(claim).toBeGreaterThanOrEqual(0)
-    expect(sharedCheck).toBeGreaterThan(claim)
-    expect(externalCheck).toBeGreaterThan(sharedCheck)
-    expect(processing).toBeGreaterThan(externalCheck)
-  })
-
-  it('serializes content writers and rejects reserved managed paths', () => {
-    expect(migration).toContain('pg_advisory_xact_lock_shared(')
+  it('keeps ownership and destructive RPCs service-role only', () => {
     expect(migration).toContain(
-      "object.status in ('pending', 'processing', 'failed', 'deleted')",
+      'revoke all on table public.managed_storage_objects from public, anon, authenticated;',
     )
     expect(migration).toContain(
-      "'classroom_purge_storage_reservation_' || v_table",
-    )
-    expect(migration).toContain("'course_blueprint_versions'")
-    expect(migration).toContain("'course_blueprint_operations'")
-  })
-
-  it('hands interrupted cleanup ledgers exclusively to the purge finalizer', () => {
-    expect(migration).toContain(
-      'create or replace function public.reject_classroom_cleanup_change_during_purge',
-    )
-    expect(migration).toContain('classroom_purge_fence_archive_upload_cleanup')
-    expect(migration).toContain('classroom_purge_fence_gradex_cleanup')
-    expect(migration).toContain(
-      "raise exception 'Classroom permanent deletion owns this storage cleanup'",
-    )
-  })
-
-  it('redacts preserved paths and grants only the service coordinator', () => {
-    expect(migration).toContain(
-      "where disposition = 'preserve_shared'\n  and status = 'preserved'",
+      'grant execute on function public.begin_managed_storage_upload(',
     )
     expect(migration).toContain(
-      'grant execute on function public.reconcile_classroom_purge_object_sharing(uuid, uuid)\n  to service_role;',
-    )
-    expect(migration).toContain(
-      'revoke all on function public.reject_reserved_classroom_purge_storage_reference()',
+      'grant execute on function public.finalize_hot_archived_classroom_purge(uuid, uuid)',
     )
     expect(migration).not.toMatch(
-      /grant execute on function public\.reconcile_classroom_purge_object_sharing\(uuid, uuid\)\s+to (?:public|anon|authenticated)/,
+      /grant execute on function public\.finalize_hot_archived_classroom_purge\(uuid, uuid\)\s+to (?:public|anon|authenticated)/,
     )
   })
 })
