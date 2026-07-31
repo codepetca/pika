@@ -1057,6 +1057,8 @@ where storage_bucket = 'assignment-artifacts'
       'assignment-artifacts', :'staging_race_path'
     )
   );
+delete from public.classroom_managed_storage_coverage
+where classroom_id = '21000000-0000-4000-8000-000000000030'::uuid;
 delete from public.classrooms
 where id = '21000000-0000-4000-8000-000000000030'::uuid;
 delete from public.users

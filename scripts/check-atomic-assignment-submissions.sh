@@ -822,6 +822,8 @@ end;
 $$;
 
 -- Classroom cascades traverse submitted requirements, artifacts, docs, and history.
+delete from public.classroom_managed_storage_coverage
+where classroom_id = (select classroom_id from assignment_integrity_ids);
 delete from public.classrooms
 where id = (select classroom_id from assignment_integrity_ids);
 
