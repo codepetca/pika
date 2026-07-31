@@ -1532,6 +1532,9 @@ authorization boundaries.
 - Made the destructive purge fixture self-contained: it creates its own non-owner teacher for
   authorization checks, verifies the owner, non-owner, and student accounts all survive deletion,
   and removes only the fixture-owned probe account during teardown.
+- Added an early exact purge-fence check to the server start path. A competing operation now returns
+  `classroom_purge_active` before rebuilding an inventory that the running purge is mutating, while
+  a replay with the same operation id resumes through the durable tick path.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;

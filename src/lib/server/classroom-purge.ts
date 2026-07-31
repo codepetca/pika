@@ -500,6 +500,31 @@ export async function startClassroomPurge(args: {
 }): Promise<ClassroomPurgeStatus> {
   uuidSchema.parse(args.operationId)
   const supabase = getServiceRoleClient()
+  const activeFence = await (supabase as any)
+    .from('classroom_purge_fences')
+    .select('operation_id')
+    .eq('classroom_id', args.classroomId)
+    .maybeSingle()
+  if (activeFence.error) {
+    throw new ClassroomPurgeError(
+      activeFence.error.code || 'classroom_purge_fence_read_failed',
+      'Could not verify the active permanent deletion operation',
+      500,
+      true,
+    )
+  }
+  if (activeFence.data) {
+    if (activeFence.data.operation_id !== args.operationId) {
+      throw new ClassroomPurgeError(
+        'classroom_purge_active',
+        'Permanent deletion is already active for this classroom',
+        409,
+        true,
+      )
+    }
+    return tickClassroomPurge(args.teacherId, args.operationId)
+  }
+
   const inventory = await readStableInventory(supabase, args.teacherId, args.classroomId)
   if (
     args.confirmation !== 'DELETE'
