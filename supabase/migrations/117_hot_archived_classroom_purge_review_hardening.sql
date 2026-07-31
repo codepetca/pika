@@ -2920,6 +2920,9 @@ begin
     )
     or p_storage_path is null
     or btrim(p_storage_path) = ''
+    or p_storage_path like '/%'
+    or strpos(p_storage_path, E'\\') > 0
+    or '..' = any(string_to_array(p_storage_path, '/'))
   then
     raise exception 'Invalid classroom archive source cleanup completion'
       using errcode = '22023';

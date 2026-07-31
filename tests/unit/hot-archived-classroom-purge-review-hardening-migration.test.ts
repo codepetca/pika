@@ -88,6 +88,13 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain("released.purpose, 'cleanup_pending'")
     expect(migration).toContain("'pika.classroom_archive_restore_operation_id'")
     expect(migration).toContain('operation.id = v_restore_operation_id')
+    const cleanupStart = migration.indexOf(
+      'create or replace function public.complete_classroom_archive_source_object_cleanup',
+    )
+    const cleanupEnd = migration.indexOf('$$;', cleanupStart)
+    const cleanup = migration.slice(cleanupStart, cleanupEnd)
+    expect(cleanup).toContain("p_storage_path like '/%'")
+    expect(cleanup).toContain("'..' = any(string_to_array(p_storage_path, '/'))")
   })
 
   it('attaches legacy test ownership without recording a semantic classroom edit', () => {
