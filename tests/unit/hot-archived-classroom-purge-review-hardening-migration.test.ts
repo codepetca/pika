@@ -483,6 +483,18 @@ describe('explicit managed-file ownership migration', () => {
     expect(claim).toContain('for share')
     expect(begin).toContain('for share')
     expect(finalizer).toContain('for share')
+    expect(begin.indexOf('from public.managed_storage_settings')).toBeLessThan(
+      begin.indexOf('perform public.classroom_purge_lock'),
+    )
+    expect(begin.indexOf('from public.managed_storage_settings')).toBeLessThan(
+      begin.indexOf('from public.classroom_purge_operations'),
+    )
+    expect(claim.indexOf('from public.managed_storage_settings')).toBeLessThan(
+      claim.indexOf('from public.classroom_purge_operations'),
+    )
+    expect(claim.indexOf('from public.managed_storage_settings')).toBeLessThan(
+      claim.indexOf('from public.classroom_purge_objects'),
+    )
     expect(finalizer.indexOf('from public.managed_storage_settings')).toBeLessThan(
       finalizer.indexOf('from public.classroom_purge_operations'),
     )

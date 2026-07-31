@@ -15975,3 +15975,44 @@ future persistence shape without enabling unapproved schema behavior.
 - Open the PR, independently review and remediate it, then require exact-head CI.
 - Migration 105 still requires separate explicit authorization for every hosted
   target. The next implementation pass is the atomic freeze/backfill ledger.
+
+<!-- pika-session-log-archive-batch:7c4bef1964bc95b708b3057241f054298c59484d9727d426710152aff01e6f61 -->
+## 2026-07-23 — Closed archive-v2 contract review blockers
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Registered the retired assessment record and actor tables in the live
+  44-resource classroom ownership graph while keeping archive v1 frozen at 42
+  resources and archive v2 at 40.
+- Preserved the deployed v1 production inventory contract and separated v1
+  fixtures from the expanding live ownership graph.
+- Reordered restore URL rewriting so v1 source rows are transformed before
+  envelope adaptation, direct v2 payload checksums are recomputed, and the final
+  staged envelope graph is validated after all transformations.
+- Moved the original v1 export begin implementation to a private compatibility
+  function. Both public v1 and v2 begin RPCs now lock the classroom revision
+  before checking for envelopes, fail closed without snapshot rows, preserve
+  completed replay, and serialize concurrent envelope insertion.
+- Added a real two-session database race proving an uncommitted envelope cannot
+  cross the export fence, plus legacy entry-point and zero-snapshot assertions.
+- Made the v2 database harness select the configured Pika Supabase container
+  instead of the first matching local project.
+- Applied only the corrected 105 function segment to `supabase_db_pika` under
+  the existing local authorization; migration history remains 001-105 and no
+  hosted database was changed.
+
+**Validation:**
+- Full repository suite: 412 files / 3,710 tests.
+- Local v1 export, restore, compaction, Gradex, and v2 database contracts.
+- Live local ownership audit: 123 foreign-key relationships.
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm check:architecture`,
+  `pnpm run check:ui-policy`, `pnpm run db:types:check`, `pnpm build`,
+  `git diff --check`, shell syntax check, and Pika changed-file audit.
+
+**Remaining:**
+- Commit and push the remediation, run targeted and integration re-review, and
+  require exact-head CI before merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+- After merge, implement the separately reviewed atomic Quiz freeze/backfill
+  ledger; applying its migration requires a new exact authorization.

@@ -11,46 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Closed archive-v2 contract review blockers
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Registered the retired assessment record and actor tables in the live
-  44-resource classroom ownership graph while keeping archive v1 frozen at 42
-  resources and archive v2 at 40.
-- Preserved the deployed v1 production inventory contract and separated v1
-  fixtures from the expanding live ownership graph.
-- Reordered restore URL rewriting so v1 source rows are transformed before
-  envelope adaptation, direct v2 payload checksums are recomputed, and the final
-  staged envelope graph is validated after all transformations.
-- Moved the original v1 export begin implementation to a private compatibility
-  function. Both public v1 and v2 begin RPCs now lock the classroom revision
-  before checking for envelopes, fail closed without snapshot rows, preserve
-  completed replay, and serialize concurrent envelope insertion.
-- Added a real two-session database race proving an uncommitted envelope cannot
-  cross the export fence, plus legacy entry-point and zero-snapshot assertions.
-- Made the v2 database harness select the configured Pika Supabase container
-  instead of the first matching local project.
-- Applied only the corrected 105 function segment to `supabase_db_pika` under
-  the existing local authorization; migration history remains 001-105 and no
-  hosted database was changed.
-
-**Validation:**
-- Full repository suite: 412 files / 3,710 tests.
-- Local v1 export, restore, compaction, Gradex, and v2 database contracts.
-- Live local ownership audit: 123 foreign-key relationships.
-- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm check:architecture`,
-  `pnpm run check:ui-policy`, `pnpm run db:types:check`, `pnpm build`,
-  `git diff --check`, shell syntax check, and Pika changed-file audit.
-
-**Remaining:**
-- Commit and push the remediation, run targeted and integration re-review, and
-  require exact-head CI before merging PR 927.
-- Migration 105 remains unapplied to every hosted target.
-- After merge, implement the separately reviewed atomic Quiz freeze/backfill
-  ledger; applying its migration requires a new exact authorization.
-
 ## 2026-07-23 — Kept archive v1 current through compaction
 
 **Risk profile:** runtime-platform
@@ -1545,3 +1505,30 @@ zero-downtime rollout
 - Push the second remediation batch, require current-head CI (including the database-backed purge
   fixture), and run one final targeted security re-review before considering the draft review complete.
 - Do not merge, deploy, apply migration 117 to a hosted target, or change any production gate.
+
+## 2026-07-31 — Strengthened purge gate concurrency evidence
+
+**Risk profile:** destructive-data fixture, PostgreSQL concurrency, rollout rollback
+
+**Completed:**
+- Replaced the purge fixture's timing-sensitive lock-timeout inference with an exact PostgreSQL
+  blocker handshake: it captures the holder and updater backend PIDs, waits for the updater's
+  `Lock` wait state, verifies `pg_blocking_pids` names that exact holder, and then releases the
+  holder through controlled cancellation and transaction rollback.
+- Added database-backed coverage proving `begin_hot_archived_classroom_purge` serializes with a
+  concurrent gate update, alongside the existing claim and finalizer scenarios.
+- Added the exact claim -> physical deletion -> committed gate disable -> completion scenario and
+  asserted the already-issued lease records durable deletion with raw-path redaction while both
+  gates are disabled.
+- Added static lock-order assertions proving begin and claim acquire the settings row before their
+  classroom, operation, and purge-object locks.
+
+**Validation:**
+- Focused migration suites: 2 files / 35 tests.
+- TypeScript, targeted ESLint, `git diff --check`, and Pika audit pass.
+
+**Remaining:**
+- Require current-head CI to replay migration 117 and run the destructive fixture against an
+  ephemeral Supabase instance, then use the final targeted reviewer slot.
+- Keep PR #963 draft. Do not merge, deploy, apply migration 117 to a hosted target, or change any
+  production gate.

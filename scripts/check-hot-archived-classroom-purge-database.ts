@@ -89,16 +89,47 @@ function runSqlAsync(databaseUrl: string, sql: string): Promise<string> {
   })
 }
 
-async function waitForSleepingSqlSession(databaseUrl: string, applicationName: string) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const waitEvent = runSql(databaseUrl, `
-      select coalesce((
-        select wait_event
-        from pg_stat_activity
-        where application_name = '${applicationName}'
-      ), '');
-    `)
-    if (waitEvent === 'PgSleep') return
+type SqlSessionState = {
+  pid: number
+  waitEventType: string
+  waitEvent: string
+  blockingPids: number[]
+}
+
+function getSqlSessionState(
+  databaseUrl: string,
+  applicationName: string,
+): SqlSessionState | undefined {
+  const result = runSql(databaseUrl, `
+    select concat_ws('|',
+      pid::text,
+      coalesce(wait_event_type, ''),
+      coalesce(wait_event, ''),
+      array_to_string(pg_blocking_pids(pid), ',')
+    )
+    from pg_stat_activity
+    where application_name = '${applicationName}';
+  `)
+  if (!result) return undefined
+  const [pid, waitEventType, waitEvent, blockingPids] = result.split('|')
+  return {
+    pid: Number(pid),
+    waitEventType,
+    waitEvent,
+    blockingPids: blockingPids
+      ? blockingPids.split(',').map((blockingPid) => Number(blockingPid))
+      : [],
+  }
+}
+
+async function waitForSqlSession(
+  databaseUrl: string,
+  applicationName: string,
+  predicate: (state: SqlSessionState) => boolean,
+): Promise<SqlSessionState> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const state = getSqlSessionState(databaseUrl, applicationName)
+    if (state && predicate(state)) return state
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   throw new Error(`Timed out waiting for ${applicationName}`)
@@ -109,32 +140,61 @@ async function assertRolloutGateUpdateBlocked(input: {
   applicationName: string
   destructiveSql: string
 }) {
+  const updaterApplicationName = `${input.applicationName}_updater`
   const holder = runSqlAsync(input.databaseUrl, `
     begin;
     set local application_name = '${input.applicationName}';
     ${input.destructiveSql}
-    select pg_sleep(2);
+    select pg_sleep(30);
     rollback;
-  `)
-  await waitForSleepingSqlSession(input.databaseUrl, input.applicationName)
-  let updateError: unknown
+  `).then(
+    (output) => ({ output, error: undefined }),
+    (error: unknown) => ({ output: '', error }),
+  )
+  let holderPid: number | undefined
+  let updaterPid: number | undefined
+  let updater: Promise<{ output: string; error: unknown }> | undefined
   try {
-    runSql(input.databaseUrl, `
-      set lock_timeout = '250ms';
+    const holderState = await waitForSqlSession(
+      input.databaseUrl,
+      input.applicationName,
+      (state) => state.waitEventType === 'Timeout' && state.waitEvent === 'PgSleep',
+    )
+    holderPid = holderState.pid
+    updater = runSqlAsync(input.databaseUrl, `
+      begin;
+      set local application_name = '${updaterApplicationName}';
       update public.managed_storage_settings
       set hot_classroom_purge_enabled = false
       where singleton;
-    `)
-  } catch (error) {
-    updateError = error
+      rollback;
+    `).then(
+      (output) => ({ output, error: undefined }),
+      (error: unknown) => ({ output: '', error }),
+    )
+    const updaterState = await waitForSqlSession(
+      input.databaseUrl,
+      updaterApplicationName,
+      (state) => state.waitEventType === 'Lock' && state.blockingPids.includes(holderState.pid),
+    )
+    updaterPid = updaterState.pid
+    assertFixture(
+      updaterState.blockingPids.includes(holderState.pid),
+      `${input.applicationName} gate updater was not blocked by the exact holder backend`,
+    )
+  } finally {
+    if (holderPid) runSql(input.databaseUrl, `select pg_cancel_backend(${holderPid});`)
   }
-  await holder
-  const stderr = updateError && typeof updateError === 'object' && 'stderr' in updateError
-    ? String((updateError as { stderr?: unknown }).stderr)
-    : ''
+
+  const holderResult = await holder
+  const updaterResult = updater ? await updater : undefined
   assertFixture(
-    stderr.includes('canceling statement due to lock timeout'),
-    `${input.applicationName} did not serialize a concurrent gate update`,
+    holderResult.error !== undefined,
+    `${input.applicationName} holder was not released through controlled cancellation`,
+  )
+  assertFixture(
+    updaterPid !== undefined && updaterResult?.error === undefined,
+    `${input.applicationName} gate updater did not finish after the holder rolled back`,
   )
   assertFixture(
     runSql(input.databaseUrl, `
@@ -625,6 +685,21 @@ async function main() {
 
     await assertRolloutGateUpdateBlocked({
       databaseUrl,
+      applicationName: `purge_begin_gate_lock_${suffix}`,
+      destructiveSql: `
+        select public.begin_hot_archived_classroom_purge(
+          operation.id,
+          operation.teacher_id,
+          operation.classroom_id,
+          operation.request_sha256,
+          operation.impact_summary
+        )
+        from public.classroom_purge_operations operation
+        where operation.id = '${purgeOperationId}';
+      `,
+    })
+    await assertRolloutGateUpdateBlocked({
+      databaseUrl,
       applicationName: `purge_claim_gate_lock_${suffix}`,
       destructiveSql: `
         select count(*)
@@ -702,8 +777,10 @@ async function main() {
 
     // Complete one object in each operational bucket, then prove the permanent
     // hash reservation still rejects exact-key recreation after raw-path
-    // redaction and before relational finalization.
-    for (const operationalObject of operationalObjects.slice(0, 2)) {
+    // redaction and before relational finalization. The first completion occurs
+    // after the gates are disabled to prove already-issued deletion leases can
+    // durably record a physical deletion while new destructive work is stopped.
+    for (const [operationalIndex, operationalObject] of operationalObjects.slice(0, 2).entries()) {
       runSql(databaseUrl, `
         update public.classroom_purge_objects
         set next_attempt_at = '${expiryIso}'::timestamptz
@@ -737,11 +814,25 @@ async function main() {
         `remove reserved ${operationalObject.bucket} object`,
         await supabase.storage.from(operationalObject.bucket).remove([operationalObject.path]),
       )
+      if (operationalIndex === 0) setRolloutGates(databaseUrl, false)
       assertFixture(await rpc(supabase, 'complete_classroom_purge_object', {
         p_object_id: operationalClaim.id,
         p_teacher_id: teacher.id,
         p_lease_token: operationalClaim.lease_token,
       }) === true, 'Operational purge object did not complete')
+      if (operationalIndex === 0) {
+        const completedWhileDisabled = runSql(databaseUrl, `
+          select status || ':' || (storage_path is null)::text || ':'
+            || (storage_path_sha256 is not null)::text
+          from public.classroom_purge_objects
+          where id = '${operationalClaim.id}';
+        `)
+        assertFixture(
+          completedWhileDisabled === 'deleted:true:true',
+          'Issued deletion lease was not durably completed and redacted after gate disable',
+        )
+        setRolloutGates(databaseUrl, true)
+      }
       const reservedOperationalWrite = await supabase.storage
         .from(operationalObject.bucket)
         .upload(
