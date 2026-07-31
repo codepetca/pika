@@ -477,7 +477,11 @@ begin
   where classroom.id = v_classroom_id;
 
   perform set_config('pika.classroom_archive_compaction', 'on', true);
-  delete from public.classroom_managed_storage_coverage where classroom_id = v_classroom_id;
+  if to_regclass('public.classroom_managed_storage_coverage') is not null then
+    execute 'delete from public.classroom_managed_storage_coverage
+      where classroom_id = $1'
+    using v_classroom_id;
+  end if;
   delete from public.classrooms where id = v_classroom_id;
   perform set_config('pika.classroom_archive_compaction', 'off', true);
 
@@ -596,8 +600,10 @@ delete from public.classroom_archive_operations
 where id = '$RACE_OPERATION_ID'::uuid;
 delete from public.classroom_retired_assessment_records
 where id = '$RACE_RECORD_ID'::uuid;
-delete from public.classroom_managed_storage_coverage
-where classroom_id = '$RACE_CLASSROOM_ID'::uuid;
+select 'delete from public.classroom_managed_storage_coverage
+where classroom_id = ''$RACE_CLASSROOM_ID''::uuid;'
+where to_regclass('public.classroom_managed_storage_coverage') is not null
+\gexec
 delete from public.classrooms where id = '$RACE_CLASSROOM_ID'::uuid;
 delete from public.users where id = '$RACE_TEACHER_ID'::uuid;
 commit;

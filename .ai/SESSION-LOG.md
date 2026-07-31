@@ -1526,6 +1526,9 @@ authorization boundaries.
 - Made cold compaction and restore trigger context checks null-safe, so an absent optional
   maintenance setting is treated as an ordinary lifecycle change rather than accidentally entering
   privileged maintenance logic.
+- Kept shared database fixtures compatible with pre-117 schema replays by conditionally cleaning
+  managed coverage and registering/verifying managed objects only when those contracts exist. The
+  disposable legacy Quiz/archive compatibility rehearsal now passes through compaction again.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;

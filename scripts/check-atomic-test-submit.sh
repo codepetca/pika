@@ -15,8 +15,10 @@ cleanup() {
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 alter table public.test_attempts
   drop constraint if exists atomic_test_submit_forced_failure;
-delete from public.classroom_managed_storage_coverage
-where classroom_id = 'e0000000-0000-4000-8000-000000000010';
+select 'delete from public.classroom_managed_storage_coverage
+where classroom_id = ''e0000000-0000-4000-8000-000000000010'';'
+where to_regclass('public.classroom_managed_storage_coverage') is not null
+\gexec
 delete from public.classrooms
 where id = 'e0000000-0000-4000-8000-000000000010';
 delete from public.users

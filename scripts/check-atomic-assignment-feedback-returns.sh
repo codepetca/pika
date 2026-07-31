@@ -13,8 +13,10 @@ TMP_TWO="$(mktemp)"
 cleanup() {
   rm -f "$TMP_ONE" "$TMP_TWO"
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
-delete from public.classroom_managed_storage_coverage
-where classroom_id = 'd0000000-0000-4000-8000-000000000010';
+select 'delete from public.classroom_managed_storage_coverage
+where classroom_id = ''d0000000-0000-4000-8000-000000000010'';'
+where to_regclass('public.classroom_managed_storage_coverage') is not null
+\gexec
 delete from public.classrooms
 where id = 'd0000000-0000-4000-8000-000000000010';
 delete from public.users

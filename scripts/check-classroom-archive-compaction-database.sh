@@ -107,6 +107,9 @@ values (
   '{"size":10}'::jsonb
 );
 
+select to_regclass('public.managed_storage_objects') is not null as has_managed_storage
+\gset
+\if :has_managed_storage
 insert into public.managed_storage_objects (
   id,
   storage_bucket,
@@ -136,6 +139,7 @@ insert into public.managed_storage_objects (
   10,
   clock_timestamp()
 );
+\endif
 
 create function public.reject_test_classroom_archive_compaction()
 returns trigger
@@ -193,17 +197,23 @@ declare
     {"actor_id":"11000000-0000-4000-8000-000000000022","role":"student"}
   ]'::jsonb;
 begin
-  perform public.verify_classroom_managed_storage_coverage(
-    v_teacher_id,
-    v_success_classroom_id,
-    (
-      select revision
-      from public.classroom_archive_revisions
-      where classroom_id = v_success_classroom_id
-    ),
-    1,
-    repeat('7', 64)
-  );
+  if to_regprocedure(
+    'public.verify_classroom_managed_storage_coverage(uuid,uuid,bigint,integer,text)'
+  ) is not null then
+    execute
+      'select public.verify_classroom_managed_storage_coverage($1, $2, $3, $4, $5)'
+    into v_result
+    using
+      v_teacher_id,
+      v_success_classroom_id,
+      (
+        select revision
+        from public.classroom_archive_revisions
+        where classroom_id = v_success_classroom_id
+      ),
+      1,
+      repeat('7', 64);
+  end if;
 
   v_result := public.begin_classroom_archive_export_v2(
     v_rollback_archive_id,
@@ -1108,8 +1118,10 @@ where storage_bucket = 'assignment-artifacts'
       'assignment-artifacts', :'staging_race_path'
     )
   );
-delete from public.classroom_managed_storage_coverage
-where classroom_id = '21000000-0000-4000-8000-000000000030'::uuid;
+select 'delete from public.classroom_managed_storage_coverage
+where classroom_id = ''21000000-0000-4000-8000-000000000030''::uuid;'
+where to_regclass('public.classroom_managed_storage_coverage') is not null
+\gexec
 delete from public.classrooms
 where id = '21000000-0000-4000-8000-000000000030'::uuid;
 delete from public.users
