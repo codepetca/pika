@@ -12,6 +12,10 @@ import { exportClassroomArchive } from '@/lib/server/classroom-archive-operation
 import { restoreClassroomArchive } from '@/lib/server/classroom-archive-restore-operations'
 import { classroomArchiveRestoreObjectPath } from '@/lib/server/classroom-archive-restore'
 import { runClassroomArchiveSourceCleanup } from '@/lib/server/classroom-archive-source-cleanup'
+import {
+  adoptManagedStorageUpload,
+  reserveManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 const archiveMetadataSchema = z.object({
@@ -46,6 +50,7 @@ type FixtureIds = Record<FixtureTable, string> & {
   compactionOperation: string
   restoreOperation: string
   cleanupLease: string
+  managedStorageObject: string
 }
 
 function fixtureIds(): FixtureIds {
@@ -63,6 +68,7 @@ function fixtureIds(): FixtureIds {
     compactionOperation: randomUUID(),
     restoreOperation: randomUUID(),
     cleanupLease: randomUUID(),
+    managedStorageObject: randomUUID(),
   }
 }
 
@@ -195,7 +201,6 @@ async function createFixture(args: {
     teacher_id: args.ids.teacher,
     title: 'Archive recovery drill fixture',
     class_code: `R${runLabel.replaceAll('-', '').slice(0, 5)}`,
-    archived_at: '2026-07-13T12:00:00.000Z',
   })
   await insertFixtureRow(args.supabase, 'classroom_enrollments', {
     id: args.ids.classroom_enrollments,
@@ -233,6 +238,20 @@ async function createFixture(args: {
     position: 0,
   })
 
+  await reserveManagedStorageUpload({
+    supabase: args.supabase,
+    objectId: args.ids.managedStorageObject,
+    bucket: 'assignment-artifacts',
+    path: args.sourceObjectPath,
+    classroomId: args.ids.classrooms,
+    purpose: 'student_assignment_artifact',
+    createdByUserId: args.ids.teacher,
+    dataSubjectUserId: args.ids.student,
+    resourceType: 'assignment_submission_artifact',
+    resourceId: args.ids.assignment_submission_artifacts,
+    contentType: 'image/png',
+    byteSize: args.sourceObjectBytes.byteLength,
+  })
   const upload = await args.supabase.storage
     .from('assignment-artifacts')
     .upload(args.sourceObjectPath, args.sourceObjectBytes, {
@@ -251,6 +270,11 @@ async function createFixture(args: {
     validation_status: 'valid',
     validated_at: '2026-07-13T13:01:00.000Z',
   })
+  await adoptManagedStorageUpload({
+    supabase: args.supabase,
+    objectId: args.ids.managedStorageObject,
+    contentSha256: sha256Bytes(args.sourceObjectBytes),
+  })
 
   const submitResponse = await args.supabase
     .from('assignment_docs')
@@ -263,6 +287,43 @@ async function createFixture(args: {
     .single()
   if (submitResponse.error) {
     throw new Error(`Fixture submit failed for assignment_docs: ${submitResponse.error.code}`)
+  }
+
+  const archiveResponse = await args.supabase
+    .from('classrooms')
+    .update({ archived_at: '2026-07-13T12:00:00.000Z' })
+    .eq('id', args.ids.classrooms)
+    .select('id')
+    .single()
+  if (archiveResponse.error) {
+    throw new Error(`Fixture archive failed for classrooms: ${archiveResponse.error.code}`)
+  }
+  const revisionResponse = await args.supabase
+    .from('classroom_archive_revisions')
+    .select('revision')
+    .eq('classroom_id', args.ids.classrooms)
+    .single()
+  const sourceRevision = z.coerce.number().int().positive().safeParse(
+    revisionResponse.data?.revision,
+  )
+  if (revisionResponse.error || !sourceRevision.success) {
+    throw new Error('Fixture archive revision is unavailable')
+  }
+  const inventorySha256 = sha256Bytes(Buffer.from(JSON.stringify([
+    ['assignment-artifacts', args.sourceObjectPath],
+  ])))
+  const coverageResponse = await args.supabase.rpc(
+    'verify_classroom_managed_storage_coverage',
+    {
+      p_teacher_id: args.ids.teacher,
+      p_classroom_id: args.ids.classrooms,
+      p_source_revision: sourceRevision.data,
+      p_reference_count: 1,
+      p_inventory_sha256: inventorySha256,
+    },
+  )
+  if (coverageResponse.error) {
+    throw new Error(`Fixture ownership verification failed: ${coverageResponse.error.code}`)
   }
 }
 
@@ -286,6 +347,21 @@ async function removeFixture(args: {
     : null
   if (pathHashResponse.error || !sourcePathHash) failures.push('reservation:path-hash')
 
+  const deleteRows = async (table: string, column: string, values: string[]) => {
+    const response = await args.supabase.from(table).delete().in(column, values)
+    if (response.error) failures.push(`table:${table}:${response.error.code}`)
+  }
+  // Unregister fixture-owned objects before deleting their physical bytes so
+  // the Storage guard still rejects unreserved deletion in production paths.
+  await deleteRows('managed_storage_objects', 'classroom_id', [args.ids.classrooms])
+  await deleteRows('managed_storage_objects', 'cold_classroom_id', [args.ids.classrooms])
+  await deleteRows('classroom_managed_storage_coverage', 'classroom_id', [args.ids.classrooms])
+  await deleteRows(
+    'classroom_cold_managed_storage_coverage',
+    'classroom_id',
+    [args.ids.classrooms],
+  )
+
   const removeObjects = async (bucket: string, paths: string[]) => {
     const response = await args.supabase.storage.from(bucket).remove(paths)
     if (response.error) failures.push(`storage:${bucket}`)
@@ -295,10 +371,6 @@ async function removeFixture(args: {
     await removeObjects('classroom-archives', [args.archiveObjectPath])
   }
 
-  const deleteRows = async (table: string, column: string, values: string[]) => {
-    const response = await args.supabase.from(table).delete().in(column, values)
-    if (response.error) failures.push(`table:${table}:${response.error.code}`)
-  }
   await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
   await deleteRows(
     'classroom_archive_operations',

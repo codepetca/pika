@@ -1538,6 +1538,10 @@ authorization boundaries.
 - Restored terminal purge-ledger path redaction in migration 117's rewritten completion RPC. Deleted
   rows retain only their hashed identity and audit timestamps; raw paths, leases, and retry errors
   are cleared.
+- Updated the full archive-recovery drill to create its fixture file through the managed upload
+  reservation/adoption contract while the classroom is active, archive only after fixture writes,
+  and verify exact revision-bound coverage before compaction. Fixture teardown now reconciles both
+  hot and cold managed ownership before deleting physical test objects and relational rows.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;
