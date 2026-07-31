@@ -215,6 +215,12 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain('classroom_purge_storage_object_still_present')
   })
 
+  it('loads snapshot-sync rows without an invalid record/scalar INTO list', () => {
+    expect(migration).toContain('select test.*\n  into v_test')
+    expect(migration).toContain('v_classroom_id := v_test.classroom_id;')
+    expect(migration).not.toContain('into v_test, v_classroom_id')
+  })
+
   it('increments the purge operation attempt count when a failed operation is retried', () => {
     const begin = migration.indexOf(
       'create or replace function public.begin_hot_archived_classroom_purge(',

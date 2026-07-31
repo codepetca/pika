@@ -1511,6 +1511,8 @@ authorization boundaries.
   Test ownership attachment revision-neutral, added a report/dry-run-by-default all-class readiness
   command with stable revisions and hashed path evidence, and rebuilt the local purge fixture around
   independent classroom and Blueprint physical copies.
+- Fixed the first ephemeral migration replay failure by loading the Test row and deriving its
+  classroom id separately instead of using a PostgreSQL record variable in a multi-target `INTO`.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;

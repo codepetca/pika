@@ -2678,8 +2678,8 @@ declare
   v_previous_snapshot_path text;
   v_previous_managed_object_id uuid;
 begin
-  select test, classroom.id
-  into v_test, v_classroom_id
+  select test.*
+  into v_test
   from public.tests test
   join public.classrooms classroom on classroom.id = test.classroom_id
   where test.id = p_test_id
@@ -2689,6 +2689,7 @@ begin
   if not found then
     raise exception 'test_not_found_or_not_writable' using errcode = 'P0002';
   end if;
+  v_classroom_id := v_test.classroom_id;
   perform public.classroom_purge_lock(v_classroom_id);
   if exists (
     select 1 from public.classroom_purge_fences where classroom_id = v_classroom_id
