@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   ManagedStorageBackfillError,
   backfillAllClassroomManagedStorage,
+  collectManagedStorageBlueprintReferences,
   collectManagedStorageBackfillCandidates,
 } from '@/lib/server/managed-storage-backfill'
 
@@ -11,6 +12,53 @@ const secondClassroomId = '30000000-0000-4000-8000-000000000003'
 const testId = '40000000-0000-4000-8000-000000000004'
 
 describe('managed storage legacy backfill', () => {
+  it('discovers mutable Blueprint documents and immutable Version evidence without treating Versions as rewrite targets', () => {
+    const blueprintId = '90000000-0000-4000-8000-000000000009'
+    const versionId = 'a0000000-0000-4000-8000-000000000010'
+    const references = collectManagedStorageBlueprintReferences({
+      supabaseUrl: 'https://project.supabase.co',
+      blueprints: [{ id: blueprintId, teacher_id: teacherId }],
+      assessments: [{
+        id: testId,
+        course_blueprint_id: blueprintId,
+        documents: [{
+          id: 'mutable-document',
+          source: 'upload',
+          url: 'https://project.supabase.co/storage/v1/object/public/test-documents/legacy/blueprint.pdf',
+        }],
+      }],
+      versions: [{
+        id: versionId,
+        course_blueprint_id: blueprintId,
+        snapshot_json: {
+          assessments: [{
+            artifact_id: testId,
+            documents: [{
+              id: 'version-document',
+              source: 'upload',
+              url: 'https://project.supabase.co/storage/v1/object/public/test-documents/legacy/blueprint.pdf',
+            }],
+          }],
+        },
+      }],
+    })
+
+    expect(references).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        source: 'mutable_assessment',
+        blueprintId,
+        path: 'legacy/blueprint.pdf',
+        versionId: null,
+      }),
+      expect.objectContaining({
+        source: 'immutable_version',
+        blueprintId,
+        path: 'legacy/blueprint.pdf',
+        versionId,
+      }),
+    ]))
+  })
+
   it('uses assignment artifacts and execution snapshots in the exact candidate inventory', () => {
     const candidates = collectManagedStorageBackfillCandidates({
       supabaseUrl: 'https://project.supabase.co',

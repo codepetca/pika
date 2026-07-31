@@ -27,6 +27,20 @@ export type ManagedStorageBackfillCandidate = {
   }
 }
 
+export type ManagedStorageBlueprintReference = {
+  bucket: 'test-documents'
+  path: string
+  blueprintId: string
+  teacherId: string
+  source: 'mutable_assessment' | 'immutable_version'
+  assessmentId: string
+  documentId: string
+  managedObjectId: string | null
+  versionId: string | null
+  /** Exact current JSON value; only mutable documents are rewrite targets. */
+  expectedReference: string
+}
+
 export class ManagedStorageBackfillError extends Error {
   constructor(public readonly code: string, message: string) {
     super(message)
@@ -74,6 +88,117 @@ function managedUrlReference(
   } catch {
     return null
   }
+}
+
+function collectTestDocumentReferences(input: {
+  documents: unknown
+  supabaseUrl: string
+  add: (document: Record<string, unknown>) => void
+}) {
+  if (!Array.isArray(input.documents)) return
+  for (const rawDocument of input.documents) {
+    if (!rawDocument || typeof rawDocument !== 'object') continue
+    const document = rawDocument as Record<string, unknown>
+    if (document.source !== 'upload') continue
+    const reference = managedUrlReference(document.url, input.supabaseUrl)
+    if (reference?.bucket === 'test-documents') input.add(document)
+  }
+}
+
+/**
+ * Discovers only exact uploaded-test-document URLs. Version snapshots are read
+ * as evidence, never as a rewrite target: their documents must remain byte-for-byte
+ * immutable even when a mutable Blueprint needs a copied replacement.
+ */
+export function collectManagedStorageBlueprintReferences(input: {
+  supabaseUrl: string
+  assessments: Array<{
+    id: string
+    course_blueprint_id: string
+    documents: unknown
+  }>
+  blueprints: Array<{ id: string; teacher_id: string }>
+  versions: Array<{
+    id: string
+    course_blueprint_id: string
+    snapshot_json: unknown
+  }>
+}): ManagedStorageBlueprintReference[] {
+  const teacherByBlueprint = new Map(input.blueprints.map((blueprint) => [
+    blueprint.id,
+    blueprint.teacher_id,
+  ]))
+  const references: ManagedStorageBlueprintReference[] = []
+  const add = (
+    value: Omit<ManagedStorageBlueprintReference,
+      'bucket' | 'path' | 'managedObjectId' | 'expectedReference'>,
+    document: Record<string, unknown>,
+  ) => {
+    const reference = managedUrlReference(document.url, input.supabaseUrl)
+    if (reference?.bucket !== 'test-documents') return
+    references.push({
+      ...value,
+      bucket: reference.bucket,
+      path: reference.path,
+      managedObjectId: typeof document.managed_object_id === 'string'
+        && document.managed_object_id.trim()
+        ? document.managed_object_id.trim()
+        : null,
+      expectedReference: String(document.url),
+    })
+  }
+
+  for (const assessment of input.assessments) {
+    const teacherId = teacherByBlueprint.get(assessment.course_blueprint_id)
+    if (!teacherId) continue
+    collectTestDocumentReferences({
+      documents: assessment.documents,
+      supabaseUrl: input.supabaseUrl,
+      add: (document) => add({
+        blueprintId: assessment.course_blueprint_id,
+        teacherId,
+        source: 'mutable_assessment',
+        assessmentId: assessment.id,
+        documentId: typeof document.id === 'string' ? document.id : '',
+        versionId: null,
+      }, document),
+    })
+  }
+
+  for (const version of input.versions) {
+    const teacherId = teacherByBlueprint.get(version.course_blueprint_id)
+    if (!teacherId || !version.snapshot_json || typeof version.snapshot_json !== 'object') continue
+    const assessments = (version.snapshot_json as Record<string, unknown>).assessments
+    if (!Array.isArray(assessments)) continue
+    for (const rawAssessment of assessments) {
+      if (!rawAssessment || typeof rawAssessment !== 'object') continue
+      const assessment = rawAssessment as Record<string, unknown>
+      collectTestDocumentReferences({
+        documents: assessment.documents,
+        supabaseUrl: input.supabaseUrl,
+        add: (document) => add({
+          blueprintId: version.course_blueprint_id,
+          teacherId,
+          source: 'immutable_version',
+          assessmentId: typeof assessment.id === 'string'
+            ? assessment.id
+            : typeof assessment.artifact_id === 'string' ? assessment.artifact_id : '',
+          documentId: typeof document.id === 'string' ? document.id : '',
+          versionId: version.id,
+        }, document),
+      })
+    }
+  }
+
+  return references.sort((left, right) => (
+    left.bucket.localeCompare(right.bucket)
+    || left.path.localeCompare(right.path)
+    || left.blueprintId.localeCompare(right.blueprintId)
+    || left.source.localeCompare(right.source)
+    || (left.versionId || '').localeCompare(right.versionId || '')
+    || left.assessmentId.localeCompare(right.assessmentId)
+    || left.documentId.localeCompare(right.documentId)
+  ))
 }
 
 export function collectManagedStorageBackfillCandidates(input: {

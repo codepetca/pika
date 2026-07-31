@@ -15831,3 +15831,107 @@
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
 - Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
+
+<!-- pika-session-log-archive-batch:028d1bffdf439c4d005c2b74f90703e12ecb8c7ffe9c02b92e553512e4ef163f -->
+## 2026-07-23 — Designed legacy Quiz schema retirement
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses hosted evidence, archive format versioning, deterministic backfill, package compatibility, and destructive migration rollback without applying schema changes.
+
+**Completed:**
+- Added a target-pinned, redirect-rejecting, read-only inventory for legacy Quiz table rows, Quiz drafts, Quiz blueprint assessments, and verified archive manifest counts.
+- Required two matching aggregate snapshots and emitted no row ids, titles, content, storage paths, or credentials.
+- Ran the inventory against production project `zhioqbapgfcrronyuidm`: 1 quiz, 3 questions, 60 responses, 0 manual score overrides, 0 Quiz drafts, and 0 Quiz blueprint assessments.
+- Confirmed the single verified archive-v1 manifest contains the same non-empty Quiz graph.
+- Designed archive-v2 retired-assessment envelopes instead of mapping historical Quiz rows into active Tests, which would resurface removed product data and lose whole-assessment override semantics.
+- Defined additive adapter, freeze/backfill, production-proof, destructive-retirement, gradebook, and course-package passes with explicit approval, validation, and forward-repair gates.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused inventory, archive, package, gradebook, docs, and architecture suites (8 files / 96 tests)
+- Full repository suite after review remediation (409 files / 3,672 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (622 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- Production inventory completed with two stable snapshots
+
+**Review:**
+- Independent review found that the plan needed an explicit version-keyed
+  TypeScript/database archive transition and an atomic fate for zero-row Quiz
+  blueprint assessments.
+- The same review found that equal-count archive replacement was not part of
+  private snapshot stability evidence.
+- Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
+  and blueprint lock/preflight requirements; added private archive UUID/checksum
+  comparison and concrete duplicate, count-drift, and truncated-page tests.
+- Targeted review caught ambiguous destructive-pass wording; clarified that v2
+  becomes current without deleting either immutable registry graph or the v1
+  adapter, and required a post-drop v1 restore fixture.
+- Re-ran the target-pinned production inventory with stable unchanged aggregates.
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next implement the additive retired-resource envelope and archive-v2/v1 adapter only after explicit approval to create its named migration; do not apply it without separate exact target-and-filename authorization.
+
+<!-- pika-session-log-archive-batch:2747371e506dd8a2145a5528481dc4f66cc5d27ae8f06d6dc3df83998707ac5e -->
+## 2026-07-23 — Established versioned Quiz archive compatibility
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5.6 Terra - the pass freezes a historical archive
+contract, adds version dispatch, and converts legacy relational data into a
+future persistence shape without enabling unapproved schema behavior.
+
+**Completed:**
+- Froze the exact 42-resource archive-v1 table, primary-key, and actor-reference
+  contract independently from the live database inventory.
+- Added explicit v1/v2 manifest schemas and registry dispatch while retaining v1
+  as the only enabled export and restore contract.
+- Restricted locale-dependent canonical serialization/checksum recovery to v1;
+  v2 accepts only the current deterministic canonical form.
+- Defined the inactive v2 graph with generic retired-assessment record and actor
+  resources instead of the four Quiz tables.
+- Added a deterministic, non-mutating adapter that preserves complete Quiz and
+  Quiz-draft payloads, parent identities, actor references, timestamps, and
+  canonical SHA-256 evidence without mapping retired data into Tests.
+- Expanded the verified non-empty v1 fixture to include all four Quiz resources,
+  a manual score override, and a Quiz draft.
+- Froze portable v1 tar-content, manifest-content, and per-resource hashes so
+  the non-empty contract cannot be regenerated with silent Quiz drift.
+- Tightened independent-review findings: Quiz drafts retain and validate their
+  Quiz parent; adapter replay preserves existing envelopes; archived actor
+  references must resolve; and strict v2 verification rejects malformed,
+  checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
+- Added an explicit Gradex capability gate and moved source download, checksum,
+  strict verification, identity, and metadata-version binding before operation
+  creation so disabled or mislabeled v2 causes zero RPC or storage writes.
+- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
+  and added a resource registry that enforces payload identity, required
+  parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
+  payload equality, required actor fields/references, and credential-key
+  rejection including client secrets, private keys, and token variants.
+- Updated the retirement plan and cleanup guide to distinguish the completed
+  application foundation from the approval-gated database/v2 activation work.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused archive contract, format, restore, adapter, Gradex, and docs suites
+  (7 files / 59 tests)
+- Full repository suite after review fixes (411 files / 3,690 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Portable empty-v1 tar SHA:
+  `4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093`
+- Non-empty Quiz-v1 tar SHA:
+  `32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58`
+
+**Remaining:**
+- Require changed-file audit, independent PR review, and exact-head CI before merge.
+- Next create the envelope tables and versioned database archive registry, then
+  activate v2 export/restore, only after explicit approval to create the named
+  migration; applying it requires separate exact target-and-filename permission.

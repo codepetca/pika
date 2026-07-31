@@ -3,11 +3,16 @@ import { ReactNodeViewRenderer } from "@tiptap/react"
 import { ImageUploadNode as ImageUploadNodeComponent } from "@/components/tiptap-node/image-upload-node/image-upload-node"
 import type { NodeType } from "@tiptap/pm/model"
 
+export type ManagedImageUpload = {
+  url: string
+  managedObjectId: string
+}
+
 export type UploadFunction = (
   file: File,
   onProgress?: (event: { progress: number }) => void,
   abortSignal?: AbortSignal
-) => Promise<string>
+) => Promise<ManagedImageUpload>
 
 export interface ImageUploadNodeOptions {
   /**
@@ -41,7 +46,7 @@ export interface ImageUploadNodeOptions {
   /**
    * Callback for successful uploads.
    */
-  onSuccess?: (url: string) => void
+  onSuccess?: (result: ManagedImageUpload) => void
   /**
    * HTML attributes to add to the image element.
    * @default {}

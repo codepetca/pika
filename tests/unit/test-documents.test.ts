@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  currentPikaManagedTestDocumentStoragePath,
   formatCompactRelativeAge,
   getTestDocumentValidationError,
   isLinkDocumentSnapshotStale,
+  managedTestDocumentStorageClaims,
   normalizeTestDocuments,
   preserveCurrentTestDocumentSnapshots,
   sanitizeSnapshotHtml,
@@ -130,6 +132,37 @@ describe('test-documents', () => {
         url: 'https://docs.example.com/new',
       },
     ])
+  })
+
+  it('derives canonical managed claims without treating the object ID as authority', () => {
+    const supabaseUrl = 'https://project.supabase.co'
+    expect(currentPikaManagedTestDocumentStoragePath(
+      `${supabaseUrl}/storage/v1/object/public/test-documents/classrooms/classroom-1/tests/test-1/materials/file.pdf`,
+      supabaseUrl,
+    )).toBe('classrooms/classroom-1/tests/test-1/materials/file.pdf')
+
+    expect(managedTestDocumentStorageClaims([{
+      id: 'doc-1',
+      title: 'Uploaded notes',
+      source: 'upload',
+      url: `${supabaseUrl}/storage/v1/object/public/test-documents/classrooms/classroom-1/tests/test-1/materials/file.pdf`,
+      managed_object_id: '00000000-0000-4000-8000-000000000001',
+    }], supabaseUrl)).toEqual([{
+      document_id: 'doc-1',
+      reference_kind: 'teacher_upload',
+      managed_object_id: '00000000-0000-4000-8000-000000000001',
+      storage_bucket: 'test-documents',
+      storage_path: 'classrooms/classroom-1/tests/test-1/materials/file.pdf',
+      purpose: 'teacher_test_material',
+    }])
+
+    expect(managedTestDocumentStorageClaims([{
+      id: 'doc-1',
+      title: 'Foreign upload',
+      source: 'upload',
+      url: 'https://foreign.example/storage/v1/object/public/test-documents/path.pdf',
+      managed_object_id: '00000000-0000-4000-8000-000000000001',
+    }], supabaseUrl)).toBeNull()
   })
 
   it('removes classroom-specific snapshot metadata for reusable documents', () => {

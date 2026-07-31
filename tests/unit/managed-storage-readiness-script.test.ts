@@ -98,6 +98,74 @@ describe('managed storage readiness operator', () => {
     expect(report.registeredMissing).toEqual([])
   })
 
+  it('fails closed on legacy Blueprint references that need a managed copy/rewrite or share classroom bytes', () => {
+    const blueprintId = '10000000-0000-4000-8000-000000000001'
+    const report = analyzeGlobalManagedStorage({
+      physical: [{ bucket: 'test-documents', path: 'legacy/shared.pdf' }],
+      registered: [{
+        id: '20000000-0000-4000-8000-000000000002',
+        bucket: 'test-documents',
+        path: 'legacy/shared.pdf',
+        classroomId: 'classroom-a',
+        blueprintId: null,
+      }],
+      discovered: [{
+        bucket: 'test-documents',
+        path: 'legacy/shared.pdf',
+        classroomId: 'classroom-a',
+      }],
+      discoveredBlueprints: [{
+        bucket: 'test-documents',
+        path: 'legacy/shared.pdf',
+        blueprintId,
+        source: 'mutable_assessment',
+        managedObjectId: null,
+        versionId: null,
+      }, {
+        bucket: 'test-documents',
+        path: 'legacy/shared.pdf',
+        blueprintId,
+        source: 'immutable_version',
+        managedObjectId: null,
+        versionId: '30000000-0000-4000-8000-000000000003',
+      }],
+    })
+
+    expect(report.classroomBlueprintShared).toHaveLength(1)
+    expect(report.mutableBlueprintReconciliationRequired).toHaveLength(1)
+    expect(report.immutableBlueprintOwnershipRequired).toHaveLength(1)
+    expect(report.immutableBlueprintClassroomConflicts).toHaveLength(1)
+    const redacted = JSON.stringify(redactManagedStorageFindings(report))
+    expect(redacted).not.toContain('legacy/shared.pdf')
+  })
+
+  it('accepts a mutable Blueprint document only when its exact Blueprint owner and managed id agree', () => {
+    const blueprintId = '10000000-0000-4000-8000-000000000001'
+    const managedObjectId = '20000000-0000-4000-8000-000000000002'
+    const report = analyzeGlobalManagedStorage({
+      physical: [{ bucket: 'test-documents', path: 'blueprints/material.pdf' }],
+      registered: [{
+        id: managedObjectId,
+        bucket: 'test-documents',
+        path: 'blueprints/material.pdf',
+        classroomId: null,
+        blueprintId,
+      }],
+      discovered: [],
+      discoveredBlueprints: [{
+        bucket: 'test-documents',
+        path: 'blueprints/material.pdf',
+        blueprintId,
+        source: 'mutable_assessment',
+        managedObjectId,
+        versionId: null,
+      }],
+    })
+
+    expect(report.mutableBlueprintReconciliationRequired).toEqual([])
+    expect(report.orphans).toEqual([])
+  })
+
   it('redacts raw Storage paths from durable readiness findings', () => {
     const sentinelPath = 'private/teacher-name/sensitive-file.pdf'
     const findings = redactManagedStorageFindings(analyzeGlobalManagedStorage({

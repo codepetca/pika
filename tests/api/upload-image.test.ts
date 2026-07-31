@@ -276,13 +276,17 @@ describe('POST /api/upload-image', () => {
   // ==========================================================================
 
   describe('success cases', () => {
-    it('should upload file and return public URL', async () => {
+    it('should upload file and return its public URL and server-generated managed identity', async () => {
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
       expect(data.url).toBe('https://storage.example.com/submission-images/user-123/test.png')
+      expect(data.managed_object_id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      )
+      expect(mockStorageUpload.mock.calls[0][0]).toContain(data.managed_object_id)
     })
 
     it('should call storage upload with correct parameters', async () => {

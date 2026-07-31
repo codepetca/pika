@@ -149,6 +149,36 @@ export async function queueManagedStorageCleanup(input: {
   return z.boolean().parse(data)
 }
 
+export async function queueClassroomManagedStorageCleanup(input: {
+  supabase: SupabaseLike
+  objectId: string
+  classroomId: string
+  bucket: ManagedSourceBucket
+  path: string
+  purpose: ManagedStoragePurpose
+  resourceType: string
+  resourceId: string
+  errorCode?: string | null
+}): Promise<boolean> {
+  const { data, error } = await input.supabase.rpc(
+    'queue_classroom_managed_storage_cleanup',
+    {
+      p_object_id: input.objectId,
+      p_classroom_id: input.classroomId,
+      p_storage_bucket: input.bucket,
+      p_storage_path: input.path,
+      p_purpose: input.purpose,
+      p_resource_type: input.resourceType,
+      p_resource_id: input.resourceId,
+      p_error_code: input.errorCode ?? null,
+    },
+  )
+  if (error) {
+    throw rpcError(error, 'managed_storage_cleanup_queue_failed', 'Could not queue managed file cleanup')
+  }
+  return z.boolean().parse(data)
+}
+
 export async function queueManagedStorageCleanupPath(input: {
   supabase: SupabaseLike
   bucket: ManagedSourceBucket

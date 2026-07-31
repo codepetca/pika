@@ -33,6 +33,7 @@ import type {
 } from '@/types'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
 import {
+  managedTestDocumentStorageClaims,
   stripTestDocumentInternalOwnership,
   stripTestDocumentSnapshots,
 } from '@/lib/test-documents'
@@ -121,6 +122,108 @@ async function finishPendingBlueprintStorageCopies(
     return finishBlueprintStorageCopies(teacherId, operationId)
   }
   return null
+}
+
+async function validateBlueprintTeacherMaterialOwnership(
+  supabase: SupabaseClient,
+  detail: CourseBlueprintDetail,
+): Promise<
+  | { ok: true }
+  | { ok: false; status: 409 | 500; error: string; error_code: string; retryable: boolean }
+> {
+  const claims = detail.assessments.flatMap((assessment) => {
+    const assessmentClaims = managedTestDocumentStorageClaims(assessment.documents)
+    return assessmentClaims ?? [null]
+  })
+  const teacherUploadCount = detail.assessments.reduce(
+    (count, assessment) => count + assessment.documents.filter(
+      (document) => document.source === 'upload',
+    ).length,
+    0,
+  )
+  if (
+    claims.some((claim) => claim === null)
+    || claims.length !== teacherUploadCount
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'This Blueprint’s uploaded test material is still being prepared. Try again after storage readiness completes.',
+      error_code: 'blueprint_teacher_material_ownership_required',
+      retryable: true,
+    }
+  }
+  if (claims.length === 0) return { ok: true }
+
+  const exactClaims = claims.filter((claim) => claim !== null)
+  const uniqueClaims = new Map<string, (typeof exactClaims)[number]>()
+  for (const claim of exactClaims) {
+    const current = uniqueClaims.get(claim.managed_object_id)
+    if (
+      current
+      && (
+        current.storage_bucket !== claim.storage_bucket
+        || current.storage_path !== claim.storage_path
+      )
+    ) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'This Blueprint’s uploaded test material is still being prepared. Try again after storage readiness completes.',
+        error_code: 'blueprint_teacher_material_ownership_required',
+        retryable: true,
+      }
+    }
+    uniqueClaims.set(claim.managed_object_id, claim)
+  }
+  const { data, error } = await (supabase as any)
+    .from('managed_storage_objects')
+    .select('id,storage_bucket,storage_path,course_blueprint_id,purpose,status')
+    .in('id', [...uniqueClaims.keys()])
+    .eq('course_blueprint_id', detail.id)
+    .eq('purpose', 'teacher_test_material')
+    .eq('status', 'ready')
+  if (error) {
+    console.error('Failed to validate Blueprint material ownership:', error)
+    return {
+      ok: false,
+      status: 500,
+      error: 'Failed to validate this Blueprint’s uploaded test material.',
+      error_code: 'blueprint_teacher_material_ownership_validation_failed',
+      retryable: true,
+    }
+  }
+
+  type BlueprintManagedObjectRow = {
+    id: string
+    storage_bucket: string
+    storage_path: string
+    course_blueprint_id: string
+    purpose: string
+    status: string
+  }
+  const objects = new Map<string, BlueprintManagedObjectRow>(
+    (data || []).map((object: BlueprintManagedObjectRow) => [object.id, object]),
+  )
+  const hasMismatch = [...uniqueClaims.values()].some((claim) => {
+    const object = objects.get(claim.managed_object_id)
+    return !object
+      || object.storage_bucket !== claim.storage_bucket
+      || object.storage_path !== claim.storage_path
+      || object.course_blueprint_id !== detail.id
+      || object.purpose !== 'teacher_test_material'
+      || object.status !== 'ready'
+  })
+  if (hasMismatch || objects.size !== uniqueClaims.size) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'This Blueprint’s uploaded test material is still being prepared. Try again after storage readiness completes.',
+      error_code: 'blueprint_teacher_material_ownership_required',
+      retryable: true,
+    }
+  }
+  return { ok: true }
 }
 
 export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
@@ -1393,6 +1496,11 @@ export async function createClassroomFromBlueprint(
   }
 
   const supabase = getSupabase()
+  const materialOwnership = await validateBlueprintTeacherMaterialOwnership(
+    supabase,
+    detailResult.detail,
+  )
+  if (!materialOwnership.ok) return materialOwnership
   const operationId = resolveBlueprintOperationId(options.operationId)
   const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
     supabase,

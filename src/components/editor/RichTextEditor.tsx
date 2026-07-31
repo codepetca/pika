@@ -17,7 +17,6 @@ import { Superscript } from '@tiptap/extension-superscript'
 import { Selection } from '@tiptap/extensions'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Markdown } from '@tiptap/markdown'
-import { Image } from '@tiptap/extension-image'
 
 // --- UI Primitives ---
 import { Spacer } from '@/components/tiptap-ui-primitive/spacer'
@@ -30,6 +29,7 @@ import {
 // --- Tiptap Node ---
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
+import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
 import '@/components/tiptap-node/code-block-node/code-block-node.scss'
 import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss'
@@ -140,7 +140,7 @@ async function uploadImage(
   file: File,
   onProgress?: (event: { progress: number }) => void,
   owner?: { assignmentDocId: string },
-): Promise<string> {
+): Promise<{ url: string; managedObjectId: string }> {
   if (!owner) {
     throw new Error('Image uploads require a classroom assignment document')
   }
@@ -169,7 +169,10 @@ async function uploadImage(
 
   const data = await response.json()
   onProgress?.({ progress: 100 })
-  return data.url
+  if (typeof data.url !== 'string' || typeof data.managed_object_id !== 'string') {
+    throw new Error('Upload did not return a managed file identity')
+  }
+  return { url: data.url, managedObjectId: data.managed_object_id }
 }
 
 // Helper to handle pasted/dropped images
@@ -180,11 +183,18 @@ async function handleImageFile(
   owner?: { assignmentDocId: string },
 ): Promise<boolean> {
   try {
-    const url = await uploadImage(file, undefined, owner)
+    const uploaded = await uploadImage(file, undefined, owner)
     editor
       .chain()
       .focus()
-      .setImage({ src: url, alt: file.name.replace(/\.[^/.]+$/, '') })
+      .insertContent({
+        type: 'image',
+        attrs: {
+          src: uploaded.url,
+          alt: file.name.replace(/\.[^/.]+$/, ''),
+          managed_object_id: uploaded.managedObjectId,
+        },
+      })
       .run()
     return true
   } catch (error) {
@@ -437,7 +447,7 @@ export function RichTextEditor({
     }),
     Markdown,  // Enables markdown parsing for setContent/getMarkdown
     // Image extensions (always included for rendering, upload only when enabled)
-    Image.configure({
+    ManagedImage.configure({
       HTMLAttributes: {
         class: 'max-w-full h-auto rounded',
       },

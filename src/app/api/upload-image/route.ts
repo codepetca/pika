@@ -114,5 +114,8 @@ export const POST = withErrorHandler('PostUploadImage', async (request: NextRequ
     .from('submission-images')
     .getPublicUrl(filename)
 
-  return NextResponse.json({ url: urlData.publicUrl })
+  return NextResponse.json({
+    url: urlData.publicUrl,
+    managed_object_id: objectId,
+  })
 })

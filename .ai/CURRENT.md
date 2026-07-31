@@ -1,10 +1,9 @@
 Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. Review hardening now preserves immutable
-Blueprint Versions, reconciles cold compaction/restore ownership, and adds a
-guarded all-class readiness command. Migration 117 remains unapplied to any
-persistent local or hosted target; generated types came from the exact-head CI
-ephemeral replay. Every rollout gate remains disabled, and production remains
-through 116.
+single-scope managed-file ownership. Migration 117 is installed on local Supabase,
+the local readiness/backfill flow is clean, and the guarded destructive fixture
+proves exact database and Storage deletion while preserving Blueprint files and
+user accounts. Generated types match the local 001–117 schema. Every persistent
+rollout gate remains disabled, and production remains through 116.
 
 ## Current Context
 

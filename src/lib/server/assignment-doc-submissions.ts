@@ -7,6 +7,23 @@ import type { v1 } from '@/vendor/pal-contract'
 
 type SupabaseLike = any
 
+type ManagedStorageReference = {
+  bucket: string
+  path: string
+  managedObjectId?: string
+}
+
+type ManagedStorageClaim = {
+  managed_object_id: string
+  storage_bucket: string
+  storage_path: string
+}
+
+type ParsedStorageReference =
+  | { kind: 'external' }
+  | { kind: 'invalid' }
+  | { kind: 'managed'; reference: ManagedStorageReference }
+
 const timestampSchema = z.string().datetime({ offset: true })
 const nullableTimestampSchema = timestampSchema.nullable()
 
@@ -101,6 +118,180 @@ type AssignmentDocMutationResult =
   | { ok: true; doc: AssignmentDoc; historyEntry: AssignmentDocHistoryEntry | null; idempotent?: boolean }
   | { ok: false; status: number; error: string; errorCode: string }
 
+function parseCurrentPikaStorageReference(value: unknown): ParsedStorageReference {
+  if (typeof value !== 'string') return { kind: 'external' }
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+  if (!configuredUrl) return { kind: 'external' }
+
+  let candidate: URL
+  let configured: URL
+  try {
+    candidate = new URL(value)
+    configured = new URL(configuredUrl)
+  } catch {
+    return { kind: 'external' }
+  }
+  if (candidate.origin !== configured.origin) return { kind: 'external' }
+  if (!candidate.pathname.startsWith('/storage/v1/object/')) return { kind: 'external' }
+  const match = candidate.pathname.match(
+    /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/,
+  )
+  if (!match) return { kind: 'invalid' }
+
+  let bucket: string
+  let path: string
+  try {
+    bucket = decodeURIComponent(match[1])
+    path = decodeURIComponent(match[2])
+  } catch {
+    return { kind: 'invalid' }
+  }
+  if (
+    !bucket
+    || bucket.includes('/')
+    || !path
+    || path.startsWith('/')
+    || path.split('/').some((segment) => !segment || segment === '.' || segment === '..')
+  ) {
+    return { kind: 'invalid' }
+  }
+  return { kind: 'managed', reference: { bucket, path } }
+}
+
+function collectAssignmentDocManagedStorageReferences(
+  content: TiptapContent,
+): { references: ManagedStorageReference[]; hasInvalidReference: boolean } {
+  const references = new Map<string, ManagedStorageReference>()
+  let hasInvalidReference = false
+  const inspectAttributes = (attributes: unknown) => {
+    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) return
+    const record = attributes as Record<string, unknown>
+    const hasManagedObjectId = Object.hasOwn(record, 'managed_object_id')
+    const parsedManagedObjectId = hasManagedObjectId
+      ? z.string().uuid().safeParse(record.managed_object_id)
+      : null
+    if (parsedManagedObjectId && !parsedManagedObjectId.success) {
+      hasInvalidReference = true
+      return
+    }
+    let managedReferenceCount = 0
+    for (const [key, value] of Object.entries(record)) {
+      if (key === 'managed_object_id') continue
+      const parsed = parseCurrentPikaStorageReference(value)
+      if (parsed.kind === 'invalid') hasInvalidReference = true
+      if (parsed.kind === 'managed') {
+        managedReferenceCount += 1
+        const reference = {
+          ...parsed.reference,
+          ...(parsedManagedObjectId?.success
+            ? { managedObjectId: parsedManagedObjectId.data.toLowerCase() }
+            : {}),
+        }
+        const referenceKey = `${reference.bucket}\0${reference.path}`
+        const current = references.get(referenceKey)
+        if (
+          current?.managedObjectId
+          && reference.managedObjectId
+          && current.managedObjectId !== reference.managedObjectId
+        ) {
+          hasInvalidReference = true
+        } else {
+          references.set(referenceKey, current?.managedObjectId ? current : reference)
+        }
+      }
+    }
+    if (hasManagedObjectId && managedReferenceCount === 0) hasInvalidReference = true
+  }
+  const stack = [...(content.content ?? [])]
+  while (stack.length > 0) {
+    const node = stack.pop()!
+    inspectAttributes(node.attrs)
+    for (const mark of node.marks ?? []) inspectAttributes(mark.attrs)
+    stack.push(...(node.content ?? []))
+  }
+  return { references: [...references.values()], hasInvalidReference }
+}
+
+async function validateAssignmentDocManagedStorageOwnership(input: {
+  supabase: SupabaseLike
+  assignmentId: string
+  content: TiptapContent
+}): Promise<
+  | { ok: true; claims: ManagedStorageClaim[] }
+  | { ok: false; result: AssignmentDocMutationResult }
+> {
+  const { references, hasInvalidReference } = collectAssignmentDocManagedStorageReferences(
+    input.content,
+  )
+  if (hasInvalidReference) {
+    return { ok: false, result: {
+      ok: false, status: 400,
+      error: 'This document contains an invalid Pika file reference.',
+      errorCode: 'assignment_doc_managed_storage_reference_invalid',
+    } }
+  }
+  if (references.length === 0) return { ok: true, claims: [] }
+
+  const { data: assignment, error: assignmentError } = await input.supabase
+    .from('assignments')
+    .select('classroom_id')
+    .eq('id', input.assignmentId)
+    .maybeSingle()
+  if (assignmentError) {
+    console.error('Failed to validate assignment document file ownership:', assignmentError)
+    return { ok: false, result: {
+      ok: false, status: 500,
+      error: 'Failed to validate files in this assignment document.',
+      errorCode: 'assignment_doc_managed_storage_validation_failed',
+    } }
+  }
+  if (!assignment) {
+    return { ok: false, result: {
+      ok: false, status: 404,
+      error: 'Assignment not found.',
+      errorCode: 'assignment_not_found',
+    } }
+  }
+
+  const claims: ManagedStorageClaim[] = []
+  for (const reference of references) {
+    let objectQuery = input.supabase
+      .from('managed_storage_objects')
+      .select('id, classroom_id, status')
+      .eq('storage_bucket', reference.bucket)
+      .eq('storage_path', reference.path)
+    if (reference.managedObjectId) {
+      objectQuery = objectQuery.eq('id', reference.managedObjectId)
+    }
+    const { data: object, error: objectError } = await objectQuery.maybeSingle()
+    if (objectError) {
+      console.error('Failed to validate assignment document file ownership:', objectError)
+      return { ok: false, result: {
+        ok: false, status: 500,
+        error: 'Failed to validate files in this assignment document.',
+        errorCode: 'assignment_doc_managed_storage_validation_failed',
+      } }
+    }
+    if (
+      (reference.managedObjectId && object?.id !== reference.managedObjectId)
+      || object?.classroom_id !== assignment.classroom_id
+      || object.status !== 'ready'
+    ) {
+      return { ok: false, result: {
+        ok: false, status: 400,
+        error: 'This document contains a Pika file that does not belong to this classroom.',
+        errorCode: 'assignment_doc_managed_storage_owner_mismatch',
+      } }
+    }
+    claims.push({
+      managed_object_id: object.id,
+      storage_bucket: reference.bucket,
+      storage_path: reference.path,
+    })
+  }
+  return { ok: true, claims }
+}
+
 function invalidResult(error: z.ZodError): AssignmentDocMutationResult {
   console.error('Invalid assignment document atomic RPC result:', error)
   return { ok: false, status: 500, error: 'Assignment document operation failed', errorCode: 'invalid_rpc_result' }
@@ -180,9 +371,12 @@ export async function saveAssignmentDocAtomic(input: {
   saveSequence: number
   metricSessionId: string
 }): Promise<AssignmentDocMutationResult> {
+  const ownership = await validateAssignmentDocManagedStorageOwnership(input)
+  if (!ownership.ok) return ownership.result
+
   const patch = createJsonPatch(input.previousContent, input.content)
   const snapshot = shouldStoreSnapshot(patch, input.content) ? input.content : null
-  const { data, error } = await input.supabase.rpc('save_assignment_doc_atomic', {
+  const { data, error } = await input.supabase.rpc('save_assignment_doc_managed_atomic', {
     p_assignment_id: input.assignmentId,
     p_student_id: input.studentId,
     p_content: input.content,
@@ -197,6 +391,7 @@ export async function saveAssignmentDocAtomic(input: {
     p_save_session_id: input.saveSessionId,
     p_save_sequence: input.saveSequence,
     p_metric_session_id: input.metricSessionId,
+    p_managed_storage_claims: ownership.claims,
   })
 
   if (error) return mapRpcError(error, 'save')
@@ -227,11 +422,14 @@ export async function submitAssignmentDocAtomic(input: {
   expectedUpdatedAt: string
   palEvent?: v1.LearningItemCompletedEvent | null
 }): Promise<AssignmentDocMutationResult> {
+  const ownership = await validateAssignmentDocManagedStorageOwnership(input)
+  if (!ownership.ok) return ownership.result
+
   const usePalOutbox = input.palEvent !== undefined
   const { data, error } = await input.supabase.rpc(
     usePalOutbox
-      ? 'submit_assignment_doc_with_pal_event_atomic'
-      : 'submit_assignment_doc_atomic',
+      ? 'submit_assignment_doc_with_pal_event_managed_atomic'
+      : 'submit_assignment_doc_managed_atomic',
     {
       p_assignment_id: input.assignmentId,
       p_student_id: input.studentId,
@@ -239,6 +437,7 @@ export async function submitAssignmentDocAtomic(input: {
       p_expected_updated_at: input.expectedUpdatedAt,
       p_word_count: countWords(input.content),
       p_char_count: countCharacters(input.content),
+      p_managed_storage_claims: ownership.claims,
       ...(usePalOutbox ? { p_pal_event: input.palEvent } : {}),
     },
   )

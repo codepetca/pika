@@ -11,108 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Designed legacy Quiz schema retirement
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass crosses hosted evidence, archive format versioning, deterministic backfill, package compatibility, and destructive migration rollback without applying schema changes.
-
-**Completed:**
-- Added a target-pinned, redirect-rejecting, read-only inventory for legacy Quiz table rows, Quiz drafts, Quiz blueprint assessments, and verified archive manifest counts.
-- Required two matching aggregate snapshots and emitted no row ids, titles, content, storage paths, or credentials.
-- Ran the inventory against production project `zhioqbapgfcrronyuidm`: 1 quiz, 3 questions, 60 responses, 0 manual score overrides, 0 Quiz drafts, and 0 Quiz blueprint assessments.
-- Confirmed the single verified archive-v1 manifest contains the same non-empty Quiz graph.
-- Designed archive-v2 retired-assessment envelopes instead of mapping historical Quiz rows into active Tests, which would resurface removed product data and lose whole-assessment override semantics.
-- Defined additive adapter, freeze/backfill, production-proof, destructive-retirement, gradebook, and course-package passes with explicit approval, validation, and forward-repair gates.
-- Created no migration and performed no production write.
-
-**Validation:**
-- Focused inventory, archive, package, gradebook, docs, and architecture suites (8 files / 96 tests)
-- Full repository suite after review remediation (409 files / 3,672 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (622 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- Production inventory completed with two stable snapshots
-
-**Review:**
-- Independent review found that the plan needed an explicit version-keyed
-  TypeScript/database archive transition and an atomic fate for zero-row Quiz
-  blueprint assessments.
-- The same review found that equal-count archive replacement was not part of
-  private snapshot stability evidence.
-- Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
-  and blueprint lock/preflight requirements; added private archive UUID/checksum
-  comparison and concrete duplicate, count-drift, and truncated-page tests.
-- Targeted review caught ambiguous destructive-pass wording; clarified that v2
-  becomes current without deleting either immutable registry graph or the v1
-  adapter, and required a post-drop v1 restore fixture.
-- Re-ran the target-pinned production inventory with stable unchanged aggregates.
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next implement the additive retired-resource envelope and archive-v2/v1 adapter only after explicit approval to create its named migration; do not apply it without separate exact target-and-filename authorization.
-
-## 2026-07-23 — Established versioned Quiz archive compatibility
-
-**Risk profile:** runtime-platform
-
-**Model recommendation:** GPT-5.6 Terra - the pass freezes a historical archive
-contract, adds version dispatch, and converts legacy relational data into a
-future persistence shape without enabling unapproved schema behavior.
-
-**Completed:**
-- Froze the exact 42-resource archive-v1 table, primary-key, and actor-reference
-  contract independently from the live database inventory.
-- Added explicit v1/v2 manifest schemas and registry dispatch while retaining v1
-  as the only enabled export and restore contract.
-- Restricted locale-dependent canonical serialization/checksum recovery to v1;
-  v2 accepts only the current deterministic canonical form.
-- Defined the inactive v2 graph with generic retired-assessment record and actor
-  resources instead of the four Quiz tables.
-- Added a deterministic, non-mutating adapter that preserves complete Quiz and
-  Quiz-draft payloads, parent identities, actor references, timestamps, and
-  canonical SHA-256 evidence without mapping retired data into Tests.
-- Expanded the verified non-empty v1 fixture to include all four Quiz resources,
-  a manual score override, and a Quiz draft.
-- Froze portable v1 tar-content, manifest-content, and per-resource hashes so
-  the non-empty contract cannot be regenerated with silent Quiz drift.
-- Tightened independent-review findings: Quiz drafts retain and validate their
-  Quiz parent; adapter replay preserves existing envelopes; archived actor
-  references must resolve; and strict v2 verification rejects malformed,
-  checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
-- Added an explicit Gradex capability gate and moved source download, checksum,
-  strict verification, identity, and metadata-version binding before operation
-  creation so disabled or mislabeled v2 causes zero RPC or storage writes.
-- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
-  and added a resource registry that enforces payload identity, required
-  parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
-  payload equality, required actor fields/references, and credential-key
-  rejection including client secrets, private keys, and token variants.
-- Updated the retirement plan and cleanup guide to distinguish the completed
-  application foundation from the approval-gated database/v2 activation work.
-- Created no migration and performed no production write.
-
-**Validation:**
-- Focused archive contract, format, restore, adapter, Gradex, and docs suites
-  (7 files / 59 tests)
-- Full repository suite after review fixes (411 files / 3,690 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (624 modules / 0 allowances)
-- `pnpm build`
-- Portable empty-v1 tar SHA:
-  `4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093`
-- Non-empty Quiz-v1 tar SHA:
-  `32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58`
-
-**Remaining:**
-- Require changed-file audit, independent PR review, and exact-head CI before merge.
-- Next create the envelope tables and versioned database archive registry, then
-  activate v2 export/restore, only after explicit approval to create the named
-  migration; applying it requires separate exact target-and-filename permission.
-
 ## 2026-07-23 — Staged the additive archive-v2 contract locally
 
 **Risk profile:** runtime-platform
@@ -1557,3 +1455,90 @@ authorization boundaries.
 - Keep PR #963 draft. Fresh named local authorization is required before replaying migration 117 or
   running the destructive exact-ownership fixture. Hosted migration, backfill execution, orphan
   remediation, gate changes, canaries, and deployment remain separately authorized actions.
+
+## 2026-07-31 — Completed explicit managed-file ownership architecture
+
+**Risk profile:** destructive-data, storage ownership, concurrency, immutable Blueprint lineage,
+zero-downtime rollout
+
+**Completed:**
+- Replaced client URL/file-id authority with exact managed ownership claims for assignment images,
+  Test uploads/snapshots, and Blueprint Version material. Database wrappers lock and revalidate the
+  exact owner, bucket, path, purpose, status, and immutable snapshot URL before committing writes.
+- Made Test document replacement and removed-file cleanup one compare-and-swap transaction. A
+  standalone cleanup caller also locks the Test and refuses to queue an object that is currently
+  referenced, closing remove/re-add and cleanup/purge races.
+- Added durable reconciliation for the supported legacy case where one Classroom and one
+  same-teacher Blueprint share a physical Test document. Copy/adoption preserves immutable Versions,
+  rewrites live owners atomically, protects nonterminal ledgers with restrictive lifecycle guards,
+  and removes the ledger only after terminal adoption.
+- Added fail-closed Blueprint-only legacy registration and readiness discovery across mutable
+  assessments and immutable Versions. Ambiguous cross-Classroom or cross-Blueprint sharing remains
+  blocked for operator investigation.
+- Preserved immutable Version files until Blueprint deletion and made Version creation use a managed
+  transactional RPC; the compatibility Version signature rejects upload-bearing snapshots.
+- Made legacy assignment RPC compatibility safe during staged rollout: a stale write takes the
+  classroom lifecycle lock and invalidates verified coverage while enforcement is off, then fails
+  closed after enforcement is enabled. Private legacy implementations are not callable by the
+  service role.
+- Added the permanent-ledger Storage identity index and preserved non-retryable relational finalizer
+  outcomes.
+
+**Validation:**
+- Independent final architecture and security reviews found no remaining blockers.
+- Final full Vitest suite: 467 files / 4,053 tests; lint; TypeScript; production build;
+  `git diff --check`; Pika audit.
+- UI verification captured teacher desktop/mobile and student desktop/mobile classroom views. The
+  managed image change is serialization-only and produced no visible regression or role-boundary
+  leak. Composite-widget accessibility checklist reviewed; keyboard and semantic behavior remain
+  covered by existing editor tests.
+- Reset local Supabase, replayed migrations 001–116, fixed a PostgreSQL parser error exposed by the
+  first migration-117 replay, applied the corrected migration 117 locally, and completed `pnpm seed`.
+  Verified both rollout gates remain false, the managed Version/Test RPCs exist, and migrations
+  001–117 are recorded locally. No hosted target, worker, canary, deployment, commit, push, or PR
+  state was changed.
+
+**Remaining:**
+- Keep PR #963 draft. Readiness execution, worker/gate activation, canary, hosted rollout, and
+  deployment each still require their own fresh named authorization.
+- Cold archived classroom deletion and comprehensive individual-student purging remain follow-up
+  scopes; ambiguous legacy sharing remains a fail-closed manual reconciliation case.
+
+## 2026-07-31 — Proved managed ownership and purge end to end locally
+
+**Risk profile:** workspace-state, destructive local fixture, storage ownership, concurrency
+
+**Completed:**
+- Confirmed the dedicated worktree, migration history 001–117, and local rollout settings
+  `enforce_ownership=false` and `hot_classroom_purge_enabled=false`.
+- Ran the read-only managed-storage readiness report against loopback Supabase. The seeded
+  classroom was verified with no missing coverage, shared paths, missing objects, registered
+  drift, Blueprint reconciliation work, or global Storage orphans.
+- Ran managed-storage readiness `execute` locally. It completed idempotently, left both rollout
+  gates unchanged, and reported `ready_for_enforcement=true`.
+- Ran the guarded destructive local purge fixture. It deleted exactly eight synthetic
+  classroom/operational objects across all five required buckets, preserved two independently
+  Blueprint-owned copies and all user accounts, and proved cleanup retry, purge retry,
+  concurrent-claim exclusion, competing-purge exclusion, cross-teacher authorization, exact-path
+  fencing, relational cleanup, and terminal path/lease/error redaction.
+- Verified fixture teardown: no fixture users or Storage objects remain, no purge is active, the
+  original seed remains, both gates are false, and a post-fixture readiness report is still clean.
+- Regenerated `src/types/database.generated.ts` from the exact local 001–117 schema after the
+  contract check exposed missing reconciliation and managed-write RPCs.
+
+**Validation:**
+- Local runtime: readiness report, readiness execute, destructive purge fixture, teardown audit,
+  and post-fixture readiness report passed.
+- Focused ownership/purge suite: 17 files / 134 tests.
+- Full Vitest suite: 467 files / 4,053 tests.
+- Production build, lint, TypeScript, architecture boundaries, generated database contract,
+  `git diff --check`, and Pika audit passed.
+- PR #963 remains open and draft. No hosted database, rollout gate, worker, deployment, commit,
+  push, or production state changed.
+
+**Remaining:**
+- Keep production and persistent rollout gates disabled. Hosted migration/backfill, cleanup-worker
+  activation, ownership enforcement, named canary, application purge enablement, deployment, and
+  PR publication each require separate authorization.
+- Cold archived classroom deletion and comprehensive individual-student purging remain follow-up
+  scopes; ambiguous legacy sharing remains fail-closed/manual.

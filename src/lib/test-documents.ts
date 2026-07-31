@@ -54,6 +54,90 @@ export function isCurrentPikaManagedTestDocumentUrl(
   }
 }
 
+export type ManagedTestDocumentStorageClaim = {
+  document_id: string
+  reference_kind: 'teacher_upload' | 'execution_snapshot'
+  managed_object_id: string
+  storage_bucket: 'test-documents'
+  storage_path: string
+  purpose: 'teacher_test_material' | 'test_execution_snapshot'
+}
+
+export function normalizeManagedTestDocumentStoragePath(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const path = value.trim()
+  if (
+    !path
+    || path.startsWith('/')
+    || path.split('/').some((segment) => !segment || segment === '.' || segment === '..')
+  ) {
+    return null
+  }
+  return path
+}
+
+export function currentPikaManagedTestDocumentStoragePath(
+  value: unknown,
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+): string | null {
+  if (typeof value !== 'string' || !supabaseUrl) return null
+
+  try {
+    const candidate = new URL(value)
+    const configured = new URL(supabaseUrl)
+    if (candidate.origin !== configured.origin) return null
+    const match = candidate.pathname.match(
+      /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/,
+    )
+    if (!match || decodeURIComponent(match[1]) !== 'test-documents') return null
+    return normalizeManagedTestDocumentStoragePath(decodeURIComponent(match[2]))
+  } catch {
+    return null
+  }
+}
+
+export function managedTestDocumentStorageClaims(
+  value: unknown,
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+): ManagedTestDocumentStorageClaim[] | null {
+  const documents = normalizeTestDocuments(value)
+  const claims: ManagedTestDocumentStorageClaim[] = []
+
+  for (const document of documents) {
+    if (document.managed_object_id) {
+      const storagePath = document.source === 'upload'
+        ? currentPikaManagedTestDocumentStoragePath(document.url, supabaseUrl)
+        : null
+      if (!storagePath) return null
+      claims.push({
+        document_id: document.id,
+        reference_kind: 'teacher_upload',
+        managed_object_id: document.managed_object_id,
+        storage_bucket: 'test-documents',
+        storage_path: storagePath,
+        purpose: 'teacher_test_material',
+      })
+    }
+
+    if (document.snapshot_managed_object_id) {
+      const storagePath = document.source === 'link'
+        ? normalizeManagedTestDocumentStoragePath(document.snapshot_path)
+        : null
+      if (!storagePath) return null
+      claims.push({
+        document_id: document.id,
+        reference_kind: 'execution_snapshot',
+        managed_object_id: document.snapshot_managed_object_id,
+        storage_bucket: 'test-documents',
+        storage_path: storagePath,
+        purpose: 'test_execution_snapshot',
+      })
+    }
+  }
+
+  return claims
+}
+
 function normalizeTestDocumentSource(value: unknown): TestDocumentSource {
   if (value === 'upload') return 'upload'
   if (value === 'text') return 'text'

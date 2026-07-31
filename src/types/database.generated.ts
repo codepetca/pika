@@ -3732,6 +3732,109 @@ export type Database = {
           },
         ]
       }
+      legacy_blueprint_classroom_storage_reconciliations: {
+        Row: {
+          attempt_count: number
+          blueprint_id: string
+          classroom_documents: Json
+          classroom_id: string
+          content_type: string | null
+          created_at: string
+          expected_byte_size: number | null
+          expected_sha256: string | null
+          id: string
+          immutable_blueprint_evidence: Json
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          mutable_blueprint_documents: Json
+          source_object_id: string
+          source_storage_bucket: string
+          source_storage_path: string
+          status: string
+          target_object_id: string
+          target_public_url: string | null
+          target_storage_bucket: string
+          target_storage_path: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          blueprint_id: string
+          classroom_documents: Json
+          classroom_id: string
+          content_type?: string | null
+          created_at?: string
+          expected_byte_size?: number | null
+          expected_sha256?: string | null
+          id: string
+          immutable_blueprint_evidence: Json
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          mutable_blueprint_documents: Json
+          source_object_id: string
+          source_storage_bucket: string
+          source_storage_path: string
+          status?: string
+          target_object_id: string
+          target_public_url?: string | null
+          target_storage_bucket: string
+          target_storage_path: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          blueprint_id?: string
+          classroom_documents?: Json
+          classroom_id?: string
+          content_type?: string | null
+          created_at?: string
+          expected_byte_size?: number | null
+          expected_sha256?: string | null
+          id?: string
+          immutable_blueprint_evidence?: Json
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          mutable_blueprint_documents?: Json
+          source_object_id?: string
+          source_storage_bucket?: string
+          source_storage_path?: string
+          status?: string
+          target_object_id?: string
+          target_public_url?: string | null
+          target_storage_bucket?: string
+          target_storage_path?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_blueprint_classroom_storage_reconcilia_blueprint_id_fkey"
+            columns: ["blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_blueprint_classroom_storage_reconcilia_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_blueprint_classroom_storage_reconciliati_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_plans: {
         Row: {
           artifact_id: string
@@ -5258,6 +5361,10 @@ export type Database = {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      adopt_legacy_blueprint_classroom_storage_reconciliation: {
+        Args: { p_reconciliation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       adopt_managed_storage_upload: {
         Args: { p_content_sha256?: string; p_object_id: string }
         Returns: {
@@ -5863,6 +5970,46 @@ export type Database = {
           storage_path: string
         }[]
       }
+      claim_legacy_blueprint_classroom_storage_reconciliation: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_reconciliation_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          blueprint_id: string
+          classroom_documents: Json
+          classroom_id: string
+          content_type: string | null
+          created_at: string
+          expected_byte_size: number | null
+          expected_sha256: string | null
+          id: string
+          immutable_blueprint_evidence: Json
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          mutable_blueprint_documents: Json
+          source_object_id: string
+          source_storage_bucket: string
+          source_storage_path: string
+          status: string
+          target_object_id: string
+          target_public_url: string | null
+          target_storage_bucket: string
+          target_storage_path: string
+          teacher_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "legacy_blueprint_classroom_storage_reconciliations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       claim_managed_storage_cleanup: {
         Args: {
           p_lease_seconds?: number
@@ -6222,6 +6369,17 @@ export type Database = {
           p_content_sha256: string
           p_item_id: string
           p_lease_token: string
+          p_target_public_url: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
+      complete_legacy_blueprint_classroom_storage_reconciliation: {
+        Args: {
+          p_byte_size: number
+          p_content_sha256: string
+          p_lease_token: string
+          p_reconciliation_id: string
           p_target_public_url: string
           p_teacher_id: string
         }
@@ -6603,6 +6761,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      fail_legacy_blueprint_classroom_storage_reconciliation: {
+        Args: {
+          p_error_code: string
+          p_lease_token: string
+          p_reconciliation_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       fail_managed_storage_cleanup: {
         Args: {
           p_error_code: string
@@ -6769,6 +6936,14 @@ export type Database = {
         Returns: boolean
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
+      lock_assignment_doc_managed_storage_claims: {
+        Args: {
+          p_assignment_id: string
+          p_managed_storage_claims: Json
+          p_student_id: string
+        }
+        Returns: undefined
+      }
       managed_storage_exact_lock: {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: undefined
@@ -6781,6 +6956,72 @@ export type Database = {
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
+      }
+      plan_legacy_blueprint_classroom_storage_reconciliation: {
+        Args: {
+          p_blueprint_id: string
+          p_classroom_documents: Json
+          p_classroom_id: string
+          p_immutable_blueprint_evidence: Json
+          p_mutable_blueprint_documents: Json
+          p_reconciliation_id: string
+          p_source_object_id: string
+          p_source_storage_bucket: string
+          p_source_storage_path: string
+          p_target_object_id: string
+          p_target_storage_bucket: string
+          p_target_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          blueprint_id: string
+          classroom_documents: Json
+          classroom_id: string
+          content_type: string | null
+          created_at: string
+          expected_byte_size: number | null
+          expected_sha256: string | null
+          id: string
+          immutable_blueprint_evidence: Json
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          mutable_blueprint_documents: Json
+          source_object_id: string
+          source_storage_bucket: string
+          source_storage_path: string
+          status: string
+          target_object_id: string
+          target_public_url: string | null
+          target_storage_bucket: string
+          target_storage_path: string
+          teacher_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "legacy_blueprint_classroom_storage_reconciliations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      prepare_legacy_assignment_doc_write_117: {
+        Args: { p_assignment_id: string }
+        Returns: undefined
+      }
+      queue_classroom_managed_storage_cleanup: {
+        Args: {
+          p_classroom_id: string
+          p_error_code?: string
+          p_object_id: string
+          p_purpose: string
+          p_resource_id: string
+          p_resource_type: string
+          p_storage_bucket: string
+          p_storage_path: string
+        }
+        Returns: boolean
       }
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
@@ -6809,6 +7050,50 @@ export type Database = {
       refresh_classroom_managed_storage_coverage: {
         Args: { p_classroom_id: string }
         Returns: undefined
+      }
+      register_legacy_blueprint_storage_object: {
+        Args: {
+          p_blueprint_id: string
+          p_immutable_blueprint_evidence: Json
+          p_mutable_blueprint_documents: Json
+          p_object_id: string
+          p_storage_bucket: string
+          p_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       register_legacy_classroom_storage_object: {
         Args: {
@@ -7078,6 +7363,45 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignment_doc_atomic_legacy_117: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_student_id: string
+          p_trigger: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
+      save_assignment_doc_managed_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_managed_storage_claims: Json
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_student_id: string
+          p_trigger: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       save_assignment_grades_atomic: {
         Args: {
           p_apply_comments: boolean
@@ -7099,6 +7423,69 @@ export type Database = {
         Args: {
           p_blueprint_id: string
           p_expected_draft_revision: number
+          p_snapshot: Json
+          p_snapshot_schema_version: number
+          p_snapshot_sha256: string
+          p_source_kind: string
+          p_source_metadata: Json
+          p_teacher_id: string
+        }
+        Returns: {
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          id: string
+          snapshot_json: Json
+          snapshot_schema_version: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind: string
+          source_metadata: Json
+          version_number: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_course_blueprint_version_atomic_legacy_117: {
+        Args: {
+          p_blueprint_id: string
+          p_expected_draft_revision: number
+          p_snapshot: Json
+          p_snapshot_schema_version: number
+          p_snapshot_sha256: string
+          p_source_kind: string
+          p_source_metadata: Json
+          p_teacher_id: string
+        }
+        Returns: {
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          id: string
+          snapshot_json: Json
+          snapshot_schema_version: number
+          snapshot_sha256: string
+          source_draft_revision: number
+          source_kind: string
+          source_metadata: Json
+          version_number: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_course_blueprint_version_managed_atomic: {
+        Args: {
+          p_blueprint_id: string
+          p_expected_draft_revision: number
+          p_managed_storage_claims: Json
           p_snapshot: Json
           p_snapshot_schema_version: number
           p_snapshot_sha256: string
@@ -7243,12 +7630,60 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_assignment_doc_atomic_legacy_117: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
+      submit_assignment_doc_managed_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_managed_storage_claims: Json
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_assignment_doc_with_pal_event_atomic: {
         Args: {
           p_assignment_id: string
           p_char_count: number
           p_content: Json
           p_expected_updated_at: string
+          p_pal_event: Json
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
+      submit_assignment_doc_with_pal_event_atomic_legacy_117: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_pal_event: Json
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
+      submit_assignment_doc_with_pal_event_managed_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_managed_storage_claims: Json
           p_pal_event: Json
           p_student_id: string
           p_word_count: number
@@ -7314,6 +7749,24 @@ export type Database = {
           p_documents: Json
           p_expected_documents: Json
           p_expected_status: string
+          p_show_results: boolean
+          p_status: string
+          p_teacher_id: string
+          p_test_id: string
+          p_title: string
+          p_update_show_results: boolean
+          p_update_status: boolean
+          p_update_title: boolean
+        }
+        Returns: Json
+      }
+      update_test_documents_managed_atomic: {
+        Args: {
+          p_documents: Json
+          p_expected_documents: Json
+          p_expected_managed_storage_claims: Json
+          p_expected_status: string
+          p_managed_storage_claims: Json
           p_show_results: boolean
           p_status: string
           p_teacher_id: string

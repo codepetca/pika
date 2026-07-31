@@ -130,11 +130,22 @@ function identityKey(value: StorageIdentity): string {
 
 export function analyzeGlobalManagedStorage(input: {
   physical: StorageIdentity[]
-  registered: Array<StorageIdentity & { classroomId?: string | null; blueprintId?: string | null }>
+  registered: Array<StorageIdentity & {
+    id?: string
+    classroomId?: string | null
+    blueprintId?: string | null
+  }>
   discovered: Array<StorageIdentity & { classroomId: string }>
+  discoveredBlueprints?: Array<StorageIdentity & {
+    blueprintId: string
+    source: 'mutable_assessment' | 'immutable_version'
+    managedObjectId: string | null
+    versionId: string | null
+  }>
 }) {
   const physical = new Map(input.physical.map((value) => [identityKey(value), value]))
   const registered = new Map(input.registered.map((value) => [identityKey(value), value]))
+  const discoveredBlueprints = input.discoveredBlueprints || []
   const discoveredOwners = new Map<string, Set<string>>()
   for (const value of input.discovered) {
     const key = identityKey(value)
@@ -142,23 +153,73 @@ export function analyzeGlobalManagedStorage(input: {
     owners.add(value.classroomId)
     discoveredOwners.set(key, owners)
   }
+  const blueprintOwners = new Map<string, Set<string>>()
+  for (const value of discoveredBlueprints) {
+    const key = identityKey(value)
+    const owners = blueprintOwners.get(key) || new Set<string>()
+    owners.add(value.blueprintId)
+    blueprintOwners.set(key, owners)
+  }
   const shared = [...discoveredOwners.entries()]
     .filter(([, owners]) => owners.size > 1)
     .map(([key, owners]) => ({
       ...(physical.get(key) || input.discovered.find((value) => identityKey(value) === key)!),
       classroomIds: [...owners].sort(),
     }))
+  const classroomBlueprintShared = [...blueprintOwners.entries()]
+    .filter(([key]) => discoveredOwners.has(key))
+    .map(([key, blueprintIds]) => ({
+      ...(physical.get(key) || discoveredBlueprints.find((value) => identityKey(value) === key)!),
+      classroomIds: [...(discoveredOwners.get(key) || [])].sort(),
+      blueprintIds: [...blueprintIds].sort(),
+    }))
+  const blueprintShared = [...blueprintOwners.entries()]
+    .filter(([, owners]) => owners.size > 1)
+    .map(([key, blueprintIds]) => ({
+      ...(physical.get(key) || discoveredBlueprints.find((value) => identityKey(value) === key)!),
+      blueprintIds: [...blueprintIds].sort(),
+    }))
   const missing = [...discoveredOwners.keys()]
     .filter((key) => !physical.has(key))
     .map((key) => input.discovered.find((value) => identityKey(value) === key)!)
+  const missingBlueprint = [...blueprintOwners.keys()]
+    .filter((key) => !physical.has(key))
+    .map((key) => discoveredBlueprints.find((value) => identityKey(value) === key)!)
+  const mutableBlueprintReconciliationRequired = discoveredBlueprints.filter((value) => {
+    if (value.source !== 'mutable_assessment') return false
+    const owner = registered.get(identityKey(value))
+    return owner?.blueprintId !== value.blueprintId || owner.id !== value.managedObjectId
+  })
+  const immutableBlueprintOwnershipRequired = discoveredBlueprints.filter((value) => {
+    if (value.source !== 'immutable_version') return false
+    return registered.get(identityKey(value))?.blueprintId !== value.blueprintId
+  })
+  const immutableBlueprintClassroomConflicts = discoveredBlueprints.filter((value) => (
+    value.source === 'immutable_version' && discoveredOwners.has(identityKey(value))
+  ))
   const orphans = [...physical.entries()]
-    .filter(([key]) => !registered.has(key) && !discoveredOwners.has(key))
+    .filter(([key]) => (
+      !registered.has(key)
+      && !discoveredOwners.has(key)
+      && !blueprintOwners.has(key)
+    ))
     .map(([, value]) => value)
     .sort((left, right) => identityKey(left).localeCompare(identityKey(right)))
   const registeredMissing = [...registered.entries()]
     .filter(([key]) => !physical.has(key))
     .map(([, value]) => value)
-  return { shared, missing, orphans, registeredMissing }
+  return {
+    shared,
+    classroomBlueprintShared,
+    blueprintShared,
+    missing,
+    missingBlueprint,
+    mutableBlueprintReconciliationRequired,
+    immutableBlueprintOwnershipRequired,
+    immutableBlueprintClassroomConflicts,
+    orphans,
+    registeredMissing,
+  }
 }
 
 function pathFingerprint(value: StorageIdentity) {
@@ -180,6 +241,37 @@ export function redactManagedStorageFindings(input: ReturnType<
       ...pathFingerprint(value),
       classroom_id: value.classroomId,
     })),
+    classroomBlueprintShared: input.classroomBlueprintShared.map((value) => ({
+      ...pathFingerprint(value),
+      classroom_ids: value.classroomIds,
+      blueprint_ids: value.blueprintIds,
+    })),
+    blueprintShared: input.blueprintShared.map((value) => ({
+      ...pathFingerprint(value),
+      blueprint_ids: value.blueprintIds,
+    })),
+    missingBlueprint: input.missingBlueprint.map((value) => ({
+      ...pathFingerprint(value),
+      blueprint_id: value.blueprintId,
+      source: value.source,
+      version_id: value.versionId,
+    })),
+    mutableBlueprintReconciliationRequired: input.mutableBlueprintReconciliationRequired.map((value) => ({
+      ...pathFingerprint(value),
+      blueprint_id: value.blueprintId,
+      assessment_id: value.assessmentId,
+      document_id: value.documentId,
+    })),
+    immutableBlueprintOwnershipRequired: input.immutableBlueprintOwnershipRequired.map((value) => ({
+      ...pathFingerprint(value),
+      blueprint_id: value.blueprintId,
+      version_id: value.versionId,
+    })),
+    immutableBlueprintClassroomConflicts: input.immutableBlueprintClassroomConflicts.map((value) => ({
+      ...pathFingerprint(value),
+      blueprint_id: value.blueprintId,
+      version_id: value.versionId,
+    })),
     orphans: input.orphans.map(pathFingerprint),
     registeredMissing: input.registeredMissing.map(pathFingerprint),
   }
@@ -189,7 +281,11 @@ export function readManagedStorageCatalog(
   psqlEnvironment: Record<string, string>,
 ): {
   physical: StorageIdentity[]
-  registered: Array<StorageIdentity & { classroomId: string | null; blueprintId: string | null }>
+  registered: Array<StorageIdentity & {
+    id: string
+    classroomId: string | null
+    blueprintId: string | null
+  }>
 } {
   const sql = `
     select jsonb_build_object(
@@ -201,7 +297,7 @@ export function readManagedStorageCatalog(
       ), '[]'::jsonb),
       'registered', coalesce((
         select jsonb_agg(jsonb_build_object(
-          'bucket', storage_bucket, 'path', storage_path,
+          'id', id, 'bucket', storage_bucket, 'path', storage_path,
           'classroomId', classroom_id, 'blueprintId', course_blueprint_id
         ) order by storage_bucket, storage_path)
         from public.managed_storage_objects
@@ -216,6 +312,7 @@ export function readManagedStorageCatalog(
   return z.object({
     physical: z.array(z.object({ bucket: z.string(), path: z.string() })),
     registered: z.array(z.object({
+      id: z.string().uuid(),
       bucket: z.string(), path: z.string(),
       classroomId: z.string().uuid().nullable(), blueprintId: z.string().uuid().nullable(),
     })),

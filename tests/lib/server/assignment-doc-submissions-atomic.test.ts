@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   saveAssignmentDocAtomic,
   submitAssignmentDocAtomic,
@@ -13,6 +13,35 @@ const beforeContent = {
 const afterContent = {
   type: 'doc',
   content: [{ type: 'paragraph', content: [{ type: 'text', text: 'After' }] }],
+}
+
+const managedImageContent = {
+  type: 'doc' as const,
+  content: [{
+    type: 'image',
+    attrs: {
+      src: 'https://current.supabase.co/storage/v1/object/public/submission-images/classrooms/classroom-1/image.png',
+      managed_object_id: '20000000-0000-4000-8000-000000000002',
+    },
+  }],
+}
+const legacyManagedImageContent = {
+  type: 'doc' as const,
+  content: [{
+    type: 'image',
+    attrs: {
+      src: 'https://current.supabase.co/storage/v1/object/public/submission-images/classrooms/classroom-1/image.png',
+    },
+  }],
+}
+
+function makeLookup(data: unknown, error: unknown = null) {
+  const builder: Record<string, any> = {}
+  for (const method of ['select', 'eq']) {
+    builder[method] = vi.fn(() => builder)
+  }
+  builder.maybeSingle = vi.fn(async () => ({ data, error }))
+  return builder
 }
 
 function makeDoc(overrides: Record<string, unknown> = {}) {
@@ -52,6 +81,10 @@ function makeDoc(overrides: Record<string, unknown> = {}) {
 }
 
 describe('atomic assignment document operations', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('passes revision, history, and metric-session evidence to the save RPC', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {
@@ -79,7 +112,7 @@ describe('atomic assignment document operations', () => {
     })
 
     expect(result.ok).toBe(true)
-    expect(rpc).toHaveBeenCalledWith('save_assignment_doc_atomic', expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith('save_assignment_doc_managed_atomic', expect.objectContaining({
       p_assignment_id: 'assignment-1',
       p_student_id: 'student-1',
       p_expected_updated_at: '2026-07-16T12:00:00.000Z',
@@ -89,10 +122,228 @@ describe('atomic assignment document operations', () => {
       p_save_session_id: '10000000-0000-4000-8000-000000000001',
       p_save_sequence: 2,
       p_metric_session_id: '10000000-0000-4000-8000-000000000009',
+      p_managed_storage_claims: [],
       p_patch: expect.any(Array),
       p_word_count: 1,
       p_char_count: 5,
     }))
+  })
+
+  it('allows a Pika-managed image owned by the assignment classroom', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const assignmentLookup = makeLookup({ classroom_id: 'classroom-1' })
+    const objectLookup = makeLookup({
+      id: '20000000-0000-4000-8000-000000000002',
+      classroom_id: 'classroom-1',
+      status: 'ready',
+    })
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ok: true, created: false, doc: makeDoc({ content: managedImageContent }), history_entry: null },
+      error: null,
+    })
+    const supabase = {
+      from: vi.fn((table: string) => (
+        table === 'assignments' ? assignmentLookup : objectLookup
+      )),
+      rpc,
+    }
+
+    const result = await saveAssignmentDocAtomic({
+      supabase,
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      previousContent: beforeContent,
+      content: managedImageContent,
+      expectedUpdatedAt: '2026-07-16T12:00:00.000Z',
+      trigger: 'blur',
+      pasteWordCount: 0,
+      keystrokeCount: 1,
+      saveSessionId: '10000000-0000-4000-8000-000000000001',
+      saveSequence: 2,
+      metricSessionId: '10000000-0000-4000-8000-000000000009',
+    })
+
+    expect(result.ok).toBe(true)
+    expect(objectLookup.eq).toHaveBeenCalledWith('storage_bucket', 'submission-images')
+    expect(objectLookup.eq).toHaveBeenCalledWith(
+      'id',
+      '20000000-0000-4000-8000-000000000002',
+    )
+    expect(objectLookup.eq).toHaveBeenCalledWith(
+      'storage_path',
+      'classrooms/classroom-1/image.png',
+    )
+    expect(rpc).toHaveBeenCalledWith(
+      'save_assignment_doc_managed_atomic',
+      expect.objectContaining({
+        p_managed_storage_claims: [{
+          managed_object_id: '20000000-0000-4000-8000-000000000002',
+          storage_bucket: 'submission-images',
+          storage_path: 'classrooms/classroom-1/image.png',
+        }],
+      }),
+    )
+  })
+
+  it('rejects cross-classroom or unsettled Pika-managed images before saving', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const rpc = vi.fn()
+    const supabase = {
+      from: vi.fn((table: string) => table === 'assignments'
+        ? makeLookup({ classroom_id: 'classroom-1' })
+        : makeLookup({
+            id: '20000000-0000-4000-8000-000000000002',
+            classroom_id: 'classroom-2',
+            status: 'ready',
+          })),
+      rpc,
+    }
+
+    const result = await saveAssignmentDocAtomic({
+      supabase,
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      previousContent: beforeContent,
+      content: managedImageContent,
+      expectedUpdatedAt: '2026-07-16T12:00:00.000Z',
+      trigger: 'autosave',
+      pasteWordCount: 0,
+      keystrokeCount: 1,
+      saveSessionId: '10000000-0000-4000-8000-000000000001',
+      saveSequence: 2,
+      metricSessionId: '10000000-0000-4000-8000-000000000009',
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      status: 400,
+      error: 'This document contains a Pika file that does not belong to this classroom.',
+      errorCode: 'assignment_doc_managed_storage_owner_mismatch',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unregistered current-project Storage URL on submit', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const rpc = vi.fn()
+    const supabase = {
+      from: vi.fn((table: string) => table === 'assignments'
+        ? makeLookup({ classroom_id: 'classroom-1' })
+        : makeLookup(null)),
+      rpc,
+    }
+
+    const result = await submitAssignmentDocAtomic({
+      supabase,
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      content: legacyManagedImageContent,
+      expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      errorCode: 'assignment_doc_managed_storage_owner_mismatch',
+    }))
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for malformed current-project Storage paths', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const rpc = vi.fn()
+    const malformedContent = {
+      type: 'doc' as const,
+      content: [{
+        type: 'image',
+        attrs: {
+          src: 'https://current.supabase.co/storage/v1/object/public/submission-images',
+        },
+      }],
+    }
+
+    const result = await saveAssignmentDocAtomic({
+      supabase: { from: vi.fn(), rpc },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      previousContent: beforeContent,
+      content: malformedContent,
+      expectedUpdatedAt: '2026-07-16T12:00:00.000Z',
+      trigger: 'blur',
+      pasteWordCount: 0,
+      keystrokeCount: 1,
+      saveSessionId: '10000000-0000-4000-8000-000000000001',
+      saveSequence: 2,
+      metricSessionId: '10000000-0000-4000-8000-000000000009',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      errorCode: 'assignment_doc_managed_storage_reference_invalid',
+    }))
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('requires embedded managed object IDs to be UUIDs', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const rpc = vi.fn()
+    const invalidIdentityContent = structuredClone(managedImageContent)
+    invalidIdentityContent.content[0].attrs.managed_object_id = 'not-a-uuid'
+
+    const result = await submitAssignmentDocAtomic({
+      supabase: { from: vi.fn(), rpc },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      content: invalidIdentityContent,
+      expectedUpdatedAt: '2026-07-16T12:01:00.000Z',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      errorCode: 'assignment_doc_managed_storage_reference_invalid',
+    }))
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('allows external image and link URLs without managed-storage lookups', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://current.supabase.co')
+    const externalContent = {
+      type: 'doc' as const,
+      content: [{
+        type: 'paragraph',
+        content: [{
+          type: 'text',
+          text: 'Reference',
+          marks: [{ type: 'link', attrs: { href: 'https://example.com/reference' } }],
+        }],
+      }, {
+        type: 'image',
+        attrs: { src: 'https://cdn.example.com/image.png' },
+      }],
+    }
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ok: true, created: false, doc: makeDoc({ content: externalContent }), history_entry: null },
+      error: null,
+    })
+    const from = vi.fn()
+
+    const result = await saveAssignmentDocAtomic({
+      supabase: { from, rpc },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      previousContent: beforeContent,
+      content: externalContent,
+      expectedUpdatedAt: '2026-07-16T12:00:00.000Z',
+      trigger: 'blur',
+      pasteWordCount: 0,
+      keystrokeCount: 1,
+      saveSessionId: '10000000-0000-4000-8000-000000000001',
+      saveSequence: 2,
+      metricSessionId: '10000000-0000-4000-8000-000000000009',
+    })
+
+    expect(result.ok).toBe(true)
+    expect(from).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledOnce()
   })
 
   it('preserves structured conflicts returned by the save RPC', async () => {
@@ -160,10 +411,11 @@ describe('atomic assignment document operations', () => {
     })
 
     expect(result.ok).toBe(true)
-    expect(rpc).toHaveBeenCalledWith('submit_assignment_doc_atomic', expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith('submit_assignment_doc_managed_atomic', expect.objectContaining({
       p_expected_updated_at: '2026-07-16T12:01:00.000Z',
       p_word_count: 1,
       p_char_count: 5,
+      p_managed_storage_claims: [],
     }))
   })
 
@@ -195,7 +447,7 @@ describe('atomic assignment document operations', () => {
     })
 
     expect(rpc).toHaveBeenCalledWith(
-      'submit_assignment_doc_with_pal_event_atomic',
+      'submit_assignment_doc_with_pal_event_managed_atomic',
       expect.objectContaining({ p_pal_event: palEvent }),
     )
   })
@@ -211,10 +463,10 @@ describe('atomic assignment document operations', () => {
       }],
     })
     const rpc = vi.fn(async (name: string) => {
-      if (name === 'save_assignment_doc_atomic') {
+      if (name === 'save_assignment_doc_managed_atomic') {
         return { data: { ok: true, created: false, doc: flaggedDoc, history_entry: null }, error: null }
       }
-      if (name === 'submit_assignment_doc_atomic') {
+      if (name === 'submit_assignment_doc_managed_atomic') {
         return { data: { ok: true, idempotent: false, doc: flaggedDoc, history_entry: null }, error: null }
       }
       return { data: { ok: true, doc: flaggedDoc }, error: null }

@@ -381,6 +381,18 @@ stable classroom revision plus inventory digest. Ambiguous or unreferenced globa
 are reported for a separate operator cleanup; purge never guesses their owner. New classrooms start
 with verified empty coverage and remain exact through managed writes.
 
+Readiness also inventories uploaded test documents in mutable Blueprint assessments and the
+`snapshot_json` of immutable Blueprint Versions. A Version is evidence only: it is never rewritten.
+If a legacy path is referenced by multiple Blueprints, readiness remains not-ready and performs no
+classroom ownership writes. A mutable Blueprint document is ready only when its `managed_object_id`
+matches an exact Blueprint-owned object. For exactly one Blueprint and one classroom, the durable
+reconciliation ledger preserves the original bytes at their old path under Blueprint ownership,
+copies and verifies a fresh classroom-owned object, then atomically rewrites only current classroom
+tests and mutable Blueprint managed IDs. Immutable Version JSON remains byte-for-byte untouched.
+An unshared legacy Blueprint path instead receives an exact Blueprint registration and mutable
+assessment managed-id attachment in one transaction; its Version snapshots are checked as evidence
+but are never rewritten. Existing classroom or cross-Blueprint ownership remains fail-closed.
+
 The begin transaction locks the classroom through the shared lifecycle advisory lock, requires both
 operator rollout gates and verified ownership coverage, rejects active archive, restore, compaction,
 storage cleanup, grading, repository review, Blueprint copy/proposal, or Blueprint editing work, and
@@ -409,6 +421,14 @@ report global orphans; enable the cleanup worker; enable Storage ownership enfor
 hot-archive canary; then enable hot purge for the application. Rollback turns the gates off and stops
 workers without discarding durable ledgers. Applying migration 117, setting either database gate,
 enabling the worker, or running a destructive canary each requires its own named authorization.
+Migration 117 preserves the legacy assignment save/submit RPC signatures for a migration-first
+deployment, but moves their implementations behind non-callable private names. The compatibility
+signatures delegate only while `enforce_ownership=false`; after enforcement they fail closed, while
+the new application continues through ownership-validating managed wrappers. This supports a
+zero-downtime rollout. Before the gate is enabled, any stale compatibility write atomically returns
+that classroom’s coverage to `pending`, so readiness must verify it again; after the gate is enabled,
+the compatibility signature fails closed. A stale instance therefore cannot write between readiness
+and enforcement without invalidating the proof required by purge.
 
 Use `pnpm managed-storage:readiness` as the readiness and legacy-backfill operator command. With no
 subcommand it is a report/dry-run: it reads a stable, exact all-classroom resource graph, coverage,
@@ -420,7 +440,10 @@ database targets are independently bound to the same `--expected-project-ref`. D
 evidence contains only bucket names and SHA-256 path fingerprints, never raw Storage paths; resolving
 a fingerprint to an exact path requires a separate, explicitly authorized database investigation.
 
-After resolving every shared or missing reference, run `execute` (or `resume` after interruption).
+After resolving every cross-classroom, cross-Blueprint, or missing reference, run `execute` (or
+`resume` after interruption). The command automatically reconciles the supported legacy case of one
+classroom and one same-teacher Blueprint sharing an uploaded test document, then rediscovers all
+state before classroom backfill.
 Registration uses deterministic object ids and same-owner upserts, so a rerun safely resumes partial
 work. The command refuses writes if either rollout gate is already enabled, if the all-classroom set
 or any source revision drifts, or if target safeguards fail. Hosted execution additionally requires
@@ -430,6 +453,12 @@ execution instead requires `PIKA_ALLOW_LOCAL_MANAGED_STORAGE_BACKFILL=1`. Global
 reported for a separately authorized cleanup and keep `ready_for_enforcement` false. The command
 never changes `enforce_ownership` or `hot_classroom_purge_enabled`; enabling either remains a separate
 operator action with separate authorization.
+
+Immutable Blueprint Versions retain their referenced Blueprint-owned test material until the
+Blueprint itself is deleted. Version creation locks the Blueprint and every uploaded-material owner
+row and refuses missing, non-ready, or foreign ownership before inserting the snapshot. Classroom
+instantiation also performs an exact application preflight for a useful error, but the transactional
+Version guard is the authoritative concurrency boundary.
 
 After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
 the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The

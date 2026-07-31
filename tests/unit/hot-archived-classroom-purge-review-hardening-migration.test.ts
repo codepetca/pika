@@ -48,7 +48,9 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain('create or replace function public.adopt_course_blueprint_storage_copies')
     expect(migration).toContain('public.rewrite_managed_storage_document_owner(')
     expect(migration).toContain('source.course_blueprint_id = v_operation.source_blueprint_id')
-    expect(migration).toContain('from public.save_course_blueprint_version_atomic(')
+    expect(migration).toContain(
+      'from public.save_course_blueprint_version_atomic_legacy_117(',
+    )
     expect(migration).toContain("'storage_copy_adopted_from_version_id', v_version_id")
     expect(migration).toContain('public.remove_blueprint_managed_storage_documents(')
     expect(migration).toContain(
@@ -62,6 +64,52 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toMatch(
       /status = 'running',\s+storage_copy_status = 'copying',\s+completed_at = null/,
     )
+  })
+
+  it('moves a verified legacy Classroom source to Blueprint ownership without mutating Versions', () => {
+    const reconciliationStart = migration.indexOf(
+      'create or replace function public.adopt_legacy_blueprint_classroom_storage_reconciliation(',
+    )
+    const reconciliationEnd = migration.indexOf('$$;', reconciliationStart)
+    const reconciliation = migration.slice(reconciliationStart, reconciliationEnd)
+
+    expect(migration).toContain('create table public.legacy_blueprint_classroom_storage_reconciliations')
+    expect(reconciliation).toContain("status <> 'copied'")
+    expect(reconciliation).toContain("classroom_id = null, course_blueprint_id = v_row.blueprint_id")
+    expect(reconciliation).toContain('public.managed_storage_objects.id = v_row.source_object_id')
+    expect(reconciliation).toContain('public.managed_storage_objects.classroom_id = v_row.classroom_id')
+    expect(reconciliation).toContain('legacy_blueprint_reconciliation_source_owner_conflict')
+    expect(reconciliation).toContain("'url', v_row.target_public_url")
+    expect(reconciliation).not.toMatch(/update public\.course_blueprint_versions\s+set/)
+    expect(reconciliation).not.toMatch(/insert into public\.course_blueprint_versions/)
+    expect(migration).toContain(
+      'blueprint_id uuid not null references public.course_blueprints (id) on delete restrict',
+    )
+    expect(migration).toContain(
+      'classroom_id uuid not null references public.classrooms (id) on delete restrict',
+    )
+    expect(reconciliation).toContain(
+      'delete from public.legacy_blueprint_classroom_storage_reconciliations',
+    )
+    expect(migration).toContain('where reconciliation.classroom_id = old.id')
+    expect(migration).toContain('where reconciliation.blueprint_id = p_blueprint_id')
+  })
+
+  it('atomically registers an unshared Blueprint source while treating Versions as read-only evidence', () => {
+    const registrationStart = migration.indexOf(
+      'create or replace function public.register_legacy_blueprint_storage_object(',
+    )
+    const registrationEnd = migration.indexOf('$$;', registrationStart)
+    const registration = migration.slice(registrationStart, registrationEnd)
+
+    expect(registrationStart).toBeGreaterThanOrEqual(0)
+    expect(registration).toContain('public.managed_storage_exact_lock')
+    expect(registration).toContain('legacy_blueprint_registration_owner_conflict')
+    expect(registration).toContain('legacy_blueprint_registration_mutable_changed')
+    expect(registration).toContain('legacy_blueprint_registration_immutable_evidence_changed')
+    expect(registration).toContain("'managed_object_id', p_object_id")
+    expect(registration).not.toMatch(/update public\.course_blueprint_versions\s+set/)
+    expect(registration).not.toMatch(/insert into public\.course_blueprint_versions/)
   })
 
   it('scrubs only assessment document ownership from the provisional Version', () => {
@@ -266,6 +314,149 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain('select test.*\n  into v_test')
     expect(migration).toContain('v_classroom_id := v_test.classroom_id;')
     expect(migration).not.toContain('into v_test, v_classroom_id')
+  })
+
+  it('validates test-document ownership claims and scopes cleanup to the full tuple', () => {
+    const authoringStart = migration.indexOf(
+      'create or replace function public.update_test_documents_managed_atomic(',
+    )
+    const authoringEnd = migration.indexOf('$$;', authoringStart)
+    const authoring = migration.slice(authoringStart, authoringEnd)
+    const cleanupStart = migration.indexOf(
+      'create or replace function public.queue_classroom_managed_storage_cleanup(',
+    )
+    const cleanupEnd = migration.indexOf('$$;', cleanupStart)
+    const cleanup = migration.slice(cleanupStart, cleanupEnd)
+
+    expect(authoring).toContain('managed_test_document_owner_mismatch')
+    expect(authoring).toContain('object.classroom_id = v_classroom_id')
+    expect(authoring).toContain('object.course_blueprint_id is null')
+    expect(authoring).toContain('object.storage_path = v_path')
+    expect(authoring).toContain("object.resource_type = 'test'")
+    expect(authoring).toContain('object.resource_id = p_test_id')
+    expect(authoring).toContain("object.status = 'ready'")
+    expect(authoring).toContain('p_expected_managed_storage_claims jsonb')
+    expect(authoring).toContain('v_result := public.update_test_documents_atomic(')
+    expect(authoring).toContain('perform public.queue_classroom_managed_storage_cleanup(')
+    expect(cleanup).toContain('classroom_id = p_classroom_id')
+    expect(cleanup).toContain('course_blueprint_id is null')
+    expect(cleanup).toContain('storage_path = p_storage_path')
+    expect(cleanup).toContain('purpose = p_purpose')
+    expect(cleanup).toContain('resource_type = p_resource_type')
+    expect(cleanup).toContain('resource_id = p_resource_id')
+    expect(cleanup).toContain('from public.tests where id = p_resource_id for update')
+    expect(cleanup).toContain("document.value->>'managed_object_id' = p_object_id::text")
+    expect(migration).toContain(
+      'grant execute on function public.update_test_documents_managed_atomic(',
+    )
+  })
+
+  it('revalidates assignment managed-file claims under the classroom purge lock', () => {
+    const lockStart = migration.indexOf(
+      'create or replace function public.lock_assignment_doc_managed_storage_claims(',
+    )
+    const lockEnd = migration.indexOf('$$;', lockStart)
+    const lock = migration.slice(lockStart, lockEnd)
+
+    expect(lock).toContain('perform public.classroom_purge_lock(v_classroom_id)')
+    expect(lock).toContain('classroom.archived_at is null')
+    expect(lock).toContain('from public.classroom_purge_fences')
+    expect(lock).toContain('object.id = v_object_id')
+    expect(lock).toContain('object.classroom_id = v_classroom_id')
+    expect(lock).toContain("object.status = 'ready'")
+    expect(lock).toContain('for update;')
+    expect(migration).toContain('create or replace function public.save_assignment_doc_managed_atomic(')
+    expect(migration).toContain('create or replace function public.submit_assignment_doc_managed_atomic(')
+    expect(migration).toContain(
+      'create or replace function public.submit_assignment_doc_with_pal_event_managed_atomic(',
+    )
+    expect(migration).toContain(
+      'rename to save_assignment_doc_atomic_legacy_117',
+    )
+    expect(migration).toContain("raise exception 'managed_assignment_wrapper_required'")
+    expect(migration).toContain(
+      'create or replace function public.prepare_legacy_assignment_doc_write_117(',
+    )
+    expect(migration).toContain("error_code = 'legacy_assignment_write_after_readiness'")
+    expect(migration).toContain("status = 'pending'")
+    expect(migration).toContain('perform public.classroom_purge_lock(v_classroom_id)')
+    expect(migration).toContain(
+      'perform public.prepare_legacy_assignment_doc_write_117(p_assignment_id)',
+    )
+    expect(migration).toContain('return public.save_assignment_doc_atomic_legacy_117(')
+    expect(migration).toContain(
+      'revoke all on function public.save_assignment_doc_atomic_legacy_117(',
+    )
+  })
+
+  it('retains immutable Blueprint material and blocks instantiation without ownership', () => {
+    const cleanupStart = migration.indexOf(
+      'create or replace function public.queue_removed_blueprint_test_document_files()',
+    )
+    const cleanupEnd = migration.indexOf('$$;', cleanupStart)
+    const cleanup = migration.slice(cleanupStart, cleanupEnd)
+    expect(cleanup).toContain('from public.course_blueprint_versions')
+    expect(cleanup).toContain('where course_blueprint_id = v_blueprint_id')
+    expect(migration).toContain("raise exception 'blueprint_teacher_material_ownership_required'")
+  })
+
+  it('locks exact Blueprint file ownership before saving an immutable Version', () => {
+    const saveStart = migration.indexOf(
+      'create or replace function public.save_course_blueprint_version_managed_atomic(',
+    )
+    const saveEnd = migration.indexOf('$$;', saveStart)
+    const save = migration.slice(saveStart, saveEnd)
+    expect(migration).toContain(
+      'rename to save_course_blueprint_version_atomic_legacy_117',
+    )
+    expect(save).toContain('blueprint.content_revision = p_expected_draft_revision')
+    expect(save).toContain("document.value->>'source' = 'upload'")
+    expect(save).toContain('object.course_blueprint_id = p_blueprint_id')
+    expect(save).toContain("object.storage_bucket = 'test-documents'")
+    expect(save).toContain('object.storage_path = v_path')
+    expect(save).toContain(
+      "v_claim->>'storage_url' is distinct from v_document->>'url'",
+    )
+    expect(save).toContain("object.purpose = 'teacher_test_material'")
+    expect(save).toContain("object.status = 'ready'")
+    expect(save).toContain('for update;')
+    expect(save).toContain(
+      'public.save_course_blueprint_version_atomic_legacy_117(',
+    )
+    expect(migration).toContain(
+      'revoke all on function public.save_course_blueprint_version_atomic_legacy_117(',
+    )
+    expect(migration).toContain(
+      'grant execute on function public.save_course_blueprint_version_managed_atomic(',
+    )
+    const compatibilityStart = migration.indexOf(
+      'create or replace function public.save_course_blueprint_version_atomic(',
+    )
+    const compatibilityEnd = migration.indexOf('$$;', compatibilityStart)
+    expect(migration.slice(compatibilityStart, compatibilityEnd)).toContain(
+      "raise exception 'managed_blueprint_version_wrapper_required'",
+    )
+  })
+
+  it('indexes permanent purge reservations by exact Storage identity', () => {
+    expect(migration).toContain(
+      'create index classroom_purge_objects_permanent_storage_identity',
+    )
+    expect(migration).toContain(
+      'on public.classroom_purge_objects (storage_bucket, storage_path_sha256)',
+    )
+  })
+
+  it('preserves non-retryable relational finalizer failures', () => {
+    const finalizerStart = migration.indexOf(
+      'create or replace function public.finalize_hot_archived_classroom_purge(',
+    )
+    const finalizerEnd = migration.indexOf('$$;', finalizerStart)
+    const finalizer = migration.slice(finalizerStart, finalizerEnd)
+
+    expect(finalizer).toContain("v_retryable := coalesce((v_result ->> 'retryable')::boolean, true)")
+    expect(finalizer).toContain('retryable = v_retryable')
+    expect(finalizer).toContain("'retryable', v_retryable")
   })
 
   it('increments the purge operation attempt count when a failed operation is retried', () => {
