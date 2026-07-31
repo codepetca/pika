@@ -1513,16 +1513,19 @@ authorization boundaries.
   independent classroom and Blueprint physical copies.
 - Fixed the first ephemeral migration replay failure by loading the Test row and deriving its
   classroom id separately instead of using a PostgreSQL record variable in a multi-target `INTO`.
+- Replayed migrations 001–117 successfully in exact-head GitHub CI, then reconciled the checked-in
+  generated database types from that disposable CI schema without applying migration 117 to any
+  persistent local, hosted, or production database.
 
 **Validation:**
 - Full Vitest suite: 466 files / 4,025 tests; production build; TypeScript; lint; architecture;
   design/UI policies; PostgreSQL SQLFluff parse; `git diff --check`; Pika audit.
 - Focused final lifecycle regression: 49 tests covering migration contract, compaction, and restore.
-- Migration 117 was not applied or replayed; no database target, rollout gate, Storage object, or
-  production environment was modified.
+- Migration 117 was not applied to any persistent local or hosted target. GitHub CI replayed it only
+  in its disposable database; no rollout gate, Storage object, or production environment was
+  modified.
 
 **Remaining:**
-- Keep PR #963 draft. Fresh named local authorization is required before replaying migration 117,
-  regenerating database types, or running the destructive exact-ownership fixture. Hosted migration,
-  backfill execution, orphan remediation, gate changes, canaries, and deployment remain separately
-  authorized actions.
+- Keep PR #963 draft. Fresh named local authorization is required before replaying migration 117 or
+  running the destructive exact-ownership fixture. Hosted migration, backfill execution, orphan
+  remediation, gate changes, canaries, and deployment remain separately authorized actions.

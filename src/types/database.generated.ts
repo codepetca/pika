@@ -1409,6 +1409,70 @@ export type Database = {
           },
         ]
       }
+      classroom_archive_restore_managed_objects: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          managed_object_id: string
+          operation_id: string
+          purpose: string
+          resource_id: string | null
+          resource_type: string | null
+          storage_bucket: string
+          storage_path: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          data_subject_user_id?: string | null
+          managed_object_id: string
+          operation_id: string
+          purpose: string
+          resource_id?: string | null
+          resource_type?: string | null
+          storage_bucket: string
+          storage_path: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          data_subject_user_id?: string | null
+          managed_object_id?: string
+          operation_id?: string
+          purpose?: string
+          resource_id?: string | null
+          resource_type?: string | null
+          storage_bucket?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_archive_restore_managed_obj_data_subject_user_id_fkey"
+            columns: ["data_subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_archive_restore_managed_objec_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_archive_restore_managed_objects_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_archive_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_archive_restore_staging: {
         Row: {
           operation_id: string
@@ -1751,6 +1815,60 @@ export type Database = {
           },
         ]
       }
+      classroom_cold_managed_storage_coverage: {
+        Row: {
+          archive_id: string
+          classroom_id: string
+          inventory_sha256: string
+          inventory_version: number
+          object_count: number
+          reference_count: number
+          remaining_object_count: number
+          source_revision: number
+          transferred_at: string
+          updated_at: string
+        }
+        Insert: {
+          archive_id: string
+          classroom_id: string
+          inventory_sha256: string
+          inventory_version: number
+          object_count: number
+          reference_count: number
+          remaining_object_count: number
+          source_revision: number
+          transferred_at?: string
+          updated_at?: string
+        }
+        Update: {
+          archive_id?: string
+          classroom_id?: string
+          inventory_sha256?: string
+          inventory_version?: number
+          object_count?: number
+          reference_count?: number
+          remaining_object_count?: number
+          source_revision?: number
+          transferred_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_cold_managed_storage_coverage_archive_id_fkey"
+            columns: ["archive_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_archives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_cold_managed_storage_coverage_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classroom_cold_tombstones"
+            referencedColumns: ["classroom_id"]
+          },
+        ]
+      }
       classroom_cold_tombstones: {
         Row: {
           archive_id: string
@@ -2002,6 +2120,53 @@ export type Database = {
           },
         ]
       }
+      classroom_managed_storage_coverage: {
+        Row: {
+          classroom_id: string
+          error_code: string | null
+          inventory_sha256: string | null
+          inventory_version: number
+          object_count: number
+          reference_count: number
+          source_revision: number | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          classroom_id: string
+          error_code?: string | null
+          inventory_sha256?: string | null
+          inventory_version?: number
+          object_count?: number
+          reference_count?: number
+          source_revision?: number | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          classroom_id?: string
+          error_code?: string | null
+          inventory_sha256?: string | null
+          inventory_version?: number
+          object_count?: number
+          reference_count?: number
+          source_revision?: number | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_managed_storage_coverage_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_purge_fences: {
         Row: {
           classroom_id: string
@@ -2055,6 +2220,7 @@ export type Database = {
           last_error_code: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_storage_object_id: string | null
           next_attempt_at: string
           operation_id: string
           status: string
@@ -2072,6 +2238,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_storage_object_id?: string | null
           next_attempt_at?: string
           operation_id: string
           status: string
@@ -2089,6 +2256,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_storage_object_id?: string | null
           next_attempt_at?: string
           operation_id?: string
           status?: string
@@ -2098,6 +2266,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classroom_purge_objects_managed_storage_object_id_fkey"
+            columns: ["managed_storage_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classroom_purge_objects_operation_id_fkey"
             columns: ["operation_id"]
@@ -2989,6 +3164,7 @@ export type Database = {
           source_classroom_id: string | null
           started_at: string
           status: string
+          storage_copy_status: string
           teacher_id: string
           updated_at: string
         }
@@ -3008,6 +3184,7 @@ export type Database = {
           source_classroom_id?: string | null
           started_at?: string
           status: string
+          storage_copy_status?: string
           teacher_id: string
           updated_at?: string
         }
@@ -3027,6 +3204,7 @@ export type Database = {
           source_classroom_id?: string | null
           started_at?: string
           status?: string
+          storage_copy_status?: string
           teacher_id?: string
           updated_at?: string
         }
@@ -3036,6 +3214,122 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_storage_copy_items: {
+        Row: {
+          attempt_count: number
+          content_type: string | null
+          created_at: string
+          expected_byte_size: number | null
+          expected_sha256: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          operation_id: string
+          purpose: string
+          source_object_id: string | null
+          source_storage_bucket: string
+          source_storage_path: string
+          status: string
+          target_classroom_id: string | null
+          target_course_blueprint_id: string | null
+          target_document_id: string
+          target_object_id: string
+          target_public_url: string | null
+          target_resource_id: string
+          target_resource_type: string
+          target_storage_bucket: string
+          target_storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          content_type?: string | null
+          created_at?: string
+          expected_byte_size?: number | null
+          expected_sha256?: string | null
+          id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          operation_id: string
+          purpose: string
+          source_object_id?: string | null
+          source_storage_bucket: string
+          source_storage_path: string
+          status?: string
+          target_classroom_id?: string | null
+          target_course_blueprint_id?: string | null
+          target_document_id: string
+          target_object_id: string
+          target_public_url?: string | null
+          target_resource_id: string
+          target_resource_type: string
+          target_storage_bucket: string
+          target_storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          content_type?: string | null
+          created_at?: string
+          expected_byte_size?: number | null
+          expected_sha256?: string | null
+          id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          operation_id?: string
+          purpose?: string
+          source_object_id?: string | null
+          source_storage_bucket?: string
+          source_storage_path?: string
+          status?: string
+          target_classroom_id?: string | null
+          target_course_blueprint_id?: string | null
+          target_document_id?: string
+          target_object_id?: string
+          target_public_url?: string | null
+          target_resource_id?: string
+          target_resource_type?: string
+          target_storage_bucket?: string
+          target_storage_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_storage_copy_i_target_course_blueprint_id_fkey"
+            columns: ["target_course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_storage_copy_items_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_storage_copy_items_source_object_id_fkey"
+            columns: ["source_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_storage_copy_items_target_classroom_id_fkey"
+            columns: ["target_classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
             referencedColumns: ["id"]
           },
         ]
@@ -3541,6 +3835,161 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      managed_storage_objects: {
+        Row: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          byte_size?: number | null
+          classroom_id?: string | null
+          cold_archive_id?: string | null
+          cold_classroom_id?: string | null
+          content_sha256?: string | null
+          content_type?: string | null
+          course_blueprint_id?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          data_subject_user_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          purpose: string
+          ready_at?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          status?: string
+          storage_bucket: string
+          storage_path: string
+          updated_at?: string
+          upload_expires_at?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          byte_size?: number | null
+          classroom_id?: string | null
+          cold_archive_id?: string | null
+          cold_classroom_id?: string | null
+          content_sha256?: string | null
+          content_type?: string | null
+          course_blueprint_id?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          data_subject_user_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          purpose?: string
+          ready_at?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          status?: string
+          storage_bucket?: string
+          storage_path?: string
+          updated_at?: string
+          upload_expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_storage_objects_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_storage_objects_cold_archive_id_fkey"
+            columns: ["cold_archive_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_archives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_storage_objects_cold_classroom_id_fkey"
+            columns: ["cold_classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_cold_tombstones"
+            referencedColumns: ["classroom_id"]
+          },
+          {
+            foreignKeyName: "managed_storage_objects_cold_owner_coverage_fk"
+            columns: ["cold_classroom_id", "cold_archive_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_cold_managed_storage_coverage"
+            referencedColumns: ["classroom_id", "archive_id"]
+          },
+          {
+            foreignKeyName: "managed_storage_objects_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_storage_objects_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_storage_objects_data_subject_user_id_fkey"
+            columns: ["data_subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      managed_storage_settings: {
+        Row: {
+          enforce_ownership: boolean
+          hot_classroom_purge_enabled: boolean
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          enforce_ownership?: boolean
+          hot_classroom_purge_enabled?: boolean
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          enforce_ownership?: boolean
+          hot_classroom_purge_enabled?: boolean
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       pal_daily_log_week_configurations: {
         Row: {
@@ -4805,6 +5254,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adopt_course_blueprint_storage_copies: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      adopt_managed_storage_upload: {
+        Args: { p_content_sha256?: string; p_object_id: string }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       apply_archived_classroom_blueprint_proposal_atomic: {
         Args: {
           p_candidate_sha256: string
@@ -4929,6 +5418,22 @@ export type Database = {
         Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
         Returns: Json
       }
+      archived_classroom_blueprint_snapshot_from_plan_legacy_117: {
+        Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
+        Returns: Json
+      }
+      attach_legacy_test_document_managed_object: {
+        Args: {
+          p_classroom_id: string
+          p_document_id: string
+          p_expected_reference: string
+          p_managed_object_id: string
+          p_reference_kind: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: boolean
+      }
       begin_classroom_archive_compaction: {
         Args: {
           p_archive_id: string
@@ -4979,6 +5484,25 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_classroom_archive_restore_managed_v2: {
+        Args: {
+          p_adapter_chain: Json
+          p_archive_id: string
+          p_classroom_id: string
+          p_database_budget_bytes: number
+          p_managed_objects: Json
+          p_operation_id: string
+          p_request_sha256: string
+          p_resource_counts: Json
+          p_restore_contract_version: number
+          p_source_contract_version: number
+          p_source_resource_counts: Json
+          p_storage_objects: Json
+          p_target_schema_migration: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       begin_classroom_archive_restore_v2: {
         Args: {
           p_adapter_chain: Json
@@ -5008,6 +5532,10 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_course_blueprint_managed_deletion: {
+        Args: { p_blueprint_id: string; p_teacher_id: string }
+        Returns: number
+      }
       begin_hot_archived_classroom_purge: {
         Args: {
           p_classroom_id: string
@@ -5017,6 +5545,55 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: Json
+      }
+      begin_managed_storage_upload: {
+        Args: {
+          p_byte_size: number
+          p_classroom_id: string
+          p_content_type: string
+          p_course_blueprint_id: string
+          p_created_by_user_id: string
+          p_data_subject_user_id: string
+          p_object_id: string
+          p_purpose: string
+          p_resource_id: string
+          p_resource_type: string
+          p_storage_bucket: string
+          p_storage_path: string
+        }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       claim_assignment_ai_grading_run: {
         Args: {
@@ -5124,6 +5701,7 @@ export type Database = {
           last_error_code: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_storage_object_id: string | null
           next_attempt_at: string
           operation_id: string
           status: string
@@ -5135,6 +5713,89 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "classroom_purge_objects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_course_blueprint_managed_cleanup: {
+        Args: {
+          p_blueprint_id: string
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_course_blueprint_storage_copy: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          content_type: string | null
+          created_at: string
+          expected_byte_size: number | null
+          expected_sha256: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          operation_id: string
+          purpose: string
+          source_object_id: string | null
+          source_storage_bucket: string
+          source_storage_path: string
+          status: string
+          target_classroom_id: string | null
+          target_course_blueprint_id: string | null
+          target_document_id: string
+          target_object_id: string
+          target_public_url: string | null
+          target_resource_id: string
+          target_resource_type: string
+          target_storage_bucket: string
+          target_storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_storage_copy_items"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -5201,6 +5862,46 @@ export type Database = {
           storage_bucket: string
           storage_path: string
         }[]
+      }
+      claim_managed_storage_cleanup: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_limit?: number
+        }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       claim_pal_event_outbox: {
         Args: { p_lease_seconds?: number; p_limit?: number }
@@ -5327,41 +6028,9 @@ export type Database = {
         Args: { p_classroom_id: string }
         Returns: string
       }
-      classroom_purge_jsonb_references_storage_path: {
-        Args: { p_payload: Json; p_storage_path: string }
-        Returns: boolean
-      }
-      classroom_purge_jsonb_text_values: {
-        Args: { p_payload: Json }
-        Returns: string[]
-      }
       classroom_purge_lock: {
         Args: { p_classroom_id: string }
         Returns: undefined
-      }
-      classroom_purge_normalize_percent_escapes: {
-        Args: { p_value: string }
-        Returns: string
-      }
-      classroom_purge_normalize_special_url_path: {
-        Args: { p_candidate: string }
-        Returns: string
-      }
-      classroom_purge_percent_decode: {
-        Args: { p_value: string }
-        Returns: string
-      }
-      classroom_purge_percent_encode_path: {
-        Args: { p_value: string }
-        Returns: string
-      }
-      classroom_purge_storage_path_has_external_operation_reference: {
-        Args: {
-          p_operation_id: string
-          p_storage_bucket: string
-          p_storage_path: string
-        }
-        Returns: boolean
       }
       classroom_purge_storage_path_is_shared: {
         Args: {
@@ -5370,10 +6039,6 @@ export type Database = {
           p_storage_path: string
         }
         Returns: boolean
-      }
-      classroom_purge_url_candidates: {
-        Args: { p_value: string }
-        Returns: string[]
       }
       cleanup_assignment_doc_save_operations: {
         Args: { p_completed_before: string }
@@ -5436,7 +6101,26 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_classroom_archive_compaction_legacy_117: {
+        Args: {
+          p_actors: Json
+          p_operation_id: string
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
       complete_classroom_archive_compaction_v2: {
+        Args: {
+          p_actors: Json
+          p_operation_id: string
+          p_restore_contract_version: number
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
+      complete_classroom_archive_compaction_v2_legacy_117: {
         Args: {
           p_actors: Json
           p_operation_id: string
@@ -5474,6 +6158,14 @@ export type Database = {
         Returns: boolean
       }
       complete_classroom_archive_restore: {
+        Args: {
+          p_operation_id: string
+          p_teacher_id: string
+          p_verification: Json
+        }
+        Returns: Json
+      }
+      complete_classroom_archive_restore_legacy_117: {
         Args: {
           p_operation_id: string
           p_teacher_id: string
@@ -5522,6 +6214,21 @@ export type Database = {
           p_object_id: string
           p_teacher_id: string
         }
+        Returns: boolean
+      }
+      complete_course_blueprint_storage_copy: {
+        Args: {
+          p_byte_size: number
+          p_content_sha256: string
+          p_item_id: string
+          p_lease_token: string
+          p_target_public_url: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
+      complete_managed_storage_cleanup: {
+        Args: { p_lease_token: string; p_object_id: string }
         Returns: boolean
       }
       complete_pal_event_outbox: {
@@ -5887,6 +6594,23 @@ export type Database = {
         }
         Returns: boolean
       }
+      fail_course_blueprint_storage_copy: {
+        Args: {
+          p_error_code: string
+          p_item_id: string
+          p_lease_token: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
+      fail_managed_storage_cleanup: {
+        Args: {
+          p_error_code: string
+          p_lease_token: string
+          p_object_id: string
+        }
+        Returns: boolean
+      }
       fail_pal_event_outbox: {
         Args: {
           p_error_code: string
@@ -5941,7 +6665,15 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_course_blueprint_managed_deletion: {
+        Args: { p_blueprint_id: string; p_teacher_id: string }
+        Returns: boolean
+      }
       finalize_hot_archived_classroom_purge: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      finalize_hot_archived_classroom_purge_legacy_117: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
@@ -6037,13 +6769,30 @@ export type Database = {
         Returns: boolean
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
+      managed_storage_exact_lock: {
+        Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: undefined
+      }
+      managed_storage_identity_sha256: {
+        Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: string
+      }
+      managed_storage_uuid: { Args: { p_value: string }; Returns: string }
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
-      reconcile_classroom_purge_object_sharing: {
-        Args: { p_operation_id: string; p_teacher_id: string }
-        Returns: Json
+      queue_managed_storage_cleanup: {
+        Args: { p_error_code?: string; p_object_id: string }
+        Returns: boolean
+      }
+      queue_managed_storage_cleanup_path: {
+        Args: {
+          p_error_code?: string
+          p_storage_bucket: string
+          p_storage_path: string
+        }
+        Returns: boolean
       }
       record_pal_daily_log_week_configuration_atomic: {
         Args: {
@@ -6055,6 +6804,63 @@ export type Database = {
           p_period_status: string
           p_student_id: string
         }
+        Returns: Json
+      }
+      refresh_classroom_managed_storage_coverage: {
+        Args: { p_classroom_id: string }
+        Returns: undefined
+      }
+      register_legacy_classroom_storage_object: {
+        Args: {
+          p_byte_size: number
+          p_classroom_id: string
+          p_content_type: string
+          p_created_by_user_id: string
+          p_data_subject_user_id: string
+          p_object_id: string
+          p_purpose: string
+          p_resource_id: string
+          p_resource_type: string
+          p_storage_bucket: string
+          p_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cold_archive_id: string | null
+          cold_classroom_id: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          purpose: string
+          ready_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          upload_expires_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      remove_blueprint_managed_storage_documents: {
+        Args: { p_value: Json }
         Returns: Json
       }
       remove_classroom_roster_entries_atomic: {
@@ -6193,6 +6999,15 @@ export type Database = {
           p_student_ids: string[]
           p_submitted_at_by_student?: Json
           p_test_id: string
+        }
+        Returns: Json
+      }
+      rewrite_managed_storage_document_owner: {
+        Args: {
+          p_source_object_id: string
+          p_target_object_id: string
+          p_target_public_url: string
+          p_value: Json
         }
         Returns: Json
       }
@@ -6461,6 +7276,19 @@ export type Database = {
         }
         Returns: Json
       }
+      sync_test_document_snapshot_managed_atomic: {
+        Args: {
+          p_document_id: string
+          p_expected_url: string
+          p_managed_object_id: string
+          p_snapshot_content_type: string
+          p_snapshot_path: string
+          p_synced_at: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       test_document_snapshot_path_is_referenced: {
         Args: { p_storage_path: string }
         Returns: boolean
@@ -6541,6 +7369,33 @@ export type Database = {
       verify_and_reserve_classroom_archive_source_objects: {
         Args: { p_limit: number; p_operation_id: string }
         Returns: Json
+      }
+      verify_classroom_managed_storage_coverage: {
+        Args: {
+          p_classroom_id: string
+          p_inventory_sha256: string
+          p_reference_count: number
+          p_source_revision: number
+          p_teacher_id: string
+        }
+        Returns: {
+          classroom_id: string
+          error_code: string | null
+          inventory_sha256: string | null
+          inventory_version: number
+          object_count: number
+          reference_count: number
+          source_revision: number | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "classroom_managed_storage_coverage"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
