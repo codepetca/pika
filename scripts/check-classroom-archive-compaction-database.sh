@@ -202,7 +202,6 @@ begin
   ) is not null then
     execute
       'select public.verify_classroom_managed_storage_coverage($1, $2, $3, $4, $5)'
-    into v_result
     using
       v_teacher_id,
       v_success_classroom_id,
