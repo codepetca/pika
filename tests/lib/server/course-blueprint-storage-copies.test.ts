@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  CourseBlueprintStorageCopyError,
   resumeCourseBlueprintStorageCopies,
 } from '@/lib/server/course-blueprint-storage-copies'
 
@@ -19,43 +18,65 @@ const item = {
   expected_sha256: '9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a',
 }
 
-function createClient(options: { targetBytes?: Uint8Array; uploadError?: boolean } = {}) {
+function createClient(options: {
+  targetBytes?: Uint8Array
+  uploadError?: boolean
+  removeError?: unknown
+  targetResetResult?: boolean
+} = {}) {
   const sourceBytes = new Uint8Array([1, 2, 3, 4])
-  const targetBytes = options.targetBytes || sourceBytes
-  let claimCount = 0
-  let adoptionCount = 0
-  const rpc = vi.fn(async (name: string) => {
+  let targetBytes = options.targetBytes
+    ?? (options.uploadError ? sourceBytes : null)
+  let copyCompleted = false
+  const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === 'adopt_course_blueprint_storage_copies') {
-      adoptionCount += 1
-      return adoptionCount === 1
+      return !copyCompleted
         ? { data: { ok: false, error_code: 'blueprint_storage_copy_incomplete', retryable: true }, error: null }
         : { data: { ok: true }, error: null }
     }
     if (name === 'claim_course_blueprint_storage_copy') {
-      claimCount += 1
-      return { data: claimCount === 1 ? [item] : [], error: null }
+      return { data: copyCompleted ? [] : [item], error: null }
     }
     if (name === 'complete_course_blueprint_storage_copy') {
+      copyCompleted = true
       return { data: true, error: null }
     }
     if (name === 'fail_course_blueprint_storage_copy') {
+      if (args?.p_error_code === 'blueprint_storage_copy_target_removed') {
+        return { data: options.targetResetResult ?? true, error: null }
+      }
+      copyCompleted = true
       return { data: true, error: null }
     }
     throw new Error(`Unexpected RPC: ${name}`)
   })
-  const upload = vi.fn(async () => ({
-    error: options.uploadError ? { message: 'already exists' } : null,
-  }))
+  const upload = vi.fn(async (_path: string, body: Uint8Array) => {
+    if (targetBytes !== null) {
+      return { error: { message: 'already exists' } }
+    }
+    targetBytes = new Uint8Array(body)
+    return { error: null }
+  })
+  const remove = vi.fn(async () => {
+    if (options.removeError) return { error: options.removeError }
+    targetBytes = null
+    return { error: null }
+  })
   const client = {
     rpc,
     storage: {
       from(bucket: string) {
         return {
           async download(path: string) {
-            const bytes = path === item.source_storage_path ? sourceBytes : targetBytes
-            return { data: new Blob([bytes]), error: null }
+            if (path === item.source_storage_path) {
+              return { data: new Blob([sourceBytes]), error: null }
+            }
+            return targetBytes
+              ? { data: new Blob([targetBytes]), error: null }
+              : { data: null, error: { message: 'not found' } }
           },
           upload,
+          remove,
           getPublicUrl(path: string) {
             return { data: { publicUrl: `https://example.test/${bucket}/${path}` } }
           },
@@ -63,7 +84,7 @@ function createClient(options: { targetBytes?: Uint8Array; uploadError?: boolean
       },
     },
   }
-  return { client, rpc, upload }
+  return { client, rpc, upload, remove }
 }
 
 describe('Course Blueprint managed storage copies', () => {
@@ -98,21 +119,64 @@ describe('Course Blueprint managed storage copies', () => {
     )
   })
 
-  it('fails closed and records evidence when read-back bytes differ', async () => {
-    const { client, rpc } = createClient({ targetBytes: new Uint8Array([9, 9, 9, 9]) })
+  it('removes a mismatched deterministic target, proves absence, and retries the copy', async () => {
+    const { client, rpc, remove, upload } = createClient({
+      targetBytes: new Uint8Array([9, 9, 9, 9]),
+    })
+    await resumeCourseBlueprintStorageCopies({
+      operationId,
+      teacherId,
+      supabase: client,
+    })
+    expect(remove).toHaveBeenCalledWith([item.target_storage_path])
+    expect(rpc).toHaveBeenCalledWith(
+      'fail_course_blueprint_storage_copy',
+      expect.objectContaining({
+        p_error_code: 'blueprint_storage_copy_target_removed',
+      }),
+    )
+    expect(upload).toHaveBeenCalledTimes(2)
+    expect(rpc).toHaveBeenCalledWith(
+      'complete_course_blueprint_storage_copy',
+      expect.objectContaining({ p_content_sha256: item.expected_sha256 }),
+    )
+  })
+
+  it('keeps a mismatched target retryable when Storage removal fails', async () => {
+    const { client, rpc } = createClient({
+      targetBytes: new Uint8Array([9, 9, 9, 9]),
+      removeError: { statusCode: 503 },
+    })
+
     await expect(resumeCourseBlueprintStorageCopies({
       operationId,
       teacherId,
       supabase: client,
-    })).rejects.toMatchObject<CourseBlueprintStorageCopyError>({
-      code: 'blueprint_storage_copy_verification_mismatch',
-      retryable: false,
+    })).rejects.toMatchObject({
+      code: 'blueprint_storage_copy_mismatch_cleanup_failed',
+      retryable: true,
     })
     expect(rpc).toHaveBeenCalledWith(
       'fail_course_blueprint_storage_copy',
       expect.objectContaining({
-        p_error_code: 'blueprint_storage_copy_verification_mismatch',
+        p_error_code: 'blueprint_storage_copy_mismatch_cleanup_failed',
       }),
     )
+  })
+
+  it('fails safely when the cleanup lease is lost after target removal', async () => {
+    const { client } = createClient({
+      targetBytes: new Uint8Array([9, 9, 9, 9]),
+      targetResetResult: false,
+    })
+
+    await expect(resumeCourseBlueprintStorageCopies({
+      operationId,
+      teacherId,
+      supabase: client,
+    })).rejects.toMatchObject({
+      code: 'blueprint_storage_copy_cleanup_lease_lost',
+      retryable: true,
+    })
   })
 })

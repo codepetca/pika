@@ -1457,11 +1457,42 @@ create or replace function public.fail_course_blueprint_storage_copy(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, storage
 as $$
 declare
   v_operation_id uuid;
+  v_target_storage_bucket text;
+  v_target_storage_path text;
 begin
+  -- A mismatched deterministic target is unowned until adoption. Reuse the
+  -- active copy lease as its cleanup authorization and make the retry due only
+  -- after the catalog proves that exact Storage key is absent.
+  if p_error_code = 'blueprint_storage_copy_target_removed' then
+    select item.target_storage_bucket, item.target_storage_path
+    into v_target_storage_bucket, v_target_storage_path
+    from public.course_blueprint_storage_copy_items item
+    join public.course_blueprint_operations operation on operation.id = item.operation_id
+    where item.id = p_item_id
+      and operation.teacher_id = p_teacher_id
+      and item.status = 'copying'
+      and item.lease_token = p_lease_token
+    for update of item;
+    if not found then return false; end if;
+
+    perform public.managed_storage_exact_lock(
+      v_target_storage_bucket,
+      v_target_storage_path
+    );
+    if exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_target_storage_bucket
+        and object.name = v_target_storage_path
+    ) then
+      raise exception 'blueprint_storage_copy_target_still_present'
+        using errcode = '55000';
+    end if;
+  end if;
+
   update public.course_blueprint_storage_copy_items item
   set
     status = 'failed',
@@ -1471,9 +1502,13 @@ begin
       coalesce(nullif(p_error_code, ''), 'blueprint_storage_copy_failed'),
       120
     ),
-    next_attempt_at = clock_timestamp() + make_interval(
-      secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
-    ),
+    next_attempt_at = case
+      when p_error_code = 'blueprint_storage_copy_target_removed'
+        then clock_timestamp()
+      else clock_timestamp() + make_interval(
+        secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
+      )
+    end,
     updated_at = clock_timestamp()
   from public.course_blueprint_operations operation
   where item.id = p_item_id

@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Kept archive v1 current through compaction
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Final integration review found that making v2 the current application export
-  format was incompatible with the still-v1-only compaction path.
-- Kept explicit v2 construction and v1/v2 restore support, but restored v1 as
-  the current application writer and retained the deployed v1 RPC flow.
-- Updated contract and coordinator tests to prove the current writer preserves
-  historical Quiz rows in v1 while the explicit v2 compatibility path remains
-  independently testable.
-- Shortened the continuity summary to restore the startup-document budget.
-
-**Validation:**
-- The full local archive recovery drill passes export, compaction, restore,
-  cleanup, and idempotent replay with the frozen 42-resource v1 graph.
-- Focused archive and migration suites, startup-document tests, TypeScript, and
-  lint pass.
-
-**Remaining:**
-- Run final repository checks, integration review, and exact-head CI before
-  merging PR 927.
-- Migration 105 remains unapplied to every hosted target.
-
 ## 2026-07-23 — Preserved pre-105 archive restore rollout
 
 **Risk profile:** runtime-platform
@@ -1532,3 +1507,29 @@ zero-downtime rollout
   ephemeral Supabase instance, then use the final targeted reviewer slot.
 - Keep PR #963 draft. Do not merge, deploy, apply migration 117 to a hosted target, or change any
   production gate.
+
+## 2026-07-31 — Made mismatched Blueprint file copies self-recovering
+
+**Risk profile:** runtime-platform, destructive storage cleanup, migration contract
+
+**Completed:**
+- Fixed the draft PR review blocker where a mismatched deterministic Blueprint-copy target could
+  remain unowned, retry forever, and keep the source classroom permanently blocked from purge.
+- Reused the existing durable copy lease instead of adding another ledger or migration: the worker
+  removes only the exact operation-owned target, then migration 117 resets the item for immediate
+  retry only after locking the path and confirming authoritative `storage.objects` absence.
+- Kept failures resumable across Storage removal errors, lost leases, and crashes before or after
+  deletion; the normal expired-lease claim path remains the recovery mechanism.
+- Added application and migration-contract regressions for successful mismatch recovery, failed
+  Storage cleanup, lost cleanup leases, exact-path locking, and catalog absence verification.
+
+**Validation:**
+- Pika audit, architecture boundaries, lint, production build/type validation, and
+  `git diff --check` pass.
+- Focused purge and Blueprint suite: 4 files / 42 tests pass; the narrower recovery suite now has
+  5 worker tests and 28 migration-contract tests.
+
+**Remaining:**
+- Push the fix to draft PR #963 and require current-head CI to replay migration 117 in the
+  ephemeral database before the review blocker is considered closed.
+- No migration was applied. Keep production, deletion, and both persistent rollout gates disabled.

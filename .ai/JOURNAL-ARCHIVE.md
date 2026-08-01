@@ -16016,3 +16016,29 @@ future persistence shape without enabling unapproved schema behavior.
 - Migration 105 remains unapplied to every hosted target.
 - After merge, implement the separately reviewed atomic Quiz freeze/backfill
   ledger; applying its migration requires a new exact authorization.
+
+<!-- pika-session-log-archive-batch:ade4dd2da8d0f3edfcded6c3d92d30301e72f9ebe9225346aff512a26829d98c -->
+## 2026-07-23 — Kept archive v1 current through compaction
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that making v2 the current application export
+  format was incompatible with the still-v1-only compaction path.
+- Kept explicit v2 construction and v1/v2 restore support, but restored v1 as
+  the current application writer and retained the deployed v1 RPC flow.
+- Updated contract and coordinator tests to prove the current writer preserves
+  historical Quiz rows in v1 while the explicit v2 compatibility path remains
+  independently testable.
+- Shortened the continuity summary to restore the startup-document budget.
+
+**Validation:**
+- The full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay with the frozen 42-resource v1 graph.
+- Focused archive and migration suites, startup-document tests, TypeScript, and
+  lint pass.
+
+**Remaining:**
+- Run final repository checks, integration review, and exact-head CI before
+  merging PR 927.
+- Migration 105 remains unapplied to every hosted target.

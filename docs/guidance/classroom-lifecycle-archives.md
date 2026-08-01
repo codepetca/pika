@@ -365,6 +365,10 @@ artifacts, inline submission images, teacher test materials, execution snapshots
 legacy objects. Reusable teacher test material is physically copied to Blueprint-owned storage
 before Blueprint capture/import completes, and copied back to new classroom-owned storage before
 instantiation completes. Internal managed-object ids are not exported in Course Packages.
+Blueprint copies use deterministic operation-owned target keys and complete only after a full
+read-back hash check. If an existing target contains different bytes, the active copy lease removes
+that exact target and the database resets it for immediate retry only after authoritative
+`storage.objects` absence; a crash at any point is recovered by the same lease-expiry path.
 
 All new uploads reserve exact ownership before writing Storage and atomically adopt the reservation
 after Storage confirms the object. Failed or abandoned uploads become leased, retryable cleanup work.

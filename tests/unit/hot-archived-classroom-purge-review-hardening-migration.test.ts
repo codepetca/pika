@@ -66,6 +66,22 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
+  it('retries a mismatched Blueprint target only after authoritative absence', () => {
+    const failureStart = migration.indexOf(
+      'create or replace function public.fail_course_blueprint_storage_copy(',
+    )
+    const failureEnd = migration.indexOf('$$;', failureStart)
+    const failure = migration.slice(failureStart, failureEnd)
+
+    expect(failure).toContain("p_error_code = 'blueprint_storage_copy_target_removed'")
+    expect(failure).toContain('public.managed_storage_exact_lock(')
+    expect(failure).toContain('select 1 from storage.objects object')
+    expect(failure).toContain("raise exception 'blueprint_storage_copy_target_still_present'")
+    expect(failure).toMatch(
+      /when p_error_code = 'blueprint_storage_copy_target_removed'\s+then clock_timestamp\(\)/,
+    )
+  })
+
   it('moves a verified legacy Classroom source to Blueprint ownership without mutating Versions', () => {
     const reconciliationStart = migration.indexOf(
       'create or replace function public.adopt_legacy_blueprint_classroom_storage_reconciliation(',

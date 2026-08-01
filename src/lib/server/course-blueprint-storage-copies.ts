@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 
 const storageCopyItemSchema = z.object({
   id: z.string().uuid(),
@@ -38,6 +39,7 @@ type StorageBucket = {
     body: Uint8Array,
     options: { contentType: string; upsert: boolean },
   ): Promise<{ error: { message?: string } | null }>
+  remove(paths: string[]): Promise<{ error: unknown }>
   getPublicUrl(path: string): { data: { publicUrl: string } }
 }
 
@@ -172,11 +174,31 @@ async function copyClaimedObject(input: {
       targetBytes.byteLength !== sourceBytes.byteLength
       || sha256(targetBytes) !== sourceSha256
     ) {
-      throw new CourseBlueprintStorageCopyError(
-        'blueprint_storage_copy_verification_mismatch',
-        false,
-        'Copied course material did not match its source',
-      )
+      const removal = await targetBucket.remove([item.target_storage_path])
+      if (removal.error && !missingStorageObjectEvidence(removal.error)) {
+        throw new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_mismatch_cleanup_failed',
+          true,
+          'Mismatched course material could not be removed safely',
+        )
+      }
+      const reset = await supabase.rpc('fail_course_blueprint_storage_copy', {
+        p_item_id: item.id,
+        p_teacher_id: teacherId,
+        p_lease_token: leaseToken,
+        p_error_code: 'blueprint_storage_copy_target_removed',
+      })
+      if (reset.error) {
+        throw rpcFailure(reset.error, 'blueprint_storage_copy_cleanup_verification_failed')
+      }
+      if (reset.data !== true) {
+        throw new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_cleanup_lease_lost',
+          true,
+          'Course material cleanup lease expired before absence was recorded',
+        )
+      }
+      return
     }
 
     const publicUrl = targetBucket.getPublicUrl(item.target_storage_path).data.publicUrl
