@@ -4,6 +4,275 @@
 -- replaces their URL/JSON reference inference with exact (bucket, path)
 -- ownership while preserving their durable purge/resource ledgers.
 
+-- Migration 115's row triggers waited for the lifecycle advisory lock after
+-- PostgreSQL had already locked the row being changed. A purge finalizer takes
+-- those locks in the opposite order, so the wait could form a deadlock. Keep
+-- the blocking lock for orchestrated RPCs, but make trigger-level fencing
+-- non-blocking: a direct/legacy write either owns the lifecycle immediately or
+-- aborts retryably and releases its row lock.
+create or replace function public.classroom_purge_try_lock(p_classroom_id uuid)
+returns boolean
+language sql
+set search_path = ''
+as $$
+  select pg_try_advisory_xact_lock(
+    hashtextextended('pika-classroom-operation:' || p_classroom_id::text, 0)
+  )
+$$;
+
+create or replace function public.guard_classroom_purge_lifecycle(p_classroom_id uuid)
+returns void
+language plpgsql
+set search_path = public
+as $$
+begin
+  if p_classroom_id is null then return; end if;
+  if not public.classroom_purge_try_lock(p_classroom_id) then
+    raise exception 'classroom_operation_busy' using errcode = '40001';
+  end if;
+  if exists (
+    select 1 from public.classroom_purge_fences
+    where classroom_id = p_classroom_id
+  ) then
+    raise exception 'classroom_purge_active' using errcode = '55000';
+  end if;
+end;
+$$;
+
+create or replace function public.reject_classroom_resource_change_during_purge()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_parent_table text := tg_argv[0];
+  v_parent_column text := tg_argv[1];
+  v_old_parent_id uuid;
+  v_new_parent_id uuid;
+  v_old_classroom_id uuid;
+  v_new_classroom_id uuid;
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on' then
+    if tg_op = 'DELETE' then return old; end if;
+    return new;
+  end if;
+
+  if tg_table_name = 'classrooms' then
+    if tg_op <> 'INSERT' then v_old_classroom_id := old.id; end if;
+    if tg_op <> 'DELETE' then v_new_classroom_id := new.id; end if;
+  else
+    if tg_op <> 'INSERT' then
+      v_old_parent_id := nullif(to_jsonb(old)->>v_parent_column, '')::uuid;
+      v_old_classroom_id := public.resolve_classroom_archive_resource_classroom_id(
+        v_parent_table,
+        v_old_parent_id
+      );
+    end if;
+    if tg_op <> 'DELETE' then
+      v_new_parent_id := nullif(to_jsonb(new)->>v_parent_column, '')::uuid;
+      v_new_classroom_id := public.resolve_classroom_archive_resource_classroom_id(
+        v_parent_table,
+        v_new_parent_id
+      );
+    end if;
+  end if;
+
+  perform public.guard_classroom_purge_lifecycle(v_old_classroom_id);
+  if v_new_classroom_id is distinct from v_old_classroom_id then
+    perform public.guard_classroom_purge_lifecycle(v_new_classroom_id);
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end;
+$$;
+
+create or replace function public.reject_classroom_operation_during_purge()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_classroom_ids uuid[];
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on' then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+  if tg_table_name = 'classroom_archive_operations' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.classroom_id else null end
+    ];
+  elsif tg_table_name = 'course_blueprint_operations' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.source_classroom_id else null end,
+      case when tg_op <> 'INSERT' then old.result_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.source_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.result_classroom_id else null end
+    ];
+  elsif tg_table_name = 'course_blueprint_change_proposals' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.source_classroom_id else null end,
+      case when tg_op <> 'INSERT' then old.target_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.source_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.target_classroom_id else null end
+    ];
+  elsif tg_table_name = 'course_blueprint_editing_sessions' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.classroom_id else null end
+    ];
+  elsif tg_table_name in (
+    'classroom_archives',
+    'classroom_gradex_extracts',
+    'classroom_archive_source_object_cleanup'
+  ) then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.classroom_id else null end
+    ];
+  elsif tg_table_name in (
+    'classroom_archive_object_upload_cleanup',
+    'classroom_gradex_extract_cleanup'
+  ) then
+    select array_agg(distinct operation.classroom_id order by operation.classroom_id)
+    into v_classroom_ids
+    from public.classroom_archive_operations operation
+    where operation.id = any(array[
+      case when tg_op <> 'INSERT' then old.operation_id else null end,
+      case when tg_op <> 'DELETE' then new.operation_id else null end
+    ]);
+  end if;
+
+  for v_classroom_id in
+    select distinct candidate
+    from unnest(v_classroom_ids) candidate
+    where candidate is not null
+    order by candidate
+  loop
+    perform public.guard_classroom_purge_lifecycle(v_classroom_id);
+  end loop;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+-- Extend migration 115's operation fence to every hot operational ledger that
+-- can be claimed or made persistent independently of its operation row.
+drop trigger if exists classroom_purge_fence_archive_operations
+  on public.classroom_archive_operations;
+drop trigger if exists classroom_purge_fence_blueprint_operations
+  on public.course_blueprint_operations;
+drop trigger if exists classroom_purge_fence_blueprint_proposals
+  on public.course_blueprint_change_proposals;
+drop trigger if exists classroom_purge_fence_blueprint_sessions
+  on public.course_blueprint_editing_sessions;
+
+do $$
+declare
+  v_table text;
+begin
+  foreach v_table in array array[
+    'classroom_archive_operations',
+    'course_blueprint_operations',
+    'course_blueprint_change_proposals',
+    'course_blueprint_editing_sessions',
+    'classroom_archives',
+    'classroom_gradex_extracts',
+    'classroom_archive_object_upload_cleanup',
+    'classroom_gradex_extract_cleanup',
+    'classroom_archive_source_object_cleanup'
+  ]
+  loop
+    execute format(
+      'drop trigger if exists %I on public.%I',
+      'classroom_purge_fence_' || v_table,
+      v_table
+    );
+    execute format(
+      'create trigger %I before insert or update or delete on public.%I '
+      || 'for each row execute function public.reject_classroom_operation_during_purge()',
+      'classroom_purge_fence_' || v_table,
+      v_table
+    );
+  end loop;
+end;
+$$;
+
+-- Save-operation rows are classroom-owned privacy/telemetry state, but they
+-- are intentionally excluded from the versioned classroom archive format.
+-- Remove historical rows whose document is already gone, then make ownership
+-- structural so a classroom root deletion cannot strand them again.
+delete from public.assignment_doc_save_operations operation
+where not exists (
+  select 1
+  from public.assignment_docs document
+  where document.id = operation.assignment_doc_id
+);
+
+alter table public.assignment_doc_save_operations
+  drop constraint if exists assignment_doc_save_operations_assignment_doc_id_fkey;
+alter table public.assignment_doc_save_operations
+  add constraint assignment_doc_save_operations_assignment_doc_id_fkey
+  foreign key (assignment_doc_id)
+  references public.assignment_docs (id)
+  on delete cascade;
+
+create index if not exists idx_assignment_doc_save_operations_assignment_doc
+  on public.assignment_doc_save_operations (assignment_doc_id);
+
+create or replace function public.guard_assignment_doc_save_operation_lifecycle()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_assignment_doc_id uuid := case when tg_op = 'DELETE'
+    then old.assignment_doc_id else new.assignment_doc_id end;
+  v_classroom_id uuid;
+  v_archived_at timestamptz;
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on'
+    or current_setting('pika.classroom_archive_compaction', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
+  select assignment.classroom_id into v_classroom_id
+  from public.assignment_docs document
+  join public.assignments assignment on assignment.id = document.assignment_id
+  where document.id = v_assignment_doc_id;
+  if not found then
+    raise exception 'assignment_doc_not_found' using errcode = '23503';
+  end if;
+
+  perform public.guard_classroom_purge_lifecycle(v_classroom_id);
+  select archived_at into v_archived_at
+  from public.classrooms
+  where id = v_classroom_id
+  for key share;
+  if not found then
+    raise exception 'classroom_not_found' using errcode = '23503';
+  end if;
+  if tg_op <> 'DELETE' and v_archived_at is not null then
+    raise exception 'classroom_archived' using errcode = '55000';
+  end if;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+drop trigger if exists assignment_doc_save_operation_lifecycle_guard
+  on public.assignment_doc_save_operations;
+create trigger assignment_doc_save_operation_lifecycle_guard
+before insert or update or delete on public.assignment_doc_save_operations
+for each row execute function public.guard_assignment_doc_save_operation_lifecycle();
+
+-- Migration 115 coupled purge evidence to the versioned archive table list.
+-- Purge ownership is broader, so keep the same durable ledger but remove that
+-- archive-format foreign key. Insertions remain private RPC-owned.
+alter table public.classroom_purge_resources
+  drop constraint if exists classroom_purge_resources_table_name_fkey;
+
 create table public.managed_storage_settings (
   singleton boolean primary key default true check (singleton),
   enforce_ownership boolean not null default false,
@@ -27,7 +296,9 @@ create table public.managed_storage_objects (
   storage_bucket text not null check (storage_bucket in (
     'assignment-artifacts',
     'submission-images',
-    'test-documents'
+    'test-documents',
+    'classroom-archives',
+    'gradex-analytics-extracts'
   )),
   storage_path text not null check (
     storage_path <> ''
@@ -35,17 +306,19 @@ create table public.managed_storage_objects (
     and strpos(storage_path, E'\\') = 0
     and not ('..' = any(string_to_array(storage_path, '/')))
   ),
-  classroom_id uuid constraint managed_storage_objects_classroom_id_fkey
-    references public.classrooms (id) on delete no action deferrable initially immediate,
-  cold_classroom_id uuid references public.classroom_cold_tombstones (classroom_id) on delete restrict,
-  cold_archive_id uuid references public.classroom_archives (id) on delete restrict,
+  -- A classroom scope survives hot-row compaction. Its UUID is the stable
+  -- lifecycle identity used by both the hot classroom and cold tombstone;
+  -- availability tables must not force physical files to change owners.
+  classroom_id uuid,
   course_blueprint_id uuid references public.course_blueprints (id) on delete restrict,
   purpose text not null check (purpose in (
     'student_assignment_artifact',
     'student_inline_image',
     'teacher_test_material',
     'test_execution_snapshot',
-    'legacy_classroom_file'
+    'legacy_classroom_file',
+    'classroom_archive',
+    'gradex_extract'
   )),
   status text not null default 'pending_upload' check (status in (
     'pending_upload',
@@ -73,8 +346,7 @@ create table public.managed_storage_objects (
   ready_at timestamptz,
   updated_at timestamptz not null default clock_timestamp(),
   unique (storage_bucket, storage_path),
-  check (num_nonnulls(classroom_id, cold_classroom_id, course_blueprint_id) = 1),
-  check ((cold_classroom_id is null) = (cold_archive_id is null)),
+  check (num_nonnulls(classroom_id, course_blueprint_id) = 1),
   check (
     purpose not in (
       'student_assignment_artifact',
@@ -83,21 +355,29 @@ create table public.managed_storage_objects (
       'legacy_classroom_file'
     )
     or classroom_id is not null
-    or cold_classroom_id is not null
   ),
   check (
     (status = 'cleanup_processing' and lease_token is not null and lease_expires_at is not null)
     or (status <> 'cleanup_processing' and lease_token is null and lease_expires_at is null)
   ),
-  check ((status = 'ready') = (ready_at is not null))
+  check ((status = 'ready') = (ready_at is not null)),
+  check (
+    (storage_bucket = 'classroom-archives' and purpose = 'classroom_archive')
+    or (storage_bucket = 'gradex-analytics-extracts' and purpose = 'gradex_extract')
+    or (
+      storage_bucket in ('assignment-artifacts', 'submission-images', 'test-documents')
+      and purpose not in ('classroom_archive', 'gradex_extract')
+    )
+  ),
+  check (
+    course_blueprint_id is null
+    or (storage_bucket = 'test-documents' and purpose = 'teacher_test_material')
+  )
 );
 
 create index managed_storage_objects_classroom
   on public.managed_storage_objects (classroom_id, status, created_at)
   where classroom_id is not null;
-create index managed_storage_objects_cold_classroom
-  on public.managed_storage_objects (cold_classroom_id, status, created_at)
-  where cold_classroom_id is not null;
 create index managed_storage_objects_blueprint
   on public.managed_storage_objects (course_blueprint_id, status, created_at)
   where course_blueprint_id is not null;
@@ -116,11 +396,82 @@ revoke all on table public.managed_storage_objects from public, anon, authentica
 grant select on table public.managed_storage_objects to service_role;
 
 comment on table public.managed_storage_objects is
-  'Exact physical source-object ownership. One object has one lifecycle owner: a hot classroom, cold classroom tombstone, or Course Blueprint; user ids are attribution only.';
+  'Exact physical object ownership. One object has one immutable lifecycle scope: a classroom UUID that survives hot/cold transitions, or a Course Blueprint; user ids are attribution only.';
+
+create or replace function public.guard_managed_storage_scope_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_scope_rows integer;
+begin
+  if new.classroom_id is null then return new; end if;
+  select
+    (exists (select 1 from public.classrooms where id = new.classroom_id))::integer
+    + (exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = new.classroom_id
+    ))::integer
+  into v_scope_rows;
+  if v_scope_rows <> 1 then
+    raise exception 'managed_storage_classroom_scope_invalid' using errcode = '23503';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger managed_storage_scope_owner_guard
+before insert or update of classroom_id, course_blueprint_id
+on public.managed_storage_objects
+for each row execute function public.guard_managed_storage_scope_owner();
+
+-- Storage identity is permanent. Lifecycle ownership is also immutable except
+-- for the bounded legacy reconciliation that atomically copies the Classroom
+-- target, rewrites every live reference, and transfers the shared source to
+-- its preserved Blueprint owner in one transaction.
+create or replace function public.guard_managed_storage_identity_immutable()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.storage_bucket is distinct from old.storage_bucket
+    or new.storage_path is distinct from old.storage_path
+  then
+    raise exception 'managed_storage_identity_immutable' using errcode = '55000';
+  end if;
+
+  if new.classroom_id is distinct from old.classroom_id
+    or new.course_blueprint_id is distinct from old.course_blueprint_id
+    or new.purpose is distinct from old.purpose
+  then
+    if current_setting('pika.managed_storage_owner_reconciliation', true) is distinct from 'on'
+      or old.classroom_id is null
+      or old.course_blueprint_id is not null
+      or new.classroom_id is not null
+      or new.course_blueprint_id is null
+      or old.storage_bucket <> 'test-documents'
+      or new.purpose <> 'teacher_test_material'
+      or old.status <> 'ready'
+      or new.status <> 'ready'
+    then
+      raise exception 'managed_storage_owner_immutable' using errcode = '55000';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger managed_storage_identity_immutable_guard
+before update of storage_bucket, storage_path, classroom_id, course_blueprint_id, purpose
+on public.managed_storage_objects
+for each row execute function public.guard_managed_storage_identity_immutable();
 
 create table public.classroom_managed_storage_coverage (
   classroom_id uuid primary key constraint classroom_managed_storage_coverage_classroom_id_fkey
-    references public.classrooms (id) on delete no action deferrable initially immediate,
+    references public.classrooms (id) on delete cascade,
   status text not null default 'pending' check (status in ('pending', 'verified', 'blocked')),
   inventory_version integer not null default 1 check (inventory_version > 0),
   source_revision bigint,
@@ -147,280 +498,417 @@ alter table public.classroom_managed_storage_coverage enable row level security;
 revoke all on table public.classroom_managed_storage_coverage from public, anon, authenticated;
 grant select on table public.classroom_managed_storage_coverage to service_role;
 
--- A compacted classroom retains its exact source-object ledger through its
--- tombstone. `remaining_object_count` is decremented only after a source
--- object has been proven absent and its cold owner has been removed.
-create table public.classroom_cold_managed_storage_coverage (
-  classroom_id uuid primary key
-    references public.classroom_cold_tombstones (classroom_id) on delete restrict,
-  archive_id uuid not null references public.classroom_archives (id) on delete restrict,
-  source_revision bigint not null,
-  inventory_version integer not null check (inventory_version > 0),
-  reference_count integer not null check (reference_count >= 0),
-  object_count integer not null check (object_count >= 0),
-  remaining_object_count integer not null check (
-    remaining_object_count >= 0 and remaining_object_count <= object_count
-  ),
-  inventory_sha256 text not null check (inventory_sha256 ~ '^[a-f0-9]{64}$'),
-  transferred_at timestamptz not null default clock_timestamp(),
-  updated_at timestamptz not null default clock_timestamp(),
-  unique (classroom_id, archive_id)
-);
+-- Operational ledgers keep their immutable bucket/path evidence for archive
+-- compatibility, but the managed object id is the lifecycle/deletion owner.
+alter table public.classroom_archives
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete restrict;
+alter table public.classroom_archive_operations
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_archive_object_upload_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_archive_source_object_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_gradex_extracts
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_gradex_extract_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.assignment_artifact_storage_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.test_document_snapshot_storage_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
 
-alter table public.classroom_cold_managed_storage_coverage enable row level security;
-revoke all on table public.classroom_cold_managed_storage_coverage from public, anon, authenticated;
-grant select on table public.classroom_cold_managed_storage_coverage to service_role;
+create index classroom_archives_managed_object
+  on public.classroom_archives (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_archive_operations_managed_object
+  on public.classroom_archive_operations (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_archive_upload_cleanup_managed_object
+  on public.classroom_archive_object_upload_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_archive_source_cleanup_managed_object
+  on public.classroom_archive_source_object_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_gradex_extracts_managed_object
+  on public.classroom_gradex_extracts (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_gradex_cleanup_managed_object
+  on public.classroom_gradex_extract_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index assignment_artifact_cleanup_managed_object
+  on public.assignment_artifact_storage_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index test_document_snapshot_cleanup_managed_object
+  on public.test_document_snapshot_storage_cleanup (managed_object_id)
+  where managed_object_id is not null;
 
-alter table public.managed_storage_objects
-  add constraint managed_storage_objects_cold_owner_coverage_fk
-  foreign key (cold_classroom_id, cold_archive_id)
-  references public.classroom_cold_managed_storage_coverage (classroom_id, archive_id)
-  on delete restrict;
+-- Backfill only from exact operational identities. The classroom UUID is a
+-- stable scope key, so the same statement covers hot and already-compacted
+-- classrooms without creating a second cold-ownership state machine.
+-- Verified archive artifacts.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  content_type, byte_size, content_sha256, ready_at
+)
+select
+  archive.storage_bucket,
+  archive.storage_path,
+  archive.classroom_id,
+  'classroom_archive',
+  'ready',
+  archive.teacher_id,
+  'classroom_archive',
+  archive.id,
+  'application/gzip',
+  archive.compressed_byte_size,
+  archive.artifact_sha256,
+  archive.verified_at
+from public.classroom_archives archive
+where exists (select 1 from public.classrooms where id = archive.classroom_id)
+   or exists (
+     select 1 from public.classroom_cold_tombstones
+     where classroom_id = archive.classroom_id
+   )
+on conflict (storage_bucket, storage_path) do nothing;
 
-create or replace function public.transfer_classroom_managed_storage_to_cold()
+update public.classroom_archives archive
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = archive.storage_bucket
+  and object.storage_path = archive.storage_path;
+
+-- Verified Gradex artifacts.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  content_type, byte_size, content_sha256, ready_at, next_attempt_at
+)
+select
+  extract.storage_bucket,
+  extract.storage_path,
+  extract.classroom_id,
+  'gradex_extract',
+  'ready',
+  extract.teacher_id,
+  'classroom_gradex_extract',
+  extract.id,
+  'application/gzip',
+  extract.compressed_byte_size,
+  extract.artifact_sha256,
+  extract.verified_at,
+  extract.delete_after
+from public.classroom_gradex_extracts extract
+where exists (select 1 from public.classrooms where id = extract.classroom_id)
+   or exists (
+     select 1 from public.classroom_cold_tombstones
+     where classroom_id = extract.classroom_id
+   )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_gradex_extracts extract
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = extract.storage_bucket
+  and object.storage_path = extract.storage_path;
+
+-- Interrupted archive/restore uploads that are not represented by a verified
+-- archive still receive durable managed cleanup ownership.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  content_type, byte_size, content_sha256, last_error_code, next_attempt_at
+)
+select
+  cleanup.storage_bucket,
+  cleanup.storage_path,
+  operation.classroom_id,
+  case
+    when cleanup.storage_bucket = 'classroom-archives' then 'classroom_archive'
+    else 'legacy_classroom_file'
+  end,
+  'cleanup_pending',
+  operation.teacher_id,
+  'classroom_archive_upload_cleanup',
+  operation.id,
+  case when cleanup.storage_bucket = 'classroom-archives'
+    then 'application/gzip' else null end,
+  cleanup.expected_byte_size,
+  cleanup.expected_sha256,
+  'legacy_archive_upload_cleanup',
+  cleanup.next_attempt_at
+from public.classroom_archive_object_upload_cleanup cleanup
+join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+where cleanup.status <> 'deleted'
+  and (
+    exists (select 1 from public.classrooms where id = operation.classroom_id)
+    or exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = operation.classroom_id
+    )
+  )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_archive_object_upload_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where cleanup.status <> 'deleted'
+  and object.storage_bucket = cleanup.storage_bucket
+  and object.storage_path = cleanup.storage_path;
+
+-- Historical cold-compaction source cleanup is explicitly adopted. This is
+-- the production round-trip shape that must not be omitted from hot purge.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, resource_type, resource_id, byte_size, content_sha256,
+  last_error_code, next_attempt_at
+)
+select
+  cleanup.storage_bucket,
+  cleanup.storage_path,
+  cleanup.classroom_id,
+  'legacy_classroom_file',
+  'cleanup_pending',
+  'classroom_archive_source_cleanup',
+  cleanup.operation_id,
+  cleanup.expected_byte_size,
+  cleanup.expected_sha256,
+  'legacy_archive_source_cleanup',
+  cleanup.next_attempt_at
+from public.classroom_archive_source_object_cleanup cleanup
+where cleanup.status <> 'deleted'
+  and (
+    exists (select 1 from public.classrooms where id = cleanup.classroom_id)
+    or exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = cleanup.classroom_id
+    )
+  )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_archive_source_object_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where cleanup.status <> 'deleted'
+  and object.storage_bucket = cleanup.storage_bucket
+  and object.storage_path = cleanup.storage_path;
+
+-- Gradex cleanup may be the only durable evidence for an interrupted upload.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  last_error_code, next_attempt_at
+)
+select
+  cleanup.storage_bucket,
+  cleanup.storage_path,
+  operation.classroom_id,
+  'gradex_extract',
+  'cleanup_pending',
+  operation.teacher_id,
+  'classroom_gradex_extract_cleanup',
+  cleanup.operation_id,
+  'legacy_gradex_cleanup',
+  cleanup.next_attempt_at
+from public.classroom_gradex_extract_cleanup cleanup
+join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+where cleanup.status <> 'deleted'
+  and (
+    exists (select 1 from public.classrooms where id = operation.classroom_id)
+    or exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = operation.classroom_id
+    )
+  )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_gradex_extract_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where cleanup.status <> 'deleted'
+  and object.storage_bucket = cleanup.storage_bucket
+  and object.storage_path = cleanup.storage_path;
+
+-- Operation rows are compatibility metadata. Bind their path when it exists,
+-- but never create a second owner for a key already represented above.
+update public.classroom_archive_operations operation
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where operation.storage_bucket is not null
+  and operation.storage_path is not null
+  and object.storage_bucket = operation.storage_bucket
+  and object.storage_path = operation.storage_path;
+
+update public.assignment_artifact_storage_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = 'assignment-artifacts'
+  and object.storage_path = cleanup.storage_path;
+
+update public.test_document_snapshot_storage_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = 'test-documents'
+  and object.storage_path = cleanup.storage_path;
+
+-- These two pre-managed cleanup ledgers remain compatibility evidence only.
+-- Resolve their exact managed owner on every write and participate in the
+-- classroom lifecycle fence before a worker can claim or mutate a row.
+create or replace function public.prepare_legacy_managed_cleanup_ledger_change()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_coverage public.classroom_managed_storage_coverage;
-  v_object_count integer;
+  v_bucket text := case tg_table_name
+    when 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'
+    when 'test_document_snapshot_storage_cleanup' then 'test-documents'
+    else null
+  end;
+  v_exact_object_id uuid;
+  v_classroom_id uuid;
 begin
-  if current_setting('pika.classroom_archive_compaction', true) is distinct from 'on' then
-    if exists (
-      select 1 from public.managed_storage_objects object
-      where object.classroom_id = new.classroom_id
-    ) or exists (
-      select 1 from public.classroom_managed_storage_coverage coverage
-      where coverage.classroom_id = new.classroom_id
-    ) then
-      raise exception 'cold_tombstone_requires_managed_storage_transition'
-        using errcode = '55000';
-    end if;
-    return new;
+  if current_setting('pika.classroom_purge_finalize', true) = 'on' then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+  if v_bucket is null then
+    raise exception 'unsupported_managed_cleanup_ledger' using errcode = '55000';
   end if;
 
-  if not exists (
-    select 1
-    from public.classroom_archive_operations operation
-    where operation.id = nullif(
-        current_setting('pika.classroom_archive_compaction_operation_id', true),
-        ''
-      )::uuid
-      and operation.classroom_id = new.classroom_id
-      and operation.archive_id = new.archive_id
-      and operation.source_revision = new.source_revision
-      and operation.operation_type = 'compact'
-      and operation.status = 'snapshot_ready'
-  ) then
-    raise exception 'cold_tombstone_compaction_operation_missing' using errcode = '40001';
-  end if;
-
-  select * into v_coverage
-  from public.classroom_managed_storage_coverage coverage
-  where coverage.classroom_id = new.classroom_id
-  for update;
-  if not found
-    or v_coverage.status <> 'verified'
-    or v_coverage.inventory_sha256 is null
-    or v_coverage.source_revision is distinct from new.source_revision
-  then
-    raise exception 'cold_tombstone_managed_storage_coverage_unverified'
-      using errcode = '40001';
-  end if;
-
-  select count(*)::integer into v_object_count
-  from public.managed_storage_objects object
-  where object.classroom_id = new.classroom_id;
-  if v_object_count <> v_coverage.object_count
-    or v_object_count <> v_coverage.reference_count
-  then
-    raise exception 'cold_tombstone_managed_storage_coverage_drift'
-      using errcode = '40001';
-  end if;
-  if exists (
-    select 1
+  if tg_op <> 'DELETE' then
+    select object.id
+    into v_exact_object_id
     from public.managed_storage_objects object
-    where object.classroom_id = new.classroom_id
-      and not exists (
-        select 1
-        from public.classroom_archive_source_object_cleanup cleanup
-        where cleanup.classroom_id = new.classroom_id
-          and cleanup.archive_id = new.archive_id
-          and cleanup.storage_bucket = object.storage_bucket
-          and cleanup.storage_path = object.storage_path
+    where object.storage_bucket = v_bucket
+      and object.storage_path = new.storage_path;
+    if new.managed_object_id is not null
+      and new.managed_object_id is distinct from v_exact_object_id
+    then
+      raise exception 'managed_cleanup_owner_mismatch' using errcode = '23503';
+    end if;
+    new.managed_object_id := v_exact_object_id;
+  end if;
+
+  for v_classroom_id in
+    select distinct object.classroom_id
+    from public.managed_storage_objects object
+    where object.classroom_id is not null
+      and object.id in (
+        case when tg_op <> 'INSERT' then old.managed_object_id end,
+        case when tg_op <> 'DELETE' then new.managed_object_id end
       )
-  ) then
-    raise exception 'cold_tombstone_managed_storage_cleanup_missing'
-      using errcode = '40001';
-  end if;
+    order by object.classroom_id
+  loop
+    perform public.guard_classroom_purge_lifecycle(v_classroom_id);
+  end loop;
 
-  insert into public.classroom_cold_managed_storage_coverage (
-    classroom_id, archive_id, source_revision, inventory_version,
-    reference_count, object_count, remaining_object_count, inventory_sha256
-  ) values (
-    new.classroom_id, new.archive_id, new.source_revision, v_coverage.inventory_version,
-    v_coverage.reference_count, v_coverage.object_count, v_object_count,
-    v_coverage.inventory_sha256
-  );
-
-  update public.managed_storage_objects object
-  set
-    classroom_id = null,
-    cold_classroom_id = new.classroom_id,
-    cold_archive_id = new.archive_id,
-    updated_at = clock_timestamp()
-  where object.classroom_id = new.classroom_id;
-  if (select count(*) from public.managed_storage_objects object
-      where object.cold_classroom_id = new.classroom_id
-        and object.cold_archive_id = new.archive_id) <> v_object_count then
-    raise exception 'cold_tombstone_managed_storage_transfer_incomplete'
-      using errcode = '40001';
-  end if;
-
-  delete from public.classroom_managed_storage_coverage
-  where classroom_id = new.classroom_id;
-  return new;
+  return case when tg_op = 'DELETE' then old else new end;
 end;
 $$;
 
-drop trigger if exists transfer_classroom_managed_storage_to_cold on public.classroom_cold_tombstones;
-create trigger transfer_classroom_managed_storage_to_cold
-after insert on public.classroom_cold_tombstones
-for each row execute function public.transfer_classroom_managed_storage_to_cold();
+drop trigger if exists prepare_managed_cleanup_ledger_change
+  on public.assignment_artifact_storage_cleanup;
+create trigger prepare_managed_cleanup_ledger_change
+before insert or update or delete on public.assignment_artifact_storage_cleanup
+for each row execute function public.prepare_legacy_managed_cleanup_ledger_change();
 
-create or replace function public.release_cold_managed_storage_on_restore()
+drop trigger if exists prepare_managed_cleanup_ledger_change
+  on public.test_document_snapshot_storage_cleanup;
+create trigger prepare_managed_cleanup_ledger_change
+before insert or update or delete on public.test_document_snapshot_storage_cleanup
+for each row execute function public.prepare_legacy_managed_cleanup_ledger_change();
+
+-- Managed cleanup may reconcile a compatibility row before its older worker
+-- observes completion. Treat that exact absence as idempotent success, while a
+-- still-present row with a stale/wrong lease continues to fail closed.
+create or replace function public.complete_assignment_artifact_storage_cleanup(
+  p_cleanup_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.assignment_artifact_storage_cleanup
+  where id = p_cleanup_id
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  if found then return true; end if;
+  return not exists (
+    select 1 from public.assignment_artifact_storage_cleanup where id = p_cleanup_id
+  );
+end;
+$$;
+
+create or replace function public.complete_test_document_snapshot_storage_cleanup(
+  p_cleanup_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.test_document_snapshot_storage_cleanup
+  where id = p_cleanup_id
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  if found then return true; end if;
+  return not exists (
+    select 1 from public.test_document_snapshot_storage_cleanup where id = p_cleanup_id
+  );
+end;
+$$;
+
+-- The scope UUID persists through restore, so deleting a tombstone never
+-- transfers or recreates ownership. Until cold deletion is implemented, a
+-- tombstone with scoped files may disappear only as part of a verified restore
+-- that has already recreated the hot classroom with the same UUID.
+create or replace function public.guard_cold_classroom_scope_delete()
 returns trigger
 language plpgsql
 security definer
-set search_path = public, storage
+set search_path = public
 as $$
-declare
-  v_coverage public.classroom_cold_managed_storage_coverage;
-  v_current_count integer;
-  v_restore_operation_id uuid;
 begin
-  if current_setting('pika.classroom_archive_restore', true) is distinct from 'on' then
-    if exists (
-      select 1 from public.managed_storage_objects object
-      where object.cold_classroom_id = old.classroom_id
-    ) then
-      raise exception 'cold_classroom_deletion_not_implemented' using errcode = '55000';
-    end if;
+  if not exists (
+    select 1 from public.managed_storage_objects object
+    where object.classroom_id = old.classroom_id
+  ) then
     return old;
   end if;
-
-  if not exists (select 1 from public.classrooms where id = old.classroom_id) then
-    raise exception 'cold_managed_storage_restore_target_missing' using errcode = '40001';
+  if current_setting('pika.classroom_archive_restore', true) = 'on'
+    and exists (
+      select 1 from public.classrooms classroom
+      where classroom.id = old.classroom_id
+        and classroom.teacher_id = old.teacher_id
+    )
+  then
+    return old;
   end if;
-
-  select * into v_coverage
-  from public.classroom_cold_managed_storage_coverage coverage
-  where coverage.classroom_id = old.classroom_id
-    and coverage.archive_id = old.archive_id
-  for update;
-  if found then
-    select count(*)::integer into v_current_count
-    from public.managed_storage_objects object
-    where object.cold_classroom_id = old.classroom_id
-      and object.cold_archive_id = old.archive_id;
-    if v_current_count <> v_coverage.remaining_object_count then
-      raise exception 'cold_managed_storage_restore_coverage_drift' using errcode = '40001';
-    end if;
-  elsif exists (
-    select 1 from public.managed_storage_objects object
-    where object.cold_classroom_id = old.classroom_id
-      and object.cold_archive_id = old.archive_id
-  ) then
-    raise exception 'cold_managed_storage_restore_coverage_missing' using errcode = '40001';
-  end if;
-
-  begin
-    v_restore_operation_id := nullif(
-      current_setting('pika.classroom_archive_restore_operation_id', true),
-      ''
-    )::uuid;
-  exception when invalid_text_representation then
-    v_restore_operation_id := null;
-  end;
-  if not exists (
-    select 1
-    from public.classroom_archive_operations operation
-    where operation.id = v_restore_operation_id
-      and operation.classroom_id = old.classroom_id
-      and operation.teacher_id = old.teacher_id
-      and operation.archive_id = old.archive_id
-      and operation.operation_type = 'restore'
-      and operation.status = 'completed'
-  ) then
-    v_restore_operation_id := null;
-  end if;
-
-  -- The original source stays cold-owned until the restore contract has an
-  -- exact replacement descriptor and the replacement object is physically
-  -- present. This prevents the tombstone deletion from creating an untracked
-  -- interval for a source object that may still be needed by restore.
-  if exists (
-    select 1 from public.managed_storage_objects object
-    where object.cold_classroom_id = old.classroom_id
-      and object.cold_archive_id = old.archive_id
-  ) and v_restore_operation_id is null then
-    raise exception 'cold_managed_storage_restore_operation_missing' using errcode = '40001';
-  end if;
-  if exists (
-    select 1
-    from public.managed_storage_objects object
-    left join public.classroom_archive_restore_managed_objects descriptor
-      on descriptor.operation_id = v_restore_operation_id
-     and descriptor.managed_object_id = object.id
-    where object.cold_classroom_id = old.classroom_id
-      and object.cold_archive_id = old.archive_id
-      and (
-        descriptor.managed_object_id is null
-        or not exists (
-          select 1 from storage.objects replacement
-          where replacement.bucket_id = descriptor.storage_bucket
-            and replacement.name = descriptor.storage_path
-        )
-      )
-  ) then
-    raise exception 'cold_managed_storage_restore_replacement_missing' using errcode = '40001';
-  end if;
-
-  with released as (
-    delete from public.managed_storage_objects object
-    where object.cold_classroom_id = old.classroom_id
-      and object.cold_archive_id = old.archive_id
-    returning
-      object.storage_bucket, object.storage_path, object.purpose,
-      object.created_by_user_id, object.data_subject_user_id, object.content_type,
-      object.byte_size, object.content_sha256
-  )
-  insert into public.managed_storage_objects (
-    storage_bucket, storage_path, classroom_id, purpose, status,
-    created_by_user_id, data_subject_user_id, resource_type, resource_id,
-    content_type, byte_size, content_sha256, last_error_code, next_attempt_at
-  )
-  select
-    released.storage_bucket, released.storage_path, old.classroom_id,
-    released.purpose, 'cleanup_pending', released.created_by_user_id,
-    released.data_subject_user_id, 'archive_restore_source', v_restore_operation_id,
-    released.content_type, released.byte_size, released.content_sha256,
-    'archive_restored_source_cleanup', clock_timestamp()
-  from released;
-
-  delete from public.classroom_cold_managed_storage_coverage
-  where classroom_id = old.classroom_id
-    and archive_id = old.archive_id;
-  return old;
+  raise exception 'cold_classroom_deletion_not_implemented' using errcode = '55000';
 end;
 $$;
 
-drop trigger if exists release_cold_managed_storage_on_restore on public.classroom_cold_tombstones;
-create trigger release_cold_managed_storage_on_restore
+drop trigger if exists guard_cold_classroom_scope_delete
+  on public.classroom_cold_tombstones;
+create trigger guard_cold_classroom_scope_delete
 before delete on public.classroom_cold_tombstones
-for each row execute function public.release_cold_managed_storage_on_restore();
+for each row execute function public.guard_cold_classroom_scope_delete();
 
 create or replace function public.initialize_classroom_managed_storage_coverage()
 returns trigger
@@ -611,7 +1099,179 @@ begin
   ) then
     raise exception 'Managed restore inventory changed' using errcode = '40001';
   end if;
+
+  -- Reserve every restore destination before Storage is written. The stable
+  -- classroom scope is currently represented by the cold tombstone; the same
+  -- managed rows remain valid after the atomic restore swaps it for the hot row.
+  for v_descriptor in
+    select descriptor.value
+    from jsonb_array_elements(p_managed_objects) descriptor(value)
+    order by descriptor.value->>'storage_bucket', descriptor.value->>'storage_path'
+  loop
+    perform public.managed_storage_exact_lock(
+      v_descriptor->>'storage_bucket',
+      v_descriptor->>'storage_path'
+    );
+  end loop;
+
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, purpose, status,
+    created_by_user_id, data_subject_user_id, resource_type, resource_id,
+    content_type, byte_size, content_sha256, upload_expires_at
+  )
+  select
+    descriptor.managed_object_id,
+    descriptor.storage_bucket,
+    descriptor.storage_path,
+    p_classroom_id,
+    descriptor.purpose,
+    'pending_upload',
+    descriptor.created_by_user_id,
+    descriptor.data_subject_user_id,
+    descriptor.resource_type,
+    descriptor.resource_id,
+    descriptor.content_type,
+    (storage_object.value->>'expected_byte_size')::bigint,
+    storage_object.value->>'expected_sha256',
+    operation.snapshot_expires_at
+  from public.classroom_archive_restore_managed_objects descriptor
+  join public.classroom_archive_operations operation
+    on operation.id = descriptor.operation_id
+  join lateral jsonb_array_elements(p_storage_objects) storage_object(value)
+    on storage_object.value->>'storage_bucket' = descriptor.storage_bucket
+   and storage_object.value->>'storage_path' = descriptor.storage_path
+  where descriptor.operation_id = p_operation_id
+  on conflict (id) do nothing;
+
+  if exists (
+    select 1
+    from public.classroom_archive_restore_managed_objects descriptor
+    join public.classroom_archive_operations operation
+      on operation.id = descriptor.operation_id
+    join lateral jsonb_array_elements(p_storage_objects) storage_object(value)
+      on storage_object.value->>'storage_bucket' = descriptor.storage_bucket
+     and storage_object.value->>'storage_path' = descriptor.storage_path
+    left join public.managed_storage_objects object
+      on object.id = descriptor.managed_object_id
+     and object.classroom_id = p_classroom_id
+     and object.course_blueprint_id is null
+     and object.storage_bucket = descriptor.storage_bucket
+     and object.storage_path = descriptor.storage_path
+     and object.purpose = descriptor.purpose
+     and object.resource_type is not distinct from descriptor.resource_type
+     and object.resource_id is not distinct from descriptor.resource_id
+     and object.byte_size is not distinct from
+       (storage_object.value->>'expected_byte_size')::bigint
+     and object.content_sha256 is not distinct from
+       storage_object.value->>'expected_sha256'
+    where descriptor.operation_id = p_operation_id
+      and (object.id is null or object.status = 'cleanup_processing')
+  ) then
+    raise exception 'Managed restore reservation conflicts' using errcode = '23505';
+  end if;
+
+  update public.managed_storage_objects object
+  set
+    status = 'pending_upload',
+    upload_expires_at = operation.snapshot_expires_at,
+    lease_token = null,
+    lease_expires_at = null,
+    ready_at = null,
+    last_error_code = null,
+    next_attempt_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  from public.classroom_archive_restore_managed_objects descriptor
+  join public.classroom_archive_operations operation
+    on operation.id = descriptor.operation_id
+  where descriptor.operation_id = p_operation_id
+    and object.id = descriptor.managed_object_id
+    and object.status = 'cleanup_pending';
   return v_result;
+end;
+$$;
+
+alter function public.stage_classroom_archive_object_upload(
+  uuid, uuid, text, text, text, bigint
+) rename to stage_classroom_archive_object_upload_legacy_117;
+
+create or replace function public.stage_classroom_archive_object_upload(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_expected_sha256 text,
+  p_expected_byte_size bigint
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_managed_object_id uuid;
+  v_operation_type text;
+  v_staged boolean;
+begin
+  select operation.classroom_id into v_classroom_id
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id;
+  if not found then return false; end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms where id = v_classroom_id for update;
+  if not found then
+    perform 1 from public.classroom_cold_tombstones
+    where classroom_id = v_classroom_id for update;
+    if not found then return false; end if;
+  end if;
+  select operation.operation_type into v_operation_type
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.classroom_id = v_classroom_id
+    and operation.teacher_id = p_teacher_id
+  for update;
+  if not found then return false; end if;
+
+  v_staged := public.stage_classroom_archive_object_upload_legacy_117(
+    p_operation_id,
+    p_teacher_id,
+    p_storage_bucket,
+    p_storage_path,
+    p_expected_sha256,
+    p_expected_byte_size
+  );
+  if not v_staged or v_operation_type <> 'restore' then return v_staged; end if;
+
+  select descriptor.managed_object_id into v_managed_object_id
+  from public.classroom_archive_restore_managed_objects descriptor
+  join public.managed_storage_objects object
+    on object.id = descriptor.managed_object_id
+   and object.classroom_id = v_classroom_id
+   and object.storage_bucket = descriptor.storage_bucket
+   and object.storage_path = descriptor.storage_path
+   and object.byte_size is not distinct from p_expected_byte_size
+   and object.content_sha256 is not distinct from p_expected_sha256
+   and object.status in ('pending_upload', 'ready')
+  where descriptor.operation_id = p_operation_id
+    and descriptor.storage_bucket = p_storage_bucket
+    and descriptor.storage_path = p_storage_path
+  for update of object;
+  if not found then
+    raise exception 'Managed restore upload reservation missing' using errcode = '55000';
+  end if;
+
+  update public.classroom_archive_object_upload_cleanup
+  set managed_object_id = v_managed_object_id,
+      updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and status <> 'deleted';
+  if not found then
+    raise exception 'Managed restore upload cleanup missing' using errcode = '40001';
+  end if;
+  return true;
 end;
 $$;
 
@@ -953,10 +1613,8 @@ begin
 end;
 $$;
 
--- Migration 085 inserts the tombstone before it sets its compaction context.
--- Keep its tested relational finalizer intact and establish the context in a
--- narrow wrapper so the tombstone trigger can atomically transfer managed
--- ownership before the classroom root is deleted.
+-- Migration 085 owns the hot/cold availability transition. Managed files keep
+-- the same classroom scope UUID, so compaction requires no ownership transfer.
 alter function public.complete_classroom_archive_compaction(uuid, uuid, jsonb, jsonb)
   rename to complete_classroom_archive_compaction_legacy_117;
 
@@ -980,14 +1638,9 @@ begin
     true
   );
   -- Migration 085's preflight exercises the real classroom DELETE in a
-  -- rolled-back subtransaction before its tombstone exists. Defer only the
-  -- two hot ownership FKs for that transaction; the delete trigger below
-  -- admits it only with this marker and an exact snapshot-ready operation.
+  -- rolled-back subtransaction. The delete guard below admits both that
+  -- preflight and the real delete only for this exact compaction operation.
   perform set_config('pika.classroom_archive_compaction_dry_run', 'on', true);
-  set constraints
-    public.managed_storage_objects_classroom_id_fkey,
-    public.classroom_managed_storage_coverage_classroom_id_fkey
-    deferred;
   return public.complete_classroom_archive_compaction_legacy_117(
     p_operation_id,
     p_teacher_id,
@@ -2070,16 +2723,67 @@ set search_path = public
 as $$
 declare
   v_object public.managed_storage_objects;
+  v_archived_at timestamptz;
+  v_existing boolean := false;
+  v_operation public.classroom_archive_operations;
+  v_operational_intent_valid boolean := false;
+  v_teacher_id uuid;
 begin
-  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+  if num_nonnulls(p_classroom_id, p_course_blueprint_id) <> 1
+    or p_object_id is null
+    or p_created_by_user_id is null
+  then
+    raise exception 'managed_storage_owner_required' using errcode = '22023';
+  end if;
 
   if p_classroom_id is not null then
     perform public.classroom_purge_lock(p_classroom_id);
-    if not exists (
-      select 1 from public.classrooms classroom
-      where classroom.id = p_classroom_id
-        and classroom.archived_at is null
-    ) then
+    select classroom.teacher_id, classroom.archived_at
+    into v_teacher_id, v_archived_at
+    from public.classrooms classroom
+    where classroom.id = p_classroom_id
+    for update;
+    if not found or v_teacher_id <> p_created_by_user_id then
+      raise exception 'classroom_not_owned' using errcode = '42501';
+    end if;
+    if p_purpose in ('classroom_archive', 'gradex_extract') then
+      select * into v_operation
+      from public.classroom_archive_operations operation
+      where operation.id = p_resource_id
+        and operation.classroom_id = p_classroom_id
+        and operation.teacher_id = p_created_by_user_id
+      for update;
+      if found and p_purpose = 'classroom_archive' then
+        perform 1
+        from public.classroom_archive_object_upload_cleanup cleanup
+        where cleanup.operation_id = p_resource_id
+          and cleanup.storage_bucket = p_storage_bucket
+          and cleanup.storage_path = p_storage_path
+          and cleanup.expected_byte_size is not distinct from p_byte_size
+          and cleanup.status = 'staged'
+        for update;
+        v_operational_intent_valid := found;
+      elsif found then
+        v_operational_intent_valid := v_operation.storage_bucket is not distinct from p_storage_bucket
+          and v_operation.storage_path is not distinct from p_storage_path;
+      end if;
+      if v_operation.id is null
+        or v_archived_at is null
+        or p_storage_bucket <> case p_purpose
+          when 'classroom_archive' then 'classroom-archives'
+          else 'gradex-analytics-extracts'
+        end
+        or p_resource_type <> 'classroom_archive_operation'
+        or v_operation.status <> 'snapshot_ready'
+        or v_operation.operation_type <> case p_purpose
+          when 'classroom_archive' then 'export'
+          else 'gradex_extract'
+        end
+        or not v_operational_intent_valid
+      then
+        raise exception 'classroom_operational_upload_not_allowed' using errcode = '55000';
+      end if;
+    elsif v_archived_at is not null then
       raise exception 'classroom_not_writable' using errcode = '55000';
     end if;
     if exists (
@@ -2094,9 +2798,19 @@ begin
     select 1 from public.course_blueprints blueprint
     where blueprint.id = p_course_blueprint_id
       and blueprint.teacher_id = p_created_by_user_id
+    for update
   ) then
     raise exception 'blueprint_not_owned' using errcode = '42501';
   end if;
+
+  -- Existing reservations are locked before the exact Storage identity. Owner
+  -- fields and paths are immutable, so this ordering is stable on replay.
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = p_object_id
+  for update;
+  v_existing := found;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
 
   if exists (
     select 1
@@ -2110,36 +2824,69 @@ begin
     raise exception 'storage_path_permanently_reserved' using errcode = '55000';
   end if;
 
-  insert into public.managed_storage_objects (
-    id,
-    storage_bucket,
-    storage_path,
-    classroom_id,
-    course_blueprint_id,
-    purpose,
-    created_by_user_id,
-    data_subject_user_id,
-    resource_type,
-    resource_id,
-    content_type,
-    byte_size,
-    upload_expires_at
-  ) values (
-    p_object_id,
-    p_storage_bucket,
-    p_storage_path,
-    p_classroom_id,
-    p_course_blueprint_id,
-    p_purpose,
-    p_created_by_user_id,
-    p_data_subject_user_id,
-    nullif(btrim(p_resource_type), ''),
-    p_resource_id,
-    nullif(btrim(p_content_type), ''),
-    p_byte_size,
-    clock_timestamp() + interval '1 hour'
-  )
-  returning * into v_object;
+  if v_existing then
+    if v_object.storage_bucket is distinct from p_storage_bucket
+      or v_object.storage_path is distinct from p_storage_path
+      or v_object.classroom_id is distinct from p_classroom_id
+      or v_object.course_blueprint_id is distinct from p_course_blueprint_id
+      or v_object.purpose is distinct from p_purpose
+      or v_object.created_by_user_id is distinct from p_created_by_user_id
+      or v_object.data_subject_user_id is distinct from p_data_subject_user_id
+      or v_object.resource_type is distinct from nullif(btrim(p_resource_type), '')
+      or v_object.resource_id is distinct from p_resource_id
+      or v_object.content_type is distinct from nullif(btrim(p_content_type), '')
+      or v_object.byte_size is distinct from p_byte_size
+    then
+      raise exception 'managed_storage_reservation_conflict' using errcode = '23505';
+    end if;
+    if v_object.status = 'cleanup_processing' then
+      raise exception 'managed_storage_cleanup_active' using errcode = '55000';
+    end if;
+    if v_object.status = 'cleanup_pending' then
+      update public.managed_storage_objects object
+      set status = 'pending_upload', upload_expires_at = clock_timestamp() + interval '1 hour',
+          last_error_code = null, next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+      where object.id = p_object_id
+      returning * into v_object;
+    end if;
+  else
+    insert into public.managed_storage_objects (
+      id, storage_bucket, storage_path, classroom_id, course_blueprint_id,
+      purpose, created_by_user_id, data_subject_user_id, resource_type,
+      resource_id, content_type, byte_size, upload_expires_at
+    ) values (
+      p_object_id, p_storage_bucket, p_storage_path, p_classroom_id,
+      p_course_blueprint_id, p_purpose, p_created_by_user_id,
+      p_data_subject_user_id, nullif(btrim(p_resource_type), ''), p_resource_id,
+      nullif(btrim(p_content_type), ''), p_byte_size,
+      clock_timestamp() + interval '1 hour'
+    ) returning * into v_object;
+  end if;
+
+  if p_purpose = 'classroom_archive' then
+    update public.classroom_archive_operations
+    set managed_object_id = p_object_id,
+        storage_bucket = p_storage_bucket,
+        storage_path = p_storage_path,
+        updated_at = clock_timestamp()
+    where id = p_resource_id;
+    update public.classroom_archive_object_upload_cleanup
+    set managed_object_id = p_object_id, updated_at = clock_timestamp()
+    where operation_id = p_resource_id
+      and storage_bucket = p_storage_bucket
+      and storage_path = p_storage_path
+      and status <> 'deleted';
+  elsif p_purpose = 'gradex_extract' then
+    update public.classroom_archive_operations
+    set managed_object_id = p_object_id, updated_at = clock_timestamp()
+    where id = p_resource_id;
+    update public.classroom_gradex_extract_cleanup
+    set managed_object_id = p_object_id, updated_at = clock_timestamp()
+    where operation_id = p_resource_id
+      and storage_bucket = p_storage_bucket
+      and storage_path = p_storage_path
+      and status <> 'deleted';
+  end if;
 
   return v_object;
 end;
@@ -2156,12 +2903,66 @@ set search_path = public, storage
 as $$
 declare
   v_object public.managed_storage_objects;
+  v_hot_scope boolean := false;
 begin
+  select * into v_object
+  from public.managed_storage_objects
+  where id = p_object_id;
+
+  if not found then
+    raise exception 'managed_storage_object_not_found' using errcode = 'P0002';
+  end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms classroom
+    where classroom.id = v_object.classroom_id
+    for update;
+    v_hot_scope := found;
+    if not v_hot_scope then
+      perform 1 from public.classroom_cold_tombstones tombstone
+      where tombstone.classroom_id = v_object.classroom_id
+      for update;
+      if not found then
+        raise exception 'classroom_scope_not_found' using errcode = 'P0002';
+      end if;
+      perform 1
+      from public.classroom_archive_restore_managed_objects descriptor
+      join public.classroom_archive_operations operation
+        on operation.id = descriptor.operation_id
+      where descriptor.managed_object_id = v_object.id
+        and descriptor.storage_bucket = v_object.storage_bucket
+        and descriptor.storage_path = v_object.storage_path
+        and descriptor.purpose = v_object.purpose
+        and operation.classroom_id = v_object.classroom_id
+        and operation.operation_type = 'restore'
+        and operation.status = 'snapshot_ready'
+      for update of operation;
+      if not found then
+        raise exception 'classroom_restore_upload_not_allowed' using errcode = '55000';
+      end if;
+    elsif v_object.purpose in ('classroom_archive', 'gradex_extract') then
+      perform 1 from public.classroom_archive_operations operation
+      where operation.id = v_object.resource_id
+        and operation.classroom_id = v_object.classroom_id
+        and operation.status = 'snapshot_ready'
+        and operation.managed_object_id = v_object.id
+      for update;
+      if not found then
+        raise exception 'classroom_operational_upload_not_allowed' using errcode = '55000';
+      end if;
+    end if;
+  elsif v_object.course_blueprint_id is not null then
+    perform 1 from public.course_blueprints blueprint
+    where blueprint.id = v_object.course_blueprint_id
+    for update;
+    if not found then
+      raise exception 'blueprint_not_found' using errcode = 'P0002';
+    end if;
+  end if;
   select * into v_object
   from public.managed_storage_objects
   where id = p_object_id
   for update;
-
   if not found then
     raise exception 'managed_storage_object_not_found' using errcode = 'P0002';
   end if;
@@ -2193,6 +2994,220 @@ begin
 end;
 $$;
 
+-- Archive and Gradex finalization keep their established contracts, but the
+-- managed object is now validated and attached in the same transaction as the
+-- immutable operational metadata.
+alter function public.complete_classroom_archive_export_v2(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) rename to complete_classroom_archive_export_v2_legacy_117;
+
+create or replace function public.complete_classroom_archive_export_v2(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_artifact_sha256 text,
+  p_content_sha256 text,
+  p_compressed_byte_size bigint,
+  p_uncompressed_byte_size bigint,
+  p_resource_counts jsonb,
+  p_archive_format_version integer,
+  p_archive_resource_counts jsonb,
+  p_storage_object_counts jsonb,
+  p_verification jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_object public.managed_storage_objects;
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id;
+  if not found then
+    return public.complete_classroom_archive_export_v2_legacy_117(
+      p_operation_id, p_teacher_id, p_storage_bucket, p_storage_path,
+      p_artifact_sha256, p_content_sha256, p_compressed_byte_size,
+      p_uncompressed_byte_size, p_resource_counts, p_archive_format_version,
+      p_archive_resource_counts, p_storage_object_counts, p_verification
+    );
+  end if;
+  v_classroom_id := v_operation.classroom_id;
+  if v_operation.status = 'completed' then
+    return public.complete_classroom_archive_export_v2_legacy_117(
+      p_operation_id, p_teacher_id, p_storage_bucket, p_storage_path,
+      p_artifact_sha256, p_content_sha256, p_compressed_byte_size,
+      p_uncompressed_byte_size, p_resource_counts, p_archive_format_version,
+      p_archive_resource_counts, p_storage_object_counts, p_verification
+    );
+  end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id and classroom.teacher_id = p_teacher_id
+  for update;
+  if not found then
+    raise exception 'classroom_not_owned' using errcode = '42501';
+  end if;
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.classroom_id = v_classroom_id
+    and operation.teacher_id = p_teacher_id
+    and operation.operation_type = 'export'
+  for update;
+  if not found or v_operation.managed_object_id is null then
+    raise exception 'archive_managed_object_missing' using errcode = '55000';
+  end if;
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = v_operation.managed_object_id
+  for update;
+  if not found
+    or v_object.classroom_id is distinct from v_classroom_id
+    or v_object.course_blueprint_id is not null
+    or v_object.storage_bucket is distinct from p_storage_bucket
+    or v_object.storage_path is distinct from p_storage_path
+    or v_object.purpose <> 'classroom_archive'
+    or v_object.resource_type <> 'classroom_archive_operation'
+    or v_object.resource_id is distinct from p_operation_id
+    or v_object.status <> 'ready'
+    or v_object.content_sha256 is distinct from p_artifact_sha256
+    or v_object.byte_size is distinct from p_compressed_byte_size
+  then
+    raise exception 'archive_managed_object_mismatch' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+
+  v_result := public.complete_classroom_archive_export_v2_legacy_117(
+    p_operation_id, p_teacher_id, p_storage_bucket, p_storage_path,
+    p_artifact_sha256, p_content_sha256, p_compressed_byte_size,
+    p_uncompressed_byte_size, p_resource_counts, p_archive_format_version,
+    p_archive_resource_counts, p_storage_object_counts, p_verification
+  );
+  if coalesce((v_result->>'ok')::boolean, false) then
+    update public.classroom_archives archive
+    set managed_object_id = v_object.id
+    where archive.id = v_operation.archive_id
+      and archive.classroom_id = v_classroom_id
+      and archive.storage_bucket = p_storage_bucket
+      and archive.storage_path = p_storage_path;
+    if not found then
+      raise exception 'archive_managed_attachment_failed' using errcode = '40001';
+    end if;
+  end if;
+  return v_result;
+end;
+$$;
+
+alter function public.complete_classroom_gradex_extract(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) rename to complete_classroom_gradex_extract_legacy_117;
+
+create or replace function public.complete_classroom_gradex_extract(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_artifact_sha256 text,
+  p_content_sha256 text,
+  p_compressed_byte_size bigint,
+  p_uncompressed_byte_size bigint,
+  p_resource_counts jsonb,
+  p_verification jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_object public.managed_storage_objects;
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id;
+  if not found then
+    return public.complete_classroom_gradex_extract_legacy_117(
+      p_operation_id, p_teacher_id, p_artifact_sha256, p_content_sha256,
+      p_compressed_byte_size, p_uncompressed_byte_size, p_resource_counts,
+      p_verification
+    );
+  end if;
+  v_classroom_id := v_operation.classroom_id;
+  if v_operation.status = 'completed' then
+    return public.complete_classroom_gradex_extract_legacy_117(
+      p_operation_id, p_teacher_id, p_artifact_sha256, p_content_sha256,
+      p_compressed_byte_size, p_uncompressed_byte_size, p_resource_counts,
+      p_verification
+    );
+  end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id and classroom.teacher_id = p_teacher_id
+  for update;
+  if not found then
+    raise exception 'classroom_not_owned' using errcode = '42501';
+  end if;
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.classroom_id = v_classroom_id
+    and operation.teacher_id = p_teacher_id
+    and operation.operation_type = 'gradex_extract'
+  for update;
+  if not found or v_operation.managed_object_id is null then
+    raise exception 'gradex_managed_object_missing' using errcode = '55000';
+  end if;
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = v_operation.managed_object_id
+  for update;
+  if not found
+    or v_object.classroom_id is distinct from v_classroom_id
+    or v_object.course_blueprint_id is not null
+    or v_object.storage_bucket <> 'gradex-analytics-extracts'
+    or v_object.storage_path is distinct from v_operation.storage_path
+    or v_object.purpose <> 'gradex_extract'
+    or v_object.resource_type <> 'classroom_archive_operation'
+    or v_object.resource_id is distinct from p_operation_id
+    or v_object.status <> 'ready'
+    or v_object.content_sha256 is distinct from p_artifact_sha256
+    or v_object.byte_size is distinct from p_compressed_byte_size
+  then
+    raise exception 'gradex_managed_object_mismatch' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+
+  v_result := public.complete_classroom_gradex_extract_legacy_117(
+    p_operation_id, p_teacher_id, p_artifact_sha256, p_content_sha256,
+    p_compressed_byte_size, p_uncompressed_byte_size, p_resource_counts,
+    p_verification
+  );
+  if coalesce((v_result->>'ok')::boolean, false) then
+    update public.classroom_gradex_extracts extract
+    set managed_object_id = v_object.id
+    where extract.operation_id = p_operation_id
+      and extract.classroom_id = v_classroom_id
+      and extract.storage_bucket = v_object.storage_bucket
+      and extract.storage_path = v_object.storage_path;
+    if not found then
+      raise exception 'gradex_managed_attachment_failed' using errcode = '40001';
+    end if;
+  end if;
+  return v_result;
+end;
+$$;
+
 create or replace function public.queue_managed_storage_cleanup(
   p_object_id uuid,
   p_error_code text default null
@@ -2202,7 +3217,32 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_object public.managed_storage_objects;
 begin
+  select * into v_object from public.managed_storage_objects where id = p_object_id;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then
+        raise exception 'managed_storage_classroom_scope_missing' using errcode = '55000';
+      end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then
+      raise exception 'managed_storage_blueprint_owner_missing' using errcode = '55000';
+    end if;
+  end if;
+  select * into v_object from public.managed_storage_objects
+  where id = p_object_id for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
   update public.managed_storage_objects
   set
     status = 'cleanup_pending',
@@ -2237,6 +3277,8 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_object public.managed_storage_objects;
 begin
   if p_object_id is null
     or p_classroom_id is null
@@ -2253,11 +3295,32 @@ begin
     return false;
   end if;
 
+  perform public.guard_classroom_purge_lifecycle(p_classroom_id);
+  perform 1 from public.classrooms where id = p_classroom_id for update;
+  if not found then
+    perform 1 from public.classroom_cold_tombstones
+    where classroom_id = p_classroom_id for update;
+    if not found then return false; end if;
+  end if;
   if p_resource_type = 'test' then
-    perform 1 from public.tests where id = p_resource_id for update;
+    perform 1 from public.tests
+    where id = p_resource_id and classroom_id = p_classroom_id
+    for update;
     if not found then return false; end if;
   end if;
 
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = p_object_id
+    and object.classroom_id = p_classroom_id
+    and object.course_blueprint_id is null
+    and object.storage_bucket = p_storage_bucket
+    and object.storage_path = p_storage_path
+    and object.purpose = p_purpose
+    and object.resource_type = p_resource_type
+    and object.resource_id = p_resource_id
+  for update;
+  if not found then return false; end if;
   perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
   update public.managed_storage_objects
   set
@@ -2271,7 +3334,6 @@ begin
     updated_at = clock_timestamp()
   where id = p_object_id
     and classroom_id = p_classroom_id
-    and cold_classroom_id is null
     and course_blueprint_id is null
     and storage_bucket = p_storage_bucket
     and storage_path = p_storage_path
@@ -2343,11 +3405,18 @@ begin
     raise exception 'invalid_managed_test_document_claims' using errcode = '22023';
   end if;
 
+  select test.classroom_id into v_classroom_id
+  from public.tests test
+  where test.id = p_test_id;
+  if not found then raise exception 'test_not_found' using errcode = 'P0002'; end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
   select classroom.id, classroom.teacher_id, classroom.archived_at
   into v_classroom_id, v_owner_id, v_archived_at
   from public.tests test
   join public.classrooms classroom on classroom.id = test.classroom_id
   where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
   for update of test, classroom;
   if not found then raise exception 'test_not_found' using errcode = 'P0002'; end if;
   if v_owner_id is distinct from p_teacher_id then
@@ -2390,7 +3459,6 @@ begin
             select 1 from public.managed_storage_objects object
             where object.id = v_object_id
               and object.classroom_id = v_classroom_id
-              and object.cold_classroom_id is null
               and object.course_blueprint_id is null
               and object.storage_bucket = 'test-documents'
               and object.storage_path = v_path
@@ -2410,7 +3478,6 @@ begin
       from public.managed_storage_objects object
       where object.id = v_object_id
         and object.classroom_id = v_classroom_id
-        and object.cold_classroom_id is null
         and object.course_blueprint_id is null
         and object.storage_bucket = 'test-documents'
         and object.storage_path = v_path
@@ -2457,7 +3524,6 @@ begin
             select 1 from public.managed_storage_objects object
             where object.id = v_object_id
               and object.classroom_id = v_classroom_id
-              and object.cold_classroom_id is null
               and object.course_blueprint_id is null
               and object.storage_bucket = 'test-documents'
               and object.storage_path = v_path
@@ -2477,7 +3543,6 @@ begin
       from public.managed_storage_objects object
       where object.id = v_object_id
         and object.classroom_id = v_classroom_id
-        and object.cold_classroom_id is null
         and object.course_blueprint_id is null
         and object.storage_bucket = 'test-documents'
         and object.storage_path = v_path
@@ -2592,7 +3657,6 @@ begin
     from public.managed_storage_objects object
     where object.id = v_object_id
       and object.classroom_id = v_classroom_id
-      and object.cold_classroom_id is null
       and object.course_blueprint_id is null
       and object.storage_bucket = 'test-documents'
       and object.storage_path = v_path
@@ -2658,7 +3722,34 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_object public.managed_storage_objects;
 begin
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.storage_bucket = p_storage_bucket
+    and object.storage_path = p_storage_path;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then
+        raise exception 'managed_storage_classroom_scope_missing' using errcode = '55000';
+      end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then
+      raise exception 'managed_storage_blueprint_owner_missing' using errcode = '55000';
+    end if;
+  end if;
+  select * into v_object from public.managed_storage_objects object
+  where object.id = v_object.id for update;
+  if not found then return false; end if;
   perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
   update public.managed_storage_objects
   set
@@ -2670,8 +3761,7 @@ begin
     next_attempt_at = clock_timestamp(),
     ready_at = null,
     updated_at = clock_timestamp()
-  where storage_bucket = p_storage_bucket
-    and storage_path = p_storage_path
+  where id = v_object.id
     and status in ('pending_upload', 'ready', 'cleanup_pending');
   return found;
 end;
@@ -2687,30 +3777,56 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_candidate public.managed_storage_objects;
+  v_object public.managed_storage_objects;
 begin
-  if p_limit < 1 or p_limit > 10 or p_lease_seconds < 15 or p_lease_seconds > 300 then
+  if p_limit <> 1 or p_lease_seconds < 15 or p_lease_seconds > 300 then
     raise exception 'invalid_managed_storage_cleanup_claim' using errcode = '22023';
   end if;
-  return query
-  with candidates as (
-    select object.id
-    from public.managed_storage_objects object
-    where (
-      object.status = 'cleanup_pending'
-      or (
-        object.status = 'pending_upload'
-        and object.upload_expires_at <= clock_timestamp()
-      )
-      or (
-        object.status = 'cleanup_processing'
-        and object.lease_expires_at <= clock_timestamp()
-      )
-    )
-      and object.next_attempt_at <= clock_timestamp()
-    order by object.next_attempt_at, object.created_at, object.id
-    for update skip locked
-    limit p_limit
+
+  select * into v_candidate
+  from public.managed_storage_objects object
+  where (
+    object.status = 'cleanup_pending'
+    or (object.status = 'pending_upload' and object.upload_expires_at <= clock_timestamp())
+    or (object.status = 'cleanup_processing' and object.lease_expires_at <= clock_timestamp())
   )
+    and object.next_attempt_at <= clock_timestamp()
+  order by object.next_attempt_at, object.created_at, object.id
+  limit 1;
+  if not found then return; end if;
+
+  if v_candidate.classroom_id is not null then
+    perform public.classroom_purge_lock(v_candidate.classroom_id);
+    perform 1 from public.classrooms where id = v_candidate.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_candidate.classroom_id for update;
+      if not found then
+        raise exception 'managed_storage_classroom_scope_missing' using errcode = '55000';
+      end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_candidate.course_blueprint_id for update;
+    if not found then
+      raise exception 'managed_storage_blueprint_owner_missing' using errcode = '55000';
+    end if;
+  end if;
+
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = v_candidate.id
+    and (
+      object.status = 'cleanup_pending'
+      or (object.status = 'pending_upload' and object.upload_expires_at <= clock_timestamp())
+      or (object.status = 'cleanup_processing' and object.lease_expires_at <= clock_timestamp())
+    )
+    and object.next_attempt_at <= clock_timestamp()
+  for update skip locked;
+  if not found then return; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
   update public.managed_storage_objects object
   set
     status = 'cleanup_processing',
@@ -2720,9 +3836,9 @@ begin
     last_error_code = null,
     ready_at = null,
     updated_at = clock_timestamp()
-  from candidates
-  where object.id = candidates.id
-  returning object.*;
+  where object.id = v_object.id
+  returning object.* into v_object;
+  return next v_object;
 end;
 $$;
 
@@ -2738,6 +3854,21 @@ as $$
 declare
   v_object public.managed_storage_objects;
 begin
+  select * into v_object from public.managed_storage_objects where id = p_object_id;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then return false; end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then return false; end if;
+  end if;
   select * into v_object
   from public.managed_storage_objects
   where id = p_object_id
@@ -2746,6 +3877,7 @@ begin
     and lease_expires_at > clock_timestamp()
   for update;
   if not found then return false; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
   if exists (
     select 1 from storage.objects object
     where object.bucket_id = v_object.storage_bucket
@@ -2753,6 +3885,13 @@ begin
   ) then
     raise exception 'managed_storage_cleanup_not_absent' using errcode = '55000';
   end if;
+  -- These are compatibility evidence, not retaining owners. Remove them in
+  -- the same transaction so ON DELETE SET NULL cannot leave a path-bearing,
+  -- ownerless ledger between managed completion and its legacy worker.
+  delete from public.assignment_artifact_storage_cleanup
+  where managed_object_id = p_object_id;
+  delete from public.test_document_snapshot_storage_cleanup
+  where managed_object_id = p_object_id;
   delete from public.managed_storage_objects
   where id = p_object_id
     and lease_token = p_lease_token;
@@ -2770,7 +3909,31 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_object public.managed_storage_objects;
 begin
+  select * into v_object from public.managed_storage_objects where id = p_object_id;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then return false; end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then return false; end if;
+  end if;
+  select * into v_object from public.managed_storage_objects
+  where id = p_object_id
+    and status = 'cleanup_processing'
+    and lease_token = p_lease_token
+  for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
   update public.managed_storage_objects
   set
     status = 'cleanup_pending',
@@ -2788,151 +3951,10 @@ begin
 end;
 $$;
 
-create or replace function public.begin_course_blueprint_managed_deletion(
-  p_teacher_id uuid,
-  p_blueprint_id uuid
-)
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_count integer;
-begin
-  perform 1
-  from public.course_blueprints blueprint
-  where blueprint.id = p_blueprint_id
-    and blueprint.teacher_id = p_teacher_id
-    and blueprint.authority_mode = 'pika'
-  for update;
-  if not found then
-    raise exception 'course_blueprint_not_deletable' using errcode = 'P0002';
-  end if;
-  if exists (
-    select 1 from public.course_blueprint_operations operation
-    where operation.status = 'running'
-      and (
-        operation.source_blueprint_id = p_blueprint_id
-        or operation.result_blueprint_id = p_blueprint_id
-      )
-  ) or exists (
-    select 1 from public.course_blueprint_storage_copy_items item
-    where (
-      item.target_course_blueprint_id = p_blueprint_id
-      or exists (
-        select 1 from public.managed_storage_objects source
-        where source.id = item.source_object_id
-          and source.course_blueprint_id = p_blueprint_id
-      )
-    ) and item.status <> 'adopted'
-  ) or exists (
-    select 1
-    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
-    where reconciliation.blueprint_id = p_blueprint_id
-  ) then
-    raise exception 'course_blueprint_operation_active' using errcode = '55000';
-  end if;
-
-  update public.managed_storage_objects
-  set
-    status = 'cleanup_pending',
-    upload_expires_at = null,
-    lease_token = null,
-    lease_expires_at = null,
-    ready_at = null,
-    next_attempt_at = clock_timestamp(),
-    last_error_code = 'course_blueprint_deleted',
-    updated_at = clock_timestamp()
-  where course_blueprint_id = p_blueprint_id
-    and status in ('pending_upload', 'ready', 'cleanup_pending');
-
-  select count(*)::integer into v_count
-  from public.managed_storage_objects
-  where course_blueprint_id = p_blueprint_id;
-  return v_count;
-end;
-$$;
-
-create or replace function public.claim_course_blueprint_managed_cleanup(
-  p_teacher_id uuid,
-  p_blueprint_id uuid,
-  p_lease_token uuid,
-  p_lease_seconds integer default 60
-)
-returns setof public.managed_storage_objects
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_candidate uuid;
-begin
-  if p_lease_seconds < 15 or p_lease_seconds > 300 then
-    raise exception 'invalid_managed_storage_cleanup_claim' using errcode = '22023';
-  end if;
-  if not exists (
-    select 1 from public.course_blueprints
-    where id = p_blueprint_id and teacher_id = p_teacher_id
-  ) then raise exception 'course_blueprint_not_found' using errcode = 'P0002'; end if;
-
-  select object.id into v_candidate
-  from public.managed_storage_objects object
-  where object.course_blueprint_id = p_blueprint_id
-    and object.next_attempt_at <= clock_timestamp()
-    and (
-      object.status = 'cleanup_pending'
-      or (
-        object.status = 'cleanup_processing'
-        and object.lease_expires_at <= clock_timestamp()
-      )
-    )
-  order by object.next_attempt_at, object.created_at, object.id
-  for update skip locked
-  limit 1;
-  if not found then return; end if;
-
-  return query
-  update public.managed_storage_objects object
-  set
-    status = 'cleanup_processing',
-    attempt_count = object.attempt_count + 1,
-    lease_token = p_lease_token,
-    lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
-    last_error_code = null,
-    updated_at = clock_timestamp()
-  where object.id = v_candidate
-  returning object.*;
-end;
-$$;
-
-create or replace function public.finalize_course_blueprint_managed_deletion(
-  p_teacher_id uuid,
-  p_blueprint_id uuid
-)
-returns boolean
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  perform 1 from public.course_blueprints
-  where id = p_blueprint_id and teacher_id = p_teacher_id
-  for update;
-  if not found then return true; end if;
-  if exists (
-    select 1 from public.managed_storage_objects
-    where course_blueprint_id = p_blueprint_id
-  ) or exists (
-    select 1
-    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
-    where reconciliation.blueprint_id = p_blueprint_id
-  ) then return false; end if;
-  delete from public.course_blueprints
-  where id = p_blueprint_id and teacher_id = p_teacher_id;
-  return found;
-end;
-$$;
+-- Course Blueprint deletion is deliberately not another purge workflow in this
+-- feature. The managed-storage owner FK is RESTRICT, so Blueprints with files
+-- are preserved and deletion fails closed. A dedicated Blueprint retention UX
+-- can be designed independently without coupling it to classroom deletion.
 
 create or replace function public.register_legacy_classroom_storage_object(
   p_object_id uuid,
@@ -3275,19 +4297,26 @@ declare
   v_previous_snapshot_path text;
   v_previous_managed_object_id uuid;
 begin
+  select test.classroom_id into v_classroom_id
+  from public.tests test
+  where test.id = p_test_id;
+  if not found then
+    raise exception 'test_not_found_or_not_writable' using errcode = 'P0002';
+  end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
   select test.*
   into v_test
   from public.tests test
   join public.classrooms classroom on classroom.id = test.classroom_id
   where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
     and classroom.teacher_id = p_teacher_id
     and classroom.archived_at is null
   for update of test, classroom;
   if not found then
     raise exception 'test_not_found_or_not_writable' using errcode = 'P0002';
   end if;
-  v_classroom_id := v_test.classroom_id;
-  perform public.classroom_purge_lock(v_classroom_id);
   if exists (
     select 1 from public.classroom_purge_fences where classroom_id = v_classroom_id
   ) then raise exception 'classroom_purge_active' using errcode = '55000'; end if;
@@ -3430,7 +4459,13 @@ begin
     end if;
   end if;
 
-  if v_bucket not in ('assignment-artifacts', 'submission-images', 'test-documents') then
+  if v_bucket not in (
+    'assignment-artifacts',
+    'submission-images',
+    'test-documents',
+    'classroom-archives',
+    'gradex-analytics-extracts'
+  ) then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
 
@@ -3446,23 +4481,6 @@ begin
   if tg_op = 'DELETE' then
     if found
       and v_object.status not in ('cleanup_processing', 'purging')
-      and not exists (
-        select 1
-        from public.classroom_archive_source_object_cleanup cleanup
-        where cleanup.classroom_id = coalesce(
-            v_object.classroom_id,
-            v_object.cold_classroom_id
-          )
-          and (
-            v_object.cold_archive_id is null
-            or cleanup.archive_id = v_object.cold_archive_id
-          )
-          and cleanup.storage_bucket = v_bucket
-          and cleanup.storage_path = v_path
-          and cleanup.status = 'processing'
-          and cleanup.ownership_verified is true
-          and cleanup.lease_expires_at > clock_timestamp()
-      )
     then
       raise exception 'managed_storage_delete_not_reserved' using errcode = '55000';
     end if;
@@ -3609,25 +4627,6 @@ begin
       using errcode = '55000';
   end if;
 
-  delete from public.managed_storage_objects object
-  where object.storage_bucket = p_storage_bucket
-    and object.storage_path = p_storage_path
-    and object.cold_classroom_id = v_cleanup.classroom_id
-    and object.cold_archive_id = v_cleanup.archive_id;
-
-  if found then
-    update public.classroom_cold_managed_storage_coverage coverage
-    set
-      remaining_object_count = remaining_object_count - 1,
-      updated_at = clock_timestamp()
-    where coverage.classroom_id = v_cleanup.classroom_id
-      and coverage.archive_id = v_cleanup.archive_id
-      and coverage.remaining_object_count > 0;
-    if not found then
-      raise exception 'cold_managed_storage_cleanup_coverage_drift' using errcode = '40001';
-    end if;
-  end if;
-
   update public.classroom_archive_source_object_cleanup
   set
     status = 'deleted',
@@ -3745,22 +4744,10 @@ begin
     return case when tg_op = 'DELETE' then old else new end;
   end if;
   if v_old_classroom_id is not null then
-    perform public.classroom_purge_lock(v_old_classroom_id);
-    if exists (
-      select 1 from public.classroom_purge_fences
-      where classroom_id = v_old_classroom_id
-    ) then
-      raise exception 'classroom_purge_active' using errcode = '55000';
-    end if;
+    perform public.guard_classroom_purge_lifecycle(v_old_classroom_id);
   end if;
   if v_new_classroom_id is not null and v_new_classroom_id is distinct from v_old_classroom_id then
-    perform public.classroom_purge_lock(v_new_classroom_id);
-    if exists (
-      select 1 from public.classroom_purge_fences
-      where classroom_id = v_new_classroom_id
-    ) then
-      raise exception 'classroom_purge_active' using errcode = '55000';
-    end if;
+    perform public.guard_classroom_purge_lifecycle(v_new_classroom_id);
   end if;
   return case when tg_op = 'DELETE' then old else new end;
 end;
@@ -3880,6 +4867,22 @@ begin
     where object.classroom_id = p_classroom_id
       and object.status = 'cleanup_processing'
       and object.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1
+    from public.assignment_artifact_storage_cleanup cleanup
+    join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+    where object.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1
+    from public.test_document_snapshot_storage_cleanup cleanup
+    join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+    where object.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
   ) then return 'classroom_storage_cleanup_active'; end if;
 
   if exists (
@@ -3983,11 +4986,11 @@ begin
     );
   end if;
 
-  perform public.classroom_purge_lock(p_classroom_id);
+  -- A completed replay has no classroom row to lock. Validate it read-only;
+  -- every nonterminal path continues through the canonical lifecycle order.
   select * into v_operation
-  from public.classroom_purge_operations
-  where id = p_operation_id
-  for update;
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id;
   if found then
     if v_operation.teacher_id <> p_teacher_id
       or v_operation.classroom_id <> p_classroom_id
@@ -3998,28 +5001,19 @@ begin
         'error', 'Idempotency key was already used for a different purge request'
       );
     end if;
-    if v_operation.status = 'failed' and v_operation.retryable is true then
-      update public.classroom_purge_operations
-      set
-        status = 'deleting_objects',
-        attempt_count = attempt_count + 1,
-        error_code = null,
-        updated_at = clock_timestamp()
-      where id = p_operation_id
-      returning * into v_operation;
+    if v_operation.status = 'completed' then
+      return jsonb_build_object(
+        'ok', true, 'status', 200, 'operation_id', v_operation.id,
+        'operation_status', 'completed',
+        'source_revision', v_operation.source_revision,
+        'resource_counts', v_operation.resource_counts,
+        'storage_object_counts', v_operation.storage_object_counts,
+        'replayed', true
+      );
     end if;
-    return jsonb_build_object(
-      'ok', true,
-      'status', case when v_operation.status = 'completed' then 200 else 202 end,
-      'operation_id', v_operation.id,
-      'operation_status', v_operation.status,
-      'source_revision', v_operation.source_revision,
-      'resource_counts', v_operation.resource_counts,
-      'storage_object_counts', v_operation.storage_object_counts,
-      'replayed', true
-    );
   end if;
 
+  perform public.classroom_purge_lock(p_classroom_id);
   select classroom.teacher_id, classroom.title, classroom.archived_at, revision.revision
   into v_teacher_id, v_title, v_archived_at, v_revision
   from public.classrooms classroom
@@ -4044,6 +5038,41 @@ begin
     return jsonb_build_object(
       'ok', false, 'status', 409, 'error_code', 'classroom_is_cold_archived',
       'error', 'Stored classroom deletion is not available yet'
+    );
+  end if;
+
+  select * into v_operation
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+  for update;
+  if found then
+    if v_operation.teacher_id <> p_teacher_id
+      or v_operation.classroom_id <> p_classroom_id
+      or v_operation.request_sha256 <> p_request_sha256
+    then
+      return jsonb_build_object(
+        'ok', false, 'status', 409, 'error_code', 'idempotency_conflict',
+        'error', 'Idempotency key was already used for a different purge request'
+      );
+    end if;
+    if v_operation.status = 'failed' and v_operation.retryable is true then
+      update public.classroom_purge_operations
+      set
+        status = 'deleting_objects',
+        attempt_count = attempt_count + 1,
+        error_code = null,
+        updated_at = clock_timestamp()
+      where id = p_operation_id
+      returning * into v_operation;
+    end if;
+    return jsonb_build_object(
+      'ok', true, 'status', 202,
+      'operation_id', v_operation.id,
+      'operation_status', v_operation.status,
+      'source_revision', v_operation.source_revision,
+      'resource_counts', v_operation.resource_counts,
+      'storage_object_counts', v_operation.storage_object_counts,
+      'replayed', true
     );
   end if;
   if not exists (
@@ -4108,6 +5137,15 @@ begin
     ) using p_operation_id, v_resource.table_name, v_resource.parent_table;
   end loop;
 
+  insert into public.classroom_purge_resources (operation_id, table_name, row_id)
+  select p_operation_id, 'assignment_doc_save_operations', operation.id
+  from public.assignment_doc_save_operations operation
+  join public.classroom_purge_resources document
+    on document.operation_id = p_operation_id
+    and document.table_name = 'assignment_docs'
+    and document.row_id = operation.assignment_doc_id
+  on conflict do nothing;
+
   insert into public.classroom_purge_objects (
     operation_id, storage_bucket, storage_path, storage_path_sha256,
     disposition, status, managed_storage_object_id
@@ -4122,46 +5160,6 @@ begin
     object.id
   from public.managed_storage_objects object
   where object.classroom_id = p_classroom_id
-  on conflict (operation_id, storage_bucket, storage_path_sha256) do nothing;
-
-  insert into public.classroom_purge_objects (
-    operation_id, storage_bucket, storage_path, storage_path_sha256,
-    disposition, status
-  )
-  select
-    p_operation_id,
-    candidate.storage_bucket,
-    candidate.storage_path,
-    public.managed_storage_identity_sha256(candidate.storage_bucket, candidate.storage_path),
-    'delete',
-    'pending'
-  from (
-    select archive.storage_bucket, archive.storage_path
-    from public.classroom_archives archive
-    where archive.classroom_id = p_classroom_id
-    union
-    select extract.storage_bucket, extract.storage_path
-    from public.classroom_gradex_extracts extract
-    where extract.classroom_id = p_classroom_id
-    union
-    select operation.storage_bucket, operation.storage_path
-    from public.classroom_archive_operations operation
-    where operation.classroom_id = p_classroom_id
-      and operation.storage_bucket is not null
-      and operation.storage_path is not null
-    union
-    select cleanup.storage_bucket, cleanup.storage_path
-    from public.classroom_archive_object_upload_cleanup cleanup
-    join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
-    where operation.classroom_id = p_classroom_id
-      and cleanup.status <> 'deleted'
-    union
-    select cleanup.storage_bucket, cleanup.storage_path
-    from public.classroom_gradex_extract_cleanup cleanup
-    join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
-    where operation.classroom_id = p_classroom_id
-      and cleanup.status <> 'deleted'
-  ) candidate
   on conflict (operation_id, storage_bucket, storage_path_sha256) do nothing;
 
   update public.managed_storage_objects object
@@ -4179,7 +5177,15 @@ begin
     coalesce(resource_count.row_count, 0)
     order by contract.export_position
   ) into v_counts
-  from public.classroom_archive_resource_contract contract
+  from (
+    select table_name, export_position
+    from public.classroom_archive_resource_contract
+    union all
+    select
+      'assignment_doc_save_operations',
+      coalesce((select max(export_position) + 1
+        from public.classroom_archive_resource_contract), 1)
+  ) contract
   left join (
     select table_name, count(*)::integer row_count
     from public.classroom_purge_resources
@@ -4283,6 +5289,7 @@ set search_path = public
 as $$
 declare
   v_candidate public.classroom_purge_objects;
+  v_classroom_id uuid;
   v_enabled boolean;
   v_enforced boolean;
 begin
@@ -4300,13 +5307,33 @@ begin
   if not coalesce(v_enabled, false) or not coalesce(v_enforced, false) then
     return;
   end if;
-  if not exists (
-    select 1 from public.classroom_purge_operations
-    where id = p_operation_id
-      and teacher_id = p_teacher_id
-      and status in ('deleting_objects', 'failed')
-      and coalesce(retryable, true)
-  ) then raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002'; end if;
+
+  select operation.classroom_id into v_classroom_id
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.status in ('deleting_objects', 'failed')
+    and coalesce(operation.retryable, true);
+  if not found then
+    raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
+  end if;
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for update;
+  if not found then
+    raise exception 'classroom_purge_classroom_not_found' using errcode = 'P0002';
+  end if;
+  perform 1 from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_classroom_id
+    and operation.status in ('deleting_objects', 'failed')
+    and coalesce(operation.retryable, true)
+  for update;
+  if not found then
+    raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
+  end if;
 
   update public.classroom_purge_operations
   set
@@ -4320,8 +5347,12 @@ begin
     and status = 'failed'
     and coalesce(retryable, true);
 
-  select * into v_candidate
+  select object.* into v_candidate
   from public.classroom_purge_objects object
+  join public.managed_storage_objects managed_object
+    on managed_object.id = object.managed_storage_object_id
+    and managed_object.classroom_id = v_classroom_id
+    and managed_object.status = 'purging'
   where object.operation_id = p_operation_id
     and object.disposition = 'delete'
     and object.next_attempt_at <= clock_timestamp()
@@ -4330,7 +5361,7 @@ begin
       or (object.status = 'processing' and object.lease_expires_at <= clock_timestamp())
     )
   order by object.next_attempt_at, object.created_at, object.id
-  for update skip locked
+  for update of managed_object skip locked
   limit 1;
   if not found then return; end if;
   if v_candidate.storage_path is null then
@@ -4340,13 +5371,19 @@ begin
     v_candidate.storage_bucket,
     v_candidate.storage_path
   );
-  if v_candidate.managed_storage_object_id is not null and not exists (
-    select 1 from public.managed_storage_objects object
-    where object.id = v_candidate.managed_storage_object_id
-      and object.status = 'purging'
-  ) then
-    raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
-  end if;
+
+  select object.* into v_candidate
+  from public.classroom_purge_objects object
+  where object.id = v_candidate.id
+    and object.operation_id = p_operation_id
+    and object.disposition = 'delete'
+    and object.next_attempt_at <= clock_timestamp()
+    and (
+      object.status in ('pending', 'failed')
+      or (object.status = 'processing' and object.lease_expires_at <= clock_timestamp())
+    )
+  for update;
+  if not found then return; end if;
   return query
   update public.classroom_purge_objects object
   set
@@ -4373,7 +5410,42 @@ set search_path = public, storage
 as $$
 declare
   v_object public.classroom_purge_objects;
+  v_classroom_id uuid;
 begin
+  select object, operation.classroom_id into v_object, v_classroom_id
+  from public.classroom_purge_objects object
+  join public.classroom_purge_operations operation on operation.id = object.operation_id
+  where object.id = p_object_id
+    and operation.teacher_id = p_teacher_id
+    and object.status = 'processing'
+    and object.lease_token = p_lease_token
+    and object.lease_expires_at > clock_timestamp();
+  if not found then return false; end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.classroom_purge_operations operation
+  where operation.id = v_object.operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.managed_storage_objects object
+  where object.id = v_object.managed_storage_object_id
+    and object.classroom_id = v_classroom_id
+    and object.status = 'purging'
+  for update;
+  if not found then
+    raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+  end if;
+  if v_object.storage_path is null then
+    raise exception 'classroom_purge_object_path_redacted' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+
   select object.* into v_object
   from public.classroom_purge_objects object
   join public.classroom_purge_operations operation on operation.id = object.operation_id
@@ -4416,7 +5488,37 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_object public.classroom_purge_objects;
+  v_classroom_id uuid;
 begin
+  select object, operation.classroom_id into v_object, v_classroom_id
+  from public.classroom_purge_objects object
+  join public.classroom_purge_operations operation on operation.id = object.operation_id
+  where object.id = p_object_id
+    and operation.teacher_id = p_teacher_id
+    and object.status = 'processing'
+    and object.lease_token = p_lease_token;
+  if not found then return false; end if;
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.classroom_purge_operations operation
+  where operation.id = v_object.operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.managed_storage_objects managed_object
+  where managed_object.id = v_object.managed_storage_object_id
+    and managed_object.classroom_id = v_classroom_id
+    and managed_object.status = 'purging'
+  for update;
+  if not found then
+    raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+  end if;
   update public.classroom_purge_objects object
   set
     status = 'failed',
@@ -4437,8 +5539,8 @@ begin
 end;
 $$;
 
--- Retain the already-reviewed relational/ledger finalizer from migration 115,
--- but wrap it with exact Storage absence and ownership reconciliation.
+-- Migration 115's child-by-child finalizer is retained as non-callable history.
+-- The managed redesign uses structural FK ownership plus exact postconditions.
 alter function public.finalize_hot_archived_classroom_purge(uuid, uuid)
   rename to finalize_hot_archived_classroom_purge_legacy_117;
 
@@ -4453,7 +5555,12 @@ set search_path = public, storage
 as $$
 declare
   v_operation public.classroom_purge_operations;
-  v_result jsonb;
+  v_resource record;
+  v_classroom_teacher_id uuid;
+  v_archived_at timestamptz;
+  v_revision bigint;
+  v_deleted_count integer;
+  v_remaining_count integer;
   v_error_code text;
   v_retryable boolean := true;
   v_enabled boolean;
@@ -4467,10 +5574,11 @@ begin
   from public.managed_storage_settings
   where singleton
   for share;
+  -- Resolve identity without a row lock, then acquire the canonical order:
+  -- settings -> classroom lifecycle -> classroom -> operation.
   select * into v_operation
   from public.classroom_purge_operations
-  where id = p_operation_id and teacher_id = p_teacher_id
-  for update;
+  where id = p_operation_id and teacher_id = p_teacher_id;
   if not found then
     raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
   end if;
@@ -4479,6 +5587,42 @@ begin
       'ok', true, 'status', 200, 'operation_id', p_operation_id,
       'operation_status', 'completed', 'replayed', true
     );
+  end if;
+  perform public.classroom_purge_lock(v_operation.classroom_id);
+  select teacher_id, archived_at
+  into v_classroom_teacher_id, v_archived_at
+  from public.classrooms
+  where id = v_operation.classroom_id
+  for update;
+  if not found
+    or v_classroom_teacher_id <> p_teacher_id
+    or v_archived_at is null
+  then
+    raise exception 'classroom_purge_owner_or_state_drift' using errcode = '40001';
+  end if;
+  select revision into v_revision
+  from public.classroom_archive_revisions
+  where classroom_id = v_operation.classroom_id
+  for update;
+  if v_revision is null or v_revision <> v_operation.source_revision then
+    raise exception 'classroom_changed_during_purge' using errcode = '40001';
+  end if;
+  select * into v_operation
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_operation.classroom_id
+  for update;
+  if not found then
+    raise exception 'classroom_purge_operation_drift' using errcode = '40001';
+  end if;
+  if not exists (
+    select 1 from public.classroom_purge_fences fence
+    where fence.classroom_id = v_operation.classroom_id
+      and fence.operation_id = p_operation_id
+      and fence.teacher_id = p_teacher_id
+  ) then
+    raise exception 'classroom_purge_fence_missing' using errcode = '40001';
   end if;
   if not coalesce(v_enabled, false) then
     return jsonb_build_object(
@@ -4525,6 +5669,94 @@ begin
 
   begin
     perform set_config('pika.classroom_purge_finalize', 'on', true);
+
+    if exists (
+      select 1
+      from public.managed_storage_objects object
+      left join public.classroom_purge_objects purge_object
+        on purge_object.operation_id = p_operation_id
+        and purge_object.managed_storage_object_id = object.id
+        and purge_object.status = 'deleted'
+      where object.classroom_id = v_operation.classroom_id
+        and purge_object.id is null
+    ) then
+      raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+    end if;
+
+    -- Preserve reusable Blueprints and users. Only reconcile workflow links to
+    -- the soon-to-be-deleted classroom.
+    update public.course_blueprint_change_proposals
+    set source_classroom_id = null, updated_at = clock_timestamp()
+    where source_classroom_id = v_operation.classroom_id;
+    delete from public.course_blueprint_change_proposals
+    where target_classroom_id = v_operation.classroom_id;
+    update public.course_blueprint_editing_sessions
+    set classroom_id = null
+    where classroom_id = v_operation.classroom_id;
+    update public.course_blueprint_operations
+    set source_classroom_id = null
+    where source_classroom_id = v_operation.classroom_id;
+    update public.course_blueprint_operations
+    set result_classroom_id = null
+    where result_classroom_id = v_operation.classroom_id;
+    delete from public.legacy_blueprint_classroom_storage_reconciliations
+    where classroom_id = v_operation.classroom_id;
+
+    -- Operational ledgers deliberately sit outside the hot-row ownership graph
+    -- because they also support cold recovery. Reconcile them explicitly before
+    -- deleting their managed object owners.
+    delete from public.classroom_gradex_extract_cleanup cleanup
+    using public.classroom_archive_operations operation
+    where cleanup.operation_id = operation.id
+      and operation.classroom_id = v_operation.classroom_id;
+    delete from public.classroom_gradex_extracts
+    where classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archive_source_object_reservations reservation
+    using public.classroom_archive_operations operation
+    where reservation.operation_id = operation.id
+      and operation.classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archive_source_object_cleanup
+    where classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archives
+    where classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archive_operations
+    where classroom_id = v_operation.classroom_id;
+
+    delete from public.assignment_artifact_storage_cleanup cleanup
+    where exists (
+      select 1 from public.classroom_purge_objects purge_object
+      where purge_object.operation_id = p_operation_id
+        and purge_object.storage_bucket = 'assignment-artifacts'
+        and purge_object.status = 'deleted'
+        and (
+          purge_object.managed_storage_object_id = cleanup.managed_object_id
+          or (
+            cleanup.managed_object_id is null
+            and purge_object.storage_path_sha256 =
+              public.managed_storage_identity_sha256(
+                'assignment-artifacts', cleanup.storage_path
+              )
+          )
+        )
+    );
+    delete from public.test_document_snapshot_storage_cleanup cleanup
+    where exists (
+      select 1 from public.classroom_purge_objects purge_object
+      where purge_object.operation_id = p_operation_id
+        and purge_object.storage_bucket = 'test-documents'
+        and purge_object.status = 'deleted'
+        and (
+          purge_object.managed_storage_object_id = cleanup.managed_object_id
+          or (
+            cleanup.managed_object_id is null
+            and purge_object.storage_path_sha256 =
+              public.managed_storage_identity_sha256(
+                'test-documents', cleanup.storage_path
+              )
+          )
+        )
+    );
+
     delete from public.managed_storage_objects object
     using public.classroom_purge_objects purge_object
     where purge_object.operation_id = p_operation_id
@@ -4532,7 +5764,6 @@ begin
       and purge_object.status = 'deleted'
       and object.classroom_id = v_operation.classroom_id
       and object.status = 'purging';
-
     if exists (
       select 1 from public.managed_storage_objects
       where classroom_id = v_operation.classroom_id
@@ -4542,18 +5773,84 @@ begin
     delete from public.classroom_managed_storage_coverage
     where classroom_id = v_operation.classroom_id;
 
-    v_result := public.finalize_hot_archived_classroom_purge_legacy_117(
-      p_operation_id,
-      p_teacher_id
-    );
-    if coalesce((v_result ->> 'ok')::boolean, false) is not true then
-      v_error_code := coalesce(v_result ->> 'error_code', 'database_finalize_failed');
-      v_retryable := coalesce((v_result ->> 'retryable')::boolean, true);
-      raise exception '%', v_error_code using errcode = '40001';
+    -- The catalog-enforced cascade graph owns classroom teaching data. The
+    -- durable snapshot remains until every exact row id is proven absent.
+    delete from public.classrooms classroom
+    where classroom.id = v_operation.classroom_id
+      and classroom.teacher_id = p_teacher_id
+      and classroom.archived_at is not null;
+    get diagnostics v_deleted_count = row_count;
+    if v_deleted_count <> 1 then
+      raise exception 'classroom_purge_root_delete_drift' using errcode = '40001';
     end if;
-    return v_result;
+
+    for v_resource in
+      select
+        snapshot.table_name,
+        case
+          when snapshot.table_name = 'assignment_doc_save_operations' then 'id'
+          else contract.primary_key_columns[1]
+        end as primary_key_column
+      from (
+        select distinct table_name
+        from public.classroom_purge_resources
+        where operation_id = p_operation_id
+      ) snapshot
+      left join public.classroom_archive_resource_contract contract
+        on contract.table_name = snapshot.table_name
+    loop
+      if v_resource.primary_key_column is null then
+        raise exception 'classroom_purge_unknown_resource_%', v_resource.table_name
+          using errcode = '40001';
+      end if;
+      execute format(
+        'select count(*)::integer
+         from public.%I source
+         join public.classroom_purge_resources snapshot
+           on snapshot.operation_id = $1
+          and snapshot.table_name = $2
+          and source.%I = snapshot.row_id',
+        v_resource.table_name,
+        v_resource.primary_key_column
+      ) into v_remaining_count using p_operation_id, v_resource.table_name;
+      if v_remaining_count <> 0 then
+        raise exception 'classroom_purge_postcondition_%', v_resource.table_name
+          using errcode = '40001';
+      end if;
+    end loop;
+
+    update public.classroom_purge_operations
+    set
+      status = 'completed',
+      classroom_title = null,
+      impact_summary = jsonb_build_object(
+        'relational_rows_deleted',
+        (select coalesce(sum(value::text::integer), 0)
+         from jsonb_each(resource_counts))
+      ),
+      retryable = false,
+      error_code = null,
+      completed_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+    where id = p_operation_id;
+    delete from public.classroom_purge_resources
+    where operation_id = p_operation_id;
+    delete from public.classroom_purge_fences
+    where operation_id = p_operation_id;
+
+    return jsonb_build_object(
+      'ok', true,
+      'status', 200,
+      'operation_id', p_operation_id,
+      'operation_status', 'completed',
+      'replayed', false
+    );
   exception
     when others then
+      v_error_code := case
+        when sqlstate = '40001' then left(sqlerrm, 120)
+        else 'database_finalize_failed'
+      end;
       update public.classroom_purge_operations
       set
         status = 'failed',
@@ -4591,12 +5888,10 @@ begin
     select 1 from public.managed_storage_objects object
     where object.classroom_id = old.id
   ) then
-    -- The legacy compaction preflight deletes and restores the live graph in a
-    -- rolled-back subtransaction before the tombstone trigger can transfer
-    -- ownership. It is the only authorized exception: both transaction-local
-    -- markers, a snapshot-ready operation, verified exact coverage, and the
-    -- absence of a tombstone are required. The real delete runs after transfer
-    -- and therefore has no hot managed owner to exempt.
+    -- A verified compaction is the only operation allowed to remove the hot
+    -- row while files retain this stable classroom scope. Both the rolled-back
+    -- preflight delete and real delete run with these transaction-local
+    -- markers and the same snapshot-ready operation identity.
     if current_setting('pika.classroom_archive_compaction', true) = 'on'
       and current_setting('pika.classroom_archive_compaction_dry_run', true) = 'on'
       and exists (
@@ -4621,10 +5916,6 @@ begin
             select count(*)::integer
             from public.managed_storage_objects object
             where object.classroom_id = old.id
-          )
-          and not exists (
-            select 1 from public.classroom_cold_tombstones tombstone
-            where tombstone.classroom_id = old.id
           )
       )
     then
@@ -4994,6 +6285,8 @@ declare
   v_assessment public.course_blueprint_assessments%rowtype; v_first_test_id uuid;
   v_prior_identity text := current_setting('pika.identity_mapping', true);
   v_prior_compaction text := current_setting('pika.classroom_archive_compaction', true);
+  v_prior_owner_reconciliation text :=
+    current_setting('pika.managed_storage_owner_reconciliation', true);
 begin
   select * into v_row from public.legacy_blueprint_classroom_storage_reconciliations
     where id = p_reconciliation_id and teacher_id = p_teacher_id for update;
@@ -5036,6 +6329,7 @@ begin
       raise exception 'legacy_blueprint_reconciliation_immutable_evidence_changed' using errcode = '40001';
     end if;
   end loop;
+  perform set_config('pika.managed_storage_owner_reconciliation', 'on', true);
   insert into public.managed_storage_objects (
     id, storage_bucket, storage_path, course_blueprint_id, purpose, status, created_by_user_id,
     resource_type, resource_id, content_type, byte_size, content_sha256, ready_at
@@ -5091,6 +6385,11 @@ begin
   end loop;
   perform set_config('pika.classroom_archive_compaction', coalesce(v_prior_compaction, 'off'), true);
   perform set_config('pika.identity_mapping', coalesce(v_prior_identity, 'off'), true);
+  perform set_config(
+    'pika.managed_storage_owner_reconciliation',
+    coalesce(v_prior_owner_reconciliation, 'off'),
+    true
+  );
   -- Adoption is the terminal transaction: after both registry owners and live
   -- references are committed there is no resumable work left. Removing the
   -- ledger lets normal Classroom/Blueprint lifecycles proceed, while the
@@ -5105,6 +6404,11 @@ begin
 exception when others then
   perform set_config('pika.classroom_archive_compaction', coalesce(v_prior_compaction, 'off'), true);
   perform set_config('pika.identity_mapping', coalesce(v_prior_identity, 'off'), true);
+  perform set_config(
+    'pika.managed_storage_owner_reconciliation',
+    coalesce(v_prior_owner_reconciliation, 'off'),
+    true
+  );
   raise;
 end;
 $$;
@@ -5180,7 +6484,6 @@ begin
     from public.managed_storage_objects object
     where object.id = v_object_id
       and object.classroom_id = v_classroom_id
-      and object.cold_classroom_id is null
       and object.course_blueprint_id is null
       and object.storage_bucket = v_claim->>'storage_bucket'
       and object.storage_path = v_path
@@ -5338,7 +6641,6 @@ begin
     from public.managed_storage_objects object
     where object.id = v_object_id
       and object.classroom_id is null
-      and object.cold_classroom_id is null
       and object.course_blueprint_id = p_blueprint_id
       and object.storage_bucket = 'test-documents'
       and object.storage_path = v_path
@@ -5541,6 +6843,12 @@ revoke all on function public.begin_classroom_archive_restore_managed_v2(
   uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, jsonb,
   bigint, integer, integer, jsonb
 ) from public, anon, authenticated;
+revoke all on function public.stage_classroom_archive_object_upload_legacy_117(
+  uuid, uuid, text, text, text, bigint
+) from public, anon, authenticated, service_role;
+revoke all on function public.stage_classroom_archive_object_upload(
+  uuid, uuid, text, text, text, bigint
+) from public, anon, authenticated;
 revoke all on function public.complete_classroom_archive_restore_legacy_117(
   uuid, uuid, jsonb
 ) from public, anon, authenticated, service_role;
@@ -5581,6 +6889,20 @@ revoke all on function public.begin_managed_storage_upload(
 ) from public, anon, authenticated;
 revoke all on function public.adopt_managed_storage_upload(uuid, text)
   from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_export_v2_legacy_117(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_archive_export_v2(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.complete_classroom_gradex_extract_legacy_117(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_gradex_extract(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) from public, anon, authenticated;
 revoke all on function public.queue_managed_storage_cleanup(uuid, text)
   from public, anon, authenticated;
 revoke all on function public.queue_classroom_managed_storage_cleanup(
@@ -5597,13 +6919,6 @@ revoke all on function public.claim_managed_storage_cleanup(uuid, integer, integ
 revoke all on function public.complete_managed_storage_cleanup(uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.fail_managed_storage_cleanup(uuid, uuid, text)
-  from public, anon, authenticated;
-revoke all on function public.begin_course_blueprint_managed_deletion(uuid, uuid)
-  from public, anon, authenticated;
-revoke all on function public.claim_course_blueprint_managed_cleanup(
-  uuid, uuid, uuid, integer
-) from public, anon, authenticated;
-revoke all on function public.finalize_course_blueprint_managed_deletion(uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.register_legacy_classroom_storage_object(
   uuid, uuid, uuid, text, text, text, uuid, uuid, text, uuid, text, bigint
@@ -5681,6 +6996,16 @@ revoke all on function public.submit_assignment_doc_atomic(
 revoke all on function public.submit_assignment_doc_with_pal_event_atomic(
   uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
 ) from public, anon, authenticated, service_role;
+revoke all on function public.classroom_purge_try_lock(uuid)
+  from public, anon, authenticated;
+revoke all on function public.guard_classroom_purge_lifecycle(uuid)
+  from public, anon, authenticated;
+revoke all on function public.guard_managed_storage_scope_owner()
+  from public, anon, authenticated, service_role;
+revoke all on function public.guard_managed_storage_identity_immutable()
+  from public, anon, authenticated, service_role;
+revoke all on function public.prepare_legacy_managed_cleanup_ledger_change()
+  from public, anon, authenticated, service_role;
 
 grant execute on function public.begin_managed_storage_upload(
   uuid, text, text, uuid, uuid, text, uuid, uuid, text, uuid, text, bigint
@@ -5688,6 +7013,9 @@ grant execute on function public.begin_managed_storage_upload(
 grant execute on function public.begin_classroom_archive_restore_managed_v2(
   uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, jsonb,
   bigint, integer, integer, jsonb
+) to service_role;
+grant execute on function public.stage_classroom_archive_object_upload(
+  uuid, uuid, text, text, text, bigint
 ) to service_role;
 grant execute on function public.complete_classroom_archive_restore(uuid, uuid, jsonb)
   to service_role;
@@ -5708,6 +7036,13 @@ grant execute on function public.adopt_course_blueprint_storage_copies(uuid, uui
   to service_role;
 grant execute on function public.adopt_managed_storage_upload(uuid, text)
   to service_role;
+grant execute on function public.complete_classroom_archive_export_v2(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) to service_role;
+grant execute on function public.complete_classroom_gradex_extract(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) to service_role;
 grant execute on function public.queue_managed_storage_cleanup(uuid, text)
   to service_role;
 grant execute on function public.queue_classroom_managed_storage_cleanup(
@@ -5724,13 +7059,6 @@ grant execute on function public.claim_managed_storage_cleanup(uuid, integer, in
 grant execute on function public.complete_managed_storage_cleanup(uuid, uuid)
   to service_role;
 grant execute on function public.fail_managed_storage_cleanup(uuid, uuid, text)
-  to service_role;
-grant execute on function public.begin_course_blueprint_managed_deletion(uuid, uuid)
-  to service_role;
-grant execute on function public.claim_course_blueprint_managed_cleanup(
-  uuid, uuid, uuid, integer
-) to service_role;
-grant execute on function public.finalize_course_blueprint_managed_deletion(uuid, uuid)
   to service_role;
 grant execute on function public.register_legacy_classroom_storage_object(
   uuid, uuid, uuid, text, text, text, uuid, uuid, text, uuid, text, bigint
@@ -5795,4 +7123,4 @@ comment on function public.begin_hot_archived_classroom_purge(uuid, uuid, uuid, 
 comment on function public.complete_classroom_purge_object(uuid, uuid, uuid) is
   'Completes an exact object lease only after authoritative storage.objects absence.';
 comment on function public.finalize_hot_archived_classroom_purge(uuid, uuid) is
-  'Atomically reconciles exact managed ownership before the migration-115 child-first finalizer.';
+  'Atomically reconciles operational ledgers, deletes the classroom root, and verifies exact relational postconditions after all managed files are absent.';

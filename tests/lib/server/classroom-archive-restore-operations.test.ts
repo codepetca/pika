@@ -144,6 +144,7 @@ function createSupabaseMock(options: {
   let postUploadReadFailed = false
   let metadataReads = 0
   let operationResourceCounts = counts
+  const managedRows = new Map<string, Record<string, unknown>>()
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
     if (name === 'begin_classroom_archive_restore_managed_v2') {
       if (options.v2Unavailable) {
@@ -151,6 +152,38 @@ function createSupabaseMock(options: {
       }
       if (options.v2BeginError) return { data: null, error: options.v2BeginError }
       operationResourceCounts = args.p_resource_counts as Record<string, number>
+      const storageObjects = args.p_storage_objects as Array<Record<string, unknown>>
+      for (const descriptor of args.p_managed_objects as Array<Record<string, unknown>>) {
+        const storageObject = storageObjects.find((object) => (
+          object.storage_bucket === descriptor.storage_bucket
+          && object.storage_path === descriptor.storage_path
+        ))
+        managedRows.set(descriptor.managed_object_id as string, {
+          id: descriptor.managed_object_id,
+          storage_bucket: descriptor.storage_bucket,
+          storage_path: descriptor.storage_path,
+          classroom_id: CLASSROOM_ID,
+          course_blueprint_id: null,
+          purpose: descriptor.purpose,
+          status: 'pending_upload',
+          created_by_user_id: descriptor.created_by_user_id,
+          data_subject_user_id: descriptor.data_subject_user_id,
+          resource_type: descriptor.resource_type,
+          resource_id: descriptor.resource_id,
+          content_type: descriptor.content_type,
+          byte_size: storageObject?.expected_byte_size ?? null,
+          content_sha256: storageObject?.expected_sha256 ?? null,
+          upload_expires_at: '2026-07-14T12:00:00.000Z',
+          attempt_count: 0,
+          next_attempt_at: '2026-07-13T12:00:00.000Z',
+          lease_token: null,
+          lease_expires_at: null,
+          last_error_code: null,
+          created_at: '2026-07-13T12:00:00.000Z',
+          ready_at: null,
+          updated_at: '2026-07-13T12:00:00.000Z',
+        })
+      }
       return {
         data: {
           ok: true,
@@ -218,6 +251,22 @@ function createSupabaseMock(options: {
       }
     }
     if (name === 'stage_classroom_archive_object_upload') {
+      return { data: true, error: null }
+    }
+    if (name === 'adopt_managed_storage_upload') {
+      const row = managedRows.get(args.p_object_id as string)
+      if (!row) return { data: null, error: { code: 'P0002', message: 'missing owner' } }
+      const ready = {
+        ...row,
+        status: 'ready',
+        upload_expires_at: null,
+        ready_at: '2026-07-13T12:00:01.000Z',
+        content_sha256: args.p_content_sha256,
+      }
+      managedRows.set(args.p_object_id as string, ready)
+      return { data: ready, error: null }
+    }
+    if (name === 'queue_managed_storage_cleanup') {
       return { data: true, error: null }
     }
     if (name === 'complete_classroom_archive_restore') {
@@ -366,6 +415,7 @@ describe('classroom archive restore coordinator', () => {
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_restore_managed_v2',
       'stage_classroom_archive_object_upload',
+      'adopt_managed_storage_upload',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
@@ -379,7 +429,7 @@ describe('classroom archive restore coordinator', () => {
       p_source_resource_counts: archiveV1ResourceCounts(),
       p_resource_counts: archiveV2ResourceCounts(),
     }))
-    expect(mock.rpc.mock.calls[6][1].p_verification).not.toHaveProperty(
+    expect(mock.rpc.mock.calls[7][1].p_verification).not.toHaveProperty(
       'referential_integrity_verified',
     )
     expect(result.ok && result.verification.referential_integrity_verified).toBe(true)
@@ -493,11 +543,12 @@ describe('classroom archive restore coordinator', () => {
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_restore_managed_v2',
       'stage_classroom_archive_object_upload',
+      'adopt_managed_storage_upload',
       'stage_classroom_archive_restore_rows',
       'fail_classroom_archive_restore',
     ])
-    expect(mock.stored.size).toBe(0)
-    expect(mock.removed).toHaveLength(1)
+    expect(mock.stored.size).toBe(1)
+    expect(mock.removed).toEqual([])
   })
 
   it('retains restored objects when the finalization result is ambiguous', async () => {

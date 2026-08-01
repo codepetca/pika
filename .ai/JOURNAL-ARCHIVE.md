@@ -16075,3 +16075,26 @@ future persistence shape without enabling unapproved schema behavior.
 - Push the remediation, run the final authorized targeted review, and require
   exact-head CI before merging PR 927.
 - Migration 105 remains unapplied to every hosted target.
+
+<!-- pika-session-log-archive-batch:73d2ee37677778902a97766cd284a13e5d2a9f4a40fa97ab7b0a404886fb6222 -->
+## 2026-07-23 — Froze archive restore ordering
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Derived the inactive v2 restore order from the frozen topological v1 order
+  with Quiz resources removed, then appended the retired-assessment record and
+  actor resources parent-first.
+- Removed the final live classroom-graph dependency from v1 compaction
+  preflight staging.
+- Added regressions for every declared v2 parent-before-child dependency and
+  the actual non-empty v1 compaction staging sequence.
+
+**Validation:**
+- Focused archive contract, restore, and compaction tests pass.
+- TypeScript and lint pass.
+- Local compaction database harness and full archive recovery drill pass.
+
+**Remaining:**
+- Publish, independently review, and require exact-head CI before merge.
+- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.

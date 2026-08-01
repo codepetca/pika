@@ -37,9 +37,11 @@ function createClient(options: {
   failureRecorded?: boolean
 } = {}) {
   const remove = vi.fn(async () => ({ error: options.removalError ?? null }))
+  let claimCount = 0
   const rpc = vi.fn(async (name: string) => {
     if (name === 'claim_managed_storage_cleanup') {
-      return { data: [claimedObject], error: null }
+      claimCount += 1
+      return { data: claimCount === 1 ? [claimedObject] : [], error: null }
     }
     if (name === 'complete_managed_storage_cleanup') {
       return { data: options.completion ?? true, error: null }

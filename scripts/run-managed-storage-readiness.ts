@@ -241,7 +241,7 @@ async function main() {
   let catalogBefore = readManagedStorageCatalog(target.psqlEnvironment)
   let analysisBefore = analyzeGlobalManagedStorage({
     ...catalogBefore,
-    discovered,
+    discovered: [...discovered, ...catalogBefore.operational],
     discoveredBlueprints,
   })
   const settingsBefore = await readSettings(supabase)
@@ -384,6 +384,12 @@ async function main() {
     if (analysisBefore.registeredMissing.length > 0) {
       throw new Error('Registered managed objects missing from Storage must be resolved first')
     }
+    if (analysisBefore.operationalOwnershipRequired.length > 0) {
+      throw new Error('Operational storage ledgers must have exact managed classroom ownership')
+    }
+    if (analysisBefore.invalidClassroomScopes.length > 0) {
+      throw new Error('Managed classroom objects must resolve to exactly one hot or cold lifecycle row')
+    }
     for (const plan of buildLegacyBlueprintReconciliationPlans()) {
       await resumeLegacyBlueprintClassroomStorageReconciliation({ plan, supabase })
     }
@@ -415,7 +421,11 @@ async function main() {
       resources: classroom.resources, supabaseUrl: target.supabaseOrigin,
     }).map((object) => ({ ...object, classroomId: classroom.classroomId })))
     catalogBefore = readManagedStorageCatalog(target.psqlEnvironment)
-    analysisBefore = analyzeGlobalManagedStorage({ ...catalogBefore, discovered, discoveredBlueprints })
+    analysisBefore = analyzeGlobalManagedStorage({
+      ...catalogBefore,
+      discovered: [...discovered, ...catalogBefore.operational],
+      discoveredBlueprints,
+    })
     pendingClassrooms = discoveredClassrooms.filter((classroom) =>
       coverageByClassroom.get(classroom.classroomId)?.status !== 'verified',
     )
@@ -456,7 +466,7 @@ async function main() {
   const catalogAfter = readManagedStorageCatalog(target.psqlEnvironment)
   const analysisAfter = analyzeGlobalManagedStorage({
     ...catalogAfter,
-    discovered,
+    discovered: [...discovered, ...catalogAfter.operational],
     discoveredBlueprints,
   })
   const settingsAfter = await readSettings(supabase)
@@ -507,7 +517,8 @@ async function main() {
     classroom_count: classrooms.length,
     classroom_progress: classroomProgress,
     coverage: coverageCounts,
-    discovered_reference_count: discovered.length,
+    discovered_reference_count: discovered.length + catalogAfter.operational.length,
+    operational_ledger_reference_count: catalogAfter.operational.length,
     blueprint_reference_count: discoveredBlueprints.length,
     global_orphans: redactedFindings.orphans,
     cross_classroom_shared_paths: redactedFindings.shared,
@@ -522,6 +533,8 @@ async function main() {
     immutable_blueprint_classroom_conflicts:
       redactedFindings.immutableBlueprintClassroomConflicts,
     registered_objects_missing_from_storage: redactedFindings.registeredMissing,
+    operational_ownership_required: redactedFindings.operationalOwnershipRequired,
+    invalid_classroom_scopes: redactedFindings.invalidClassroomScopes,
     rollout_gates: settingsAfter,
     gates_changed_by_command: false,
     ready_for_enforcement:
@@ -535,7 +548,9 @@ async function main() {
       && analysisAfter.mutableBlueprintReconciliationRequired.length === 0
       && analysisAfter.immutableBlueprintOwnershipRequired.length === 0
       && analysisAfter.immutableBlueprintClassroomConflicts.length === 0
-      && analysisAfter.registeredMissing.length === 0,
+      && analysisAfter.registeredMissing.length === 0
+      && analysisAfter.operationalOwnershipRequired.length === 0
+      && analysisAfter.invalidClassroomScopes.length === 0,
   }
   if (args.json) {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
@@ -552,7 +567,8 @@ async function main() {
       + `${analysisAfter.blueprintShared.length} cross-Blueprint shared; ${analysisAfter.missing.length} `
       + `classroom and ${analysisAfter.missingBlueprint.length} Blueprint missing; `
       + `${analysisAfter.registeredMissing.length} registered-but-missing; `
-      + `${analysisAfter.orphans.length} unowned Storage orphans.\n`,
+      + `${analysisAfter.orphans.length} unowned Storage orphans; `
+      + `${analysisAfter.invalidClassroomScopes.length} invalid classroom scopes.\n`,
     )
     for (const orphan of redactedFindings.orphans) {
       process.stdout.write(

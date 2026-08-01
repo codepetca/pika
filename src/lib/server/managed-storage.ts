@@ -6,12 +6,20 @@ export const managedSourceBucketSchema = z.enum([
   'test-documents',
 ])
 
+export const managedStorageBucketSchema = z.enum([
+  ...managedSourceBucketSchema.options,
+  'classroom-archives',
+  'gradex-analytics-extracts',
+])
+
 export const managedStoragePurposeSchema = z.enum([
   'student_assignment_artifact',
   'student_inline_image',
   'teacher_test_material',
   'test_execution_snapshot',
   'legacy_classroom_file',
+  'classroom_archive',
+  'gradex_extract',
 ])
 
 const managedStorageStatusSchema = z.enum([
@@ -24,7 +32,7 @@ const managedStorageStatusSchema = z.enum([
 
 export const managedStorageObjectSchema = z.object({
   id: z.string().uuid(),
-  storage_bucket: managedSourceBucketSchema,
+  storage_bucket: managedStorageBucketSchema,
   storage_path: z.string().min(1),
   classroom_id: z.string().uuid().nullable(),
   course_blueprint_id: z.string().uuid().nullable(),
@@ -49,6 +57,7 @@ export const managedStorageObjectSchema = z.object({
 }).passthrough()
 
 export type ManagedSourceBucket = z.infer<typeof managedSourceBucketSchema>
+export type ManagedStorageBucket = z.infer<typeof managedStorageBucketSchema>
 export type ManagedStoragePurpose = z.infer<typeof managedStoragePurposeSchema>
 export type ManagedStorageObject = z.infer<typeof managedStorageObjectSchema>
 
@@ -87,7 +96,7 @@ function rpcError(
 export async function reserveManagedStorageUpload(input: {
   supabase: SupabaseLike
   objectId: string
-  bucket: ManagedSourceBucket
+  bucket: ManagedStorageBucket
   path: string
   classroomId?: string | null
   courseBlueprintId?: string | null
@@ -181,7 +190,7 @@ export async function queueClassroomManagedStorageCleanup(input: {
 
 export async function queueManagedStorageCleanupPath(input: {
   supabase: SupabaseLike
-  bucket: ManagedSourceBucket
+  bucket: ManagedStorageBucket
   path: string
   errorCode?: string | null
 }): Promise<boolean> {

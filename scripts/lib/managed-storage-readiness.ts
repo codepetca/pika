@@ -134,8 +134,13 @@ export function analyzeGlobalManagedStorage(input: {
     id?: string
     classroomId?: string | null
     blueprintId?: string | null
+    classroomScopeState?: 'hot' | 'cold' | 'split' | 'missing' | null
   }>
-  discovered: Array<StorageIdentity & { classroomId: string }>
+  discovered: Array<StorageIdentity & {
+    classroomId: string
+    managedObjectId?: string | null
+    ledger?: string
+  }>
   discoveredBlueprints?: Array<StorageIdentity & {
     blueprintId: string
     source: 'mutable_assessment' | 'immutable_version'
@@ -208,6 +213,18 @@ export function analyzeGlobalManagedStorage(input: {
   const registeredMissing = [...registered.entries()]
     .filter(([key]) => !physical.has(key))
     .map(([, value]) => value)
+  const operationalOwnershipRequired = input.discovered.filter((value) => {
+    if (!value.ledger) return false
+    const owner = registered.get(identityKey(value))
+    return !owner
+      || owner.id !== value.managedObjectId
+      || owner.classroomId !== value.classroomId
+  })
+  const invalidClassroomScopes = input.registered.filter((value) => (
+    value.classroomId != null
+    && value.classroomScopeState != null
+    && !['hot', 'cold'].includes(value.classroomScopeState)
+  ))
   return {
     shared,
     classroomBlueprintShared,
@@ -219,6 +236,8 @@ export function analyzeGlobalManagedStorage(input: {
     immutableBlueprintClassroomConflicts,
     orphans,
     registeredMissing,
+    operationalOwnershipRequired,
+    invalidClassroomScopes,
   }
 }
 
@@ -274,6 +293,16 @@ export function redactManagedStorageFindings(input: ReturnType<
     })),
     orphans: input.orphans.map(pathFingerprint),
     registeredMissing: input.registeredMissing.map(pathFingerprint),
+    operationalOwnershipRequired: input.operationalOwnershipRequired.map((value) => ({
+      ...pathFingerprint(value),
+      classroom_id: value.classroomId,
+      ledger: value.ledger,
+    })),
+    invalidClassroomScopes: input.invalidClassroomScopes.map((value) => ({
+      ...pathFingerprint(value),
+      classroom_id: value.classroomId,
+      scope_state: value.classroomScopeState,
+    })),
   }
 }
 
@@ -285,22 +314,99 @@ export function readManagedStorageCatalog(
     id: string
     classroomId: string | null
     blueprintId: string | null
+    classroomScopeState: 'hot' | 'cold' | 'split' | 'missing' | null
+  }>
+  operational: Array<StorageIdentity & {
+    classroomId: string
+    managedObjectId: string | null
+    ledger: string
   }>
 } {
   const sql = `
+    with operational as (
+      select 'classroom_archives'::text ledger, archive.classroom_id,
+        archive.storage_bucket bucket, archive.storage_path path,
+        archive.managed_object_id
+      from public.classroom_archives archive
+      join public.classrooms classroom on classroom.id = archive.classroom_id
+      union all
+      select 'classroom_archive_operations', operation.classroom_id,
+        operation.storage_bucket, operation.storage_path, operation.managed_object_id
+      from public.classroom_archive_operations operation
+      join public.classrooms classroom on classroom.id = operation.classroom_id
+      where operation.storage_bucket is not null and operation.storage_path is not null
+      union all
+      select 'classroom_archive_object_upload_cleanup', operation.classroom_id,
+        cleanup.storage_bucket, cleanup.storage_path, cleanup.managed_object_id
+      from public.classroom_archive_object_upload_cleanup cleanup
+      join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+      join public.classrooms classroom on classroom.id = operation.classroom_id
+      where cleanup.status <> 'deleted'
+      union all
+      select 'classroom_archive_source_object_cleanup', cleanup.classroom_id,
+        cleanup.storage_bucket, cleanup.storage_path, cleanup.managed_object_id
+      from public.classroom_archive_source_object_cleanup cleanup
+      join public.classrooms classroom on classroom.id = cleanup.classroom_id
+      where cleanup.status <> 'deleted'
+      union all
+      select 'classroom_gradex_extracts', extract.classroom_id,
+        extract.storage_bucket, extract.storage_path, extract.managed_object_id
+      from public.classroom_gradex_extracts extract
+      join public.classrooms classroom on classroom.id = extract.classroom_id
+      union all
+      select 'classroom_gradex_extract_cleanup', operation.classroom_id,
+        cleanup.storage_bucket, cleanup.storage_path, cleanup.managed_object_id
+      from public.classroom_gradex_extract_cleanup cleanup
+      join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+      join public.classrooms classroom on classroom.id = operation.classroom_id
+      where cleanup.status <> 'deleted'
+      union all
+      select 'assignment_artifact_storage_cleanup', object.classroom_id,
+        object.storage_bucket, cleanup.storage_path, cleanup.managed_object_id
+      from public.assignment_artifact_storage_cleanup cleanup
+      join public.managed_storage_objects object on object.id = cleanup.managed_object_id
+      join public.classrooms classroom on classroom.id = object.classroom_id
+      where cleanup.status <> 'deleted'
+      union all
+      select 'test_document_snapshot_storage_cleanup', object.classroom_id,
+        object.storage_bucket, cleanup.storage_path, cleanup.managed_object_id
+      from public.test_document_snapshot_storage_cleanup cleanup
+      join public.managed_storage_objects object on object.id = cleanup.managed_object_id
+      join public.classrooms classroom on classroom.id = object.classroom_id
+      where cleanup.status <> 'deleted'
+    )
     select jsonb_build_object(
       'physical', coalesce((
         select jsonb_agg(jsonb_build_object('bucket', bucket_id, 'path', name)
           order by bucket_id, name)
         from storage.objects
-        where bucket_id in ('assignment-artifacts', 'submission-images', 'test-documents')
+        where bucket_id in (
+          'assignment-artifacts', 'submission-images', 'test-documents',
+          'classroom-archives', 'gradex-analytics-extracts'
+        )
       ), '[]'::jsonb),
       'registered', coalesce((
         select jsonb_agg(jsonb_build_object(
-          'id', id, 'bucket', storage_bucket, 'path', storage_path,
-          'classroomId', classroom_id, 'blueprintId', course_blueprint_id
-        ) order by storage_bucket, storage_path)
-        from public.managed_storage_objects
+          'id', object.id, 'bucket', object.storage_bucket, 'path', object.storage_path,
+          'classroomId', object.classroom_id, 'blueprintId', object.course_blueprint_id,
+          'classroomScopeState', case
+            when object.classroom_id is null then null
+            when exists (select 1 from public.classrooms where id = object.classroom_id)
+              and exists (select 1 from public.classroom_cold_tombstones where classroom_id = object.classroom_id)
+              then 'split'
+            when exists (select 1 from public.classrooms where id = object.classroom_id) then 'hot'
+            when exists (select 1 from public.classroom_cold_tombstones where classroom_id = object.classroom_id) then 'cold'
+            else 'missing'
+          end
+        ) order by object.storage_bucket, object.storage_path)
+        from public.managed_storage_objects object
+      ), '[]'::jsonb),
+      'operational', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'ledger', ledger, 'classroomId', classroom_id,
+          'bucket', bucket, 'path', path, 'managedObjectId', managed_object_id
+        ) order by ledger, classroom_id, bucket, path)
+        from operational
       ), '[]'::jsonb)
     );
   `
@@ -315,6 +421,11 @@ export function readManagedStorageCatalog(
       id: z.string().uuid(),
       bucket: z.string(), path: z.string(),
       classroomId: z.string().uuid().nullable(), blueprintId: z.string().uuid().nullable(),
+      classroomScopeState: z.enum(['hot', 'cold', 'split', 'missing']).nullable(),
+    })),
+    operational: z.array(z.object({
+      ledger: z.string(), classroomId: z.string().uuid(),
+      bucket: z.string(), path: z.string(), managedObjectId: z.string().uuid().nullable(),
     })),
   }).parse(JSON.parse(output))
 }

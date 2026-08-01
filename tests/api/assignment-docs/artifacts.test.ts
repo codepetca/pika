@@ -96,6 +96,7 @@ function makeSupabase(opts: {
   upsertThrowsAfterCommit?: boolean
   deleteError?: unknown
   storageRemoveError?: unknown
+  managedCleanupQueued?: boolean
   cleanupCompletionData?: boolean
   requirementType?: 'image' | 'link'
   provisionalInsertError?: unknown
@@ -107,6 +108,9 @@ function makeSupabase(opts: {
   const upload = vi.fn(async () => ({ error: opts.uploadError ?? null }))
   const createSignedUrl = vi.fn(async () => ({ data: { signedUrl: 'https://signed.example/image.png' }, error: null }))
   const remove = vi.fn(async () => ({ error: opts.storageRemoveError ?? null }))
+  const download = vi.fn(async () => opts.storageRemoveError
+    ? { data: null, error: opts.storageRemoveError }
+    : { data: null, error: { code: 'NoSuchKey', status: 404 } })
   const artifactTable = makeArtifactTable({
     previousStoragePath: opts.previousStoragePath,
     upsertError: opts.upsertError,
@@ -213,7 +217,7 @@ function makeSupabase(opts: {
       return { data: true, error: null }
     }
     if (name === 'queue_managed_storage_cleanup_path') {
-      return { data: false, error: null }
+      return { data: opts.managedCleanupQueued ?? true, error: null }
     }
     if (name === 'delete_assignment_submission_artifact_atomic') {
       return {
@@ -306,7 +310,12 @@ function makeSupabase(opts: {
       from: vi.fn(() => ({
         upload,
         createSignedUrl,
+        download,
         remove,
+      })),
+      getBucket: vi.fn(async () => ({
+        data: { id: 'assignment-artifacts' },
+        error: null,
       })),
     },
   }
@@ -385,13 +394,20 @@ describe('POST /api/assignment-docs/[id]/artifacts/[requirementId]', () => {
     vi.clearAllMocks()
   })
 
-  it('removes the previous screenshot after a successful replacement', async () => {
+  it('queues the previous screenshot after a successful replacement', async () => {
     mocks.supabase = makeSupabase({ previousStoragePath: 'student-1/assignment-1/old.png' })
 
     const response = await postImage()
 
     expect(response.status).toBe(200)
-    expect(mocks.supabase.remove).toHaveBeenCalledWith(['student-1/assignment-1/old.png'])
+    expect(mocks.supabase.rpc).toHaveBeenCalledWith(
+      'queue_managed_storage_cleanup_path',
+      expect.objectContaining({
+        p_storage_bucket: 'assignment-artifacts',
+        p_storage_path: 'student-1/assignment-1/old.png',
+      }),
+    )
+    expect(mocks.supabase.remove).not.toHaveBeenCalled()
   })
 
   it('reserves exact managed ownership before upload and adopts before row commit', async () => {
@@ -524,26 +540,33 @@ describe('DELETE /api/assignment-docs/[id]/artifacts/[requirementId]', () => {
     vi.clearAllMocks()
   })
 
-  it('deletes the artifact row atomically before cleaning up Storage', async () => {
+  it('deletes the artifact row atomically before queueing managed cleanup', async () => {
     mocks.supabase = makeSupabase({ previousStoragePath: 'student-1/assignment-1/old.png' })
 
     const response = await deleteArtifact()
     const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data).toEqual({ ok: true, cleanup_pending: false })
-    const deleteCallOrder = mocks.supabase.rpc.mock.invocationCallOrder[0]
-    expect(mocks.supabase.remove.mock.invocationCallOrder[0]).toBeGreaterThan(deleteCallOrder)
-    expect(mocks.supabase.rpc).toHaveBeenCalledWith(
-      'complete_assignment_artifact_storage_cleanup',
-      expect.objectContaining({ p_cleanup_id: '10000000-0000-4000-8000-000000000099' })
+    expect(response.status).toBe(202)
+    expect(data).toEqual({ ok: true, cleanup_pending: true })
+    const deleteCall = mocks.supabase.rpc.mock.calls.findIndex(
+      ([name]: [string]) => name === 'delete_assignment_submission_artifact_atomic',
     )
+    const cleanupCall = mocks.supabase.rpc.mock.calls.findIndex(
+      ([name]: [string]) => name === 'queue_managed_storage_cleanup_path',
+    )
+    expect(cleanupCall).toBeGreaterThan(deleteCall)
+    expect(mocks.supabase.rpc).toHaveBeenCalledWith(
+      'queue_managed_storage_cleanup_path',
+      expect.objectContaining({ p_storage_path: 'student-1/assignment-1/old.png' }),
+    )
+    expect(mocks.supabase.remove).not.toHaveBeenCalled()
   })
 
   it('returns accepted with durable cleanup pending when Storage deletion fails', async () => {
     mocks.supabase = makeSupabase({
       previousStoragePath: 'student-1/assignment-1/old.png',
       storageRemoveError: { message: 'storage unavailable' },
+      managedCleanupQueued: false,
     })
 
     const response = await deleteArtifact()
@@ -565,6 +588,7 @@ describe('DELETE /api/assignment-docs/[id]/artifacts/[requirementId]', () => {
     mocks.supabase = makeSupabase({
       previousStoragePath: 'student-1/assignment-1/old.png',
       cleanupCompletionData: false,
+      managedCleanupQueued: false,
     })
 
     const response = await deleteArtifact()

@@ -26,6 +26,9 @@ function createMock(options: { renew?: boolean; storagePath?: string } = {}) {
     if (name === 'renew_classroom_archive_object_upload_cleanup_lease') {
       return { data: options.renew !== false, error: null }
     }
+    if (name === 'queue_managed_storage_cleanup_path') {
+      return { data: true, error: null }
+    }
     return { data: true, error: null }
   })
   return {
@@ -51,7 +54,7 @@ describe('classroom archive object cleanup', () => {
     vi.stubEnv('CLASSROOM_ARCHIVE_OBJECT_CLEANUP_ENABLED', 'true')
   })
 
-  it('deletes and verifies an exact leased orphan before completing its ledger row', async () => {
+  it('completes an exact ledger row after managed cleanup has proven the object absent', async () => {
     const mock = createMock()
     const result = await runClassroomArchiveObjectCleanup({
       supabase: mock.client,
@@ -64,10 +67,11 @@ describe('classroom archive object cleanup', () => {
       deleted: 1,
       failed: 0,
     }))
-    expect(mock.remove).toHaveBeenCalledWith([STORAGE_PATH])
+    expect(mock.remove).not.toHaveBeenCalled()
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'claim_due_classroom_archive_object_upload_cleanup',
       'renew_classroom_archive_object_upload_cleanup_lease',
+      'queue_managed_storage_cleanup_path',
       'complete_classroom_archive_object_upload_cleanup',
     ])
     expect(JSON.stringify(result)).not.toContain(STORAGE_PATH)

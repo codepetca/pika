@@ -16,6 +16,11 @@ import {
   verifyClassroomArchiveBundle,
   type ClassroomArchiveStorageObject,
 } from '@/lib/server/classroom-archive-format'
+import {
+  adoptManagedStorageUpload,
+  queueManagedStorageCleanup,
+  reserveManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
@@ -527,10 +532,9 @@ async function uploadAndReadBackArchive(args: {
   storagePath: string
   archive: Uint8Array
   artifactSha256: string
-}): Promise<{ bytes: Uint8Array; uploadedByThisAttempt: boolean }> {
+}): Promise<{ bytes: Uint8Array }> {
   const bucket = args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET)
   const existing = await bucket.download(args.storagePath)
-  let uploadedByThisAttempt = false
   let bytes = await readStorageBytes(existing.data)
 
   if (!bytes) {
@@ -551,11 +555,9 @@ async function uploadAndReadBackArchive(args: {
         )
       }
     } else {
-      uploadedByThisAttempt = true
       const readBack = await bucket.download(args.storagePath)
       bytes = await readStorageBytes(readBack.data)
       if (!bytes) {
-        await bucket.remove([args.storagePath])
         throw new ClassroomArchiveExportError(
           'archive_storage_readback_failed',
           'Classroom archive could not be read back after upload',
@@ -567,7 +569,6 @@ async function uploadAndReadBackArchive(args: {
   }
 
   if (sha256Bytes(bytes) !== args.artifactSha256) {
-    if (uploadedByThisAttempt) await bucket.remove([args.storagePath])
     throw new ClassroomArchiveExportError(
       'archive_storage_checksum_mismatch',
       'Stored classroom archive checksum does not match',
@@ -575,7 +576,19 @@ async function uploadAndReadBackArchive(args: {
       false,
     )
   }
-  return { bytes, uploadedByThisAttempt }
+  return { bytes }
+}
+
+async function queueArchiveManagedCleanup(
+  supabase: SupabaseClient,
+  objectId: string,
+  errorCode: string,
+): Promise<void> {
+  try {
+    await queueManagedStorageCleanup({ supabase, objectId, errorCode })
+  } catch {
+    // The pending-upload expiry remains a durable cleanup fallback.
+  }
 }
 
 function publicCompletedResult(
@@ -770,17 +783,47 @@ export async function exportClassroomArchive(args: {
         true,
       )
     }
-    const stored = await uploadAndReadBackArchive({
+    await reserveManagedStorageUpload({
       supabase: args.supabase,
-      storagePath,
-      archive: bundle.archive,
-      artifactSha256: bundle.artifactSha256,
+      objectId: snapshot.archive_id,
+      bucket: CLASSROOM_ARCHIVE_BUCKET,
+      path: storagePath,
+      classroomId: args.classroomId,
+      purpose: 'classroom_archive',
+      createdByUserId: args.teacherId,
+      resourceType: 'classroom_archive_operation',
+      resourceId: args.operationId,
+      contentType: 'application/gzip',
+      byteSize: bundle.archive.byteLength,
     })
+    let stored: Awaited<ReturnType<typeof uploadAndReadBackArchive>>
+    try {
+      stored = await uploadAndReadBackArchive({
+        supabase: args.supabase,
+        storagePath,
+        archive: bundle.archive,
+        artifactSha256: bundle.artifactSha256,
+      })
+      await adoptManagedStorageUpload({
+        supabase: args.supabase,
+        objectId: snapshot.archive_id,
+        contentSha256: bundle.artifactSha256,
+      })
+    } catch (error) {
+      await queueArchiveManagedCleanup(
+        args.supabase,
+        snapshot.archive_id,
+        'archive_upload_or_adoption_failed',
+      )
+      throw error
+    }
     const verification = verifyClassroomArchiveBundle(stored.bytes)
     if (!verification.ok) {
-      if (stored.uploadedByThisAttempt) {
-        await args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET).remove([storagePath])
-      }
+      await queueArchiveManagedCleanup(
+        args.supabase,
+        snapshot.archive_id,
+        'archive_readback_verification_failed',
+      )
       throw new ClassroomArchiveExportError(
         'archive_readback_verification_failed',
         'Stored classroom archive failed strict read-back verification',
@@ -793,9 +836,11 @@ export async function exportClassroomArchive(args: {
       verification.manifest.classroom_id !== args.classroomId ||
       verification.manifest.teacher_id !== args.teacherId
     ) {
-      if (stored.uploadedByThisAttempt) {
-        await args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET).remove([storagePath])
-      }
+      await queueArchiveManagedCleanup(
+        args.supabase,
+        snapshot.archive_id,
+        'archive_readback_identity_mismatch',
+      )
       throw new ClassroomArchiveExportError(
         'archive_readback_identity_mismatch',
         'Stored classroom archive identity does not match the operation',
@@ -855,8 +900,12 @@ export async function exportClassroomArchive(args: {
       )
     }
     if (!parsedComplete.data.ok) {
-      if (!parsedComplete.data.retryable && stored.uploadedByThisAttempt) {
-        await args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET).remove([storagePath])
+      if (!parsedComplete.data.retryable) {
+        await queueArchiveManagedCleanup(
+          args.supabase,
+          snapshot.archive_id,
+          'archive_finalization_rejected',
+        )
       }
       emitArchiveMetric(parsedComplete.data, startedAt)
       return parsedComplete.data

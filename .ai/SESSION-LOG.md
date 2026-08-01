@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Froze archive restore ordering
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Derived the inactive v2 restore order from the frozen topological v1 order
-  with Quiz resources removed, then appended the retired-assessment record and
-  actor resources parent-first.
-- Removed the final live classroom-graph dependency from v1 compaction
-  preflight staging.
-- Added regressions for every declared v2 parent-before-child dependency and
-  the actual non-empty v1 compaction staging sequence.
-
-**Validation:**
-- Focused archive contract, restore, and compaction tests pass.
-- TypeScript and lint pass.
-- Local compaction database harness and full archive recovery drill pass.
-
-**Remaining:**
-- Publish, independently review, and require exact-head CI before merge.
-- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
-
 ## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
 
 **Risk profile:** runtime-platform
@@ -1528,3 +1506,31 @@ zero-downtime rollout
 - Push the fix to draft PR #963 and require current-head CI to replay migration 117 in an ephemeral
   database before considering the concurrency blockers closed.
 - No migration was applied. Keep production deletion and all rollout gates disabled.
+
+## 2026-08-01 — Redesigned purge around enforceable ownership
+
+**Risk profile:** migration, destructive-data, authorization, storage concurrency, UI
+
+**Completed:**
+- Reworked hot archived classroom deletion around one stable classroom scope, structural
+  relational ownership, and a managed-object registry spanning assignment artifacts,
+  submission images, test documents, classroom archives, and Gradex extracts.
+- Made managed object identity immutable, retained exact-object deletion leases and retry
+  evidence, and reconciled legacy cleanup ledgers through durable managed-object delegation.
+- Canonicalized lifecycle fencing and lock ordering across purge, archive, restore, grading,
+  and Blueprint workflows while preserving Course Blueprints and user accounts.
+- Added the ownership contract, readiness/resource audits, destructive-fixture assertions,
+  deletion-authority tests, and a unique-student impact count.
+- Visually verified teacher desktop/mobile, light/dark confirmation, active/cold exclusions,
+  and student boundaries; corrected the mobile dialog footer so both actions stay visible.
+
+**Validation:**
+- Full Vitest suite: 468 files / 4,078 tests pass.
+- TypeScript, lint, Pika audit, `git diff --check`, and PostgreSQL SQLFluff parsing pass.
+- Persistent local rollout gates remain disabled. No migration was applied or replayed.
+
+**Remaining:**
+- Publish this redesign as a fast-forward update to draft PR #963 and require current-head CI.
+- Migration 117's redesigned source still needs a separately authorized local replay before the
+  readiness/backfill and destructive database fixture can be treated as current evidence.
+- Do not merge, deploy, enable deletion, or apply migration 117 to production.

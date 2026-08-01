@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { queueManagedStorageCleanupPath } from '@/lib/server/managed-storage'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const PROVISIONAL_CLEANUP_DELAY_MS = 15 * 60 * 1000
@@ -14,6 +16,38 @@ const provisionalCleanupSchema = z.object({
 })
 
 type SupabaseLike = any
+
+async function requestManagedArtifactCleanup(
+  supabase: SupabaseLike,
+  storagePath: string,
+): Promise<'absent' | 'delegated' | 'unowned' | 'uncertain'> {
+  try {
+    const queued = await queueManagedStorageCleanupPath({
+      supabase,
+      bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
+      path: storagePath,
+      errorCode: 'assignment_artifact_cleanup_requested',
+    })
+    if (queued) return 'delegated'
+  } catch {
+    return 'uncertain'
+  }
+  try {
+    const response = await supabase.storage
+      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
+      .download(storagePath)
+    if (response.data) return 'unowned'
+    const evidence = missingStorageObjectEvidence(response.error)
+    if (evidence === 'object') return 'absent'
+    if (evidence === 'generic') {
+      const bucket = await supabase.storage.getBucket(ASSIGNMENT_ARTIFACTS_BUCKET)
+      if (!bucket.error && bucket.data?.id === ASSIGNMENT_ARTIFACTS_BUCKET) return 'absent'
+    }
+  } catch (error) {
+    if (missingStorageObjectEvidence(error) === 'object') return 'absent'
+  }
+  return 'uncertain'
+}
 
 export type ProvisionalAssignmentArtifactStorageCleanup = z.infer<typeof provisionalCleanupSchema>
 
@@ -174,13 +208,11 @@ export async function removeQueuedAssignmentArtifactStoragePath(input: {
 
   let storageError: { message?: string } | null = null
   if (!isReferenced) {
-    try {
-      const result = await input.supabase.storage
-        .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-        .remove([input.storagePath])
-      storageError = result.error
-    } catch (error) {
-      storageError = error instanceof Error ? { message: error.message } : { message: 'Storage request failed' }
+    const state = await requestManagedArtifactCleanup(input.supabase, input.storagePath)
+    if (state !== 'absent' && state !== 'delegated') storageError = {
+      message: state === 'unowned'
+          ? 'Managed Storage owner is missing'
+          : 'Storage cleanup state could not be verified',
     }
   }
 
@@ -325,13 +357,11 @@ export async function runAssignmentArtifactStorageCleanup(input: {
     }
 
     if (!storageError && !referencedArtifact) {
-      try {
-        const result = await input.supabase.storage
-          .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-          .remove([cleanup.storage_path])
-        storageError = result.error
-      } catch (error) {
-        storageError = error instanceof Error ? { message: error.message } : { message: 'Storage request failed' }
+      const state = await requestManagedArtifactCleanup(input.supabase, cleanup.storage_path)
+      if (state !== 'absent' && state !== 'delegated') storageError = {
+        message: state === 'unowned'
+            ? 'Managed Storage owner is missing'
+            : 'Storage cleanup state could not be verified',
       }
     }
 

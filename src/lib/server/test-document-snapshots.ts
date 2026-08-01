@@ -6,6 +6,7 @@ import { fetchSafeExternalDocument } from '@/lib/server/safe-external-document'
 import {
   adoptManagedStorageUpload,
   queueManagedStorageCleanup,
+  queueManagedStorageCleanupPath,
   reserveManagedStorageUpload,
 } from '@/lib/server/managed-storage'
 import {
@@ -184,13 +185,13 @@ export async function syncAndAdoptExternalLinkTestDocument(options: {
 
 export async function removeTestDocumentSnapshot(snapshotPath: string): Promise<void> {
   const supabase = getServiceRoleClient()
-  const { error } = await supabase.storage
-    .from(TEST_DOCUMENTS_BUCKET)
-    .remove([snapshotPath])
-
-  if (error) {
-    throw new ApiError(500, 'Failed to remove synced document')
-  }
+  const queued = await queueManagedStorageCleanupPath({
+    supabase,
+    bucket: TEST_DOCUMENTS_BUCKET,
+    path: snapshotPath,
+    errorCode: 'test_snapshot_removed',
+  })
+  if (!queued) throw new ApiError(409, 'Synced document is still in use')
 }
 
 export async function buildSnapshotResponse(doc: TestDocument): Promise<NextResponse> {

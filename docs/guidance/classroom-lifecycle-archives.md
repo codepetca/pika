@@ -161,6 +161,12 @@ change proposals, short-lived external editing sessions, and the temporary
 permanent-deletion fence use this boundary because their owning workflow
 reconciles them instead of restoring them as classroom state.
 
+Logical lifecycle scopes that deliberately have no physical foreign key belong
+in `CLASSROOM_LOGICAL_SCOPE_REFERENCES`, not the catalog-FK exception list. The
+only current case is `managed_storage_objects.classroom_id`: its database guard
+requires exactly one hot classroom or cold tombstone for the stable classroom
+UUID.
+
 The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
 
 ```bash
@@ -344,6 +350,12 @@ archive never downloads its object, expands archive contents, compacts another c
 data.
 
 ### Permanent Hot-Archive Deletion
+
+The enforceable ownership and lifecycle redesign contract is
+[`hot-archived-classroom-purge-ownership-contract.md`](./hot-archived-classroom-purge-ownership-contract.md).
+Where the implementation summary below describes migration 117's earlier path- and feature-specific
+design, the redesign contract is authoritative until this section is reconciled with the completed
+implementation.
 
 Migrations `115_hot_archived_classroom_purge.sql`,
 `116_hot_archived_classroom_purge_trigger_reconciliation.sql`,

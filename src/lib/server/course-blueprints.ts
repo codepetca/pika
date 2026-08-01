@@ -52,8 +52,6 @@ import {
 } from '@/lib/server/course-blueprint-storage-copies'
 import { createCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
 import { createHash, randomUUID } from 'node:crypto'
-import { managedStorageObjectSchema } from '@/lib/server/managed-storage'
-import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -547,57 +545,19 @@ export async function deleteCourseBlueprint(teacherId: string, blueprintId: stri
   }
 
   const supabase = getSupabase()
-  const begin = await (supabase as any).rpc('begin_course_blueprint_managed_deletion', {
-    p_teacher_id: teacherId,
-    p_blueprint_id: blueprintId,
-  })
-  if (begin.error) {
+  const { error } = await supabase
+    .from('course_blueprints')
+    .delete()
+    .eq('id', blueprintId)
+    .eq('teacher_id', teacherId)
+  if (error?.code === '23503') {
     return {
       ok: false as const,
-      status: 503,
-      error: 'Course Blueprint deletion is paused and can be retried.',
+      status: 409,
+      error: 'This Blueprint contains uploaded test material and cannot be deleted yet.',
     }
   }
-
-  for (let processed = 0; processed < 500; processed += 1) {
-    const leaseToken = randomUUID()
-    const claim = await (supabase as any).rpc('claim_course_blueprint_managed_cleanup', {
-      p_teacher_id: teacherId,
-      p_blueprint_id: blueprintId,
-      p_lease_token: leaseToken,
-      p_lease_seconds: 120,
-    })
-    if (claim.error) {
-      return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
-    }
-    const objects = managedStorageObjectSchema.array().parse(claim.data || [])
-    const object = objects[0]
-    if (!object) break
-    const removal = await supabase.storage.from(object.storage_bucket).remove([object.storage_path])
-    if (removal.error && !missingStorageObjectEvidence(removal.error)) {
-      await (supabase as any).rpc('fail_managed_storage_cleanup', {
-        p_object_id: object.id,
-        p_lease_token: leaseToken,
-        p_error_code: 'course_blueprint_storage_delete_failed',
-      })
-      return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
-    }
-    const completed = await (supabase as any).rpc('complete_managed_storage_cleanup', {
-      p_object_id: object.id,
-      p_lease_token: leaseToken,
-    })
-    if (completed.error || completed.data !== true) {
-      return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
-    }
-  }
-
-  const finalized = await (supabase as any).rpc('finalize_course_blueprint_managed_deletion', {
-    p_teacher_id: teacherId,
-    p_blueprint_id: blueprintId,
-  })
-  if (finalized.error || finalized.data !== true) {
-    return { ok: false as const, status: 503, error: 'Course Blueprint deletion is paused and can be retried.' }
-  }
+  if (error) return { ok: false as const, status: 500, error: 'Failed to delete course blueprint' }
   return { ok: true as const }
 }
 

@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import {
   auditClassroomResourceSchema,
+  type ClassroomSchemaIndex,
   type ClassroomSchemaPrimaryKey,
   type ClassroomSchemaRelationship,
 } from '../src/lib/contracts/classroom-data'
@@ -15,7 +16,14 @@ with relationships as (
   select
     child.relname as child_table,
     parent.relname as parent_table,
-    array_agg(child_column.attname order by columns.ordinality) as child_columns
+    array_agg(child_column.attname order by columns.ordinality) as child_columns,
+    case constraint_definition.confdeltype
+      when 'c' then 'cascade'
+      when 'r' then 'restrict'
+      when 'n' then 'set null'
+      when 'd' then 'set default'
+      else 'no action'
+    end as delete_action
   from pg_constraint constraint_definition
   join pg_class child on child.oid = constraint_definition.conrelid
   join pg_namespace child_namespace on child_namespace.oid = child.relnamespace
@@ -46,6 +54,26 @@ primary_keys as (
   where constraint_definition.contype = 'p'
     and relation_namespace.nspname = 'public'
   group by constraint_definition.oid, relation.relname
+),
+indexes as (
+  select
+    relation.relname as table_name,
+    array_agg(column_definition.attname order by index_columns.ordinality)
+      filter (where column_definition.attname is not null) as columns
+  from pg_index index_definition
+  join pg_class relation on relation.oid = index_definition.indrelid
+  join pg_namespace relation_namespace on relation_namespace.oid = relation.relnamespace
+  join lateral unnest(index_definition.indkey) with ordinality index_columns(attnum, ordinality)
+    on index_columns.ordinality <= index_definition.indnkeyatts
+  left join pg_attribute column_definition
+    on column_definition.attrelid = relation.oid
+    and column_definition.attnum = index_columns.attnum
+  where relation_namespace.nspname = 'public'
+    and index_definition.indisvalid
+    and index_definition.indisready
+    and index_definition.indpred is null
+    and index_definition.indexprs is null
+  group by index_definition.indexrelid, relation.relname
 )
 select json_build_object(
   'relationships', coalesce(
@@ -54,6 +82,10 @@ select json_build_object(
   ),
   'primary_keys', coalesce(
     (select json_agg(primary_keys order by table_name) from primary_keys),
+    '[]'::json
+  ),
+  'indexes', coalesce(
+    (select json_agg(indexes order by table_name, columns) from indexes),
     '[]'::json
   )
 )::text;
@@ -105,8 +137,13 @@ try {
 const schema = JSON.parse(output.trim()) as {
   relationships: ClassroomSchemaRelationship[]
   primary_keys: ClassroomSchemaPrimaryKey[]
+  indexes: ClassroomSchemaIndex[]
 }
-const audit = auditClassroomResourceSchema(schema.relationships, schema.primary_keys)
+const audit = auditClassroomResourceSchema(
+  schema.relationships,
+  schema.primary_keys,
+  schema.indexes,
+)
 
 if (!audit.ok) {
   process.stderr.write(`Classroom resource schema contract failed:\n${JSON.stringify(audit, null, 2)}\n`)

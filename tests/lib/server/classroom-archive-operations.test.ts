@@ -15,6 +15,34 @@ const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 const STUDENT_ID = '00000000-0000-4000-8000-000000000004'
 const SNAPSHOT_AT = '2026-07-13T12:00:00.000Z'
 
+function managedArchiveObject(args: Record<string, unknown>, status: 'pending_upload' | 'ready') {
+  return {
+    id: OPERATION_ID,
+    storage_bucket: CLASSROOM_ARCHIVE_BUCKET,
+    storage_path: args.p_storage_path,
+    classroom_id: CLASSROOM_ID,
+    course_blueprint_id: null,
+    purpose: 'classroom_archive',
+    status,
+    created_by_user_id: TEACHER_ID,
+    data_subject_user_id: null,
+    resource_type: 'classroom_archive_operation',
+    resource_id: OPERATION_ID,
+    content_type: 'application/gzip',
+    byte_size: args.p_byte_size ?? 1,
+    content_sha256: status === 'ready' ? args.p_content_sha256 : null,
+    upload_expires_at: status === 'ready' ? null : '2026-07-13T13:00:00.000Z',
+    attempt_count: 0,
+    next_attempt_at: SNAPSHOT_AT,
+    lease_token: null,
+    lease_expires_at: null,
+    last_error_code: null,
+    created_at: SNAPSHOT_AT,
+    ready_at: status === 'ready' ? SNAPSHOT_AT : null,
+    updated_at: SNAPSHOT_AT,
+  }
+}
+
 function v2ResourceCounts(rows: Record<string, unknown[]> = {}) {
   return Object.fromEntries(
     CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [
@@ -109,6 +137,21 @@ function createSupabaseMock(options: {
         },
         error: null,
       }
+    }
+    if (name === 'begin_managed_storage_upload') {
+      return { data: managedArchiveObject(args, 'pending_upload'), error: null }
+    }
+    if (name === 'adopt_managed_storage_upload') {
+      return {
+        data: managedArchiveObject({
+          p_storage_path: `${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v2.tar.gz`,
+          p_content_sha256: args.p_content_sha256,
+        }, 'ready'),
+        error: null,
+      }
+    }
+    if (name === 'queue_managed_storage_cleanup') {
+      return { data: true, error: null }
     }
     return { data: true, error: null }
   })
@@ -256,12 +299,14 @@ describe('classroom archive export coordinator', () => {
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_export_v2',
       'stage_classroom_archive_object_upload',
+      'begin_managed_storage_upload',
+      'adopt_managed_storage_upload',
       'complete_classroom_archive_export_v2',
     ])
     expect([...mock.stored.keys()]).toEqual([
       `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v2.tar.gz`,
     ])
-    expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
+    expect(mock.rpc.mock.calls[4][1]).toEqual(expect.objectContaining({
       p_resource_counts: v2ResourceCounts(),
       p_archive_resource_counts: v2ResourceCounts(),
     }))
@@ -316,7 +361,7 @@ describe('classroom archive export coordinator', () => {
     ])
   })
 
-  it('removes a newly uploaded orphan when finalization rejects a changed classroom', async () => {
+  it('durably queues a newly uploaded orphan when finalization rejects a changed classroom', async () => {
     const mock = createSupabaseMock({ completionFailure: true })
     const result = await exportClassroomArchive({
       supabase: mock.client,
@@ -333,8 +378,12 @@ describe('classroom archive export coordinator', () => {
       error_code: 'classroom_changed_during_export',
       retryable: false,
     }))
-    expect(mock.stored.size).toBe(0)
-    expect(mock.removed).toHaveLength(1)
+    expect(mock.stored.size).toBe(1)
+    expect(mock.removed).toHaveLength(0)
+    expect(mock.rpc).toHaveBeenCalledWith('queue_managed_storage_cleanup', {
+      p_object_id: OPERATION_ID,
+      p_error_code: 'archive_finalization_rejected',
+    })
   })
 
   it('does not read retired Quiz tables into direct archive-v2 exports', async () => {
@@ -386,7 +435,7 @@ describe('classroom archive export coordinator', () => {
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
     expect(verification.manifest.version).toBe(2)
-    expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
+    expect(mock.rpc.mock.calls[4][1]).toEqual(expect.objectContaining({
       p_resource_counts: v2ResourceCounts(),
       p_archive_resource_counts: v2ResourceCounts(),
     }))

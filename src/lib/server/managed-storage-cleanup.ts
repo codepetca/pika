@@ -83,22 +83,25 @@ export async function runManagedStorageCleanup(input: {
   }
 
   const leaseToken = randomUUID()
-  const claim = await input.supabase.rpc('claim_managed_storage_cleanup', {
-    p_lease_token: leaseToken,
-    p_limit: input.limit ?? 10,
-    p_lease_seconds: input.leaseSeconds ?? 120,
-  })
-  if (claim.error) {
-    throw new Error('managed_storage_cleanup_claim_failed')
-  }
-  const objects = z.array(managedStorageObjectSchema).max(10).parse(claim.data || [])
+  const limit = z.number().int().min(1).max(10).parse(input.limit ?? 10)
+  const leaseSeconds = z.number().int().min(15).max(300).parse(input.leaseSeconds ?? 120)
   const result = {
-    claimed: objects.length,
+    claimed: 0,
     deleted: 0,
     failed: 0,
     retry_recording_failed: 0,
   }
-  for (const object of objects) {
+  for (let index = 0; index < limit; index += 1) {
+    const claim = await input.supabase.rpc('claim_managed_storage_cleanup', {
+      p_lease_token: leaseToken,
+      p_limit: 1,
+      p_lease_seconds: leaseSeconds,
+    })
+    if (claim.error) throw new Error('managed_storage_cleanup_claim_failed')
+    const objects = z.array(managedStorageObjectSchema).max(1).parse(claim.data || [])
+    const object = objects[0]
+    if (!object) break
+    result.claimed += 1
     const status = await processClaim(input.supabase, object)
     result[status] += 1
   }

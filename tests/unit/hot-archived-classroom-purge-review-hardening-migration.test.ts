@@ -11,14 +11,22 @@ const scopedArchiveMaintenanceMigration = readFileSync(
 )
 
 describe('explicit managed-file ownership migration', () => {
-  it('gives every source object exactly one hot, cold, or Blueprint lifecycle owner', () => {
+  it('gives every object exactly one stable classroom scope or Blueprint owner', () => {
     expect(migration).toContain('create table public.managed_storage_objects')
-    expect(migration).toContain('cold_classroom_id uuid references public.classroom_cold_tombstones')
-    expect(migration).toContain('cold_archive_id uuid references public.classroom_archives')
     expect(migration).toContain(
-      'check (num_nonnulls(classroom_id, cold_classroom_id, course_blueprint_id) = 1)',
+      'check (num_nonnulls(classroom_id, course_blueprint_id) = 1)',
     )
-    expect(migration).toContain('managed_storage_objects_cold_owner_coverage_fk')
+    expect(migration).not.toContain('cold_classroom_id')
+    expect(migration).not.toContain('cold_archive_id')
+    expect(migration).not.toContain('managed_storage_objects_classroom_id_fkey')
+    expect(migration).toContain('classroom UUID that survives hot/cold transitions')
+    expect(migration).toContain('create or replace function public.guard_managed_storage_scope_owner()')
+    expect(migration).toContain("raise exception 'managed_storage_classroom_scope_invalid'")
+    expect(migration).toContain(
+      'create or replace function public.guard_managed_storage_identity_immutable()',
+    )
+    expect(migration).toContain("raise exception 'managed_storage_identity_immutable'")
+    expect(migration).toContain("raise exception 'managed_storage_owner_immutable'")
     expect(migration).toContain('unique (storage_bucket, storage_path)')
     expect(migration).toContain('created_by_user_id uuid references public.users (id) on delete set null')
     expect(migration).toContain('data_subject_user_id uuid references public.users (id) on delete set null')
@@ -124,6 +132,9 @@ describe('explicit managed-file ownership migration', () => {
       'public.managed_storage_exact_lock(v_row.target_storage_bucket, v_row.target_storage_path)',
     )
     expect(reconciliation).toContain("classroom_id = null, course_blueprint_id = v_row.blueprint_id")
+    expect(reconciliation).toContain(
+      "set_config('pika.managed_storage_owner_reconciliation', 'on', true)",
+    )
     expect(reconciliation).toContain('public.managed_storage_objects.id = v_row.source_object_id')
     expect(reconciliation).toContain('public.managed_storage_objects.classroom_id = v_row.classroom_id')
     expect(reconciliation).toContain('legacy_blueprint_reconciliation_source_owner_conflict')
@@ -140,7 +151,6 @@ describe('explicit managed-file ownership migration', () => {
       'delete from public.legacy_blueprint_classroom_storage_reconciliations',
     )
     expect(migration).toContain('where reconciliation.classroom_id = old.id')
-    expect(migration).toContain('where reconciliation.blueprint_id = p_blueprint_id')
 
     const failureStart = migration.indexOf(
       'create or replace function public.fail_legacy_blueprint_classroom_storage_reconciliation(',
@@ -186,16 +196,21 @@ describe('explicit managed-file ownership migration', () => {
     expect(helper).not.toContain("p_value->'assignments'")
   })
 
-  it('restores exact ownership and preserves it through hot-to-cold source cleanup', () => {
+  it('restores exact ownership under the same stable classroom scope', () => {
     expect(migration).toContain('create table public.classroom_archive_restore_managed_objects')
     expect(migration).toContain('create or replace function public.begin_classroom_archive_restore_managed_v2')
+    expect(migration).toContain('Managed restore reservation conflicts')
+    expect(migration).toContain('operation.snapshot_expires_at')
+    expect(migration).toContain('stage_classroom_archive_object_upload_legacy_117')
+    expect(migration).toContain('Managed restore upload cleanup missing')
     expect(migration).toContain('complete_classroom_archive_restore_legacy_117')
     expect(migration).toContain('create or replace function public.complete_classroom_archive_source_object_cleanup')
     expect(migration).toContain('Classroom archive source object is still present')
-    expect(migration).toContain('cold_managed_storage_restore_replacement_missing')
-    expect(migration).toContain("released.purpose, 'cleanup_pending'")
+    expect(migration).toContain('create or replace function public.guard_cold_classroom_scope_delete')
+    expect(migration).toContain('cold_classroom_deletion_not_implemented')
+    expect(migration).not.toContain('release_cold_managed_storage_on_restore')
     expect(migration).toContain("'pika.classroom_archive_restore_operation_id'")
-    expect(migration).toContain('operation.id = v_restore_operation_id')
+    expect(migration).toContain('where classroom.id = old.classroom_id')
     const cleanupStart = migration.indexOf(
       'create or replace function public.complete_classroom_archive_source_object_cleanup',
     )
@@ -203,6 +218,14 @@ describe('explicit managed-file ownership migration', () => {
     const cleanup = migration.slice(cleanupStart, cleanupEnd)
     expect(cleanup).toContain("p_storage_path like '/%'")
     expect(cleanup).toContain("'..' = any(string_to_array(p_storage_path, '/'))")
+    const adoptionStart = migration.indexOf(
+      'create or replace function public.adopt_managed_storage_upload(',
+    )
+    const adoptionEnd = migration.indexOf('$$;', adoptionStart)
+    const adoption = migration.slice(adoptionStart, adoptionEnd)
+    expect(adoption).toContain('from public.classroom_cold_tombstones tombstone')
+    expect(adoption).toContain("operation.operation_type = 'restore'")
+    expect(adoption).toContain("operation.status = 'snapshot_ready'")
   })
 
   it('redacts raw Storage paths when purge-object deletion is complete', () => {
@@ -255,7 +278,7 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
-  it('transfers managed ownership and verified coverage before cold compaction deletes the hot root', () => {
+  it('preserves the immutable classroom scope when compaction deletes the hot root', () => {
     const compactionWrapper = migration.indexOf(
       'create or replace function public.complete_classroom_archive_compaction(',
     )
@@ -267,32 +290,23 @@ describe('explicit managed-file ownership migration', () => {
       'public.complete_classroom_archive_compaction_legacy_117(',
       compactionWrapper,
     )
-    const transfer = migration.indexOf(
-      'create or replace function public.transfer_classroom_managed_storage_to_cold()',
-    )
-    const ownershipMove = migration.indexOf('cold_classroom_id = new.classroom_id', transfer)
-    const coverageDelete = migration.indexOf(
-      'delete from public.classroom_managed_storage_coverage',
-      ownershipMove,
-    )
 
-    expect(migration).toContain('create table public.classroom_cold_managed_storage_coverage')
-    expect(migration).toContain('remaining_object_count integer not null')
     expect(compactionWrapper).toBeGreaterThanOrEqual(0)
     expect(compactionContext).toBeGreaterThan(compactionWrapper)
     expect(legacyCompaction).toBeGreaterThan(compactionContext)
-    expect(ownershipMove).toBeGreaterThan(transfer)
-    expect(coverageDelete).toBeGreaterThan(ownershipMove)
+    expect(migration).not.toContain('transfer_classroom_managed_storage_to_cold')
+    expect(migration).not.toContain('classroom_cold_managed_storage_coverage')
+    expect(migration).toContain('files retain this stable classroom scope')
     expect(migration).toContain('cold_classroom_deletion_not_implemented')
     expect(migration).toContain("'pika.classroom_archive_compaction_operation_id'")
   })
 
-  it('treats an absent archive maintenance setting as an ordinary lifecycle change', () => {
+  it('uses positive transaction-local archive maintenance markers', () => {
     expect(migration).toContain(
-      "current_setting('pika.classroom_archive_compaction', true) is distinct from 'on'",
+      "current_setting('pika.classroom_archive_compaction', true) = 'on'",
     )
     expect(migration).toContain(
-      "current_setting('pika.classroom_archive_restore', true) is distinct from 'on'",
+      "current_setting('pika.classroom_archive_restore', true) = 'on'",
     )
     expect(migration).not.toContain(
       "current_setting('pika.classroom_archive_compaction', true) <> 'on'",
@@ -302,7 +316,7 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
-  it('permits the legacy compaction dry-run only with its local proof, while ordinary deletes stay guarded', () => {
+  it('permits verified compaction to retain the stable scope while ordinary deletes stay guarded', () => {
     const wrapper = migration.indexOf(
       'create or replace function public.complete_classroom_archive_compaction(',
     )
@@ -310,7 +324,6 @@ describe('explicit managed-file ownership migration', () => {
       "set_config('pika.classroom_archive_compaction_dry_run', 'on', true)",
       wrapper,
     )
-    const deferredFks = migration.indexOf('set constraints', dryRunMarker)
     const deleteGuard = migration.indexOf(
       'create or replace function public.reject_classroom_delete_with_managed_storage()',
     )
@@ -323,15 +336,9 @@ describe('explicit managed-file ownership migration', () => {
       guardMarker,
     )
 
-    expect(migration).toContain('on delete no action deferrable initially immediate')
+    expect(migration).toContain('references public.classrooms (id) on delete cascade')
     expect(dryRunMarker).toBeGreaterThan(wrapper)
-    expect(deferredFks).toBeGreaterThan(dryRunMarker)
-    expect(migration.slice(deferredFks, deleteGuard)).toContain(
-      'public.managed_storage_objects_classroom_id_fkey',
-    )
-    expect(migration.slice(deferredFks, deleteGuard)).toContain(
-      'public.classroom_managed_storage_coverage_classroom_id_fkey',
-    )
+    expect(migration.slice(dryRunMarker, deleteGuard)).not.toContain('set constraints')
     expect(guardMarker).toBeGreaterThan(deleteGuard)
     expect(migration.slice(guardMarker, ordinaryDeleteFailure)).toContain("operation.status = 'snapshot_ready'")
     expect(ordinaryDeleteFailure).toBeGreaterThan(guardMarker)
@@ -370,9 +377,41 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain('classroom_purge_storage_object_still_present')
   })
 
+  it('uses a non-blocking trigger fence to break lifecycle/row lock inversions', () => {
+    expect(migration).toContain('create or replace function public.classroom_purge_try_lock')
+    expect(migration).toContain('pg_try_advisory_xact_lock(')
+    expect(migration).toContain('create or replace function public.guard_classroom_purge_lifecycle')
+    expect(migration).toContain("raise exception 'classroom_operation_busy' using errcode = '40001'")
+    const resourceGuardStart = migration.indexOf(
+      'create or replace function public.reject_classroom_resource_change_during_purge()',
+    )
+    const resourceGuardEnd = migration.indexOf('$$;', resourceGuardStart)
+    expect(migration.slice(resourceGuardStart, resourceGuardEnd)).toContain(
+      'perform public.guard_classroom_purge_lifecycle(',
+    )
+    const managedGuardStart = migration.indexOf(
+      'create or replace function public.reject_managed_storage_change_during_purge()',
+    )
+    const managedGuardEnd = migration.indexOf('$$;', managedGuardStart)
+    expect(migration.slice(managedGuardStart, managedGuardEnd)).toContain(
+      'perform public.guard_classroom_purge_lifecycle(',
+    )
+    for (const ledger of [
+      'classroom_archive_object_upload_cleanup',
+      'classroom_gradex_extract_cleanup',
+      'classroom_archive_source_object_cleanup',
+    ]) {
+      expect(migration).toContain(`'${ledger}'`)
+    }
+    expect(migration).toContain(
+      "for each row execute function public.reject_classroom_operation_during_purge()",
+    )
+  })
+
   it('loads snapshot-sync rows without an invalid record/scalar INTO list', () => {
     expect(migration).toContain('select test.*\n  into v_test')
-    expect(migration).toContain('v_classroom_id := v_test.classroom_id;')
+    expect(migration).toContain('select test.classroom_id into v_classroom_id')
+    expect(migration).toContain('perform public.classroom_purge_lock(v_classroom_id)')
     expect(migration).not.toContain('into v_test, v_classroom_id')
   })
 
@@ -404,7 +443,7 @@ describe('explicit managed-file ownership migration', () => {
     expect(cleanup).toContain('purpose = p_purpose')
     expect(cleanup).toContain('resource_type = p_resource_type')
     expect(cleanup).toContain('resource_id = p_resource_id')
-    expect(cleanup).toContain('from public.tests where id = p_resource_id for update')
+    expect(cleanup).toContain('where id = p_resource_id and classroom_id = p_classroom_id')
     expect(cleanup).toContain("document.value->>'managed_object_id' = p_object_id::text")
     expect(migration).toContain(
       'grant execute on function public.update_test_documents_managed_atomic(',
@@ -458,6 +497,21 @@ describe('explicit managed-file ownership migration', () => {
     expect(cleanup).toContain('from public.course_blueprint_versions')
     expect(cleanup).toContain('where course_blueprint_id = v_blueprint_id')
     expect(migration).toContain("raise exception 'blueprint_teacher_material_ownership_required'")
+  })
+
+  it('does not introduce a second purge engine for Course Blueprint deletion', () => {
+    expect(migration).not.toContain(
+      'create or replace function public.begin_course_blueprint_managed_deletion',
+    )
+    expect(migration).not.toContain(
+      'create or replace function public.claim_course_blueprint_managed_cleanup',
+    )
+    expect(migration).not.toContain(
+      'create or replace function public.finalize_course_blueprint_managed_deletion',
+    )
+    expect(migration).toContain(
+      'course_blueprint_id uuid references public.course_blueprints (id) on delete restrict',
+    )
   })
 
   it('locks exact Blueprint file ownership before saving an immutable Version', () => {
@@ -514,7 +568,7 @@ describe('explicit managed-file ownership migration', () => {
       "and v_bucket in (\n      'assignment-artifacts',",
     )
     const managedSourceEarlyReturn = trigger.indexOf(
-      "if v_bucket not in ('assignment-artifacts', 'submission-images', 'test-documents')",
+      "if v_bucket not in (\n    'assignment-artifacts',",
     )
     expect(permanentReservation).toBeGreaterThanOrEqual(0)
     expect(trigger).toContain("'classroom-archives'")
@@ -565,14 +619,19 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
-  it('preserves non-retryable relational finalizer failures', () => {
+  it('replaces the manual child-table finalizer with a root delete and exact postconditions', () => {
     const finalizerStart = migration.indexOf(
       'create or replace function public.finalize_hot_archived_classroom_purge(',
     )
     const finalizerEnd = migration.indexOf('$$;', finalizerStart)
     const finalizer = migration.slice(finalizerStart, finalizerEnd)
 
-    expect(finalizer).toContain("v_retryable := coalesce((v_result ->> 'retryable')::boolean, true)")
+    expect(finalizer).toContain('delete from public.classrooms classroom')
+    expect(finalizer).toContain('join public.classroom_purge_resources snapshot')
+    expect(finalizer).toContain("raise exception 'classroom_purge_postcondition_%'")
+    expect(finalizer).not.toContain(
+      'public.finalize_hot_archived_classroom_purge_legacy_117(',
+    )
     expect(finalizer).toContain('retryable = v_retryable')
     expect(finalizer).toContain("'retryable', v_retryable")
   })
@@ -587,16 +646,124 @@ describe('explicit managed-file ownership migration', () => {
     expect(retryPredicate).toBeGreaterThan(retryIncrement)
   })
 
-  it('explicitly reconciles managed rows before the child-first relational finalizer', () => {
-    const managedDelete = migration.indexOf('delete from public.managed_storage_objects object')
-    const legacyFinalize = migration.indexOf(
-      'public.finalize_hot_archived_classroom_purge_legacy_117(',
-      managedDelete,
+  it('reconciles operational ledgers before managed ownership and the classroom root', () => {
+    const finalizerStart = migration.indexOf(
+      'create or replace function public.finalize_hot_archived_classroom_purge(',
     )
-    expect(managedDelete).toBeGreaterThanOrEqual(0)
-    expect(legacyFinalize).toBeGreaterThan(managedDelete)
-    expect(migration).toContain('classroom_purge_storage_owner_drift')
+    const finalizerEnd = migration.indexOf('$$;', finalizerStart)
+    const finalizer = migration.slice(finalizerStart, finalizerEnd)
+    const operationalDelete = finalizer.indexOf(
+      'delete from public.classroom_gradex_extract_cleanup cleanup',
+    )
+    const managedDelete = finalizer.indexOf(
+      'delete from public.managed_storage_objects object',
+    )
+    const rootDelete = finalizer.indexOf('delete from public.classrooms classroom')
+    const postcondition = finalizer.indexOf("raise exception 'classroom_purge_postcondition_%'")
+
+    expect(operationalDelete).toBeGreaterThanOrEqual(0)
+    expect(managedDelete).toBeGreaterThan(operationalDelete)
+    expect(rootDelete).toBeGreaterThan(managedDelete)
+    expect(postcondition).toBeGreaterThan(rootDelete)
+    expect(finalizer).toContain('classroom_purge_storage_owner_drift')
     expect(migration).toContain('reject_classroom_delete_with_managed_storage')
+  })
+
+  it('structurally owns purge-only assignment save operations without changing archive v2', () => {
+    expect(migration).toContain(
+      'assignment_doc_save_operations_assignment_doc_id_fkey',
+    )
+    expect(migration).toContain(
+      'references public.assignment_docs (id)\n  on delete cascade',
+    )
+    expect(migration).toContain(
+      'idx_assignment_doc_save_operations_assignment_doc',
+    )
+    expect(migration).toContain(
+      "select p_operation_id, 'assignment_doc_save_operations', operation.id",
+    )
+    expect(migration).toContain('assignment_doc_save_operation_lifecycle_guard')
+  })
+
+  it('makes managed ownership authoritative for all five buckets and operational ledgers', () => {
+    for (const bucket of [
+      'assignment-artifacts',
+      'submission-images',
+      'test-documents',
+      'classroom-archives',
+      'gradex-analytics-extracts',
+    ]) {
+      expect(migration).toContain(`'${bucket}'`)
+    }
+    for (const table of [
+      'classroom_archives',
+      'classroom_archive_operations',
+      'classroom_archive_object_upload_cleanup',
+      'classroom_archive_source_object_cleanup',
+      'classroom_gradex_extracts',
+      'classroom_gradex_extract_cleanup',
+      'assignment_artifact_storage_cleanup',
+      'test_document_snapshot_storage_cleanup',
+    ]) {
+      expect(migration).toContain(
+        `alter table public.${table}\n  add column managed_object_id uuid`,
+      )
+    }
+
+    const beginStart = migration.indexOf(
+      'create or replace function public.begin_hot_archived_classroom_purge(',
+    )
+    const beginEnd = migration.indexOf('$$;', beginStart)
+    const begin = migration.slice(beginStart, beginEnd)
+    expect(begin).toContain('from public.managed_storage_objects object')
+    expect(begin).not.toContain('from public.classroom_archives archive')
+    expect(begin).not.toContain('from public.classroom_gradex_extracts extract')
+    expect(begin).not.toContain('from public.classroom_archive_source_object_cleanup cleanup')
+  })
+
+  it('turns legacy file cleanup ledgers into fenced delegates of managed ownership', () => {
+    const bridgeStart = migration.indexOf(
+      'create or replace function public.prepare_legacy_managed_cleanup_ledger_change()',
+    )
+    const bridgeEnd = migration.indexOf('$$;', bridgeStart)
+    const bridge = migration.slice(bridgeStart, bridgeEnd)
+    const conflictStart = migration.indexOf(
+      'create or replace function public.classroom_purge_conflict(',
+    )
+    const conflictEnd = migration.indexOf('$$;', conflictStart)
+    const conflict = migration.slice(conflictStart, conflictEnd)
+    const finalizerStart = migration.indexOf(
+      'create or replace function public.finalize_hot_archived_classroom_purge(',
+    )
+    const finalizerEnd = migration.indexOf('$$;', finalizerStart)
+    const finalizer = migration.slice(finalizerStart, finalizerEnd)
+
+    expect(bridge).toContain("when 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'")
+    expect(bridge).toContain("when 'test_document_snapshot_storage_cleanup' then 'test-documents'")
+    expect(bridge).toContain('new.managed_object_id := v_exact_object_id')
+    expect(bridge).toContain('perform public.guard_classroom_purge_lifecycle(v_classroom_id)')
+    expect(conflict).toContain('from public.assignment_artifact_storage_cleanup cleanup')
+    expect(conflict).toContain('from public.test_document_snapshot_storage_cleanup cleanup')
+    expect(finalizer).toContain(
+      'purge_object.managed_storage_object_id = cleanup.managed_object_id',
+    )
+    expect(migration).toContain(
+      'revoke all on function public.prepare_legacy_managed_cleanup_ledger_change()',
+    )
+    const completionStart = migration.indexOf(
+      'create or replace function public.complete_managed_storage_cleanup(',
+    )
+    const completionEnd = migration.indexOf('$$;', completionStart)
+    const completion = migration.slice(completionStart, completionEnd)
+    expect(completion).toContain(
+      'delete from public.assignment_artifact_storage_cleanup',
+    )
+    expect(completion).toContain(
+      'delete from public.test_document_snapshot_storage_cleanup',
+    )
+    expect(migration).toContain(
+      'return not exists (\n    select 1 from public.assignment_artifact_storage_cleanup',
+    )
   })
 
   it('keeps ownership and destructive RPCs service-role only', () => {

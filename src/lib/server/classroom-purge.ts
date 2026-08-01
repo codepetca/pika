@@ -59,6 +59,8 @@ const managedStorageObjectRowSchema = z.object({
     'assignment-artifacts',
     'submission-images',
     'test-documents',
+    'classroom-archives',
+    'gradex-analytics-extracts',
   ]),
   storage_path: z.string().min(1),
   byte_size: z.coerce.number().int().nonnegative().nullable(),
@@ -68,6 +70,15 @@ const managedStorageObjectRowSchema = z.object({
     'cleanup_pending',
     'cleanup_processing',
     'purging',
+  ]),
+  purpose: z.enum([
+    'student_assignment_artifact',
+    'student_inline_image',
+    'teacher_test_material',
+    'test_execution_snapshot',
+    'legacy_classroom_file',
+    'classroom_archive',
+    'gradex_extract',
   ]),
 }).strict()
 
@@ -93,11 +104,6 @@ type UntypedClient = {
   }
 }
 
-type StorageObject = {
-  bucket: PurgeStorageBucket
-  path: string
-}
-
 type PurgeStorageAdapter = {
   from(bucket: string): {
     remove(paths: string[]): PromiseLike<{ error: unknown }>
@@ -107,6 +113,21 @@ type PurgeStorageAdapter = {
 type Inventory = {
   impact: ClassroomPurgeImpact
   sourceRevision: number
+}
+
+export function countClassroomStudents(
+  resources: Record<string, Array<Record<string, unknown>>>,
+): number {
+  const studentIds = new Set<string>()
+  for (const table of ['classroom_enrollments', 'entries']) {
+    for (const row of resources[table] || []) {
+      if (typeof row.student_id === 'string') studentIds.add(row.student_id)
+    }
+  }
+  // The roster is the teacher's canonical membership list and can include
+  // invited students who do not yet have user ids. It is unique by email, so
+  // use it as the floor without double-counting joined students.
+  return Math.max(studentIds.size, (resources.classroom_roster || []).length)
 }
 
 export class ClassroomPurgeError extends ApiError {
@@ -155,16 +176,6 @@ function canonicalRequestHash(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
-function uniqueObjects(objects: StorageObject[]): StorageObject[] {
-  const byIdentity = new Map<string, StorageObject>()
-  for (const object of objects) {
-    byIdentity.set(`${object.bucket}\0${object.path}`, object)
-  }
-  return [...byIdentity.values()].sort((left, right) =>
-    `${left.bucket}/${left.path}`.localeCompare(`${right.bucket}/${right.path}`),
-  )
-}
-
 async function readClassroomRoot(
   supabase: ServiceClient,
   teacherId: string,
@@ -203,122 +214,6 @@ async function readClassroomRoot(
   return data
 }
 
-async function readOperationalObjects(
-  supabase: ServiceClient,
-  classroomId: string,
-): Promise<{
-  archiveObjects: StorageObject[]
-  gradexObjects: StorageObject[]
-  cleanupObjects: StorageObject[]
-  bytes: number
-}> {
-  const [archives, extracts, operations] = await Promise.all([
-    supabase
-      .from('classroom_archives')
-      .select('storage_bucket,storage_path,compressed_byte_size')
-      .eq('classroom_id', classroomId),
-    supabase
-      .from('classroom_gradex_extracts')
-      .select('storage_bucket,storage_path,compressed_byte_size')
-      .eq('classroom_id', classroomId),
-    supabase
-      .from('classroom_archive_operations')
-      .select('id,storage_bucket,storage_path,compressed_byte_size')
-      .eq('classroom_id', classroomId),
-  ])
-  if (archives.error) {
-    throw new ClassroomPurgeError(archives.error.code, 'Could not inventory classroom archives', 500, true)
-  }
-  if (extracts.error) {
-    throw new ClassroomPurgeError(extracts.error.code, 'Could not inventory Gradex extracts', 500, true)
-  }
-  if (operations.error) {
-    throw new ClassroomPurgeError(
-      operations.error.code,
-      'Could not inventory classroom storage operations',
-      500,
-      true,
-    )
-  }
-  const operationIds = (operations.data || []).map((row) => row.id)
-  const [archiveCleanup, gradexCleanup] = operationIds.length === 0
-    ? [
-        { data: [], error: null },
-        { data: [], error: null },
-      ]
-    : await Promise.all([
-        supabase
-          .from('classroom_archive_object_upload_cleanup')
-          .select('storage_bucket,storage_path,expected_byte_size,status')
-          .in('operation_id', operationIds)
-          .neq('status', 'deleted'),
-        supabase
-          .from('classroom_gradex_extract_cleanup')
-          .select('storage_bucket,storage_path,status')
-          .in('operation_id', operationIds)
-          .neq('status', 'deleted'),
-      ])
-  if (archiveCleanup.error) {
-    throw new ClassroomPurgeError(
-      archiveCleanup.error.code,
-      'Could not inventory interrupted classroom archive uploads',
-      500,
-      true,
-    )
-  }
-  if (gradexCleanup.error) {
-    throw new ClassroomPurgeError(
-      gradexCleanup.error.code,
-      'Could not inventory interrupted Gradex uploads',
-      500,
-      true,
-    )
-  }
-  const archiveObjects = (archives.data || []).map((row) => ({
-    bucket: row.storage_bucket as 'classroom-archives',
-    path: row.storage_path,
-  }))
-  const gradexObjects = (extracts.data || []).map((row) => ({
-    bucket: row.storage_bucket as 'gradex-analytics-extracts',
-    path: row.storage_path,
-  }))
-  const operationObjects = (operations.data || []).flatMap((row) => {
-    const bucket = purgeObjectSchema.shape.storage_bucket.safeParse(row.storage_bucket)
-    return bucket.success && row.storage_path
-      ? [{ bucket: bucket.data, path: row.storage_path }]
-      : []
-  })
-  const archiveCleanupObjects = (archiveCleanup.data || []).map((row) => ({
-    bucket: purgeObjectSchema.shape.storage_bucket.parse(row.storage_bucket),
-    path: row.storage_path,
-  }))
-  const gradexCleanupObjects = (gradexCleanup.data || []).map((row) => ({
-    bucket: purgeObjectSchema.shape.storage_bucket.parse(row.storage_bucket),
-    path: row.storage_path,
-  }))
-  const cleanupObjects = uniqueObjects([
-    ...operationObjects,
-    ...archiveCleanupObjects,
-    ...gradexCleanupObjects,
-  ])
-  const byteSizes = new Map<string, number>()
-  for (const row of [...(archives.data || []), ...(extracts.data || []), ...(operations.data || [])]) {
-    if (!row.storage_bucket || !row.storage_path) continue
-    byteSizes.set(
-      `${row.storage_bucket}\0${row.storage_path}`,
-      Number(row.compressed_byte_size || 0),
-    )
-  }
-  for (const row of archiveCleanup.data || []) {
-    byteSizes.set(
-      `${row.storage_bucket}\0${row.storage_path}`,
-      Number(row.expected_byte_size || 0),
-    )
-  }
-  const bytes = [...byteSizes.values()].reduce((total, size) => total + size, 0)
-  return { archiveObjects, gradexObjects, cleanupObjects, bytes }
-}
-
 async function readStableInventory(
   supabase: ServiceClient,
   teacherId: string,
@@ -340,7 +235,7 @@ async function readStableInventory(
     const [managedResult, coverageResult, settingsResult] = await Promise.all([
       (supabase as any)
         .from('managed_storage_objects')
-        .select('id,storage_bucket,storage_path,byte_size,status')
+        .select('id,storage_bucket,storage_path,byte_size,status,purpose')
         .eq('classroom_id', classroomId),
       (supabase as any)
         .from('classroom_managed_storage_coverage')
@@ -384,17 +279,10 @@ async function readStableInventory(
       coverageResult.data || { status: 'pending' },
     )
     const settings = managedStorageSettingsSchema.parse(settingsResult.data)
-    const sourceObjects = managedObjects.map((object) => ({
+    const objects = managedObjects.map((object) => ({
       bucket: object.storage_bucket as PurgeStorageBucket,
       path: object.storage_path,
     }))
-    const operational = await readOperationalObjects(supabase, classroomId)
-    const objects = uniqueObjects([
-      ...sourceObjects,
-      ...operational.archiveObjects,
-      ...operational.gradexObjects,
-      ...operational.cleanupObjects,
-    ])
     const sizes = await Promise.all(managedObjects.map(async (object) => {
       const value = await reader.readStorageObjectSize(
         object.storage_bucket,
@@ -414,12 +302,6 @@ async function readStableInventory(
         (resources[resource.table] || []).length,
       ]),
     )
-    const students = new Set<string>()
-    for (const table of ['classroom_enrollments', 'classroom_roster', 'entries']) {
-      for (const row of resources[table] || []) {
-        if (typeof row.student_id === 'string') students.add(row.student_id)
-      }
-    }
     const storageCounts: Record<string, number> = {}
     for (const object of objects) {
       storageCounts[object.bucket] = (storageCounts[object.bucket] || 0) + 1
@@ -434,15 +316,23 @@ async function readStableInventory(
       classroom_title: classroom.title,
       relational_row_count: Object.values(resourceCounts)
         .reduce((total, count) => total + count, 0),
-      student_count: students.size,
+      student_count: countClassroomStudents(resources),
       managed_file_count: objects.length,
       managed_file_bytes: sizes.reduce<number>(
         (total, size) => total + (size || 0),
-        operational.bytes,
+        0,
       ),
       missing_file_count: sizes.filter((size) => size === null).length,
-      archive_count: operational.archiveObjects.length,
-      gradex_extract_count: operational.gradexObjects.length,
+      archive_count: managedObjects.filter((object) =>
+        object.storage_bucket === 'classroom-archives'
+          && object.purpose === 'classroom_archive'
+          && object.status === 'ready',
+      ).length,
+      gradex_extract_count: managedObjects.filter((object) =>
+        object.storage_bucket === 'gradex-analytics-extracts'
+          && object.purpose === 'gradex_extract'
+          && object.status === 'ready',
+      ).length,
       resource_counts: resourceCounts,
       storage_counts: storageCounts,
       conflicting_operation: conflict,

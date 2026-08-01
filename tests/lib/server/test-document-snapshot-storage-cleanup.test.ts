@@ -14,11 +14,22 @@ const cleanup = {
 function makeSupabase(options: {
   claims?: Array<typeof cleanup>
   referenced?: boolean
-  removeError?: { message: string } | null
+  storageErrors?: Array<unknown>
+  managedCleanupQueued?: boolean | boolean[]
   complete?: boolean
 } = {}) {
   const claims = [...(options.claims ?? [])]
-  const remove = vi.fn(async () => ({ error: options.removeError ?? null }))
+  const managedCleanupQueued = Array.isArray(options.managedCleanupQueued)
+    ? [...options.managedCleanupQueued]
+    : null
+  const remove = vi.fn()
+  const download = vi.fn(async () => {
+    const next = options.storageErrors?.shift()
+    if (next instanceof Error) throw next
+    return next == null
+      ? { data: null, error: { code: 'NoSuchKey', status: 404 } }
+      : { data: null, error: next }
+  })
   const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === 'claim_test_document_snapshot_storage_cleanup') {
       const next = claims.shift()
@@ -39,12 +50,22 @@ function makeSupabase(options: {
     if (name === 'fail_test_document_snapshot_storage_cleanup') {
       return { data: true, error: null }
     }
+    if (name === 'queue_managed_storage_cleanup_path') {
+      return {
+        data: managedCleanupQueued?.shift() ?? options.managedCleanupQueued ?? true,
+        error: null,
+      }
+    }
     throw new Error(`Unexpected RPC ${name}`)
   })
 
   return {
     rpc,
-    storage: { from: vi.fn(() => ({ remove })) },
+    storage: {
+      from: vi.fn(() => ({ download, remove })),
+      getBucket: vi.fn(async () => ({ data: { id: 'test-documents' }, error: null })),
+    },
+    download,
     remove,
   }
 }
@@ -75,7 +96,7 @@ describe('test document snapshot Storage cleanup', () => {
     }))
   })
 
-  it('removes an unreferenced exact path and completes its evidence', async () => {
+  it('completes legacy evidence after durable exact-object delegation', async () => {
     const supabase = makeSupabase()
 
     await expect(removeQueuedTestDocumentSnapshotPath({
@@ -83,7 +104,15 @@ describe('test document snapshot Storage cleanup', () => {
       storagePath: cleanup.storage_path,
     })).resolves.toEqual({ completed: true })
 
-    expect(supabase.remove).toHaveBeenCalledWith([cleanup.storage_path])
+    expect(supabase.remove).not.toHaveBeenCalled()
+    expect(supabase.download).not.toHaveBeenCalled()
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'queue_managed_storage_cleanup_path',
+      expect.objectContaining({
+        p_storage_bucket: 'test-documents',
+        p_storage_path: cleanup.storage_path,
+      }),
+    )
     expect(supabase.rpc).toHaveBeenCalledWith(
       'complete_test_document_snapshot_storage_cleanup',
       expect.objectContaining({ p_cleanup_id: cleanup.id }),
@@ -102,7 +131,10 @@ describe('test document snapshot Storage cleanup', () => {
   })
 
   it('retains retry evidence when Storage removal fails', async () => {
-    const supabase = makeSupabase({ removeError: { message: 'unavailable' } })
+    const supabase = makeSupabase({
+      managedCleanupQueued: false,
+      storageErrors: [{ message: 'unavailable' }],
+    })
 
     await expect(removeQueuedTestDocumentSnapshotPath({
       supabase,
@@ -113,7 +145,7 @@ describe('test document snapshot Storage cleanup', () => {
       'fail_test_document_snapshot_storage_cleanup',
       expect.objectContaining({
         p_cleanup_id: cleanup.id,
-        p_error: 'unavailable',
+        p_error: 'Storage cleanup state could not be verified',
       }),
     )
   })
@@ -124,10 +156,11 @@ describe('test document snapshot Storage cleanup', () => {
       id: '10000000-0000-4000-8000-000000000002',
       storage_path: 'link-docs/teacher/test/doc/snapshots/two',
     }
-    const supabase = makeSupabase({ claims: [cleanup, second] })
-    supabase.remove
-      .mockResolvedValueOnce({ error: null })
-      .mockResolvedValueOnce({ error: { message: 'temporary failure' } })
+    const supabase = makeSupabase({
+      claims: [cleanup, second],
+      managedCleanupQueued: [true, false],
+      storageErrors: [{ message: 'temporary failure' }],
+    })
 
     await expect(runTestDocumentSnapshotStorageCleanup({
       supabase,

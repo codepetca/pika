@@ -26,6 +26,34 @@ const HMAC_SECRET = 'test-only-classroom-gradex-hmac-secret-over-32-bytes'
 const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v1.tar.gz`
 const EXTRACT_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/gradex-v2.tar.gz`
 
+function managedGradexObject(args: Record<string, unknown>, status: 'pending_upload' | 'ready') {
+  return {
+    id: OPERATION_ID,
+    storage_bucket: CLASSROOM_GRADEX_EXTRACT_BUCKET,
+    storage_path: args.p_storage_path ?? EXTRACT_PATH,
+    classroom_id: CLASSROOM_ID,
+    course_blueprint_id: null,
+    purpose: 'gradex_extract',
+    status,
+    created_by_user_id: TEACHER_ID,
+    data_subject_user_id: null,
+    resource_type: 'classroom_archive_operation',
+    resource_id: OPERATION_ID,
+    content_type: 'application/gzip',
+    byte_size: args.p_byte_size ?? 1,
+    content_sha256: status === 'ready' ? args.p_content_sha256 : null,
+    upload_expires_at: status === 'ready' ? null : '2026-07-14T13:00:00.000Z',
+    attempt_count: 0,
+    next_attempt_at: GENERATED_AT,
+    lease_token: null,
+    lease_expires_at: null,
+    last_error_code: null,
+    created_at: GENERATED_AT,
+    ready_at: status === 'ready' ? GENERATED_AT : null,
+    updated_at: GENERATED_AT,
+  }
+}
+
 function sourceArchive() {
   const resources = Object.fromEntries(
     CLASSROOM_ARCHIVE_V1_RESOURCES.map((resource) => [resource.table, [] as unknown[]]),
@@ -195,6 +223,20 @@ function createSupabaseMock(options: {
         },
         error: null,
       }
+    }
+    if (name === 'begin_managed_storage_upload') {
+      return { data: managedGradexObject(args, 'pending_upload'), error: null }
+    }
+    if (name === 'adopt_managed_storage_upload') {
+      return {
+        data: managedGradexObject(args, 'ready'),
+        error: null,
+      }
+    }
+    if (name === 'queue_managed_storage_cleanup') {
+      return options.removeThrows
+        ? { data: null, error: { message: 'cleanup queue unavailable' } }
+        : { data: true, error: null }
     }
     return { data: true, error: null }
   })
@@ -468,7 +510,7 @@ describe('classroom Gradex runtime coordinator', () => {
     expect(mock.rpc).not.toHaveBeenCalled()
   })
 
-  it('never finalizes and removes its upload when private read-back bytes differ', async () => {
+  it('never finalizes and queues its upload when private read-back bytes differ', async () => {
     const mock = createSupabaseMock({ corruptReadBack: true })
     const result = await createClassroomGradexExtract(operationArgs(mock))
 
@@ -480,12 +522,14 @@ describe('classroom Gradex runtime coordinator', () => {
     expect(mock.rpc.mock.calls.map(([name]) => name)).not.toContain(
       'complete_classroom_gradex_extract',
     )
-    expect(mock.removed).toEqual([
-      `${CLASSROOM_GRADEX_EXTRACT_BUCKET}/${EXTRACT_PATH}`,
-    ])
+    expect(mock.removed).toEqual([])
+    expect(mock.rpc).toHaveBeenCalledWith('queue_managed_storage_cleanup', {
+      p_object_id: OPERATION_ID,
+      p_error_code: 'gradex_storage_checksum_mismatch',
+    })
   })
 
-  it('removes a newly uploaded object when finalization rejects it terminally', async () => {
+  it('queues a newly uploaded object when finalization rejects it terminally', async () => {
     const mock = createSupabaseMock({ completionFailure: true })
     const result = await createClassroomGradexExtract(operationArgs(mock))
 
@@ -494,9 +538,11 @@ describe('classroom Gradex runtime coordinator', () => {
       error_code: 'gradex_finalization_conflict',
       retryable: false,
     }))
-    expect(mock.removed).toEqual([
-      `${CLASSROOM_GRADEX_EXTRACT_BUCKET}/${EXTRACT_PATH}`,
-    ])
+    expect(mock.removed).toEqual([])
+    expect(mock.rpc).toHaveBeenCalledWith('queue_managed_storage_cleanup', {
+      p_object_id: OPERATION_ID,
+      p_error_code: 'gradex_finalization_rejected',
+    })
   })
 
   it('retains the verified object when committed finalization metadata is inconsistent', async () => {
@@ -524,7 +570,7 @@ describe('classroom Gradex runtime coordinator', () => {
     expect(mock.stored.has(`${CLASSROOM_GRADEX_EXTRACT_BUCKET}/${EXTRACT_PATH}`)).toBe(true)
     expect(console.warn).toHaveBeenCalledWith(
       '[classroom-gradex-cleanup]',
-      expect.stringContaining('gradex_orphan_cleanup_failed'),
+      expect.stringContaining('gradex_orphan_cleanup_queue_failed'),
     )
   })
 

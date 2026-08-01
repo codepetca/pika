@@ -421,92 +421,36 @@ describe('course-blueprints server helpers', () => {
       })
     )
 
+    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
     const deleteSupabase = makeSupabaseFromQueues({
       course_blueprints: [
         makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+        deleteBuilder,
       ],
     })
-    deleteSupabase.rpc = vi.fn(async (name: string) => {
-      if (name === 'claim_course_blueprint_managed_cleanup') {
-        return { data: [], error: null }
-      }
-      if (name === 'finalize_course_blueprint_managed_deletion') {
-        return { data: true, error: null }
-      }
-      return { data: true, error: null }
-    })
-    deleteSupabase.storage = {
-      from: vi.fn(() => ({ remove: vi.fn(async () => ({ error: null })) })),
-    }
     mockSupabase = deleteSupabase
     await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({ ok: true })
-    expect(deleteSupabase.rpc).toHaveBeenCalledWith(
-      'finalize_course_blueprint_managed_deletion',
-      { p_teacher_id: 'teacher-1', p_blueprint_id: 'b-1' },
-    )
+    expect(deleteBuilder.delete).toHaveBeenCalled()
   })
 
-  it('pauses Blueprint deletion with durable retry evidence when file cleanup fails', async () => {
-    const now = '2026-07-31T12:00:00.000Z'
-    const managedObject = {
-      id: '10000000-0000-4000-8000-000000000001',
-      storage_bucket: 'test-documents',
-      storage_path: 'blueprints/b-1/tests/material.pdf',
-      classroom_id: null,
-      course_blueprint_id: '20000000-0000-4000-8000-000000000002',
-      purpose: 'teacher_test_material',
-      status: 'cleanup_processing',
-      created_by_user_id: null,
-      data_subject_user_id: null,
-      resource_type: 'course_blueprint_assessment',
-      resource_id: null,
-      content_type: 'application/pdf',
-      byte_size: 4,
-      content_sha256: null,
-      upload_expires_at: null,
-      attempt_count: 1,
-      next_attempt_at: now,
-      lease_token: '30000000-0000-4000-8000-000000000003',
-      lease_expires_at: '2026-07-31T12:02:00.000Z',
-      last_error_code: null,
-      created_at: now,
-      ready_at: null,
-      updated_at: now,
-    }
+  it('preserves a Blueprint when managed file ownership blocks deletion', async () => {
+    const deleteBuilder = makeQueryBuilder({
+      data: null,
+      error: { code: '23503', message: 'managed storage owner still exists' },
+    })
     const deleteSupabase = makeSupabaseFromQueues({
       course_blueprints: [
         makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+        deleteBuilder,
       ],
     })
-    deleteSupabase.rpc = vi.fn(async (name: string) => {
-      if (name === 'claim_course_blueprint_managed_cleanup') {
-        return { data: [managedObject], error: null }
-      }
-      return { data: true, error: null }
-    })
-    deleteSupabase.storage = {
-      from: vi.fn(() => ({
-        remove: vi.fn(async () => ({ error: { message: 'storage unavailable' } })),
-      })),
-    }
     mockSupabase = deleteSupabase
 
     await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({
       ok: false,
-      status: 503,
-      error: 'Course Blueprint deletion is paused and can be retried.',
+      status: 409,
+      error: 'This Blueprint contains uploaded test material and cannot be deleted yet.',
     })
-    expect(deleteSupabase.rpc).toHaveBeenCalledWith(
-      'fail_managed_storage_cleanup',
-      expect.objectContaining({
-        p_object_id: managedObject.id,
-        p_error_code: 'course_blueprint_storage_delete_failed',
-      }),
-    )
-    expect(deleteSupabase.rpc).not.toHaveBeenCalledWith(
-      'finalize_course_blueprint_managed_deletion',
-      expect.anything(),
-    )
   })
 
   it('blocks deletion while repository authority is active', async () => {

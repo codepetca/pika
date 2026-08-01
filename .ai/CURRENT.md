@@ -1,9 +1,10 @@
 Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. Migration 117 is installed on local Supabase,
-the local readiness/backfill flow is clean, and the guarded destructive fixture
-proves exact database and Storage deletion while preserving Blueprint files and
-user accounts. Generated types match the local 001–117 schema. Every persistent
-rollout gate remains disabled, and production remains through 116.
+single-scope managed-file ownership. The consolidated migration 117 source has
+changed since the last local replay and therefore still requires fresh, exact
+authorization before its readiness/backfill and destructive fixtures can be
+rerun. Static migration contracts and the full application test/UI matrix pass.
+Every persistent rollout gate remains disabled, and production remains through
+116.
 
 ## Current Context
 

@@ -166,6 +166,70 @@ describe('managed storage readiness operator', () => {
     expect(report.orphans).toEqual([])
   })
 
+  it('requires every hot operational ledger to name its exact managed classroom object', () => {
+    const classroomId = '10000000-0000-4000-8000-000000000001'
+    const managedObjectId = '20000000-0000-4000-8000-000000000002'
+    const base = {
+      physical: [{ bucket: 'classroom-archives', path: 'archive/classroom.tar.gz' }],
+      registered: [{
+        id: managedObjectId,
+        bucket: 'classroom-archives',
+        path: 'archive/classroom.tar.gz',
+        classroomId,
+        blueprintId: null,
+      }],
+    }
+    const ready = analyzeGlobalManagedStorage({
+      ...base,
+      discovered: [{
+        bucket: 'classroom-archives',
+        path: 'archive/classroom.tar.gz',
+        classroomId,
+        managedObjectId,
+        ledger: 'classroom_archives',
+      }],
+    })
+    expect(ready.operationalOwnershipRequired).toEqual([])
+
+    const missingOwnership = analyzeGlobalManagedStorage({
+      ...base,
+      discovered: [{
+        bucket: 'classroom-archives',
+        path: 'archive/classroom.tar.gz',
+        classroomId,
+        managedObjectId: null,
+        ledger: 'classroom_archives',
+      }],
+    })
+    expect(missingOwnership.operationalOwnershipRequired).toHaveLength(1)
+    expect(JSON.stringify(redactManagedStorageFindings(missingOwnership)))
+      .not.toContain('archive/classroom.tar.gz')
+  })
+
+  it('fails readiness when a stable classroom file scope has no lifecycle row or both rows', () => {
+    const report = analyzeGlobalManagedStorage({
+      physical: [
+        { bucket: 'test-documents', path: 'missing/material.pdf' },
+        { bucket: 'test-documents', path: 'split/material.pdf' },
+      ],
+      registered: [{
+        bucket: 'test-documents', path: 'missing/material.pdf',
+        classroomId: '10000000-0000-4000-8000-000000000001', blueprintId: null,
+        classroomScopeState: 'missing',
+      }, {
+        bucket: 'test-documents', path: 'split/material.pdf',
+        classroomId: '20000000-0000-4000-8000-000000000002', blueprintId: null,
+        classroomScopeState: 'split',
+      }],
+      discovered: [],
+    })
+
+    expect(report.invalidClassroomScopes).toHaveLength(2)
+    const redacted = JSON.stringify(redactManagedStorageFindings(report))
+    expect(redacted).not.toContain('missing/material.pdf')
+    expect(redacted).not.toContain('split/material.pdf')
+  })
+
   it('redacts raw Storage paths from durable readiness findings', () => {
     const sentinelPath = 'private/teacher-name/sensitive-file.pdf'
     const findings = redactManagedStorageFindings(analyzeGlobalManagedStorage({

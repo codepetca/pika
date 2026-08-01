@@ -268,7 +268,7 @@ export function ClassroomPurgeDialog({
             </p>
           ) : null}
 
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-row justify-end gap-2">
             <Button
               type="button"
               variant="secondary"

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 
 const CLASSROOM_ID = '10000000-0000-4000-8000-000000000001'
@@ -49,7 +49,10 @@ describe('ClassroomPurgeDialog', () => {
     expect(dialog).toHaveTextContent('This cannot be undone.')
     expect(dialog).toHaveTextContent(/all student work, submissions, tests, grades/)
     const confirm = screen.getByRole('textbox')
-    const deleteButton = screen.getByRole('button', { name: 'Delete permanently' })
+    const cancelButton = within(dialog).getByRole('button', { name: 'Cancel' })
+    const deleteButton = within(dialog).getByRole('button', { name: 'Delete permanently' })
+    expect(cancelButton.parentElement).toHaveClass('flex-row', 'justify-end')
+    expect(cancelButton).toBeEnabled()
     expect(deleteButton).toBeDisabled()
 
     fireEvent.change(confirm, { target: { value: 'DELETE' } })

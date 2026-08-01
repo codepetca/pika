@@ -75,6 +75,28 @@ function runSql(databaseUrl: string, sql: string): string {
   }).trim()
 }
 
+function expectSqlFailure(
+  databaseUrl: string,
+  label: string,
+  sql: string,
+  expectedMessage: string,
+) {
+  try {
+    runSql(databaseUrl, sql)
+  } catch (error) {
+    const stderr = error && typeof error === 'object' && 'stderr' in error
+      ? String((error as { stderr?: unknown }).stderr || '')
+      : ''
+    const message = `${error instanceof Error ? error.message : String(error)}\n${stderr}`
+    assertFixture(
+      message.includes(expectedMessage),
+      `${label} failed without ${expectedMessage}`,
+    )
+    return
+  }
+  throw new Error(`${label} unexpectedly succeeded`)
+}
+
 function runSqlAsync(databaseUrl: string, sql: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -383,7 +405,7 @@ async function main() {
       },
     ]
     const cleanupProbe: FixtureObject = {
-      id: randomUUID(), bucket: 'submission-images',
+      id: randomUUID(), bucket: 'assignment-artifacts',
       path: `purge-fixture/${fixtureId}/cleanup/abandoned.png`,
       contentType: 'image/png', purpose: 'legacy_classroom_file', owner: 'classroom',
     }
@@ -413,8 +435,41 @@ async function main() {
       await adoptManagedStorageUpload({ supabase, objectId: object.id })
     }
 
+    const classroomTeacherMaterial = managedObjects[2]
+    expectSqlFailure(
+      databaseUrl,
+      'managed Storage path mutation',
+      `update public.managed_storage_objects
+       set storage_path = storage_path || '-changed'
+       where id = '${classroomTeacherMaterial.id}';`,
+      'managed_storage_identity_immutable',
+    )
+    expectSqlFailure(
+      databaseUrl,
+      'unscoped managed Storage owner transfer',
+      `update public.managed_storage_objects
+       set classroom_id = null, course_blueprint_id = '${blueprintId}'
+       where id = '${classroomTeacherMaterial.id}';`,
+      'managed_storage_owner_immutable',
+    )
+
     // Exercise generic cleanup independently: concurrent claims are exclusive,
-    // a failed lease is retryable, and completion removes both bytes and ownership.
+    // a failed lease is retryable, and completion atomically removes bytes,
+    // ownership, and any pre-managed compatibility cleanup evidence.
+    dataOrThrow('insert compatibility cleanup evidence', await (supabase as any)
+      .from('assignment_artifact_storage_cleanup').insert({
+        storage_path: cleanupProbe.path,
+        status: 'pending',
+        next_attempt_at: expiryIso,
+      }))
+    assertFixture(
+      runSql(databaseUrl, `
+        select managed_object_id::text
+        from public.assignment_artifact_storage_cleanup
+        where storage_path = '${cleanupProbe.path}';
+      `) === cleanupProbe.id,
+      'Compatibility cleanup evidence did not resolve its exact managed owner',
+    )
     assertFixture(await queueManagedStorageCleanup({
       supabase,
       objectId: cleanupProbe.id,
@@ -469,12 +524,19 @@ async function main() {
       p_lease_token: retriedCleanup.lease_token,
     }) === true, 'Managed cleanup did not complete')
     assertFixture(!await storageObjectExists(supabase, cleanupProbe), 'Cleanup probe bytes survived')
+    assertFixture(
+      runSql(databaseUrl, `
+        select count(*)
+        from public.assignment_artifact_storage_cleanup
+        where storage_path = '${cleanupProbe.path}';
+      `) === '0',
+      'Managed completion left ownerless compatibility cleanup evidence',
+    )
 
     const publicStorageUrl = (bucket: string, path: string) =>
       `${supabaseUrl}/storage/v1/object/public/${encodeURIComponent(bucket)}/`
       + path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
     const classroomImage = managedObjects[1]
-    const classroomTeacherMaterial = managedObjects[2]
     const classroomSnapshot = managedObjects[3]
     const blueprintTeacherMaterialA = managedObjects[4]
     const blueprintTeacherMaterialB = managedObjects[5]

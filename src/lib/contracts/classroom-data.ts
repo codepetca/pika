@@ -95,11 +95,6 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     child_columns: ['classroom_id'],
   },
   {
-    child_table: 'managed_storage_objects',
-    parent_table: 'classrooms',
-    child_columns: ['classroom_id'],
-  },
-  {
     child_table: 'classroom_managed_storage_coverage',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
@@ -115,6 +110,18 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     child_columns: ['classroom_id'],
   },
 ] as const satisfies readonly ClassroomSchemaRelationship[]
+
+// Reviewed logical lifecycle scopes that deliberately do not have a physical
+// foreign key. Keep these separate from CLASSROOM_NON_OWNING_REFERENCES: that
+// contract is catalog-verified and every entry there must be a real FK.
+export const CLASSROOM_LOGICAL_SCOPE_REFERENCES = [
+  {
+    child_table: 'managed_storage_objects',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+    reason: 'The classroom UUID survives hot-row compaction and resolves to exactly one hot classroom or cold tombstone.',
+  },
+] as const satisfies readonly (ClassroomSchemaRelationship & { reason: string })[]
 
 export const classroomResourceInventorySchema = z.array(classroomResourceSchema).min(1).superRefine(
   (resources, context) => {
@@ -288,6 +295,32 @@ export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[num
 
 classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)
 
+// Classroom ownership is intentionally broader than the versioned archive
+// format. These rows must be deleted with their owning classroom, but restoring
+// them would replay idempotency/telemetry state rather than classroom content.
+// Keep this list small and require a real cascading FK for every entry.
+export const CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES = [
+  {
+    table: 'assignment_doc_save_operations',
+    primary_key: ['id'],
+    scope: {
+      kind: 'foreign_key',
+      parent: 'assignment_docs',
+      column: 'assignment_doc_id',
+    },
+    privacy: ['student_work', 'operations'],
+  },
+] as const satisfies readonly {
+  table: string
+  primary_key: readonly string[]
+  scope: {
+    kind: 'foreign_key'
+    parent: string
+    column: string
+  }
+  privacy: readonly ClassroomDataPrivacyClass[]
+}[]
+
 export const GRADEX_RESOURCE_TABLES = CLASSROOM_RELATIONAL_RESOURCES
   .filter((resource) => resource.gradex === 'include_structured')
   .map((resource) => resource.table)
@@ -297,9 +330,15 @@ export type ClassroomSchemaRelationship = {
   child_table: string
   parent_table: string
   child_columns: string[]
+  delete_action?: 'cascade' | 'restrict' | 'set null' | 'set default' | 'no action'
 }
 
 export type ClassroomSchemaPrimaryKey = {
+  table_name: string
+  columns: string[]
+}
+
+export type ClassroomSchemaIndex = {
   table_name: string
   columns: string[]
 }
@@ -311,6 +350,8 @@ export type ClassroomResourceSchemaAudit = {
   missing_restore_dependencies: string[]
   invalid_selection_scopes: string[]
   invalid_primary_keys: string[]
+  invalid_owning_delete_actions: string[]
+  unindexed_owning_foreign_keys: string[]
   untracked_actor_references: string[]
   stale_actor_references: string[]
   stale_non_owning_references: string[]
@@ -319,6 +360,7 @@ export type ClassroomResourceSchemaAudit = {
 export function auditClassroomResourceSchema(
   relationships: ClassroomSchemaRelationship[],
   primaryKeys: ClassroomSchemaPrimaryKey[],
+  indexes?: ClassroomSchemaIndex[],
 ): ClassroomResourceSchemaAudit {
   const nonOwningReferenceKeys = new Set(
     CLASSROOM_NON_OWNING_REFERENCES.flatMap((relationship) =>
@@ -354,7 +396,13 @@ export function auditClassroomResourceSchema(
   const resourcesByTable = new Map<string, ClassroomResource>(
     CLASSROOM_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
   )
-  const contractTables = new Set<string>(resourcesByTable.keys())
+  const purgeOnlyResourcesByTable = new Map(
+    CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
+  )
+  const contractTables = new Set<string>([
+    ...resourcesByTable.keys(),
+    ...purgeOnlyResourcesByTable.keys(),
+  ])
   const untrackedTables = Array.from(descendants)
     .filter((table) => !contractTables.has(table))
     .sort()
@@ -395,10 +443,27 @@ export function auditClassroomResourceSchema(
       ? []
       : [`${resource.table}.${scope.column}->${scope.parent}`]
   })
+  invalidSelectionScopes.push(
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.flatMap((resource) => {
+      const relationship = relationships.find((candidate) =>
+        candidate.child_table === resource.table &&
+        candidate.parent_table === resource.scope.parent &&
+        candidate.child_columns.includes(resource.scope.column),
+      )
+
+      return relationship
+        ? []
+        : [`${resource.table}.${resource.scope.column}->${resource.scope.parent}`]
+    }),
+  )
   const primaryKeysByTable = new Map(
     primaryKeys.map((primaryKey) => [primaryKey.table_name, primaryKey.columns]),
   )
-  const invalidPrimaryKeys = CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
+  const ownershipResources = [
+    ...CLASSROOM_RELATIONAL_RESOURCES,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
+  ]
+  const invalidPrimaryKeys = ownershipResources.flatMap((resource) => {
     const actual = primaryKeysByTable.get(resource.table)
     return actual &&
       actual.length === resource.primary_key.length &&
@@ -406,6 +471,38 @@ export function auditClassroomResourceSchema(
       ? []
       : [`${resource.table}: expected (${resource.primary_key.join(',')}) got (${actual?.join(',') || 'none'})`]
   })
+  const owningRelationships = relationships.filter((relationship) =>
+    !relationshipIsNonOwning(relationship) &&
+    descendants.has(relationship.child_table) &&
+    descendants.has(relationship.parent_table) &&
+    relationship.child_table !== relationship.parent_table,
+  )
+  const invalidOwningDeleteActions = owningRelationships
+    .filter((relationship) =>
+      relationship.delete_action !== undefined && relationship.delete_action !== 'cascade',
+    )
+    .map((relationship) =>
+      `${relationship.child_table}(${relationship.child_columns.join(',')})->${relationship.parent_table}:${relationship.delete_action}`,
+    )
+    .sort()
+  const indexesByTable = new Map<string, string[][]>()
+  for (const index of indexes || []) {
+    const current = indexesByTable.get(index.table_name) || []
+    current.push(index.columns)
+    indexesByTable.set(index.table_name, current)
+  }
+  const unindexedOwningForeignKeys = indexes === undefined
+    ? []
+    : owningRelationships
+      .filter((relationship) =>
+        !(indexesByTable.get(relationship.child_table) || []).some((columns) =>
+          relationship.child_columns.every((column, index) => columns[index] === column),
+        ),
+      )
+      .map((relationship) =>
+        `${relationship.child_table}(${relationship.child_columns.join(',')})->${relationship.parent_table}`,
+      )
+      .sort()
   const actualActorReferences = new Set(
     relationships
       .filter((relationship) =>
@@ -445,6 +542,8 @@ export function auditClassroomResourceSchema(
       uniqueMissingDependencies.length === 0 &&
       invalidSelectionScopes.length === 0 &&
       invalidPrimaryKeys.length === 0 &&
+      invalidOwningDeleteActions.length === 0 &&
+      unindexedOwningForeignKeys.length === 0 &&
       untrackedActorReferences.length === 0 &&
       staleActorReferences.length === 0 &&
       staleNonOwningReferences.length === 0,
@@ -453,6 +552,8 @@ export function auditClassroomResourceSchema(
     missing_restore_dependencies: uniqueMissingDependencies,
     invalid_selection_scopes: invalidSelectionScopes.sort(),
     invalid_primary_keys: invalidPrimaryKeys.sort(),
+    invalid_owning_delete_actions: invalidOwningDeleteActions,
+    unindexed_owning_foreign_keys: unindexedOwningForeignKeys,
     untracked_actor_references: untrackedActorReferences,
     stale_actor_references: staleActorReferences,
     stale_non_owning_references: staleNonOwningReferences,
