@@ -11,88 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Froze archive restore ordering
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Derived the inactive v2 restore order from the frozen topological v1 order
-  with Quiz resources removed, then appended the retired-assessment record and
-  actor resources parent-first.
-- Removed the final live classroom-graph dependency from v1 compaction
-  preflight staging.
-- Added regressions for every declared v2 parent-before-child dependency and
-  the actual non-empty v1 compaction staging sequence.
-
-**Validation:**
-- Focused archive contract, restore, and compaction tests pass.
-- TypeScript and lint pass.
-- Local compaction database harness and full archive recovery drill pass.
-
-**Remaining:**
-- Publish, independently review, and require exact-head CI before merge.
-- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
-
-## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
-  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
-  parent/child `NOWAIT` locks roll back immediately on live conflicts.
-- Added deterministic SQL envelope IDs and canonical payload checksums matching
-  the TypeScript adapter, parent and actor preflights, collision checks, and an
-  aggregate-only five-resource parity ledger.
-- Kept every source row intact for the observation window and added no
-  dual-write or active Test-table mapping.
-- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
-  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
-- Documented that migration 106 cannot be hosted until direct v2 snapshots,
-  version-aware compaction, and v1-to-v2 restore dispatch are current.
-
-**Validation:**
-- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
-  `git diff --check` pass.
-- Migration 106 was not applied to the shared local database or a hosted
-  target; its executable rehearsal is reserved for disposable PR CI.
-
-**Remaining:**
-- Run repository checks, independent review, and exact-head CI before merge.
-- Next pass: implement the version-aware archive runtime required before
-  migration 106 can receive target-specific application approval.
-
-## 2026-07-23 — Activated direct archive-v2 runtime
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Recorded the maintainer decision that experimental Quiz rows, drafts,
-  envelopes, and Quiz portions of v1 artifacts are disposable.
-- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
-  drafts to Tests, promote the live archive registry to v2, and capture source
-  contract 2 directly.
-- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
-  fallback. V1 restore now discards Quiz resources while retaining other
-  classroom content.
-- Extended disposable replay through migrations 106-107 and proved direct
-  source counts, snapshot membership, upload intent, and finalization.
-- Review remediation now purges the frozen Quiz source rows, fences retryable
-  operations, and makes compaction use migration-107-specific v2 RPCs. V1
-  archives must be re-exported before compaction.
-
-**Validation:**
-- Focused archive coordinator tests and TypeScript pass.
-- The disposable freeze/backfill/direct-source database harness passes.
-- Current-export and atomic-compaction database harnesses pass against the
-  disposable post-107 schema, including a complete v2 cold transition.
-- No shared local or hosted migration was applied.
-
-**Remaining:**
-- Complete repository validation, independent review, exact-head CI, and merge.
-- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
-  remaining active compatibility types and payload fields.
-
 ## 2026-07-23 — Prepared legacy Quiz hard removal
 
 **Risk profile:** runtime-platform/destructive-schema
@@ -1528,3 +1446,91 @@ zero-downtime rollout
 - Push the fix to draft PR #963 and require current-head CI to replay migration 117 in an ephemeral
   database before considering the concurrency blockers closed.
 - No migration was applied. Keep production deletion and all rollout gates disabled.
+
+## 2026-08-01 — Replaced reusable copy keys with owned immutable generations
+
+**Risk profile:** runtime-platform, Storage concurrency, migration contract
+
+**Completed:**
+- Removed foreground Storage deletion and cleanup-phase lease states from both Blueprint copy
+  workers. Every destination now has its final Classroom or Blueprint managed owner before upload.
+- A verified mismatch atomically retires the current managed generation, queues it for ordinary
+  cleanup, reserves a new UUID path, and retries without ever reusing the old key.
+- Copy completion promotes the current managed owner from `pending_upload` to `ready`; adoption
+  locks and validates that ready owner and physical object instead of creating ownership late.
+- Added hash-only retired-path reservations on managed-row deletion so delayed writes cannot
+  recreate cleaned keys even while the global ownership-enforcement gate is disabled.
+- Reworked worker and migration-contract tests around generation rotation and no-delete recovery.
+
+**Validation:**
+- Focused worker, cleanup, and migration-contract suites: 4 files / 39 tests pass.
+- Full Vitest suite: 467 files / 4,058 tests pass; production build passes.
+- Pika audit, lint, TypeScript, architecture boundaries, and `git diff --check` pass.
+- Local generated-type comparison is intentionally blocked because the local database contains the
+  prior migration-117 revision. No migration was applied during this redesign.
+
+**Remaining:**
+- With fresh authorization, replay the revised migration 117 in local Supabase, regenerate/verify
+  database types, and run the database concurrency fixtures.
+- Keep PR #963 draft and all production deletion/ownership gates disabled.
+
+## 2026-08-01 — Hardened immutable generations and terminal recovery
+
+**Risk profile:** runtime-platform, Storage authorization, migration contract
+
+**Completed:**
+- Made `ready` managed Storage generations write-once and rejected identity-changing Storage
+  updates across all five governed buckets, including purge-time moves.
+- Moved the legacy reconciliation target-path contract into PostgreSQL: the path is derived from
+  the classroom and target UUID and is rejected when retired, purge-reserved, or already occupied.
+- Added explicit `blocked` states for nonretryable source-evidence drift. Service-role recovery
+  requires verified source byte/hash evidence, preserves lifecycle fences, and always reserves a
+  fresh UUID generation; ordinary cleanup may retire the abandoned generation independently.
+- Made blocked-plan replay side-effect free and added a hash-bound terminal adoption receipt so a
+  lost success response cannot recreate an owner or repeat a Storage copy. The receipt has no
+  lifecycle foreign keys, document claims, or raw paths.
+- Reconciled generated table/RPC types, serialized operator recovery behind cleanup by locking the
+  managed row before its exact path, and made copied-source blocking atomically queue its target.
+- Extended the CI local-database fixture through blocked replay before/after cleanup, retired-key
+  non-resurrection, fresh-UUID recovery, receipt authorization/idempotency, lifecycle deletion, and
+  a two-session cleanup/recovery overlap. Global cleanup claims now require an exact isolated queue.
+- Added application, static migration, and ephemeral database-fixture regressions for failure
+  classification, blocked adoption, write immutability, and move rejection.
+
+**Validation:**
+- Full Vitest suite: 467 files / 4,064 tests pass. Production build passes.
+- Focused suite: 5 files / 69 tests pass; the final fixture correction rerun passed 43 tests.
+- TypeScript, lint, architecture boundaries, Pika audit, and `git diff --check` pass.
+- Local generated-type comparison remains intentionally blocked by the previously applied revision
+  of migration 117. No migration was applied or replayed.
+
+**Remaining:**
+- Complete the final cumulative independent review.
+- With fresh authorization, reset/replay local Supabase through revised migration 117, regenerate
+  types, and run the database fixture before current-head CI and rollout approval.
+- Keep PR #963 draft and every persistent production gate disabled.
+
+## 2026-08-01 — Aligned Course Blueprint recovery with cleanup locking
+
+**Risk profile:** runtime-platform, Storage concurrency, migration contract
+
+**Completed:**
+- Changed blocked Course Blueprint copy recovery to lock the abandoned managed-object row before
+  its exact Storage path, matching cleanup completion and legacy reconciliation lock ordering.
+- Allowed recovery to serialize behind both `cleanup_pending` and leased `cleanup_processing`
+  owners, then rely on the retired-path receipt after cleanup commits.
+- Added a two-session database fixture that holds cleanup completion open, proves recovery waits on
+  the row transaction, and verifies a fresh immutable generation is reserved after cleanup.
+- Added static migration assertions for row-before-path ordering and the in-flight cleanup state.
+
+**Validation:**
+- Focused Blueprint/reconciliation/migration suite: 3 files / 41 tests pass.
+- TypeScript, lint, architecture boundaries, Pika audit, and `git diff --check` pass.
+- The single targeted independent review found no actionable lock-order or fixture issue.
+- Migration 117 was not applied or replayed; the executable fixture remains pending a freshly
+  authorized local replay of the consolidated migration.
+
+**Remaining:**
+- With fresh named authorization, replay migration 117 locally and run the executable database
+  fixture against that exact schema revision.
+- Keep PR #963 draft and every production deletion/ownership gate disabled.

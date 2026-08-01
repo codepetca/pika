@@ -3748,6 +3748,7 @@ export type Database = {
           lease_expires_at: string | null
           lease_token: string | null
           mutable_blueprint_documents: Json
+          plan_sha256: string
           source_object_id: string
           source_storage_bucket: string
           source_storage_path: string
@@ -3774,6 +3775,7 @@ export type Database = {
           lease_expires_at?: string | null
           lease_token?: string | null
           mutable_blueprint_documents: Json
+          plan_sha256: string
           source_object_id: string
           source_storage_bucket: string
           source_storage_path: string
@@ -3800,6 +3802,7 @@ export type Database = {
           lease_expires_at?: string | null
           lease_token?: string | null
           mutable_blueprint_documents?: Json
+          plan_sha256?: string
           source_object_id?: string
           source_storage_bucket?: string
           source_storage_path?: string
@@ -3834,6 +3837,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      legacy_blueprint_storage_reconciliation_receipts: {
+        Row: {
+          completed_at: string
+          id: string
+          plan_sha256: string
+          target_object_id: string
+          teacher_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id: string
+          plan_sha256: string
+          target_object_id: string
+          teacher_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          plan_sha256?: string
+          target_object_id?: string
+          teacher_id?: string
+        }
+        Relationships: []
       }
       lesson_plans: {
         Row: {
@@ -4072,6 +4099,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      managed_storage_retired_paths: {
+        Row: {
+          retired_at: string
+          storage_bucket: string
+          storage_path_sha256: string
+        }
+        Insert: {
+          retired_at?: string
+          storage_bucket: string
+          storage_path_sha256: string
+        }
+        Update: {
+          retired_at?: string
+          storage_bucket?: string
+          storage_path_sha256?: string
+        }
+        Relationships: []
       }
       managed_storage_settings: {
         Row: {
@@ -5702,6 +5747,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      block_copied_legacy_blueprint_storage_reconciliation: {
+        Args: {
+          p_error_code: string
+          p_reconciliation_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       claim_assignment_ai_grading_run: {
         Args: {
           p_lease_seconds?: number
@@ -6757,6 +6810,7 @@ export type Database = {
           p_error_code: string
           p_item_id: string
           p_lease_token: string
+          p_retryable: boolean
           p_teacher_id: string
         }
         Returns: boolean
@@ -6766,6 +6820,7 @@ export type Database = {
           p_error_code: string
           p_lease_token: string
           p_reconciliation_id: string
+          p_retryable: boolean
           p_teacher_id: string
         }
         Returns: boolean
@@ -6969,8 +7024,6 @@ export type Database = {
           p_source_storage_bucket: string
           p_source_storage_path: string
           p_target_object_id: string
-          p_target_storage_bucket: string
-          p_target_storage_path: string
           p_teacher_id: string
         }
         Returns: {
@@ -6988,6 +7041,7 @@ export type Database = {
           lease_expires_at: string | null
           lease_token: string | null
           mutable_blueprint_documents: Json
+          plan_sha256: string
           source_object_id: string
           source_storage_bucket: string
           source_storage_path: string
@@ -7286,6 +7340,44 @@ export type Database = {
           p_test_id: string
         }
         Returns: Json
+      }
+      recover_blocked_course_blueprint_storage_copy: {
+        Args: {
+          p_item_id: string
+          p_target_object_id: string
+          p_teacher_id: string
+          p_verified_source_byte_size: number
+          p_verified_source_sha256: string
+        }
+        Returns: boolean
+      }
+      recover_blocked_legacy_blueprint_storage_reconciliation: {
+        Args: {
+          p_reconciliation_id: string
+          p_target_object_id: string
+          p_teacher_id: string
+          p_verified_source_byte_size: number
+          p_verified_source_sha256: string
+        }
+        Returns: boolean
+      }
+      rotate_course_blueprint_storage_copy_target: {
+        Args: {
+          p_item_id: string
+          p_lease_token: string
+          p_target_object_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
+      rotate_legacy_blueprint_classroom_storage_reconciliation_target: {
+        Args: {
+          p_lease_token: string
+          p_reconciliation_id: string
+          p_target_object_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
       }
       rewrite_managed_storage_document_owner: {
         Args: {

@@ -75,11 +75,6 @@ function deterministicUuid(parts: string[]): string {
   return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`
 }
 
-function legacyReconciliationTargetPath(classroomId: string, reconciliationId: string, sourcePath: string) {
-  const extension = /\.[a-zA-Z0-9]{1,12}$/.exec(sourcePath)?.[0] || ''
-  return `classrooms/${classroomId}/tests/legacy-blueprint-reconciliation/${reconciliationId}${extension}`
-}
-
 async function readAllClassrooms(supabase: SupabaseClient): Promise<Classroom[]> {
   const snapshot = async () => collectExactReadPages(async (offset, pageSize) => {
     const response = await supabase.from('classrooms')
@@ -295,7 +290,6 @@ async function main() {
       return {
         reconciliationId, sourceObjectId, targetObjectId,
         teacherId: classroom.teacherId, blueprintId, classroomId, sourcePath: shared.path,
-        targetPath: legacyReconciliationTargetPath(classroomId, reconciliationId, shared.path),
         classroomDocuments: [classroomCandidates[0].testDocument],
         mutableBlueprintDocuments: references.filter((reference) => reference.source === 'mutable_assessment')
           .map((reference) => ({

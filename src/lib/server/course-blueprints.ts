@@ -103,7 +103,7 @@ async function finishPendingBlueprintStorageCopies(
 ) {
   const { data, error } = await (supabase as any)
     .from('course_blueprint_operations')
-    .select('status, storage_copy_status')
+    .select('status, storage_copy_status, error_code')
     .eq('id', operationId)
     .eq('teacher_id', teacherId)
     .maybeSingle()
@@ -120,6 +120,16 @@ async function finishPendingBlueprintStorageCopies(
     && ['copying', 'failed'].includes(data.storage_copy_status)
   ) {
     return finishBlueprintStorageCopies(teacherId, operationId)
+  }
+  if (data?.storage_copy_status === 'blocked') {
+    return {
+      ok: false as const,
+      status: 409,
+      error: 'Course material copy requires verified operator recovery',
+      error_code: data.error_code || 'blueprint_storage_copy_operator_recovery_required',
+      retryable: false,
+      operation_id: operationId,
+    }
   }
   return null
 }

@@ -118,6 +118,25 @@ grant select on table public.managed_storage_objects to service_role;
 comment on table public.managed_storage_objects is
   'Exact physical source-object ownership. One object has one lifecycle owner: a hot classroom, cold classroom tombstone, or Course Blueprint; user ids are attribution only.';
 
+create table public.managed_storage_retired_paths (
+  storage_bucket text not null check (storage_bucket in (
+    'assignment-artifacts', 'submission-images', 'test-documents'
+  )),
+  storage_path_sha256 text not null check (
+    storage_path_sha256 ~ '^[a-f0-9]{64}$'
+  ),
+  retired_at timestamptz not null default clock_timestamp(),
+  primary key (storage_bucket, storage_path_sha256)
+);
+
+alter table public.managed_storage_retired_paths enable row level security;
+revoke all on table public.managed_storage_retired_paths
+  from public, anon, authenticated, service_role;
+grant select on table public.managed_storage_retired_paths to service_role;
+
+comment on table public.managed_storage_retired_paths is
+  'Hash-only permanent reservations for managed physical generations after cleanup; exact keys are never reused.';
+
 create table public.classroom_managed_storage_coverage (
   classroom_id uuid primary key constraint classroom_managed_storage_coverage_classroom_id_fkey
     references public.classrooms (id) on delete no action deferrable initially immediate,
@@ -620,7 +639,7 @@ $$;
 alter table public.course_blueprint_operations
   add column storage_copy_status text not null default 'not_required'
     check (storage_copy_status in (
-      'not_required', 'copying', 'completed', 'failed'
+      'not_required', 'copying', 'completed', 'failed', 'blocked'
     ));
 
 create table public.course_blueprint_storage_copy_items (
@@ -656,7 +675,7 @@ create table public.course_blueprint_storage_copy_items (
   target_public_url text,
   content_type text,
   status text not null default 'planned' check (status in (
-    'planned', 'copying', 'copied', 'adopted', 'failed'
+    'planned', 'copying', 'copied', 'adopted', 'failed', 'blocked'
   )),
   expected_byte_size bigint check (expected_byte_size is null or expected_byte_size >= 0),
   expected_sha256 text check (
@@ -1301,6 +1320,78 @@ begin
     get diagnostics v_planned = row_count;
   end if;
 
+  -- Copy targets obey the same ownership-before-bytes contract as every
+  -- browser upload. The workflow ledger coordinates the copy, while the
+  -- managed object is the authoritative lifecycle owner from the outset.
+  if exists (
+    select 1
+    from public.course_blueprint_storage_copy_items item
+    left join public.managed_storage_objects owner
+      on owner.id = item.target_object_id
+    where item.operation_id = new.id
+      and owner.id is null
+      and (
+        exists (
+          select 1 from public.managed_storage_retired_paths retired
+          where retired.storage_bucket = item.target_storage_bucket
+            and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+              item.target_storage_bucket, item.target_storage_path
+            )
+        )
+        or exists (
+          select 1 from public.classroom_purge_objects purge_object
+          where purge_object.storage_bucket = item.target_storage_bucket
+            and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+              item.target_storage_bucket, item.target_storage_path
+            )
+        )
+        or exists (
+          select 1 from storage.objects storage_object
+          where storage_object.bucket_id = item.target_storage_bucket
+            and storage_object.name = item.target_storage_path
+        )
+      )
+  ) then
+    raise exception 'blueprint_storage_copy_target_reserved'
+      using errcode = '55000';
+  end if;
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, course_blueprint_id,
+    purpose, status, created_by_user_id, resource_type, resource_id,
+    content_type, byte_size, content_sha256, upload_expires_at
+  )
+  select
+    item.target_object_id, item.target_storage_bucket, item.target_storage_path,
+    item.target_classroom_id, item.target_course_blueprint_id,
+    item.purpose, 'pending_upload', new.teacher_id,
+    item.target_resource_type, item.target_resource_id,
+    item.content_type, item.expected_byte_size, item.expected_sha256, null
+  from public.course_blueprint_storage_copy_items item
+  where item.operation_id = new.id
+  on conflict (id) do nothing;
+
+  if exists (
+    select 1
+    from public.course_blueprint_storage_copy_items item
+    left join public.managed_storage_objects object
+      on object.id = item.target_object_id
+    where item.operation_id = new.id
+      and (
+        object.id is null
+        or object.storage_bucket <> item.target_storage_bucket
+        or object.storage_path <> item.target_storage_path
+        or object.classroom_id is distinct from item.target_classroom_id
+        or object.course_blueprint_id is distinct from item.target_course_blueprint_id
+        or object.purpose <> item.purpose
+        or object.resource_type <> item.target_resource_type
+        or object.resource_id <> item.target_resource_id
+        or object.status not in ('pending_upload', 'ready')
+      )
+  ) then
+    raise exception 'blueprint_storage_copy_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
   if v_planned > 0 or exists (
     select 1
     from public.course_blueprint_storage_copy_items item
@@ -1373,14 +1464,7 @@ begin
     attempt_count = item.attempt_count + 1,
     lease_token = p_lease_token,
     lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
-    -- An expired cleanup lease remains cleanup work. Never turn it back into
-    -- an upload lease until exact target absence has been committed.
-    last_error_code = case
-      when v_candidate.status = 'copying'
-        and v_candidate.last_error_code like 'blueprint_storage_copy_cleanup_%'
-        then v_candidate.last_error_code
-      else null
-    end,
+    last_error_code = null,
     updated_at = clock_timestamp()
   where item.id = v_candidate.id
   returning item.*;
@@ -1424,6 +1508,23 @@ begin
     and item.last_error_code is null
   for update of item;
   if not found then return false; end if;
+
+  perform 1
+  from public.managed_storage_objects object
+  where object.id = v_item.target_object_id
+    and object.storage_bucket = v_item.target_storage_bucket
+    and object.storage_path = v_item.target_storage_path
+    and object.classroom_id is not distinct from v_item.target_classroom_id
+    and object.course_blueprint_id is not distinct from v_item.target_course_blueprint_id
+    and object.purpose = v_item.purpose
+    and object.resource_type = v_item.target_resource_type
+    and object.resource_id = v_item.target_resource_id
+    and object.status = 'pending_upload'
+  for update;
+  if not found then
+    raise exception 'blueprint_storage_copy_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
   perform public.managed_storage_exact_lock(
     v_item.target_storage_bucket,
     v_item.target_storage_path
@@ -1445,6 +1546,20 @@ begin
   then
     raise exception 'blueprint_storage_copy_hash_mismatch' using errcode = '40001';
   end if;
+  update public.managed_storage_objects
+  set
+    status = 'ready',
+    byte_size = p_byte_size,
+    content_sha256 = p_content_sha256,
+    upload_expires_at = null,
+    ready_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = v_item.target_object_id
+    and status = 'pending_upload';
+  if not found then
+    raise exception 'blueprint_storage_copy_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
   update public.course_blueprint_storage_copy_items
   set
     status = 'copied',
@@ -1460,146 +1575,386 @@ begin
 end;
 $$;
 
-create or replace function public.fail_course_blueprint_storage_copy(
+create or replace function public.rotate_course_blueprint_storage_copy_target(
   p_item_id uuid,
   p_teacher_id uuid,
   p_lease_token uuid,
-  p_error_code text
+  p_target_object_id uuid
 )
 returns boolean
 language plpgsql
 security definer
-set search_path = public, storage
+set search_path = public
+as $$
+declare
+  v_item public.course_blueprint_storage_copy_items;
+  v_target_storage_path text;
+begin
+  if p_target_object_id is null then
+    raise exception 'invalid_blueprint_storage_copy_target_generation'
+      using errcode = '22023';
+  end if;
+
+  select item.* into v_item
+  from public.course_blueprint_storage_copy_items item
+  join public.course_blueprint_operations operation on operation.id = item.operation_id
+  where item.id = p_item_id
+    and operation.teacher_id = p_teacher_id
+    and item.status = 'copying'
+    and item.lease_token = p_lease_token
+    and item.lease_expires_at > clock_timestamp()
+  for update of item;
+  if not found then return false; end if;
+  if p_target_object_id = v_item.target_object_id then
+    raise exception 'invalid_blueprint_storage_copy_target_generation'
+      using errcode = '22023';
+  end if;
+
+  perform 1
+  from public.managed_storage_objects object
+  where object.id = v_item.target_object_id
+    and object.storage_bucket = v_item.target_storage_bucket
+    and object.storage_path = v_item.target_storage_path
+    and object.classroom_id is not distinct from v_item.target_classroom_id
+    and object.course_blueprint_id is not distinct from v_item.target_course_blueprint_id
+    and object.status = 'pending_upload'
+  for update;
+  if not found then
+    raise exception 'blueprint_storage_copy_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
+  perform public.managed_storage_exact_lock(
+    v_item.target_storage_bucket,
+    v_item.target_storage_path
+  );
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    upload_expires_at = null,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = 'blueprint_storage_copy_generation_abandoned',
+    next_attempt_at = clock_timestamp(),
+    ready_at = null,
+    updated_at = clock_timestamp()
+  where id = v_item.target_object_id
+    and status = 'pending_upload';
+  if not found then
+    raise exception 'blueprint_storage_copy_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
+  v_target_storage_path := case
+    when v_item.target_course_blueprint_id is not null then
+      'blueprints/' || v_item.target_course_blueprint_id::text
+        || '/tests/materials/' || p_target_object_id::text
+    else
+      'classrooms/' || v_item.target_classroom_id::text
+        || '/tests/materials/' || p_target_object_id::text
+  end || coalesce(
+    substring(v_item.target_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+    ''
+  );
+  perform public.managed_storage_exact_lock(
+    v_item.target_storage_bucket,
+    v_target_storage_path
+  );
+  if exists (
+    select 1 from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = v_item.target_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_item.target_storage_bucket, v_target_storage_path
+      )
+  ) or exists (
+    select 1 from public.classroom_purge_objects purge_object
+    where purge_object.storage_bucket = v_item.target_storage_bucket
+      and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_item.target_storage_bucket, v_target_storage_path
+      )
+  ) or exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_item.target_storage_bucket
+      and object.name = v_target_storage_path
+  ) then
+    raise exception 'blueprint_storage_copy_target_reserved'
+      using errcode = '55000';
+  end if;
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, course_blueprint_id,
+    purpose, status, created_by_user_id, resource_type, resource_id,
+    content_type, byte_size, content_sha256, upload_expires_at
+  ) values (
+    p_target_object_id, v_item.target_storage_bucket, v_target_storage_path,
+    v_item.target_classroom_id, v_item.target_course_blueprint_id,
+    v_item.purpose, 'pending_upload', p_teacher_id,
+    v_item.target_resource_type, v_item.target_resource_id,
+    v_item.content_type, v_item.expected_byte_size, v_item.expected_sha256, null
+  );
+
+  update public.course_blueprint_storage_copy_items
+  set
+    target_object_id = p_target_object_id,
+    target_storage_path = v_target_storage_path,
+    target_public_url = null,
+    status = 'failed',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = 'blueprint_storage_copy_generation_rotated',
+    next_attempt_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = v_item.id;
+
+  update public.course_blueprint_operations
+  set storage_copy_status = 'failed', updated_at = clock_timestamp()
+  where id = v_item.operation_id;
+  return true;
+end;
+$$;
+
+create or replace function public.fail_course_blueprint_storage_copy(
+  p_item_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_error_code text,
+  p_retryable boolean
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_operation_id uuid;
-  v_item public.course_blueprint_storage_copy_items;
-  v_target_storage_bucket text;
-  v_target_storage_path text;
+  v_target_object_id uuid;
 begin
-  -- Reserve cleanup before touching Storage. The active, unexpired copy lease
-  -- is transitioned to a durable cleanup phase with a renewed lease. Claimers
-  -- preserve this marker after expiry, so no retry can upload or adopt until
-  -- the exact target's absence is committed below.
-  if p_error_code = 'blueprint_storage_copy_cleanup_started' then
-    select item.* into v_item
-    from public.course_blueprint_storage_copy_items item
-    join public.course_blueprint_operations operation on operation.id = item.operation_id
-    where item.id = p_item_id
-      and operation.teacher_id = p_teacher_id
-      and item.status = 'copying'
-      and item.lease_token = p_lease_token
-      and item.lease_expires_at > clock_timestamp()
-      and item.last_error_code is null
-    for update of item;
-    if not found then return false; end if;
-
-    perform public.managed_storage_exact_lock(
-      v_item.target_storage_bucket,
-      v_item.target_storage_path
-    );
-
-    update public.course_blueprint_storage_copy_items item
-    set
-      last_error_code = 'blueprint_storage_copy_cleanup_processing',
-      lease_expires_at = clock_timestamp() + interval '120 seconds',
-      next_attempt_at = clock_timestamp(),
-      updated_at = clock_timestamp()
-    where item.id = p_item_id;
-    return true;
+  if p_retryable is null
+    or (
+      p_retryable is false
+      and p_error_code is distinct from 'blueprint_storage_copy_source_changed'
+    )
+  then
+    raise exception 'invalid_nonretryable_blueprint_storage_copy_failure'
+      using errcode = '22023';
   end if;
-
-  if p_error_code = 'blueprint_storage_copy_target_removed' then
-    select item.* into v_item
-    from public.course_blueprint_storage_copy_items item
-    join public.course_blueprint_operations operation on operation.id = item.operation_id
-    where item.id = p_item_id
-      and operation.teacher_id = p_teacher_id
-      and item.status = 'copying'
-      and item.lease_token = p_lease_token
-      and item.lease_expires_at > clock_timestamp()
-      and item.last_error_code like 'blueprint_storage_copy_cleanup_%'
-    for update of item;
-    if not found then return false; end if;
-
-    v_target_storage_bucket := v_item.target_storage_bucket;
-    v_target_storage_path := v_item.target_storage_path;
-    perform public.managed_storage_exact_lock(
-      v_target_storage_bucket,
-      v_target_storage_path
-    );
-    if exists (
-      select 1 from storage.objects object
-      where object.bucket_id = v_target_storage_bucket
-        and object.name = v_target_storage_path
-    ) then
-      raise exception 'blueprint_storage_copy_target_still_present'
-        using errcode = '55000';
-    end if;
-
-    update public.course_blueprint_storage_copy_items item
-    set
-      status = 'failed',
-      lease_token = null,
-      lease_expires_at = null,
-      last_error_code = 'blueprint_storage_copy_target_removed',
-      next_attempt_at = clock_timestamp(),
-      updated_at = clock_timestamp()
-    where item.id = p_item_id
-    returning item.operation_id into v_operation_id;
-  elsif exists (
-    select 1
-    from public.course_blueprint_storage_copy_items item
-    join public.course_blueprint_operations operation on operation.id = item.operation_id
-    where item.id = p_item_id
-      and operation.teacher_id = p_teacher_id
-      and item.status = 'copying'
-      and item.lease_token = p_lease_token
-      and item.last_error_code like 'blueprint_storage_copy_cleanup_%'
-  ) then
-    -- Storage failed while cleanup owned the key. Keep the cleanup phase
-    -- durable, expire this lease, and let a later worker reclaim only cleanup.
-    update public.course_blueprint_storage_copy_items item
-    set
-      last_error_code = 'blueprint_storage_copy_cleanup_failed',
-      lease_expires_at = clock_timestamp(),
-      next_attempt_at = clock_timestamp() + make_interval(
-        secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
-      ),
-      updated_at = clock_timestamp()
-    where item.id = p_item_id
-      and item.status = 'copying'
-      and item.lease_token = p_lease_token
-    returning item.operation_id into v_operation_id;
-  else
-    update public.course_blueprint_storage_copy_items item
-    set
-      status = 'failed',
-      lease_token = null,
-      lease_expires_at = null,
-      last_error_code = left(
-        coalesce(nullif(p_error_code, ''), 'blueprint_storage_copy_failed'),
-        120
-      ),
-      next_attempt_at = clock_timestamp() + make_interval(
-        secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
-      ),
-      updated_at = clock_timestamp()
-    from public.course_blueprint_operations operation
-    where item.id = p_item_id
-      and operation.id = item.operation_id
-      and operation.teacher_id = p_teacher_id
-      and item.status = 'copying'
-      and item.lease_token = p_lease_token
-      and item.last_error_code is null
-    returning item.operation_id into v_operation_id;
-  end if;
+  update public.course_blueprint_storage_copy_items item
+  set
+    status = case when p_retryable then 'failed' else 'blocked' end,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = left(
+      coalesce(nullif(p_error_code, ''), 'blueprint_storage_copy_failed'),
+      120
+    ),
+    next_attempt_at = clock_timestamp() + make_interval(
+      secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
+    ),
+    updated_at = clock_timestamp()
+  from public.course_blueprint_operations operation
+  where item.id = p_item_id
+    and operation.id = item.operation_id
+    and operation.teacher_id = p_teacher_id
+    and item.status = 'copying'
+    and item.lease_token = p_lease_token
+  returning item.operation_id, item.target_object_id
+    into v_operation_id, v_target_object_id;
   if v_operation_id is not null then
+    if not p_retryable then
+      update public.managed_storage_objects
+      set
+        status = 'cleanup_pending',
+        upload_expires_at = null,
+        lease_token = null,
+        lease_expires_at = null,
+        ready_at = null,
+        next_attempt_at = clock_timestamp(),
+        last_error_code = left(
+          coalesce(nullif(p_error_code, ''), 'blueprint_storage_copy_blocked'),
+          120
+        ),
+        updated_at = clock_timestamp()
+      where id = v_target_object_id
+        and status = 'pending_upload';
+      if not found then
+        raise exception 'blueprint_storage_copy_target_owner_mismatch'
+          using errcode = '55000';
+      end if;
+    end if;
     update public.course_blueprint_operations
-    set storage_copy_status = 'failed', updated_at = clock_timestamp()
+    set
+      storage_copy_status = case when p_retryable then 'failed' else 'blocked' end,
+      error_code = case when p_retryable then error_code else left(
+        coalesce(nullif(p_error_code, ''), 'blueprint_storage_copy_blocked'),
+        120
+      ) end,
+      updated_at = clock_timestamp()
     where id = v_operation_id;
   end if;
   return v_operation_id is not null;
+end;
+$$;
+
+-- Non-retryable copy failures remain lifecycle fences until an operator has
+-- independently verified the authoritative source bytes. Recovery always
+-- allocates a fresh immutable target generation; it never reopens or reuses
+-- the abandoned path.
+create or replace function public.recover_blocked_course_blueprint_storage_copy(
+  p_item_id uuid,
+  p_teacher_id uuid,
+  p_target_object_id uuid,
+  p_verified_source_byte_size bigint,
+  p_verified_source_sha256 text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_item public.course_blueprint_storage_copy_items;
+  v_target_owner public.managed_storage_objects;
+  v_target_owner_found boolean := false;
+  v_target_storage_path text;
+begin
+  if p_target_object_id is null
+    or p_verified_source_byte_size < 0
+    or p_verified_source_sha256 !~ '^[a-f0-9]{64}$'
+  then
+    raise exception 'invalid_blueprint_storage_copy_recovery'
+      using errcode = '22023';
+  end if;
+  select item.* into v_item
+  from public.course_blueprint_storage_copy_items item
+  join public.course_blueprint_operations operation on operation.id = item.operation_id
+  where item.id = p_item_id
+    and operation.teacher_id = p_teacher_id
+    and operation.storage_copy_status = 'blocked'
+    and item.status = 'blocked'
+    and item.last_error_code = 'blueprint_storage_copy_source_changed'
+  for update of item;
+  if not found then return false; end if;
+  if p_target_object_id = v_item.target_object_id then
+    raise exception 'invalid_blueprint_storage_copy_recovery'
+      using errcode = '22023';
+  end if;
+
+  perform public.managed_storage_exact_lock(
+    v_item.source_storage_bucket,
+    v_item.source_storage_path
+  );
+  if not exists (
+    select 1
+    from public.managed_storage_objects source
+    where source.id = v_item.source_object_id
+      and source.storage_bucket = v_item.source_storage_bucket
+      and source.storage_path = v_item.source_storage_path
+      and source.status = 'ready'
+      and source.byte_size = p_verified_source_byte_size
+      and source.content_sha256 = p_verified_source_sha256
+      and exists (
+        select 1 from storage.objects object
+        where object.bucket_id = source.storage_bucket
+          and object.name = source.storage_path
+      )
+  ) then
+    raise exception 'blueprint_storage_copy_source_not_repaired'
+      using errcode = '55000';
+  end if;
+
+  select target.* into v_target_owner
+  from public.managed_storage_objects target
+  where target.id = v_item.target_object_id
+    and target.storage_bucket = v_item.target_storage_bucket
+    and target.storage_path = v_item.target_storage_path
+    and target.status in ('cleanup_pending', 'cleanup_processing')
+  for update;
+  v_target_owner_found := found;
+  perform public.managed_storage_exact_lock(
+    v_item.target_storage_bucket,
+    v_item.target_storage_path
+  );
+  if not v_target_owner_found and not exists (
+    select 1 from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = v_item.target_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_item.target_storage_bucket,
+        v_item.target_storage_path
+      )
+  ) then
+    raise exception 'blueprint_storage_copy_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
+  v_target_storage_path := case
+    when v_item.target_course_blueprint_id is not null then
+      'blueprints/' || v_item.target_course_blueprint_id::text
+        || '/tests/materials/' || p_target_object_id::text
+    else
+      'classrooms/' || v_item.target_classroom_id::text
+        || '/tests/materials/' || p_target_object_id::text
+  end || coalesce(
+    substring(v_item.target_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+    ''
+  );
+  perform public.managed_storage_exact_lock(
+    v_item.target_storage_bucket,
+    v_target_storage_path
+  );
+  if exists (
+    select 1 from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = v_item.target_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_item.target_storage_bucket,
+        v_target_storage_path
+      )
+  ) or exists (
+    select 1 from public.classroom_purge_objects purge_object
+    where purge_object.storage_bucket = v_item.target_storage_bucket
+      and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_item.target_storage_bucket,
+        v_target_storage_path
+      )
+  ) or exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_item.target_storage_bucket
+      and object.name = v_target_storage_path
+  ) then
+    raise exception 'storage_path_permanently_reserved' using errcode = '55000';
+  end if;
+
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, course_blueprint_id,
+    purpose, status, created_by_user_id, resource_type, resource_id,
+    content_type, byte_size, content_sha256, upload_expires_at
+  ) values (
+    p_target_object_id, v_item.target_storage_bucket, v_target_storage_path,
+    v_item.target_classroom_id, v_item.target_course_blueprint_id,
+    v_item.purpose, 'pending_upload', p_teacher_id,
+    v_item.target_resource_type, v_item.target_resource_id,
+    v_item.content_type, p_verified_source_byte_size,
+    p_verified_source_sha256, null
+  );
+  update public.course_blueprint_storage_copy_items
+  set
+    target_object_id = p_target_object_id,
+    target_storage_path = v_target_storage_path,
+    target_public_url = null,
+    expected_byte_size = p_verified_source_byte_size,
+    expected_sha256 = p_verified_source_sha256,
+    status = 'planned',
+    last_error_code = 'blueprint_storage_copy_operator_recovered',
+    next_attempt_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = v_item.id;
+  update public.course_blueprint_operations
+  set
+    status = 'running',
+    storage_copy_status = 'copying',
+    error_code = null,
+    completed_at = null,
+    updated_at = clock_timestamp()
+  where id = v_item.operation_id;
+  return true;
 end;
 $$;
 
@@ -1700,6 +2055,19 @@ begin
   if v_operation.storage_copy_status in ('not_required', 'completed') then
     return jsonb_build_object('ok', true, 'replayed', true);
   end if;
+  if v_operation.storage_copy_status = 'blocked' or exists (
+    select 1 from public.course_blueprint_storage_copy_items
+    where operation_id = p_operation_id and status = 'blocked'
+  ) then
+    return jsonb_build_object(
+      'ok', false,
+      'error_code', coalesce(
+        v_operation.error_code,
+        'blueprint_storage_copy_operator_recovery_required'
+      ),
+      'retryable', false
+    );
+  end if;
   if exists (
     select 1 from public.course_blueprint_storage_copy_items
     where operation_id = p_operation_id and status not in ('copied', 'adopted')
@@ -1743,6 +2111,24 @@ begin
     order by created_at, id
     for update
   loop
+    perform 1
+    from public.managed_storage_objects object
+    where object.id = v_item.target_object_id
+      and object.storage_bucket = v_item.target_storage_bucket
+      and object.storage_path = v_item.target_storage_path
+      and object.classroom_id is not distinct from v_item.target_classroom_id
+      and object.course_blueprint_id is not distinct from v_item.target_course_blueprint_id
+      and object.purpose = v_item.purpose
+      and object.resource_type = v_item.target_resource_type
+      and object.resource_id = v_item.target_resource_id
+      and object.status = 'ready'
+      and object.byte_size is not distinct from v_item.expected_byte_size
+      and object.content_sha256 is not distinct from v_item.expected_sha256
+    for update;
+    if not found then
+      raise exception 'blueprint_storage_copy_target_owner_mismatch'
+        using errcode = '55000';
+    end if;
     perform public.managed_storage_exact_lock(
       v_item.target_storage_bucket,
       v_item.target_storage_path
@@ -1756,38 +2142,6 @@ begin
       raise exception 'blueprint_storage_copy_target_missing'
         using errcode = '55000';
     end if;
-
-    insert into public.managed_storage_objects (
-      id,
-      storage_bucket,
-      storage_path,
-      classroom_id,
-      course_blueprint_id,
-      purpose,
-      status,
-      created_by_user_id,
-      resource_type,
-      resource_id,
-      content_type,
-      byte_size,
-      content_sha256,
-      ready_at
-    ) values (
-      v_item.target_object_id,
-      v_item.target_storage_bucket,
-      v_item.target_storage_path,
-      v_item.target_classroom_id,
-      v_item.target_course_blueprint_id,
-      v_item.purpose,
-      'ready',
-      p_teacher_id,
-      v_item.target_resource_type,
-      v_item.target_resource_id,
-      v_item.content_type,
-      v_item.expected_byte_size,
-      v_item.expected_sha256,
-      clock_timestamp()
-    );
 
     if v_item.target_course_blueprint_id is not null then
       update public.course_blueprint_assessments assessment
@@ -2049,6 +2403,31 @@ as $$
   )
 $$;
 
+create or replace function public.retire_managed_storage_path_on_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.managed_storage_retired_paths (
+    storage_bucket,
+    storage_path_sha256,
+    retired_at
+  ) values (
+    old.storage_bucket,
+    public.managed_storage_identity_sha256(old.storage_bucket, old.storage_path),
+    clock_timestamp()
+  )
+  on conflict (storage_bucket, storage_path_sha256) do nothing;
+  return old;
+end;
+$$;
+
+create trigger retire_managed_storage_path
+after delete on public.managed_storage_objects
+for each row execute function public.retire_managed_storage_path_on_delete();
+
 create or replace function public.begin_managed_storage_upload(
   p_object_id uuid,
   p_storage_bucket text,
@@ -2099,6 +2478,14 @@ begin
   end if;
 
   if exists (
+    select 1
+    from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = p_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        p_storage_bucket,
+        p_storage_path
+      )
+  ) or exists (
     select 1
     from public.classroom_purge_objects object
     where object.storage_bucket = p_storage_bucket
@@ -2746,6 +3133,10 @@ begin
     and lease_expires_at > clock_timestamp()
   for update;
   if not found then return false; end if;
+  perform public.managed_storage_exact_lock(
+    v_object.storage_bucket,
+    v_object.storage_path
+  );
   if exists (
     select 1 from storage.objects object
     where object.bucket_id = v_object.storage_bucket
@@ -3394,9 +3785,9 @@ begin
 end;
 $$;
 
--- Exact Storage enforcement. Before rollout enforcement is disabled, but a
--- permanent purge reservation is always honored so deleted keys cannot race
--- back into existence.
+-- Exact Storage enforcement. Before rollout enforcement is disabled, but
+-- permanent purge and managed-generation reservations are always honored so
+-- retired keys cannot race back into existence.
 create or replace function public.enforce_managed_storage_object_ownership()
 returns trigger
 language plpgsql
@@ -3409,6 +3800,25 @@ declare
   v_object public.managed_storage_objects;
   v_enforce boolean;
 begin
+  -- Managed physical identities are immutable. Supabase Storage moves are
+  -- represented as UPDATEs; validating only NEW would let a purge or cleanup
+  -- lose the bytes at OLD. Replacements must reserve and upload a new UUID key.
+  if tg_op = 'UPDATE'
+    and (old.bucket_id is distinct from new.bucket_id or old.name is distinct from new.name)
+    and (
+      old.bucket_id in (
+        'assignment-artifacts', 'submission-images', 'test-documents',
+        'classroom-archives', 'gradex-analytics-extracts'
+      )
+      or new.bucket_id in (
+        'assignment-artifacts', 'submission-images', 'test-documents',
+        'classroom-archives', 'gradex-analytics-extracts'
+      )
+    )
+  then
+    raise exception 'managed_storage_identity_immutable' using errcode = '55000';
+  end if;
+
   if tg_op <> 'DELETE'
     and v_bucket in (
       'assignment-artifacts',
@@ -3420,6 +3830,12 @@ begin
   then
     perform public.managed_storage_exact_lock(v_bucket, v_path);
     if exists (
+      select 1
+      from public.managed_storage_retired_paths retired
+      where retired.storage_bucket = v_bucket
+        and retired.storage_path_sha256 =
+          public.managed_storage_identity_sha256(v_bucket, v_path)
+    ) or exists (
       select 1
       from public.classroom_purge_objects purge_object
       where purge_object.storage_bucket = v_bucket
@@ -3470,7 +3886,9 @@ begin
   end if;
 
   if found then
-    if v_object.status not in ('pending_upload', 'ready') then
+    -- A ready key has already committed its byte/hash evidence. Any later
+    -- Storage UPDATE would decouple those facts from the physical bytes.
+    if v_object.status <> 'pending_upload' then
       raise exception 'managed_storage_write_not_allowed' using errcode = '55000';
     end if;
     if v_object.classroom_id is not null and exists (
@@ -3482,44 +3900,9 @@ begin
     return new;
   end if;
 
-  -- Deterministic copy targets are intentionally unowned until adoption.
-  -- A durable cleanup phase is nevertheless exclusive: once reserved, no
-  -- stale uploader may recreate the key before absence is committed.
+  -- Restore staging is the sole unowned-write exception. Blueprint and
+  -- reconciliation copy targets reserve managed ownership before upload.
   if exists (
-    select 1
-    from public.course_blueprint_storage_copy_items copy
-    where copy.target_storage_bucket = v_bucket
-      and copy.target_storage_path = v_path
-      and copy.status = 'copying'
-      and copy.last_error_code like 'blueprint_storage_copy_cleanup_%'
-  ) or exists (
-    select 1
-    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
-    where reconciliation.target_storage_bucket = v_bucket
-      and reconciliation.target_storage_path = v_path
-      and reconciliation.status = 'copying'
-      and reconciliation.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'
-  ) then
-    raise exception 'managed_storage_write_not_allowed' using errcode = '55000';
-  end if;
-
-  if exists (
-    select 1
-    from public.course_blueprint_storage_copy_items copy
-    where copy.target_storage_bucket = v_bucket
-      and copy.target_storage_path = v_path
-      and (
-        copy.status in ('planned', 'failed')
-        or (copy.status = 'copying' and copy.last_error_code is null)
-      )
-  ) or exists (
-    select 1
-    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
-    where reconciliation.target_storage_bucket = v_bucket
-      and reconciliation.target_storage_path = v_path
-      and reconciliation.status = 'copying'
-      and reconciliation.last_error_code is null
-  ) or exists (
     select 1
     from public.classroom_archive_object_upload_cleanup cleanup
     join public.classroom_archive_operations operation
@@ -4765,11 +5148,14 @@ create table public.legacy_blueprint_classroom_storage_reconciliations (
   classroom_documents jsonb not null check (jsonb_typeof(classroom_documents) = 'array'),
   mutable_blueprint_documents jsonb not null check (jsonb_typeof(mutable_blueprint_documents) = 'array'),
   immutable_blueprint_evidence jsonb not null check (jsonb_typeof(immutable_blueprint_evidence) = 'array'),
+  plan_sha256 text not null check (plan_sha256 ~ '^[a-f0-9]{64}$'),
   target_public_url text,
   content_type text,
   expected_byte_size bigint check (expected_byte_size is null or expected_byte_size >= 0),
   expected_sha256 text check (expected_sha256 is null or expected_sha256 ~ '^[a-f0-9]{64}$'),
-  status text not null default 'planned' check (status in ('planned', 'copying', 'copied', 'adopted', 'failed')),
+  status text not null default 'planned' check (
+    status in ('planned', 'copying', 'copied', 'adopted', 'failed', 'blocked')
+  ),
   attempt_count integer not null default 0 check (attempt_count >= 0),
   lease_token uuid,
   lease_expires_at timestamptz,
@@ -4785,21 +5171,56 @@ alter table public.legacy_blueprint_classroom_storage_reconciliations enable row
 revoke all on table public.legacy_blueprint_classroom_storage_reconciliations from public, anon, authenticated;
 grant select on table public.legacy_blueprint_classroom_storage_reconciliations to service_role;
 
+-- A terminal receipt makes adoption replayable without retaining lifecycle
+-- foreign keys or raw Classroom/Blueprint document claims. The original plan
+-- hash remains stable even when explicit recovery rotates the target generation.
+create table public.legacy_blueprint_storage_reconciliation_receipts (
+  id uuid primary key,
+  teacher_id uuid not null,
+  plan_sha256 text not null check (plan_sha256 ~ '^[a-f0-9]{64}$'),
+  target_object_id uuid not null unique,
+  completed_at timestamptz not null default clock_timestamp()
+);
+alter table public.legacy_blueprint_storage_reconciliation_receipts enable row level security;
+revoke all on table public.legacy_blueprint_storage_reconciliation_receipts
+  from public, anon, authenticated;
+grant select on table public.legacy_blueprint_storage_reconciliation_receipts to service_role;
+
 create or replace function public.plan_legacy_blueprint_classroom_storage_reconciliation(
   p_reconciliation_id uuid, p_source_object_id uuid, p_target_object_id uuid,
   p_teacher_id uuid, p_blueprint_id uuid, p_classroom_id uuid,
   p_source_storage_bucket text, p_source_storage_path text,
-  p_target_storage_bucket text, p_target_storage_path text,
   p_classroom_documents jsonb, p_mutable_blueprint_documents jsonb,
   p_immutable_blueprint_evidence jsonb
 )
 returns public.legacy_blueprint_classroom_storage_reconciliations
 language plpgsql security definer set search_path = public, storage as $$
-declare v_row public.legacy_blueprint_classroom_storage_reconciliations;
+declare
+  v_row public.legacy_blueprint_classroom_storage_reconciliations;
+  v_receipt public.legacy_blueprint_storage_reconciliation_receipts;
+  v_target_storage_path text;
+  v_plan_sha256 text;
+  v_existing boolean := false;
 begin
-  if p_source_storage_bucket <> 'test-documents' or p_target_storage_bucket <> 'test-documents'
-    or p_source_storage_path = '' or p_target_storage_path = ''
-    or p_source_storage_path = p_target_storage_path
+  v_target_storage_path := 'classrooms/' || p_classroom_id::text
+    || '/tests/legacy-blueprint-reconciliation/' || p_target_object_id::text
+    || coalesce(
+      substring(p_source_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+      ''
+    );
+  if p_reconciliation_id is null
+    or p_source_object_id is null
+    or p_target_object_id is null
+    or p_teacher_id is null
+    or p_blueprint_id is null
+    or p_classroom_id is null
+    or p_source_storage_bucket <> 'test-documents'
+    or btrim(p_source_storage_path) = ''
+    or p_source_storage_path like '/%'
+    or strpos(p_source_storage_path, E'\\') > 0
+    or '..' = any(string_to_array(p_source_storage_path, '/'))
+    or p_source_object_id = p_target_object_id
+    or p_source_storage_path = v_target_storage_path
     or jsonb_typeof(p_classroom_documents) <> 'array'
     or jsonb_typeof(p_mutable_blueprint_documents) <> 'array'
     or jsonb_typeof(p_immutable_blueprint_evidence) <> 'array'
@@ -4808,39 +5229,209 @@ begin
     or jsonb_array_length(p_classroom_documents) <> 1 then
     raise exception 'invalid_legacy_blueprint_reconciliation_plan' using errcode = '22023';
   end if;
-  perform public.classroom_purge_lock(p_classroom_id);
-  perform public.managed_storage_exact_lock(p_source_storage_bucket, p_source_storage_path);
-  if not exists (select 1 from public.classrooms where id = p_classroom_id and teacher_id = p_teacher_id)
-    or not exists (select 1 from public.course_blueprints where id = p_blueprint_id and teacher_id = p_teacher_id) then
-    raise exception 'legacy_blueprint_reconciliation_owner_mismatch' using errcode = 'P0002';
-  end if;
-  if exists (select 1 from public.classroom_purge_fences where classroom_id = p_classroom_id)
-    or not exists (select 1 from storage.objects where bucket_id = p_source_storage_bucket and name = p_source_storage_path) then
-    raise exception 'legacy_blueprint_reconciliation_source_unavailable' using errcode = '55000';
-  end if;
-  select * into v_row from public.legacy_blueprint_classroom_storage_reconciliations where id = p_reconciliation_id for update;
+
+  v_plan_sha256 := encode(
+    extensions.digest(
+      convert_to(
+        jsonb_build_object(
+          'reconciliationId', p_reconciliation_id,
+          'sourceObjectId', p_source_object_id,
+          'targetObjectId', p_target_object_id,
+          'teacherId', p_teacher_id,
+          'blueprintId', p_blueprint_id,
+          'classroomId', p_classroom_id,
+          'sourceStorageBucket', p_source_storage_bucket,
+          'sourceStoragePath', p_source_storage_path,
+          'classroomDocuments', p_classroom_documents,
+          'mutableBlueprintDocuments', p_mutable_blueprint_documents,
+          'immutableBlueprintEvidence', p_immutable_blueprint_evidence
+        )::text,
+        'UTF8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'legacy-blueprint-storage-reconciliation:' || p_reconciliation_id::text,
+      0
+    )
+  );
+  select receipt.* into v_receipt
+  from public.legacy_blueprint_storage_reconciliation_receipts receipt
+  where receipt.id = p_reconciliation_id;
   if found then
+    if v_receipt.teacher_id <> p_teacher_id
+      or v_receipt.plan_sha256 <> v_plan_sha256
+    then
+      raise exception 'legacy_blueprint_reconciliation_plan_mismatch'
+        using errcode = '23505';
+    end if;
+    v_row.id := p_reconciliation_id;
+    v_row.teacher_id := p_teacher_id;
+    v_row.blueprint_id := p_blueprint_id;
+    v_row.classroom_id := p_classroom_id;
+    v_row.source_object_id := p_source_object_id;
+    v_row.target_object_id := v_receipt.target_object_id;
+    v_row.source_storage_bucket := p_source_storage_bucket;
+    v_row.source_storage_path := p_source_storage_path;
+    v_row.target_storage_bucket := 'test-documents';
+    v_row.target_storage_path := 'classrooms/' || p_classroom_id::text
+      || '/tests/legacy-blueprint-reconciliation/'
+      || v_receipt.target_object_id::text
+      || coalesce(
+        substring(p_source_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+        ''
+      );
+    v_row.classroom_documents := p_classroom_documents;
+    v_row.mutable_blueprint_documents := p_mutable_blueprint_documents;
+    v_row.immutable_blueprint_evidence := p_immutable_blueprint_evidence;
+    v_row.plan_sha256 := v_plan_sha256;
+    v_row.status := 'adopted';
+    v_row.attempt_count := 0;
+    v_row.created_at := v_receipt.completed_at;
+    v_row.updated_at := v_receipt.completed_at;
+    return v_row;
+  end if;
+
+  select * into v_row
+  from public.legacy_blueprint_classroom_storage_reconciliations
+  where id = p_reconciliation_id
+  for update;
+  if found then
+    v_existing := true;
+    v_target_storage_path := 'classrooms/' || p_classroom_id::text
+      || '/tests/legacy-blueprint-reconciliation/' || v_row.target_object_id::text
+      || coalesce(
+        substring(p_source_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+        ''
+      );
+    perform public.managed_storage_exact_lock('test-documents', v_target_storage_path);
     if v_row.teacher_id <> p_teacher_id or v_row.blueprint_id <> p_blueprint_id
       or v_row.classroom_id <> p_classroom_id or v_row.source_object_id <> p_source_object_id
-      or v_row.target_object_id <> p_target_object_id or v_row.source_storage_path <> p_source_storage_path
-      or v_row.target_storage_path <> p_target_storage_path or v_row.classroom_documents <> p_classroom_documents
+      or v_row.source_storage_path <> p_source_storage_path
+      or v_row.target_storage_bucket <> 'test-documents'
+      or v_row.target_storage_path <> v_target_storage_path
+      or v_row.plan_sha256 <> v_plan_sha256
+      or v_row.classroom_documents <> p_classroom_documents
       or v_row.mutable_blueprint_documents <> p_mutable_blueprint_documents
       or v_row.immutable_blueprint_evidence <> p_immutable_blueprint_evidence then
       raise exception 'legacy_blueprint_reconciliation_plan_mismatch' using errcode = '23505';
     end if;
+  end if;
+
+  -- A blocked generation is terminal until the service-role recovery RPC
+  -- verifies the new source digest and reserves a fresh UUID. Planning never
+  -- recreates its owner, including after cleanup retires the abandoned key.
+  if v_existing and v_row.status = 'blocked' then
     return v_row;
   end if;
-  insert into public.legacy_blueprint_classroom_storage_reconciliations (
-    id, teacher_id, blueprint_id, classroom_id, source_object_id, target_object_id,
-    source_storage_bucket, source_storage_path, target_storage_bucket, target_storage_path,
-    classroom_documents, mutable_blueprint_documents, immutable_blueprint_evidence, content_type
-  ) values (
-    p_reconciliation_id, p_teacher_id, p_blueprint_id, p_classroom_id, p_source_object_id, p_target_object_id,
-    p_source_storage_bucket, p_source_storage_path, p_target_storage_bucket, p_target_storage_path,
-    p_classroom_documents, p_mutable_blueprint_documents, p_immutable_blueprint_evidence,
-    (select nullif(metadata->>'mimetype', '') from storage.objects
-      where bucket_id = p_source_storage_bucket and name = p_source_storage_path)
-  ) returning * into v_row;
+
+  perform public.classroom_purge_lock(p_classroom_id);
+  perform public.managed_storage_exact_lock(
+    p_source_storage_bucket,
+    p_source_storage_path
+  );
+  perform public.managed_storage_exact_lock(
+    'test-documents',
+    v_target_storage_path
+  );
+  if not exists (
+    select 1 from public.classrooms
+    where id = p_classroom_id and teacher_id = p_teacher_id
+  ) or not exists (
+    select 1 from public.course_blueprints
+    where id = p_blueprint_id and teacher_id = p_teacher_id
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_owner_mismatch'
+      using errcode = 'P0002';
+  end if;
+  if exists (
+    select 1 from public.classroom_purge_fences
+    where classroom_id = p_classroom_id
+  ) or not exists (
+    select 1 from storage.objects
+    where bucket_id = p_source_storage_bucket
+      and name = p_source_storage_path
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_source_unavailable'
+      using errcode = '55000';
+  end if;
+
+  if not v_existing and (
+    exists (
+      select 1 from public.managed_storage_retired_paths retired
+      where retired.storage_bucket = 'test-documents'
+        and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+          'test-documents', v_target_storage_path
+        )
+    ) or exists (
+      select 1 from public.classroom_purge_objects purge_object
+      where purge_object.storage_bucket = 'test-documents'
+        and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+          'test-documents', v_target_storage_path
+        )
+    ) or exists (
+      select 1 from storage.objects object
+      where object.bucket_id = 'test-documents'
+        and object.name = v_target_storage_path
+    )
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_target_reserved'
+      using errcode = '55000';
+  end if;
+
+  if not v_existing then
+    insert into public.legacy_blueprint_classroom_storage_reconciliations (
+      id, teacher_id, blueprint_id, classroom_id, source_object_id,
+      target_object_id, source_storage_bucket, source_storage_path,
+      target_storage_bucket, target_storage_path, classroom_documents,
+      mutable_blueprint_documents, immutable_blueprint_evidence,
+      plan_sha256, content_type
+    ) values (
+      p_reconciliation_id, p_teacher_id, p_blueprint_id, p_classroom_id,
+      p_source_object_id, p_target_object_id, p_source_storage_bucket,
+      p_source_storage_path, 'test-documents', v_target_storage_path,
+      p_classroom_documents, p_mutable_blueprint_documents,
+      p_immutable_blueprint_evidence, v_plan_sha256,
+      (
+        select nullif(metadata->>'mimetype', '')
+        from storage.objects
+        where bucket_id = p_source_storage_bucket
+          and name = p_source_storage_path
+      )
+    ) returning * into v_row;
+
+    insert into public.managed_storage_objects (
+      id, storage_bucket, storage_path, classroom_id, purpose, status,
+      created_by_user_id, resource_type, resource_id, content_type,
+      byte_size, content_sha256, upload_expires_at
+    ) values (
+      v_row.target_object_id, v_row.target_storage_bucket, v_row.target_storage_path,
+      v_row.classroom_id, 'teacher_test_material', 'pending_upload',
+      v_row.teacher_id, 'test',
+      (v_row.classroom_documents->0->>'testId')::uuid, v_row.content_type,
+      v_row.expected_byte_size, v_row.expected_sha256, null
+    );
+  end if;
+
+  if not exists (
+    select 1
+    from public.managed_storage_objects object
+    where object.id = v_row.target_object_id
+      and object.storage_bucket = v_row.target_storage_bucket
+      and object.storage_path = v_row.target_storage_path
+      and object.classroom_id = v_row.classroom_id
+      and object.course_blueprint_id is null
+      and object.purpose = 'teacher_test_material'
+      and object.resource_type = 'test'
+      and object.resource_id = (v_row.classroom_documents->0->>'testId')::uuid
+      and object.status in ('pending_upload', 'ready')
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
   return v_row;
 end;
 $$;
@@ -4856,12 +5447,7 @@ begin
   update public.legacy_blueprint_classroom_storage_reconciliations row set
     status = 'copying', attempt_count = row.attempt_count + 1, lease_token = p_lease_token,
     lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
-    last_error_code = case
-      when row.status = 'copying'
-        and row.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'
-        then row.last_error_code
-      else null
-    end,
+    last_error_code = null,
     updated_at = clock_timestamp()
   where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
     and (row.status in ('planned', 'failed') or (row.status = 'copying' and row.lease_expires_at <= clock_timestamp()))
@@ -4889,96 +5475,428 @@ begin
     and row.last_error_code is null
   for update;
   if not found then return false; end if;
+  perform 1
+  from public.managed_storage_objects object
+  where object.id = v_row.target_object_id
+    and object.storage_bucket = v_row.target_storage_bucket
+    and object.storage_path = v_row.target_storage_path
+    and object.classroom_id = v_row.classroom_id
+    and object.course_blueprint_id is null
+    and object.purpose = 'teacher_test_material'
+    and object.resource_type = 'test'
+    and object.resource_id = (v_row.classroom_documents->0->>'testId')::uuid
+    and object.status = 'pending_upload'
+  for update;
+  if not found then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
   perform public.managed_storage_exact_lock(
     v_row.target_storage_bucket,
     v_row.target_storage_path
   );
+  if not exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_row.target_storage_bucket
+      and object.name = v_row.target_storage_path
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_target_missing'
+      using errcode = '55000';
+  end if;
+  update public.managed_storage_objects object set
+    status = 'ready', byte_size = p_byte_size, content_sha256 = p_content_sha256,
+    upload_expires_at = null, ready_at = clock_timestamp(), updated_at = clock_timestamp()
+  where object.id = v_row.target_object_id and object.status = 'pending_upload';
+  if not found then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
   update public.legacy_blueprint_classroom_storage_reconciliations row set
     status = 'copied', target_public_url = p_target_public_url, expected_byte_size = p_byte_size,
     expected_sha256 = p_content_sha256, lease_token = null, lease_expires_at = null,
     updated_at = clock_timestamp()
-  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
-    and exists (select 1 from storage.objects where bucket_id = row.target_storage_bucket and name = row.target_storage_path);
+  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id;
   return found;
 end;
 $$;
 
-create or replace function public.fail_legacy_blueprint_classroom_storage_reconciliation(
-  p_reconciliation_id uuid, p_teacher_id uuid, p_lease_token uuid, p_error_code text
+create or replace function public.rotate_legacy_blueprint_classroom_storage_reconciliation_target(
+  p_reconciliation_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_target_object_id uuid
 )
 returns boolean
-language plpgsql security definer set search_path = public, storage as $$
-declare v_row public.legacy_blueprint_classroom_storage_reconciliations;
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.legacy_blueprint_classroom_storage_reconciliations;
+  v_target_storage_path text;
 begin
-  if p_error_code = 'legacy_blueprint_reconciliation_cleanup_started' then
-    select row.* into v_row
-    from public.legacy_blueprint_classroom_storage_reconciliations row
-    where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
-      and row.status = 'copying' and row.lease_token = p_lease_token
-      and row.lease_expires_at > clock_timestamp()
-      and row.last_error_code is null
-    for update;
-    if not found then return false; end if;
-    perform public.managed_storage_exact_lock(
-      v_row.target_storage_bucket,
-      v_row.target_storage_path
-    );
-    update public.legacy_blueprint_classroom_storage_reconciliations row set
-      last_error_code = 'legacy_blueprint_reconciliation_cleanup_processing',
-      lease_expires_at = clock_timestamp() + interval '120 seconds',
-      updated_at = clock_timestamp()
-    where row.id = p_reconciliation_id;
-    return true;
+  if p_target_object_id is null then
+    raise exception 'invalid_legacy_reconciliation_target_generation'
+      using errcode = '22023';
   end if;
-
-  if p_error_code = 'legacy_blueprint_reconciliation_target_removed' then
-    select row.* into v_row
-    from public.legacy_blueprint_classroom_storage_reconciliations row
-    where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
-      and row.status = 'copying' and row.lease_token = p_lease_token
-      and row.lease_expires_at > clock_timestamp()
-      and row.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'
-    for update;
-    if not found then return false; end if;
-    perform public.managed_storage_exact_lock(
-      v_row.target_storage_bucket,
-      v_row.target_storage_path
-    );
-    if exists (
-      select 1 from storage.objects object
-      where object.bucket_id = v_row.target_storage_bucket
-        and object.name = v_row.target_storage_path
-    ) then
-      raise exception 'legacy_blueprint_reconciliation_target_still_present'
-        using errcode = '55000';
-    end if;
-    update public.legacy_blueprint_classroom_storage_reconciliations row set
-      status = 'failed', lease_token = null, lease_expires_at = null,
-      last_error_code = 'legacy_blueprint_reconciliation_target_removed',
-      updated_at = clock_timestamp()
-    where row.id = p_reconciliation_id;
-    return true;
-  end if;
-
   select row.* into v_row
   from public.legacy_blueprint_classroom_storage_reconciliations row
-  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
-    and row.status = 'copying' and row.lease_token = p_lease_token
+  where row.id = p_reconciliation_id
+    and row.teacher_id = p_teacher_id
+    and row.status = 'copying'
+    and row.lease_token = p_lease_token
+    and row.lease_expires_at > clock_timestamp()
   for update;
   if not found then return false; end if;
-  if v_row.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%' then
-    update public.legacy_blueprint_classroom_storage_reconciliations row set
-      last_error_code = 'legacy_blueprint_reconciliation_cleanup_failed',
-      lease_expires_at = clock_timestamp(),
-      updated_at = clock_timestamp()
-    where row.id = p_reconciliation_id;
-  else
-    update public.legacy_blueprint_classroom_storage_reconciliations row set
-      status = 'failed', lease_token = null, lease_expires_at = null,
-      last_error_code = left(coalesce(nullif(btrim(p_error_code), ''), 'legacy_reconciliation_failed'), 160),
-      updated_at = clock_timestamp()
-    where row.id = p_reconciliation_id;
+  if p_target_object_id = v_row.target_object_id then
+    raise exception 'invalid_legacy_reconciliation_target_generation'
+      using errcode = '22023';
   end if;
+
+  perform 1
+  from public.managed_storage_objects object
+  where object.id = v_row.target_object_id
+    and object.storage_bucket = v_row.target_storage_bucket
+    and object.storage_path = v_row.target_storage_path
+    and object.classroom_id = v_row.classroom_id
+    and object.status = 'pending_upload'
+  for update;
+  if not found then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(
+    v_row.target_storage_bucket,
+    v_row.target_storage_path
+  );
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending', upload_expires_at = null,
+    lease_token = null, lease_expires_at = null,
+    last_error_code = 'legacy_blueprint_reconciliation_generation_abandoned',
+    next_attempt_at = clock_timestamp(), ready_at = null,
+    updated_at = clock_timestamp()
+  where id = v_row.target_object_id and status = 'pending_upload';
+  if not found then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
+  v_target_storage_path := 'classrooms/' || v_row.classroom_id::text
+    || '/tests/legacy-blueprint-reconciliation/' || p_target_object_id::text
+    || coalesce(
+      substring(v_row.target_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+      ''
+    );
+  perform public.managed_storage_exact_lock(
+    v_row.target_storage_bucket,
+    v_target_storage_path
+  );
+  if exists (
+    select 1 from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = v_row.target_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_row.target_storage_bucket, v_target_storage_path
+      )
+  ) or exists (
+    select 1 from public.classroom_purge_objects purge_object
+    where purge_object.storage_bucket = v_row.target_storage_bucket
+      and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_row.target_storage_bucket, v_target_storage_path
+      )
+  ) or exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_row.target_storage_bucket
+      and object.name = v_target_storage_path
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_target_reserved'
+      using errcode = '55000';
+  end if;
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, purpose, status,
+    created_by_user_id, resource_type, resource_id, content_type,
+    byte_size, content_sha256, upload_expires_at
+  ) values (
+    p_target_object_id, v_row.target_storage_bucket, v_target_storage_path,
+    v_row.classroom_id, 'teacher_test_material', 'pending_upload',
+    v_row.teacher_id, 'test',
+    (v_row.classroom_documents->0->>'testId')::uuid, v_row.content_type,
+    v_row.expected_byte_size, v_row.expected_sha256, null
+  );
+  update public.legacy_blueprint_classroom_storage_reconciliations
+  set
+    target_object_id = p_target_object_id,
+    target_storage_path = v_target_storage_path,
+    target_public_url = null,
+    status = 'failed',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = 'legacy_blueprint_reconciliation_generation_rotated',
+    updated_at = clock_timestamp()
+  where id = v_row.id;
+  return true;
+end;
+$$;
+
+create or replace function public.fail_legacy_blueprint_classroom_storage_reconciliation(
+  p_reconciliation_id uuid, p_teacher_id uuid, p_lease_token uuid,
+  p_error_code text, p_retryable boolean
+)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_target_object_id uuid;
+begin
+  if p_retryable is null
+    or (
+      p_retryable is false
+      and p_error_code is distinct from 'legacy_blueprint_reconciliation_source_changed'
+    )
+  then
+    raise exception 'invalid_nonretryable_legacy_reconciliation_failure'
+      using errcode = '22023';
+  end if;
+  update public.legacy_blueprint_classroom_storage_reconciliations row set
+    status = case when p_retryable then 'failed' else 'blocked' end,
+    lease_token = null, lease_expires_at = null,
+    last_error_code = left(
+      coalesce(nullif(btrim(p_error_code), ''), 'legacy_reconciliation_failed'),
+      160
+    ),
+    updated_at = clock_timestamp()
+  where row.id = p_reconciliation_id
+    and row.teacher_id = p_teacher_id
+    and row.status = 'copying'
+    and row.lease_token = p_lease_token
+  returning row.target_object_id into v_target_object_id;
+  if v_target_object_id is not null and not p_retryable then
+    update public.managed_storage_objects
+    set
+      status = 'cleanup_pending',
+      upload_expires_at = null,
+      lease_token = null,
+      lease_expires_at = null,
+      ready_at = null,
+      next_attempt_at = clock_timestamp(),
+      last_error_code = left(
+        coalesce(nullif(btrim(p_error_code), ''), 'legacy_reconciliation_blocked'),
+        160
+      ),
+      updated_at = clock_timestamp()
+    where id = v_target_object_id and status = 'pending_upload';
+    if not found then
+      raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+        using errcode = '55000';
+    end if;
+  end if;
+  return v_target_object_id is not null;
+end;
+$$;
+
+create or replace function public.block_copied_legacy_blueprint_storage_reconciliation(
+  p_reconciliation_id uuid,
+  p_teacher_id uuid,
+  p_error_code text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_target_object_id uuid;
+begin
+  if p_error_code is distinct from 'legacy_blueprint_reconciliation_source_changed' then
+    raise exception 'invalid_legacy_reconciliation_block'
+      using errcode = '22023';
+  end if;
+  update public.legacy_blueprint_classroom_storage_reconciliations row
+  set
+    status = 'blocked',
+    target_public_url = null,
+    last_error_code = left(
+      coalesce(nullif(btrim(p_error_code), ''), 'legacy_reconciliation_blocked'),
+      160
+    ),
+    updated_at = clock_timestamp()
+  where row.id = p_reconciliation_id
+    and row.teacher_id = p_teacher_id
+    and row.status = 'copied'
+  returning row.target_object_id into v_target_object_id;
+  if v_target_object_id is not null then
+    update public.managed_storage_objects
+    set
+      status = 'cleanup_pending',
+      upload_expires_at = null,
+      lease_token = null,
+      lease_expires_at = null,
+      ready_at = null,
+      next_attempt_at = clock_timestamp(),
+      last_error_code = left(p_error_code, 160),
+      updated_at = clock_timestamp()
+    where id = v_target_object_id and status = 'ready';
+    if not found then
+      raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+        using errcode = '55000';
+    end if;
+  end if;
+  return v_target_object_id is not null;
+end;
+$$;
+
+-- Recovery is an explicit service-role operation after an operator has read
+-- and hashed the current legacy source. It preserves the lifecycle fence until
+-- a fresh UUID target is reserved and never reuses the abandoned generation.
+create or replace function public.recover_blocked_legacy_blueprint_storage_reconciliation(
+  p_reconciliation_id uuid,
+  p_teacher_id uuid,
+  p_target_object_id uuid,
+  p_verified_source_byte_size bigint,
+  p_verified_source_sha256 text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.legacy_blueprint_classroom_storage_reconciliations;
+  v_target_owner public.managed_storage_objects;
+  v_target_storage_path text;
+  v_target_owner_found boolean := false;
+begin
+  if p_target_object_id is null
+    or p_verified_source_byte_size < 0
+    or p_verified_source_sha256 !~ '^[a-f0-9]{64}$'
+  then
+    raise exception 'invalid_legacy_reconciliation_recovery'
+      using errcode = '22023';
+  end if;
+  select row.* into v_row
+  from public.legacy_blueprint_classroom_storage_reconciliations row
+  where row.id = p_reconciliation_id
+    and row.teacher_id = p_teacher_id
+    and row.status = 'blocked'
+    and row.last_error_code = 'legacy_blueprint_reconciliation_source_changed'
+  for update;
+  if not found then return false; end if;
+  if p_target_object_id = v_row.target_object_id then
+    raise exception 'invalid_legacy_reconciliation_recovery'
+      using errcode = '22023';
+  end if;
+
+  perform public.classroom_purge_lock(v_row.classroom_id);
+  perform public.managed_storage_exact_lock(
+    v_row.source_storage_bucket,
+    v_row.source_storage_path
+  );
+  if exists (
+    select 1 from public.classroom_purge_fences
+    where classroom_id = v_row.classroom_id
+  ) or not exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_row.source_storage_bucket
+      and object.name = v_row.source_storage_path
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_source_unavailable'
+      using errcode = '55000';
+  end if;
+
+  -- Cleanup completion locks the managed row before the exact path. Recovery
+  -- uses the same order so overlap serializes instead of deadlocking.
+  select object.* into v_target_owner
+  from public.managed_storage_objects object
+  where object.id = v_row.target_object_id
+    and object.status in (
+      'pending_upload', 'ready', 'cleanup_pending', 'cleanup_processing'
+    )
+  for update;
+  v_target_owner_found := found;
+  perform public.managed_storage_exact_lock(
+    v_row.target_storage_bucket,
+    v_row.target_storage_path
+  );
+  if v_target_owner_found and v_target_owner.status <> 'cleanup_processing' then
+    update public.managed_storage_objects
+    set
+      status = 'cleanup_pending',
+      upload_expires_at = null,
+      lease_token = null,
+      lease_expires_at = null,
+      ready_at = null,
+      next_attempt_at = clock_timestamp(),
+      last_error_code = 'legacy_reconciliation_operator_recovered',
+      updated_at = clock_timestamp()
+    where id = v_row.target_object_id
+      and status in ('pending_upload', 'ready', 'cleanup_pending');
+  end if;
+  if not v_target_owner_found and not exists (
+    select 1 from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = v_row.target_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_row.target_storage_bucket,
+        v_row.target_storage_path
+      )
+  ) then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
+  v_target_storage_path := 'classrooms/' || v_row.classroom_id::text
+    || '/tests/legacy-blueprint-reconciliation/' || p_target_object_id::text
+    || coalesce(
+      substring(v_row.source_storage_path from '(\.[A-Za-z0-9]{1,12})$'),
+      ''
+    );
+  perform public.managed_storage_exact_lock(
+    v_row.target_storage_bucket,
+    v_target_storage_path
+  );
+  if exists (
+    select 1 from public.managed_storage_retired_paths retired
+    where retired.storage_bucket = v_row.target_storage_bucket
+      and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_row.target_storage_bucket,
+        v_target_storage_path
+      )
+  ) or exists (
+    select 1 from public.classroom_purge_objects purge_object
+    where purge_object.storage_bucket = v_row.target_storage_bucket
+      and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+        v_row.target_storage_bucket,
+        v_target_storage_path
+      )
+  ) or exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_row.target_storage_bucket
+      and object.name = v_target_storage_path
+  ) then
+    raise exception 'storage_path_permanently_reserved' using errcode = '55000';
+  end if;
+
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, purpose, status,
+    created_by_user_id, resource_type, resource_id, content_type,
+    byte_size, content_sha256, upload_expires_at
+  ) values (
+    p_target_object_id, v_row.target_storage_bucket, v_target_storage_path,
+    v_row.classroom_id, 'teacher_test_material', 'pending_upload',
+    v_row.teacher_id, 'test',
+    (v_row.classroom_documents->0->>'testId')::uuid, v_row.content_type,
+    p_verified_source_byte_size, p_verified_source_sha256, null
+  );
+  update public.legacy_blueprint_classroom_storage_reconciliations
+  set
+    target_object_id = p_target_object_id,
+    target_storage_path = v_target_storage_path,
+    target_public_url = null,
+    expected_byte_size = p_verified_source_byte_size,
+    expected_sha256 = p_verified_source_sha256,
+    status = 'planned',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = 'legacy_reconciliation_operator_recovered',
+    updated_at = clock_timestamp()
+  where id = v_row.id;
   return true;
 end;
 $$;
@@ -4995,11 +5913,55 @@ declare
   v_prior_identity text := current_setting('pika.identity_mapping', true);
   v_prior_compaction text := current_setting('pika.classroom_archive_compaction', true);
 begin
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'legacy-blueprint-storage-reconciliation:' || p_reconciliation_id::text,
+      0
+    )
+  );
   select * into v_row from public.legacy_blueprint_classroom_storage_reconciliations
     where id = p_reconciliation_id and teacher_id = p_teacher_id for update;
-  if not found then raise exception 'legacy_blueprint_reconciliation_not_found' using errcode = 'P0002'; end if;
+  if not found then
+    if exists (
+      select 1
+      from public.legacy_blueprint_storage_reconciliation_receipts receipt
+      where receipt.id = p_reconciliation_id
+        and receipt.teacher_id = p_teacher_id
+    ) then
+      return jsonb_build_object('ok', true);
+    end if;
+    raise exception 'legacy_blueprint_reconciliation_not_found' using errcode = 'P0002';
+  end if;
   if v_row.status = 'adopted' then return jsonb_build_object('ok', true); end if;
+  if v_row.status = 'blocked' then
+    return jsonb_build_object(
+      'ok', false,
+      'error_code', coalesce(
+        v_row.last_error_code,
+        'legacy_blueprint_reconciliation_operator_recovery_required'
+      ),
+      'retryable', false
+    );
+  end if;
   if v_row.status <> 'copied' then return jsonb_build_object('ok', false, 'error_code', 'legacy_blueprint_reconciliation_copy_incomplete'); end if;
+  perform 1
+  from public.managed_storage_objects object
+  where object.id = v_row.target_object_id
+    and object.storage_bucket = v_row.target_storage_bucket
+    and object.storage_path = v_row.target_storage_path
+    and object.classroom_id = v_row.classroom_id
+    and object.course_blueprint_id is null
+    and object.purpose = 'teacher_test_material'
+    and object.resource_type = 'test'
+    and object.resource_id = (v_row.classroom_documents->0->>'testId')::uuid
+    and object.status = 'ready'
+    and object.byte_size is not distinct from v_row.expected_byte_size
+    and object.content_sha256 is not distinct from v_row.expected_sha256
+  for update;
+  if not found then
+    raise exception 'legacy_blueprint_reconciliation_target_owner_mismatch'
+      using errcode = '55000';
+  end if;
   perform public.classroom_purge_lock(v_row.classroom_id);
   perform public.managed_storage_exact_lock(v_row.source_storage_bucket, v_row.source_storage_path);
   perform public.managed_storage_exact_lock(v_row.target_storage_bucket, v_row.target_storage_path);
@@ -5057,18 +6019,6 @@ begin
         or public.managed_storage_objects.classroom_id = v_row.classroom_id
       );
   if not found then raise exception 'legacy_blueprint_reconciliation_source_owner_conflict' using errcode = '23505'; end if;
-  insert into public.managed_storage_objects (
-    id, storage_bucket, storage_path, classroom_id, purpose, status, created_by_user_id,
-    resource_type, resource_id, content_type, byte_size, content_sha256, ready_at
-  ) values (
-    v_row.target_object_id, v_row.target_storage_bucket, v_row.target_storage_path, v_row.classroom_id,
-    'teacher_test_material', 'ready', v_row.teacher_id, 'test', v_first_test_id,
-    v_row.content_type, v_row.expected_byte_size, v_row.expected_sha256, clock_timestamp()
-  ) on conflict (storage_bucket, storage_path) do update set updated_at = clock_timestamp()
-    where public.managed_storage_objects.id = v_row.target_object_id
-      and public.managed_storage_objects.classroom_id = v_row.classroom_id
-      and public.managed_storage_objects.status = 'ready';
-  if not found then raise exception 'legacy_blueprint_reconciliation_target_owner_conflict' using errcode = '23505'; end if;
   for v_ref in select value from jsonb_array_elements(v_row.classroom_documents) loop
     select * into v_test from public.tests where id = (v_ref->>'testId')::uuid for update;
     v_docs := coalesce(v_test.documents, '[]'::jsonb);
@@ -5091,10 +6041,15 @@ begin
   end loop;
   perform set_config('pika.classroom_archive_compaction', coalesce(v_prior_compaction, 'off'), true);
   perform set_config('pika.identity_mapping', coalesce(v_prior_identity, 'off'), true);
-  -- Adoption is the terminal transaction: after both registry owners and live
-  -- references are committed there is no resumable work left. Removing the
-  -- ledger lets normal Classroom/Blueprint lifecycles proceed, while the
-  -- restrictive owner FKs protect every nonterminal copy state.
+  -- Record completion before releasing lifecycle FKs. The receipt deliberately
+  -- retains only an authorization id, exact plan fingerprint, final generation,
+  -- and timestamp: no raw paths, documents, or lifecycle foreign keys.
+  insert into public.legacy_blueprint_storage_reconciliation_receipts (
+    id, teacher_id, plan_sha256, target_object_id, completed_at
+  ) values (
+    v_row.id, v_row.teacher_id, v_row.plan_sha256,
+    v_row.target_object_id, clock_timestamp()
+  );
   delete from public.legacy_blueprint_classroom_storage_reconciliations
     where id = v_row.id and status = 'copied';
   if not found then
@@ -5563,6 +6518,8 @@ revoke all on function public.rewrite_managed_storage_document_owner(
 ) from public, anon, authenticated, service_role;
 revoke all on function public.managed_storage_exact_lock(text, text)
   from public, anon, authenticated, service_role;
+revoke all on function public.retire_managed_storage_path_on_delete()
+  from public, anon, authenticated, service_role;
 revoke all on function public.refresh_classroom_managed_storage_coverage(uuid)
   from public, anon, authenticated, service_role;
 revoke all on function public.plan_course_blueprint_storage_copies()
@@ -5572,8 +6529,16 @@ revoke all on function public.claim_course_blueprint_storage_copy(uuid, uuid, uu
 revoke all on function public.complete_course_blueprint_storage_copy(
   uuid, uuid, uuid, text, bigint, text
 ) from public, anon, authenticated;
-revoke all on function public.fail_course_blueprint_storage_copy(uuid, uuid, uuid, text)
+revoke all on function public.rotate_course_blueprint_storage_copy_target(
+  uuid, uuid, uuid, uuid
+) from public, anon, authenticated;
+revoke all on function public.fail_course_blueprint_storage_copy(
+  uuid, uuid, uuid, text, boolean
+)
   from public, anon, authenticated;
+revoke all on function public.recover_blocked_course_blueprint_storage_copy(
+  uuid, uuid, uuid, bigint, text
+) from public, anon, authenticated;
 revoke all on function public.adopt_course_blueprint_storage_copies(uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.begin_managed_storage_upload(
@@ -5622,7 +6587,7 @@ revoke all on function public.finalize_hot_archived_classroom_purge_legacy_117(u
 revoke all on function public.finalize_hot_archived_classroom_purge(uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.plan_legacy_blueprint_classroom_storage_reconciliation(
-  uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, text, jsonb, jsonb, jsonb
+  uuid, uuid, uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb
 ) from public, anon, authenticated;
 revoke all on function public.claim_legacy_blueprint_classroom_storage_reconciliation(
   uuid, uuid, uuid, integer
@@ -5630,8 +6595,17 @@ revoke all on function public.claim_legacy_blueprint_classroom_storage_reconcili
 revoke all on function public.complete_legacy_blueprint_classroom_storage_reconciliation(
   uuid, uuid, uuid, text, bigint, text
 ) from public, anon, authenticated;
+revoke all on function public.rotate_legacy_blueprint_classroom_storage_reconciliation_target(
+  uuid, uuid, uuid, uuid
+) from public, anon, authenticated;
 revoke all on function public.fail_legacy_blueprint_classroom_storage_reconciliation(
-  uuid, uuid, uuid, text
+  uuid, uuid, uuid, text, boolean
+) from public, anon, authenticated;
+revoke all on function public.block_copied_legacy_blueprint_storage_reconciliation(
+  uuid, uuid, text
+) from public, anon, authenticated;
+revoke all on function public.recover_blocked_legacy_blueprint_storage_reconciliation(
+  uuid, uuid, uuid, bigint, text
 ) from public, anon, authenticated;
 revoke all on function public.adopt_legacy_blueprint_classroom_storage_reconciliation(uuid, uuid)
   from public, anon, authenticated;
@@ -5702,8 +6676,16 @@ grant execute on function public.claim_course_blueprint_storage_copy(uuid, uuid,
 grant execute on function public.complete_course_blueprint_storage_copy(
   uuid, uuid, uuid, text, bigint, text
 ) to service_role;
-grant execute on function public.fail_course_blueprint_storage_copy(uuid, uuid, uuid, text)
+grant execute on function public.rotate_course_blueprint_storage_copy_target(
+  uuid, uuid, uuid, uuid
+) to service_role;
+grant execute on function public.fail_course_blueprint_storage_copy(
+  uuid, uuid, uuid, text, boolean
+)
   to service_role;
+grant execute on function public.recover_blocked_course_blueprint_storage_copy(
+  uuid, uuid, uuid, bigint, text
+) to service_role;
 grant execute on function public.adopt_course_blueprint_storage_copies(uuid, uuid)
   to service_role;
 grant execute on function public.adopt_managed_storage_upload(uuid, text)
@@ -5747,7 +6729,7 @@ grant execute on function public.sync_test_document_snapshot_managed_atomic(
 grant execute on function public.finalize_hot_archived_classroom_purge(uuid, uuid)
   to service_role;
 grant execute on function public.plan_legacy_blueprint_classroom_storage_reconciliation(
-  uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, text, jsonb, jsonb, jsonb
+  uuid, uuid, uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb
 ) to service_role;
 grant execute on function public.claim_legacy_blueprint_classroom_storage_reconciliation(
   uuid, uuid, uuid, integer
@@ -5755,8 +6737,17 @@ grant execute on function public.claim_legacy_blueprint_classroom_storage_reconc
 grant execute on function public.complete_legacy_blueprint_classroom_storage_reconciliation(
   uuid, uuid, uuid, text, bigint, text
 ) to service_role;
+grant execute on function public.rotate_legacy_blueprint_classroom_storage_reconciliation_target(
+  uuid, uuid, uuid, uuid
+) to service_role;
 grant execute on function public.fail_legacy_blueprint_classroom_storage_reconciliation(
-  uuid, uuid, uuid, text
+  uuid, uuid, uuid, text, boolean
+) to service_role;
+grant execute on function public.block_copied_legacy_blueprint_storage_reconciliation(
+  uuid, uuid, text
+) to service_role;
+grant execute on function public.recover_blocked_legacy_blueprint_storage_reconciliation(
+  uuid, uuid, uuid, bigint, text
 ) to service_role;
 grant execute on function public.adopt_legacy_blueprint_classroom_storage_reconciliation(uuid, uuid)
   to service_role;

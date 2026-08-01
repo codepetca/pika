@@ -365,14 +365,29 @@ artifacts, inline submission images, teacher test materials, execution snapshots
 legacy objects. Reusable teacher test material is physically copied to Blueprint-owned storage
 before Blueprint capture/import completes, and copied back to new classroom-owned storage before
 instantiation completes. Internal managed-object ids are not exported in Course Packages.
-Blueprint copies use deterministic operation-owned target keys and complete only after a full
-read-back hash check. If an existing target contains different bytes, the active copy lease must
-first transition atomically into a durable cleanup phase. That phase fences upload, completion, and
-adoption for the exact key before Storage removal begins. The database resets it for immediate copy
-retry only after an exact-path lock proves authoritative `storage.objects` absence; an expired
-cleanup lease is reclaimed as cleanup work and can never silently become an upload lease. Adoption
-also takes the exact-path lock and proves the target still exists before ownership or references
-change. Legacy Blueprint/Classroom reconciliation uses the same cleanup-phase contract.
+Blueprint copies reserve their final Classroom or Blueprint owner before uploading any bytes and
+complete only after a full read-back hash check. Each generated UUID path is one immutable physical
+generation. If an existing generation contains different bytes, the active copy lease atomically
+marks its managed owner `cleanup_pending`, reserves a new owned UUID path, and retries there; copy
+workers never delete or reuse the abandoned key. The ordinary managed-storage cleanup worker later
+removes that isolated generation. Completion atomically promotes the current owner from
+`pending_upload` to `ready`, and adoption locks and revalidates that ready owner plus physical
+presence before references change. Legacy Blueprint/Classroom reconciliation follows the same
+owned-generation contract; its initial destination is derived in PostgreSQL from the classroom and
+target UUID rather than accepted from an operator caller. Storage writes are permitted only while a
+generation is `pending_upload`. A `ready` generation is immutable, and governed objects cannot be
+moved or renamed with a Storage `UPDATE`; replacement always means a newly reserved UUID generation.
+When any managed generation is finally removed, a hash-only retired-path
+reservation remains so a delayed request cannot recreate that exact key even before the global
+ownership-enforcement gate is enabled.
+
+Retryable copy errors retain their normal bounded backoff. A source-evidence mismatch instead moves
+the copy ledger to `blocked`, preserves the classroom/Blueprint lifecycle fence, and queues any
+unadopted target for ordinary cleanup. It is not silently retried or cancelled. Service-role-only
+recovery RPCs require an operator to independently read and hash the authoritative source, provide
+that exact evidence, and reserve a fresh target UUID before the ledger becomes claimable again.
+Legacy source drift discovered after copy is also recorded durably before adoption. These recovery
+RPCs do not weaken the requirement to preserve immutable Blueprint Version evidence.
 
 All new uploads reserve exact ownership before writing Storage and atomically adopt the reservation
 after Storage confirms the object. Failed or abandoned uploads become leased, retryable cleanup work.
@@ -398,6 +413,9 @@ matches an exact Blueprint-owned object. For exactly one Blueprint and one class
 reconciliation ledger preserves the original bytes at their old path under Blueprint ownership,
 copies and verifies a fresh classroom-owned object, then atomically rewrites only current classroom
 tests and mutable Blueprint managed IDs. Immutable Version JSON remains byte-for-byte untouched.
+Adoption stores a minimal terminal receipt containing only the authorization id, exact plan hash,
+final object id, and completion time. Exact lost-response replays return success without retaining
+classroom/Blueprint foreign keys, document claims, or raw paths; altered plans remain rejected.
 An unshared legacy Blueprint path instead receives an exact Blueprint registration and mutable
 assessment managed-id attachment in one transaction; its Version snapshots are checked as evidence
 but are never rewritten. Existing classroom or cross-Blueprint ownership remains fail-closed.

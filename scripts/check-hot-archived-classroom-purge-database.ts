@@ -75,6 +75,27 @@ function runSql(databaseUrl: string, sql: string): string {
   }).trim()
 }
 
+function expectSqlFailure(
+  label: string,
+  databaseUrl: string,
+  sql: string,
+  expectedMessage: string,
+) {
+  try {
+    runSql(databaseUrl, sql)
+  } catch (error) {
+    const detail = error instanceof Error
+      ? `${error.message} ${String((error as Error & { stderr?: unknown }).stderr || '')}`
+      : String(error)
+    assertFixture(
+      detail.includes(expectedMessage),
+      `${label} failed without ${expectedMessage}`,
+    )
+    return
+  }
+  throw new Error(`${label} unexpectedly succeeded`)
+}
+
 function runSqlAsync(databaseUrl: string, sql: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -273,6 +294,808 @@ async function expectFailure(
   throw new Error(`${label} unexpectedly succeeded`)
 }
 
+function fixturePublicStorageUrl(
+  supabaseUrl: string,
+  bucket: string,
+  path: string,
+) {
+  return `${supabaseUrl}/storage/v1/object/public/${encodeURIComponent(bucket)}/`
+    + path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
+}
+
+function assertExactDueManagedCleanupQueue(
+  databaseUrl: string,
+  expectedObjectIds: string[],
+  label: string,
+) {
+  const actual = JSON.parse(runSql(databaseUrl, `
+    select coalesce(jsonb_agg(id order by id), '[]'::jsonb)::text
+    from public.managed_storage_objects
+    where next_attempt_at <= clock_timestamp()
+      and (
+        status = 'cleanup_pending'
+        or (status = 'pending_upload' and upload_expires_at <= clock_timestamp())
+        or (status = 'cleanup_processing' and lease_expires_at <= clock_timestamp())
+      );
+  `)) as string[]
+  const expected = [...expectedObjectIds].sort()
+  assertFixture(
+    JSON.stringify(actual) === JSON.stringify(expected),
+    `${label} expected only fixture cleanup ids ${expected.join(',') || 'none'}`,
+  )
+}
+
+function assertExactManagedCleanupClaims(
+  claims: Array<{ id: string; lease_token: string }>,
+  expectedObjectIds: string[],
+  label: string,
+) {
+  const actual = claims.map((claim) => claim.id).sort()
+  const expected = [...expectedObjectIds].sort()
+  assertFixture(
+    JSON.stringify(actual) === JSON.stringify(expected),
+    `${label} leased an unexpected managed cleanup row`,
+  )
+}
+
+async function cleanupManagedFixtureObject(input: {
+  supabase: ReturnType<typeof getServiceRoleClient>
+  databaseUrl: string
+  objectId: string
+  bucket: string
+  path: string
+}) {
+  assertFixture(await rpc(input.supabase, 'queue_managed_storage_cleanup', {
+    p_object_id: input.objectId,
+    p_error_code: 'fixture_terminal_cleanup',
+  }) === true, `Could not queue fixture object ${input.objectId}`)
+  assertExactDueManagedCleanupQueue(
+    input.databaseUrl,
+    [input.objectId],
+    'Terminal fixture cleanup',
+  )
+  const leaseToken = randomUUID()
+  const claims = await rpc(input.supabase, 'claim_managed_storage_cleanup', {
+    p_lease_token: leaseToken,
+    p_limit: 10,
+    p_lease_seconds: 60,
+  }) as Array<{ id: string; lease_token: string }>
+  assertExactManagedCleanupClaims(
+    claims,
+    [input.objectId],
+    'Terminal fixture cleanup',
+  )
+  const claim = claims.find((candidate) => candidate.id === input.objectId)
+  assertFixture(claim, `Could not claim fixture object ${input.objectId}`)
+  dataOrThrow(`remove fixture object ${input.path}`, await input.supabase.storage
+    .from(input.bucket).remove([input.path]))
+  assertFixture(await rpc(input.supabase, 'complete_managed_storage_cleanup', {
+    p_object_id: input.objectId,
+    p_lease_token: claim.lease_token,
+  }) === true, `Could not complete fixture object ${input.objectId}`)
+}
+
+async function assertCourseBlueprintRecoveryCleanupSerialization(input: {
+  supabase: ReturnType<typeof getServiceRoleClient>
+  databaseUrl: string
+  fixtureId: string
+  teacherId: string
+}) {
+  const { supabase, databaseUrl } = input
+  const blueprintId = randomUUID()
+  const assessmentId = randomUUID()
+  const operationId = randomUUID()
+  const itemId = randomUUID()
+  const sourceObjectId = randomUUID()
+  const oldTargetObjectId = randomUUID()
+  const freshTargetObjectId = randomUUID()
+  const documentId = randomUUID()
+  const sourcePath = `blueprints/${blueprintId}/tests/materials/${sourceObjectId}.pdf`
+  const oldTargetPath = `blueprints/${blueprintId}/tests/materials/${oldTargetObjectId}.pdf`
+  const freshTargetPath = `blueprints/${blueprintId}/tests/materials/${freshTargetObjectId}.pdf`
+  const sourceBytes = new TextEncoder().encode('Course Blueprint recovery fixture bytes')
+  const sourceSha256 = createHash('sha256').update(sourceBytes).digest('hex')
+  const paths = [sourcePath, oldTargetPath, freshTargetPath]
+
+  try {
+    dataOrThrow('insert Course Blueprint recovery fixture', await supabase
+      .from('course_blueprints').insert({
+        id: blueprintId,
+        teacher_id: input.teacherId,
+        title: `Course recovery fixture ${input.fixtureId.slice(0, 8)}`,
+      }))
+    dataOrThrow('upload Course Blueprint recovery source', await supabase.storage
+      .from('test-documents').upload(sourcePath, sourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+    dataOrThrow('upload abandoned Course Blueprint target', await supabase.storage
+      .from('test-documents').upload(oldTargetPath, sourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+    runSql(databaseUrl, `
+      insert into public.managed_storage_objects (
+        id, storage_bucket, storage_path, course_blueprint_id, purpose, status,
+        created_by_user_id, resource_type, resource_id, content_type, byte_size,
+        content_sha256, ready_at
+      ) values (
+        '${sourceObjectId}', 'test-documents', '${sourcePath}', '${blueprintId}',
+        'teacher_test_material', 'ready', '${input.teacherId}',
+        'course_blueprint_assessment', '${assessmentId}', 'application/pdf',
+        ${sourceBytes.byteLength}, '${sourceSha256}', clock_timestamp()
+      ), (
+        '${oldTargetObjectId}', 'test-documents', '${oldTargetPath}', '${blueprintId}',
+        'teacher_test_material', 'cleanup_pending', '${input.teacherId}',
+        'course_blueprint_assessment', '${assessmentId}', 'application/pdf',
+        ${sourceBytes.byteLength}, '${sourceSha256}', null
+      );
+      insert into public.course_blueprint_operations (
+        id, teacher_id, operation_type, request_sha256, status,
+        result_blueprint_id, error_code, storage_copy_status
+      ) values (
+        '${operationId}', '${input.teacherId}', 'import', '${'c'.repeat(64)}',
+        'running', '${blueprintId}', 'blueprint_storage_copy_source_changed', 'blocked'
+      );
+      insert into public.course_blueprint_storage_copy_items (
+        id, operation_id, source_object_id, source_storage_bucket,
+        source_storage_path, target_object_id, target_storage_bucket,
+        target_storage_path, target_course_blueprint_id, purpose,
+        target_resource_type, target_resource_id, target_document_id,
+        content_type, status, expected_byte_size, expected_sha256, last_error_code
+      ) values (
+        '${itemId}', '${operationId}', '${sourceObjectId}', 'test-documents',
+        '${sourcePath}', '${oldTargetObjectId}', 'test-documents', '${oldTargetPath}',
+        '${blueprintId}', 'teacher_test_material', 'course_blueprint_assessment',
+        '${assessmentId}', '${documentId}', 'application/pdf', 'blocked',
+        ${sourceBytes.byteLength}, '${sourceSha256}',
+        'blueprint_storage_copy_source_changed'
+      );
+    `)
+
+    assertExactDueManagedCleanupQueue(
+      databaseUrl,
+      [oldTargetObjectId],
+      'Course Blueprint recovery cleanup',
+    )
+    const cleanupLease = randomUUID()
+    const cleanupClaims = await rpc(supabase, 'claim_managed_storage_cleanup', {
+      p_lease_token: cleanupLease,
+      p_limit: 10,
+      p_lease_seconds: 60,
+    }) as Array<{ id: string; lease_token: string }>
+    assertExactManagedCleanupClaims(
+      cleanupClaims,
+      [oldTargetObjectId],
+      'Course Blueprint recovery cleanup',
+    )
+    const cleanupClaim = cleanupClaims.find((candidate) => candidate.id === oldTargetObjectId)
+    assertFixture(cleanupClaim, 'Course Blueprint target was not cleanup-claimable')
+    dataOrThrow('remove abandoned Course Blueprint target', await supabase.storage
+      .from('test-documents').remove([oldTargetPath]))
+
+    const holderName = `course_cleanup_holder_${input.fixtureId.slice(0, 8)}`
+    const recoveryName = `course_recovery_waiter_${input.fixtureId.slice(0, 8)}`
+    const holder = runSqlAsync(databaseUrl, `
+      begin;
+      set local application_name = '${holderName}';
+      select public.complete_managed_storage_cleanup(
+        '${oldTargetObjectId}', '${cleanupClaim.lease_token}'
+      );
+      select pg_sleep(2);
+      commit;
+    `)
+    const holderState = await waitForSqlSession(
+      databaseUrl,
+      holderName,
+      (state) => state.waitEvent === 'PgSleep',
+    )
+    const recovery = runSqlAsync(databaseUrl, `
+      begin;
+      set local application_name = '${recoveryName}';
+      select public.recover_blocked_course_blueprint_storage_copy(
+        '${itemId}', '${input.teacherId}', '${freshTargetObjectId}',
+        ${sourceBytes.byteLength}, '${sourceSha256}'
+      );
+      commit;
+    `)
+    const recoveryState = await waitForSqlSession(
+      databaseUrl,
+      recoveryName,
+      (state) => state.waitEventType === 'Lock'
+        && state.waitEvent === 'transactionid'
+        && state.blockingPids.includes(holderState.pid),
+    )
+    assertFixture(
+      recoveryState.blockingPids.includes(holderState.pid),
+      'Course Blueprint recovery did not serialize behind cleanup completion',
+    )
+    const [holderResult, recoveryResult] = await Promise.all([holder, recovery])
+    assertFixture(holderResult.includes('t'), 'Course Blueprint cleanup completion failed')
+    assertFixture(
+      recoveryResult.includes('t'),
+      'Course Blueprint recovery failed after cleanup commit',
+    )
+    assertFixture(runSql(databaseUrl, `
+      select item.status || ':' || item.target_object_id::text || ':'
+        || operation.storage_copy_status
+      from public.course_blueprint_storage_copy_items item
+      join public.course_blueprint_operations operation on operation.id = item.operation_id
+      where item.id = '${itemId}';
+    `) === `planned:${freshTargetObjectId}:copying`,
+    'Course Blueprint recovery did not reserve the fresh generation')
+
+    runSql(databaseUrl, `
+      delete from public.course_blueprint_operations where id = '${operationId}';
+    `)
+    await cleanupManagedFixtureObject({
+      supabase,
+      databaseUrl,
+      objectId: sourceObjectId,
+      bucket: 'test-documents',
+      path: sourcePath,
+    })
+    await cleanupManagedFixtureObject({
+      supabase,
+      databaseUrl,
+      objectId: freshTargetObjectId,
+      bucket: 'test-documents',
+      path: freshTargetPath,
+    })
+    runSql(databaseUrl, `
+      delete from public.course_blueprints where id = '${blueprintId}';
+    `)
+  } finally {
+    try {
+      runSql(databaseUrl, `
+        begin;
+        delete from public.course_blueprint_operations where id = '${operationId}';
+        delete from public.managed_storage_objects
+        where id in ('${sourceObjectId}', '${oldTargetObjectId}', '${freshTargetObjectId}');
+        delete from public.course_blueprints where id = '${blueprintId}';
+        commit;
+      `)
+      for (const path of paths) {
+        await supabase.storage.from('test-documents').remove([path])
+      }
+    } catch {
+      process.stderr.write(
+        `Course Blueprint recovery fixture cleanup failed for ${input.fixtureId}.\n`,
+      )
+    }
+  }
+}
+
+async function assertLegacyReconciliationReplayBoundaries(input: {
+  supabase: ReturnType<typeof getServiceRoleClient>
+  supabaseUrl: string
+  databaseUrl: string
+  fixtureId: string
+  teacherId: string
+  otherTeacherId: string
+}) {
+  const { supabase, supabaseUrl, databaseUrl } = input
+  const classroomId = randomUUID()
+  const blueprintId = randomUUID()
+  const testId = randomUUID()
+  const assessmentId = randomUUID()
+  const versionId = randomUUID()
+  const reconciliationId = randomUUID()
+  const sourceObjectId = randomUUID()
+  const initialTargetObjectId = randomUUID()
+  const recoveredTargetObjectId = randomUUID()
+  const classroomDocumentId = randomUUID()
+  const blueprintDocumentId = randomUUID()
+  const sourcePath = `purge-fixture/${input.fixtureId}/reconciliation/source.pdf`
+  const initialTargetPath = `classrooms/${classroomId}/tests/legacy-blueprint-reconciliation/`
+    + `${initialTargetObjectId}.pdf`
+  const recoveredTargetPath = `classrooms/${classroomId}/tests/legacy-blueprint-reconciliation/`
+    + `${recoveredTargetObjectId}.pdf`
+  const sourceBytes = new TextEncoder().encode('legacy reconciliation fixture bytes')
+  const sourceSha256 = createHash('sha256').update(sourceBytes).digest('hex')
+  const sourceUrl = fixturePublicStorageUrl(supabaseUrl, 'test-documents', sourcePath)
+  const classroomDocuments = [{
+    testId,
+    documentId: classroomDocumentId,
+    expectedReference: sourceUrl,
+  }]
+  const mutableBlueprintDocuments = [{
+    assessmentId,
+    documentId: blueprintDocumentId,
+    expectedReference: sourceUrl,
+  }]
+  const immutableBlueprintEvidence = [{ versionId, expectedReference: sourceUrl }]
+  const planArgs = {
+    p_reconciliation_id: reconciliationId,
+    p_source_object_id: sourceObjectId,
+    p_target_object_id: initialTargetObjectId,
+    p_teacher_id: input.teacherId,
+    p_blueprint_id: blueprintId,
+    p_classroom_id: classroomId,
+    p_source_storage_bucket: 'test-documents',
+    p_source_storage_path: sourcePath,
+    p_classroom_documents: classroomDocuments,
+    p_mutable_blueprint_documents: mutableBlueprintDocuments,
+    p_immutable_blueprint_evidence: immutableBlueprintEvidence,
+  }
+
+  const lockReconciliationId = randomUUID()
+  const lockSourceObjectId = randomUUID()
+  const lockOldTargetObjectId = randomUUID()
+  const lockFreshTargetObjectId = randomUUID()
+  const lockSourcePath = `purge-fixture/${input.fixtureId}/reconciliation/lock-source.pdf`
+  const lockOldTargetPath = `classrooms/${classroomId}/tests/legacy-blueprint-reconciliation/`
+    + `${lockOldTargetObjectId}.pdf`
+  const lockFreshTargetPath = `classrooms/${classroomId}/tests/legacy-blueprint-reconciliation/`
+    + `${lockFreshTargetObjectId}.pdf`
+  const paths = [sourcePath, initialTargetPath, recoveredTargetPath, lockSourcePath,
+    lockOldTargetPath, lockFreshTargetPath]
+
+  try {
+    dataOrThrow('insert reconciliation fixture Blueprint', await supabase
+      .from('course_blueprints').insert({
+        id: blueprintId,
+        teacher_id: input.teacherId,
+        title: `Reconciliation fixture Blueprint ${input.fixtureId.slice(0, 8)}`,
+      }))
+    dataOrThrow('insert reconciliation fixture classroom', await supabase
+      .from('classrooms').insert({
+        id: classroomId,
+        teacher_id: input.teacherId,
+        title: `Reconciliation fixture classroom ${input.fixtureId.slice(0, 8)}`,
+        class_code: `RC-${input.fixtureId.slice(0, 8)}`,
+        source_blueprint_id: blueprintId,
+      }))
+    dataOrThrow('insert reconciliation fixture test', await supabase.from('tests').insert({
+      id: testId,
+      classroom_id: classroomId,
+      created_by: input.teacherId,
+      title: 'Legacy reconciliation fixture test',
+      documents: [{
+        id: classroomDocumentId,
+        title: 'Legacy source',
+        source: 'upload',
+        url: sourceUrl,
+      }],
+    }))
+    dataOrThrow('insert reconciliation fixture assessment', await supabase
+      .from('course_blueprint_assessments').insert({
+        id: assessmentId,
+        course_blueprint_id: blueprintId,
+        title: 'Legacy reconciliation assessment',
+        assessment_type: 'test',
+        documents: [{
+          id: blueprintDocumentId,
+          title: 'Legacy source',
+          source: 'upload',
+          url: sourceUrl,
+        }],
+      }))
+    const snapshot = {
+      assessments: [{
+        id: assessmentId,
+        documents: [{
+          id: blueprintDocumentId,
+          source: 'upload',
+          url: sourceUrl,
+        }],
+      }],
+    }
+    dataOrThrow('insert reconciliation fixture Version', await supabase
+      .from('course_blueprint_versions').insert({
+        id: versionId,
+        course_blueprint_id: blueprintId,
+        version_number: 1,
+        source_draft_revision: 1,
+        snapshot_json: snapshot,
+        snapshot_sha256: createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'),
+        created_by: input.teacherId,
+      }))
+    dataOrThrow('upload reconciliation legacy source', await supabase.storage
+      .from('test-documents').upload(sourcePath, sourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+
+    const planned = await rpc(
+      supabase,
+      'plan_legacy_blueprint_classroom_storage_reconciliation',
+      planArgs,
+    ) as { status: string; target_storage_path: string }
+    assertFixture(
+      planned.status === 'planned' && planned.target_storage_path === initialTargetPath,
+      'Legacy reconciliation did not derive its initial owned generation',
+    )
+    const initialLease = randomUUID()
+    const claimed = await rpc(
+      supabase,
+      'claim_legacy_blueprint_classroom_storage_reconciliation',
+      {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_lease_token: initialLease,
+        p_lease_seconds: 60,
+      },
+    ) as { status: string } | null
+    assertFixture(claimed?.status === 'copying', 'Legacy reconciliation was not claimable')
+    dataOrThrow('upload reconciliation initial target', await supabase.storage
+      .from('test-documents').upload(initialTargetPath, sourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+    assertFixture(await rpc(
+      supabase,
+      'complete_legacy_blueprint_classroom_storage_reconciliation',
+      {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_lease_token: initialLease,
+        p_target_public_url: fixturePublicStorageUrl(
+          supabaseUrl,
+          'test-documents',
+          initialTargetPath,
+        ),
+        p_byte_size: sourceBytes.byteLength,
+        p_content_sha256: sourceSha256,
+      },
+    ) === true, 'Legacy reconciliation copy did not complete')
+    assertFixture(await rpc(
+      supabase,
+      'block_copied_legacy_blueprint_storage_reconciliation',
+      {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_error_code: 'legacy_blueprint_reconciliation_source_changed',
+      },
+    ) === true, 'Legacy reconciliation source drift was not blocked')
+
+    const blockedBeforeCleanup = await rpc(
+      supabase,
+      'plan_legacy_blueprint_classroom_storage_reconciliation',
+      planArgs,
+    ) as { status: string; last_error_code: string }
+    assertFixture(
+      blockedBeforeCleanup.status === 'blocked'
+      && blockedBeforeCleanup.last_error_code
+        === 'legacy_blueprint_reconciliation_source_changed',
+      'Blocked reconciliation replay became retryable before cleanup',
+    )
+    assertFixture(runSql(databaseUrl, `
+      select status from public.managed_storage_objects
+      where id = '${initialTargetObjectId}';
+    `) === 'cleanup_pending', 'Blocked replay changed the abandoned owner')
+
+    assertExactDueManagedCleanupQueue(
+      databaseUrl,
+      [initialTargetObjectId],
+      'Blocked reconciliation cleanup',
+    )
+    const cleanupLease = randomUUID()
+    const cleanupClaims = await rpc(supabase, 'claim_managed_storage_cleanup', {
+      p_lease_token: cleanupLease,
+      p_limit: 10,
+      p_lease_seconds: 60,
+    }) as Array<{ id: string; lease_token: string }>
+    assertExactManagedCleanupClaims(
+      cleanupClaims,
+      [initialTargetObjectId],
+      'Blocked reconciliation cleanup',
+    )
+    const cleanupClaim = cleanupClaims.find((candidate) => (
+      candidate.id === initialTargetObjectId
+    ))
+    assertFixture(cleanupClaim, 'Blocked reconciliation target was not cleanup-claimable')
+    dataOrThrow('remove blocked reconciliation target', await supabase.storage
+      .from('test-documents').remove([initialTargetPath]))
+    assertFixture(await rpc(supabase, 'complete_managed_storage_cleanup', {
+      p_object_id: initialTargetObjectId,
+      p_lease_token: cleanupClaim.lease_token,
+    }) === true, 'Blocked reconciliation target cleanup did not complete')
+
+    const blockedAfterCleanup = await rpc(
+      supabase,
+      'plan_legacy_blueprint_classroom_storage_reconciliation',
+      planArgs,
+    ) as { status: string }
+    assertFixture(
+      blockedAfterCleanup.status === 'blocked',
+      'Blocked reconciliation replay changed after cleanup',
+    )
+    assertFixture(Number(runSql(databaseUrl, `
+      select count(*) from public.managed_storage_objects
+      where id = '${initialTargetObjectId}';
+    `)) === 0, 'Blocked replay resurrected the retired managed owner')
+    assertFixture(Number(runSql(databaseUrl, `
+      select count(*) from public.managed_storage_retired_paths retired
+      where retired.storage_bucket = 'test-documents'
+        and retired.storage_path_sha256 = public.managed_storage_identity_sha256(
+          'test-documents', '${initialTargetPath}'
+        );
+    `)) === 1, 'Blocked target did not retain its permanent reservation')
+    await expectFailure(
+      'same-generation legacy recovery',
+      () => rpc(supabase, 'recover_blocked_legacy_blueprint_storage_reconciliation', {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_target_object_id: initialTargetObjectId,
+        p_verified_source_byte_size: sourceBytes.byteLength,
+        p_verified_source_sha256: sourceSha256,
+      }),
+      ['22023'],
+    )
+    assertFixture(await rpc(
+      supabase,
+      'recover_blocked_legacy_blueprint_storage_reconciliation',
+      {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_target_object_id: recoveredTargetObjectId,
+        p_verified_source_byte_size: sourceBytes.byteLength,
+        p_verified_source_sha256: sourceSha256,
+      },
+    ) === true, 'Fresh-generation legacy recovery failed')
+
+    dataOrThrow('upload recovered reconciliation target', await supabase.storage
+      .from('test-documents').upload(recoveredTargetPath, sourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+    const recoveredLease = randomUUID()
+    const recoveredClaim = await rpc(
+      supabase,
+      'claim_legacy_blueprint_classroom_storage_reconciliation',
+      {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_lease_token: recoveredLease,
+        p_lease_seconds: 60,
+      },
+    ) as { status: string } | null
+    assertFixture(recoveredClaim?.status === 'copying', 'Recovered reconciliation was not claimable')
+    assertFixture(await rpc(
+      supabase,
+      'complete_legacy_blueprint_classroom_storage_reconciliation',
+      {
+        p_reconciliation_id: reconciliationId,
+        p_teacher_id: input.teacherId,
+        p_lease_token: recoveredLease,
+        p_target_public_url: fixturePublicStorageUrl(
+          supabaseUrl,
+          'test-documents',
+          recoveredTargetPath,
+        ),
+        p_byte_size: sourceBytes.byteLength,
+        p_content_sha256: sourceSha256,
+      },
+    ) === true, 'Recovered reconciliation copy did not complete')
+    const adopted = await rpc(
+      supabase,
+      'adopt_legacy_blueprint_classroom_storage_reconciliation',
+      { p_reconciliation_id: reconciliationId, p_teacher_id: input.teacherId },
+    ) as { ok: boolean }
+    assertFixture(adopted.ok, 'Recovered reconciliation adoption failed')
+    const targetUpdatedAt = runSql(databaseUrl, `
+      select updated_at::text from storage.objects
+      where bucket_id = 'test-documents' and name = '${recoveredTargetPath}';
+    `)
+    const receiptReplay = await rpc(
+      supabase,
+      'plan_legacy_blueprint_classroom_storage_reconciliation',
+      planArgs,
+    ) as { status: string; target_object_id: string }
+    assertFixture(
+      receiptReplay.status === 'adopted'
+      && receiptReplay.target_object_id === recoveredTargetObjectId,
+      'Lost-response replay did not resolve through the terminal receipt',
+    )
+    assertFixture(runSql(databaseUrl, `
+      select updated_at::text from storage.objects
+      where bucket_id = 'test-documents' and name = '${recoveredTargetPath}';
+    `) === targetUpdatedAt, 'Receipt replay performed another Storage write')
+    const directAdoptReplay = await rpc(
+      supabase,
+      'adopt_legacy_blueprint_classroom_storage_reconciliation',
+      { p_reconciliation_id: reconciliationId, p_teacher_id: input.teacherId },
+    ) as { ok: boolean }
+    assertFixture(directAdoptReplay.ok, 'Direct adoption replay did not use the receipt')
+    await expectFailure(
+      'changed receipt plan',
+      () => rpc(supabase, 'plan_legacy_blueprint_classroom_storage_reconciliation', {
+        ...planArgs,
+        p_target_object_id: randomUUID(),
+      }),
+      ['23505'],
+    )
+    await expectFailure(
+      'wrong-teacher receipt plan',
+      () => rpc(supabase, 'plan_legacy_blueprint_classroom_storage_reconciliation', {
+        ...planArgs,
+        p_teacher_id: input.otherTeacherId,
+      }),
+      ['23505'],
+    )
+
+    const lockSourceBytes = new TextEncoder().encode('lock-order source')
+    const lockSourceSha256 = createHash('sha256').update(lockSourceBytes).digest('hex')
+    dataOrThrow('upload lock-order source', await supabase.storage.from('test-documents')
+      .upload(lockSourcePath, lockSourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+    dataOrThrow('insert lock-order target owner', await supabase
+      .from('managed_storage_objects').insert({
+        id: lockOldTargetObjectId,
+        storage_bucket: 'test-documents',
+        storage_path: lockOldTargetPath,
+        classroom_id: classroomId,
+        purpose: 'teacher_test_material',
+        status: 'pending_upload',
+        created_by_user_id: input.teacherId,
+        resource_type: 'test',
+        resource_id: testId,
+        content_type: 'application/pdf',
+      }))
+    dataOrThrow('upload lock-order target', await supabase.storage.from('test-documents')
+      .upload(lockOldTargetPath, lockSourceBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      }))
+    dataOrThrow('stage lock-order target cleanup', await supabase
+      .from('managed_storage_objects').update({
+        status: 'cleanup_pending',
+        upload_expires_at: null,
+        ready_at: null,
+        next_attempt_at: new Date().toISOString(),
+      }).eq('id', lockOldTargetObjectId))
+    dataOrThrow('insert lock-order reconciliation', await supabase
+      .from('legacy_blueprint_classroom_storage_reconciliations').insert({
+        id: lockReconciliationId,
+        teacher_id: input.teacherId,
+        blueprint_id: blueprintId,
+        classroom_id: classroomId,
+        source_object_id: lockSourceObjectId,
+        target_object_id: lockOldTargetObjectId,
+        source_storage_bucket: 'test-documents',
+        source_storage_path: lockSourcePath,
+        target_storage_bucket: 'test-documents',
+        target_storage_path: lockOldTargetPath,
+        classroom_documents: classroomDocuments,
+        mutable_blueprint_documents: [],
+        immutable_blueprint_evidence: [],
+        plan_sha256: 'd'.repeat(64),
+        status: 'blocked',
+        last_error_code: 'legacy_blueprint_reconciliation_source_changed',
+      }))
+    assertExactDueManagedCleanupQueue(
+      databaseUrl,
+      [lockOldTargetObjectId],
+      'Lock-order reconciliation cleanup',
+    )
+    const lockCleanupLease = randomUUID()
+    const lockClaims = await rpc(supabase, 'claim_managed_storage_cleanup', {
+      p_lease_token: lockCleanupLease,
+      p_limit: 10,
+      p_lease_seconds: 60,
+    }) as Array<{ id: string; lease_token: string }>
+    assertExactManagedCleanupClaims(
+      lockClaims,
+      [lockOldTargetObjectId],
+      'Lock-order reconciliation cleanup',
+    )
+    const lockClaim = lockClaims.find((candidate) => candidate.id === lockOldTargetObjectId)
+    assertFixture(lockClaim, 'Lock-order target was not cleanup-claimable')
+    dataOrThrow('remove lock-order target', await supabase.storage
+      .from('test-documents').remove([lockOldTargetPath]))
+    const holderName = `legacy_cleanup_holder_${input.fixtureId.slice(0, 8)}`
+    const recoveryName = `legacy_recovery_waiter_${input.fixtureId.slice(0, 8)}`
+    const holder = runSqlAsync(databaseUrl, `
+      begin;
+      set local application_name = '${holderName}';
+      select public.complete_managed_storage_cleanup(
+        '${lockOldTargetObjectId}', '${lockClaim.lease_token}'
+      );
+      select pg_sleep(2);
+      commit;
+    `)
+    const holderState = await waitForSqlSession(
+      databaseUrl,
+      holderName,
+      (state) => state.waitEvent === 'PgSleep',
+    )
+    const recovery = runSqlAsync(databaseUrl, `
+      begin;
+      set local application_name = '${recoveryName}';
+      select public.recover_blocked_legacy_blueprint_storage_reconciliation(
+        '${lockReconciliationId}', '${input.teacherId}', '${lockFreshTargetObjectId}',
+        ${lockSourceBytes.byteLength}, '${lockSourceSha256}'
+      );
+      commit;
+    `)
+    const recoveryState = await waitForSqlSession(
+      databaseUrl,
+      recoveryName,
+      (state) => state.blockingPids.includes(holderState.pid),
+    )
+    assertFixture(
+      recoveryState.blockingPids.includes(holderState.pid),
+      'Recovery did not serialize behind cleanup completion',
+    )
+    const [holderResult, recoveryResult] = await Promise.all([holder, recovery])
+    assertFixture(holderResult.includes('t'), 'Concurrent cleanup completion failed')
+    assertFixture(recoveryResult.includes('t'), 'Concurrent recovery failed after cleanup commit')
+    assertFixture(runSql(databaseUrl, `
+      select status || ':' || target_object_id::text
+      from public.legacy_blueprint_classroom_storage_reconciliations
+      where id = '${lockReconciliationId}';
+    `) === `planned:${lockFreshTargetObjectId}`,
+    'Concurrent recovery did not reserve the fresh generation')
+
+    await cleanupManagedFixtureObject({
+      supabase,
+      databaseUrl,
+      objectId: sourceObjectId,
+      bucket: 'test-documents',
+      path: sourcePath,
+    })
+    await cleanupManagedFixtureObject({
+      supabase,
+      databaseUrl,
+      objectId: recoveredTargetObjectId,
+      bucket: 'test-documents',
+      path: recoveredTargetPath,
+    })
+    await cleanupManagedFixtureObject({
+      supabase,
+      databaseUrl,
+      objectId: lockFreshTargetObjectId,
+      bucket: 'test-documents',
+      path: lockFreshTargetPath,
+    })
+    dataOrThrow('remove lock-order raw source', await supabase.storage
+      .from('test-documents').remove([lockSourcePath]))
+    runSql(databaseUrl, `
+      delete from public.legacy_blueprint_classroom_storage_reconciliations
+      where id = '${lockReconciliationId}';
+      delete from public.classrooms where id = '${classroomId}';
+      delete from public.course_blueprints where id = '${blueprintId}';
+    `)
+    assertFixture(Number(runSql(databaseUrl, `
+      select count(*)
+      from public.legacy_blueprint_storage_reconciliation_receipts
+      where id = '${reconciliationId}';
+    `)) === 1, 'Lifecycle deletion removed or was blocked by the terminal receipt')
+    runSql(databaseUrl, `
+      delete from public.legacy_blueprint_storage_reconciliation_receipts
+      where id = '${reconciliationId}';
+    `)
+  } finally {
+    try {
+      runSql(databaseUrl, `
+        begin;
+        delete from public.legacy_blueprint_classroom_storage_reconciliations
+        where id in ('${reconciliationId}', '${lockReconciliationId}');
+        delete from public.legacy_blueprint_storage_reconciliation_receipts
+        where id = '${reconciliationId}';
+        delete from public.managed_storage_objects
+        where id in (
+          '${sourceObjectId}', '${initialTargetObjectId}', '${recoveredTargetObjectId}',
+          '${lockOldTargetObjectId}', '${lockFreshTargetObjectId}'
+        );
+        delete from public.classrooms where id = '${classroomId}';
+        delete from public.course_blueprints where id = '${blueprintId}';
+        commit;
+      `)
+      for (const path of paths) {
+        await supabase.storage.from('test-documents').remove([path])
+      }
+    } catch {
+      process.stderr.write(
+        `Reconciliation replay fixture cleanup failed for ${input.fixtureId}.\n`,
+      )
+    }
+  }
+}
+
 async function main() {
   const { supabaseUrl, databaseUrl } = requireLocalFixtureEnvironment()
   const supabase = getServiceRoleClient()
@@ -331,6 +1154,21 @@ async function main() {
       email: `purge-fixture-${suffix}@example.invalid`,
       role: 'teacher',
     }))
+
+    await assertLegacyReconciliationReplayBoundaries({
+      supabase,
+      supabaseUrl,
+      databaseUrl,
+      fixtureId,
+      teacherId: teacher.id,
+      otherTeacherId,
+    })
+    await assertCourseBlueprintRecoveryCleanupSerialization({
+      supabase,
+      databaseUrl,
+      fixtureId,
+      teacherId: teacher.id,
+    })
 
     dataOrThrow('insert fixture Blueprint', await supabase.from('course_blueprints').insert({
       id: blueprintId,
@@ -412,6 +1250,16 @@ async function main() {
       createdStorageObjects.push(object)
       await adoptManagedStorageUpload({ supabase, objectId: object.id })
     }
+
+    expectSqlFailure(
+      'ready managed generation overwrite',
+      databaseUrl,
+      `update storage.objects
+       set metadata = coalesce(metadata, '{}'::jsonb) || '{"fixture":"overwrite"}'::jsonb
+       where bucket_id = '${managedObjects[0].bucket}'
+         and name = '${managedObjects[0].path}';`,
+      'managed_storage_write_not_allowed',
+    )
 
     // Exercise generic cleanup independently: concurrent claims are exclusive,
     // a failed lease is retryable, and completion removes both bytes and ownership.
@@ -669,6 +1517,15 @@ async function main() {
     let status = await startClassroomPurge({
       teacherId: teacher.id, classroomId, operationId: purgeOperationId, confirmation: 'DELETE',
     })
+    expectSqlFailure(
+      'purging managed generation move',
+      databaseUrl,
+      `update storage.objects
+       set name = name || '-moved'
+       where bucket_id = '${managedObjects[0].bucket}'
+         and name = '${managedObjects[0].path}';`,
+      'managed_storage_identity_immutable',
+    )
     await expectFailure(
       'other teacher purge claim',
       () => tickClassroomPurge(otherTeacherId, purgeOperationId),

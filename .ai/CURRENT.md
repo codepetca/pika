@@ -1,9 +1,8 @@
-Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. Migration 117 is installed on local Supabase,
-the local readiness/backfill flow is clean, and the guarded destructive fixture
-proves exact database and Storage deletion while preserving Blueprint files and
-user accounts. Generated types match the local 001–117 schema. Every persistent
-rollout gate remains disabled, and production remains through 116.
+Focus: draft PR #963 redesigns hot archived classroom deletion around explicit
+managed-file ownership. Migration 117 now uses immutable UUID generations,
+write-once ready objects, database-derived legacy targets, terminal recovery, and
+durable adoption receipts. Local DB still has the prior 117; replay and database
+verification require fresh named authorization. Rollout is disabled; prod is at 116.
 
 ## Current Context
 

@@ -5,6 +5,11 @@ const migration = readFileSync(
   'supabase/migrations/117_hot_archived_classroom_purge_review_hardening.sql',
   'utf8',
 )
+const generatedTypes = readFileSync('src/types/database.generated.ts', 'utf8')
+const databaseFixture = readFileSync(
+  'scripts/check-hot-archived-classroom-purge-database.ts',
+  'utf8',
+)
 const scopedArchiveMaintenanceMigration = readFileSync(
   'supabase/migrations/095_scope_classroom_archive_restore_context.sql',
   'utf8',
@@ -22,6 +27,8 @@ describe('explicit managed-file ownership migration', () => {
     expect(migration).toContain('unique (storage_bucket, storage_path)')
     expect(migration).toContain('created_by_user_id uuid references public.users (id) on delete set null')
     expect(migration).toContain('data_subject_user_id uuid references public.users (id) on delete set null')
+    expect(migration).toContain('create table public.managed_storage_retired_paths')
+    expect(migration).toContain('create trigger retire_managed_storage_path')
   })
 
   it('keeps rollout and purge disabled when the migration is merely installed', () => {
@@ -66,33 +73,45 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
-  it('reserves mismatch cleanup before removal and retries only after authoritative absence', () => {
-    const failureStart = migration.indexOf(
-      'create or replace function public.fail_course_blueprint_storage_copy(',
+  it('owns immutable copy generations before upload and rotates mismatches without path reuse', () => {
+    const planningStart = migration.indexOf(
+      'create or replace function public.plan_course_blueprint_storage_copies()',
     )
-    const failureEnd = migration.indexOf('$$;', failureStart)
-    const failure = migration.slice(failureStart, failureEnd)
+    const planningEnd = migration.indexOf('$$;', planningStart)
+    const planning = migration.slice(planningStart, planningEnd)
+    expect(planning).toContain('insert into public.managed_storage_objects (')
+    expect(planning).toContain("item.purpose, 'pending_upload', new.teacher_id")
+    expect(planning).toContain('blueprint_storage_copy_target_owner_mismatch')
 
-    const cleanupReservation = failure.indexOf(
-      "p_error_code = 'blueprint_storage_copy_cleanup_started'",
+    const rotationStart = migration.indexOf(
+      'create or replace function public.rotate_course_blueprint_storage_copy_target(',
     )
-    const cleanupCompletion = failure.indexOf(
-      "p_error_code = 'blueprint_storage_copy_target_removed'",
+    const rotationEnd = migration.indexOf('$$;', rotationStart)
+    const rotation = migration.slice(rotationStart, rotationEnd)
+    expect(rotation).toContain('item.lease_expires_at > clock_timestamp()')
+    expect(rotation).toContain("object.status = 'pending_upload'")
+    expect(rotation).toContain("status = 'cleanup_pending'")
+    expect(rotation).toContain('insert into public.managed_storage_objects (')
+    expect(rotation).toContain('target_object_id = p_target_object_id')
+    expect(rotation).toContain('target_storage_path = v_target_storage_path')
+    expect(rotation).toContain('from storage.objects object')
+    expect(rotation).toContain('blueprint_storage_copy_target_reserved')
+
+    const completionStart = migration.indexOf(
+      'create or replace function public.complete_course_blueprint_storage_copy(',
     )
-    expect(cleanupReservation).toBeGreaterThanOrEqual(0)
-    expect(cleanupCompletion).toBeGreaterThan(cleanupReservation)
-    expect(failure).toContain('item.lease_expires_at > clock_timestamp()')
-    expect(failure).toContain("last_error_code = 'blueprint_storage_copy_cleanup_processing'")
-    expect(failure).toContain('public.managed_storage_exact_lock(')
-    expect(failure).toContain('select 1 from storage.objects object')
-    expect(failure).toContain("raise exception 'blueprint_storage_copy_target_still_present'")
-    expect(failure).toContain("last_error_code = 'blueprint_storage_copy_cleanup_failed'")
+    const completionEnd = migration.indexOf('$$;', completionStart)
+    const completion = migration.slice(completionStart, completionEnd)
+    expect(completion).toContain("object.status = 'pending_upload'")
+    expect(completion).toContain("status = 'ready'")
+    expect(completion).toContain('blueprint_storage_copy_target_missing')
 
     const adoptionStart = migration.indexOf(
       'create or replace function public.adopt_course_blueprint_storage_copies(',
     )
     const adoptionEnd = migration.indexOf('$$;', adoptionStart)
     const adoption = migration.slice(adoptionStart, adoptionEnd)
+    expect(adoption).toContain("object.status = 'ready'")
     expect(adoption).toContain('public.managed_storage_exact_lock(')
     expect(adoption).toContain('from storage.objects object')
     expect(adoption).toContain("raise exception 'blueprint_storage_copy_target_missing'")
@@ -102,13 +121,14 @@ describe('explicit managed-file ownership migration', () => {
     )
     const storageGuardEnd = migration.indexOf('$$;', storageGuardStart)
     const storageGuard = migration.slice(storageGuardStart, storageGuardEnd)
-    expect(storageGuard).toContain(
-      "copy.last_error_code like 'blueprint_storage_copy_cleanup_%'",
-    )
-    expect(storageGuard).toContain(
-      "reconciliation.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'",
-    )
-    expect(storageGuard).toContain("raise exception 'managed_storage_write_not_allowed'")
+    expect(storageGuard).not.toContain('course_blueprint_storage_copy_items')
+    expect(storageGuard).not.toContain('legacy_blueprint_classroom_storage_reconciliations')
+    expect(storageGuard).toContain("v_object.status <> 'pending_upload'")
+    expect(storageGuard).toContain("tg_op = 'UPDATE'")
+    expect(storageGuard).toContain('old.bucket_id is distinct from new.bucket_id')
+    expect(storageGuard).toContain('old.name is distinct from new.name')
+    expect(storageGuard).toContain("raise exception 'managed_storage_identity_immutable'")
+    expect(storageGuard).toContain('from public.managed_storage_retired_paths retired')
   })
 
   it('moves a verified legacy Classroom source to Blueprint ownership without mutating Versions', () => {
@@ -117,8 +137,18 @@ describe('explicit managed-file ownership migration', () => {
     )
     const reconciliationEnd = migration.indexOf('$$;', reconciliationStart)
     const reconciliation = migration.slice(reconciliationStart, reconciliationEnd)
+    const receiptStart = migration.indexOf(
+      'create table public.legacy_blueprint_storage_reconciliation_receipts',
+    )
+    const receiptEnd = migration.indexOf(');', receiptStart)
+    const receipt = migration.slice(receiptStart, receiptEnd)
 
     expect(migration).toContain('create table public.legacy_blueprint_classroom_storage_reconciliations')
+    expect(migration).toContain('create table public.legacy_blueprint_storage_reconciliation_receipts')
+    expect(migration).toContain('plan_sha256 text not null')
+    expect(receipt).not.toContain('references public.')
+    expect(receipt).not.toContain('storage_path')
+    expect(receipt).not.toContain('documents')
     expect(reconciliation).toContain("status <> 'copied'")
     expect(reconciliation).toContain(
       'public.managed_storage_exact_lock(v_row.target_storage_bucket, v_row.target_storage_path)',
@@ -139,20 +169,144 @@ describe('explicit managed-file ownership migration', () => {
     expect(reconciliation).toContain(
       'delete from public.legacy_blueprint_classroom_storage_reconciliations',
     )
+    expect(reconciliation).toContain(
+      'insert into public.legacy_blueprint_storage_reconciliation_receipts',
+    )
+    expect(reconciliation).toContain(
+      "'legacy-blueprint-storage-reconciliation:' || p_reconciliation_id::text",
+    )
+    expect(reconciliation.indexOf(
+      'insert into public.legacy_blueprint_storage_reconciliation_receipts',
+    )).toBeLessThan(reconciliation.indexOf(
+      'delete from public.legacy_blueprint_classroom_storage_reconciliations',
+    ))
     expect(migration).toContain('where reconciliation.classroom_id = old.id')
     expect(migration).toContain('where reconciliation.blueprint_id = p_blueprint_id')
 
-    const failureStart = migration.indexOf(
-      'create or replace function public.fail_legacy_blueprint_classroom_storage_reconciliation(',
+    const planningStart = migration.indexOf(
+      'create or replace function public.plan_legacy_blueprint_classroom_storage_reconciliation(',
     )
-    const failureEnd = migration.indexOf('$$;', failureStart)
-    const failure = migration.slice(failureStart, failureEnd)
-    expect(failure).toContain("p_error_code = 'legacy_blueprint_reconciliation_cleanup_started'")
-    expect(failure).toContain(
-      "last_error_code = 'legacy_blueprint_reconciliation_cleanup_processing'",
+    const planningEnd = migration.indexOf('$$;', planningStart)
+    const planning = migration.slice(planningStart, planningEnd)
+    expect(planning).toContain('insert into public.managed_storage_objects (')
+    expect(planning).toContain("'teacher_test_material', 'pending_upload'")
+    expect(planning).toContain("'/tests/legacy-blueprint-reconciliation/' || p_target_object_id::text")
+    expect(planning).toContain('from public.managed_storage_retired_paths retired')
+    expect(planning).toContain('from public.classroom_purge_objects purge_object')
+    expect(planning).toContain('from storage.objects object')
+    expect(planning).toContain("v_row.status = 'blocked'")
+    expect(planning).toContain('v_row.plan_sha256 <> v_plan_sha256')
+    expect(planning).toContain('from public.legacy_blueprint_storage_reconciliation_receipts receipt')
+    expect(planning).toContain('v_receipt.plan_sha256 <> v_plan_sha256')
+    expect(planning).toContain("v_row.status := 'adopted'")
+    expect(planning).toMatch(
+      /if not v_existing then[\s\S]*insert into public\.managed_storage_objects/,
     )
-    expect(failure).toContain("p_error_code = 'legacy_blueprint_reconciliation_target_removed'")
-    expect(failure).toContain("raise exception 'legacy_blueprint_reconciliation_target_still_present'")
+    expect(planning.indexOf("if v_existing and v_row.status = 'blocked' then"))
+      .toBeLessThan(planning.indexOf('insert into public.managed_storage_objects ('))
+    expect(planning).not.toContain('p_target_storage_path')
+    expect(planning).not.toContain('p_target_storage_bucket')
+
+    const rotationStart = migration.indexOf(
+      'create or replace function public.rotate_legacy_blueprint_classroom_storage_reconciliation_target(',
+    )
+    const rotationEnd = migration.indexOf('$$;', rotationStart)
+    const rotation = migration.slice(rotationStart, rotationEnd)
+    expect(rotation).toContain("status = 'cleanup_pending'")
+    expect(rotation).toContain('insert into public.managed_storage_objects (')
+    expect(rotation).toContain('target_object_id = p_target_object_id')
+    expect(rotation).toContain('from storage.objects object')
+    expect(rotation).toContain('legacy_blueprint_reconciliation_target_reserved')
+  })
+
+  it('keeps legacy reconciliation RPC types and executable replay coverage in sync', () => {
+    const rpcStart = generatedTypes.indexOf(
+      'plan_legacy_blueprint_classroom_storage_reconciliation: {',
+    )
+    const rpcEnd = generatedTypes.indexOf('\n      prepare_', rpcStart)
+    const rpc = generatedTypes.slice(rpcStart, rpcEnd)
+    expect(rpc).toContain('plan_sha256: string')
+    expect(generatedTypes.indexOf(
+      'block_copied_legacy_blueprint_storage_reconciliation: {',
+    )).toBeLessThan(generatedTypes.indexOf('claim_assignment_ai_grading_run: {'))
+    expect(generatedTypes.indexOf(
+      'recover_blocked_legacy_blueprint_storage_reconciliation: {',
+    )).toBeLessThan(generatedTypes.indexOf(
+      'rotate_course_blueprint_storage_copy_target: {',
+    ))
+
+    expect(databaseFixture).toContain('assertLegacyReconciliationReplayBoundaries')
+    expect(databaseFixture).toContain('assertExactDueManagedCleanupQueue')
+    expect(databaseFixture).toContain('assertExactManagedCleanupClaims')
+    expect(databaseFixture).not.toContain('p_limit: 100')
+    expect(databaseFixture).toContain('Blocked replay resurrected the retired managed owner')
+    expect(databaseFixture).toContain(
+      'Lost-response replay did not resolve through the terminal receipt',
+    )
+    expect(databaseFixture).toContain('wrong-teacher receipt plan')
+    expect(databaseFixture).toContain('Direct adoption replay did not use the receipt')
+    expect(databaseFixture).toContain('Recovery did not serialize behind cleanup completion')
+    expect(databaseFixture).toContain(
+      'Course Blueprint recovery did not serialize behind cleanup completion',
+    )
+    expect(databaseFixture).toContain(
+      'Lifecycle deletion removed or was blocked by the terminal receipt',
+    )
+  })
+
+  it('separates terminal copy failures from retries and requires verified operator recovery', () => {
+    const courseFailureStart = migration.indexOf(
+      'create or replace function public.fail_course_blueprint_storage_copy(',
+    )
+    const courseFailureEnd = migration.indexOf('$$;', courseFailureStart)
+    const courseFailure = migration.slice(courseFailureStart, courseFailureEnd)
+    const courseRecoveryStart = migration.indexOf(
+      'create or replace function public.recover_blocked_course_blueprint_storage_copy(',
+    )
+    const courseRecoveryEnd = migration.indexOf('$$;', courseRecoveryStart)
+    const courseRecovery = migration.slice(courseRecoveryStart, courseRecoveryEnd)
+    const legacyRecoveryStart = migration.indexOf(
+      'create or replace function public.recover_blocked_legacy_blueprint_storage_reconciliation(',
+    )
+    const legacyRecoveryEnd = migration.indexOf('$$;', legacyRecoveryStart)
+    const legacyRecovery = migration.slice(legacyRecoveryStart, legacyRecoveryEnd)
+    const legacyBlockStart = migration.indexOf(
+      'create or replace function public.block_copied_legacy_blueprint_storage_reconciliation(',
+    )
+    const legacyBlockEnd = migration.indexOf('$$;', legacyBlockStart)
+    const legacyBlock = migration.slice(legacyBlockStart, legacyBlockEnd)
+
+    expect(migration).toContain("'not_required', 'copying', 'completed', 'failed', 'blocked'")
+    expect(courseFailure).toContain("case when p_retryable then 'failed' else 'blocked' end")
+    expect(courseFailure).toContain("status = 'cleanup_pending'")
+    expect(courseRecovery).toContain("operation.storage_copy_status = 'blocked'")
+    expect(courseRecovery).toContain("item.last_error_code = 'blueprint_storage_copy_source_changed'")
+    expect(courseRecovery).toContain('source.byte_size = p_verified_source_byte_size')
+    expect(courseRecovery).toContain('source.content_sha256 = p_verified_source_sha256')
+    expect(courseRecovery).toContain('from public.managed_storage_retired_paths retired')
+    expect(courseRecovery).toContain('v_target_owner public.managed_storage_objects')
+    expect(courseRecovery).toContain('v_target_owner_found boolean := false')
+    expect(courseRecovery).toContain("'cleanup_pending', 'cleanup_processing'")
+    expect(courseRecovery.indexOf('select target.* into v_target_owner'))
+      .toBeLessThan(courseRecovery.indexOf(
+        'perform public.managed_storage_exact_lock(\n    v_item.target_storage_bucket',
+      ))
+    expect(courseRecovery).toContain("status = 'planned'")
+    expect(legacyRecovery).toContain("row.status = 'blocked'")
+    expect(legacyRecovery).toContain('p_verified_source_byte_size')
+    expect(legacyRecovery).toContain('p_verified_source_sha256')
+    expect(legacyRecovery).toContain('from public.managed_storage_retired_paths retired')
+    expect(legacyRecovery).toContain("status = 'cleanup_pending'")
+    expect(legacyRecovery).toContain("'cleanup_pending', 'cleanup_processing'")
+    expect(legacyRecovery.indexOf('select object.* into v_target_owner'))
+      .toBeLessThan(legacyRecovery.indexOf(
+        'perform public.managed_storage_exact_lock(\n    v_row.target_storage_bucket',
+      ))
+    expect(legacyBlock).toContain("status = 'cleanup_pending'")
+    expect(legacyBlock).toContain('returning row.target_object_id into v_target_object_id')
+    expect(migration).toContain(
+      'create or replace function public.block_copied_legacy_blueprint_storage_reconciliation(',
+    )
   })
 
   it('atomically registers an unshared Blueprint source while treating Versions as read-only evidence', () => {

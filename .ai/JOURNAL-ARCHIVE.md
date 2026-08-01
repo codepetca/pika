@@ -16075,3 +16075,88 @@ future persistence shape without enabling unapproved schema behavior.
 - Push the remediation, run the final authorized targeted review, and require
   exact-head CI before merging PR 927.
 - Migration 105 remains unapplied to every hosted target.
+
+<!-- pika-session-log-archive-batch:fa9b477fbb4d72bf57c62198f8d0a7435cfcc0f15f0c5ee7c8656a2b8231ce09 -->
+## 2026-07-23 — Froze archive restore ordering
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Derived the inactive v2 restore order from the frozen topological v1 order
+  with Quiz resources removed, then appended the retired-assessment record and
+  actor resources parent-first.
+- Removed the final live classroom-graph dependency from v1 compaction
+  preflight staging.
+- Added regressions for every declared v2 parent-before-child dependency and
+  the actual non-empty v1 compaction staging sequence.
+
+**Validation:**
+- Focused archive contract, restore, and compaction tests pass.
+- TypeScript and lint pass.
+- Local compaction database harness and full archive recovery drill pass.
+
+**Remaining:**
+- Publish, independently review, and require exact-head CI before merge.
+- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
+
+<!-- pika-session-log-archive-batch:78a5208891a0fe74f6cdaca3187affd631a679a7c7f9105d859abffa7504df62 -->
+## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
+  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
+  parent/child `NOWAIT` locks roll back immediately on live conflicts.
+- Added deterministic SQL envelope IDs and canonical payload checksums matching
+  the TypeScript adapter, parent and actor preflights, collision checks, and an
+  aggregate-only five-resource parity ledger.
+- Kept every source row intact for the observation window and added no
+  dual-write or active Test-table mapping.
+- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
+  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
+- Documented that migration 106 cannot be hosted until direct v2 snapshots,
+  version-aware compaction, and v1-to-v2 restore dispatch are current.
+
+**Validation:**
+- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
+  `git diff --check` pass.
+- Migration 106 was not applied to the shared local database or a hosted
+  target; its executable rehearsal is reserved for disposable PR CI.
+
+**Remaining:**
+- Run repository checks, independent review, and exact-head CI before merge.
+- Next pass: implement the version-aware archive runtime required before
+  migration 106 can receive target-specific application approval.
+
+<!-- pika-session-log-archive-batch:d4f6cbe9e4b17fbe0086afe4435ba980bba9079c54121ff0d9b6a602989b648b -->
+## 2026-07-23 — Activated direct archive-v2 runtime
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Recorded the maintainer decision that experimental Quiz rows, drafts,
+  envelopes, and Quiz portions of v1 artifacts are disposable.
+- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
+  drafts to Tests, promote the live archive registry to v2, and capture source
+  contract 2 directly.
+- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
+  fallback. V1 restore now discards Quiz resources while retaining other
+  classroom content.
+- Extended disposable replay through migrations 106-107 and proved direct
+  source counts, snapshot membership, upload intent, and finalization.
+- Review remediation now purges the frozen Quiz source rows, fences retryable
+  operations, and makes compaction use migration-107-specific v2 RPCs. V1
+  archives must be re-exported before compaction.
+
+**Validation:**
+- Focused archive coordinator tests and TypeScript pass.
+- The disposable freeze/backfill/direct-source database harness passes.
+- Current-export and atomic-compaction database harnesses pass against the
+  disposable post-107 schema, including a complete v2 cold transition.
+- No shared local or hosted migration was applied.
+
+**Remaining:**
+- Complete repository validation, independent review, exact-head CI, and merge.
+- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
+  remaining active compatibility types and payload fields.
