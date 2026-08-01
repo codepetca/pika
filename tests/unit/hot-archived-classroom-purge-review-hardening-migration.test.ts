@@ -66,20 +66,49 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
-  it('retries a mismatched Blueprint target only after authoritative absence', () => {
+  it('reserves mismatch cleanup before removal and retries only after authoritative absence', () => {
     const failureStart = migration.indexOf(
       'create or replace function public.fail_course_blueprint_storage_copy(',
     )
     const failureEnd = migration.indexOf('$$;', failureStart)
     const failure = migration.slice(failureStart, failureEnd)
 
-    expect(failure).toContain("p_error_code = 'blueprint_storage_copy_target_removed'")
+    const cleanupReservation = failure.indexOf(
+      "p_error_code = 'blueprint_storage_copy_cleanup_started'",
+    )
+    const cleanupCompletion = failure.indexOf(
+      "p_error_code = 'blueprint_storage_copy_target_removed'",
+    )
+    expect(cleanupReservation).toBeGreaterThanOrEqual(0)
+    expect(cleanupCompletion).toBeGreaterThan(cleanupReservation)
+    expect(failure).toContain('item.lease_expires_at > clock_timestamp()')
+    expect(failure).toContain("last_error_code = 'blueprint_storage_copy_cleanup_processing'")
     expect(failure).toContain('public.managed_storage_exact_lock(')
     expect(failure).toContain('select 1 from storage.objects object')
     expect(failure).toContain("raise exception 'blueprint_storage_copy_target_still_present'")
-    expect(failure).toMatch(
-      /when p_error_code = 'blueprint_storage_copy_target_removed'\s+then clock_timestamp\(\)/,
+    expect(failure).toContain("last_error_code = 'blueprint_storage_copy_cleanup_failed'")
+
+    const adoptionStart = migration.indexOf(
+      'create or replace function public.adopt_course_blueprint_storage_copies(',
     )
+    const adoptionEnd = migration.indexOf('$$;', adoptionStart)
+    const adoption = migration.slice(adoptionStart, adoptionEnd)
+    expect(adoption).toContain('public.managed_storage_exact_lock(')
+    expect(adoption).toContain('from storage.objects object')
+    expect(adoption).toContain("raise exception 'blueprint_storage_copy_target_missing'")
+
+    const storageGuardStart = migration.indexOf(
+      'create or replace function public.enforce_managed_storage_object_ownership()',
+    )
+    const storageGuardEnd = migration.indexOf('$$;', storageGuardStart)
+    const storageGuard = migration.slice(storageGuardStart, storageGuardEnd)
+    expect(storageGuard).toContain(
+      "copy.last_error_code like 'blueprint_storage_copy_cleanup_%'",
+    )
+    expect(storageGuard).toContain(
+      "reconciliation.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'",
+    )
+    expect(storageGuard).toContain("raise exception 'managed_storage_write_not_allowed'")
   })
 
   it('moves a verified legacy Classroom source to Blueprint ownership without mutating Versions', () => {
@@ -91,6 +120,9 @@ describe('explicit managed-file ownership migration', () => {
 
     expect(migration).toContain('create table public.legacy_blueprint_classroom_storage_reconciliations')
     expect(reconciliation).toContain("status <> 'copied'")
+    expect(reconciliation).toContain(
+      'public.managed_storage_exact_lock(v_row.target_storage_bucket, v_row.target_storage_path)',
+    )
     expect(reconciliation).toContain("classroom_id = null, course_blueprint_id = v_row.blueprint_id")
     expect(reconciliation).toContain('public.managed_storage_objects.id = v_row.source_object_id')
     expect(reconciliation).toContain('public.managed_storage_objects.classroom_id = v_row.classroom_id')
@@ -109,6 +141,18 @@ describe('explicit managed-file ownership migration', () => {
     )
     expect(migration).toContain('where reconciliation.classroom_id = old.id')
     expect(migration).toContain('where reconciliation.blueprint_id = p_blueprint_id')
+
+    const failureStart = migration.indexOf(
+      'create or replace function public.fail_legacy_blueprint_classroom_storage_reconciliation(',
+    )
+    const failureEnd = migration.indexOf('$$;', failureStart)
+    const failure = migration.slice(failureStart, failureEnd)
+    expect(failure).toContain("p_error_code = 'legacy_blueprint_reconciliation_cleanup_started'")
+    expect(failure).toContain(
+      "last_error_code = 'legacy_blueprint_reconciliation_cleanup_processing'",
+    )
+    expect(failure).toContain("p_error_code = 'legacy_blueprint_reconciliation_target_removed'")
+    expect(failure).toContain("raise exception 'legacy_blueprint_reconciliation_target_still_present'")
   })
 
   it('atomically registers an unshared Blueprint source while treating Versions as read-only evidence', () => {

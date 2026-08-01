@@ -16,6 +16,7 @@ const item = {
   content_type: 'application/pdf',
   expected_byte_size: 4,
   expected_sha256: '9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a',
+  last_error_code: null,
 }
 
 function createClient(options: {
@@ -23,11 +24,15 @@ function createClient(options: {
   uploadError?: boolean
   removeError?: unknown
   targetResetResult?: boolean
+  cleanupReservationResult?: boolean
+  cleanupClaimFirst?: boolean
+  replacementWinsBeforeCleanupReservation?: boolean
 } = {}) {
   const sourceBytes = new Uint8Array([1, 2, 3, 4])
   let targetBytes = options.targetBytes
     ?? (options.uploadError ? sourceBytes : null)
   let copyCompleted = false
+  let cleanupClaimed = false
   const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === 'adopt_course_blueprint_storage_copies') {
       return !copyCompleted
@@ -35,6 +40,16 @@ function createClient(options: {
         : { data: { ok: true }, error: null }
     }
     if (name === 'claim_course_blueprint_storage_copy') {
+      if (options.cleanupClaimFirst && !cleanupClaimed) {
+        cleanupClaimed = true
+        return {
+          data: [{
+            ...item,
+            last_error_code: 'blueprint_storage_copy_cleanup_processing',
+          }],
+          error: null,
+        }
+      }
       return { data: copyCompleted ? [] : [item], error: null }
     }
     if (name === 'complete_course_blueprint_storage_copy') {
@@ -42,6 +57,14 @@ function createClient(options: {
       return { data: true, error: null }
     }
     if (name === 'fail_course_blueprint_storage_copy') {
+      if (args?.p_error_code === 'blueprint_storage_copy_cleanup_started') {
+        if (options.replacementWinsBeforeCleanupReservation) {
+          targetBytes = new Uint8Array(sourceBytes)
+          copyCompleted = true
+          return { data: false, error: null }
+        }
+        return { data: options.cleanupReservationResult ?? true, error: null }
+      }
       if (args?.p_error_code === 'blueprint_storage_copy_target_removed') {
         return { data: options.targetResetResult ?? true, error: null }
       }
@@ -84,7 +107,7 @@ function createClient(options: {
       },
     },
   }
-  return { client, rpc, upload, remove }
+  return { client, rpc, upload, remove, getTargetBytes: () => targetBytes }
 }
 
 describe('Course Blueprint managed storage copies', () => {
@@ -132,9 +155,15 @@ describe('Course Blueprint managed storage copies', () => {
     expect(rpc).toHaveBeenCalledWith(
       'fail_course_blueprint_storage_copy',
       expect.objectContaining({
-        p_error_code: 'blueprint_storage_copy_target_removed',
+        p_error_code: 'blueprint_storage_copy_cleanup_started',
       }),
     )
+    const reservationCall = rpc.mock.invocationCallOrder[
+      rpc.mock.calls.findIndex(([, args]) => (
+        args as Record<string, unknown> | undefined
+      )?.p_error_code === 'blueprint_storage_copy_cleanup_started')
+    ]
+    expect(reservationCall).toBeLessThan(remove.mock.invocationCallOrder[0])
     expect(upload).toHaveBeenCalledTimes(2)
     expect(rpc).toHaveBeenCalledWith(
       'complete_course_blueprint_storage_copy',
@@ -178,5 +207,53 @@ describe('Course Blueprint managed storage copies', () => {
       code: 'blueprint_storage_copy_cleanup_lease_lost',
       retryable: true,
     })
+  })
+
+  it('never removes a target when the copy lease is lost before cleanup reservation', async () => {
+    const { client, remove } = createClient({
+      targetBytes: new Uint8Array([9, 9, 9, 9]),
+      cleanupReservationResult: false,
+    })
+
+    await expect(resumeCourseBlueprintStorageCopies({
+      operationId,
+      teacherId,
+      supabase: client,
+    })).rejects.toMatchObject({
+      code: 'blueprint_storage_copy_cleanup_lease_lost',
+      retryable: true,
+    })
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('cannot remove a replacement worker target after its stale lease expires', async () => {
+    const { client, remove, getTargetBytes } = createClient({
+      targetBytes: new Uint8Array([9, 9, 9, 9]),
+      replacementWinsBeforeCleanupReservation: true,
+    })
+
+    await expect(resumeCourseBlueprintStorageCopies({
+      operationId,
+      teacherId,
+      supabase: client,
+    })).rejects.toMatchObject({
+      code: 'blueprint_storage_copy_cleanup_lease_lost',
+    })
+
+    expect(remove).not.toHaveBeenCalled()
+    expect(getTargetBytes()).toEqual(new Uint8Array([1, 2, 3, 4]))
+  })
+
+  it('reclaims an expired cleanup lease without uploading before exact absence', async () => {
+    const { client, remove, upload } = createClient({
+      targetBytes: new Uint8Array([9, 9, 9, 9]),
+      cleanupClaimFirst: true,
+    })
+
+    await resumeCourseBlueprintStorageCopies({ operationId, teacherId, supabase: client })
+
+    expect(remove).toHaveBeenCalledWith([item.target_storage_path])
+    expect(upload).toHaveBeenCalledTimes(1)
+    expect(remove.mock.invocationCallOrder[0]).toBeLessThan(upload.mock.invocationCallOrder[0])
   })
 })

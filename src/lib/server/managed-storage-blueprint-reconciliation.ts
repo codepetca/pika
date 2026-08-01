@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 
 const reconciliationSchema = z.object({
   id: z.string().uuid(),
@@ -13,6 +14,7 @@ const reconciliationSchema = z.object({
   content_type: z.string().nullable(),
   expected_byte_size: z.coerce.number().int().nonnegative().nullable(),
   expected_sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  last_error_code: z.string().nullable(),
 }).passthrough()
 
 type Reconciliation = z.infer<typeof reconciliationSchema>
@@ -22,6 +24,7 @@ type StorageBucket = {
   upload(path: string, body: Uint8Array, options: { contentType: string; upsert: boolean }): Promise<{
     error: { message?: string } | null
   }>
+  remove(paths: string[]): Promise<{ error: unknown }>
   getPublicUrl(path: string): { data: { publicUrl: string } }
 }
 
@@ -65,6 +68,12 @@ function failure(error: { code?: string; message?: string } | null, code: string
   )
 }
 
+const CLEANUP_PHASE_PREFIX = 'legacy_blueprint_reconciliation_cleanup_'
+
+function isCleanupClaim(reconciliation: Reconciliation): boolean {
+  return reconciliation.last_error_code?.startsWith(CLEANUP_PHASE_PREFIX) ?? false
+}
+
 async function adopt(supabase: ReconciliationClient, reconciliationId: string, teacherId: string) {
   const { data, error } = await supabase.rpc('adopt_legacy_blueprint_classroom_storage_reconciliation', {
     p_reconciliation_id: reconciliationId, p_teacher_id: teacherId,
@@ -93,6 +102,31 @@ async function verifySourceUnchanged(supabase: ReconciliationClient, reconciliat
 async function copy(input: { supabase: ReconciliationClient; reconciliation: Reconciliation; leaseToken: string }) {
   const { supabase, reconciliation, leaseToken } = input
   try {
+    const target = supabase.storage.from(reconciliation.target_storage_bucket)
+    if (isCleanupClaim(reconciliation)) {
+      const removal = await target.remove([reconciliation.target_storage_path])
+      if (removal.error && !missingStorageObjectEvidence(removal.error)) {
+        throw new LegacyBlueprintClassroomReconciliationError(
+          'legacy_blueprint_reconciliation_mismatch_cleanup_failed', true,
+          'Mismatched classroom material could not be removed safely',
+        )
+      }
+      const reset = await supabase.rpc('fail_legacy_blueprint_classroom_storage_reconciliation', {
+        p_reconciliation_id: reconciliation.id,
+        p_teacher_id: reconciliation.teacher_id,
+        p_lease_token: leaseToken,
+        p_error_code: 'legacy_blueprint_reconciliation_target_removed',
+      })
+      if (reset.error) throw failure(
+        reset.error, 'legacy_blueprint_reconciliation_cleanup_verification_failed',
+      )
+      if (reset.data !== true) throw new LegacyBlueprintClassroomReconciliationError(
+        'legacy_blueprint_reconciliation_cleanup_lease_lost', true,
+        'Legacy reconciliation cleanup lease expired before absence was recorded',
+      )
+      return null
+    }
+
     const source = await supabase.storage.from(reconciliation.source_storage_bucket)
       .download(reconciliation.source_storage_path)
     if (source.error || !source.data) throw new LegacyBlueprintClassroomReconciliationError(
@@ -108,7 +142,6 @@ async function copy(input: { supabase: ReconciliationClient; reconciliation: Rec
         'Shared test material changed after reconciliation was planned',
       )
     }
-    const target = supabase.storage.from(reconciliation.target_storage_bucket)
     const uploaded = await target.upload(reconciliation.target_storage_path, bytes, {
       contentType: reconciliation.content_type || 'application/octet-stream', upsert: false,
     })
@@ -126,10 +159,43 @@ async function copy(input: { supabase: ReconciliationClient; reconciliation: Rec
     )
     const copied = new Uint8Array(await verified.data.arrayBuffer())
     if (copied.byteLength !== bytes.byteLength || sha256(copied) !== digest) {
-      throw new LegacyBlueprintClassroomReconciliationError(
-        'legacy_blueprint_reconciliation_verification_mismatch', false,
-        'Copied test material did not match its source',
+      const reservation = await supabase.rpc(
+        'fail_legacy_blueprint_classroom_storage_reconciliation',
+        {
+          p_reconciliation_id: reconciliation.id,
+          p_teacher_id: reconciliation.teacher_id,
+          p_lease_token: leaseToken,
+          p_error_code: 'legacy_blueprint_reconciliation_cleanup_started',
+        },
       )
+      if (reservation.error) throw failure(
+        reservation.error, 'legacy_blueprint_reconciliation_cleanup_reservation_failed',
+      )
+      if (reservation.data !== true) throw new LegacyBlueprintClassroomReconciliationError(
+        'legacy_blueprint_reconciliation_cleanup_lease_lost', true,
+        'Legacy reconciliation copy lease expired before cleanup was reserved',
+      )
+      const removal = await target.remove([reconciliation.target_storage_path])
+      if (removal.error && !missingStorageObjectEvidence(removal.error)) {
+        throw new LegacyBlueprintClassroomReconciliationError(
+          'legacy_blueprint_reconciliation_mismatch_cleanup_failed', true,
+          'Mismatched classroom material could not be removed safely',
+        )
+      }
+      const reset = await supabase.rpc('fail_legacy_blueprint_classroom_storage_reconciliation', {
+        p_reconciliation_id: reconciliation.id,
+        p_teacher_id: reconciliation.teacher_id,
+        p_lease_token: leaseToken,
+        p_error_code: 'legacy_blueprint_reconciliation_target_removed',
+      })
+      if (reset.error) throw failure(
+        reset.error, 'legacy_blueprint_reconciliation_cleanup_verification_failed',
+      )
+      if (reset.data !== true) throw new LegacyBlueprintClassroomReconciliationError(
+        'legacy_blueprint_reconciliation_cleanup_lease_lost', true,
+        'Legacy reconciliation cleanup lease expired before absence was recorded',
+      )
+      return null
     }
     const completion = await supabase.rpc('complete_legacy_blueprint_classroom_storage_reconciliation', {
       p_reconciliation_id: reconciliation.id,
@@ -197,6 +263,10 @@ export async function resumeLegacyBlueprintClassroomStorageReconciliation(input:
       )
     }
     const completed = await copy({ supabase, reconciliation: claimed, leaseToken })
+    if (!completed) {
+      reconciliation = { ...claimed, status: 'failed', last_error_code: null }
+      continue
+    }
     reconciliation = {
       ...claimed,
       status: 'copied',

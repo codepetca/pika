@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Preserved pre-105 archive restore rollout
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Final integration review found that the application restore coordinator
-  required migration 105 even though no hosted target has it.
-- Restored the active coordinator and compaction preflight to the deployed v1
-  planner and migration-083 RPCs; current export, compaction, and restore now
-  share the frozen 42-resource v1 contract.
-- Kept a separate explicit v2 planner for compatibility validation without
-  making it reachable from the current application coordinator.
-- Froze the v1 restore order and protected it with a digest and exact resource
-  set regression.
-- Clarified that migration 105 is additive for data and public API surface, but
-  broadens v1-only constraints and wraps selected implementations internally.
-- Added a live database assertion that all six deployed v1 archive RPC
-  signatures and service-role grants survive migration 105.
-
-**Validation:**
-- Active v1 and explicit v2 restore planning tests pass.
-- Local v1 export, restore, compaction, Gradex, and v2 database harnesses pass.
-- Full local archive recovery drill passes export, compaction, restore,
-  cleanup, and idempotent replay.
-- TypeScript, lint, shell syntax, Pika changed-file audit, and focused tests
-  pass.
-
-**Remaining:**
-- Push the remediation, run the final authorized targeted review, and require
-  exact-head CI before merging PR 927.
-- Migration 105 remains unapplied to every hosted target.
-
 ## 2026-07-23 — Froze archive restore ordering
 
 **Risk profile:** runtime-platform
@@ -1533,3 +1501,30 @@ zero-downtime rollout
 - Push the fix to draft PR #963 and require current-head CI to replay migration 117 in the
   ephemeral database before the review blocker is considered closed.
 - No migration was applied. Keep production, deletion, and both persistent rollout gates disabled.
+
+## 2026-08-01 — Fenced Blueprint mismatch cleanup before Storage removal
+
+**Risk profile:** runtime-platform, Storage concurrency, migration contract
+
+**Completed:**
+- Reworked deterministic Blueprint copy mismatch recovery so the active copy lease must first
+  transition into a durable cleanup phase before any Storage removal. Expired cleanup leases remain
+  cleanup-only work and cannot silently become upload leases.
+- Fenced stale Storage writes while cleanup owns a target, required exact-path locking and physical
+  presence before normal and legacy copy completion/adoption, and retained authoritative absence
+  verification before returning a target to copy retry.
+- Applied the same recovery contract to mandatory legacy Blueprint/Classroom reconciliation so a
+  mismatched pre-existing target no longer blocks readiness forever.
+- Added replacement-worker, lost-lease, cleanup-reclaim, removal-failure, retry, and adoption-safety
+  regressions for both copy paths.
+
+**Validation:**
+- Full Vitest suite: 467 files / 4,063 tests pass.
+- Focused final suite: 3 files / 42 tests pass.
+- Supabase generated-type check, TypeScript, lint, architecture boundaries, Pika audit, production
+  build, and `git diff --check` pass.
+
+**Remaining:**
+- Push the fix to draft PR #963 and require current-head CI to replay migration 117 in an ephemeral
+  database before considering the concurrency blockers closed.
+- No migration was applied. Keep production deletion and all rollout gates disabled.

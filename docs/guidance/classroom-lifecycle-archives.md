@@ -366,9 +366,13 @@ legacy objects. Reusable teacher test material is physically copied to Blueprint
 before Blueprint capture/import completes, and copied back to new classroom-owned storage before
 instantiation completes. Internal managed-object ids are not exported in Course Packages.
 Blueprint copies use deterministic operation-owned target keys and complete only after a full
-read-back hash check. If an existing target contains different bytes, the active copy lease removes
-that exact target and the database resets it for immediate retry only after authoritative
-`storage.objects` absence; a crash at any point is recovered by the same lease-expiry path.
+read-back hash check. If an existing target contains different bytes, the active copy lease must
+first transition atomically into a durable cleanup phase. That phase fences upload, completion, and
+adoption for the exact key before Storage removal begins. The database resets it for immediate copy
+retry only after an exact-path lock proves authoritative `storage.objects` absence; an expired
+cleanup lease is reclaimed as cleanup work and can never silently become an upload lease. Adoption
+also takes the exact-path lock and proves the target still exists before ownership or references
+change. Legacy Blueprint/Classroom reconciliation uses the same cleanup-phase contract.
 
 All new uploads reserve exact ownership before writing Storage and atomically adopt the reservation
 after Storage confirms the object. Failed or abandoned uploads become leased, retryable cleanup work.

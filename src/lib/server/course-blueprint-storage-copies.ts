@@ -22,6 +22,7 @@ const storageCopyItemSchema = z.object({
   content_type: z.string().nullable(),
   expected_byte_size: z.coerce.number().int().nonnegative().nullable(),
   expected_sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  last_error_code: z.string().nullable(),
 }).passthrough()
 
 const adoptionResultSchema = z.object({
@@ -81,6 +82,12 @@ function rpcFailure(
   )
 }
 
+const CLEANUP_PHASE_PREFIX = 'blueprint_storage_copy_cleanup_'
+
+function isCleanupClaim(item: StorageCopyItem): boolean {
+  return item.last_error_code?.startsWith(CLEANUP_PHASE_PREFIX) ?? false
+}
+
 async function adoptCopiedObjects(input: {
   supabase: BlueprintStorageCopyClient
   operationId: string
@@ -120,6 +127,35 @@ async function copyClaimedObject(input: {
 }) {
   const { supabase, teacherId, leaseToken, item } = input
   try {
+    const targetBucket = supabase.storage.from(item.target_storage_bucket)
+    if (isCleanupClaim(item)) {
+      const removal = await targetBucket.remove([item.target_storage_path])
+      if (removal.error && !missingStorageObjectEvidence(removal.error)) {
+        throw new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_mismatch_cleanup_failed',
+          true,
+          'Mismatched course material could not be removed safely',
+        )
+      }
+      const reset = await supabase.rpc('fail_course_blueprint_storage_copy', {
+        p_item_id: item.id,
+        p_teacher_id: teacherId,
+        p_lease_token: leaseToken,
+        p_error_code: 'blueprint_storage_copy_target_removed',
+      })
+      if (reset.error) {
+        throw rpcFailure(reset.error, 'blueprint_storage_copy_cleanup_verification_failed')
+      }
+      if (reset.data !== true) {
+        throw new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_cleanup_lease_lost',
+          true,
+          'Course material cleanup lease expired before absence was recorded',
+        )
+      }
+      return
+    }
+
     const sourceBucket = supabase.storage.from(item.source_storage_bucket)
     const source = await sourceBucket.download(item.source_storage_path)
     if (source.error || !source.data) {
@@ -142,7 +178,6 @@ async function copyClaimedObject(input: {
       )
     }
 
-    const targetBucket = supabase.storage.from(item.target_storage_bucket)
     const upload = await targetBucket.upload(item.target_storage_path, sourceBytes, {
       contentType: item.content_type || 'application/octet-stream',
       upsert: false,
@@ -174,6 +209,25 @@ async function copyClaimedObject(input: {
       targetBytes.byteLength !== sourceBytes.byteLength
       || sha256(targetBytes) !== sourceSha256
     ) {
+      // Reserve cleanup while the copy lease is still current. Once this
+      // durable phase is recorded, uploads, completion, and adoption for the
+      // deterministic target are fenced until exact absence is committed.
+      const reservation = await supabase.rpc('fail_course_blueprint_storage_copy', {
+        p_item_id: item.id,
+        p_teacher_id: teacherId,
+        p_lease_token: leaseToken,
+        p_error_code: 'blueprint_storage_copy_cleanup_started',
+      })
+      if (reservation.error) {
+        throw rpcFailure(reservation.error, 'blueprint_storage_copy_cleanup_reservation_failed')
+      }
+      if (reservation.data !== true) {
+        throw new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_cleanup_lease_lost',
+          true,
+          'Course material copy lease expired before cleanup was reserved',
+        )
+      }
       const removal = await targetBucket.remove([item.target_storage_path])
       if (removal.error && !missingStorageObjectEvidence(removal.error)) {
         throw new CourseBlueprintStorageCopyError(
