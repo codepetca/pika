@@ -1508,6 +1508,8 @@ zero-downtime rollout
 - Bound the teacher's typed deletion confirmation to the displayed classroom revision and exact
   managed-file inventory digest; the coordinator rejects drift and PostgreSQL independently
   rechecks both values after acquiring the canonical classroom lock.
+- Bracketed each managed-object inventory read with the trigger-maintained coverage digest so a
+  concurrent registry change retries instead of pairing displayed counts with a different digest.
 - Replaced roster-floor counting with a union of every classroom `student_id`, student announcement
   readers, retired student actors, and unmatched roster-only email invitations.
 - Authorized the owning teacher before reading purge-fence state, while preserving redacted,

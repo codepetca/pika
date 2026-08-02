@@ -282,16 +282,30 @@ async function readStableInventory(
       await reader.readRevision(classroomId),
     )
     const resources = await readClassroomArchiveResourceGraph(reader, classroomId)
-    const [managedResult, coverageResult, settingsResult] = await Promise.all([
+    // Bracket the registry read with its trigger-maintained digest. Parallel
+    // reads could otherwise pair pre-change objects with a post-change digest
+    // and bind confirmation to a file set the teacher was not shown.
+    const coverageBeforeResult = await (supabase as any)
+      .from('classroom_managed_storage_coverage')
+      .select('status,inventory_sha256')
+      .eq('classroom_id', classroomId)
+      .maybeSingle()
+    if (coverageBeforeResult.error) {
+      throw new ClassroomPurgeError(
+        coverageBeforeResult.error.code || 'managed_storage_coverage_failed',
+        'Could not verify classroom file ownership',
+        500,
+        true,
+      )
+    }
+    const coverageBefore = storageCoverageRowSchema.parse(
+      coverageBeforeResult.data || { status: 'pending', inventory_sha256: null },
+    )
+    const [managedResult, settingsResult] = await Promise.all([
       (supabase as any)
         .from('managed_storage_objects')
         .select('id,storage_bucket,storage_path,byte_size,status,purpose')
         .eq('classroom_id', classroomId),
-      (supabase as any)
-        .from('classroom_managed_storage_coverage')
-        .select('status,inventory_sha256')
-        .eq('classroom_id', classroomId)
-        .maybeSingle(),
       (supabase as any)
         .from('managed_storage_settings')
         .select('enforce_ownership,hot_classroom_purge_enabled')
@@ -302,14 +316,6 @@ async function readStableInventory(
       throw new ClassroomPurgeError(
         managedResult.error.code || 'managed_storage_inventory_failed',
         'Could not inventory classroom files',
-        500,
-        true,
-      )
-    }
-    if (coverageResult.error) {
-      throw new ClassroomPurgeError(
-        coverageResult.error.code || 'managed_storage_coverage_failed',
-        'Could not verify classroom file ownership',
         500,
         true,
       )
@@ -325,9 +331,6 @@ async function readStableInventory(
     const managedObjects = z.array(managedStorageObjectRowSchema).parse(
       managedResult.data || [],
     )
-    const coverage = storageCoverageRowSchema.parse(
-      coverageResult.data || { status: 'pending', inventory_sha256: null },
-    )
     const settings = managedStorageSettingsSchema.parse(settingsResult.data)
     const objects = managedObjects.map((object) => ({
       bucket: object.storage_bucket as PurgeStorageBucket,
@@ -341,10 +344,31 @@ async function readStableInventory(
       if (value === null) return null
       return z.number().int().nonnegative().parse(value)
     }))
-    const revisionAfter = z.number().int().positive().parse(
-      await reader.readRevision(classroomId),
+    const [revisionAfterValue, coverageAfterResult] = await Promise.all([
+      reader.readRevision(classroomId),
+      (supabase as any)
+        .from('classroom_managed_storage_coverage')
+        .select('status,inventory_sha256')
+        .eq('classroom_id', classroomId)
+        .maybeSingle(),
+    ])
+    if (coverageAfterResult.error) {
+      throw new ClassroomPurgeError(
+        coverageAfterResult.error.code || 'managed_storage_coverage_failed',
+        'Could not verify classroom file ownership',
+        500,
+        true,
+      )
+    }
+    const revisionAfter = z.number().int().positive().parse(revisionAfterValue)
+    const coverageAfter = storageCoverageRowSchema.parse(
+      coverageAfterResult.data || { status: 'pending', inventory_sha256: null },
     )
-    if (sourceRevision !== revisionAfter) continue
+    if (
+      sourceRevision !== revisionAfter
+      || coverageBefore.status !== coverageAfter.status
+      || coverageBefore.inventory_sha256 !== coverageAfter.inventory_sha256
+    ) continue
 
     const affectedUserIds = collectAffectedUserIds(resources)
     const affectedUsersResult = await loadChunkedRows<unknown>({
@@ -382,7 +406,7 @@ async function readStableInventory(
       classroom_id: classroomId,
       classroom_title: classroom.title,
       source_revision: sourceRevision,
-      storage_inventory_sha256: coverage.inventory_sha256,
+      storage_inventory_sha256: coverageAfter.inventory_sha256,
       relational_row_count: Object.values(resourceCounts)
         .reduce((total, count) => total + count, 0),
       student_count: countClassroomStudents(resources, affectedUsers),
@@ -405,13 +429,13 @@ async function readStableInventory(
       resource_counts: resourceCounts,
       storage_counts: storageCounts,
       conflicting_operation: conflict,
-      ownership_coverage_status: coverage.status,
+      ownership_coverage_status: coverageAfter.status,
       deletion_available:
-        coverage.status === 'verified'
+        coverageAfter.status === 'verified'
         && settings.enforce_ownership
         && settings.hot_classroom_purge_enabled
         && conflict === null,
-      unavailable_reason: coverage.status !== 'verified'
+      unavailable_reason: coverageAfter.status !== 'verified'
         ? 'Classroom file ownership must be reconciled before deletion.'
         : !settings.enforce_ownership
           ? 'Managed file ownership enforcement is not enabled.'
