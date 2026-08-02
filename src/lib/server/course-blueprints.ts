@@ -43,6 +43,7 @@ import {
 import { saveCourseBlueprintVersion } from '@/lib/server/course-blueprint-versions'
 import { createCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
 import { createHash, randomUUID } from 'node:crypto'
+import { copyManagedTestDocumentsForBlueprintOperation } from '@/lib/server/course-blueprint-managed-storage'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -1138,6 +1139,13 @@ export async function createCourseBlueprintFromClassroom(
   const blueprintTitle = input.title?.trim() || source.classroom.title
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
+  const copiedAssessments = await copyManagedTestDocumentsForBlueprintOperation({
+    supabase,
+    teacherId,
+    operationId,
+    direction: 'to_blueprint',
+    assessments: source.tests,
+  })
   const plan = buildCreateBlueprintWritePlan({
     blueprint: {
       title: blueprintTitle,
@@ -1162,7 +1170,7 @@ export async function createCourseBlueprintFromClassroom(
       submission_requirements_json: assignment.submission_requirements_json || [],
       gradebook_weight: assignment.gradebook_weight ?? 10,
     })),
-    assessments: source.tests.map((assessment) => ({
+    assessments: copiedAssessments.map((assessment) => ({
       ...assessment,
       points_possible: assessment.points_possible ?? null,
       gradebook_weight: assessment.gradebook_weight ?? 10,
@@ -1242,6 +1250,18 @@ export async function createClassroomFromBlueprint(
   }
 
   const supabase = getSupabase()
+  const operationId = resolveBlueprintOperationId(options.operationId)
+  const copiedAssessments = await copyManagedTestDocumentsForBlueprintOperation({
+    supabase,
+    teacherId,
+    operationId,
+    direction: 'to_classroom',
+    assessments: detailResult.detail.assessments,
+  })
+  const copiedDetail = {
+    ...detailResult.detail,
+    assessments: copiedAssessments,
+  }
   const versionResult = await saveCourseBlueprintVersion({
     supabase,
     teacherId,
@@ -1251,10 +1271,9 @@ export async function createClassroomFromBlueprint(
     sourceMetadata: { reason: 'classroom_instantiation' },
   })
   if (!versionResult.ok) return versionResult
-  const operationId = resolveBlueprintOperationId(options.operationId)
   const themeColor = input.themeColor || getDefaultClassroomThemeColor(`${teacherId}:${operationId}`)
   const planResult = buildInstantiateBlueprintWritePlan({
-    detail: detailResult.detail,
+    detail: copiedDetail,
     input,
     themeColor,
     manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,

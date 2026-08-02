@@ -4,6 +4,11 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getTestDocumentValidationError } from '@/lib/test-documents'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,8 +38,23 @@ export const POST = withErrorHandler('UploadTeacherTestDocument', async (request
 
   const supabase = getServiceRoleClient()
   const ext = safeExtension(file.name)
-  const filename = `${user.id}/${testId}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const objectId = crypto.randomUUID()
+  const filename = `classrooms/${access.test.classroom_id}/tests/${testId}/uploads/${objectId}.${ext}`
   const buffer = Buffer.from(await file.arrayBuffer())
+  const reservation = await reserveManagedStorageUpload({
+    supabase,
+    objectId,
+    bucket: 'test-documents',
+    path: filename,
+    classroomId: access.test.classroom_id,
+    purpose: 'teacher_test_material',
+    createdByUserId: user.id,
+    resourceType: 'test',
+    resourceId: testId,
+    contentType: file.type,
+    byteSize: file.size,
+    allowLegacyCompatibility: true,
+  })
 
   const { error: uploadError } = await supabase.storage
     .from('test-documents')
@@ -44,6 +64,13 @@ export const POST = withErrorHandler('UploadTeacherTestDocument', async (request
     })
 
   if (uploadError) {
+    if (reservation) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'test_document_upload_failed',
+      })
+    }
     const details = `${uploadError.message || ''} ${(uploadError as { details?: string }).details || ''}`.toLowerCase()
     if (details.includes('bucket') || details.includes('not found')) {
       return NextResponse.json(
@@ -55,6 +82,19 @@ export const POST = withErrorHandler('UploadTeacherTestDocument', async (request
     return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 })
   }
 
+  if (reservation) {
+    try {
+      await verifyManagedStorageUpload({ supabase, objectId })
+    } catch (error) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'test_document_verification_failed',
+      })
+      throw error
+    }
+  }
+
   const { data: urlData } = supabase.storage.from('test-documents').getPublicUrl(filename)
 
   return NextResponse.json({
@@ -62,5 +102,6 @@ export const POST = withErrorHandler('UploadTeacherTestDocument', async (request
     title: file.name,
     mime_type: file.type,
     size: file.size,
+    ...(reservation ? { managed_object_id: objectId } : {}),
   })
 })

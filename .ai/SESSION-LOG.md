@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Hardened standalone test preview
-
-**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
-
-**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
-
-**Completed:**
-- Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
-- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
-- Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
-- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
-- Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
-- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
-- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
-- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
-- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
-- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
-
-**Validation:**
-- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
-- Full repository suite (413 files / 3,712 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (625 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- `git diff --check`
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.
-
 ## 2026-07-23 — Retired legacy Quiz UI wrappers
 
 **Risk profile:** none
@@ -1400,3 +1368,49 @@ classroom lineage.
 
 **Remaining:**
 - None.
+
+## 2026-08-02 — Built managed-storage ownership foundation
+
+**Risk profile:** high — rolling schema/application compatibility, cross-owner
+file copies, Storage/relational atomicity, legacy reconciliation, and concurrent
+enforcement activation.
+
+**Completed:**
+- Created `codex/managed-storage-ownership-foundation` from `origin/main` in a
+  dedicated worktree and left draft PR #963 and all of its worktrees unchanged.
+- Restored deployed migrations 115/116 byte-for-byte and added a lineage hash
+  guard. Added one forward-only migration 117 for compatibility schema,
+  deterministic registration/reconciliation/readiness, serialized enforcement,
+  provisional Blueprint/Classroom copies, and leased generic cleanup.
+- Converted all five managed buckets' active producers to reserve, upload/copy,
+  verify, and atomic attach/adopt. Added managed UUIDs to relational,
+  operational, cleanup, archive, restore, Gradex, and embedded JSON references.
+- Made archive export use the exact managed Classroom inventory under
+  enforcement; restore creates deterministic new managed identities and rewrites
+  preserved references; compaction queues source objects after hot deletion.
+- Added target-acknowledged reconciliation/readiness/activation/pause and manual
+  cleanup commands. No cleanup scheduler, purge worker/gate, permanent deletion
+  route, or deletion UX was added.
+- Documented the exact rollout, rollback, Classroom/Blueprint preservation, and
+  migration-116 compatibility contract in
+  `docs/guidance/managed-storage-rollout.md`.
+
+**Validation:**
+- Full Vitest suite: 459 files / 3,971 tests; all passed.
+- Focused managed-storage, archive, restore, compaction, Gradex, Blueprint,
+  upload, and component suites pass.
+- TypeScript, lint, production build, SQLFluff parse, migration lineage hashes,
+  shell syntax, diff check, and Pika audit pass.
+- The database fixture includes mismatch rejection, legacy writer rejection,
+  interrupted cleanup retry/idempotency, and a real two-session writer versus
+  activation fence. It was not run locally because no migration application was
+  authorized; CI runs it only after a fresh isolated replay.
+
+**Remaining:**
+- Obtain fresh authorization naming exact migration 117 and an isolated
+  target before any replay. The shared local database contains PR #963's
+  different migration 117 and was only queried read-only.
+- After an authorized deployment, register legacy objects, reconcile, refresh
+  readiness, and activate using exact target acknowledgements. Generic cleanup
+  remains separately disabled. Permanent classroom deletion remains in PR #963
+  as a later consumer and must be redesigned against this authority.

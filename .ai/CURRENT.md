@@ -1,6 +1,7 @@
-Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
-local was backed up, reset without seed data, and cleanly replayed through 112;
-its migration history and generated types now match this branch.
+Focus: managed-storage ownership foundation is implemented on
+`codex/managed-storage-ownership-foundation` from `origin/main` without changing
+draft PR #963. Production history 115/116 is preserved byte-for-byte; new
+migration 117 remains unapplied pending exact target authorization.
 
 ## Current Context
 
@@ -11,4 +12,10 @@ its migration history and generated types now match this branch.
   `$HOME/Repos/.env/pika/.env.local`; collaborators may copy `.env.example`.
 - Toronto deadlines, server logic, `withErrorHandler`, semantic tokens, and
   human-controlled migrations are invariants. Workflow: `docs/dev-workflow.md`.
+- `managed_storage_objects` is the proposed sole file lifecycle authority.
+  Enforcement and generic cleanup remain off; permanent classroom deletion is
+  intentionally absent. Rollout: `docs/guidance/managed-storage-rollout.md`.
+- The shared local database currently contains PR #963's unrelated migration
+  117. Do not replay or alter it without exact authorization and an isolated
+  target; CI owns the fresh 115-117 replay fixture for this branch.
 - Trim session logs after updates. `production` uses the protected PR flow.

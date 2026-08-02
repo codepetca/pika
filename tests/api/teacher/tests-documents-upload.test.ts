@@ -11,7 +11,10 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/tests', () => ({
-  assertTeacherOwnsTest: vi.fn(async () => ({ ok: true })),
+  assertTeacherOwnsTest: vi.fn(async () => ({
+    ok: true,
+    test: { classroom_id: 'classroom-1' },
+  })),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -21,6 +24,10 @@ vi.mock('@/lib/supabase', () => ({
 const mockUpload = vi.fn()
 const mockGetPublicUrl = vi.fn()
 const mockSupabase = {
+  rpc: vi.fn(async () => ({
+    data: null,
+    error: { code: 'PGRST202', message: 'begin_managed_storage_upload' },
+  })),
   storage: {
     from: vi.fn(() => ({
       upload: mockUpload,

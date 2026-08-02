@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify managed-storage migration lineage
+        run: pnpm run check:managed-storage-lineage
+
       - name: Start ephemeral Supabase and replay migrations
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
@@ -59,6 +62,9 @@ jobs:
 
       - name: Verify test document snapshot concurrency and cleanup
         run: bash scripts/check-test-document-snapshot-concurrency.sh
+
+      - name: Verify managed-storage ownership and enforcement
+        run: bash scripts/check-managed-storage-database.sh
 
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh

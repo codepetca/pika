@@ -272,9 +272,18 @@ describe('classroom archive restore planning', () => {
     expect(plan.resources.assignment_submission_artifacts[0].storage_path).toMatch(
       new RegExp(`^restores/${CLASSROOM_ID}/${OPERATION_ID}/`),
     )
+    expect(plan.resources.assignment_submission_artifacts[0].managed_object_id).toEqual(
+      plan.storageObjects.find((object) => object.bucket === 'assignment-artifacts')
+        ?.managedObjectId,
+    )
     expect(JSON.stringify(plan.resources.assignment_docs[0].content)).toContain(
       `/submission-images/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
     )
+    expect(plan.resources.assignment_docs[0].content).toEqual(expect.objectContaining({
+      managed_object_id: plan.storageObjects.find((object) => (
+        object.bucket === 'submission-images'
+      ))?.managedObjectId,
+    }))
     expect(JSON.stringify(plan.resources.tests[0].documents)).toContain(
       `/test-documents/restores/${CLASSROOM_ID}/${OPERATION_ID}/`,
     )

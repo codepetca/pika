@@ -380,6 +380,7 @@ describe('classroom Gradex runtime coordinator', () => {
     expect(mock.calls.indexOf(`download:classroom-archives/${ARCHIVE_PATH}`))
       .toBeLessThan(mock.calls.indexOf('rpc:begin_classroom_gradex_extract'))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_managed_storage_upload',
       'begin_classroom_gradex_extract',
     ])
   })
@@ -435,8 +436,12 @@ describe('classroom Gradex runtime coordinator', () => {
     vi.stubEnv('CLASSROOM_GRADEX_EXTRACT_HMAC_SECRET', rotatedSecret)
     await createClassroomGradexExtract(operationArgs(second))
 
-    const firstRequest = first.rpc.mock.calls[0][1].p_request_sha256
-    const secondRequest = second.rpc.mock.calls[0][1].p_request_sha256
+    const firstRequest = first.rpc.mock.calls.find(([name]) => (
+      name === 'begin_classroom_gradex_extract'
+    ))?.[1].p_request_sha256
+    const secondRequest = second.rpc.mock.calls.find(([name]) => (
+      name === 'begin_classroom_gradex_extract'
+    ))?.[1].p_request_sha256
     expect(firstRequest).toMatch(/^[a-f0-9]{64}$/)
     expect(secondRequest).toMatch(/^[a-f0-9]{64}$/)
     expect(secondRequest).not.toBe(firstRequest)

@@ -56,6 +56,20 @@ const storageObjectSchema = z.object({
   byte_size: z.number().int().nonnegative(),
   sha256: sha256Schema,
   content_type: z.string().min(1).nullable(),
+  managed_owner: z.object({
+    object_id: z.string().uuid(),
+    purpose: z.enum([
+      'student_assignment_artifact',
+      'student_inline_image',
+      'teacher_test_material',
+      'test_execution_snapshot',
+      'legacy_classroom_file',
+    ]),
+    created_by_user_id: z.string().uuid().nullable(),
+    data_subject_user_id: z.string().uuid().nullable(),
+    resource_type: z.string().nullable(),
+    resource_id: z.string().uuid().nullable(),
+  }).strict().optional(),
 }).strict()
 
 export const classroomArchiveRetentionSchema = z.discriminatedUnion('mode', [

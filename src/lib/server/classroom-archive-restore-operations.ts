@@ -16,6 +16,11 @@ import {
   buildClassroomArchiveV2RestorePlan,
   type ClassroomArchiveV2RestorePlan,
 } from '@/lib/server/classroom-archive-restore'
+import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
@@ -330,6 +335,7 @@ function chunkRestoreRows(rows: Record<string, unknown>[]): Record<string, unkno
 async function uploadAndVerifyRestoreObject(args: {
   supabase: SupabaseClient
   object: ClassroomArchiveV2RestorePlan['storageObjects'][number]
+  managedStorageEnabled: boolean
 }): Promise<boolean> {
   const bucket = args.supabase.storage.from(args.object.bucket)
   let bytes: Uint8Array | null = null
@@ -389,7 +395,43 @@ async function uploadAndVerifyRestoreObject(args: {
       false,
     )
   }
+  if (args.managedStorageEnabled) {
+    await verifyManagedStorageUpload({
+      supabase: args.supabase,
+      objectId: args.object.managedObjectId,
+      contentSha256: args.object.sha256,
+    })
+  }
   return uploaded
+}
+
+function removeManagedStorageIdentities(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(removeManagedStorageIdentities)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => key !== 'managed_object_id' && key !== 'snapshot_managed_object_id')
+    .map(([key, item]) => [key, removeManagedStorageIdentities(item)]))
+}
+
+async function bindRestoreManagedObject(args: {
+  supabase: SupabaseClient
+  operationId: string
+  teacherId: string
+  objectId: string
+}): Promise<void> {
+  const response = await (args.supabase as any).rpc('bind_classroom_archive_restore_managed_object', {
+    p_operation_id: args.operationId,
+    p_teacher_id: args.teacherId,
+    p_managed_object_id: args.objectId,
+  })
+  if (response.error || response.data !== true) {
+    throw new ClassroomArchiveRestoreError(
+      'classroom_archive_restore_managed_binding_failed',
+      'Classroom archive restore ownership binding failed',
+      503,
+      true,
+    )
+  }
 }
 
 async function recordRestoreFailure(args: {
@@ -437,6 +479,8 @@ export async function restoreClassroomArchive(args: {
   let operationStarted = false
   let finalizationAttempted = false
   let plan: ClassroomArchiveV2RestorePlan | null = null
+  let managedStorageEnabled = false
+  const reservedManagedObjectIds: string[] = []
   const uploadedStorageObjects: Array<{ bucket: string; path: string }> = []
 
   try {
@@ -496,6 +540,43 @@ export async function restoreClassroomArchive(args: {
       currentActors,
       supabaseUrl: args.supabaseUrl,
     })
+    managedStorageEnabled = true
+    for (const object of plan.storageObjects) {
+      const reservation = await reserveManagedStorageUpload({
+        supabase: args.supabase,
+        objectId: object.managedObjectId,
+        bucket: object.bucket,
+        path: object.restorePath,
+        classroomId: args.classroomId,
+        purpose: object.purpose,
+        createdByUserId: args.teacherId,
+        dataSubjectUserId: object.dataSubjectUserId,
+        resourceType: object.resourceType || 'classroom_archive_restore',
+        resourceId: object.resourceId || args.operationId,
+        contentType: object.contentType,
+        byteSize: object.bytes.byteLength,
+        allowLegacyCompatibility: true,
+      })
+      if (!reservation) {
+        managedStorageEnabled = false
+        break
+      }
+      reservedManagedObjectIds.push(object.managedObjectId)
+    }
+    if (!managedStorageEnabled) {
+      await Promise.all(reservedManagedObjectIds.map((objectId) =>
+        queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId,
+          errorCode: 'managed_storage_compatibility_fallback',
+        }),
+      ))
+      reservedManagedObjectIds.splice(0)
+      plan.resources = removeManagedStorageIdentities(plan.resources) as Record<
+        string,
+        Record<string, unknown>[]
+      >
+    }
     const resourceCounts = exactResourceCounts(plan)
     const storageObjects = plan.storageObjects.map((object) => ({
       storage_bucket: object.bucket,
@@ -594,6 +675,17 @@ export async function restoreClassroomArchive(args: {
     }
     operationStarted = true
 
+    if (managedStorageEnabled) {
+      for (const object of plan.storageObjects) {
+        await bindRestoreManagedObject({
+          supabase: args.supabase,
+          operationId: args.operationId,
+          teacherId: args.teacherId,
+          objectId: object.managedObjectId,
+        })
+      }
+    }
+
     for (const object of plan.storageObjects) {
       const uploadIntentResponse = await args.supabase.rpc(
         'stage_classroom_archive_object_upload',
@@ -617,7 +709,19 @@ export async function restoreClassroomArchive(args: {
           true,
         )
       }
-      const uploaded = await uploadAndVerifyRestoreObject({ supabase: args.supabase, object })
+      if (managedStorageEnabled) {
+        await bindRestoreManagedObject({
+          supabase: args.supabase,
+          operationId: args.operationId,
+          teacherId: args.teacherId,
+          objectId: object.managedObjectId,
+        })
+      }
+      const uploaded = await uploadAndVerifyRestoreObject({
+        supabase: args.supabase,
+        object,
+        managedStorageEnabled,
+      })
       if (uploaded) {
         uploadedStorageObjects.push({ bucket: object.bucket, path: object.restorePath })
       }
@@ -715,6 +819,13 @@ export async function restoreClassroomArchive(args: {
     emitRestoreMetric(result, startedAt)
     return result
   } catch (cause) {
+    await Promise.all(reservedManagedObjectIds.map((objectId) =>
+      queueManagedStorageCleanupBestEffort({
+        supabase: args.supabase,
+        objectId,
+        errorCode: 'classroom_archive_restore_failed',
+      }),
+    ))
     const error = cause instanceof ClassroomArchiveRestoreError
       ? cause
       : new ClassroomArchiveRestoreError(

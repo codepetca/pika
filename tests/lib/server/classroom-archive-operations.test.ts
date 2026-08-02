@@ -255,13 +255,14 @@ describe('classroom archive export coordinator', () => {
     expect(result.compressed_byte_size).toBeGreaterThan(0)
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_export_v2',
+      'begin_managed_storage_upload',
       'stage_classroom_archive_object_upload',
       'complete_classroom_archive_export_v2',
     ])
     expect([...mock.stored.keys()]).toEqual([
       `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v2.tar.gz`,
     ])
-    expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
+    expect(mock.rpc.mock.calls[3][1]).toEqual(expect.objectContaining({
       p_resource_counts: v2ResourceCounts(),
       p_archive_resource_counts: v2ResourceCounts(),
     }))
@@ -386,7 +387,7 @@ describe('classroom archive export coordinator', () => {
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
     expect(verification.manifest.version).toBe(2)
-    expect(mock.rpc.mock.calls[2][1]).toEqual(expect.objectContaining({
+    expect(mock.rpc.mock.calls[3][1]).toEqual(expect.objectContaining({
       p_resource_counts: v2ResourceCounts(),
       p_archive_resource_counts: v2ResourceCounts(),
     }))

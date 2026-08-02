@@ -42,6 +42,14 @@ export type ClassroomArchiveRestoreStorageObject = {
   bucket: 'assignment-artifacts' | 'submission-images' | 'test-documents'
   sourcePath: string
   restorePath: string
+  managedObjectId: string
+  sourceManagedObjectId: string | null
+  purpose: 'student_assignment_artifact' | 'student_inline_image'
+    | 'teacher_test_material' | 'test_execution_snapshot' | 'legacy_classroom_file'
+  createdByUserId: string | null
+  dataSubjectUserId: string | null
+  resourceType: string | null
+  resourceId: string | null
   archivePath: string
   contentType: string | null
   sha256: string
@@ -147,6 +155,32 @@ function encodeStoragePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/')
 }
 
+function deterministicRestoreManagedObjectId(args: {
+  operationId: string
+  bucket: string
+  sourcePath: string
+}): string {
+  const bytes = createHash('sha256')
+    .update(`pika.managed-storage-restore:v1:${args.operationId}:${args.bucket}:${args.sourcePath}`)
+    .digest()
+    .subarray(0, 16)
+  bytes[6] = (bytes[6] & 0x0f) | 0x50
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = bytes.toString('hex')
+  return uuidSchema.parse([
+    hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16),
+    hex.slice(16, 20), hex.slice(20),
+  ].join('-'))
+}
+
+function fallbackRestorePurpose(
+  bucket: ClassroomArchiveRestoreStorageObject['bucket'],
+): ClassroomArchiveRestoreStorageObject['purpose'] {
+  if (bucket === 'assignment-artifacts') return 'student_assignment_artifact'
+  if (bucket === 'submission-images') return 'student_inline_image'
+  return 'teacher_test_material'
+}
+
 function parseManagedUrl(
   candidate: string,
   supabaseOrigin: string,
@@ -191,9 +225,17 @@ function rewriteResourceValue(args: {
   inTestDocuments?: boolean
   supabaseOrigin: string
   restoredPaths: Map<string, string>
+  restoredManagedIds: Map<string, string>
+  restoredManagedIdsBySourceId: Map<string, string>
 }): unknown {
-  const { value, table, key, inTestDocuments, supabaseOrigin, restoredPaths } = args
+  const {
+    value, table, key, inTestDocuments, supabaseOrigin, restoredPaths,
+    restoredManagedIds, restoredManagedIdsBySourceId,
+  } = args
   if (typeof value === 'string') {
+    if (key === 'managed_object_id' || key === 'snapshot_managed_object_id') {
+      return restoredManagedIdsBySourceId.get(value) || value
+    }
     if (table === 'assignment_submission_artifacts' && key === 'storage_path') {
       return restoredPaths.get(`assignment-artifacts\0${value}`) || value
     }
@@ -210,7 +252,7 @@ function rewriteResourceValue(args: {
   }
   if (!isJsonObject(value)) return value
 
-  return Object.fromEntries(Object.entries(value).map(([childKey, item]) => [
+  const rewritten = Object.fromEntries(Object.entries(value).map(([childKey, item]) => [
     childKey,
     rewriteResourceValue({
       ...args,
@@ -219,6 +261,33 @@ function rewriteResourceValue(args: {
       inTestDocuments: inTestDocuments || (table === 'tests' && childKey === 'documents'),
     }),
   ]))
+  const rawPath = typeof value.storage_path === 'string'
+    ? (table === 'assignment_submission_artifacts'
+      ? `assignment-artifacts\0${value.storage_path}`
+      : null)
+    : null
+  const snapshotPath = table === 'tests' && inTestDocuments
+    && typeof value.snapshot_path === 'string'
+    ? `test-documents\0${value.snapshot_path}`
+    : null
+  const embeddedIdentities = new Set<string>()
+  for (const candidate of Object.values(value)) {
+    if (typeof candidate !== 'string') continue
+    const parsed = parseManagedUrl(candidate, supabaseOrigin)
+    if (!parsed) continue
+    const identity = restoredManagedIds.get(`${parsed.bucket}\0${parsed.path}`)
+    if (identity) embeddedIdentities.add(identity)
+  }
+  const directIdentity = rawPath ? restoredManagedIds.get(rawPath) : undefined
+  const snapshotIdentity = snapshotPath ? restoredManagedIds.get(snapshotPath) : undefined
+  if (directIdentity) embeddedIdentities.add(directIdentity)
+  if (embeddedIdentities.size === 1) {
+    rewritten.managed_object_id = [...embeddedIdentities][0]
+  } else if (embeddedIdentities.size > 1) {
+    rewritten.managed_object_ids = [...embeddedIdentities].sort()
+  }
+  if (snapshotIdentity) rewritten.snapshot_managed_object_id = snapshotIdentity
+  return rewritten
 }
 
 function validateActorReferences(
@@ -362,6 +431,17 @@ function buildClassroomArchiveRestorePlanForVersion(
           sourcePath: object.source_path,
           contentType: object.content_type,
         }),
+        managedObjectId: deterministicRestoreManagedObjectId({
+          operationId,
+          bucket: object.bucket,
+          sourcePath: object.source_path,
+        }),
+        sourceManagedObjectId: object.managed_owner?.object_id || null,
+        purpose: object.managed_owner?.purpose || fallbackRestorePurpose(object.bucket),
+        createdByUserId: object.managed_owner?.created_by_user_id || null,
+        dataSubjectUserId: object.managed_owner?.data_subject_user_id || null,
+        resourceType: object.managed_owner?.resource_type || null,
+        resourceId: object.managed_owner?.resource_id || null,
         archivePath: object.archive_path,
         contentType: object.content_type,
         sha256: object.sha256,
@@ -374,6 +454,17 @@ function buildClassroomArchiveRestorePlanForVersion(
       object.restorePath,
     ]),
   )
+  const restoredManagedIds = new Map(
+    storageObjects.map((object) => [
+      `${object.bucket}\0${object.sourcePath}`,
+      object.managedObjectId,
+    ]),
+  )
+  const restoredManagedIdsBySourceId = new Map(
+    storageObjects.flatMap((object) => object.sourceManagedObjectId
+      ? [[object.sourceManagedObjectId, object.managedObjectId] as const]
+      : []),
+  )
   const rewrittenSourceResources = Object.fromEntries(
     Object.entries(retainedSourceResources).map(([table, rows]) => [
       table,
@@ -382,6 +473,8 @@ function buildClassroomArchiveRestorePlanForVersion(
         table,
         supabaseOrigin: origin,
         restoredPaths,
+        restoredManagedIds,
+        restoredManagedIdsBySourceId,
       }) as JsonObject),
     ]),
   )

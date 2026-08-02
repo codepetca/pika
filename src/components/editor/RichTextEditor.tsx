@@ -17,7 +17,6 @@ import { Superscript } from '@tiptap/extension-superscript'
 import { Selection } from '@tiptap/extensions'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Markdown } from '@tiptap/markdown'
-import { Image } from '@tiptap/extension-image'
 
 // --- UI Primitives ---
 import { Spacer } from '@/components/tiptap-ui-primitive/spacer'
@@ -30,6 +29,8 @@ import {
 // --- Tiptap Node ---
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
+import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
+import type { ImageUploadResult } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
 import '@/components/tiptap-node/code-block-node/code-block-node.scss'
 import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss'
@@ -138,8 +139,9 @@ async function compressImage(file: File): Promise<File> {
 
 async function uploadImage(
   file: File,
-  onProgress?: (event: { progress: number }) => void
-): Promise<string> {
+  onProgress?: (event: { progress: number }) => void,
+  assignmentDocId?: string,
+): Promise<ImageUploadResult> {
   onProgress?.({ progress: 5 })
 
   // Compress image before upload
@@ -147,6 +149,7 @@ async function uploadImage(
 
   const formData = new FormData()
   formData.append('file', processedFile)
+  if (assignmentDocId) formData.append('assignment_doc_id', assignmentDocId)
 
   onProgress?.({ progress: 20 })
 
@@ -164,21 +167,31 @@ async function uploadImage(
 
   const data = await response.json()
   onProgress?.({ progress: 100 })
-  return data.url
+  return {
+    url: String(data.url || ''),
+    ...(data.managed_object_id
+      ? { managedObjectId: String(data.managed_object_id) }
+      : {}),
+  }
 }
 
 // Helper to handle pasted/dropped images
 async function handleImageFile(
   editor: Editor,
   file: File,
+  assignmentDocId?: string,
   onError?: (message: string) => void
 ): Promise<boolean> {
   try {
-    const url = await uploadImage(file)
+    const result = await uploadImage(file, undefined, assignmentDocId)
     editor
       .chain()
       .focus()
-      .setImage({ src: url, alt: file.name.replace(/\.[^/.]+$/, '') })
+      .setImage({
+        src: result.url,
+        alt: file.name.replace(/\.[^/.]+$/, ''),
+        managed_object_id: result.managedObjectId ?? null,
+      } as any)
       .run()
     return true
   } catch (error) {
@@ -211,6 +224,8 @@ export interface RichTextEditorProps {
   className?: string
   /** Enable image upload via button, paste, and drag-drop */
   enableImageUpload?: boolean
+  /** Assignment document that will atomically adopt uploaded managed images. */
+  assignmentDocId?: string
   /** Callback when image upload fails */
   onImageUploadError?: (message: string) => void
   required?: boolean
@@ -329,6 +344,7 @@ export function RichTextEditor({
   showToolbar = true,
   className = '',
   enableImageUpload = false,
+  assignmentDocId,
   onImageUploadError,
   required,
   'aria-required': ariaRequired,
@@ -428,7 +444,7 @@ export function RichTextEditor({
     }),
     Markdown,  // Enables markdown parsing for setContent/getMarkdown
     // Image extensions (always included for rendering, upload only when enabled)
-    Image.configure({
+    ManagedImage.configure({
       HTMLAttributes: {
         class: 'max-w-full h-auto rounded',
       },
@@ -440,11 +456,11 @@ export function RichTextEditor({
             accept: IMAGE_ACCEPT,
             maxSize: IMAGE_MAX_SIZE,
             limit: 1,
-            upload: uploadImage,
+            upload: (file, onProgress) => uploadImage(file, onProgress, assignmentDocId),
           }),
         ]
       : []),
-  ], [enableImageUpload, placeholder])
+  ], [assignmentDocId, enableImageUpload, placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -561,7 +577,7 @@ export function RichTextEditor({
       if (!imageFile) return
 
       event.preventDefault()
-      handleImageFile(editor, imageFile, onImageUploadError)
+      handleImageFile(editor, imageFile, assignmentDocId, onImageUploadError)
     }
 
     const handleDrop = (event: DragEvent) => {
@@ -573,7 +589,7 @@ export function RichTextEditor({
 
       event.preventDefault()
       event.stopPropagation()
-      handleImageFile(editor, imageFile, onImageUploadError)
+      handleImageFile(editor, imageFile, assignmentDocId, onImageUploadError)
     }
 
     const handleDragOver = (event: DragEvent) => {
@@ -594,7 +610,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [editor, enableImageUpload, onImageUploadError])
+  }, [assignmentDocId, editor, enableImageUpload, onImageUploadError])
 
   if (!editor) {
     return null
