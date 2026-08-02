@@ -56,6 +56,8 @@ declare
   v_classroom_id constant uuid := '20000000-0000-4000-8000-000000000001';
   v_stale_operation_id constant uuid := '40000000-0000-4000-8000-000000000001';
   v_success_operation_id constant uuid := '40000000-0000-4000-8000-000000000002';
+  v_stale_managed_object_id constant uuid := '43000000-0000-4000-8000-000000000001';
+  v_success_managed_object_id constant uuid := '43000000-0000-4000-8000-000000000002';
   v_cleanup_lease_one constant uuid := '41000000-0000-4000-8000-000000000001';
   v_cleanup_lease_two constant uuid := '41000000-0000-4000-8000-000000000002';
   v_result jsonb;
@@ -216,6 +218,27 @@ begin
   ) then
     raise exception 'Stale archive upload intent was rejected';
   end if;
+  perform public.begin_managed_storage_upload(
+    v_stale_managed_object_id,
+    'classroom-archives',
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+    v_classroom_id,
+    null,
+    'classroom_archive',
+    v_teacher_id,
+    null,
+    'classroom_archive_operation',
+    v_stale_operation_id,
+    'application/gzip',
+    100
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives',
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+    '{"size":100}'::jsonb
+  );
+  perform public.adopt_managed_storage_upload(v_stale_managed_object_id, repeat('b', 64));
   v_result := public.complete_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
@@ -326,6 +349,27 @@ begin
   ) then
     raise exception 'Successful archive upload intent was rejected';
   end if;
+  perform public.begin_managed_storage_upload(
+    v_success_managed_object_id,
+    'classroom-archives',
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+    v_classroom_id,
+    null,
+    'classroom_archive',
+    v_teacher_id,
+    null,
+    'classroom_archive_operation',
+    v_success_operation_id,
+    'application/gzip',
+    101
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives',
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+    '{"size":101}'::jsonb
+  );
+  perform public.adopt_managed_storage_upload(v_success_managed_object_id, repeat('e', 64));
   v_result := public.complete_classroom_archive_export_v2(
     v_success_operation_id,
     v_teacher_id,
@@ -346,7 +390,12 @@ begin
   then
     raise exception 'Verified archive did not finalize: %', v_result;
   end if;
-  if (select count(*) from public.classroom_archives where id = v_success_operation_id) <> 1 then
+  if (
+    select count(*)
+    from public.classroom_archives
+    where id = v_success_operation_id
+      and managed_object_id = v_success_managed_object_id
+  ) <> 1 then
     raise exception 'Verified archive metadata was not persisted exactly once';
   end if;
   if exists (

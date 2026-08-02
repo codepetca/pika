@@ -738,6 +738,39 @@ describe('explicit managed-file ownership migration', () => {
     expect(begin).not.toContain('from public.classroom_archive_source_object_cleanup cleanup')
   })
 
+  it('creates immutable archive and Gradex rows with their managed owner already attached', () => {
+    const attachmentStart = migration.indexOf(
+      'create or replace function public.prepare_immutable_operational_managed_owner()',
+    )
+    const attachmentEnd = migration.indexOf('$$;', attachmentStart)
+    const attachment = migration.slice(attachmentStart, attachmentEnd)
+    const archiveCompletionStart = migration.indexOf(
+      'create or replace function public.complete_classroom_archive_export_v2(',
+    )
+    const archiveCompletionEnd = migration.indexOf('$$;', archiveCompletionStart)
+    const archiveCompletion = migration.slice(archiveCompletionStart, archiveCompletionEnd)
+    const gradexCompletionStart = migration.indexOf(
+      'create or replace function public.complete_classroom_gradex_extract(',
+    )
+    const gradexCompletionEnd = migration.indexOf('$$;', gradexCompletionStart)
+    const gradexCompletion = migration.slice(gradexCompletionStart, gradexCompletionEnd)
+
+    expect(attachment).toContain("when 'classroom_archives' then 'classroom_archive'")
+    expect(attachment).toContain("when 'classroom_gradex_extracts' then 'gradex_extract'")
+    expect(attachment).toContain("object.resource_type = 'classroom_archive_operation'")
+    expect(attachment).toContain("object.status = 'ready'")
+    expect(attachment).toContain('new.managed_object_id := v_managed_object_id')
+    expect(migration).toContain('classroom_archives_prepare_managed_owner')
+    expect(migration).toContain('classroom_gradex_extracts_prepare_managed_owner')
+    expect(migration).toContain(
+      'revoke all on function public.prepare_immutable_operational_managed_owner()',
+    )
+    expect(archiveCompletion).toContain('archive.managed_object_id = v_object.id')
+    expect(archiveCompletion).not.toContain('update public.classroom_archives')
+    expect(gradexCompletion).toContain('extract.managed_object_id = v_object.id')
+    expect(gradexCompletion).not.toContain('update public.classroom_gradex_extracts')
+  })
+
   it('keeps operational upload CASE expressions inside the PL/pgSQL IF expression', () => {
     const uploadStart = migration.indexOf(
       'create or replace function public.begin_managed_storage_upload(',

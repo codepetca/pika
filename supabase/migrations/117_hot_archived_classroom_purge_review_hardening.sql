@@ -3001,8 +3001,66 @@ begin
 end;
 $$;
 
--- Archive and Gradex finalization keep their established contracts, but the
--- managed object is now validated and attached in the same transaction as the
+-- Immutable archive/Gradex metadata must be born with its managed owner. A
+-- post-insert attachment would either weaken immutability or be rejected by
+-- the existing metadata guards, so bind and validate the operation's exact
+-- ready object in a BEFORE INSERT trigger.
+create or replace function public.prepare_immutable_operational_managed_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_managed_object_id uuid;
+  v_purpose text := case tg_table_name
+    when 'classroom_archives' then 'classroom_archive'
+    when 'classroom_gradex_extracts' then 'gradex_extract'
+    else null
+  end;
+begin
+  if v_purpose is null then
+    raise exception 'unsupported_operational_managed_owner' using errcode = '55000';
+  end if;
+
+  select object.id into v_managed_object_id
+  from public.classroom_archive_operations operation
+  join public.managed_storage_objects object
+    on object.id = operation.managed_object_id
+   and object.classroom_id = operation.classroom_id
+   and object.course_blueprint_id is null
+   and object.storage_bucket = new.storage_bucket
+   and object.storage_path = new.storage_path
+   and object.purpose = v_purpose
+   and object.resource_type = 'classroom_archive_operation'
+   and object.resource_id = operation.id
+   and object.status = 'ready'
+  where operation.id = new.operation_id
+    and operation.classroom_id = new.classroom_id
+    and operation.teacher_id = new.teacher_id
+  for key share of operation, object;
+  if not found then
+    raise exception '%_managed_object_missing', v_purpose using errcode = '55000';
+  end if;
+  if new.managed_object_id is not null
+    and new.managed_object_id is distinct from v_managed_object_id
+  then
+    raise exception '%_managed_object_mismatch', v_purpose using errcode = '55000';
+  end if;
+  new.managed_object_id := v_managed_object_id;
+  return new;
+end;
+$$;
+
+create trigger classroom_archives_prepare_managed_owner
+before insert on public.classroom_archives
+for each row execute function public.prepare_immutable_operational_managed_owner();
+
+create trigger classroom_gradex_extracts_prepare_managed_owner
+before insert on public.classroom_gradex_extracts
+for each row execute function public.prepare_immutable_operational_managed_owner();
+
+-- Archive and Gradex finalization keep their established contracts, while the
+-- BEFORE INSERT guards attach ownership in the same statement that creates the
 -- immutable operational metadata.
 alter function public.complete_classroom_archive_export_v2(
   uuid, uuid, text, text, text, text, bigint, bigint,
@@ -3100,12 +3158,12 @@ begin
     p_archive_resource_counts, p_storage_object_counts, p_verification
   );
   if coalesce((v_result->>'ok')::boolean, false) then
-    update public.classroom_archives archive
-    set managed_object_id = v_object.id
+    perform 1 from public.classroom_archives archive
     where archive.id = v_operation.archive_id
       and archive.classroom_id = v_classroom_id
       and archive.storage_bucket = p_storage_bucket
-      and archive.storage_path = p_storage_path;
+      and archive.storage_path = p_storage_path
+      and archive.managed_object_id = v_object.id;
     if not found then
       raise exception 'archive_managed_attachment_failed' using errcode = '40001';
     end if;
@@ -3201,12 +3259,12 @@ begin
     p_verification
   );
   if coalesce((v_result->>'ok')::boolean, false) then
-    update public.classroom_gradex_extracts extract
-    set managed_object_id = v_object.id
+    perform 1 from public.classroom_gradex_extracts extract
     where extract.operation_id = p_operation_id
       and extract.classroom_id = v_classroom_id
       and extract.storage_bucket = v_object.storage_bucket
-      and extract.storage_path = v_object.storage_path;
+      and extract.storage_path = v_object.storage_path
+      and extract.managed_object_id = v_object.id;
     if not found then
       raise exception 'gradex_managed_attachment_failed' using errcode = '40001';
     end if;
@@ -7018,6 +7076,8 @@ revoke all on function public.guard_managed_storage_scope_owner()
 revoke all on function public.guard_managed_storage_identity_immutable()
   from public, anon, authenticated, service_role;
 revoke all on function public.prepare_legacy_managed_cleanup_ledger_change()
+  from public, anon, authenticated, service_role;
+revoke all on function public.prepare_immutable_operational_managed_owner()
   from public, anon, authenticated, service_role;
 
 grant execute on function public.begin_managed_storage_upload(

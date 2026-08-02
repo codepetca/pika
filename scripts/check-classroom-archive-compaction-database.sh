@@ -183,6 +183,8 @@ declare
   v_success_classroom_id constant uuid := '21000000-0000-4000-8000-000000000022';
   v_rollback_archive_id constant uuid := '24000000-0000-4000-8000-000000000021';
   v_success_archive_id constant uuid := '24000000-0000-4000-8000-000000000022';
+  v_rollback_archive_object_id constant uuid := '29000000-0000-4000-8000-000000000021';
+  v_success_archive_object_id constant uuid := '29000000-0000-4000-8000-000000000023';
   v_rollback_compaction_id constant uuid := '25000000-0000-4000-8000-000000000021';
   v_success_compaction_id constant uuid := '25000000-0000-4000-8000-000000000022';
   v_concurrent_id constant uuid := '25000000-0000-4000-8000-000000000023';
@@ -241,6 +243,40 @@ begin
   ) then
     raise exception 'Rollback archive upload intent was rejected';
   end if;
+  perform public.begin_managed_storage_upload(
+    v_rollback_archive_object_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_rollback_classroom_id,
+      v_rollback_archive_id
+    ),
+    v_rollback_classroom_id,
+    null,
+    'classroom_archive',
+    v_teacher_id,
+    null,
+    'classroom_archive_operation',
+    v_rollback_archive_id,
+    'application/gzip',
+    1024
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_rollback_classroom_id,
+      v_rollback_archive_id
+    ),
+    '{"size":1024}'::jsonb
+  );
+  perform public.adopt_managed_storage_upload(
+    v_rollback_archive_object_id,
+    repeat('a', 64)
+  );
   v_result := public.complete_classroom_archive_export_v2(
     v_rollback_archive_id,
     v_teacher_id,
@@ -491,6 +527,40 @@ begin
   ) then
     raise exception 'Successful archive upload intent was rejected';
   end if;
+  perform public.begin_managed_storage_upload(
+    v_success_archive_object_id,
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_success_classroom_id,
+      v_success_archive_id
+    ),
+    v_success_classroom_id,
+    null,
+    'classroom_archive',
+    v_teacher_id,
+    null,
+    'classroom_archive_operation',
+    v_success_archive_id,
+    'application/gzip',
+    1024
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v2.tar.gz',
+      v_teacher_id,
+      v_success_classroom_id,
+      v_success_archive_id
+    ),
+    '{"size":1024}'::jsonb
+  );
+  perform public.adopt_managed_storage_upload(
+    v_success_archive_object_id,
+    repeat('3', 64)
+  );
   v_result := public.complete_classroom_archive_export_v2(
     v_success_archive_id,
     v_teacher_id,
@@ -615,7 +685,11 @@ begin
       where classroom_id = v_success_classroom_id
         and archive_id = v_success_archive_id
     )
-    or not exists (select 1 from public.classroom_archives where id = v_success_archive_id)
+    or not exists (
+      select 1 from public.classroom_archives
+      where id = v_success_archive_id
+        and managed_object_id = v_success_archive_object_id
+    )
     or coalesce((v_result->'verification'->>'relational_deletion_verified')::boolean, false) is not true
   then
     raise exception 'Successful compaction did not produce exact cold state';
@@ -910,6 +984,7 @@ set local role service_role;
 do $cleanup_complete$
 declare
   v_claim record;
+  v_managed_claim record;
 begin
   select * into v_claim
   from public.claim_due_classroom_archive_source_object_cleanup_v2(
@@ -940,12 +1015,34 @@ begin
     raise exception 'Wrong source-object cleanup lease completed work';
   end if;
 
+  if not public.queue_managed_storage_cleanup(
+    '29000000-0000-4000-8000-000000000022'::uuid,
+    'archive_source_cleanup_requested'
+  ) then
+    raise exception 'Source object was not delegated to managed cleanup';
+  end if;
+  select * into v_managed_claim
+  from public.claim_managed_storage_cleanup(
+    '26000000-0000-4000-8000-000000000035'::uuid,
+    1,
+    60
+  );
+  if v_managed_claim.id is distinct from '29000000-0000-4000-8000-000000000022'::uuid then
+    raise exception 'Managed cleanup did not claim the exact source object';
+  end if;
+
   perform set_config('storage.allow_delete_query', 'true', true);
   delete from storage.objects
   where bucket_id = v_claim.storage_bucket
     and name = v_claim.storage_path;
   if found is not true then
     raise exception 'Claimed source object was not deleted before completion';
+  end if;
+  if not public.complete_managed_storage_cleanup(
+    v_managed_claim.id,
+    '26000000-0000-4000-8000-000000000035'::uuid
+  ) then
+    raise exception 'Managed source-object cleanup did not complete';
   end if;
 
   if not public.complete_classroom_archive_source_object_cleanup(

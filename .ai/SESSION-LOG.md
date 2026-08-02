@@ -1481,6 +1481,11 @@ zero-downtime rollout
 - Corrected the save-operation lifecycle trigger so PostgreSQL's internal assignment-document
   cascade may delete its child after the already-fenced parent disappears; missing-parent inserts
   and updates still fail closed.
+- Made immutable archive and Gradex metadata acquire its exact ready managed owner in a validating
+  `BEFORE INSERT` trigger, removing the invalid post-insert ownership update entirely.
+- Updated archive, compaction, and Gradex database contracts to reserve/upload/adopt operational
+  objects; compaction source cleanup now delegates physical deletion through a managed lease before
+  completing its durable archive cleanup evidence.
 
 **Validation:**
 - Local migration history and generated types match migrations 001–117; seed completed.
@@ -1491,10 +1496,13 @@ zero-downtime rollout
   terminal redaction assertions passed.
 - The atomic assignment SQL harness passes document, assignment, and classroom cascades with the
   corrected migration function loaded inside a rollback-only transaction.
+- Archive lifecycle, compaction/managed source cleanup, and Gradex SQL contracts pass with the
+  revised migration functions loaded inside rollback-only transactions.
+- Focused migration suite: 3 files / 51 tests; shell syntax and PostgreSQL SQLFluff parsing pass.
 - Focused suite: 5 files / 88 tests; TypeScript, lint, architecture boundaries, Pika audit, and
   `git diff --check` pass.
 
 **Remaining:**
-- Push the generated database contract, fixture correction, and cascade guard to draft PR #963,
+- Push the immutable operational-owner boundary and updated database fixtures to draft PR #963,
   then require green current-head CI before the completion review.
 - Do not deploy, apply migration 117 to a hosted target, or enable either rollout gate.
