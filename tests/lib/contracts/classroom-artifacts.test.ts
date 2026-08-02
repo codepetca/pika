@@ -369,6 +369,29 @@ describe('classroom data inventory', () => {
       }))
   })
 
+  it('does not treat secondary restore references as additional owners', () => {
+    const relationships = contractRelationships().map((relationship) => ({
+      ...relationship,
+      delete_action: 'cascade' as const,
+    }))
+    const secondaryReference = {
+      child_table: 'assignment_ai_grading_run_items',
+      parent_table: 'assignment_docs',
+      child_columns: ['assignment_doc_id'],
+      delete_action: 'set null' as const,
+    }
+    const indexes = relationships.map((relationship) => ({
+      table_name: relationship.child_table,
+      columns: relationship.child_columns,
+    }))
+
+    expect(auditClassroomResourceSchema(
+      [...relationships, secondaryReference],
+      contractPrimaryKeys(),
+      indexes,
+    ).ok).toBe(true)
+  })
+
   it('detects untracked and stale user-reference columns used for actor snapshots', () => {
     const relationships = contractRelationships()
     expect(auditClassroomResourceSchema([

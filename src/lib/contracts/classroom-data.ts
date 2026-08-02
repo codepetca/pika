@@ -463,6 +463,14 @@ export function auditClassroomResourceSchema(
     ...CLASSROOM_RELATIONAL_RESOURCES,
     ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   ]
+  const declaredOwnershipKeys = new Set(
+    ownershipResources.flatMap((resource) => {
+      const scope = resource.scope
+      return scope.kind === 'foreign_key'
+        ? [`${resource.table}.${scope.column}->${scope.parent}`]
+        : []
+    }),
+  )
   const invalidPrimaryKeys = ownershipResources.flatMap((resource) => {
     const actual = primaryKeysByTable.get(resource.table)
     return actual &&
@@ -472,7 +480,12 @@ export function auditClassroomResourceSchema(
       : [`${resource.table}: expected (${resource.primary_key.join(',')}) got (${actual?.join(',') || 'none'})`]
   })
   const owningRelationships = relationships.filter((relationship) =>
-    !relationshipIsNonOwning(relationship) &&
+    relationship.child_columns.length > 0 &&
+    relationship.child_columns.every((column) =>
+      declaredOwnershipKeys.has(
+        `${relationship.child_table}.${column}->${relationship.parent_table}`,
+      )
+    ) &&
     descendants.has(relationship.child_table) &&
     descendants.has(relationship.parent_table) &&
     relationship.child_table !== relationship.parent_table,

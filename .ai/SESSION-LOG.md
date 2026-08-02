@@ -1494,6 +1494,8 @@ zero-downtime rollout
 - Made the shared compaction contract capability-aware too: historical schemas retain their original
   archive and cleanup assertions, while current schemas additionally prove managed cleanup and run
   the guarded ownership race.
+- Corrected the schema audit to enforce cascade/index guarantees on each resource's declared scope
+  edge instead of conflating secondary restore/integrity references with additional ownership.
 
 **Validation:**
 - Local migration history and generated types match migrations 001–117; seed completed.
