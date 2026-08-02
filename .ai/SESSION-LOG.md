@@ -1489,6 +1489,11 @@ zero-downtime rollout
 - Rebuilt the compaction concurrency fixture around a real guarded hot-to-cold ownership transition;
   its race assertion accepts either permanent-reservation rejection or the retryable nonblocking
   lifecycle fence, and its teardown now runs transactionally in dependency order.
+- Kept the archive-v2 contract reusable for pre-106 compatibility databases by capability-detecting
+  migration 117's managed-storage API; current schemas still require and assert the immutable owner.
+- Made the shared compaction contract capability-aware too: historical schemas retain their original
+  archive and cleanup assertions, while current schemas additionally prove managed cleanup and run
+  the guarded ownership race.
 
 **Validation:**
 - Local migration history and generated types match migrations 001–117; seed completed.
@@ -1502,6 +1507,7 @@ zero-downtime rollout
 - Archive lifecycle, compaction/managed source cleanup, and Gradex SQL contracts pass with the
   revised migration functions loaded inside rollback-only transactions.
 - The full post-rollback compaction concurrency contract passes and leaves zero fixture rows.
+- Legacy Quiz compatibility replay passes without weakening current-schema managed ownership checks.
 - Focused migration suite: 3 files / 51 tests; shell syntax and PostgreSQL SQLFluff parsing pass.
 - Focused suite: 5 files / 88 tests; TypeScript, lint, architecture boundaries, Pika audit, and
   `git diff --check` pass.

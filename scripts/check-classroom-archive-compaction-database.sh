@@ -7,6 +7,8 @@ if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
 fi
+HAS_MANAGED_STORAGE="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
+  "select to_regclass('public.managed_storage_objects') is not null;")"
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
@@ -194,11 +196,17 @@ declare
   v_claim_count integer;
   v_resource record;
   v_rows jsonb;
+  v_managed_storage_available boolean;
+  v_archive_metadata_valid boolean;
   v_actors jsonb := '[
     {"actor_id":"11000000-0000-4000-8000-000000000021","role":"teacher"},
     {"actor_id":"11000000-0000-4000-8000-000000000022","role":"student"}
   ]'::jsonb;
 begin
+  v_managed_storage_available := to_regprocedure(
+    'public.begin_managed_storage_upload(uuid,text,text,uuid,uuid,text,uuid,uuid,text,uuid,text,bigint)'
+  ) is not null;
+
   if to_regprocedure(
     'public.verify_classroom_managed_storage_coverage(uuid,uuid,bigint,integer,text)'
   ) is not null then
@@ -243,25 +251,27 @@ begin
   ) then
     raise exception 'Rollback archive upload intent was rejected';
   end if;
-  perform public.begin_managed_storage_upload(
-    v_rollback_archive_object_id,
-    'classroom-archives',
-    format(
-      '%s/%s/%s/classroom-v2.tar.gz',
-      v_teacher_id,
+  if v_managed_storage_available then
+    perform public.begin_managed_storage_upload(
+      v_rollback_archive_object_id,
+      'classroom-archives',
+      format(
+        '%s/%s/%s/classroom-v2.tar.gz',
+        v_teacher_id,
+        v_rollback_classroom_id,
+        v_rollback_archive_id
+      ),
       v_rollback_classroom_id,
-      v_rollback_archive_id
-    ),
-    v_rollback_classroom_id,
-    null,
-    'classroom_archive',
-    v_teacher_id,
-    null,
-    'classroom_archive_operation',
-    v_rollback_archive_id,
-    'application/gzip',
-    1024
-  );
+      null,
+      'classroom_archive',
+      v_teacher_id,
+      null,
+      'classroom_archive_operation',
+      v_rollback_archive_id,
+      'application/gzip',
+      1024
+    );
+  end if;
   insert into storage.objects (bucket_id, name, metadata)
   values (
     'classroom-archives',
@@ -273,10 +283,12 @@ begin
     ),
     '{"size":1024}'::jsonb
   );
-  perform public.adopt_managed_storage_upload(
-    v_rollback_archive_object_id,
-    repeat('a', 64)
-  );
+  if v_managed_storage_available then
+    perform public.adopt_managed_storage_upload(
+      v_rollback_archive_object_id,
+      repeat('a', 64)
+    );
+  end if;
   v_result := public.complete_classroom_archive_export_v2(
     v_rollback_archive_id,
     v_teacher_id,
@@ -527,25 +539,27 @@ begin
   ) then
     raise exception 'Successful archive upload intent was rejected';
   end if;
-  perform public.begin_managed_storage_upload(
-    v_success_archive_object_id,
-    'classroom-archives',
-    format(
-      '%s/%s/%s/classroom-v2.tar.gz',
-      v_teacher_id,
+  if v_managed_storage_available then
+    perform public.begin_managed_storage_upload(
+      v_success_archive_object_id,
+      'classroom-archives',
+      format(
+        '%s/%s/%s/classroom-v2.tar.gz',
+        v_teacher_id,
+        v_success_classroom_id,
+        v_success_archive_id
+      ),
       v_success_classroom_id,
-      v_success_archive_id
-    ),
-    v_success_classroom_id,
-    null,
-    'classroom_archive',
-    v_teacher_id,
-    null,
-    'classroom_archive_operation',
-    v_success_archive_id,
-    'application/gzip',
-    1024
-  );
+      null,
+      'classroom_archive',
+      v_teacher_id,
+      null,
+      'classroom_archive_operation',
+      v_success_archive_id,
+      'application/gzip',
+      1024
+    );
+  end if;
   insert into storage.objects (bucket_id, name, metadata)
   values (
     'classroom-archives',
@@ -557,10 +571,12 @@ begin
     ),
     '{"size":1024}'::jsonb
   );
-  perform public.adopt_managed_storage_upload(
-    v_success_archive_object_id,
-    repeat('3', 64)
-  );
+  if v_managed_storage_available then
+    perform public.adopt_managed_storage_upload(
+      v_success_archive_object_id,
+      repeat('3', 64)
+    );
+  end if;
   v_result := public.complete_classroom_archive_export_v2(
     v_success_archive_id,
     v_teacher_id,
@@ -671,6 +687,18 @@ begin
   then
     raise exception 'Successful compaction failed: %', v_result;
   end if;
+  if v_managed_storage_available then
+    select exists (
+      select 1 from public.classroom_archives
+      where id = v_success_archive_id
+        and managed_object_id = v_success_archive_object_id
+    ) into v_archive_metadata_valid;
+  else
+    select exists (
+      select 1 from public.classroom_archives
+      where id = v_success_archive_id
+    ) into v_archive_metadata_valid;
+  end if;
   if exists (select 1 from public.classrooms where id = v_success_classroom_id)
     or exists (
       select 1 from public.assignments
@@ -685,11 +713,7 @@ begin
       where classroom_id = v_success_classroom_id
         and archive_id = v_success_archive_id
     )
-    or not exists (
-      select 1 from public.classroom_archives
-      where id = v_success_archive_id
-        and managed_object_id = v_success_archive_object_id
-    )
+    or not v_archive_metadata_valid
     or coalesce((v_result->'verification'->>'relational_deletion_verified')::boolean, false) is not true
   then
     raise exception 'Successful compaction did not produce exact cold state';
@@ -985,7 +1009,12 @@ do $cleanup_complete$
 declare
   v_claim record;
   v_managed_claim record;
+  v_managed_storage_available boolean;
 begin
+  v_managed_storage_available := to_regprocedure(
+    'public.queue_managed_storage_cleanup(uuid,text)'
+  ) is not null;
+
   select * into v_claim
   from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000033',
@@ -1015,20 +1044,22 @@ begin
     raise exception 'Wrong source-object cleanup lease completed work';
   end if;
 
-  if not public.queue_managed_storage_cleanup(
-    '29000000-0000-4000-8000-000000000022'::uuid,
-    'archive_source_cleanup_requested'
-  ) then
-    raise exception 'Source object was not delegated to managed cleanup';
-  end if;
-  select * into v_managed_claim
-  from public.claim_managed_storage_cleanup(
-    '26000000-0000-4000-8000-000000000035'::uuid,
-    1,
-    60
-  );
-  if v_managed_claim.id is distinct from '29000000-0000-4000-8000-000000000022'::uuid then
-    raise exception 'Managed cleanup did not claim the exact source object';
+  if v_managed_storage_available then
+    if not public.queue_managed_storage_cleanup(
+      '29000000-0000-4000-8000-000000000022'::uuid,
+      'archive_source_cleanup_requested'
+    ) then
+      raise exception 'Source object was not delegated to managed cleanup';
+    end if;
+    select * into v_managed_claim
+    from public.claim_managed_storage_cleanup(
+      '26000000-0000-4000-8000-000000000035'::uuid,
+      1,
+      60
+    );
+    if v_managed_claim.id is distinct from '29000000-0000-4000-8000-000000000022'::uuid then
+      raise exception 'Managed cleanup did not claim the exact source object';
+    end if;
   end if;
 
   perform set_config('storage.allow_delete_query', 'true', true);
@@ -1038,11 +1069,14 @@ begin
   if found is not true then
     raise exception 'Claimed source object was not deleted before completion';
   end if;
-  if not public.complete_managed_storage_cleanup(
-    v_managed_claim.id,
-    '26000000-0000-4000-8000-000000000035'::uuid
-  ) then
-    raise exception 'Managed source-object cleanup did not complete';
+  if v_managed_storage_available then
+    if not public.complete_managed_storage_cleanup(
+        v_managed_claim.id,
+        '26000000-0000-4000-8000-000000000035'::uuid
+      )
+    then
+      raise exception 'Managed source-object cleanup did not complete';
+    end if;
   end if;
 
   if not public.complete_classroom_archive_source_object_cleanup(
@@ -1176,6 +1210,11 @@ $security$;
 
 rollback;
 SQL
+
+if [[ "$HAS_MANAGED_STORAGE" != "t" ]]; then
+  echo "Classroom archive compaction database contract passed."
+  exit 0
+fi
 
 RACE_OPERATION_ID="25000000-0000-4000-8000-000000000029"
 RACE_STAGING_OPERATION_ID="25000000-0000-4000-8000-000000000028"
