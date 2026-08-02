@@ -20,6 +20,7 @@ import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
+import { PalFailureBoundary, StudentPalExperience } from '@/integrations/pal'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
@@ -79,7 +80,8 @@ interface ClassroomPageClientProps {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
-  palEmbedUrl?: string | null
+  palApiUrl?: string | null
+  palScopeKey?: string | null
 }
 
 type UpdateSearchOptions = {
@@ -128,13 +130,20 @@ export function ClassroomPageClient({
   initialTab,
   initialSearchParams,
   palEnabled = false,
-  palEmbedUrl = null,
+  palApiUrl = null,
+  palScopeKey = null,
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
   const [clientClassroom, setClientClassroom] = useState(classroom)
   const [clientTeacherClassrooms, setClientTeacherClassrooms] = useState(teacherClassrooms)
 
   const isTeacher = user.role === 'teacher'
+  const palAvailable = (
+    !isTeacher
+    && palEnabled
+    && palApiUrl !== null
+    && palScopeKey !== null
+  )
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
   const isArchived = isTeacher && !!effectiveClassroom.archived_at
   const basePath = `/classrooms/${effectiveClassroom.id}`
@@ -145,14 +154,14 @@ export function ClassroomPageClient({
         ? (['attendance', 'gradebook', 'assignments', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
         : ([
             'today',
-            ...(palEnabled ? ['achievements'] as const : []),
+            ...(palAvailable ? ['achievements'] as const : []),
             'assignments',
             'tests',
             'calendar',
             'resources',
             'announcements',
           ] as const),
-    [isTeacher, palEnabled]
+    [isTeacher, palAvailable]
   )
 
   const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
@@ -249,7 +258,7 @@ export function ClassroomPageClient({
   // Determine route key for layout config
   const routeKey = getRouteKeyFromTab(activeTab, user.role)
 
-  return (
+  const classroomPage = (
     <ThreePanelProvider
       routeKey={routeKey}
       initialLeftExpanded={leftSidebarExpanded}
@@ -264,12 +273,30 @@ export function ClassroomPageClient({
           searchParams={activeSearchParams}
           updateSearchParams={updateSearchParams}
           onClassroomUpdated={handleClassroomUpdated}
-          palEnabled={palEnabled}
-          palEmbedUrl={palEmbedUrl}
+          palEnabled={palAvailable}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
   )
+
+  if (palAvailable) {
+    return (
+      <PalFailureBoundary
+        fallback={classroomPage}
+        resetKey={palScopeKey}
+      >
+        <StudentPalExperience
+          apiBaseUrl={palApiUrl}
+          scopeKey={palScopeKey}
+          showAmbientSurfaces={activeTab !== 'tests'}
+        >
+          {classroomPage}
+        </StudentPalExperience>
+      </PalFailureBoundary>
+    )
+  }
+
+  return classroomPage
 }
 
 function hasLessonPlanContent(plan: LessonPlan | null) {
@@ -413,7 +440,6 @@ function ClassroomPageContent({
   updateSearchParams,
   onClassroomUpdated,
   palEnabled,
-  palEmbedUrl,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -424,7 +450,6 @@ function ClassroomPageContent({
   updateSearchParams: UpdateSearchParamsFn
   onClassroomUpdated: (classroom: Classroom) => void
   palEnabled: boolean
-  palEmbedUrl: string | null
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1398,10 +1423,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.achievements && (
                     <TabContentTransition isActive={activeTab === 'achievements'}>
-                      <StudentAchievementsTab
-                        embedUrl={palEmbedUrl}
-                        isActive={activeTab === 'achievements'}
-                      />
+                      <StudentAchievementsTab />
                     </TabContentTransition>
                   )}
                   {mountedTabs.assignments && (

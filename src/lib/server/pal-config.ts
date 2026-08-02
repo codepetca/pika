@@ -85,9 +85,9 @@ export function requirePalEnvironment(): {
   }
 }
 
-export function getPalEmbedUrl(): string | null {
+export function getPalApiUrl(): string | null {
   if (!isPalEnabled()) return null
 
   const { apiUrl } = requirePalEnvironment()
-  return new URL('/embed/roadmap', apiUrl).toString()
+  return apiUrl
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import '@codepet/pal-widget/styles.css'
 import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { redirect, notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -6,7 +7,7 @@ import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
-import { getPalEmbedUrl, isPalEnabled } from '@/lib/server/pal-config'
+import { getPalApiUrl, isPalEnabled } from '@/lib/server/pal-config'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -76,7 +77,8 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         initialTab={tab}
         initialSearchParams={initialSearchParams}
         palEnabled={false}
-        palEmbedUrl={null}
+        palApiUrl={null}
+        palScopeKey={null}
       />
     )
   }
@@ -109,6 +111,8 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     notFound()
   }
 
+  const palEnabled = isPalEnabled()
+
   return (
     <ClassroomPageClient
       classroom={hydrateClassroomRecord(classroom as Record<string, any>)}
@@ -121,8 +125,9 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
       teacherClassrooms={[]} // Students don't need this
       initialTab={tab}
       initialSearchParams={initialSearchParams}
-      palEnabled={isPalEnabled()}
-      palEmbedUrl={getPalEmbedUrl()}
+      palEnabled={palEnabled}
+      palApiUrl={palEnabled ? getPalApiUrl() : null}
+      palScopeKey={palEnabled ? randomUUID() : null}
     />
   )
 }

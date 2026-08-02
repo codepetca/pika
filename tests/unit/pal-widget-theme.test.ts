@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -6,7 +6,7 @@ import {
   PAL_THEME_ATTRIBUTES,
   PAL_THEME_CONTRACT_VERSION,
   PAL_THEME_PROPERTIES,
-} from '@/vendor/pal-widget-theme/theme-contract'
+} from '@codepet/pal-widget/theme-contract'
 
 const adapter = readFileSync(
   resolve(
@@ -19,8 +19,17 @@ const pikaTokens = readFileSync(
   resolve(process.cwd(), 'src/styles/tokens.css'),
   'utf8',
 )
+const tailwindConfig = readFileSync(
+  resolve(process.cwd(), 'tailwind.config.ts'),
+  'utf8',
+)
 
 describe('Pika to Pal widget theme adapter', () => {
+  it('uses the package contract without retaining a second vendored authority', () => {
+    expect(existsSync(resolve(process.cwd(), 'src/vendor/pal-widget-theme'))).toBe(false)
+    expect(tailwindConfig).toContain('./src/integrations/**/*.{js,ts,jsx,tsx,mdx}')
+  })
+
   it('implements every property from the reviewed Pal contract exactly once', () => {
     expect(PAL_THEME_CONTRACT_VERSION).toBe(1)
 

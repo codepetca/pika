@@ -43,7 +43,18 @@ describe('POST /api/student/pal/read-token', () => {
     }) as any, { params: Promise.resolve({}) })
 
     expect(response.status).toBe(404)
+    expect(response.headers.get('cache-control')).toBe('no-store')
     expect(mockMintPalReadToken).not.toHaveBeenCalled()
+  })
+
+  it('does not cache a temporary Pal failure', async () => {
+    mockMintPalReadToken.mockRejectedValue(new Error('Pal unavailable'))
+    const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+    }) as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('no-store')
   })
 
   it('fails closed before minting when enabled configuration is incomplete', async () => {

@@ -49,7 +49,7 @@ describe('ui guidance docs and prompts', () => {
     expect(design).toContain('confirmed, executable-only, stable target, legacy')
     expect(design).toContain('evidence rather than')
     expect(design).toContain('confirmed as contract version 1')
-    expect(design).toContain('@pal/widget/theme-contract')
+    expect(design).toContain('@codepet/pal-widget/theme-contract')
     expect(design).toContain('pal-widget-theme.module.css')
     expect(design).toContain('auth text controls remain registered migration debt')
     expect(design).toContain('implementation commit, capture date')

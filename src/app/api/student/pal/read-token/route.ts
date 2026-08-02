@@ -8,22 +8,27 @@ import { mintPalReadToken } from '@/lib/server/pal-read-token'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const noStoreHeaders = { 'Cache-Control': 'no-store' }
+
 export const POST = withErrorHandler('PostStudentPalReadToken', async () => {
   const user = await requireRole('student')
   if (!isPalEnabled()) {
-    return NextResponse.json({ error: 'Achievements are unavailable' }, { status: 404 })
+    return NextResponse.json(
+      { error: 'Achievements are unavailable' },
+      { status: 404, headers: noStoreHeaders },
+    )
   }
 
   try {
     const token = await mintPalReadToken({ studentId: user.id })
     return NextResponse.json(token, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: noStoreHeaders,
     })
   } catch (error) {
     console.error('Failed to mint Pal read token:', error)
     return NextResponse.json(
       { error: 'Achievements are temporarily unavailable' },
-      { status: 503 },
+      { status: 503, headers: noStoreHeaders },
     )
   }
 })

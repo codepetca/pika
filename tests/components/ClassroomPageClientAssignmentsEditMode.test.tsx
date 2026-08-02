@@ -328,11 +328,11 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
   },
 }))
 vi.mock('@/app/classrooms/[classroomId]/StudentAchievementsTab', () => ({
-  StudentAchievementsTab: ({ embedUrl, isActive }: any) => (
-    <div data-testid="student-achievements">
-      {isActive ? 'active' : 'inactive'}:{embedUrl}
-    </div>
-  ),
+  StudentAchievementsTab: () => <div data-testid="student-achievements">native Pal</div>,
+}))
+vi.mock('@/integrations/pal', () => ({
+  PalFailureBoundary: ({ children }: any) => <>{children}</>,
+  StudentPalExperience: ({ children }: any) => <>{children}</>,
 }))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,
@@ -387,7 +387,8 @@ function renderStudentClient(options?: {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
-  palEmbedUrl?: string | null
+  palApiUrl?: string | null
+  palScopeKey?: string | null
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
@@ -402,7 +403,8 @@ function renderStudentClient(options?: {
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
         palEnabled={options?.palEnabled}
-        palEmbedUrl={options?.palEmbedUrl}
+        palApiUrl={options?.palApiUrl}
+        palScopeKey={options?.palScopeKey}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -455,13 +457,12 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       initialTab: 'today',
       initialSearchParams: { tab: 'today' },
       palEnabled: true,
-      palEmbedUrl: 'https://pal.example/embed/roadmap',
+      palApiUrl: 'https://pal.example',
+      palScopeKey: 'opaque-session-generation',
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Go Achievements' }))
-    expect(await screen.findByTestId('student-achievements')).toHaveTextContent(
-      'active:https://pal.example/embed/roadmap',
-    )
+    expect(await screen.findByTestId('student-achievements')).toHaveTextContent('native Pal')
   })
 
   it('updates the app shell classroom theme when settings saves classroom changes', async () => {
