@@ -721,6 +721,18 @@ describe('explicit managed-file ownership migration', () => {
     expect(begin).not.toContain('from public.classroom_archive_source_object_cleanup cleanup')
   })
 
+  it('keeps operational upload CASE expressions inside the PL/pgSQL IF expression', () => {
+    const uploadStart = migration.indexOf(
+      'create or replace function public.begin_managed_storage_upload(',
+    )
+    const uploadEnd = migration.indexOf('$$;', uploadStart)
+    const upload = migration.slice(uploadStart, uploadEnd)
+
+    expect(upload).toContain('p_storage_bucket <> (case p_purpose')
+    expect(upload).toContain('v_operation.operation_type <> (case p_purpose')
+    expect(upload).not.toContain('<> case p_purpose')
+  })
+
   it('turns legacy file cleanup ledgers into fenced delegates of managed ownership', () => {
     const bridgeStart = migration.indexOf(
       'create or replace function public.prepare_legacy_managed_cleanup_ledger_change()',

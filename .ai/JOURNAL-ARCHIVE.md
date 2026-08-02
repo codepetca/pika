@@ -16098,3 +16098,33 @@ future persistence shape without enabling unapproved schema behavior.
 **Remaining:**
 - Publish, independently review, and require exact-head CI before merge.
 - Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
+
+<!-- pika-session-log-archive-batch:e077f685392cd1ee30f0405715ae0d926f8cf78629a28901c7b1cd8203d423ed -->
+## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
+  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
+  parent/child `NOWAIT` locks roll back immediately on live conflicts.
+- Added deterministic SQL envelope IDs and canonical payload checksums matching
+  the TypeScript adapter, parent and actor preflights, collision checks, and an
+  aggregate-only five-resource parity ledger.
+- Kept every source row intact for the observation window and added no
+  dual-write or active Test-table mapping.
+- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
+  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
+- Documented that migration 106 cannot be hosted until direct v2 snapshots,
+  version-aware compaction, and v1-to-v2 restore dispatch are current.
+
+**Validation:**
+- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
+  `git diff --check` pass.
+- Migration 106 was not applied to the shared local database or a hosted
+  target; its executable rehearsal is reserved for disposable PR CI.
+
+**Remaining:**
+- Run repository checks, independent review, and exact-head CI before merge.
+- Next pass: implement the version-aware archive runtime required before
+  migration 106 can receive target-specific application approval.

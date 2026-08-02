@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
-  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
-  parent/child `NOWAIT` locks roll back immediately on live conflicts.
-- Added deterministic SQL envelope IDs and canonical payload checksums matching
-  the TypeScript adapter, parent and actor preflights, collision checks, and an
-  aggregate-only five-resource parity ledger.
-- Kept every source row intact for the observation window and added no
-  dual-write or active Test-table mapping.
-- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
-  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
-- Documented that migration 106 cannot be hosted until direct v2 snapshots,
-  version-aware compaction, and v1-to-v2 restore dispatch are current.
-
-**Validation:**
-- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
-  `git diff --check` pass.
-- Migration 106 was not applied to the shared local database or a hosted
-  target; its executable rehearsal is reserved for disposable PR CI.
-
-**Remaining:**
-- Run repository checks, independent review, and exact-head CI before merge.
-- Next pass: implement the version-aware archive runtime required before
-  migration 106 can receive target-specific application approval.
-
 ## 2026-07-23 — Activated direct archive-v2 runtime
 
 **Risk profile:** runtime-platform
@@ -1534,3 +1505,24 @@ zero-downtime rollout
 - Migration 117's redesigned source still needs a separately authorized local replay before the
   readiness/backfill and destructive database fixture can be treated as current evidence.
 - Do not merge, deploy, enable deletion, or apply migration 117 to production.
+
+## 2026-08-01 — Corrected managed-upload migration parsing
+
+**Risk profile:** migration, CI contract
+
+**Completed:**
+- Parenthesized both `CASE` expressions inside the managed-upload PL/pgSQL `IF` condition after
+  ephemeral CI replay exposed PostgreSQL stopping at the nested `THEN` token.
+- Added a migration-contract regression that preserves the parser-safe form for both archive and
+  Gradex operational upload validation.
+
+**Validation:**
+- The exact `begin_managed_storage_upload` function compiles in PostgreSQL inside an explicit
+  transaction that is rolled back.
+- Focused migration suite: 1 file / 34 tests passes.
+- TypeScript, Pika audit, `git diff --check`, and full PostgreSQL SQLFluff parsing pass.
+- No migration was applied or replayed; production and all persistent rollout gates are unchanged.
+
+**Remaining:**
+- Push the focused correction to draft PR #963 and require green current-head CI.
+- Keep migration 117 and destructive local fixture separately authorization-gated.

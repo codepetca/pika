@@ -2769,16 +2769,16 @@ begin
       end if;
       if v_operation.id is null
         or v_archived_at is null
-        or p_storage_bucket <> case p_purpose
+        or p_storage_bucket <> (case p_purpose
           when 'classroom_archive' then 'classroom-archives'
           else 'gradex-analytics-extracts'
-        end
+        end)
         or p_resource_type <> 'classroom_archive_operation'
         or v_operation.status <> 'snapshot_ready'
-        or v_operation.operation_type <> case p_purpose
+        or v_operation.operation_type <> (case p_purpose
           when 'classroom_archive' then 'export'
           else 'gradex_extract'
-        end
+        end)
         or not v_operational_intent_valid
       then
         raise exception 'classroom_operational_upload_not_allowed' using errcode = '55000';
