@@ -1520,6 +1520,8 @@ zero-downtime rollout
 - Expanded the destructive fixture with real student-created reservations, cross-student and
   cross-classroom rejection, stale-impact rejection in both application and database layers,
   non-owner purge-state isolation, and terminal replay.
+- Updated the archive recovery drill's artifact fixture to use the real enrolled student and exact
+  assignment-document claim required by the purpose-aware upload contract.
 
 **Validation:**
 - Focused suite: 5 files / 74 tests passes; full suite: 468 files / 4,085 tests passes.

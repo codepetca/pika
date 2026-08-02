@@ -247,10 +247,10 @@ async function createFixture(args: {
     path: args.sourceObjectPath,
     classroomId: args.ids.classrooms,
     purpose: 'student_assignment_artifact',
-    createdByUserId: args.ids.teacher,
+    createdByUserId: args.ids.student,
     dataSubjectUserId: args.ids.student,
-    resourceType: 'assignment_submission_artifact',
-    resourceId: args.ids.assignment_submission_artifacts,
+    resourceType: 'assignment_doc',
+    resourceId: args.ids.assignment_docs,
     contentType: 'image/png',
     byteSize: args.sourceObjectBytes.byteLength,
   })
