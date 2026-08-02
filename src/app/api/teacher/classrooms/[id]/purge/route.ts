@@ -40,6 +40,8 @@ export const POST = withErrorHandler(
       classroomId: classroomIdSchema.parse(id),
       operationId: input.operation_id,
       confirmation: input.confirmation,
+      expectedSourceRevision: input.expected_source_revision,
+      expectedStorageInventorySha256: input.expected_storage_inventory_sha256,
     })
     return NextResponse.json({ operation }, {
       status: operation.status === 'completed' ? 200 : 202,

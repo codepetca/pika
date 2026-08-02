@@ -16,6 +16,8 @@ describe('ClassroomPurgeDialog', () => {
         impact: {
           classroom_id: CLASSROOM_ID,
           classroom_title: 'Archived Biology',
+          source_revision: 7,
+          storage_inventory_sha256: 'a'.repeat(64),
           relational_row_count: 10,
           student_count: 2,
           managed_file_count: 3,

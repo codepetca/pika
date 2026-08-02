@@ -135,6 +135,8 @@ export function ClassroomPurgeDialog({
           body: JSON.stringify({
             operation_id: crypto.randomUUID(),
             confirmation,
+            expected_source_revision: impact?.source_revision,
+            expected_storage_inventory_sha256: impact?.storage_inventory_sha256,
           }),
         })
         const body = await response.json() as PurgeResponse

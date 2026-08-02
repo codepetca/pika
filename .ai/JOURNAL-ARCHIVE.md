@@ -16214,3 +16214,28 @@ future persistence shape without enabling unapproved schema behavior.
 **Remaining:**
 - Complete PR review/remediation, exact-head CI, and merge. Applying migration
   108 remains separately target-authorized.
+
+<!-- pika-session-log-archive-batch:70cf2b55a4c522a39ca31e52376171abda0f185973409790dfd5ded2be1e7150 -->
+## 2026-07-23 — Rebased test-preview hardening after Quiz removal
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
+  the canonical test-only API and both preview request-order regressions.
+- Resequenced the atomic snapshot migration to 109 and consolidated the
+  uncommitted document-authoring and durable-cleanup schema into migration 110.
+- Kept ordinary document writers behind compare-and-swap updates, added a
+  leased storage-cleanup queue and cron worker, and retained real transport
+  SSRF/timeout coverage.
+- Left the shared local database unchanged. It remains reset and seeded through
+  migration 104; migrations 105-110 are unapplied there.
+
+**Validation:**
+- Full Vitest coverage passes: 421 files and 3,749 tests.
+- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
+- No local or hosted migration was applied.
+
+**Remaining:**
+- Run targeted security rereview and final integration review.
+- Push the rebased exact head, wait for CI, and merge only after approval.

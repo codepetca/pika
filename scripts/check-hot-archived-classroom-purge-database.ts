@@ -300,6 +300,24 @@ async function expectFailure(
   throw new Error(`${label} unexpectedly succeeded`)
 }
 
+async function expectFailureMessage(
+  label: string,
+  operation: () => Promise<unknown>,
+  expectedMessage: string,
+) {
+  try {
+    await operation()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    assertFixture(
+      message.includes(expectedMessage),
+      `${label} failed without ${expectedMessage}`,
+    )
+    return
+  }
+  throw new Error(`${label} unexpectedly succeeded`)
+}
+
 async function main() {
   const { supabaseUrl, databaseUrl } = requireLocalFixtureEnvironment()
   const supabase = getServiceRoleClient()
@@ -307,6 +325,8 @@ async function main() {
   const classroomId = randomUUID()
   const blueprintId = randomUUID()
   const otherTeacherId = randomUUID()
+  const otherStudentId = randomUUID()
+  const otherClassroomId = randomUUID()
   const purgeOperationId = randomUUID()
   const competingPurgeOperationId = randomUUID()
   const assignmentId = randomUUID()
@@ -358,6 +378,11 @@ async function main() {
       email: `purge-fixture-${suffix}@example.invalid`,
       role: 'teacher',
     }))
+    dataOrThrow('insert authorization probe student', await supabase.from('users').insert({
+      id: otherStudentId,
+      email: `purge-student-fixture-${suffix}@example.invalid`,
+      role: 'student',
+    }))
 
     dataOrThrow('insert fixture Blueprint', await supabase.from('course_blueprints').insert({
       id: blueprintId,
@@ -370,6 +395,37 @@ async function main() {
       title: `Purge fixture classroom ${suffix}`,
       class_code: `PURGE-${suffix}`,
       source_blueprint_id: blueprintId,
+    }))
+    dataOrThrow('insert cross-classroom authorization probe', await supabase
+      .from('classrooms').insert({
+        id: otherClassroomId,
+        teacher_id: teacher.id,
+        title: `Purge authorization probe ${suffix}`,
+        class_code: `PURGE-AUTH-${suffix}`,
+      }))
+    dataOrThrow('insert fixture enrollment', await supabase.from('classroom_enrollments').insert({
+      classroom_id: classroomId, student_id: student.id,
+    }))
+    dataOrThrow('insert cross-classroom enrollment', await supabase
+      .from('classroom_enrollments').insert({
+        classroom_id: otherClassroomId, student_id: student.id,
+      }))
+    dataOrThrow('insert cross-student enrollment', await supabase
+      .from('classroom_enrollments').insert({
+        classroom_id: classroomId, student_id: otherStudentId,
+      }))
+    dataOrThrow('insert fixture assignment', await supabase.from('assignments').insert({
+      id: assignmentId, classroom_id: classroomId, created_by: teacher.id,
+      title: 'Fixture assignment', due_at: expiryIso, points_possible: 100,
+    }))
+    dataOrThrow('insert fixture submission requirement', await supabase
+      .from('assignment_submission_requirements').insert({
+        id: requirementId, assignment_id: assignmentId, type: 'image', label: 'Fixture image',
+      }))
+    dataOrThrow('insert fixture submission', await supabase.from('assignment_docs').insert({
+      id: assignmentDocId, assignment_id: assignmentId, student_id: student.id,
+      content: { type: 'doc', content: [{ type: 'paragraph' }] },
+      content_legacy: 'Fixture student work',
     }))
 
     const managedObjects: FixtureObject[] = [
@@ -384,7 +440,8 @@ async function main() {
         id: randomUUID(), bucket: 'submission-images',
         path: `purge-fixture/${fixtureId}/classroom/daily-log.png`,
         contentType: 'image/png', purpose: 'student_inline_image', owner: 'classroom',
-        resourceType: 'entry', dataSubjectUserId: student.id,
+        resourceType: 'assignment_doc', resourceId: assignmentDocId,
+        dataSubjectUserId: student.id,
       },
       {
         id: randomUUID(), bucket: 'test-documents',
@@ -424,7 +481,10 @@ async function main() {
         classroomId: object.owner === 'classroom' ? classroomId : null,
         courseBlueprintId: object.owner === 'blueprint' ? blueprintId : null,
         purpose: object.purpose,
-        createdByUserId: teacher.id,
+        createdByUserId: object.purpose === 'student_assignment_artifact'
+          || object.purpose === 'student_inline_image'
+          ? student.id
+          : teacher.id,
         dataSubjectUserId: object.dataSubjectUserId,
         resourceType: object.resourceType,
         resourceId: object.resourceId,
@@ -439,6 +499,44 @@ async function main() {
       createdStorageObjects.push(object)
       await adoptManagedStorageUpload({ supabase, objectId: object.id })
     }
+
+    await expectFailureMessage(
+      'cross-student managed upload reservation',
+      () => reserveManagedStorageUpload({
+        supabase,
+        objectId: randomUUID(),
+        bucket: 'submission-images',
+        path: `purge-fixture/${fixtureId}/cross-student.png`,
+        classroomId,
+        purpose: 'student_inline_image',
+        createdByUserId: otherStudentId,
+        dataSubjectUserId: otherStudentId,
+        resourceType: 'assignment_doc',
+        resourceId: assignmentDocId,
+        contentType: 'image/png',
+      }),
+      'classroom_student_upload_not_allowed',
+    )
+    await expectFailureMessage(
+      'cross-classroom managed upload reservation',
+      () => reserveManagedStorageUpload({
+        supabase,
+        objectId: randomUUID(),
+        bucket: 'assignment-artifacts',
+        path: `purge-fixture/${fixtureId}/cross-classroom.png`,
+        classroomId: otherClassroomId,
+        purpose: 'student_assignment_artifact',
+        createdByUserId: student.id,
+        dataSubjectUserId: student.id,
+        resourceType: 'assignment_doc',
+        resourceId: assignmentDocId,
+        contentType: 'image/png',
+      }),
+      'classroom_student_upload_not_allowed',
+    )
+    dataOrThrow('remove cross-student enrollment', await supabase
+      .from('classroom_enrollments').delete()
+      .eq('classroom_id', classroomId).eq('student_id', otherStudentId))
 
     const classroomTeacherMaterial = managedObjects[2]
     expectSqlFailure(
@@ -554,9 +652,6 @@ async function main() {
     dataOrThrow('link classroom-owned image', await supabase.from('classrooms').update({
       course_overview_markdown: `Classroom image: ${publicStorageUrl(classroomImage.bucket, classroomImage.path)}`,
     }).eq('id', classroomId))
-    dataOrThrow('insert fixture enrollment', await supabase.from('classroom_enrollments').insert({
-      classroom_id: classroomId, student_id: student.id,
-    }))
     dataOrThrow('insert fixture roster', await supabase.from('classroom_roster').insert({
       classroom_id: classroomId, email: student.email,
       first_name: 'Purge', last_name: 'Fixture',
@@ -570,19 +665,6 @@ async function main() {
     dataOrThrow('insert fixture log summary', await supabase.from('log_summaries').insert({
       classroom_id: classroomId, date: nowIso.slice(0, 10), entry_count: 1,
       model: 'fixture', summary_items: [{ text: 'Fixture operational summary' }],
-    }))
-    dataOrThrow('insert fixture assignment', await supabase.from('assignments').insert({
-      id: assignmentId, classroom_id: classroomId, created_by: teacher.id,
-      title: 'Fixture assignment', due_at: expiryIso, points_possible: 100,
-    }))
-    dataOrThrow('insert fixture submission requirement', await supabase
-      .from('assignment_submission_requirements').insert({
-        id: requirementId, assignment_id: assignmentId, type: 'image', label: 'Fixture image',
-      }))
-    dataOrThrow('insert fixture submission', await supabase.from('assignment_docs').insert({
-      id: assignmentDocId, assignment_id: assignmentId, student_id: student.id,
-      content: { type: 'doc', content: [{ type: 'paragraph' }] },
-      content_legacy: 'Fixture student work',
     }))
     dataOrThrow('insert fixture assignment artifact', await supabase
       .from('assignment_submission_artifacts').insert({
@@ -804,19 +886,84 @@ async function main() {
     assertFixture(impact.storage_counts['gradex-analytics-extracts'] === 2, 'Gradex inventory drift')
     assertFixture(impact.ownership_coverage_status === 'verified' && impact.deletion_available,
       'Verified exact ownership did not enable the local purge')
+    assertFixture(
+      impact.storage_inventory_sha256,
+      'Verified purge impact did not include its managed-file inventory binding',
+    )
 
     await expectFailure(
       'other teacher impact read',
       () => getClassroomPurgeImpact(otherTeacherId, classroomId),
       ['classroom_not_found'],
     )
+    const changedRevision = Number(runSql(databaseUrl, `
+      update public.classroom_archive_revisions
+      set revision = revision + 1
+      where classroom_id = '${classroomId}'
+      returning revision;
+    `))
+    const staleDatabaseBegin = await rpc(supabase, 'begin_hot_archived_classroom_purge', {
+      p_operation_id: purgeOperationId,
+      p_teacher_id: teacher.id,
+      p_classroom_id: classroomId,
+      p_request_sha256: 'd'.repeat(64),
+      p_impact_summary: impact,
+    }) as { ok: boolean; error_code?: string }
+    assertFixture(
+      !staleDatabaseBegin.ok
+      && staleDatabaseBegin.error_code === 'classroom_purge_inventory_changed',
+      'Database accepted a purge impact from an older classroom revision',
+    )
+    await expectFailure(
+      'stale confirmed purge impact',
+      () => startClassroomPurge({
+        teacherId: teacher.id,
+        classroomId,
+        operationId: purgeOperationId,
+        confirmation: 'DELETE',
+        expectedSourceRevision: impact.source_revision,
+        expectedStorageInventorySha256: impact.storage_inventory_sha256,
+      }),
+      ['classroom_purge_inventory_changed'],
+    )
+    const coverageBinding = dataOrThrow('read managed Storage coverage binding', await supabase
+      .from('classroom_managed_storage_coverage')
+      .select('inventory_sha256')
+      .eq('classroom_id', classroomId)
+      .single())
+    assertFixture(
+      coverageBinding.inventory_sha256,
+      'Verified managed Storage coverage lost its inventory digest',
+    )
+    runSql(databaseUrl, `
+      update public.classroom_managed_storage_coverage
+      set source_revision = ${changedRevision}, updated_at = clock_timestamp()
+      where classroom_id = '${classroomId}';
+    `)
+    const confirmedImpact = await getClassroomPurgeImpact(teacher.id, classroomId)
+    assertFixture(
+      confirmedImpact.storage_inventory_sha256,
+      'Refreshed purge impact did not include its managed-file inventory binding',
+    )
     let status = await startClassroomPurge({
       teacherId: teacher.id, classroomId, operationId: purgeOperationId, confirmation: 'DELETE',
+      expectedSourceRevision: confirmedImpact.source_revision,
+      expectedStorageInventorySha256: confirmedImpact.storage_inventory_sha256,
     })
     await expectFailure(
       'other teacher purge claim',
       () => tickClassroomPurge(otherTeacherId, purgeOperationId),
       ['P0002'],
+    )
+    await expectFailure(
+      'other teacher purge existence probe',
+      () => startClassroomPurge({
+        teacherId: otherTeacherId,
+        classroomId,
+        operationId: competingPurgeOperationId,
+        confirmation: 'DELETE',
+      }),
+      ['classroom_not_found'],
     )
     await expectFailure(
       'competing purge begin',
@@ -1064,6 +1211,16 @@ async function main() {
     assertFixture(status.status === 'completed', `Fixture purge did not complete: ${status.error_code}`)
     assertFixture(status.storage_object_counts.deleted === 8,
       'Fixture purge did not record exactly eight deletions')
+    const completedReplay = await startClassroomPurge({
+      teacherId: teacher.id,
+      classroomId,
+      operationId: purgeOperationId,
+      confirmation: 'DELETE',
+    })
+    assertFixture(
+      completedReplay.status === 'completed',
+      'Completed purge did not preserve owner-authorized idempotent replay',
+    )
 
     const [classroom, assignment, artifact, test, archive, extract] = await Promise.all([
       supabase.from('classrooms').select('id').eq('id', classroomId).maybeSingle(),
@@ -1080,8 +1237,8 @@ async function main() {
       .from('course_blueprints').select('id').eq('id', blueprintId).maybeSingle())
     assertFixture(blueprint, 'Reusable Blueprint was deleted')
     const preservedUsers = dataOrThrow('verify user account preservation', await supabase
-      .from('users').select('id').in('id', [teacher.id, otherTeacherId, student.id]))
-    assertFixture(preservedUsers.length === 3, 'Purge deleted a user account')
+      .from('users').select('id').in('id', [teacher.id, otherTeacherId, otherStudentId, student.id]))
+    assertFixture(preservedUsers.length === 4, 'Purge deleted a user account')
     for (const object of [...managedObjects.filter((item) => item.owner === 'classroom'), ...operationalObjects]) {
       assertFixture(!await storageObjectExists(supabase, object), `${object.bucket}/${object.path} survived purge`)
     }
@@ -1157,8 +1314,9 @@ async function main() {
       delete from public.managed_storage_objects
         where classroom_id = '${classroomId}' or course_blueprint_id = '${blueprintId}';
       delete from public.classrooms where id = '${classroomId}';
+      delete from public.classrooms where id = '${otherClassroomId}';
       delete from public.course_blueprints where id = '${blueprintId}';
-      delete from public.users where id = '${otherTeacherId}';
+      delete from public.users where id in ('${otherTeacherId}', '${otherStudentId}');
       commit;
     `
     const cleanupFailures: string[] = []

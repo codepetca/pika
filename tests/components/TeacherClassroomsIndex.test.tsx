@@ -168,6 +168,8 @@ describe('TeacherClassroomsIndex', () => {
         impact: {
           classroom_id: archived.id,
           classroom_title: archived.title,
+          source_revision: 7,
+          storage_inventory_sha256: 'a'.repeat(64),
           relational_row_count: 42,
           student_count: 3,
           managed_file_count: 5,
@@ -225,6 +227,8 @@ describe('TeacherClassroomsIndex', () => {
         impact: {
           classroom_id: archived.id,
           classroom_title: archived.title,
+          source_revision: 7,
+          storage_inventory_sha256: null,
           relational_row_count: 2,
           student_count: 1,
           managed_file_count: 1,
@@ -279,6 +283,8 @@ describe('TeacherClassroomsIndex', () => {
           impact: {
             classroom_id: archived.id,
             classroom_title: archived.title,
+            source_revision: 7,
+            storage_inventory_sha256: 'a'.repeat(64),
             relational_row_count: 2,
             student_count: 1,
             managed_file_count: 0,
@@ -329,6 +335,8 @@ describe('TeacherClassroomsIndex', () => {
         body: JSON.stringify({
           operation_id: '10000000-0000-4000-8000-000000000001',
           confirmation: 'DELETE',
+          expected_source_revision: 7,
+          expected_storage_inventory_sha256: 'a'.repeat(64),
         }),
       }),
     )

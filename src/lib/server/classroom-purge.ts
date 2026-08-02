@@ -7,6 +7,7 @@ import {
   readClassroomArchiveResourceGraph,
 } from '@/lib/server/classroom-archive-inventory'
 import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
+import { loadChunkedRows } from '@/lib/server/query-chunks'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   classroomPurgeImpactSchema,
@@ -84,6 +85,13 @@ const managedStorageObjectRowSchema = z.object({
 
 const storageCoverageRowSchema = z.object({
   status: z.enum(['pending', 'verified', 'blocked']),
+  inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+}).strict()
+
+const affectedUserRowSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  role: z.string(),
 }).strict()
 
 const managedStorageSettingsSchema = z.object({
@@ -112,22 +120,64 @@ type PurgeStorageAdapter = {
 
 type Inventory = {
   impact: ClassroomPurgeImpact
-  sourceRevision: number
 }
 
 export function countClassroomStudents(
   resources: Record<string, Array<Record<string, unknown>>>,
+  affectedUsers: Array<{ id: string; email: string; role: string }> = [],
 ): number {
-  const studentIds = new Set<string>()
-  for (const table of ['classroom_enrollments', 'entries']) {
-    for (const row of resources[table] || []) {
-      if (typeof row.student_id === 'string') studentIds.add(row.student_id)
+  const knownStudentIds = new Set<string>()
+  const ambiguousActorIds = new Set<string>()
+  for (const rows of Object.values(resources)) {
+    for (const row of rows) {
+      if (typeof row.student_id === 'string') knownStudentIds.add(row.student_id)
     }
   }
-  // The roster is the teacher's canonical membership list and can include
-  // invited students who do not yet have user ids. It is unique by email, so
-  // use it as the floor without double-counting joined students.
-  return Math.max(studentIds.size, (resources.classroom_roster || []).length)
+  for (const row of resources.announcement_reads || []) {
+    if (typeof row.user_id === 'string') ambiguousActorIds.add(row.user_id)
+  }
+  for (const row of resources.classroom_retired_assessment_record_actors || []) {
+    if (row.source_column === 'student_id' && typeof row.actor_id === 'string') {
+      knownStudentIds.add(row.actor_id)
+    }
+  }
+
+  const studentEmails = new Set<string>()
+  for (const user of affectedUsers) {
+    if (knownStudentIds.has(user.id) || (
+      ambiguousActorIds.has(user.id) && user.role === 'student'
+    )) {
+      knownStudentIds.add(user.id)
+      studentEmails.add(user.email.trim().toLowerCase())
+    }
+  }
+  const unmatchedRosterEmails = new Set<string>()
+  for (const row of resources.classroom_roster || []) {
+    if (typeof row.email !== 'string') continue
+    const email = row.email.trim().toLowerCase()
+    if (email && !studentEmails.has(email)) unmatchedRosterEmails.add(email)
+  }
+  return knownStudentIds.size + unmatchedRosterEmails.size
+}
+
+function collectAffectedUserIds(
+  resources: Record<string, Array<Record<string, unknown>>>,
+): string[] {
+  const ids = new Set<string>()
+  for (const rows of Object.values(resources)) {
+    for (const row of rows) {
+      if (typeof row.student_id === 'string') ids.add(row.student_id)
+    }
+  }
+  for (const row of resources.announcement_reads || []) {
+    if (typeof row.user_id === 'string') ids.add(row.user_id)
+  }
+  for (const row of resources.classroom_retired_assessment_record_actors || []) {
+    if (row.source_column === 'student_id' && typeof row.actor_id === 'string') {
+      ids.add(row.actor_id)
+    }
+  }
+  return [...ids]
 }
 
 export class ClassroomPurgeError extends ApiError {
@@ -239,7 +289,7 @@ async function readStableInventory(
         .eq('classroom_id', classroomId),
       (supabase as any)
         .from('classroom_managed_storage_coverage')
-        .select('status')
+        .select('status,inventory_sha256')
         .eq('classroom_id', classroomId)
         .maybeSingle(),
       (supabase as any)
@@ -276,7 +326,7 @@ async function readStableInventory(
       managedResult.data || [],
     )
     const coverage = storageCoverageRowSchema.parse(
-      coverageResult.data || { status: 'pending' },
+      coverageResult.data || { status: 'pending', inventory_sha256: null },
     )
     const settings = managedStorageSettingsSchema.parse(settingsResult.data)
     const objects = managedObjects.map((object) => ({
@@ -296,6 +346,23 @@ async function readStableInventory(
     )
     if (sourceRevision !== revisionAfter) continue
 
+    const affectedUserIds = collectAffectedUserIds(resources)
+    const affectedUsersResult = await loadChunkedRows<unknown>({
+      supabase,
+      table: 'users',
+      select: 'id,email,role',
+      filters: [{ column: 'id', values: affectedUserIds }],
+    })
+    if (affectedUsersResult.error) {
+      throw new ClassroomPurgeError(
+        affectedUsersResult.error.code || 'classroom_student_inventory_failed',
+        'Could not inventory affected students',
+        500,
+        true,
+      )
+    }
+    const affectedUsers = z.array(affectedUserRowSchema).parse(affectedUsersResult.rows)
+
     const resourceCounts = Object.fromEntries(
       CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
         resource.table,
@@ -314,9 +381,11 @@ async function readStableInventory(
     const impact = classroomPurgeImpactSchema.parse({
       classroom_id: classroomId,
       classroom_title: classroom.title,
+      source_revision: sourceRevision,
+      storage_inventory_sha256: coverage.inventory_sha256,
       relational_row_count: Object.values(resourceCounts)
         .reduce((total, count) => total + count, 0),
-      student_count: countClassroomStudents(resources),
+      student_count: countClassroomStudents(resources, affectedUsers),
       managed_file_count: objects.length,
       managed_file_bytes: sizes.reduce<number>(
         (total, size) => total + (size || 0),
@@ -352,7 +421,7 @@ async function readStableInventory(
               ? 'Finish the active classroom operation before deleting permanently.'
               : null,
     })
-    return { impact, sourceRevision }
+    return { impact }
   }
   throw new ClassroomPurgeError(
     'classroom_inventory_unstable',
@@ -387,9 +456,42 @@ export async function startClassroomPurge(args: {
   classroomId: string
   operationId: string
   confirmation: string
+  expectedSourceRevision?: number
+  expectedStorageInventorySha256?: string
 }): Promise<ClassroomPurgeStatus> {
   uuidSchema.parse(args.operationId)
   const supabase = getServiceRoleClient()
+  // Authorize the classroom owner before consulting the global purge fence so
+  // another teacher cannot learn that a deletion exists for this classroom.
+  try {
+    await readClassroomRoot(supabase, args.teacherId, args.classroomId)
+  } catch (error) {
+    if (!(error instanceof ClassroomPurgeError) || error.code !== 'classroom_not_found') {
+      throw error
+    }
+    // A successful purge removes the classroom root. Preserve safe idempotent
+    // replay by authorizing against the redacted terminal operation itself.
+    const completedReplay = await (supabase as any)
+      .from('classroom_purge_operations')
+      .select('id')
+      .eq('id', args.operationId)
+      .eq('teacher_id', args.teacherId)
+      .eq('classroom_id', args.classroomId)
+      .eq('status', 'completed')
+      .maybeSingle()
+    if (completedReplay.error) {
+      throw new ClassroomPurgeError(
+        completedReplay.error.code || 'purge_replay_read_failed',
+        'Could not verify the completed permanent deletion',
+        500,
+        true,
+      )
+    }
+    if (completedReplay.data) {
+      return getClassroomPurgeStatus(args.teacherId, args.operationId)
+    }
+    throw error
+  }
   const activeFence = await (supabase as any)
     .from('classroom_purge_fences')
     .select('operation_id')
@@ -416,6 +518,17 @@ export async function startClassroomPurge(args: {
   }
 
   const inventory = await readStableInventory(supabase, args.teacherId, args.classroomId)
+  if (
+    args.expectedSourceRevision !== inventory.impact.source_revision
+    || args.expectedStorageInventorySha256 !== inventory.impact.storage_inventory_sha256
+  ) {
+    throw new ClassroomPurgeError(
+      'classroom_purge_inventory_changed',
+      'Classroom data changed after the deletion impact was shown. Review the updated impact and confirm again.',
+      409,
+      true,
+    )
+  }
   if (
     args.confirmation !== 'DELETE'
     && args.confirmation !== inventory.impact.classroom_title
@@ -449,6 +562,8 @@ export async function startClassroomPurge(args: {
     classroom_id: args.classroomId,
     teacher_id: args.teacherId,
     intent: 'delete_permanently',
+    source_revision: args.expectedSourceRevision,
+    storage_inventory_sha256: args.expectedStorageInventorySha256,
   })
   const begin = parseRpcResult(await rpc(
     supabase,

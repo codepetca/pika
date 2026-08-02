@@ -10,6 +10,7 @@ import { POST as tickPurge } from '@/app/api/teacher/classrooms/[id]/purge/[oper
 const TEACHER_ID = '10000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '20000000-0000-4000-8000-000000000001'
 const OPERATION_ID = '30000000-0000-4000-8000-000000000001'
+const STORAGE_INVENTORY_SHA256 = 'a'.repeat(64)
 
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -35,6 +36,8 @@ vi.mock('@/lib/server/classroom-purge', () => ({
 const impact = {
   classroom_id: CLASSROOM_ID,
   classroom_title: 'Archived Biology',
+  source_revision: 7,
+  storage_inventory_sha256: STORAGE_INVENTORY_SHA256,
   relational_row_count: 10,
   student_count: 2,
   managed_file_count: 3,
@@ -100,6 +103,8 @@ describe('teacher classroom purge routes', () => {
           body: JSON.stringify({
             operation_id: OPERATION_ID,
             confirmation: 'Archived Biology',
+            expected_source_revision: 7,
+            expected_storage_inventory_sha256: STORAGE_INVENTORY_SHA256,
           }),
         },
       ),
@@ -111,6 +116,8 @@ describe('teacher classroom purge routes', () => {
       classroomId: CLASSROOM_ID,
       operationId: OPERATION_ID,
       confirmation: 'Archived Biology',
+      expectedSourceRevision: 7,
+      expectedStorageInventorySha256: STORAGE_INVENTORY_SHA256,
     })
     expect(response.status).toBe(202)
   })
@@ -150,6 +157,8 @@ describe('teacher classroom purge routes', () => {
           body: JSON.stringify({
             operation_id: OPERATION_ID,
             confirmation: 'DELETE',
+            expected_source_revision: 7,
+            expected_storage_inventory_sha256: STORAGE_INVENTORY_SHA256,
           }),
         },
       ),

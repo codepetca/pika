@@ -2734,6 +2734,8 @@ declare
   v_existing boolean := false;
   v_operation public.classroom_archive_operations;
   v_operational_intent_valid boolean := false;
+  v_student_resource_valid boolean := false;
+  v_student_enrollment_valid boolean := false;
   v_teacher_id uuid;
 begin
   if num_nonnulls(p_classroom_id, p_course_blueprint_id) <> 1
@@ -2750,10 +2752,42 @@ begin
     from public.classrooms classroom
     where classroom.id = p_classroom_id
     for update;
-    if not found or v_teacher_id <> p_created_by_user_id then
+    if not found then
       raise exception 'classroom_not_owned' using errcode = '42501';
     end if;
-    if p_purpose in ('classroom_archive', 'gradex_extract') then
+    if p_purpose in ('student_assignment_artifact', 'student_inline_image') then
+      if v_archived_at is not null then
+        raise exception 'classroom_not_writable' using errcode = '55000';
+      end if;
+      perform 1
+      from public.assignment_docs document
+      join public.assignments assignment on assignment.id = document.assignment_id
+      where document.id = p_resource_id
+        and document.student_id = p_created_by_user_id
+        and assignment.classroom_id = p_classroom_id
+      for key share of document, assignment;
+      v_student_resource_valid := found;
+      perform 1
+      from public.classroom_enrollments enrollment
+      where enrollment.classroom_id = p_classroom_id
+        and enrollment.student_id = p_created_by_user_id
+      for key share;
+      v_student_enrollment_valid := found;
+      if p_created_by_user_id is distinct from p_data_subject_user_id
+        or p_resource_type is distinct from 'assignment_doc'
+        or p_resource_id is null
+        or p_storage_bucket is distinct from (case p_purpose
+          when 'student_assignment_artifact' then 'assignment-artifacts'
+          else 'submission-images'
+        end)
+        or not v_student_resource_valid
+        or not v_student_enrollment_valid
+      then
+        raise exception 'classroom_student_upload_not_allowed' using errcode = '42501';
+      end if;
+    elsif v_teacher_id <> p_created_by_user_id then
+      raise exception 'classroom_not_owned' using errcode = '42501';
+    elsif p_purpose in ('classroom_archive', 'gradex_extract') then
       select * into v_operation
       from public.classroom_archive_operations operation
       where operation.id = p_resource_id
@@ -5034,11 +5068,27 @@ declare
   v_conflict text;
   v_enabled boolean;
   v_enforced boolean;
+  v_expected_source_revision bigint;
+  v_expected_inventory_sha256 text;
+  v_coverage_status text;
+  v_coverage_inventory_sha256 text;
 begin
   if p_request_sha256 !~ '^[a-f0-9]{64}$'
     or p_impact_summary is null
     or jsonb_typeof(p_impact_summary) <> 'object'
+    or p_impact_summary->>'source_revision' is null
+    or not coalesce(
+      p_impact_summary->>'source_revision' ~ '^[1-9][0-9]{0,17}$',
+      false
+    )
+    or p_impact_summary->>'storage_inventory_sha256' is null
+    or not coalesce(
+      p_impact_summary->>'storage_inventory_sha256' ~ '^[a-f0-9]{64}$',
+      false
+    )
   then raise exception 'invalid_classroom_purge_request' using errcode = '22023'; end if;
+  v_expected_source_revision := (p_impact_summary->>'source_revision')::bigint;
+  v_expected_inventory_sha256 := p_impact_summary->>'storage_inventory_sha256';
 
   select hot_classroom_purge_enabled, enforce_ownership
   into v_enabled, v_enforced
@@ -5112,6 +5162,12 @@ begin
       'error', 'Stored classroom deletion is not available yet'
     );
   end if;
+  if v_expected_source_revision <> v_revision then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
+      'error', 'Classroom data changed after the deletion impact was confirmed'
+    );
+  end if;
 
   select * into v_operation
   from public.classroom_purge_operations operation
@@ -5147,14 +5203,21 @@ begin
       'replayed', true
     );
   end if;
-  if not exists (
-    select 1 from public.classroom_managed_storage_coverage coverage
-    where coverage.classroom_id = p_classroom_id
-      and coverage.status = 'verified'
-  ) then
+  select coverage.status, coverage.inventory_sha256
+  into v_coverage_status, v_coverage_inventory_sha256
+  from public.classroom_managed_storage_coverage coverage
+  where coverage.classroom_id = p_classroom_id
+  for update;
+  if not found or v_coverage_status <> 'verified' then
     return jsonb_build_object(
       'ok', false, 'status', 409, 'error_code', 'classroom_storage_coverage_incomplete',
       'error', 'Classroom file ownership must be reconciled before deletion'
+    );
+  end if;
+  if v_coverage_inventory_sha256 is distinct from v_expected_inventory_sha256 then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
+      'error', 'Classroom files changed after the deletion impact was confirmed'
     );
   end if;
   if exists (

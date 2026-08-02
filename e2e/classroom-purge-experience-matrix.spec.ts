@@ -69,6 +69,8 @@ test.describe('classroom purge teacher experience matrix', () => {
           impact: {
             classroom_id: CLASSROOM_ID,
             classroom_title: 'Archived Biology',
+            source_revision: 7,
+            storage_inventory_sha256: 'a'.repeat(64),
             relational_row_count: 286,
             student_count: 24,
             managed_file_count: 37,

@@ -488,6 +488,23 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
+  it('authorizes student upload reservations by purpose, enrollment, and assignment ownership', () => {
+    const uploadStart = migration.indexOf(
+      'create or replace function public.begin_managed_storage_upload(',
+    )
+    const uploadEnd = migration.indexOf('$$;', uploadStart)
+    const upload = migration.slice(uploadStart, uploadEnd)
+
+    expect(upload).toContain("p_purpose in ('student_assignment_artifact', 'student_inline_image')")
+    expect(upload).toContain('p_created_by_user_id is distinct from p_data_subject_user_id')
+    expect(upload).toContain("p_resource_type is distinct from 'assignment_doc'")
+    expect(upload).toContain('document.student_id = p_created_by_user_id')
+    expect(upload).toContain('assignment.classroom_id = p_classroom_id')
+    expect(upload).toContain('enrollment.student_id = p_created_by_user_id')
+    expect(upload).toContain("when 'student_assignment_artifact' then 'assignment-artifacts'")
+    expect(upload).toContain("raise exception 'classroom_student_upload_not_allowed'")
+  })
+
   it('retains immutable Blueprint material and blocks instantiation without ownership', () => {
     const cleanupStart = migration.indexOf(
       'create or replace function public.queue_removed_blueprint_test_document_files()',
@@ -616,6 +633,25 @@ describe('explicit managed-file ownership migration', () => {
     expect(finalizer).toContain("'error_code', 'managed_storage_enforcement_required'")
     expect(finalizer).toContain(
       'public.managed_storage_identity_sha256(\n       storage_object.bucket_id,',
+    )
+  })
+
+  it('binds purge begin to the confirmed relational revision and managed-file digest', () => {
+    const beginStart = migration.indexOf(
+      'create or replace function public.begin_hot_archived_classroom_purge(',
+    )
+    const beginEnd = migration.indexOf('$$;', beginStart)
+    const begin = migration.slice(beginStart, beginEnd)
+
+    expect(begin).toContain("p_impact_summary->>'source_revision'")
+    expect(begin).toContain("p_impact_summary->>'storage_inventory_sha256'")
+    expect(begin).toContain('v_expected_source_revision <> v_revision')
+    expect(begin).toContain(
+      'v_coverage_inventory_sha256 is distinct from v_expected_inventory_sha256',
+    )
+    expect(begin).toContain("'error_code', 'classroom_purge_inventory_changed'")
+    expect(begin.indexOf('perform public.classroom_purge_lock')).toBeLessThan(
+      begin.indexOf('v_expected_source_revision <> v_revision'),
     )
   })
 

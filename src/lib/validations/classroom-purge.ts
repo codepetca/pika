@@ -11,6 +11,8 @@ export const classroomPurgeOperationStatusSchema = z.enum([
 export const classroomPurgeImpactSchema = z.object({
   classroom_id: z.string().uuid(),
   classroom_title: z.string().min(1),
+  source_revision: z.number().int().positive(),
+  storage_inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
   relational_row_count: z.number().int().positive(),
   student_count: z.number().int().nonnegative(),
   managed_file_count: z.number().int().nonnegative(),
@@ -29,6 +31,8 @@ export const classroomPurgeImpactSchema = z.object({
 export const classroomPurgeStartRequestSchema = z.object({
   operation_id: z.string().uuid(),
   confirmation: z.string().trim().min(1).max(500),
+  expected_source_revision: z.number().int().positive(),
+  expected_storage_inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict()
 
 export const classroomPurgeTickRequestSchema = z.object({

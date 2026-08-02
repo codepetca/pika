@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Rebased test-preview hardening after Quiz removal
-
-**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
-
-**Completed:**
-- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
-  the canonical test-only API and both preview request-order regressions.
-- Resequenced the atomic snapshot migration to 109 and consolidated the
-  uncommitted document-authoring and durable-cleanup schema into migration 110.
-- Kept ordinary document writers behind compare-and-swap updates, added a
-  leased storage-cleanup queue and cron worker, and retained real transport
-  SSRF/timeout coverage.
-- Left the shared local database unchanged. It remains reset and seeded through
-  migration 104; migrations 105-110 are unapplied there.
-
-**Validation:**
-- Full Vitest coverage passes: 421 files and 3,749 tests.
-- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
-- No local or hosted migration was applied.
-
-**Remaining:**
-- Run targeted security rereview and final integration review.
-- Push the rebased exact head, wait for CI, and merge only after approval.
-
 ## 2026-07-24 — AI-readiness CLI probe, course-import fix, repo tidy
 
 **Completed:**
@@ -1520,3 +1496,36 @@ zero-downtime rollout
 - Push the immutable operational-owner boundary and updated database fixtures to draft PR #963,
   then require green current-head CI before the completion review.
 - Do not deploy, apply migration 117 to a hosted target, or enable either rollout gate.
+
+## 2026-08-02 — Stabilized purge authorization and confirmation boundaries
+
+**Risk profile:** migration, authorization, irreversible deletion, managed Storage concurrency
+
+**Completed:**
+- Made managed upload reservations purpose-aware: enrolled students may reserve only their own
+  assignment document's artifact/image in the purpose-specific bucket, while teacher and
+  operational purposes retain teacher ownership checks.
+- Bound the teacher's typed deletion confirmation to the displayed classroom revision and exact
+  managed-file inventory digest; the coordinator rejects drift and PostgreSQL independently
+  rechecks both values after acquiring the canonical classroom lock.
+- Replaced roster-floor counting with a union of every classroom `student_id`, student announcement
+  readers, retired student actors, and unmatched roster-only email invitations.
+- Authorized the owning teacher before reading purge-fence state, while preserving redacted,
+  owner-scoped idempotent replay after a completed purge removes the classroom root.
+- Expanded the destructive fixture with real student-created reservations, cross-student and
+  cross-classroom rejection, stale-impact rejection in both application and database layers,
+  non-owner purge-state isolation, and terminal replay.
+
+**Validation:**
+- Focused suite: 5 files / 72 tests passes; full suite: 468 files / 4,085 tests passes.
+- TypeScript, lint, production build, architecture/design/UI policy, Pika audit, and
+  `git diff --check` pass.
+- No visible UI behavior changed; the existing teacher/student desktop/mobile visual matrix remains
+  the applicable UX evidence.
+- Migration 117 was not applied or replayed in this stabilization. No local, staging, or production
+  gate or deployment state changed.
+
+**Remaining:**
+- Push the stabilization to draft PR #963 and require clean exact-head ephemeral migration replay.
+- Run one targeted independent security/migration review, then a final integration review if clean.
+- Do not apply migration 117 or enable deletion without separate fresh authorization.

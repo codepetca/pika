@@ -16,12 +16,30 @@ describe('classroom purge storage cleanup', () => {
       classroom_roster: [{ email: 'joined@example.com' }, { email: 'invited@example.com' }],
       classroom_enrollments: [{ student_id: 'student-1' }],
       entries: [{ student_id: 'student-1' }],
-    })).toBe(2)
+    }, [{ id: 'student-1', email: 'JOINED@example.com', role: 'student' }])).toBe(2)
     expect(countClassroomStudents({
       classroom_roster: [],
       classroom_enrollments: [{ student_id: 'student-1' }],
       entries: [{ student_id: 'student-2' }],
     })).toBe(2)
+  })
+
+  it('unions former students and student actors across every classroom resource', () => {
+    expect(countClassroomStudents({
+      classroom_roster: [{ email: 'current@example.com' }],
+      classroom_enrollments: [{ student_id: 'current-student' }],
+      assignment_docs: [{ student_id: 'former-student' }],
+      announcement_reads: [{ user_id: 'announcement-student' }, { user_id: 'teacher' }],
+      classroom_retired_assessment_record_actors: [
+        { actor_id: 'retired-student', source_column: 'student_id' },
+        { actor_id: 'retired-teacher', source_column: 'graded_by' },
+      ],
+    }, [
+      { id: 'current-student', email: 'current@example.com', role: 'student' },
+      { id: 'former-student', email: 'former@example.com', role: 'student' },
+      { id: 'announcement-student', email: 'reader@example.com', role: 'student' },
+      { id: 'teacher', email: 'teacher@example.com', role: 'teacher' },
+    ])).toBe(4)
   })
 
   it('requests removal of the one exact leased object', async () => {

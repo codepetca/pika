@@ -1,10 +1,11 @@
 Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. An authorized local reset successfully
-replayed migrations 001–117, regenerated the database contract, reseeded Pika,
-and passed managed-storage readiness plus the destructive purge fixture across
-all five buckets. Static contracts and the full application test/UI matrix also
-pass. Every persistent rollout gate remains disabled, PR #963 remains draft,
-and production remains through 116.
+single-scope managed-file ownership. The current stabilization binds the typed
+confirmation to the exact classroom revision and managed-file digest, restores
+purpose-aware student upload authorization, counts all affected student actors,
+and authorizes ownership before reading purge fences. Migration 117's source has
+changed since the last authorized local replay and has not been replayed again.
+Every persistent rollout gate remains disabled, PR #963 remains draft, and
+production remains through 116.
 
 ## Current Context
 
