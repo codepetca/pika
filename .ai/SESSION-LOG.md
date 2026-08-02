@@ -11,59 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Prepared legacy Quiz hard removal
-
-**Risk profile:** runtime-platform/destructive-schema
-
-**Completed:**
-- Added migration 108 to fail closed unless migration 107 purged all retired
-  data, then drop the four Quiz tables, their catalog helpers, the private
-  backfill ledger/functions, `gradebook_settings.quizzes_weight`, v1 database
-  export RPCs/registry rows, and retired site-configuration keys.
-- Removed active Quiz branches and aliases from assessment drafts, gradebook,
-  course packages, publishing, blueprints, current domain types, and server
-  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
-  discards `quizzes.md` while preserving reusable non-Quiz content.
-- Reduced the live classroom ownership graph from 44 to 40 resources while
-  retaining the immutable archive-v1 resource contract solely for discard-only
-  restore of non-Quiz classroom data.
-- Regenerated Supabase database types from a disposable post-108 database; the
-  generated contract has no Quiz tables, fields, or functions.
-- Removed obsolete retirement inventory, backfill parity, and envelope adapter
-  utilities after their destructive decision was finalized.
-- Review remediation preserves course-package v2 as an import-only boundary,
-  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
-  classroom restore now excludes Quiz-only actors and storage objects from the
-  restore plan after validating the complete source artifact.
-- Migration 108 now requires exact equality between the live archive registry
-  and versioned source contract 2. The disposable harness proves registry drift
-  fails without deleting v1 metadata or Quiz tables before restoring the
-  registry and completing hard removal.
-- Final integration review found the production archive canary still bound to
-  archive v1. The operator runner and runbook now use archive format 2, the
-  40-resource graph, migration-107 source/restore contracts, and the current v2
-  restore planner. A subprocess smoke test loads the actual excluded script so
-  future import drift fails in Vitest.
-
-**Validation:**
-- Fresh disposable replay through migrations 106-108 passes freeze, direct
-  archive-v2 activation, hard-removal catalog assertions, current export,
-  restore, and compaction contracts.
-- Generated Supabase types exactly match the disposable post-108 schema.
-- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
-  and the Pika pre-commit audit pass.
-- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
-  database contract also passes against the disposable database.
-- The focused post-review archive suite passes: 4 files and 53 tests, including
-  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
-  and the Pika audit remain green after the canary port.
-- Migration 108 was not applied to the shared local database or any hosted
-  target.
-
-**Remaining:**
-- Complete PR review/remediation, exact-head CI, and merge. Applying migration
-  108 remains separately target-authorized.
-
 ## 2026-07-23 — Rebased test-preview hardening after Quiz removal
 
 **Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
@@ -1516,3 +1463,33 @@ zero-downtime rollout
 **Remaining:**
 - Push this second focused CI correction and require current-head ephemeral migration replay.
 - Keep PR #963 draft and preserve the separate authorization gate for any local/hosted migration.
+
+## 2026-08-02 — Replayed managed ownership and passed destructive purge
+
+**Risk profile:** migration, destructive local fixture, managed Storage cleanup
+
+**Completed:**
+- Used the one-time authorized local reset to replay migrations 001–117, regenerated the database
+  contract from the replayed schema, and reseeded the normal Pika development fixture.
+- Corrected the permanent-deletion fixture so completed and interrupted archive/Gradex files have
+  explicit managed owners, operational ledgers reference those owners, and verified classroom
+  coverage expands automatically from the four teaching files to all eight scoped objects.
+- Reordered fixture teardown to mirror the production finalizer's child-first operational cleanup
+  and made Storage cleanup report every exact-key error instead of silently ignoring API failures.
+- Removed the exact rows and ten Storage keys left by the pre-fix failed fixture, then proved zero
+  fixture residue and both rollout gates disabled.
+
+**Validation:**
+- Local migration history and generated types match migrations 001–117; seed completed.
+- Managed-storage readiness: 1/1 verified, no missing/shared/orphaned/invalid ownership, enforcement
+  ready, gates unchanged.
+- Destructive purge fixture passed eight deletions across all five buckets while preserving two
+  Blueprint-owned copies and teacher/student accounts; retry, concurrency, auth, fencing, and
+  terminal redaction assertions passed.
+- Focused suite: 5 files / 88 tests; TypeScript, lint, architecture boundaries, Pika audit, and
+  `git diff --check` pass.
+
+**Remaining:**
+- Push the generated database contract and fixture correction to draft PR #963, then require green
+  current-head CI before the completion review.
+- Do not deploy, apply migration 117 to a hosted target, or enable either rollout gate.

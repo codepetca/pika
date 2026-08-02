@@ -1,10 +1,10 @@
 Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. The consolidated migration 117 source has
-changed since the last local replay and therefore still requires fresh, exact
-authorization before its readiness/backfill and destructive fixtures can be
-rerun. Static migration contracts and the full application test/UI matrix pass.
-Every persistent rollout gate remains disabled, and production remains through
-116.
+single-scope managed-file ownership. An authorized local reset successfully
+replayed migrations 001–117, regenerated the database contract, reseeded Pika,
+and passed managed-storage readiness plus the destructive purge fixture across
+all five buckets. Static contracts and the full application test/UI matrix also
+pass. Every persistent rollout gate remains disabled, PR #963 remains draft,
+and production remains through 116.
 
 ## Current Context
 

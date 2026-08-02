@@ -350,6 +350,7 @@ export type Database = {
           last_error: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           status: string
           storage_path: string
@@ -362,6 +363,7 @@ export type Database = {
           last_error?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           status?: string
           storage_path: string
@@ -374,12 +376,21 @@ export type Database = {
           last_error?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           status?: string
           storage_path?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assignment_artifact_storage_cleanup_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assignment_doc_history: {
         Row: {
@@ -465,7 +476,15 @@ export type Database = {
           save_sequence?: number
           save_session_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assignment_doc_save_operations_assignment_doc_id_fkey"
+            columns: ["assignment_doc_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_docs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assignment_docs: {
         Row: {
@@ -1146,6 +1165,7 @@ export type Database = {
           last_error_code: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           operation_id: string
           status: string
@@ -1162,6 +1182,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           operation_id: string
           status?: string
@@ -1178,6 +1199,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           operation_id?: string
           status?: string
@@ -1186,6 +1208,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classroom_archive_object_upload_cleanup_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classroom_archive_object_upload_cleanup_operation_id_fkey"
             columns: ["operation_id"]
@@ -1208,6 +1237,7 @@ export type Database = {
           content_sha256: string | null
           error_code: string | null
           id: string
+          managed_object_id: string | null
           operation_type: string
           request_sha256: string
           resource_counts: Json
@@ -1244,6 +1274,7 @@ export type Database = {
           content_sha256?: string | null
           error_code?: string | null
           id: string
+          managed_object_id?: string | null
           operation_type?: string
           request_sha256: string
           resource_counts?: Json
@@ -1280,6 +1311,7 @@ export type Database = {
           content_sha256?: string | null
           error_code?: string | null
           id?: string
+          managed_object_id?: string | null
           operation_type?: string
           request_sha256?: string
           resource_counts?: Json
@@ -1304,7 +1336,15 @@ export type Database = {
           updated_at?: string
           verification?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "classroom_archive_operations_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       classroom_archive_resource_contract: {
         Row: {
@@ -1607,6 +1647,7 @@ export type Database = {
           last_error_code: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           operation_id: string
           ownership_verified: boolean
@@ -1627,6 +1668,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           operation_id: string
           ownership_verified?: boolean
@@ -1647,6 +1689,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           operation_id?: string
           ownership_verified?: boolean
@@ -1662,6 +1705,13 @@ export type Database = {
             columns: ["archive_id"]
             isOneToOne: false
             referencedRelation: "classroom_archives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_archive_source_object_cleanup_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
             referencedColumns: ["id"]
           },
           {
@@ -1712,6 +1762,7 @@ export type Database = {
           format: string
           format_version: number
           id: string
+          managed_object_id: string | null
           operation_id: string
           resource_counts: Json
           retention: Json
@@ -1735,6 +1786,7 @@ export type Database = {
           format: string
           format_version: number
           id: string
+          managed_object_id?: string | null
           operation_id: string
           resource_counts: Json
           retention: Json
@@ -1758,6 +1810,7 @@ export type Database = {
           format?: string
           format_version?: number
           id?: string
+          managed_object_id?: string | null
           operation_id?: string
           resource_counts?: Json
           retention?: Json
@@ -1773,6 +1826,13 @@ export type Database = {
           verified_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classroom_archives_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classroom_archives_operation_id_fkey"
             columns: ["operation_id"]
@@ -1810,60 +1870,6 @@ export type Database = {
             foreignKeyName: "classroom_cold_archive_actors_classroom_id_fkey"
             columns: ["classroom_id"]
             isOneToOne: false
-            referencedRelation: "classroom_cold_tombstones"
-            referencedColumns: ["classroom_id"]
-          },
-        ]
-      }
-      classroom_cold_managed_storage_coverage: {
-        Row: {
-          archive_id: string
-          classroom_id: string
-          inventory_sha256: string
-          inventory_version: number
-          object_count: number
-          reference_count: number
-          remaining_object_count: number
-          source_revision: number
-          transferred_at: string
-          updated_at: string
-        }
-        Insert: {
-          archive_id: string
-          classroom_id: string
-          inventory_sha256: string
-          inventory_version: number
-          object_count: number
-          reference_count: number
-          remaining_object_count: number
-          source_revision: number
-          transferred_at?: string
-          updated_at?: string
-        }
-        Update: {
-          archive_id?: string
-          classroom_id?: string
-          inventory_sha256?: string
-          inventory_version?: number
-          object_count?: number
-          reference_count?: number
-          remaining_object_count?: number
-          source_revision?: number
-          transferred_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "classroom_cold_managed_storage_coverage_archive_id_fkey"
-            columns: ["archive_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_archives"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "classroom_cold_managed_storage_coverage_classroom_id_fkey"
-            columns: ["classroom_id"]
-            isOneToOne: true
             referencedRelation: "classroom_cold_tombstones"
             referencedColumns: ["classroom_id"]
           },
@@ -1955,6 +1961,7 @@ export type Database = {
           last_error_code: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           operation_id: string
           status: string
@@ -1971,6 +1978,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at: string
           operation_id: string
           status?: string
@@ -1987,6 +1995,7 @@ export type Database = {
           last_error_code?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           operation_id?: string
           status?: string
@@ -2001,6 +2010,13 @@ export type Database = {
             columns: ["extract_id"]
             isOneToOne: true
             referencedRelation: "classroom_gradex_extracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_gradex_extract_cleanup_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
             referencedColumns: ["id"]
           },
           {
@@ -2030,6 +2046,7 @@ export type Database = {
           format_version: number
           generated_at: string
           id: string
+          managed_object_id: string | null
           operation_id: string
           resource_counts: Json
           source_archive_id: string
@@ -2051,6 +2068,7 @@ export type Database = {
           format_version: number
           generated_at: string
           id: string
+          managed_object_id?: string | null
           operation_id: string
           resource_counts: Json
           source_archive_id: string
@@ -2072,6 +2090,7 @@ export type Database = {
           format_version?: number
           generated_at?: string
           id?: string
+          managed_object_id?: string | null
           operation_id?: string
           resource_counts?: Json
           source_archive_id?: string
@@ -2084,6 +2103,13 @@ export type Database = {
           verified_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classroom_gradex_extracts_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classroom_gradex_extracts_operation_id_fkey"
             columns: ["operation_id"]
@@ -2373,13 +2399,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "classroom_purge_operations"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "classroom_purge_resources_table_name_fkey"
-            columns: ["table_name"]
-            isOneToOne: false
-            referencedRelation: "classroom_archive_resource_contract"
-            referencedColumns: ["table_name"]
           },
         ]
       }
@@ -3944,8 +3963,6 @@ export type Database = {
           attempt_count: number
           byte_size: number | null
           classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
           content_sha256: string | null
           content_type: string | null
           course_blueprint_id: string | null
@@ -3971,8 +3988,6 @@ export type Database = {
           attempt_count?: number
           byte_size?: number | null
           classroom_id?: string | null
-          cold_archive_id?: string | null
-          cold_classroom_id?: string | null
           content_sha256?: string | null
           content_type?: string | null
           course_blueprint_id?: string | null
@@ -3998,8 +4013,6 @@ export type Database = {
           attempt_count?: number
           byte_size?: number | null
           classroom_id?: string | null
-          cold_archive_id?: string | null
-          cold_classroom_id?: string | null
           content_sha256?: string | null
           content_type?: string | null
           course_blueprint_id?: string | null
@@ -4022,34 +4035,6 @@ export type Database = {
           upload_expires_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "managed_storage_objects_classroom_id_fkey"
-            columns: ["classroom_id"]
-            isOneToOne: false
-            referencedRelation: "classrooms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "managed_storage_objects_cold_archive_id_fkey"
-            columns: ["cold_archive_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_archives"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "managed_storage_objects_cold_classroom_id_fkey"
-            columns: ["cold_classroom_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_cold_tombstones"
-            referencedColumns: ["classroom_id"]
-          },
-          {
-            foreignKeyName: "managed_storage_objects_cold_owner_coverage_fk"
-            columns: ["cold_classroom_id", "cold_archive_id"]
-            isOneToOne: false
-            referencedRelation: "classroom_cold_managed_storage_coverage"
-            referencedColumns: ["classroom_id", "archive_id"]
-          },
           {
             foreignKeyName: "managed_storage_objects_course_blueprint_id_fkey"
             columns: ["course_blueprint_id"]
@@ -4833,6 +4818,7 @@ export type Database = {
           last_error: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           status: string
           storage_path: string
@@ -4845,6 +4831,7 @@ export type Database = {
           last_error?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           status?: string
           storage_path: string
@@ -4857,12 +4844,21 @@ export type Database = {
           last_error?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
+          managed_object_id?: string | null
           next_attempt_at?: string
           status?: string
           storage_path?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "test_document_snapshot_storage_cleanup_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       test_focus_events: {
         Row: {
@@ -5371,8 +5367,6 @@ export type Database = {
           attempt_count: number
           byte_size: number | null
           classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
           content_sha256: string | null
           content_type: string | null
           course_blueprint_id: string | null
@@ -5639,10 +5633,6 @@ export type Database = {
         }
         Returns: Json
       }
-      begin_course_blueprint_managed_deletion: {
-        Args: { p_blueprint_id: string; p_teacher_id: string }
-        Returns: number
-      }
       begin_hot_archived_classroom_purge: {
         Args: {
           p_classroom_id: string
@@ -5672,8 +5662,6 @@ export type Database = {
           attempt_count: number
           byte_size: number | null
           classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
           content_sha256: string | null
           content_type: string | null
           course_blueprint_id: string | null
@@ -5755,6 +5743,7 @@ export type Database = {
           last_error: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           status: string
           storage_path: string
@@ -5780,6 +5769,7 @@ export type Database = {
           last_error: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           status: string
           storage_path: string
@@ -5820,47 +5810,6 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "classroom_purge_objects"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-      claim_course_blueprint_managed_cleanup: {
-        Args: {
-          p_blueprint_id: string
-          p_lease_seconds?: number
-          p_lease_token: string
-          p_teacher_id: string
-        }
-        Returns: {
-          attempt_count: number
-          byte_size: number | null
-          classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
-          content_sha256: string | null
-          content_type: string | null
-          course_blueprint_id: string | null
-          created_at: string
-          created_by_user_id: string | null
-          data_subject_user_id: string | null
-          id: string
-          last_error_code: string | null
-          lease_expires_at: string | null
-          lease_token: string | null
-          next_attempt_at: string
-          purpose: string
-          ready_at: string | null
-          resource_id: string | null
-          resource_type: string | null
-          status: string
-          storage_bucket: string
-          storage_path: string
-          updated_at: string
-          upload_expires_at: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "managed_storage_objects"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -6020,8 +5969,6 @@ export type Database = {
           attempt_count: number
           byte_size: number | null
           classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
           content_sha256: string | null
           content_type: string | null
           course_blueprint_id: string | null
@@ -6130,6 +6077,7 @@ export type Database = {
           last_error: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           status: string
           storage_path: string
@@ -6155,6 +6103,7 @@ export type Database = {
           last_error: string | null
           lease_expires_at: string | null
           lease_token: string | null
+          managed_object_id: string | null
           next_attempt_at: string
           status: string
           storage_path: string
@@ -6185,6 +6134,10 @@ export type Database = {
           p_storage_bucket: string
           p_storage_path: string
         }
+        Returns: boolean
+      }
+      classroom_purge_try_lock: {
+        Args: { p_classroom_id: string }
         Returns: boolean
       }
       cleanup_assignment_doc_save_operations: {
@@ -6295,6 +6248,24 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_classroom_archive_export_v2_legacy_117: {
+        Args: {
+          p_archive_format_version: number
+          p_archive_resource_counts: Json
+          p_artifact_sha256: string
+          p_compressed_byte_size: number
+          p_content_sha256: string
+          p_operation_id: string
+          p_resource_counts: Json
+          p_storage_bucket: string
+          p_storage_object_counts: Json
+          p_storage_path: string
+          p_teacher_id: string
+          p_uncompressed_byte_size: number
+          p_verification: Json
+        }
+        Returns: Json
+      }
       complete_classroom_archive_object_upload_cleanup: {
         Args: {
           p_lease_token: string
@@ -6354,6 +6325,19 @@ export type Database = {
       complete_classroom_gradex_extract_cleanup: {
         Args: { p_extract_id: string; p_lease_token: string }
         Returns: boolean
+      }
+      complete_classroom_gradex_extract_legacy_117: {
+        Args: {
+          p_artifact_sha256: string
+          p_compressed_byte_size: number
+          p_content_sha256: string
+          p_operation_id: string
+          p_resource_counts: Json
+          p_teacher_id: string
+          p_uncompressed_byte_size: number
+          p_verification: Json
+        }
+        Returns: Json
       }
       complete_classroom_purge_object: {
         Args: {
@@ -6832,10 +6816,6 @@ export type Database = {
         }
         Returns: Json
       }
-      finalize_course_blueprint_managed_deletion: {
-        Args: { p_blueprint_id: string; p_teacher_id: string }
-        Returns: boolean
-      }
       finalize_hot_archived_classroom_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -6907,6 +6887,10 @@ export type Database = {
           updated_at: string
           version: number
         }[]
+      }
+      guard_classroom_purge_lifecycle: {
+        Args: { p_classroom_id: string }
+        Returns: undefined
       }
       instantiate_course_blueprint_atomic: {
         Args: {
@@ -7065,8 +7049,6 @@ export type Database = {
           attempt_count: number
           byte_size: number | null
           classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
           content_sha256: string | null
           content_type: string | null
           course_blueprint_id: string | null
@@ -7114,8 +7096,6 @@ export type Database = {
           attempt_count: number
           byte_size: number | null
           classroom_id: string | null
-          cold_archive_id: string | null
-          cold_classroom_id: string | null
           content_sha256: string | null
           content_type: string | null
           course_blueprint_id: string | null
@@ -7574,6 +7554,17 @@ export type Database = {
         Returns: Json
       }
       stage_classroom_archive_object_upload: {
+        Args: {
+          p_expected_byte_size: number
+          p_expected_sha256: string
+          p_operation_id: string
+          p_storage_bucket: string
+          p_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
+      stage_classroom_archive_object_upload_legacy_117: {
         Args: {
           p_expected_byte_size: number
           p_expected_sha256: string

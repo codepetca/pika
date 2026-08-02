@@ -27,9 +27,14 @@ type FixtureObject = {
   dataSubjectUserId?: string
 }
 type OperationalObject = {
+  id: string
+  operationId: string
   bucket: 'classroom-archives' | 'gradex-analytics-extracts'
   path: string
   contentType: string
+  purpose: 'classroom_archive' | 'gradex_extract'
+  status: 'ready' | 'cleanup_pending'
+  contentSha256?: string
 }
 
 function dataOrThrow<T>(label: string, response: { data: T; error: ResponseError }): T {
@@ -626,10 +631,32 @@ async function main() {
     })
 
     const operationalObjects: OperationalObject[] = [
-      { bucket: 'classroom-archives', path: `purge-fixture/${fixtureId}/classroom.tar.gz`, contentType: 'application/gzip' },
-      { bucket: 'gradex-analytics-extracts', path: `purge-fixture/${fixtureId}/gradex.tar.gz`, contentType: 'application/gzip' },
-      { bucket: 'classroom-archives', path: `purge-fixture/${fixtureId}/interrupted-classroom.tar.gz`, contentType: 'application/gzip' },
-      { bucket: 'gradex-analytics-extracts', path: `purge-fixture/${fixtureId}/interrupted-gradex.tar.gz`, contentType: 'application/gzip' },
+      {
+        id: randomUUID(), operationId: archiveOperationId,
+        bucket: 'classroom-archives', path: `purge-fixture/${fixtureId}/classroom.tar.gz`,
+        contentType: 'application/gzip', purpose: 'classroom_archive', status: 'ready',
+        contentSha256: 'b'.repeat(64),
+      },
+      {
+        id: randomUUID(), operationId: gradexOperationId,
+        bucket: 'gradex-analytics-extracts', path: `purge-fixture/${fixtureId}/gradex.tar.gz`,
+        contentType: 'application/gzip', purpose: 'gradex_extract', status: 'ready',
+        contentSha256: 'e'.repeat(64),
+      },
+      {
+        id: randomUUID(), operationId: failedArchiveOperationId,
+        bucket: 'classroom-archives',
+        path: `purge-fixture/${fixtureId}/interrupted-classroom.tar.gz`,
+        contentType: 'application/gzip', purpose: 'classroom_archive',
+        status: 'cleanup_pending', contentSha256: '2'.repeat(64),
+      },
+      {
+        id: randomUUID(), operationId: failedGradexOperationId,
+        bucket: 'gradex-analytics-extracts',
+        path: `purge-fixture/${fixtureId}/interrupted-gradex.tar.gz`,
+        contentType: 'application/gzip', purpose: 'gradex_extract',
+        status: 'cleanup_pending',
+      },
     ]
     for (const object of operationalObjects) {
       dataOrThrow(`upload ${object.bucket}/${object.path}`, await supabase.storage
@@ -638,12 +665,49 @@ async function main() {
         }))
       createdStorageObjects.push(object)
     }
+    runSql(databaseUrl, `
+      insert into public.managed_storage_objects (
+        id, storage_bucket, storage_path, classroom_id, purpose, status,
+        created_by_user_id, resource_type, resource_id, content_type,
+        byte_size, content_sha256, ready_at, last_error_code, next_attempt_at
+      ) values
+        (
+          '${operationalObjects[0].id}', '${operationalObjects[0].bucket}',
+          '${operationalObjects[0].path}', '${classroomId}', '${operationalObjects[0].purpose}',
+          'ready', '${teacher.id}', 'classroom_archive_operation', '${archiveOperationId}',
+          '${operationalObjects[0].contentType}', 32, '${operationalObjects[0].contentSha256}',
+          '${nowIso}'::timestamptz, null, clock_timestamp()
+        ),
+        (
+          '${operationalObjects[1].id}', '${operationalObjects[1].bucket}',
+          '${operationalObjects[1].path}', '${classroomId}', '${operationalObjects[1].purpose}',
+          'ready', '${teacher.id}', 'classroom_archive_operation', '${gradexOperationId}',
+          '${operationalObjects[1].contentType}', 32, '${operationalObjects[1].contentSha256}',
+          '${nowIso}'::timestamptz, null, clock_timestamp()
+        ),
+        (
+          '${operationalObjects[2].id}', '${operationalObjects[2].bucket}',
+          '${operationalObjects[2].path}', '${classroomId}', '${operationalObjects[2].purpose}',
+          'cleanup_pending', '${teacher.id}', 'classroom_archive_operation',
+          '${failedArchiveOperationId}', '${operationalObjects[2].contentType}', 32,
+          '${operationalObjects[2].contentSha256}', null, 'fixture_interrupted_upload',
+          '${expiryIso}'::timestamptz
+        ),
+        (
+          '${operationalObjects[3].id}', '${operationalObjects[3].bucket}',
+          '${operationalObjects[3].path}', '${classroomId}', '${operationalObjects[3].purpose}',
+          'cleanup_pending', '${teacher.id}', 'classroom_archive_operation',
+          '${failedGradexOperationId}', '${operationalObjects[3].contentType}', 32,
+          null, null, 'fixture_interrupted_upload', '${expiryIso}'::timestamptz
+        );
+    `)
     dataOrThrow('insert fixture archive operation', await supabase.from('classroom_archive_operations').insert({
       id: archiveOperationId, teacher_id: teacher.id, classroom_id: classroomId,
       operation_type: 'export', request_sha256: 'a'.repeat(64), status: 'completed',
       source_revision: revision, source_schema_migration: '117_hot_archived_classroom_purge_review_hardening',
       source_app_commit: 'purge-fixture', retention: {}, archive_id: archiveId,
       storage_bucket: operationalObjects[0].bucket, storage_path: operationalObjects[0].path,
+      managed_object_id: operationalObjects[0].id,
       artifact_sha256: 'b'.repeat(64), content_sha256: 'c'.repeat(64),
       compressed_byte_size: 32, uncompressed_byte_size: 64, verification: {},
       snapshot_created_at: priorIso, snapshot_expires_at: expiryIso, completed_at: nowIso,
@@ -655,6 +719,7 @@ async function main() {
       source_revision: revision, source_schema_migration: '117_hot_archived_classroom_purge_review_hardening',
       source_app_commit: 'purge-fixture', storage_bucket: operationalObjects[0].bucket,
       storage_path: operationalObjects[0].path, artifact_sha256: 'b'.repeat(64),
+      managed_object_id: operationalObjects[0].id,
       content_sha256: 'c'.repeat(64), compressed_byte_size: 32, uncompressed_byte_size: 64,
       resource_counts: {}, storage_object_counts: {}, verification: {}, retention: {},
       created_at: priorIso, verified_at: nowIso,
@@ -665,6 +730,7 @@ async function main() {
       source_revision: revision, source_schema_migration: '117_hot_archived_classroom_purge_review_hardening',
       source_app_commit: 'purge-fixture', retention: { delete_after: expiryIso }, archive_id: archiveId,
       storage_bucket: operationalObjects[1].bucket, storage_path: operationalObjects[1].path,
+      managed_object_id: operationalObjects[1].id,
       artifact_sha256: 'e'.repeat(64), content_sha256: 'f'.repeat(64),
       compressed_byte_size: 32, uncompressed_byte_size: 64, verification: {},
       snapshot_created_at: priorIso, snapshot_expires_at: expiryIso, completed_at: nowIso,
@@ -675,6 +741,7 @@ async function main() {
       classroom_id: classroomId, teacher_id: teacher.id, format: 'pika.gradex-classroom-extract',
       format_version: 2, source_archive_sha256: 'b'.repeat(64),
       storage_bucket: operationalObjects[1].bucket, storage_path: operationalObjects[1].path,
+      managed_object_id: operationalObjects[1].id,
       artifact_sha256: 'e'.repeat(64), content_sha256: 'f'.repeat(64),
       compressed_byte_size: 32, uncompressed_byte_size: 64, resource_counts: {}, verification: {},
       generated_at: priorIso, verified_at: nowIso, delete_after: expiryIso,
@@ -690,6 +757,7 @@ async function main() {
           source_app_commit: 'purge-fixture', retention: { delete_after: expiryIso },
           archive_id: index === 0 ? randomUUID() : archiveId,
           storage_bucket: object.bucket, storage_path: object.path,
+          managed_object_id: object.id,
           error_code: 'fixture_interrupted_upload', retryable: false,
           snapshot_created_at: priorIso, snapshot_expires_at: priorIso,
           archive_format_version: 2, source_contract_version: 2, restore_contract_version: 2,
@@ -700,16 +768,30 @@ async function main() {
       const cleanupRow = index === 0
         ? {
             operation_id: operationId, storage_bucket: object.bucket, storage_path: object.path,
+            managed_object_id: object.id,
             expected_sha256: '2'.repeat(64), expected_byte_size: 32,
             status: 'pending', next_attempt_at: expiryIso,
           }
         : {
             operation_id: operationId, storage_bucket: object.bucket, storage_path: object.path,
+            managed_object_id: object.id,
             delete_after: expiryIso, status: 'pending', next_attempt_at: expiryIso,
           }
       dataOrThrow(`insert interrupted ${object.bucket} cleanup`, await supabase
         .from(cleanupTable as any).insert(cleanupRow as any))
     }
+
+    const refreshedCoverage = dataOrThrow('read refreshed managed Storage coverage', await supabase
+      .from('classroom_managed_storage_coverage')
+      .select('status,reference_count,object_count')
+      .eq('classroom_id', classroomId)
+      .single())
+    assertFixture(
+      refreshedCoverage.status === 'verified'
+      && refreshedCoverage.reference_count === 8
+      && refreshedCoverage.object_count === 8,
+      'Operational managed owners did not refresh verified classroom coverage',
+    )
 
     setRolloutGates(databaseUrl, true)
     const impact = await getClassroomPurgeImpact(teacher.id, classroomId)
@@ -1051,25 +1133,54 @@ async function main() {
       select set_config('pika.classroom_purge_finalize', 'on', true);
       delete from public.classroom_purge_operations
         where id in ('${purgeOperationId}', '${competingPurgeOperationId}');
-      delete from public.managed_storage_objects
-        where classroom_id = '${classroomId}' or course_blueprint_id = '${blueprintId}';
+      delete from public.classroom_gradex_extract_cleanup cleanup
+        using public.classroom_archive_operations operation
+        where cleanup.operation_id = operation.id
+          and operation.classroom_id = '${classroomId}';
+      delete from public.classroom_gradex_extracts
+        where classroom_id = '${classroomId}';
+      delete from public.classroom_archive_source_object_reservations reservation
+        using public.classroom_archive_operations operation
+        where reservation.operation_id = operation.id
+          and operation.classroom_id = '${classroomId}';
+      delete from public.classroom_archive_source_object_cleanup
+        where classroom_id = '${classroomId}';
+      delete from public.classroom_archive_object_upload_cleanup cleanup
+        using public.classroom_archive_operations operation
+        where cleanup.operation_id = operation.id
+          and operation.classroom_id = '${classroomId}';
+      delete from public.classroom_archives
+        where classroom_id = '${classroomId}';
       delete from public.classroom_archive_operations
         where id in ('${archiveOperationId}', '${gradexOperationId}',
           '${failedArchiveOperationId}', '${failedGradexOperationId}');
+      delete from public.managed_storage_objects
+        where classroom_id = '${classroomId}' or course_blueprint_id = '${blueprintId}';
       delete from public.classrooms where id = '${classroomId}';
       delete from public.course_blueprints where id = '${blueprintId}';
       delete from public.users where id = '${otherTeacherId}';
       commit;
     `
+    const cleanupFailures: string[] = []
     try {
       runSql(databaseUrl, cleanupSql)
-      for (const object of createdStorageObjects) {
-        await supabase.storage.from(object.bucket).remove([object.path])
-      }
     } catch (cleanupError) {
-      finalizationError ||= cleanupError
+      cleanupFailures.push(
+        cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      )
+    }
+    for (const object of createdStorageObjects) {
+      const removal = await supabase.storage.from(object.bucket).remove([object.path])
+      if (removal.error) {
+        cleanupFailures.push(
+          `${object.bucket}/${object.path}: ${removal.error.message}`,
+        )
+      }
+    }
+    if (cleanupFailures.length > 0) {
+      finalizationError ||= new Error(cleanupFailures.join('; '))
       process.stderr.write(
-        `Fixture cleanup also failed; inspect fixture ${fixtureId}`
+        `Fixture cleanup also failed; inspect fixture ${fixtureId}, classroom ${classroomId}`
         + `${teacherId ? ` owned by ${teacherId}` : ''}.\n`,
       )
     }
