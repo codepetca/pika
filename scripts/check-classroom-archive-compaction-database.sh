@@ -212,9 +212,13 @@ begin
   ) is not null then
     execute
       'select public.verify_classroom_managed_storage_coverage(
-         $1, $2, $3, inventory.reference_count, inventory.inventory_sha256
+         $1, $2, $3,
+         (inventory.evidence->>''reference_count'')::integer,
+         inventory.evidence->>''inventory_sha256''
        )
-       from public.compute_classroom_managed_storage_inventory($2) inventory'
+       from (
+         select public.read_classroom_managed_storage_inventory_evidence($1, $2) evidence
+       ) inventory'
     using
       v_teacher_id,
       v_success_classroom_id,
@@ -1435,11 +1439,14 @@ select public.verify_classroom_managed_storage_coverage(
     from public.classroom_archive_revisions
     where classroom_id = :'classroom_id'::uuid
   ),
-  inventory.reference_count,
-  inventory.inventory_sha256
+  (inventory.evidence->>'reference_count')::integer,
+  inventory.evidence->>'inventory_sha256'
 )
-from public.compute_classroom_managed_storage_inventory(
-  :'classroom_id'::uuid
+from (
+  select public.read_classroom_managed_storage_inventory_evidence(
+    '11000000-0000-4000-8000-000000000029'::uuid,
+    :'classroom_id'::uuid
+  ) evidence
 ) inventory;
 select set_config('pika.classroom_archive_compaction', 'on', true);
 select set_config('pika.classroom_archive_compaction_dry_run', 'on', true);
