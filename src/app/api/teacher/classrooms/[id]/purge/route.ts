@@ -41,6 +41,7 @@ export const POST = withErrorHandler(
       operationId: input.operation_id,
       confirmation: input.confirmation,
       expectedSourceRevision: input.expected_source_revision,
+      expectedStorageInventoryVersion: input.expected_storage_inventory_version,
       expectedStorageInventorySha256: input.expected_storage_inventory_sha256,
     })
     return NextResponse.json({ operation }, {

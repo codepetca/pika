@@ -342,6 +342,7 @@ async function main() {
   const gradexExtractId = randomUUID()
   const failedArchiveOperationId = randomUUID()
   const failedGradexOperationId = randomUUID()
+  const abaManagedObjectId = randomUUID()
   const now = new Date()
   const nowIso = now.toISOString()
   const priorIso = new Date(now.getTime() - 60_000).toISOString()
@@ -627,6 +628,37 @@ async function main() {
       p_lease_token: retriedCleanup.lease_token,
     }) === true, 'Managed cleanup did not complete')
     assertFixture(!await storageObjectExists(supabase, cleanupProbe), 'Cleanup probe bytes survived')
+    const abaCoverageBefore = dataOrThrow('read pre-ABA managed coverage', await supabase
+      .from('classroom_managed_storage_coverage')
+      .select('inventory_version,inventory_sha256')
+      .eq('classroom_id', classroomId).single())
+    runSql(databaseUrl, `
+      insert into public.managed_storage_objects (
+        id, storage_bucket, storage_path, classroom_id, purpose,
+        created_by_user_id, content_type
+      ) values (
+        '${abaManagedObjectId}', 'submission-images',
+        'purge-fixture/${fixtureId}/aba-probe.png', '${classroomId}',
+        'legacy_classroom_file', '${teacher.id}', 'image/png'
+      );
+    `)
+    const abaCoverageMiddle = dataOrThrow('read middle ABA managed coverage', await supabase
+      .from('classroom_managed_storage_coverage')
+      .select('inventory_version,inventory_sha256')
+      .eq('classroom_id', classroomId).single())
+    runSql(databaseUrl, `
+      delete from public.managed_storage_objects where id = '${abaManagedObjectId}';
+    `)
+    const abaCoverageAfter = dataOrThrow('read post-ABA managed coverage', await supabase
+      .from('classroom_managed_storage_coverage')
+      .select('inventory_version,inventory_sha256')
+      .eq('classroom_id', classroomId).single())
+    assertFixture(
+      abaCoverageMiddle.inventory_sha256 !== abaCoverageBefore.inventory_sha256
+      && abaCoverageAfter.inventory_sha256 === abaCoverageBefore.inventory_sha256
+      && abaCoverageAfter.inventory_version >= abaCoverageBefore.inventory_version + 2,
+      'Managed inventory version did not expose an A-to-B-to-A registry change',
+    )
     assertFixture(
       runSql(databaseUrl, `
         select count(*)
@@ -922,6 +954,7 @@ async function main() {
         operationId: purgeOperationId,
         confirmation: 'DELETE',
         expectedSourceRevision: impact.source_revision,
+        expectedStorageInventoryVersion: impact.storage_inventory_version,
         expectedStorageInventorySha256: impact.storage_inventory_sha256,
       }),
       ['classroom_purge_inventory_changed'],
@@ -948,6 +981,7 @@ async function main() {
     let status = await startClassroomPurge({
       teacherId: teacher.id, classroomId, operationId: purgeOperationId, confirmation: 'DELETE',
       expectedSourceRevision: confirmedImpact.source_revision,
+      expectedStorageInventoryVersion: confirmedImpact.storage_inventory_version,
       expectedStorageInventorySha256: confirmedImpact.storage_inventory_sha256,
     })
     await expectFailure(

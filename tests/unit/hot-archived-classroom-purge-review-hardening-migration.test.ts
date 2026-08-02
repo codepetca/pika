@@ -636,7 +636,7 @@ describe('explicit managed-file ownership migration', () => {
     )
   })
 
-  it('binds purge begin to the confirmed relational revision and managed-file digest', () => {
+  it('binds purge begin to the confirmed revision, digest, and monotonic inventory version', () => {
     const beginStart = migration.indexOf(
       'create or replace function public.begin_hot_archived_classroom_purge(',
     )
@@ -644,15 +644,35 @@ describe('explicit managed-file ownership migration', () => {
     const begin = migration.slice(beginStart, beginEnd)
 
     expect(begin).toContain("p_impact_summary->>'source_revision'")
+    expect(begin).toContain("p_impact_summary->>'storage_inventory_version'")
     expect(begin).toContain("p_impact_summary->>'storage_inventory_sha256'")
     expect(begin).toContain('v_expected_source_revision <> v_revision')
     expect(begin).toContain(
       'v_coverage_inventory_sha256 is distinct from v_expected_inventory_sha256',
     )
+    expect(begin).toContain(
+      'v_coverage_inventory_version is distinct from v_expected_inventory_version',
+    )
     expect(begin).toContain("'error_code', 'classroom_purge_inventory_changed'")
     expect(begin.indexOf('perform public.classroom_purge_lock')).toBeLessThan(
       begin.indexOf('v_expected_source_revision <> v_revision'),
     )
+  })
+
+  it('advances the managed inventory version for registry refresh and readiness transitions', () => {
+    const refreshStart = migration.indexOf(
+      'create or replace function public.refresh_classroom_managed_storage_coverage(',
+    )
+    const refreshEnd = migration.indexOf('$$;', refreshStart)
+    const refresh = migration.slice(refreshStart, refreshEnd)
+    const verifyStart = migration.indexOf(
+      'create or replace function public.verify_classroom_managed_storage_coverage(',
+    )
+    const verifyEnd = migration.indexOf('$$;', verifyStart)
+    const verify = migration.slice(verifyStart, verifyEnd)
+
+    expect(refresh).toContain('inventory_version = inventory_version + 1')
+    expect(verify).toContain('inventory_version = inventory_version + 1')
   })
 
   it('replaces the manual child-table finalizer with a root delete and exact postconditions', () => {

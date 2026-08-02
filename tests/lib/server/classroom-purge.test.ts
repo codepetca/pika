@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   countClassroomStudents,
   deleteClassroomPurgeStorageObject,
+  isStableManagedInventoryCoverage,
 } from '@/lib/server/classroom-purge'
 
 function storageAdapter(removeError?: unknown) {
@@ -40,6 +41,18 @@ describe('classroom purge storage cleanup', () => {
       { id: 'announcement-student', email: 'reader@example.com', role: 'student' },
       { id: 'teacher', email: 'teacher@example.com', role: 'teacher' },
     ])).toBe(4)
+  })
+
+  it('rejects an ABA managed-registry change even when the digest returns to its prior value', () => {
+    const digest = 'a'.repeat(64)
+    expect(isStableManagedInventoryCoverage(
+      { status: 'verified', inventory_version: 7, inventory_sha256: digest },
+      { status: 'verified', inventory_version: 9, inventory_sha256: digest },
+    )).toBe(false)
+    expect(isStableManagedInventoryCoverage(
+      { status: 'verified', inventory_version: 9, inventory_sha256: digest },
+      { status: 'verified', inventory_version: 9, inventory_sha256: digest },
+    )).toBe(true)
   })
 
   it('requests removal of the one exact leased object', async () => {

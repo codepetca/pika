@@ -1510,6 +1510,9 @@ zero-downtime rollout
   rechecks both values after acquiring the canonical classroom lock.
 - Bracketed each managed-object inventory read with the trigger-maintained coverage digest so a
   concurrent registry change retries instead of pairing displayed counts with a different digest.
+- Closed the remaining A-to-B-to-A edge by incrementing and binding the managed inventory version
+  on every registry refresh/readiness transition; the app and SQL both reject any intervening
+  mutation even when the final digest returns to its original value.
 - Replaced roster-floor counting with a union of every classroom `student_id`, student announcement
   readers, retired student actors, and unmatched roster-only email invitations.
 - Authorized the owning teacher before reading purge-fence state, while preserving redacted,
@@ -1519,7 +1522,7 @@ zero-downtime rollout
   non-owner purge-state isolation, and terminal replay.
 
 **Validation:**
-- Focused suite: 5 files / 72 tests passes; full suite: 468 files / 4,085 tests passes.
+- Focused suite: 5 files / 74 tests passes; full suite: 468 files / 4,085 tests passes.
 - TypeScript, lint, production build, architecture/design/UI policy, Pika audit, and
   `git diff --check` pass.
 - No visible UI behavior changed; the existing teacher/student desktop/mobile visual matrix remains

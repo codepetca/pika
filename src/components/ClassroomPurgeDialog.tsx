@@ -136,6 +136,7 @@ export function ClassroomPurgeDialog({
             operation_id: crypto.randomUUID(),
             confirmation,
             expected_source_revision: impact?.source_revision,
+            expected_storage_inventory_version: impact?.storage_inventory_version,
             expected_storage_inventory_sha256: impact?.storage_inventory_sha256,
           }),
         })

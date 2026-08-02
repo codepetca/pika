@@ -85,6 +85,7 @@ const managedStorageObjectRowSchema = z.object({
 
 const storageCoverageRowSchema = z.object({
   status: z.enum(['pending', 'verified', 'blocked']),
+  inventory_version: z.number().int().positive(),
   inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
 }).strict()
 
@@ -120,6 +121,17 @@ type PurgeStorageAdapter = {
 
 type Inventory = {
   impact: ClassroomPurgeImpact
+}
+
+type ManagedInventoryCoverageSnapshot = z.infer<typeof storageCoverageRowSchema>
+
+export function isStableManagedInventoryCoverage(
+  before: ManagedInventoryCoverageSnapshot,
+  after: ManagedInventoryCoverageSnapshot,
+): boolean {
+  return before.status === after.status
+    && before.inventory_version === after.inventory_version
+    && before.inventory_sha256 === after.inventory_sha256
 }
 
 export function countClassroomStudents(
@@ -287,7 +299,7 @@ async function readStableInventory(
     // and bind confirmation to a file set the teacher was not shown.
     const coverageBeforeResult = await (supabase as any)
       .from('classroom_managed_storage_coverage')
-      .select('status,inventory_sha256')
+      .select('status,inventory_version,inventory_sha256')
       .eq('classroom_id', classroomId)
       .maybeSingle()
     if (coverageBeforeResult.error) {
@@ -299,7 +311,9 @@ async function readStableInventory(
       )
     }
     const coverageBefore = storageCoverageRowSchema.parse(
-      coverageBeforeResult.data || { status: 'pending', inventory_sha256: null },
+      coverageBeforeResult.data || {
+        status: 'pending', inventory_version: 1, inventory_sha256: null,
+      },
     )
     const [managedResult, settingsResult] = await Promise.all([
       (supabase as any)
@@ -348,7 +362,7 @@ async function readStableInventory(
       reader.readRevision(classroomId),
       (supabase as any)
         .from('classroom_managed_storage_coverage')
-        .select('status,inventory_sha256')
+        .select('status,inventory_version,inventory_sha256')
         .eq('classroom_id', classroomId)
         .maybeSingle(),
     ])
@@ -362,12 +376,13 @@ async function readStableInventory(
     }
     const revisionAfter = z.number().int().positive().parse(revisionAfterValue)
     const coverageAfter = storageCoverageRowSchema.parse(
-      coverageAfterResult.data || { status: 'pending', inventory_sha256: null },
+      coverageAfterResult.data || {
+        status: 'pending', inventory_version: 1, inventory_sha256: null,
+      },
     )
     if (
       sourceRevision !== revisionAfter
-      || coverageBefore.status !== coverageAfter.status
-      || coverageBefore.inventory_sha256 !== coverageAfter.inventory_sha256
+      || !isStableManagedInventoryCoverage(coverageBefore, coverageAfter)
     ) continue
 
     const affectedUserIds = collectAffectedUserIds(resources)
@@ -406,6 +421,7 @@ async function readStableInventory(
       classroom_id: classroomId,
       classroom_title: classroom.title,
       source_revision: sourceRevision,
+      storage_inventory_version: coverageAfter.inventory_version,
       storage_inventory_sha256: coverageAfter.inventory_sha256,
       relational_row_count: Object.values(resourceCounts)
         .reduce((total, count) => total + count, 0),
@@ -481,6 +497,7 @@ export async function startClassroomPurge(args: {
   operationId: string
   confirmation: string
   expectedSourceRevision?: number
+  expectedStorageInventoryVersion?: number
   expectedStorageInventorySha256?: string
 }): Promise<ClassroomPurgeStatus> {
   uuidSchema.parse(args.operationId)
@@ -544,6 +561,7 @@ export async function startClassroomPurge(args: {
   const inventory = await readStableInventory(supabase, args.teacherId, args.classroomId)
   if (
     args.expectedSourceRevision !== inventory.impact.source_revision
+    || args.expectedStorageInventoryVersion !== inventory.impact.storage_inventory_version
     || args.expectedStorageInventorySha256 !== inventory.impact.storage_inventory_sha256
   ) {
     throw new ClassroomPurgeError(
@@ -587,6 +605,7 @@ export async function startClassroomPurge(args: {
     teacher_id: args.teacherId,
     intent: 'delete_permanently',
     source_revision: args.expectedSourceRevision,
+    storage_inventory_version: args.expectedStorageInventoryVersion,
     storage_inventory_sha256: args.expectedStorageInventorySha256,
   })
   const begin = parseRpcResult(await rpc(

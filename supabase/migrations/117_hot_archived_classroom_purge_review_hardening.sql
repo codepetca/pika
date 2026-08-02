@@ -1402,6 +1402,7 @@ begin
 
   update public.classroom_managed_storage_coverage
   set
+    inventory_version = inventory_version + 1,
     reference_count = v_count,
     object_count = v_count,
     inventory_sha256 = v_inventory_sha256,
@@ -4193,6 +4194,7 @@ begin
   update public.classroom_managed_storage_coverage
   set
     status = 'verified',
+    inventory_version = inventory_version + 1,
     source_revision = p_source_revision,
     reference_count = p_reference_count,
     object_count = v_object_count,
@@ -5069,8 +5071,10 @@ declare
   v_enabled boolean;
   v_enforced boolean;
   v_expected_source_revision bigint;
+  v_expected_inventory_version bigint;
   v_expected_inventory_sha256 text;
   v_coverage_status text;
+  v_coverage_inventory_version integer;
   v_coverage_inventory_sha256 text;
 begin
   if p_request_sha256 !~ '^[a-f0-9]{64}$'
@@ -5081,6 +5085,11 @@ begin
       p_impact_summary->>'source_revision' ~ '^[1-9][0-9]{0,17}$',
       false
     )
+    or p_impact_summary->>'storage_inventory_version' is null
+    or not coalesce(
+      p_impact_summary->>'storage_inventory_version' ~ '^[1-9][0-9]{0,17}$',
+      false
+    )
     or p_impact_summary->>'storage_inventory_sha256' is null
     or not coalesce(
       p_impact_summary->>'storage_inventory_sha256' ~ '^[a-f0-9]{64}$',
@@ -5088,6 +5097,8 @@ begin
     )
   then raise exception 'invalid_classroom_purge_request' using errcode = '22023'; end if;
   v_expected_source_revision := (p_impact_summary->>'source_revision')::bigint;
+  v_expected_inventory_version :=
+    (p_impact_summary->>'storage_inventory_version')::bigint;
   v_expected_inventory_sha256 := p_impact_summary->>'storage_inventory_sha256';
 
   select hot_classroom_purge_enabled, enforce_ownership
@@ -5203,8 +5214,8 @@ begin
       'replayed', true
     );
   end if;
-  select coverage.status, coverage.inventory_sha256
-  into v_coverage_status, v_coverage_inventory_sha256
+  select coverage.status, coverage.inventory_version, coverage.inventory_sha256
+  into v_coverage_status, v_coverage_inventory_version, v_coverage_inventory_sha256
   from public.classroom_managed_storage_coverage coverage
   where coverage.classroom_id = p_classroom_id
   for update;
@@ -5215,6 +5226,12 @@ begin
     );
   end if;
   if v_coverage_inventory_sha256 is distinct from v_expected_inventory_sha256 then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
+      'error', 'Classroom files changed after the deletion impact was confirmed'
+    );
+  end if;
+  if v_coverage_inventory_version is distinct from v_expected_inventory_version then
     return jsonb_build_object(
       'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
       'error', 'Classroom files changed after the deletion impact was confirmed'
@@ -6858,6 +6875,7 @@ begin
   update public.classroom_managed_storage_coverage
   set
     status = 'pending',
+    inventory_version = inventory_version + 1,
     source_revision = null,
     inventory_sha256 = null,
     error_code = 'legacy_assignment_write_after_readiness',

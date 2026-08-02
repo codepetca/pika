@@ -37,6 +37,7 @@ const impact = {
   classroom_id: CLASSROOM_ID,
   classroom_title: 'Archived Biology',
   source_revision: 7,
+  storage_inventory_version: 11,
   storage_inventory_sha256: STORAGE_INVENTORY_SHA256,
   relational_row_count: 10,
   student_count: 2,
@@ -104,6 +105,7 @@ describe('teacher classroom purge routes', () => {
             operation_id: OPERATION_ID,
             confirmation: 'Archived Biology',
             expected_source_revision: 7,
+            expected_storage_inventory_version: 11,
             expected_storage_inventory_sha256: STORAGE_INVENTORY_SHA256,
           }),
         },
@@ -117,6 +119,7 @@ describe('teacher classroom purge routes', () => {
       operationId: OPERATION_ID,
       confirmation: 'Archived Biology',
       expectedSourceRevision: 7,
+      expectedStorageInventoryVersion: 11,
       expectedStorageInventorySha256: STORAGE_INVENTORY_SHA256,
     })
     expect(response.status).toBe(202)
@@ -158,6 +161,7 @@ describe('teacher classroom purge routes', () => {
             operation_id: OPERATION_ID,
             confirmation: 'DELETE',
             expected_source_revision: 7,
+            expected_storage_inventory_version: 11,
             expected_storage_inventory_sha256: STORAGE_INVENTORY_SHA256,
           }),
         },
