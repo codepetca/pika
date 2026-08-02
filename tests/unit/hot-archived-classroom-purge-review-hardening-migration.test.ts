@@ -670,6 +670,19 @@ describe('explicit managed-file ownership migration', () => {
   })
 
   it('structurally owns purge-only assignment save operations without changing archive v2', () => {
+    const guardStart = migration.indexOf(
+      'create or replace function public.guard_assignment_doc_save_operation_lifecycle()',
+    )
+    const guardEnd = migration.indexOf('$$;', guardStart)
+    const guard = migration.slice(guardStart, guardEnd)
+    const missingParent = guard.indexOf('if not found then')
+    const cascadeDelete = guard.indexOf("if tg_op = 'DELETE' then", missingParent)
+    const cascadeReturn = guard.indexOf('return old;', cascadeDelete)
+    const rejectMissingParent = guard.indexOf(
+      "raise exception 'assignment_doc_not_found'",
+      missingParent,
+    )
+
     expect(migration).toContain(
       'assignment_doc_save_operations_assignment_doc_id_fkey',
     )
@@ -683,6 +696,10 @@ describe('explicit managed-file ownership migration', () => {
       "select p_operation_id, 'assignment_doc_save_operations', operation.id",
     )
     expect(migration).toContain('assignment_doc_save_operation_lifecycle_guard')
+    expect(missingParent).toBeGreaterThanOrEqual(0)
+    expect(cascadeDelete).toBeGreaterThan(missingParent)
+    expect(cascadeReturn).toBeGreaterThan(cascadeDelete)
+    expect(rejectMissingParent).toBeGreaterThan(cascadeReturn)
   })
 
   it('makes managed ownership authoritative for all five buckets and operational ledgers', () => {

@@ -243,6 +243,13 @@ begin
   join public.assignments assignment on assignment.id = document.assignment_id
   where document.id = v_assignment_doc_id;
   if not found then
+    -- PostgreSQL's internal ON DELETE CASCADE removes the parent row before
+    -- invoking this child trigger. The assignment document delete has already
+    -- passed its own classroom lifecycle guard, so only that child DELETE may
+    -- treat the missing parent as expected cascade cleanup.
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
     raise exception 'assignment_doc_not_found' using errcode = '23503';
   end if;
 

@@ -1478,6 +1478,9 @@ zero-downtime rollout
   and made Storage cleanup report every exact-key error instead of silently ignoring API failures.
 - Removed the exact rows and ten Storage keys left by the pre-fix failed fixture, then proved zero
   fixture residue and both rollout gates disabled.
+- Corrected the save-operation lifecycle trigger so PostgreSQL's internal assignment-document
+  cascade may delete its child after the already-fenced parent disappears; missing-parent inserts
+  and updates still fail closed.
 
 **Validation:**
 - Local migration history and generated types match migrations 001–117; seed completed.
@@ -1486,10 +1489,12 @@ zero-downtime rollout
 - Destructive purge fixture passed eight deletions across all five buckets while preserving two
   Blueprint-owned copies and teacher/student accounts; retry, concurrency, auth, fencing, and
   terminal redaction assertions passed.
+- The atomic assignment SQL harness passes document, assignment, and classroom cascades with the
+  corrected migration function loaded inside a rollback-only transaction.
 - Focused suite: 5 files / 88 tests; TypeScript, lint, architecture boundaries, Pika audit, and
   `git diff --check` pass.
 
 **Remaining:**
-- Push the generated database contract and fixture correction to draft PR #963, then require green
-  current-head CI before the completion review.
+- Push the generated database contract, fixture correction, and cascade guard to draft PR #963,
+  then require green current-head CI before the completion review.
 - Do not deploy, apply migration 117 to a hosted target, or enable either rollout gate.
