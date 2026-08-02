@@ -45,6 +45,10 @@ describe('course Blueprint managed storage copies', () => {
         error: null,
       })),
     }
+    const upload = vi.fn(async (path: string, bytes: Uint8Array) => {
+      uploaded.set(path, bytes)
+      return { data: { path }, error: null }
+    })
     const storage = {
       from: vi.fn(() => ({
         download: vi.fn(async (path: string) => ({
@@ -53,10 +57,7 @@ describe('course Blueprint managed storage copies', () => {
           }),
           error: null,
         })),
-        upload: vi.fn(async (path: string, bytes: Uint8Array) => {
-          uploaded.set(path, bytes)
-          return { data: { path }, error: null }
-        }),
+        upload,
         getPublicUrl: vi.fn((path: string) => ({
           data: { publicUrl: `https://project.supabase.co/storage/v1/object/public/test-documents/${path}` },
         })),
@@ -127,6 +128,10 @@ describe('course Blueprint managed storage copies', () => {
         error: null,
       })),
     }
+    const upload = vi.fn(async (path: string, bytes: Uint8Array) => {
+      uploaded.set(path, bytes)
+      return { data: { path }, error: null }
+    })
     const storage = {
       from: vi.fn(() => ({
         download: vi.fn(async (path: string) => ({
@@ -135,10 +140,7 @@ describe('course Blueprint managed storage copies', () => {
           }),
           error: null,
         })),
-        upload: vi.fn(async (path: string, bytes: Uint8Array) => {
-          uploaded.set(path, bytes)
-          return { data: { path }, error: null }
-        }),
+        upload,
         getPublicUrl: vi.fn((path: string) => ({
           data: { publicUrl: `https://project.supabase.co/storage/v1/object/public/test-documents/${path}` },
         })),
@@ -154,15 +156,28 @@ describe('course Blueprint managed storage copies', () => {
         : { sourceCourseBlueprintId: BLUEPRINT_ID }),
       assessments: [{
         id: 'assessment',
-        documents: [{
-          id: 'legacy-document', title: 'Legacy', source: 'upload',
-          url: 'https://project.supabase.co/storage/v1/object/public/test-documents/legacy/source.pdf',
-        }],
+        documents: [
+          {
+            id: 'legacy-document-a', title: 'Legacy A', source: 'upload',
+            url: 'https://project.supabase.co/storage/v1/object/public/test-documents/legacy/source.pdf',
+          },
+          {
+            id: 'legacy-document-b', title: 'Legacy B', source: 'upload',
+            url: 'https://project.supabase.co/storage/v1/object/public/test-documents/legacy/source.pdf',
+          },
+        ],
       }],
     })
     expect(result[0].documents[0].managed_object_id).toBeTruthy()
     expect(result[0].documents[0].managed_object_id).not.toBe(SOURCE_ID)
     expect(result[0].documents[0].url).not.toContain('/legacy/source.pdf')
+    expect(result[0].documents[1]).toMatchObject({
+      id: 'legacy-document-b',
+      title: 'Legacy B',
+      managed_object_id: result[0].documents[0].managed_object_id,
+      url: result[0].documents[0].url,
+    })
+    expect(upload).toHaveBeenCalledTimes(1)
     expect(query.eq).toHaveBeenCalledWith(ownerColumn, direction === 'to_blueprint'
       ? CLASSROOM_ID
       : BLUEPRINT_ID)

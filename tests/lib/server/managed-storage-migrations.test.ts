@@ -19,6 +19,21 @@ describe('managed storage migration contract', () => {
     expect(foundation).toContain('managed_storage_writer_revision_seq')
     expect(foundation).toContain('readiness_writer_revision is distinct from v_writer_revision')
     expect(foundation).toContain('where singleton for update;')
+    expect(foundation).toContain(
+      'revoke all on function public.lock_managed_storage_protocol()',
+    )
+    expect(foundation).toContain('from public, anon, authenticated, service_role;')
+  })
+
+  it('rejects conflicting deterministic legacy registration replays', () => {
+    for (const field of [
+      'created_by_user_id', 'data_subject_user_id', 'resource_type',
+      'resource_id', 'content_type', 'byte_size', 'content_sha256',
+    ]) {
+      expect(foundation).toContain(
+        `managed_storage_objects.${field}\n      is not distinct from excluded.${field}`,
+      )
+    }
   })
 
   it('covers all five buckets without recording raw paths in findings', () => {

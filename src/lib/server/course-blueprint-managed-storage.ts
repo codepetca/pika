@@ -104,7 +104,7 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     throw new Error('managed_storage_blueprint_copy_owner_conflict')
   }
 
-  const copiedBySourceId = new Map<string, TestDocument>()
+  const copiedBySourceId = new Map<string, Pick<TestDocument, 'url' | 'managed_object_id'>>()
   const reservedObjectIds: string[] = []
   try {
     for (const document of managedDocuments) {
@@ -163,7 +163,6 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
       const publicUrl = input.supabase.storage.from('test-documents')
         .getPublicUrl(targetPath).data.publicUrl
       copiedBySourceId.set(sourceId, {
-        ...document,
         url: publicUrl,
         managed_object_id: objectId,
       })
@@ -183,7 +182,10 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     ...assessment,
     documents: assessment.documents.map((document) => (
       sourceIdByDocument.has(document)
-        ? copiedBySourceId.get(sourceIdByDocument.get(document) as string) || document
+        ? {
+            ...document,
+            ...copiedBySourceId.get(sourceIdByDocument.get(document) as string),
+          }
         : document
     )),
   }))

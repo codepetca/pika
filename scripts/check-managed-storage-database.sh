@@ -10,6 +10,21 @@ fi
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
+do $privileges$
+begin
+  if has_function_privilege('anon', 'public.lock_managed_storage_protocol()', 'execute')
+    or has_function_privilege(
+      'authenticated', 'public.lock_managed_storage_protocol()', 'execute'
+    )
+    or has_function_privilege(
+      'service_role', 'public.lock_managed_storage_protocol()', 'execute'
+    )
+  then
+    raise exception 'Managed protocol lock helper is externally executable';
+  end if;
+end;
+$privileges$;
+
 insert into public.users (id, email, role) values
   ('a1100000-0000-4000-8000-000000000001', 'managed-teacher@example.test', 'teacher'),
   ('a1100000-0000-4000-8000-000000000002', 'managed-student@example.test', 'student');
@@ -79,10 +94,66 @@ declare
   v_claim public.managed_storage_objects;
   v_artifact_cleanup public.assignment_artifact_storage_cleanup;
   v_snapshot_cleanup public.test_document_snapshot_storage_cleanup;
+  v_legacy_id uuid;
 begin
   if (select status from public.managed_storage_objects
       where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
   then raise exception 'Relational attach did not atomically adopt the object'; end if;
+
+  insert into storage.objects (bucket_id, name)
+  values ('assignment-artifacts', 'managed-fixture/legacy-replay.png');
+  v_legacy_id := public.managed_storage_legacy_object_id(
+    'assignment-artifacts', 'managed-fixture/legacy-replay.png'
+  );
+  perform public.register_legacy_managed_storage_object(
+    v_legacy_id, 'assignment-artifacts', 'managed-fixture/legacy-replay.png',
+    'a1100000-0000-4000-8000-000000000003', null,
+    'student_assignment_artifact',
+    'a1100000-0000-4000-8000-000000000001',
+    'a1100000-0000-4000-8000-000000000002',
+    'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+    'image/png', 4, repeat('a', 64)
+  );
+  begin
+    perform public.register_legacy_managed_storage_object(
+      v_legacy_id, 'assignment-artifacts', 'managed-fixture/legacy-replay.png',
+      'a1100000-0000-4000-8000-000000000003', null,
+      'student_assignment_artifact',
+      'a1100000-0000-4000-8000-000000000001',
+      'a1100000-0000-4000-8000-000000000001',
+      'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+      'image/png', 4, repeat('a', 64)
+    );
+    raise exception 'Legacy subject conflict was accepted';
+  exception when sqlstate '23505' then null;
+  end;
+  begin
+    perform public.register_legacy_managed_storage_object(
+      v_legacy_id, 'assignment-artifacts', 'managed-fixture/legacy-replay.png',
+      'a1100000-0000-4000-8000-000000000003', null,
+      'student_assignment_artifact',
+      'a1100000-0000-4000-8000-000000000001',
+      'a1100000-0000-4000-8000-000000000002',
+      'assignment_doc', 'a1100000-0000-4000-8000-000000000099',
+      'image/png', 4, repeat('a', 64)
+    );
+    raise exception 'Legacy resource conflict was accepted';
+  exception when sqlstate '23505' then null;
+  end;
+  begin
+    perform public.register_legacy_managed_storage_object(
+      v_legacy_id, 'assignment-artifacts', 'managed-fixture/legacy-replay.png',
+      'a1100000-0000-4000-8000-000000000003', null,
+      'student_assignment_artifact',
+      'a1100000-0000-4000-8000-000000000001',
+      'a1100000-0000-4000-8000-000000000002',
+      'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+      'image/png', 4, repeat('b', 64)
+    );
+    raise exception 'Legacy checksum conflict was accepted';
+  exception when sqlstate '23505' then null;
+  end;
+  perform public.queue_managed_storage_cleanup(v_legacy_id, 'fixture_legacy_replay');
 
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then

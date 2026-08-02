@@ -1371,6 +1371,9 @@ concurrent activation, and Classroom/Blueprint ownership boundaries.
 - Blocked readiness on compatibility-era cleanup leases already in flight.
 - Copied registered legacy test documents at both Classroom/Blueprint boundaries
   without sharing ownership, and refreshed generated database types.
+- Revoked the internal protocol-lock helper from API roles, made deterministic
+  legacy replays compare every subject/resource/integrity field, and preserved
+  per-reference document metadata when a source file is copied once.
 - Kept migration 117 unapplied and PR #963 unchanged.
 
 **Validation:**
@@ -1379,7 +1382,9 @@ concurrent activation, and Classroom/Blueprint ownership boundaries.
   audit timeout passed immediately in isolation (2/2).
 - TypeScript, lint, architecture, lineage, production build, full SQL parse,
   shell syntax, diff check, and Pika audit pass.
+- CI's isolated 115→117 migration replay succeeds; the first remediation run
+  stopped only on generated-type ordering, now matched exactly to its diff.
 
 **Remaining:**
-- Push the review batch, require fresh replay/database fixture CI, and run one
+- Push remediation batch 2, require the complete database fixture CI, and run
   targeted security/concurrency re-review before the final integration gate.

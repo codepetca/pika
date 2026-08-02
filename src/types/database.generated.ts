@@ -3703,6 +3703,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "managed_storage_json_reference_identity_fkey"
+            columns: ["managed_object_id", "storage_bucket", "storage_path"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id", "storage_bucket", "storage_path"]
+          },
+          {
             foreignKeyName: "managed_storage_json_references_assignment_doc_history_id_fkey"
             columns: ["assignment_doc_history_id"]
             isOneToOne: false
@@ -3715,13 +3722,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "assignment_docs"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "managed_storage_json_reference_identity_fkey"
-            columns: ["managed_object_id", "storage_bucket", "storage_path"]
-            isOneToOne: false
-            referencedRelation: "managed_storage_objects"
-            referencedColumns: ["id", "storage_bucket", "storage_path"]
           },
           {
             foreignKeyName: "managed_storage_json_references_managed_object_id_fkey"
@@ -6723,12 +6723,6 @@ export type Database = {
         Args: { p_object_id: string }
         Returns: boolean
       }
-      managed_storage_payload_ids: {
-        Args: { p_payload: Json }
-        Returns: {
-          managed_object_id: string
-        }[]
-      }
       managed_storage_payload_has_exact_reference: {
         Args: {
           p_object_id: string
@@ -6737,6 +6731,12 @@ export type Database = {
           p_storage_path: string
         }
         Returns: boolean
+      }
+      managed_storage_payload_ids: {
+        Args: { p_payload: Json }
+        Returns: {
+          managed_object_id: string
+        }[]
       }
       managed_storage_payload_path_occurrences: {
         Args: { p_payload: Json; p_storage_path: string }

@@ -1128,6 +1128,20 @@ begin
     and managed_storage_objects.course_blueprint_id is not distinct from excluded.course_blueprint_id
     and managed_storage_objects.provisional_owner_id is null
     and managed_storage_objects.purpose = excluded.purpose
+    and managed_storage_objects.created_by_user_id
+      is not distinct from excluded.created_by_user_id
+    and managed_storage_objects.data_subject_user_id
+      is not distinct from excluded.data_subject_user_id
+    and managed_storage_objects.resource_type
+      is not distinct from excluded.resource_type
+    and managed_storage_objects.resource_id
+      is not distinct from excluded.resource_id
+    and managed_storage_objects.content_type
+      is not distinct from excluded.content_type
+    and managed_storage_objects.byte_size
+      is not distinct from excluded.byte_size
+    and managed_storage_objects.content_sha256
+      is not distinct from excluded.content_sha256
     and managed_storage_objects.status = 'ready'
   returning * into v_object;
 
@@ -1673,6 +1687,11 @@ begin
   return v_enforced;
 end;
 $$;
+
+-- Internal only. Managed writer RPCs execute as the owning role and may call
+-- this helper, but callers must not advance the revision or hold its lock.
+revoke all on function public.lock_managed_storage_protocol()
+  from public, anon, authenticated, service_role;
 
 create or replace function public.capture_managed_storage_readiness_revision()
 returns trigger
