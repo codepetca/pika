@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Activated direct archive-v2 runtime
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Recorded the maintainer decision that experimental Quiz rows, drafts,
-  envelopes, and Quiz portions of v1 artifacts are disposable.
-- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
-  drafts to Tests, promote the live archive registry to v2, and capture source
-  contract 2 directly.
-- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
-  fallback. V1 restore now discards Quiz resources while retaining other
-  classroom content.
-- Extended disposable replay through migrations 106-107 and proved direct
-  source counts, snapshot membership, upload intent, and finalization.
-- Review remediation now purges the frozen Quiz source rows, fences retryable
-  operations, and makes compaction use migration-107-specific v2 RPCs. V1
-  archives must be re-exported before compaction.
-
-**Validation:**
-- Focused archive coordinator tests and TypeScript pass.
-- The disposable freeze/backfill/direct-source database harness passes.
-- Current-export and atomic-compaction database harnesses pass against the
-  disposable post-107 schema, including a complete v2 cold transition.
-- No shared local or hosted migration was applied.
-
-**Remaining:**
-- Complete repository validation, independent review, exact-head CI, and merge.
-- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
-  remaining active compatibility types and payload fields.
-
 ## 2026-07-23 — Prepared legacy Quiz hard removal
 
 **Risk profile:** runtime-platform/destructive-schema
@@ -1526,3 +1495,24 @@ zero-downtime rollout
 **Remaining:**
 - Push the focused correction to draft PR #963 and require green current-head CI.
 - Keep migration 117 and destructive local fixture separately authorization-gated.
+
+## 2026-08-02 — Corrected purge worker composite reads
+
+**Risk profile:** migration, destructive-data worker, CI contract
+
+**Completed:**
+- Replaced the two invalid PL/pgSQL record-plus-scalar `INTO` lists in purge object completion
+  and failure with a single candidate record followed by explicit typed assignments.
+- Preserved teacher filtering, operation identity, lifecycle lock ordering, managed-owner fencing,
+  lease validation, and exact-path locking.
+- Audited migration 117 for the defect class; these were the only composite-row occurrences.
+
+**Validation:**
+- Both exact functions compile in PostgreSQL inside an explicit transaction that is rolled back.
+- Focused migration suite: 1 file / 35 tests passes.
+- TypeScript, Pika audit, `git diff --check`, and full PostgreSQL SQLFluff parsing pass.
+- No migration was applied or replayed; production and all persistent rollout gates are unchanged.
+
+**Remaining:**
+- Push this second focused CI correction and require current-head ephemeral migration replay.
+- Keep PR #963 draft and preserve the separate authorization gate for any local/hosted migration.

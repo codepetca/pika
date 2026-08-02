@@ -733,6 +733,29 @@ describe('explicit managed-file ownership migration', () => {
     expect(upload).not.toContain('<> case p_purpose')
   })
 
+  it('loads purge object composites through a single record target', () => {
+    for (const functionName of [
+      'complete_classroom_purge_object',
+      'fail_classroom_purge_object',
+    ]) {
+      const functionStart = migration.indexOf(
+        `create or replace function public.${functionName}(`,
+      )
+      const functionEnd = migration.indexOf('$$;', functionStart)
+      const functionSql = migration.slice(functionStart, functionEnd)
+
+      expect(functionSql).toContain('v_candidate record;')
+      expect(functionSql).toContain(
+        'select object as purge_object, operation.classroom_id as classroom_id into v_candidate',
+      )
+      expect(functionSql).toContain('v_object := v_candidate.purge_object;')
+      expect(functionSql).toContain('v_classroom_id := v_candidate.classroom_id;')
+    }
+    expect(migration).not.toContain(
+      'select object, operation.classroom_id into v_object, v_classroom_id',
+    )
+  })
+
   it('turns legacy file cleanup ledgers into fenced delegates of managed ownership', () => {
     const bridgeStart = migration.indexOf(
       'create or replace function public.prepare_legacy_managed_cleanup_ledger_change()',

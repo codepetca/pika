@@ -5411,8 +5411,9 @@ as $$
 declare
   v_object public.classroom_purge_objects;
   v_classroom_id uuid;
+  v_candidate record;
 begin
-  select object, operation.classroom_id into v_object, v_classroom_id
+  select object as purge_object, operation.classroom_id as classroom_id into v_candidate
   from public.classroom_purge_objects object
   join public.classroom_purge_operations operation on operation.id = object.operation_id
   where object.id = p_object_id
@@ -5421,6 +5422,8 @@ begin
     and object.lease_token = p_lease_token
     and object.lease_expires_at > clock_timestamp();
   if not found then return false; end if;
+  v_object := v_candidate.purge_object;
+  v_classroom_id := v_candidate.classroom_id;
 
   perform public.classroom_purge_lock(v_classroom_id);
   perform 1 from public.classrooms classroom
@@ -5491,8 +5494,9 @@ as $$
 declare
   v_object public.classroom_purge_objects;
   v_classroom_id uuid;
+  v_candidate record;
 begin
-  select object, operation.classroom_id into v_object, v_classroom_id
+  select object as purge_object, operation.classroom_id as classroom_id into v_candidate
   from public.classroom_purge_objects object
   join public.classroom_purge_operations operation on operation.id = object.operation_id
   where object.id = p_object_id
@@ -5500,6 +5504,8 @@ begin
     and object.status = 'processing'
     and object.lease_token = p_lease_token;
   if not found then return false; end if;
+  v_object := v_candidate.purge_object;
+  v_classroom_id := v_candidate.classroom_id;
   perform public.classroom_purge_lock(v_classroom_id);
   perform 1 from public.classrooms classroom
   where classroom.id = v_classroom_id
