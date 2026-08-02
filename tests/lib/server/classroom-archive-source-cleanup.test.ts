@@ -115,6 +115,9 @@ function createSupabaseMock(options: {
     if (name === 'renew_classroom_archive_source_object_cleanup_lease') {
       return { data: options.renewResult ?? true, error: null }
     }
+    if (name === 'queue_managed_storage_cleanup_path') {
+      return { data: true, error: null }
+    }
     if (name === 'fail_classroom_archive_source_object_cleanup') {
       return { data: options.failResult ?? true, error: null }
     }
@@ -245,15 +248,15 @@ describe('classroom archive source-object cleanup', () => {
     expect(mock.storageFrom).not.toHaveBeenCalled()
   })
 
-  it('verifies exact bytes before removal and authoritative absence before completion', async () => {
+  it('verifies exact bytes and queues the sole managed cleanup authority', async () => {
     const mock = createSupabaseMock()
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({
       ok: true,
       claimed: 1,
-      deleted: 1,
-      failed: 0,
+      deleted: 0,
+      failed: 1,
     }))
     expect(mock.rpc).toHaveBeenNthCalledWith(
       1,
@@ -278,17 +281,18 @@ describe('classroom archive source-object cleanup', () => {
       'rpc:claim_due_classroom_archive_source_object_cleanup_v2',
       `download:${PATH}`,
       'rpc:renew_classroom_archive_source_object_cleanup_lease',
-      `remove:${PATH}`,
+      'rpc:queue_managed_storage_cleanup_path',
       `download:${PATH}`,
-      'rpc:complete_classroom_archive_source_object_cleanup',
+      'rpc:fail_classroom_archive_source_object_cleanup',
     ])
     expect(mock.rpc).toHaveBeenLastCalledWith(
-      'complete_classroom_archive_source_object_cleanup',
+      'fail_classroom_archive_source_object_cleanup',
       {
         p_operation_id: OPERATION_ID,
         p_storage_bucket: 'assignment-artifacts',
         p_storage_path: PATH,
         p_lease_token: LEASE_TOKEN,
+        p_error_code: 'archive_source_managed_cleanup_pending',
       },
     )
   })
@@ -306,7 +310,10 @@ describe('classroom archive source-object cleanup', () => {
   })
 
   it('confirms wrapped Storage 400 absence with an exact database presence lookup', async () => {
-    const mock = createSupabaseMock({ useLocalNotFoundShape: true })
+    const mock = createSupabaseMock({
+      initiallyMissing: [PATH],
+      useLocalNotFoundShape: true,
+    })
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
@@ -408,8 +415,8 @@ describe('classroom archive source-object cleanup', () => {
     }
   })
 
-  it('accepts authoritative absence even when removal returned an error', async () => {
-    const mock = createSupabaseMock({ removeErrorPaths: [PATH] })
+  it('accepts authoritative absence without asking a feature worker to remove Storage', async () => {
+    const mock = createSupabaseMock({ initiallyMissing: [PATH] })
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
@@ -421,7 +428,7 @@ describe('classroom archive source-object cleanup', () => {
 
     expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
       status: 'failed',
-      error_code: 'archive_source_object_delete_unconfirmed',
+      error_code: 'archive_source_managed_cleanup_pending',
       retry_recorded: true,
     }))
     expect(mock.rpc).not.toHaveBeenCalledWith(
@@ -431,7 +438,7 @@ describe('classroom archive source-object cleanup', () => {
   })
 
   it('does not mutate the ledger after stale lease completion is rejected', async () => {
-    const mock = createSupabaseMock({ completeResult: false })
+    const mock = createSupabaseMock({ completeResult: false, initiallyMissing: [PATH] })
     const result = await run(mock)
 
     expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
@@ -467,10 +474,13 @@ describe('classroom archive source-object cleanup', () => {
     expect(result).toEqual(expect.objectContaining({
       ok: true,
       claimed: 2,
-      deleted: 1,
-      failed: 1,
+      deleted: 0,
+      failed: 2,
     }))
-    expect(mock.remove).toHaveBeenCalledWith([PATH_TWO])
+    expect(mock.rpc).toHaveBeenCalledWith(
+      'queue_managed_storage_cleanup_path',
+      expect.objectContaining({ p_storage_path: PATH_TWO }),
+    )
   })
 
   it('rejects malformed, duplicate, and oversized claim contracts before storage', async () => {

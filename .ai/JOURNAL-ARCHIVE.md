@@ -15656,6 +15656,7 @@
 - Require exact-head PR CI and normal protected merge into `main`.
 
 <!-- pika-session-log-archive-batch:1d25b4cce3bb1e2f92016e825cf4d30a20724974c5faea0ade21719e22d19ae3 -->
+<!-- pika-session-log-archive-batch:75c21b3035befbf4f74e392fb0accb7efa24e213102a4141822bcee091bdc9ad -->
 ## 2026-07-23 — Separated Tests authoring from grading
 
 **Risk profile:** none
@@ -15687,7 +15688,7 @@
 - Complete targeted independent rereview and exact-head PR CI.
 - Continue Tests with standalone preview authorization/framing, then student flag/save accessibility; keep mobile and Gradex deferred.
 
-<!-- pika-session-log-archive-batch:d9261e45dbe0f937b55086cef991388438e8bc72bf26b66fc2588cc4ef1cc582 -->
+<!-- pika-session-log-archive-batch:b91fc46e6a8e36e917140b131626ad696d29ca06dd0c44770552bcb6533dd32a -->
 ## 2026-07-23 — Retired legacy Quiz API response aliases
 
 **Risk profile:** none
@@ -15704,3 +15705,582 @@
 **Validation:**
 - Focused Tests API/client/component suites (12 files / 208 tests)
 - Full repository suite (408 files / 3,674 tests)
+
+<!-- pika-session-log-archive-batch:80268ba2b43533f95eafa92db251ea35111b8b8d6d122d6a2f930b8d26758784 -->
+## 2026-07-23 — Hardened standalone test preview
+
+**Risk profile:** workspace-state, exam-mode, authorization, external-network, schema
+
+**Model recommendation:** GPT-5.6 Sol and Terra (high) - this slice crosses authorization, concurrent ownership, outbound document fetching, atomic persistence, focus, and the full-screen exam-mode shell.
+
+**Completed:**
+- Added route regressions for unauthenticated, non-teacher, non-owner, classroom/test mismatch, and authorized teacher access.
+- Made `testId` the preview-data owner and invalidated requests only at committed effect boundaries so abandoned concurrent renders cannot stall the active preview.
+- Hid old-owner content until the current preview finishes loading and ignored every late visible-state write from superseded requests.
+- Added A/B and suspended-render regressions proving preview B survives late A and committed A survives an abandoned B render.
+- Added named preview, document, and question regions plus keyboard focus transfer into an opened document and restoration to its trigger on close.
+- Revalidated the measured window fallback after blocked fullscreen/resize attempts and on later resize so non-maximized content relocks.
+- Added a DNS-resolving, address-pinned outbound fetch boundary that rejects private/reserved IPv4 and IPv6 targets, mixed DNS answers, and public-to-private redirects.
+- Added migration 105 for an atomic snapshot attach that locks test/classroom ownership, rejects archive/document/URL conflicts, preserves concurrent document changes, and returns the exact superseded snapshot for cleanup.
+- Switched snapshots to unique immutable storage paths and remove uncommitted or superseded objects after persistence outcomes.
+- Preserved the existing full-screen composition. Migration 105 was applied locally under one-time authorization and generated database types were refreshed; production, Gradex, and deferred mobile layout work were unchanged.
+
+**Validation:**
+- Focused preview, document sync, safe-fetch, migration, and existing editor suites (8 files / 77 tests)
+- Full repository suite (413 files / 3,712 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (625 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next retire unused component prop wrappers and the legacy test automation id; preserve database-shaped fields and the old `tab=quizzes` URL tombstone.
+
+<!-- pika-session-log-archive-batch:00873c838be7b4543a447ae869b25ded8a6dfa35075a6ad0e60f8a7aab8440bc -->
+## 2026-07-23 — Retired legacy Quiz UI wrappers
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses shared Test component contracts, draft identity, exam-mode E2E setup, and the legacy retirement ratchet without changing rendered behavior.
+
+**Completed:**
+- Removed unused `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` component and hook aliases after confirming no production callers remained.
+- Made current Test identity and update props explicit and required.
+- Renamed the internal student action-footer automation id from `student-quiz-action-footer` to `student-test-action-footer`.
+- Updated student and teacher exam-mode E2E setup to decode the current `test` API response key.
+- Removed the final quiz-keyed Tests list payload type from assessment URL-state E2E setup after independent review.
+- Added an architecture ratchet preventing retired UI aliases and the old automation id from returning.
+- Preserved the `tab=quizzes&quizId=...` old-link tombstone, persisted `quiz_id` fields, schema, archives, gradebook tombstones, and course package compatibility.
+
+**Validation:**
+- Focused wrapper and component suites (7 files / 115 tests)
+- Full repository suite (408 files / 3,670 tests)
+- Exam-mode Playwright discovery (10 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.
+
+## 2026-07-23 — Retired standalone legacy Quiz Markdown
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass removes an isolated compatibility parser/serializer and consolidates the shared editor on its already-current Test Markdown contract.
+
+**Completed:**
+- Removed `src/lib/quiz-markdown.ts` and its dedicated compatibility test after confirming no package, archive, import, or persisted-data reader depended on it.
+- Consolidated `TestDetailPanel` draft serialization, Markdown parsing, document handling, and question-field preservation on `testToMarkdown` / `markdownToTest`.
+- Added an architecture ratchet preventing the retired module and its assessment/quiz Markdown aliases from returning.
+- Updated the cleanup guide to identify unreachable quiz-mode rendering as the next implementation pass.
+- Preserved persisted `quiz_id` fields, schema, archives, gradebook tombstones, course package compatibility, and the `tab=quizzes` URL tombstone.
+
+**Validation:**
+- Focused Markdown, component, and architecture suites (3 files / 53 tests)
+- Full repository suite (407 files / 3,666 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- `git diff --check`
+
+**Remaining:**
+- Run full repository validation, independent PR review, and exact-head CI before merge.
+- Next prove and remove unreachable quiz-mode rendering and wording from current Test components.
+
+<!-- pika-session-log-archive-batch:949770d9b0ceaf9f2d4cd8175490ac5be5e2b3d9490b9f3db515ffa37991581a -->
+## 2026-07-23 — Retired unreachable Quiz rendering
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass traces Test-only callers through large teacher and student components, removes dead rendering/contracts, and preserves persistence and compatibility boundaries.
+
+**Completed:**
+- Removed assessment-mode switches and unreachable quiz submission, result, list-badge, authoring, preview, and grading branches from active Test components.
+- Consolidated student Test form submissions and returned results on current structured Test payloads.
+- Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
+- Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
+- Preserved authoring-preview freshness with uncached reads and a request-generation guard so a late stale response cannot replace a newer refresh.
+- Updated the governed native-control registry for the removed controls and modules.
+- Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
+- Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
+- Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
+
+**Validation:**
+- Focused component and architecture suites (7 files / 118 tests)
+- Full repository suite (407 files / 3,662 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (621 modules / 0 allowances)
+- `pnpm run check:ui-policy` (207 registered native controls / 65 files)
+- `pnpm build`
+- Pika changed-file audit
+- Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
+- `git diff --check`
+- Independent review found one blocking in-flight preview freshness regression; fixed with a request-generation guard and deferred-response regression coverage.
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
+
+<!-- pika-session-log-archive-batch:028d1bffdf439c4d005c2b74f90703e12ecb8c7ffe9c02b92e553512e4ef163f -->
+## 2026-07-23 — Designed legacy Quiz schema retirement
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses hosted evidence, archive format versioning, deterministic backfill, package compatibility, and destructive migration rollback without applying schema changes.
+
+**Completed:**
+- Added a target-pinned, redirect-rejecting, read-only inventory for legacy Quiz table rows, Quiz drafts, Quiz blueprint assessments, and verified archive manifest counts.
+- Required two matching aggregate snapshots and emitted no row ids, titles, content, storage paths, or credentials.
+- Ran the inventory against production project `zhioqbapgfcrronyuidm`: 1 quiz, 3 questions, 60 responses, 0 manual score overrides, 0 Quiz drafts, and 0 Quiz blueprint assessments.
+- Confirmed the single verified archive-v1 manifest contains the same non-empty Quiz graph.
+- Designed archive-v2 retired-assessment envelopes instead of mapping historical Quiz rows into active Tests, which would resurface removed product data and lose whole-assessment override semantics.
+- Defined additive adapter, freeze/backfill, production-proof, destructive-retirement, gradebook, and course-package passes with explicit approval, validation, and forward-repair gates.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused inventory, archive, package, gradebook, docs, and architecture suites (8 files / 96 tests)
+- Full repository suite after review remediation (409 files / 3,672 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (622 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- Production inventory completed with two stable snapshots
+
+**Review:**
+- Independent review found that the plan needed an explicit version-keyed
+  TypeScript/database archive transition and an atomic fate for zero-row Quiz
+  blueprint assessments.
+- The same review found that equal-count archive replacement was not part of
+  private snapshot stability evidence.
+- Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
+  and blueprint lock/preflight requirements; added private archive UUID/checksum
+  comparison and concrete duplicate, count-drift, and truncated-page tests.
+- Targeted review caught ambiguous destructive-pass wording; clarified that v2
+  becomes current without deleting either immutable registry graph or the v1
+  adapter, and required a post-drop v1 restore fixture.
+- Re-ran the target-pinned production inventory with stable unchanged aggregates.
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next implement the additive retired-resource envelope and archive-v2/v1 adapter only after explicit approval to create its named migration; do not apply it without separate exact target-and-filename authorization.
+
+<!-- pika-session-log-archive-batch:2747371e506dd8a2145a5528481dc4f66cc5d27ae8f06d6dc3df83998707ac5e -->
+## 2026-07-23 — Established versioned Quiz archive compatibility
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5.6 Terra - the pass freezes a historical archive
+contract, adds version dispatch, and converts legacy relational data into a
+future persistence shape without enabling unapproved schema behavior.
+
+**Completed:**
+- Froze the exact 42-resource archive-v1 table, primary-key, and actor-reference
+  contract independently from the live database inventory.
+- Added explicit v1/v2 manifest schemas and registry dispatch while retaining v1
+  as the only enabled export and restore contract.
+- Restricted locale-dependent canonical serialization/checksum recovery to v1;
+  v2 accepts only the current deterministic canonical form.
+- Defined the inactive v2 graph with generic retired-assessment record and actor
+  resources instead of the four Quiz tables.
+- Added a deterministic, non-mutating adapter that preserves complete Quiz and
+  Quiz-draft payloads, parent identities, actor references, timestamps, and
+  canonical SHA-256 evidence without mapping retired data into Tests.
+- Expanded the verified non-empty v1 fixture to include all four Quiz resources,
+  a manual score override, and a Quiz draft.
+- Froze portable v1 tar-content, manifest-content, and per-resource hashes so
+  the non-empty contract cannot be regenerated with silent Quiz drift.
+- Tightened independent-review findings: Quiz drafts retain and validate their
+  Quiz parent; adapter replay preserves existing envelopes; archived actor
+  references must resolve; and strict v2 verification rejects malformed,
+  checksum-invalid, orphaned, actor-invalid, or credential-shaped envelopes.
+- Added an explicit Gradex capability gate and moved source download, checksum,
+  strict verification, identity, and metadata-version binding before operation
+  creation so disabled or mislabeled v2 causes zero RPC or storage writes.
+- Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
+  and added a resource registry that enforces payload identity, required
+  parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
+  payload equality, required actor fields/references, and credential-key
+  rejection including client secrets, private keys, and token variants.
+- Updated the retirement plan and cleanup guide to distinguish the completed
+  application foundation from the approval-gated database/v2 activation work.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused archive contract, format, restore, adapter, Gradex, and docs suites
+  (7 files / 59 tests)
+- Full repository suite after review fixes (411 files / 3,690 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (624 modules / 0 allowances)
+- `pnpm build`
+- Portable empty-v1 tar SHA:
+  `4d3c518c262c5269844b112953dab52b08b68e7999ec235f422e126f54306093`
+- Non-empty Quiz-v1 tar SHA:
+  `32dd2bd5ed2bc3795076831385d01a2e046589b4b8d88949de4d24c731314e58`
+
+**Remaining:**
+- Require changed-file audit, independent PR review, and exact-head CI before merge.
+- Next create the envelope tables and versioned database archive registry, then
+  activate v2 export/restore, only after explicit approval to create the named
+  migration; applying it requires separate exact target-and-filename permission.
+
+<!-- pika-session-log-archive-batch:5ffc94c975be730959eea43f528cd2cba4b724e7ec9708ecf2206cdbcfab3f1c -->
+## 2026-07-23 — Staged the additive archive-v2 contract locally
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration `105_classroom_archive_v2_contract.sql` with private retired
+  assessment envelopes, a version-keyed archive registry, operation contract
+  pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
+  preserving every deployed v1 RPC and source table.
+- Validated archive-v2 export through deterministic v1 Quiz adaptation and
+  validated the explicit v1/v2-to-envelope restore path. Kept current
+  application export and restore on v1 because compaction remains v1-only and
+  migration 105 is not hosted.
+- Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
+  fail closed until the freeze/backfill pass provides direct v2 snapshots.
+- Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
+  with actor references; added a direct v1-to-v2 archive/restore round trip.
+- Applied migration 105 only to the local validation database after explicit
+  authorization. The first attempt rolled back on deferred FK ordering; moved
+  the version-registry FK creation after seed rows and validated the corrected
+  schema. No hosted database was changed.
+- Regenerated `src/types/database.generated.ts` and added a transactional v2
+  database harness to CI. Legacy v1 export/restore/compaction and Gradex
+  database harnesses remain green.
+
+**Validation:**
+- Full repository suite at the final head: 412 files / 3,710 tests.
+- Focused final suite: 20 files / 232 tests.
+- Local v1 export, v1 restore, v1 compaction, Gradex, and v2 export/restore
+  database contracts.
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm run db:types:check`, migration
+  filename/static checks, `git diff --check`, and Pika changed-file audit.
+
+**Remaining:**
+- Run architecture/build/full final validation at the exact head.
+- Open the PR, independently review and remediate it, then require exact-head CI.
+- Migration 105 still requires separate explicit authorization for every hosted
+  target. The next implementation pass is the atomic freeze/backfill ledger.
+
+<!-- pika-session-log-archive-batch:7c4bef1964bc95b708b3057241f054298c59484d9727d426710152aff01e6f61 -->
+## 2026-07-23 — Closed archive-v2 contract review blockers
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Registered the retired assessment record and actor tables in the live
+  44-resource classroom ownership graph while keeping archive v1 frozen at 42
+  resources and archive v2 at 40.
+- Preserved the deployed v1 production inventory contract and separated v1
+  fixtures from the expanding live ownership graph.
+- Reordered restore URL rewriting so v1 source rows are transformed before
+  envelope adaptation, direct v2 payload checksums are recomputed, and the final
+  staged envelope graph is validated after all transformations.
+- Moved the original v1 export begin implementation to a private compatibility
+  function. Both public v1 and v2 begin RPCs now lock the classroom revision
+  before checking for envelopes, fail closed without snapshot rows, preserve
+  completed replay, and serialize concurrent envelope insertion.
+- Added a real two-session database race proving an uncommitted envelope cannot
+  cross the export fence, plus legacy entry-point and zero-snapshot assertions.
+- Made the v2 database harness select the configured Pika Supabase container
+  instead of the first matching local project.
+- Applied only the corrected 105 function segment to `supabase_db_pika` under
+  the existing local authorization; migration history remains 001-105 and no
+  hosted database was changed.
+
+**Validation:**
+- Full repository suite: 412 files / 3,710 tests.
+- Local v1 export, restore, compaction, Gradex, and v2 database contracts.
+- Live local ownership audit: 123 foreign-key relationships.
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm check:architecture`,
+  `pnpm run check:ui-policy`, `pnpm run db:types:check`, `pnpm build`,
+  `git diff --check`, shell syntax check, and Pika changed-file audit.
+
+**Remaining:**
+- Commit and push the remediation, run targeted and integration re-review, and
+  require exact-head CI before merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+- After merge, implement the separately reviewed atomic Quiz freeze/backfill
+  ledger; applying its migration requires a new exact authorization.
+
+<!-- pika-session-log-archive-batch:ade4dd2da8d0f3edfcded6c3d92d30301e72f9ebe9225346aff512a26829d98c -->
+## 2026-07-23 — Kept archive v1 current through compaction
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that making v2 the current application export
+  format was incompatible with the still-v1-only compaction path.
+- Kept explicit v2 construction and v1/v2 restore support, but restored v1 as
+  the current application writer and retained the deployed v1 RPC flow.
+- Updated contract and coordinator tests to prove the current writer preserves
+  historical Quiz rows in v1 while the explicit v2 compatibility path remains
+  independently testable.
+- Shortened the continuity summary to restore the startup-document budget.
+
+**Validation:**
+- The full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay with the frozen 42-resource v1 graph.
+- Focused archive and migration suites, startup-document tests, TypeScript, and
+  lint pass.
+
+**Remaining:**
+- Run final repository checks, integration review, and exact-head CI before
+  merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+
+<!-- pika-session-log-archive-batch:fe3b0d8002642fd836a0f5adf37cb23bb1ede784662b37bae9810beeeac7cede -->
+## 2026-07-23 — Preserved pre-105 archive restore rollout
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Final integration review found that the application restore coordinator
+  required migration 105 even though no hosted target has it.
+- Restored the active coordinator and compaction preflight to the deployed v1
+  planner and migration-083 RPCs; current export, compaction, and restore now
+  share the frozen 42-resource v1 contract.
+- Kept a separate explicit v2 planner for compatibility validation without
+  making it reachable from the current application coordinator.
+- Froze the v1 restore order and protected it with a digest and exact resource
+  set regression.
+- Clarified that migration 105 is additive for data and public API surface, but
+  broadens v1-only constraints and wraps selected implementations internally.
+- Added a live database assertion that all six deployed v1 archive RPC
+  signatures and service-role grants survive migration 105.
+
+**Validation:**
+- Active v1 and explicit v2 restore planning tests pass.
+- Local v1 export, restore, compaction, Gradex, and v2 database harnesses pass.
+- Full local archive recovery drill passes export, compaction, restore,
+  cleanup, and idempotent replay.
+- TypeScript, lint, shell syntax, Pika changed-file audit, and focused tests
+  pass.
+
+**Remaining:**
+- Push the remediation, run the final authorized targeted review, and require
+  exact-head CI before merging PR 927.
+- Migration 105 remains unapplied to every hosted target.
+
+<!-- pika-session-log-archive-batch:73d2ee37677778902a97766cd284a13e5d2a9f4a40fa97ab7b0a404886fb6222 -->
+## 2026-07-23 — Froze archive restore ordering
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Derived the inactive v2 restore order from the frozen topological v1 order
+  with Quiz resources removed, then appended the retired-assessment record and
+  actor resources parent-first.
+- Removed the final live classroom-graph dependency from v1 compaction
+  preflight staging.
+- Added regressions for every declared v2 parent-before-child dependency and
+  the actual non-empty v1 compaction staging sequence.
+
+**Validation:**
+- Focused archive contract, restore, and compaction tests pass.
+- TypeScript and lint pass.
+- Local compaction database harness and full archive recovery drill pass.
+
+**Remaining:**
+- Publish, independently review, and require exact-head CI before merge.
+- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
+
+<!-- pika-session-log-archive-batch:e077f685392cd1ee30f0405715ae0d926f8cf78629a28901c7b1cd8203d423ed -->
+## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
+  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
+  parent/child `NOWAIT` locks roll back immediately on live conflicts.
+- Added deterministic SQL envelope IDs and canonical payload checksums matching
+  the TypeScript adapter, parent and actor preflights, collision checks, and an
+  aggregate-only five-resource parity ledger.
+- Kept every source row intact for the observation window and added no
+  dual-write or active Test-table mapping.
+- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
+  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
+- Documented that migration 106 cannot be hosted until direct v2 snapshots,
+  version-aware compaction, and v1-to-v2 restore dispatch are current.
+
+**Validation:**
+- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
+  `git diff --check` pass.
+- Migration 106 was not applied to the shared local database or a hosted
+  target; its executable rehearsal is reserved for disposable PR CI.
+
+**Remaining:**
+- Run repository checks, independent review, and exact-head CI before merge.
+- Next pass: implement the version-aware archive runtime required before
+  migration 106 can receive target-specific application approval.
+
+<!-- pika-session-log-archive-batch:1c39da35e78eb5e9aa03a82906a2a0a404107fc9ddf7c84e58841009dbd2e71d -->
+## 2026-07-23 — Activated direct archive-v2 runtime
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Recorded the maintainer decision that experimental Quiz rows, drafts,
+  envelopes, and Quiz portions of v1 artifacts are disposable.
+- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
+  drafts to Tests, promote the live archive registry to v2, and capture source
+  contract 2 directly.
+- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
+  fallback. V1 restore now discards Quiz resources while retaining other
+  classroom content.
+- Extended disposable replay through migrations 106-107 and proved direct
+  source counts, snapshot membership, upload intent, and finalization.
+- Review remediation now purges the frozen Quiz source rows, fences retryable
+  operations, and makes compaction use migration-107-specific v2 RPCs. V1
+  archives must be re-exported before compaction.
+
+**Validation:**
+- Focused archive coordinator tests and TypeScript pass.
+- The disposable freeze/backfill/direct-source database harness passes.
+- Current-export and atomic-compaction database harnesses pass against the
+  disposable post-107 schema, including a complete v2 cold transition.
+- No shared local or hosted migration was applied.
+
+**Remaining:**
+- Complete repository validation, independent review, exact-head CI, and merge.
+- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
+  remaining active compatibility types and payload fields.
+
+<!-- pika-session-log-archive-batch:e8f7c4922d3bcd2bc2a716c9a788c6e76311b0329aab2051ab98e1f213417f9d -->
+## 2026-07-23 — Prepared legacy Quiz hard removal
+
+**Risk profile:** runtime-platform/destructive-schema
+
+**Completed:**
+- Added migration 108 to fail closed unless migration 107 purged all retired
+  data, then drop the four Quiz tables, their catalog helpers, the private
+  backfill ledger/functions, `gradebook_settings.quizzes_weight`, v1 database
+  export RPCs/registry rows, and retired site-configuration keys.
+- Removed active Quiz branches and aliases from assessment drafts, gradebook,
+  course packages, publishing, blueprints, current domain types, and server
+  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
+  discards `quizzes.md` while preserving reusable non-Quiz content.
+- Reduced the live classroom ownership graph from 44 to 40 resources while
+  retaining the immutable archive-v1 resource contract solely for discard-only
+  restore of non-Quiz classroom data.
+- Regenerated Supabase database types from a disposable post-108 database; the
+  generated contract has no Quiz tables, fields, or functions.
+- Removed obsolete retirement inventory, backfill parity, and envelope adapter
+  utilities after their destructive decision was finalized.
+- Review remediation preserves course-package v2 as an import-only boundary,
+  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
+  classroom restore now excludes Quiz-only actors and storage objects from the
+  restore plan after validating the complete source artifact.
+- Migration 108 now requires exact equality between the live archive registry
+  and versioned source contract 2. The disposable harness proves registry drift
+  fails without deleting v1 metadata or Quiz tables before restoring the
+  registry and completing hard removal.
+- Final integration review found the production archive canary still bound to
+  archive v1. The operator runner and runbook now use archive format 2, the
+  40-resource graph, migration-107 source/restore contracts, and the current v2
+  restore planner. A subprocess smoke test loads the actual excluded script so
+  future import drift fails in Vitest.
+
+**Validation:**
+- Fresh disposable replay through migrations 106-108 passes freeze, direct
+  archive-v2 activation, hard-removal catalog assertions, current export,
+  restore, and compaction contracts.
+- Generated Supabase types exactly match the disposable post-108 schema.
+- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
+  and the Pika pre-commit audit pass.
+- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
+  database contract also passes against the disposable database.
+- The focused post-review archive suite passes: 4 files and 53 tests, including
+  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
+  and the Pika audit remain green after the canary port.
+- Migration 108 was not applied to the shared local database or any hosted
+  target.
+
+**Remaining:**
+- Complete PR review/remediation, exact-head CI, and merge. Applying migration
+  108 remains separately target-authorized.
+
+<!-- pika-session-log-archive-batch:70cf2b55a4c522a39ca31e52376171abda0f185973409790dfd5ded2be1e7150 -->
+## 2026-07-23 — Rebased test-preview hardening after Quiz removal
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
+  the canonical test-only API and both preview request-order regressions.
+- Resequenced the atomic snapshot migration to 109 and consolidated the
+  uncommitted document-authoring and durable-cleanup schema into migration 110.
+- Kept ordinary document writers behind compare-and-swap updates, added a
+  leased storage-cleanup queue and cron worker, and retained real transport
+  SSRF/timeout coverage.
+- Left the shared local database unchanged. It remains reset and seeded through
+  migration 104; migrations 105-110 are unapplied there.
+
+**Validation:**
+- Full Vitest coverage passes: 421 files and 3,749 tests.
+- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
+- No local or hosted migration was applied.
+
+**Remaining:**
+- Run targeted security rereview and final integration review.
+- Push the rebased exact head, wait for CI, and merge only after approval.
+
+<!-- pika-session-log-archive-batch:7694b5a6a4a4828aeba6e8707969f486487fb929ca4feeb22ca12d74333a64a9 -->
+## 2026-07-24 — AI-readiness CLI probe, course-import fix, repo tidy
+
+**Completed:**
+- Explored making Pika "AI-ready"; built a delete-able CLI probe (`pnpm pika`, branch `cli-probe`) that drives teacher operations headlessly via the existing role-gated API — no server changes. Logs in through `POST /api/auth/login`, persists the session cookie to `.auth/` (gitignored), and reuses the shared markdown contracts so a script produces exactly what the UI does. Commands: `login`, `whoami`, `test pull/push`, `course list/push/instantiate`; writes are dry-run unless `--yes`. Added `scripts/pika-cli-smoke.ts` (`pnpm smoke:pika-cli`) whose pull→push→pull round-trip is a drift detector. Pushed the branch to start a usage trial; not a merge candidate.
+- The probe surfaced a real bug on first use: importing a course package containing tests/lesson-plans failed with `400 assessments.N: Unrecognized key: "id"`, affecting both the JSON API and the UI's tar upload. Root cause: markdown parsers attach `id: existingMatch?.id` (undefined on fresh import), which zod 4 rejects on `.strict()` schemas; assignments were normalized but assessments and lesson templates were passed raw. Fixed by normalizing all three consistently in `buildCreateBlueprintWritePlan`, with regression tests at the write-plan layer (the existing route test mocks the function, so it could not catch this). Merged as PR #932.
+- Fixed `scripts/repo-tidy.sh` to classify worktrees by PR state (reusing the existing `PR_MAP`) instead of remote presence, since squash-merge + delete-on-merge makes "not on remote" the normal state of merged work — the old logic inverted the risk signal (33 of 44 flagged items were already merged). Merged as PR #934.
+- Repo hygiene: reduced worktrees from 48 to 6 (removed 42 merged/closed-PR worktrees and local branches, remotes preserved for recovery), deleted one merged remote branch, and closed stale PR #567.
+
+**Validation:**
+- Full `pnpm test` (413 files, 3688 tests) on the #932 fix; regression tests confirmed to fail without the patch with the exact production error.
+- End-to-end via the CLI against fixed `main`: `course push` with `tests.md` imports, `course instantiate` creates a classroom, and both quizzes materialize as real tests — the exact case that failed pre-fix.
+- `pnpm smoke:pika-cli --full` passes; typecheck and `pnpm check:architecture` clean on both PRs.
+
+<!-- pika-session-log-archive-batch:92012ff2bb7f286dd75e2d215c38b2be7ad69d2fee50b8018aff4ef261531e19 -->
+## 2026-07-24 — Aligned Claude workflow guidance
+
+**Risk profile:** none
+
+**Completed:**
+- Aligned the Claude session-start and workflow-reset commands with the
+  canonical startup and worktree guidance.
+- Simplified the Claude issue helper to route worktree setup through
+  `docs/dev-workflow.md` instead of hardcoding one named-worktree layout.
+- Added semantic prompt invariants covering both Claude and Codex startup,
+  workflow-reset, and issue-helper surfaces.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts` passes: 31 tests.
+
+**Remaining:**
+- None.
+- `pnpm run db:types:check`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
+- Component keyboard regression for document focus entry/return and semantic region assertions
+- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
+- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
+- `git diff --check`
+
+**Remaining:**
+- Require targeted security review, final integration review, exact-head CI, and protected merge.
+- Apply migration 105 to each deployment target before deploying the updated sync route.
+- Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.

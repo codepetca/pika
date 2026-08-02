@@ -329,9 +329,8 @@ describe('TeacherTestPreviewPage', () => {
     })
   })
 
-  it('does not sync the previous test documents under a new test owner', async () => {
+  it('does not sync documents merely because a teacher opens or switches previews', async () => {
     const testB = deferred<ReturnType<typeof previewResponse>>()
-    const testASync = deferred<ReturnType<typeof previewResponse>>()
     const fetchMock = vi.mocked(fetch).mockImplementation((input, init) => {
       const url = String(input)
       if (url === '/api/teacher/tests/test-a') {
@@ -344,9 +343,6 @@ describe('TeacherTestPreviewPage', () => {
             url: 'https://example.com/test-a',
           }],
         })) as ReturnType<typeof fetch>
-      }
-      if (url === '/api/teacher/tests/test-a/documents/document-a/sync') {
-        return testASync.promise as ReturnType<typeof fetch>
       }
       if (url === '/api/teacher/tests/test-b') {
         return testB.promise as ReturnType<typeof fetch>
@@ -363,12 +359,10 @@ describe('TeacherTestPreviewPage', () => {
     )
 
     expect(await screen.findByRole('heading', { name: 'Test A' })).toBeInTheDocument()
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/teacher/tests/test-a/documents/document-a/sync',
-        { method: 'POST' },
-      )
-    })
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/teacher/tests/test-a/documents/document-a/sync',
+      { method: 'POST' },
+    )
 
     rerender(
       <TeacherTestPreviewPage
@@ -390,8 +384,7 @@ describe('TeacherTestPreviewPage', () => {
 
     await act(async () => {
       testB.resolve(previewResponse({ title: 'Test B', question: 'Question B' }))
-      testASync.resolve(previewResponse({ title: 'Test A' }))
-      await Promise.all([testB.promise, testASync.promise])
+      await testB.promise
     })
 
     expect(await screen.findByRole('heading', { name: 'Test B' })).toBeInTheDocument()

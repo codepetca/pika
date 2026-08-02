@@ -9,19 +9,100 @@ fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
+
+insert into public.users (id, email, role)
+values ('11000000-0000-4000-8000-000000000011', 'gradex-teacher@example.test', 'teacher');
+
+insert into public.classrooms (id, teacher_id, title, class_code, archived_at)
+values (
+  '21000000-0000-4000-8000-000000000011',
+  '11000000-0000-4000-8000-000000000011',
+  'Gradex contract classroom',
+  'GRDX0011',
+  clock_timestamp()
+);
+
+insert into public.managed_storage_objects (
+  id, storage_bucket, storage_path, classroom_id, purpose, status,
+  created_by_user_id, resource_type, resource_id, content_type,
+  byte_size, content_sha256, ready_at
+) values (
+  '26000000-0000-4000-8000-000000000010',
+  'classroom-archives',
+  'teacher/classroom/archive/classroom-v1.tar.gz',
+  '21000000-0000-4000-8000-000000000011',
+  'classroom_archive',
+  'ready',
+  '11000000-0000-4000-8000-000000000011',
+  'classroom_archive_operation',
+  '22000000-0000-4000-8000-000000000011',
+  'application/gzip',
+  100,
+  repeat('b', 64),
+  clock_timestamp()
+);
+
+insert into storage.objects (bucket_id, name, metadata)
+values (
+  'classroom-archives',
+  'teacher/classroom/archive/classroom-v1.tar.gz',
+  '{"size":100}'::jsonb
+);
+
+insert into public.classroom_archive_operations (
+  id, teacher_id, classroom_id, operation_type, request_sha256, status,
+  source_revision, source_schema_migration, source_app_commit, retention,
+  resource_counts, storage_object_counts, archive_id, storage_bucket, storage_path,
+  managed_object_id, artifact_sha256, content_sha256, compressed_byte_size,
+  uncompressed_byte_size, verification, snapshot_created_at, snapshot_expires_at,
+  completed_at
+) values (
+  '22000000-0000-4000-8000-000000000011',
+  '11000000-0000-4000-8000-000000000011',
+  '21000000-0000-4000-8000-000000000011',
+  'export', repeat('a', 64), 'completed', 1,
+  '082_verified_classroom_archive_exports', 'deadbee',
+  '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+  '{}'::jsonb, '{}'::jsonb, '23000000-0000-4000-8000-000000000011',
+  'classroom-archives', 'teacher/classroom/archive/classroom-v1.tar.gz',
+  '26000000-0000-4000-8000-000000000010', repeat('b', 64), repeat('c', 64),
+  100, 200, '{"read_back_verified":true}'::jsonb,
+  clock_timestamp(), clock_timestamp() + interval '24 hours', clock_timestamp()
+);
+
+insert into public.classroom_archives (
+  id, operation_id, classroom_id, teacher_id, format, format_version,
+  source_revision, source_schema_migration, source_app_commit, storage_bucket,
+  storage_path, managed_object_id, artifact_sha256, content_sha256,
+  compressed_byte_size, uncompressed_byte_size, resource_counts,
+  storage_object_counts, verification, retention, created_at, verified_at
+) values (
+  '23000000-0000-4000-8000-000000000011',
+  '22000000-0000-4000-8000-000000000011',
+  '21000000-0000-4000-8000-000000000011',
+  '11000000-0000-4000-8000-000000000011',
+  'pika.classroom-archive', 1, 1, '082_verified_classroom_archive_exports',
+  'deadbee', 'classroom-archives', 'teacher/classroom/archive/classroom-v1.tar.gz',
+  '26000000-0000-4000-8000-000000000010', repeat('b', 64), repeat('c', 64),
+  100, 200, '{}'::jsonb, '{}'::jsonb, '{"read_back_verified":true}'::jsonb,
+  '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+  clock_timestamp(), clock_timestamp()
+);
+
 set local role service_role;
 
 do $contract$
 declare
   v_teacher_id constant uuid := '11000000-0000-4000-8000-000000000011';
   v_classroom_id constant uuid := '21000000-0000-4000-8000-000000000011';
-  v_export_operation_id constant uuid := '22000000-0000-4000-8000-000000000011';
   v_archive_id constant uuid := '23000000-0000-4000-8000-000000000011';
   v_wrong_teacher_extract_id constant uuid := '24000000-0000-4000-8000-000000000009';
   v_wrong_classroom_extract_id constant uuid := '24000000-0000-4000-8000-000000000010';
   v_extract_id constant uuid := '24000000-0000-4000-8000-000000000011';
   v_concurrent_id constant uuid := '24000000-0000-4000-8000-000000000012';
   v_superseding_id constant uuid := '24000000-0000-4000-8000-000000000013';
+  v_extract_object_id constant uuid := '26000000-0000-4000-8000-000000000011';
+  v_superseding_object_id constant uuid := '26000000-0000-4000-8000-000000000013';
   v_lease_one constant uuid := '25000000-0000-4000-8000-000000000011';
   v_lease_two constant uuid := '25000000-0000-4000-8000-000000000012';
   v_lease_three constant uuid := '25000000-0000-4000-8000-000000000013';
@@ -31,37 +112,6 @@ declare
   v_result jsonb;
   v_claim record;
 begin
-  insert into public.classroom_archive_operations (
-    id, teacher_id, classroom_id, operation_type, request_sha256, status,
-    source_revision, source_schema_migration, source_app_commit, retention,
-    resource_counts, storage_object_counts, archive_id, storage_bucket, storage_path,
-    artifact_sha256, content_sha256, compressed_byte_size, uncompressed_byte_size,
-    verification, snapshot_created_at, snapshot_expires_at, completed_at
-  ) values (
-    v_export_operation_id, v_teacher_id, v_classroom_id, 'export', repeat('a', 64),
-    'completed', 1, '082_verified_classroom_archive_exports', 'deadbee',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
-    '{}'::jsonb, '{}'::jsonb, v_archive_id, 'classroom-archives',
-    'teacher/classroom/archive/classroom-v1.tar.gz', repeat('b', 64), repeat('c', 64),
-    100, 200, '{"read_back_verified":true}'::jsonb,
-    clock_timestamp(), clock_timestamp() + interval '24 hours', clock_timestamp()
-  );
-  insert into public.classroom_archives (
-    id, operation_id, classroom_id, teacher_id, format, format_version,
-    source_revision, source_schema_migration, source_app_commit, storage_bucket,
-    storage_path, artifact_sha256, content_sha256, compressed_byte_size,
-    uncompressed_byte_size, resource_counts, storage_object_counts, verification,
-    retention, created_at, verified_at
-  ) values (
-    v_archive_id, v_export_operation_id, v_classroom_id, v_teacher_id,
-    'pika.classroom-archive', 1, 1, '082_verified_classroom_archive_exports',
-    'deadbee', 'classroom-archives', 'teacher/classroom/archive/classroom-v1.tar.gz',
-    repeat('b', 64), repeat('c', 64), 100, 200, '{}'::jsonb, '{}'::jsonb,
-    '{"read_back_verified":true}'::jsonb,
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
-    clock_timestamp(), clock_timestamp()
-  );
-
   select jsonb_object_agg(table_name, 0 order by table_name)
   into v_counts from public.classroom_gradex_resource_contract;
   v_verification := jsonb_build_object(
@@ -133,6 +183,27 @@ begin
   ) then
     raise exception 'Gradex cleanup intent was not persisted before upload';
   end if;
+  perform public.begin_managed_storage_upload(
+    v_extract_object_id,
+    'gradex-analytics-extracts',
+    v_result->>'storage_path',
+    v_classroom_id,
+    null,
+    'gradex_extract',
+    v_teacher_id,
+    null,
+    'classroom_archive_operation',
+    v_extract_id,
+    'application/gzip',
+    100
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'gradex-analytics-extracts',
+    v_result->>'storage_path',
+    '{"size":100}'::jsonb
+  );
+  perform public.adopt_managed_storage_upload(v_extract_object_id, repeat('f', 64));
 
   v_result := public.begin_classroom_gradex_extract(
     v_concurrent_id, v_teacher_id, v_classroom_id, v_archive_id,
@@ -194,6 +265,7 @@ begin
     select 1 from public.classroom_gradex_extracts
     where id = v_extract_id and source_archive_sha256 = repeat('b', 64)
       and delete_after = v_delete_after
+      and managed_object_id = v_extract_object_id
   ) then
     raise exception 'Immutable Gradex metadata was not persisted';
   end if;
@@ -252,6 +324,27 @@ begin
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Superseding Gradex generation did not begin: %', v_result;
   end if;
+  perform public.begin_managed_storage_upload(
+    v_superseding_object_id,
+    'gradex-analytics-extracts',
+    v_result->>'storage_path',
+    v_classroom_id,
+    null,
+    'gradex_extract',
+    v_teacher_id,
+    null,
+    'classroom_archive_operation',
+    v_superseding_id,
+    'application/gzip',
+    100
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'gradex-analytics-extracts',
+    v_result->>'storage_path',
+    '{"size":100}'::jsonb
+  );
+  perform public.adopt_managed_storage_upload(v_superseding_object_id, repeat('7', 64));
   v_verification := jsonb_set(
     v_verification,
     '{verified_at}',

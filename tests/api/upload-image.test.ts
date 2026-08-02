@@ -10,7 +10,7 @@ import { IMAGE_MAX_SIZE } from '@/lib/image-upload'
 
 // Mock modules
 vi.mock('@/lib/auth', () => ({
-  requireAuth: vi.fn(),
+  requireRole: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 // Import mocked modules
-import { requireAuth } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 function mockAuthenticationError(message = 'Not authenticated') {
@@ -41,11 +41,17 @@ function createMockFile(
 }
 
 // Helper to create a mock request with FormData
-function createMockRequest(file?: File): NextRequest {
+const USER_ID = '10000000-0000-4000-8000-000000000001'
+const DOC_ID = '10000000-0000-4000-8000-000000000002'
+const ASSIGNMENT_ID = '10000000-0000-4000-8000-000000000003'
+const CLASSROOM_ID = '10000000-0000-4000-8000-000000000004'
+
+function createMockRequest(file?: File, assignmentDocId = DOC_ID): NextRequest {
   const formData = new FormData()
   if (file) {
     formData.append('file', file)
   }
+  formData.append('assignment_doc_id', assignmentDocId)
 
   return {
     formData: async () => formData,
@@ -60,8 +66,8 @@ describe('POST /api/upload-image', () => {
     vi.clearAllMocks()
 
     // Default mock for authenticated user
-    ;(requireAuth as any).mockResolvedValue({
-      id: 'user-123',
+    ;(requireRole as any).mockResolvedValue({
+      id: USER_ID,
       email: 'test@example.com',
       role: 'student',
     })
@@ -72,7 +78,81 @@ describe('POST /api/upload-image', () => {
       data: { publicUrl: 'https://storage.example.com/submission-images/user-123/test.png' },
     })
 
+    const query = (data: unknown) => {
+      const builder: any = {
+        select: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        maybeSingle: vi.fn(async () => ({ data, error: null })),
+      }
+      return builder
+    }
     ;(getServiceRoleClient as any).mockReturnValue({
+      from: vi.fn((table: string) => table === 'assignment_docs'
+        ? query({ id: DOC_ID, student_id: USER_ID, assignment_id: ASSIGNMENT_ID })
+        : query({ id: ASSIGNMENT_ID, classroom_id: CLASSROOM_ID })),
+      rpc: vi.fn(async (name: string, args: Record<string, unknown>) => {
+        if (name === 'begin_managed_storage_upload') {
+          return {
+            data: {
+              id: args.p_object_id,
+              storage_bucket: args.p_storage_bucket,
+              storage_path: args.p_storage_path,
+              classroom_id: args.p_classroom_id,
+              course_blueprint_id: null,
+              purpose: args.p_purpose,
+              status: 'pending_upload',
+              created_by_user_id: USER_ID,
+              data_subject_user_id: USER_ID,
+              resource_type: 'assignment_doc',
+              resource_id: DOC_ID,
+              content_type: 'image/png',
+              byte_size: 1024,
+              content_sha256: null,
+              upload_expires_at: null,
+              attempt_count: 0,
+              next_attempt_at: '2026-07-31T12:00:00.000Z',
+              lease_token: null,
+              lease_expires_at: null,
+              last_error_code: null,
+              created_at: '2026-07-31T12:00:00.000Z',
+              ready_at: null,
+              updated_at: '2026-07-31T12:00:00.000Z',
+            },
+            error: null,
+          }
+        }
+        if (name === 'adopt_managed_storage_upload') {
+          return {
+            data: {
+              id: args.p_object_id,
+              storage_bucket: 'submission-images',
+              storage_path: `classrooms/${CLASSROOM_ID}/students/${USER_ID}/assignment-docs/${DOC_ID}/${args.p_object_id}.png`,
+              classroom_id: CLASSROOM_ID,
+              course_blueprint_id: null,
+              purpose: 'student_inline_image',
+              status: 'ready',
+              created_by_user_id: USER_ID,
+              data_subject_user_id: USER_ID,
+              resource_type: 'assignment_doc',
+              resource_id: DOC_ID,
+              content_type: 'image/png',
+              byte_size: 1024,
+              content_sha256: null,
+              upload_expires_at: null,
+              attempt_count: 0,
+              next_attempt_at: '2026-07-31T12:00:00.000Z',
+              lease_token: null,
+              lease_expires_at: null,
+              last_error_code: null,
+              created_at: '2026-07-31T12:00:00.000Z',
+              ready_at: '2026-07-31T12:00:00.000Z',
+              updated_at: '2026-07-31T12:00:00.000Z',
+            },
+            error: null,
+          }
+        }
+        return { data: true, error: null }
+      }),
       storage: {
         from: vi.fn(() => ({
           upload: mockStorageUpload,
@@ -88,7 +168,7 @@ describe('POST /api/upload-image', () => {
 
   describe('authentication', () => {
     it('should return 401 when requireAuth rejects unauthenticated requests', async () => {
-      ;(requireAuth as any).mockRejectedValueOnce(mockAuthenticationError())
+      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
@@ -99,11 +179,8 @@ describe('POST /api/upload-image', () => {
       expect(getServiceRoleClient).not.toHaveBeenCalled()
     })
 
-    it('should return 401 when authenticated user has no id', async () => {
-      ;(requireAuth as any).mockResolvedValueOnce({
-        email: 'test@example.com',
-        role: 'student',
-      })
+    it('should return 401 when the student role boundary rejects the session', async () => {
+      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError('Student access required'))
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
@@ -115,17 +192,19 @@ describe('POST /api/upload-image', () => {
     })
 
     it('should use requireAuth user id for storage filenames', async () => {
-      ;(requireAuth as any).mockResolvedValueOnce({
-        id: 'teacher-456',
-        email: 'teacher@example.com',
-        role: 'teacher',
+      ;(requireRole as any).mockResolvedValueOnce({
+        id: USER_ID,
+        email: 'student@example.com',
+        role: 'student',
       })
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       await POST(request)
 
-      expect(requireAuth).toHaveBeenCalledTimes(1)
-      expect(mockStorageUpload.mock.calls[0][0]).toMatch(/^teacher-456\//)
+      expect(requireRole).toHaveBeenCalledWith('student')
+      expect(mockStorageUpload.mock.calls[0][0]).toMatch(
+        new RegExp(`^classrooms/${CLASSROOM_ID}/students/${USER_ID}/assignment-docs/${DOC_ID}/`),
+      )
     })
   })
 
@@ -197,13 +276,17 @@ describe('POST /api/upload-image', () => {
   // ==========================================================================
 
   describe('success cases', () => {
-    it('should upload file and return public URL', async () => {
+    it('should upload file and return its public URL and server-generated managed identity', async () => {
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
       expect(data.url).toBe('https://storage.example.com/submission-images/user-123/test.png')
+      expect(data.managed_object_id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      )
+      expect(mockStorageUpload.mock.calls[0][0]).toContain(data.managed_object_id)
     })
 
     it('should call storage upload with correct parameters', async () => {
@@ -214,7 +297,9 @@ describe('POST /api/upload-image', () => {
       const [filename, buffer, options] = mockStorageUpload.mock.calls[0]
 
       // Filename should include user ID
-      expect(filename).toMatch(/^user-123\//)
+      expect(filename).toMatch(
+        new RegExp(`^classrooms/${CLASSROOM_ID}/students/${USER_ID}/assignment-docs/${DOC_ID}/`),
+      )
       expect(filename).toMatch(/\.png$/)
       expect(buffer).toBeInstanceOf(Buffer)
       expect(options.contentType).toBe('image/png')
@@ -252,7 +337,7 @@ describe('POST /api/upload-image', () => {
     })
 
     it('should return 500 for unexpected errors', async () => {
-      ;(requireAuth as any).mockRejectedValue(new Error('Unexpected error'))
+      ;(requireRole as any).mockRejectedValue(new Error('Unexpected error'))
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)

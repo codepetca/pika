@@ -39,7 +39,7 @@ import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspace
 import { TeacherWorkSurfaceModeBar, type TeacherWorkSurfaceMode } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
-import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
+import { normalizeTestDocuments } from '@/lib/test-documents'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
@@ -233,7 +233,6 @@ export function TestDetailPanel({
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
-  const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
   const previousPreviewRequestTokenRef = useRef(previewRequestToken)
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
@@ -473,7 +472,6 @@ export function TestDetailPanel({
   }, [testAssessment])
 
   useEffect(() => {
-    autoSyncAttemptedRef.current.clear()
   }, [testAssessment.id])
 
   const emitDraftSummaryChange = useCallback(
@@ -927,47 +925,6 @@ export function TestDetailPanel({
   useEffect(() => {
     loadTestDetails()
   }, [loadTestDetails])
-
-  useEffect(() => {
-    const staleDoc = normalizeTestDocuments(documents).find((doc) => {
-      if (!isLinkDocumentSnapshotStale(doc)) return false
-      const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
-      return !autoSyncAttemptedRef.current.has(attemptKey)
-    })
-
-    if (!staleDoc) return
-
-    const attemptKey = `${staleDoc.id}:${staleDoc.url || ''}:${staleDoc.synced_at || ''}:${staleDoc.snapshot_path || ''}`
-    autoSyncAttemptedRef.current.add(attemptKey)
-
-    let isCancelled = false
-
-    void (async () => {
-      try {
-        const response = await fetch(`${apiBasePath}/${testAssessment.id}/documents/${staleDoc.id}/sync`, {
-          method: 'POST',
-        })
-        const data = await response.json()
-        if (!response.ok || isCancelled) {
-          if (!response.ok) {
-            console.error(`Auto-sync failed for ${staleDoc.title}:`, data?.error || 'Unknown error')
-          }
-          return
-        }
-
-        const responseTest = readTestFromPayload<{ documents?: unknown }>(data)
-        setDocuments(normalizeTestDocuments(responseTest?.documents))
-      } catch (error) {
-        if (!isCancelled) {
-          console.error(`Auto-sync failed for ${staleDoc.title}:`, error)
-        }
-      }
-    })()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [apiBasePath, documents, testAssessment.id])
 
   useEffect(() => {
     const currentQuestionIds = questions.map((question) => question.id)

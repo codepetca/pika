@@ -6,6 +6,28 @@ import { FormField } from '@/ui/FormField'
 import type { TiptapContent } from '@/types'
 
 describe('RichTextEditor', () => {
+  it('preserves the managed identity of an uploaded image in serialized markup', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [{
+        type: 'image',
+        attrs: {
+          src: 'https://storage.example.com/image.png',
+          alt: 'Uploaded work',
+          managed_object_id: '20000000-0000-4000-8000-000000000002',
+        },
+      }],
+    }
+
+    render(<RichTextEditor content={content} onChange={vi.fn()} editable={false} />)
+
+    const image = await screen.findByRole('img', { name: 'Uploaded work' })
+    expect(image).toHaveAttribute(
+      'data-managed-object-id',
+      '20000000-0000-4000-8000-000000000002',
+    )
+  })
+
   it('forwards FormField naming and validation semantics to the editable area', async () => {
     const onChange = vi.fn()
     const content: TiptapContent = { type: 'doc', content: [] }

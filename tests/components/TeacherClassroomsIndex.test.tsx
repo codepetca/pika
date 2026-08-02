@@ -53,6 +53,8 @@ function renderTeacherClassroomsIndex(initialClassrooms: Classroom[]) {
 }
 
 describe('TeacherClassroomsIndex', () => {
+  // These archived-classroom interaction tests exercise ClassroomPurgeDialog
+  // through its real owner so opener focus restoration is covered end to end.
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
@@ -130,7 +132,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
-  it('offers reuse and restore without ever issuing classroom DELETE requests', async () => {
+  it('offers permanent deletion for hot archives without issuing an HTTP DELETE', async () => {
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
       classrooms: [
         createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
@@ -145,7 +147,206 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Use again' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
+  it('shows the full impact and requires the classroom name or DELETE', async () => {
+    const archived = createMockClassroom({
+      id: 'archived-1',
+      title: 'Archived Biology',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        impact: {
+          classroom_id: archived.id,
+          classroom_title: archived.title,
+          source_revision: 7,
+          storage_inventory_version: 11,
+          storage_inventory_sha256: 'a'.repeat(64),
+          relational_row_count: 42,
+          student_count: 3,
+          managed_file_count: 5,
+          managed_file_bytes: 2048,
+          missing_file_count: 0,
+          archive_count: 1,
+          gradex_extract_count: 1,
+          interrupted_upload_count: 2,
+          resource_counts: { classrooms: 1 },
+          storage_counts: { 'assignment-artifacts': 3, 'classroom-archives': 1, 'gradex-analytics-extracts': 1 },
+          conflicting_operation: null,
+        },
+        operation: null,
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    const purgeOpener = await screen.findByRole('button', { name: 'Delete permanently' })
+    purgeOpener.focus()
+    fireEvent.click(purgeOpener)
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('This cannot be undone.')).toBeInTheDocument()
+    expect(within(dialog).getByText(/all student work, submissions, tests, grades/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/reusable Course Blueprint and user accounts are kept/)).toBeInTheDocument()
+    expect(within(dialog).getByText('42')).toBeInTheDocument()
+    expect(within(dialog).getByText('3')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
+
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Archived Biology' },
+    })
+    expect(within(dialog).getByRole('button', { name: 'Delete permanently' })).toBeEnabled()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toHaveFocus()
+  })
+
+  it('fails closed when managed-file ownership coverage is not verified', async () => {
+    const archived = createMockClassroom({
+      id: 'archived-1',
+      title: 'Archived Biology',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        impact: {
+          classroom_id: archived.id,
+          classroom_title: archived.title,
+          source_revision: 7,
+          storage_inventory_version: 11,
+          storage_inventory_sha256: null,
+          relational_row_count: 2,
+          student_count: 1,
+          managed_file_count: 1,
+          managed_file_bytes: 100,
+          missing_file_count: 0,
+          archive_count: 0,
+          gradex_extract_count: 0,
+          interrupted_upload_count: 0,
+          resource_counts: { classrooms: 1, classroom_roster: 1 },
+          storage_counts: { 'submission-images': 1 },
+          conflicting_operation: null,
+          ownership_coverage_status: 'pending',
+          deletion_available: false,
+          unavailable_reason: 'Classroom file ownership must be reconciled before deletion.',
+        },
+        operation: null,
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(
+      'Classroom file ownership must be reconciled before deletion.',
+    )).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'DELETE' },
+    })
+    expect(within(dialog).getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
+  })
+
+  it('completes a resumable purge and removes the hot archive row', async () => {
+    const archived = createMockClassroom({
+      id: 'archived-1',
+      title: 'Archived Biology',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(
+      '10000000-0000-4000-8000-000000000001',
+    )
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          impact: {
+            classroom_id: archived.id,
+            classroom_title: archived.title,
+            source_revision: 7,
+            storage_inventory_version: 11,
+            storage_inventory_sha256: 'a'.repeat(64),
+            relational_row_count: 2,
+            student_count: 1,
+            managed_file_count: 0,
+            managed_file_bytes: 0,
+            missing_file_count: 0,
+            archive_count: 0,
+            gradex_extract_count: 0,
+            interrupted_upload_count: 0,
+            resource_counts: { classrooms: 1, classroom_roster: 1 },
+            storage_counts: {},
+            conflicting_operation: null,
+          },
+          operation: null,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          operation: {
+            operation_id: '10000000-0000-4000-8000-000000000001',
+            classroom_id: archived.id,
+            status: 'completed',
+            retryable: false,
+            error_code: null,
+            resource_counts: { classrooms: 1, classroom_roster: 1 },
+            storage_object_counts: {},
+            completed_at: '2026-07-30T12:00:00.000Z',
+          },
+        }),
+      })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'DELETE' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^Archived Biology/ })).not.toBeInTheDocument()
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/teacher/classrooms/archived-1/purge',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          operation_id: '10000000-0000-4000-8000-000000000001',
+          confirmation: 'DELETE',
+          expected_source_revision: 7,
+          expected_storage_inventory_version: 11,
+          expected_storage_inventory_sha256: 'a'.repeat(64),
+        }),
+      }),
+    )
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
   })
 

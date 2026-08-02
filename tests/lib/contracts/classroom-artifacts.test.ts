@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
+  CLASSROOM_LOGICAL_SCOPE_REFERENCES,
   CLASSROOM_NON_OWNING_REFERENCES,
+  CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   auditClassroomResourceSchema,
@@ -59,6 +61,11 @@ function contractRelationships() {
   })
   return [
     ...ownedRelationships,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((resource) => ({
+      child_table: resource.table,
+      parent_table: resource.scope.parent,
+      child_columns: [resource.scope.column],
+    })),
     ...CLASSROOM_NON_OWNING_REFERENCES.map((relationship) => ({
       ...relationship,
       child_columns: [...relationship.child_columns],
@@ -67,9 +74,12 @@ function contractRelationships() {
 }
 
 function contractPrimaryKeys() {
-  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+  return [
+    ...CLASSROOM_RELATIONAL_RESOURCES,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
+  ].map((resource) => ({
     table_name: resource.table,
-    columns: resource.primary_key,
+    columns: [...resource.primary_key],
   }))
 }
 
@@ -133,6 +143,36 @@ describe('classroom data inventory', () => {
     })
   })
 
+  it('separates purge-only operational ownership from the stable archive format', () => {
+    expect(CLASSROOM_RELATIONAL_RESOURCES).toHaveLength(40)
+    expect(CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES).toEqual([
+      expect.objectContaining({
+        table: 'assignment_doc_save_operations',
+        scope: {
+          kind: 'foreign_key',
+          parent: 'assignment_docs',
+          column: 'assignment_doc_id',
+        },
+      }),
+    ])
+    expect(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table))
+      .not.toContain('assignment_doc_save_operations')
+  })
+
+  it('keeps the stable managed classroom scope out of the catalog-FK exception list', () => {
+    expect(CLASSROOM_NON_OWNING_REFERENCES).not.toContainEqual(
+      expect.objectContaining({ child_table: 'managed_storage_objects' }),
+    )
+    expect(CLASSROOM_LOGICAL_SCOPE_REFERENCES).toEqual([
+      expect.objectContaining({
+        child_table: 'managed_storage_objects',
+        parent_table: 'classrooms',
+        child_columns: ['classroom_id'],
+        reason: expect.stringContaining('hot-row compaction'),
+      }),
+    ])
+  })
+
   it('exports and restores parents first and purges children first', () => {
     const exportOrder = getClassroomResourceOrder('export')
     const purgeOrder = getClassroomResourceOrder('purge')
@@ -193,7 +233,7 @@ describe('classroom data inventory', () => {
     }))
   })
 
-  it('keeps Blueprint workflow references outside classroom archive ownership', () => {
+  it('keeps non-owning workflow references outside classroom archive ownership', () => {
     const audit = auditClassroomResourceSchema(
       contractRelationships(),
       contractPrimaryKeys(),
@@ -202,6 +242,10 @@ describe('classroom data inventory', () => {
     expect(audit.ok).toBe(true)
     expect(audit.untracked_tables).not.toContain('course_blueprint_change_proposals')
     expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
+    expect(audit.untracked_tables).not.toContain('classroom_purge_fences')
+    expect(audit.untracked_tables).not.toContain(
+      'legacy_blueprint_classroom_storage_reconciliations',
+    )
 
     const missingReference = contractRelationships().filter((relationship) =>
       !(relationship.child_table === 'course_blueprint_editing_sessions' &&
@@ -213,6 +257,30 @@ describe('classroom data inventory', () => {
       ok: false,
       stale_non_owning_references: [
         'course_blueprint_editing_sessions.classroom_id->classrooms',
+      ],
+    }))
+
+    const missingPurgeFence = contractRelationships().filter((relationship) =>
+      relationship.child_table !== 'classroom_purge_fences'
+    )
+    expect(
+      auditClassroomResourceSchema(missingPurgeFence, contractPrimaryKeys()),
+    ).toEqual(expect.objectContaining({
+      ok: false,
+      stale_non_owning_references: [
+        'classroom_purge_fences.classroom_id->classrooms',
+      ],
+    }))
+
+    const missingLegacyReconciliation = contractRelationships().filter((relationship) =>
+      relationship.child_table !== 'legacy_blueprint_classroom_storage_reconciliations'
+    )
+    expect(
+      auditClassroomResourceSchema(missingLegacyReconciliation, contractPrimaryKeys()),
+    ).toEqual(expect.objectContaining({
+      ok: false,
+      stale_non_owning_references: [
+        'legacy_blueprint_classroom_storage_reconciliations.classroom_id->classrooms',
       ],
     }))
   })
@@ -258,6 +326,70 @@ describe('classroom data inventory', () => {
       ok: false,
       invalid_primary_keys: ['assignments: expected (id) got (classroom_id,id)'],
     }))
+  })
+
+  it('requires cascading, indexed ownership edges when catalog evidence is available', () => {
+    const relationships = contractRelationships().map((relationship) => ({
+      ...relationship,
+      delete_action: relationship.parent_table === 'users'
+        ? 'restrict' as const
+        : 'cascade' as const,
+    }))
+    const primaryKeys = contractPrimaryKeys()
+    const indexes = relationships.map((relationship) => ({
+      table_name: relationship.child_table,
+      columns: relationship.child_columns,
+    }))
+
+    expect(auditClassroomResourceSchema(relationships, primaryKeys, indexes).ok).toBe(true)
+
+    const nonCascading = relationships.map((relationship) =>
+      relationship.child_table === 'assignment_doc_save_operations'
+        ? { ...relationship, delete_action: 'no action' as const }
+        : relationship,
+    )
+    expect(auditClassroomResourceSchema(nonCascading, primaryKeys, indexes)).toEqual(
+      expect.objectContaining({
+        ok: false,
+        invalid_owning_delete_actions: [
+          'assignment_doc_save_operations(assignment_doc_id)->assignment_docs:no action',
+        ],
+      }),
+    )
+
+    const indexesWithoutSaveOperations = indexes.filter((index) =>
+      index.table_name !== 'assignment_doc_save_operations'
+    )
+    expect(auditClassroomResourceSchema(relationships, primaryKeys, indexesWithoutSaveOperations))
+      .toEqual(expect.objectContaining({
+        ok: false,
+        unindexed_owning_foreign_keys: [
+          'assignment_doc_save_operations(assignment_doc_id)->assignment_docs',
+        ],
+      }))
+  })
+
+  it('does not treat secondary restore references as additional owners', () => {
+    const relationships = contractRelationships().map((relationship) => ({
+      ...relationship,
+      delete_action: 'cascade' as const,
+    }))
+    const secondaryReference = {
+      child_table: 'assignment_ai_grading_run_items',
+      parent_table: 'assignment_docs',
+      child_columns: ['assignment_doc_id'],
+      delete_action: 'set null' as const,
+    }
+    const indexes = relationships.map((relationship) => ({
+      table_name: relationship.child_table,
+      columns: relationship.child_columns,
+    }))
+
+    expect(auditClassroomResourceSchema(
+      [...relationships, secondaryReference],
+      contractPrimaryKeys(),
+      indexes,
+    ).ok).toBe(true)
   })
 
   it('detects untracked and stale user-reference columns used for actor snapshots', () => {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { CLASSROOM_GRADEX_EXTRACT_BUCKET } from '@/lib/server/classroom-gradex-operations'
+import { queueManagedStorageCleanupPath } from '@/lib/server/managed-storage'
 import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -194,15 +195,22 @@ async function processCleanupClaim(args: {
     }
   }
 
-  const bucket = args.supabase.storage.from(CLASSROOM_GRADEX_EXTRACT_BUCKET)
-  let removeFailed = false
+  let cleanupQueued = false
   try {
-    const response = await bucket.remove([args.claim.storage_path])
-    removeFailed = Boolean(response.error)
+    cleanupQueued = await queueManagedStorageCleanupPath({
+      supabase: args.supabase,
+      bucket: CLASSROOM_GRADEX_EXTRACT_BUCKET,
+      path: args.claim.storage_path,
+      errorCode: 'gradex_cleanup_requested',
+    })
   } catch {
-    removeFailed = true
+    return failedItem({
+      ...args,
+      errorCode: 'gradex_managed_cleanup_queue_failed',
+    })
   }
 
+  const bucket = args.supabase.storage.from(CLASSROOM_GRADEX_EXTRACT_BUCKET)
   let absent = false
   let present = false
   try {
@@ -220,9 +228,9 @@ async function processCleanupClaim(args: {
     return failedItem({
       ...args,
       errorCode: present
-        ? removeFailed
-          ? 'gradex_storage_delete_failed'
-          : 'gradex_storage_delete_unconfirmed'
+        ? cleanupQueued
+          ? 'gradex_managed_cleanup_pending'
+          : 'gradex_managed_owner_missing'
         : 'gradex_storage_delete_verification_failed',
     })
   }

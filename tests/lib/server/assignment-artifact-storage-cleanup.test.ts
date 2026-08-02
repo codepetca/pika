@@ -8,15 +8,24 @@ import {
 
 function makeSupabase(opts: {
   storageErrors?: Array<unknown>
+  managedCleanupQueued?: boolean | boolean[]
   claimed?: Array<Record<string, unknown>>
   completionData?: boolean
   completionError?: unknown
   referencedStoragePaths?: string[]
 }) {
   const claimed = [...(opts.claimed ?? [])]
-  const remove = vi.fn(async () => ({
-    error: opts.storageErrors?.shift() ?? null,
-  }))
+  const managedCleanupQueued = Array.isArray(opts.managedCleanupQueued)
+    ? [...opts.managedCleanupQueued]
+    : null
+  const remove = vi.fn()
+  const download = vi.fn(async () => {
+    const next = opts.storageErrors?.shift()
+    if (next instanceof Error) throw next
+    return next == null
+      ? { data: null, error: { code: 'NoSuchKey', status: 404 } }
+      : { data: null, error: next }
+  })
   const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
     if (name === 'claim_assignment_artifact_storage_cleanup') {
       const next = claimed.shift()
@@ -38,6 +47,12 @@ function makeSupabase(opts: {
     if (name === 'fail_assignment_artifact_storage_cleanup') {
       return { data: true, error: null }
     }
+    if (name === 'queue_managed_storage_cleanup_path') {
+      return {
+        data: managedCleanupQueued?.shift() ?? opts.managedCleanupQueued ?? true,
+        error: null,
+      }
+    }
     throw new Error(`Unexpected RPC ${name}`)
   })
   return {
@@ -58,9 +73,15 @@ function makeSupabase(opts: {
         })),
       }
     }),
-    storage: { from: vi.fn(() => ({ remove })) },
+    download,
+    storage: {
+      from: vi.fn(() => ({ download, remove })),
+      getBucket: vi.fn(async () => ({ data: { id: ASSIGNMENT_ARTIFACTS_BUCKET }, error: null })),
+    },
   }
 }
+
+const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 
 describe('assignment artifact Storage cleanup', () => {
   it('creates delayed provisional evidence and adopts that exact record', async () => {
@@ -103,7 +124,7 @@ describe('assignment artifact Storage cleanup', () => {
     expect(deleteRow).toHaveBeenCalled()
   })
 
-  it('removes an exact queued path and completes its durable evidence', async () => {
+  it('completes legacy evidence after durable exact-object delegation', async () => {
     const supabase = makeSupabase({})
 
     await expect(removeQueuedAssignmentArtifactStoragePath({
@@ -111,7 +132,15 @@ describe('assignment artifact Storage cleanup', () => {
       storagePath: 'student/assignment/image.png',
     })).resolves.toEqual({ completed: true })
 
-    expect(supabase.remove).toHaveBeenCalledWith(['student/assignment/image.png'])
+    expect(supabase.remove).not.toHaveBeenCalled()
+    expect(supabase.download).not.toHaveBeenCalled()
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'queue_managed_storage_cleanup_path',
+      expect.objectContaining({
+        p_storage_bucket: 'assignment-artifacts',
+        p_storage_path: 'student/assignment/image.png',
+      }),
+    )
     expect(supabase.rpc).toHaveBeenCalledWith(
       'complete_assignment_artifact_storage_cleanup',
       expect.objectContaining({ p_cleanup_id: '10000000-0000-4000-8000-000000000099' })
@@ -135,7 +164,10 @@ describe('assignment artifact Storage cleanup', () => {
   })
 
   it('leaves durable evidence pending when immediate Storage removal fails', async () => {
-    const supabase = makeSupabase({ storageErrors: [{ message: 'unavailable' }] })
+    const supabase = makeSupabase({
+      managedCleanupQueued: false,
+      storageErrors: [{ message: 'unavailable' }],
+    })
 
     await expect(removeQueuedAssignmentArtifactStoragePath({
       supabase,
@@ -159,7 +191,8 @@ describe('assignment artifact Storage cleanup', () => {
 
   it('completes successful claims and releases failed claims for retry', async () => {
     const supabase = makeSupabase({
-      storageErrors: [null, { message: 'temporary failure' }],
+      managedCleanupQueued: [true, false],
+      storageErrors: [{ message: 'temporary failure' }],
       claimed: [
         {
           id: '10000000-0000-4000-8000-000000000001',
@@ -193,6 +226,7 @@ describe('assignment artifact Storage cleanup', () => {
 
   it('releases a claim after Storage rejects and continues the remaining batch', async () => {
     const supabase = makeSupabase({
+      managedCleanupQueued: [false, false],
       claimed: [
         {
           id: '10000000-0000-4000-8000-000000000001',
@@ -206,9 +240,9 @@ describe('assignment artifact Storage cleanup', () => {
         },
       ],
     })
-    supabase.remove
+    supabase.download
       .mockRejectedValueOnce(new Error('network unavailable'))
-      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: 'NoSuchKey', status: 404 } })
 
     await expect(runAssignmentArtifactStorageCleanup({ supabase, limit: 2 })).resolves.toEqual({
       claimAttempts: 2,

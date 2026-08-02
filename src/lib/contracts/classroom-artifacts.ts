@@ -56,7 +56,26 @@ const storageObjectSchema = z.object({
   byte_size: z.number().int().nonnegative(),
   sha256: sha256Schema,
   content_type: z.string().min(1).nullable(),
-}).strict()
+  managed_object_id: z.string().uuid().optional(),
+  managed_purpose: z.enum([
+    'student_assignment_artifact',
+    'student_inline_image',
+    'teacher_test_material',
+    'test_execution_snapshot',
+    'legacy_classroom_file',
+  ]).optional(),
+  created_by_user_id: z.string().uuid().nullable().optional(),
+  data_subject_user_id: z.string().uuid().nullable().optional(),
+  resource_type: z.string().min(1).nullable().optional(),
+  resource_id: z.string().uuid().nullable().optional(),
+}).strict().superRefine((object, context) => {
+  if (Boolean(object.managed_object_id) !== Boolean(object.managed_purpose)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Managed storage ownership id and purpose must appear together',
+    })
+  }
+})
 
 export const classroomArchiveRetentionSchema = z.discriminatedUnion('mode', [
   z.object({

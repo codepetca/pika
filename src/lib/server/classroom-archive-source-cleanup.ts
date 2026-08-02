@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { queueManagedStorageCleanupPath } from '@/lib/server/managed-storage'
 import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -343,7 +344,6 @@ async function processCleanupClaim(args: {
   leaseToken: string
   leaseSeconds: number
 }): Promise<ClassroomArchiveSourceCleanupItemResult> {
-  const bucket = args.supabase.storage.from(args.claim.storage_bucket)
   const beforeRemoval = await readObject(
     args.supabase,
     args.claim.storage_bucket,
@@ -370,12 +370,19 @@ async function processCleanupClaim(args: {
     })
   }
 
-  let removeFailed = false
+  let cleanupQueued = false
   try {
-    const response = await bucket.remove([args.claim.storage_path])
-    removeFailed = Boolean(response.error)
+    cleanupQueued = await queueManagedStorageCleanupPath({
+      supabase: args.supabase,
+      bucket: args.claim.storage_bucket,
+      path: args.claim.storage_path,
+      errorCode: 'archive_source_cleanup_requested',
+    })
   } catch {
-    removeFailed = true
+    return failedItem({
+      ...args,
+      errorCode: 'archive_source_managed_cleanup_queue_failed',
+    })
   }
 
   const afterRemoval = await readObject(
@@ -387,9 +394,9 @@ async function processCleanupClaim(args: {
   if (afterRemoval.status === 'present') {
     return failedItem({
       ...args,
-      errorCode: removeFailed
-        ? 'archive_source_object_delete_failed'
-        : 'archive_source_object_delete_unconfirmed',
+      errorCode: cleanupQueued
+        ? 'archive_source_managed_cleanup_pending'
+        : 'archive_source_managed_owner_missing',
     })
   }
   return failedItem({

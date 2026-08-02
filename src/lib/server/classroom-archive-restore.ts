@@ -46,6 +46,13 @@ export type ClassroomArchiveRestoreStorageObject = {
   contentType: string | null
   sha256: string
   bytes: Uint8Array
+  managedObjectId: string
+  managedPurpose: 'student_assignment_artifact' | 'student_inline_image'
+    | 'teacher_test_material' | 'test_execution_snapshot' | 'legacy_classroom_file'
+  createdByUserId: string | null
+  dataSubjectUserId: string | null
+  resourceType: string | null
+  resourceId: string | null
 }
 
 export type ClassroomArchiveRestorePlan = {
@@ -100,6 +107,21 @@ function cloneResources(resources: Record<string, JsonObject[]>): Record<string,
   return Object.fromEntries(
     Object.entries(resources).map(([table, rows]) => [table, cloneJsonValue(rows)]),
   )
+}
+
+function deriveLegacyRestoredManagedObjectId(
+  operationId: string,
+  bucket: string,
+  path: string,
+): string {
+  const bytes = createHash('sha256')
+    .update(`${operationId}\0${bucket}\0${path}`)
+    .digest()
+    .subarray(0, 16)
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = bytes.toString('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 function discardRetiredQuizResources(
@@ -314,9 +336,15 @@ function buildClassroomArchiveRestorePlanForVersion(
   const archivedStorage = manifest.storage_objects
     .map((object) => `${object.bucket}\0${object.source_path}`)
     .sort()
+  const hasExplicitManagedOwnership = manifest.storage_objects.every(
+    (object) => object.managed_object_id && object.managed_purpose,
+  )
   if (
-    referencedStorage.length !== archivedStorage.length ||
-    referencedStorage.some((reference, index) => reference !== archivedStorage[index])
+    !hasExplicitManagedOwnership
+    && (
+      referencedStorage.length !== archivedStorage.length
+      || referencedStorage.some((reference, index) => reference !== archivedStorage[index])
+    )
   ) {
     throw new Error('Archive storage objects do not exactly match classroom references')
   }
@@ -347,25 +375,37 @@ function buildClassroomArchiveRestorePlanForVersion(
   )
   const storageObjects = manifest.storage_objects
     .filter((object) =>
-      retainedStorageReferences.has(`${object.bucket}\0${object.source_path}`),
+      hasExplicitManagedOwnership
+        || retainedStorageReferences.has(`${object.bucket}\0${object.source_path}`),
     )
     .map((object) => {
       const bytes = args.verified.files.get(object.archive_path)
       if (!bytes) throw new Error(`Archive storage object is missing: ${object.archive_path}`)
+      const restorePath = classroomArchiveRestoreObjectPath({
+        classroomId: manifest.classroom_id,
+        operationId,
+        sha256: object.sha256,
+        sourcePath: object.source_path,
+        contentType: object.content_type,
+      })
       return {
         bucket: object.bucket,
         sourcePath: object.source_path,
-        restorePath: classroomArchiveRestoreObjectPath({
-          classroomId: manifest.classroom_id,
-          operationId,
-          sha256: object.sha256,
-          sourcePath: object.source_path,
-          contentType: object.content_type,
-        }),
+        restorePath,
         archivePath: object.archive_path,
         contentType: object.content_type,
         sha256: object.sha256,
         bytes,
+        managedObjectId: object.managed_object_id || deriveLegacyRestoredManagedObjectId(
+          operationId,
+          object.bucket,
+          restorePath,
+        ),
+        managedPurpose: object.managed_purpose || 'legacy_classroom_file',
+        createdByUserId: object.created_by_user_id ?? manifest.teacher_id,
+        dataSubjectUserId: object.data_subject_user_id ?? null,
+        resourceType: object.resource_type ?? null,
+        resourceId: object.resource_id ?? null,
       }
     })
   const restoredPaths = new Map(

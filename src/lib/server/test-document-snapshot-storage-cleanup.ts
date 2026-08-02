@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { queueManagedStorageCleanupPath } from '@/lib/server/managed-storage'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 
 const TEST_DOCUMENTS_BUCKET = 'test-documents'
 const PROVISIONAL_CLEANUP_DELAY_SECONDS = 15 * 60
@@ -16,6 +18,36 @@ const provisionalCleanupSchema = z.object({
 })
 
 type SupabaseLike = any
+
+async function requestManagedSnapshotCleanup(
+  supabase: SupabaseLike,
+  storagePath: string,
+): Promise<'absent' | 'delegated' | 'unowned' | 'uncertain'> {
+  try {
+    const queued = await queueManagedStorageCleanupPath({
+      supabase,
+      bucket: TEST_DOCUMENTS_BUCKET,
+      path: storagePath,
+      errorCode: 'test_snapshot_cleanup_requested',
+    })
+    if (queued) return 'delegated'
+  } catch {
+    return 'uncertain'
+  }
+  try {
+    const response = await supabase.storage.from(TEST_DOCUMENTS_BUCKET).download(storagePath)
+    if (response.data) return 'unowned'
+    const evidence = missingStorageObjectEvidence(response.error)
+    if (evidence === 'object') return 'absent'
+    if (evidence === 'generic') {
+      const bucket = await supabase.storage.getBucket(TEST_DOCUMENTS_BUCKET)
+      if (!bucket.error && bucket.data?.id === TEST_DOCUMENTS_BUCKET) return 'absent'
+    }
+  } catch (error) {
+    if (missingStorageObjectEvidence(error) === 'object') return 'absent'
+  }
+  return 'uncertain'
+}
 
 export type ProvisionalTestDocumentSnapshotCleanup =
   z.infer<typeof provisionalCleanupSchema>
@@ -118,24 +150,15 @@ async function processClaim(input: {
   }
 
   if (!referenced) {
-    let storageError: { message?: string } | null = null
-    try {
-      const result = await supabase.storage
-        .from(TEST_DOCUMENTS_BUCKET)
-        .remove([cleanup.storage_path])
-      storageError = result.error
-    } catch (error) {
-      storageError = error instanceof Error
-        ? { message: error.message }
-        : { message: 'Storage request failed' }
-    }
-
-    if (storageError) {
+    const state = await requestManagedSnapshotCleanup(supabase, cleanup.storage_path)
+    if (state !== 'absent' && state !== 'delegated') {
       await failCleanup({
         supabase,
         cleanupId: cleanup.id,
         leaseToken: cleanup.lease_token,
-        error: storageError.message ?? 'Storage request failed',
+        error: state === 'unowned'
+            ? 'Managed Storage owner is missing'
+            : 'Storage cleanup state could not be verified',
       })
       return false
     }

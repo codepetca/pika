@@ -56,6 +56,8 @@ declare
   v_classroom_id constant uuid := '20000000-0000-4000-8000-000000000001';
   v_stale_operation_id constant uuid := '40000000-0000-4000-8000-000000000001';
   v_success_operation_id constant uuid := '40000000-0000-4000-8000-000000000002';
+  v_stale_managed_object_id constant uuid := '43000000-0000-4000-8000-000000000001';
+  v_success_managed_object_id constant uuid := '43000000-0000-4000-8000-000000000002';
   v_cleanup_lease_one constant uuid := '41000000-0000-4000-8000-000000000001';
   v_cleanup_lease_two constant uuid := '41000000-0000-4000-8000-000000000002';
   v_result jsonb;
@@ -64,7 +66,12 @@ declare
   v_revision bigint;
   v_trigger_count integer;
   v_claim record;
+  v_managed_storage_available boolean;
 begin
+  v_managed_storage_available := to_regprocedure(
+    'public.begin_managed_storage_upload(uuid,text,text,uuid,uuid,text,uuid,uuid,text,uuid,text,bigint)'
+  ) is not null;
+
   if (select count(*) from public.classroom_archive_resource_contract) <> 40 then
     raise exception 'Expected 40 database archive-v2 resources';
   end if;
@@ -216,6 +223,31 @@ begin
   ) then
     raise exception 'Stale archive upload intent was rejected';
   end if;
+  if v_managed_storage_available then
+    perform public.begin_managed_storage_upload(
+      v_stale_managed_object_id,
+      'classroom-archives',
+      format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+      v_classroom_id,
+      null,
+      'classroom_archive',
+      v_teacher_id,
+      null,
+      'classroom_archive_operation',
+      v_stale_operation_id,
+      'application/gzip',
+      100
+    );
+  end if;
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives',
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+    '{"size":100}'::jsonb
+  );
+  if v_managed_storage_available then
+    perform public.adopt_managed_storage_upload(v_stale_managed_object_id, repeat('b', 64));
+  end if;
   v_result := public.complete_classroom_archive_export_v2(
     v_stale_operation_id,
     v_teacher_id,
@@ -326,6 +358,31 @@ begin
   ) then
     raise exception 'Successful archive upload intent was rejected';
   end if;
+  if v_managed_storage_available then
+    perform public.begin_managed_storage_upload(
+      v_success_managed_object_id,
+      'classroom-archives',
+      format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+      v_classroom_id,
+      null,
+      'classroom_archive',
+      v_teacher_id,
+      null,
+      'classroom_archive_operation',
+      v_success_operation_id,
+      'application/gzip',
+      101
+    );
+  end if;
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives',
+    format('%s/%s/%s/classroom-v2.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+    '{"size":101}'::jsonb
+  );
+  if v_managed_storage_available then
+    perform public.adopt_managed_storage_upload(v_success_managed_object_id, repeat('e', 64));
+  end if;
   v_result := public.complete_classroom_archive_export_v2(
     v_success_operation_id,
     v_teacher_id,
@@ -346,8 +403,21 @@ begin
   then
     raise exception 'Verified archive did not finalize: %', v_result;
   end if;
-  if (select count(*) from public.classroom_archives where id = v_success_operation_id) <> 1 then
-    raise exception 'Verified archive metadata was not persisted exactly once';
+  if v_managed_storage_available then
+    if (
+      select count(*)
+      from public.classroom_archives
+      where id = v_success_operation_id
+        and managed_object_id = v_success_managed_object_id
+    ) <> 1 then
+      raise exception 'Verified archive metadata was not persisted with its managed owner';
+    end if;
+  elsif (
+    select count(*)
+    from public.classroom_archives
+    where id = v_success_operation_id
+  ) <> 1 then
+    raise exception 'Verified historical archive metadata was not persisted exactly once';
   end if;
   if exists (
     select 1 from public.classroom_archive_snapshot_resources

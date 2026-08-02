@@ -4,7 +4,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
 import { isCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
 import { normalizePlannedCourseSiteConfig } from '@/lib/course-site-publishing'
-import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import {
+  managedTestDocumentStorageClaims,
+  stripTestDocumentSnapshots,
+} from '@/lib/test-documents'
 import type {
   CourseBlueprintDetail,
   CourseBlueprintVersion,
@@ -322,8 +325,35 @@ export async function saveCourseBlueprintVersion(args: {
 > {
   const snapshot = buildCourseBlueprintSnapshot(args.detail)
   const snapshotSha256 = hashCourseBlueprintSnapshot(snapshot)
+  const managedStorageClaims = snapshot.assessments.flatMap((assessment) => {
+    const claims = managedTestDocumentStorageClaims(assessment.documents)
+    if (!claims) return [null]
+    const documents = new Map(
+      assessment.documents.map((document) => [document.id, document]),
+    )
+    return claims.map((claim) => ({
+      ...claim,
+      storage_url: documents.get(claim.document_id)?.url ?? null,
+    }))
+  })
+  const teacherUploadCount = snapshot.assessments.reduce(
+    (count, assessment) => count + assessment.documents.filter(
+      (document) => document.source === 'upload',
+    ).length,
+    0,
+  )
+  if (
+    managedStorageClaims.some((claim) => claim === null || claim.storage_url === null)
+    || managedStorageClaims.length !== teacherUploadCount
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Blueprint uploaded test material ownership could not be verified',
+    }
+  }
   const { data, error } = await args.supabase.rpc(
-    'save_course_blueprint_version_atomic',
+    'save_course_blueprint_version_managed_atomic',
     {
       p_teacher_id: args.teacherId,
       p_blueprint_id: args.detail.id,
@@ -333,20 +363,26 @@ export async function saveCourseBlueprintVersion(args: {
       p_snapshot_sha256: snapshotSha256,
       p_source_kind: args.sourceKind ?? 'pika',
       p_source_metadata: parseDatabaseJson(args.sourceMetadata ?? {}),
+      p_managed_storage_claims: parseDatabaseJson(managedStorageClaims),
     }
   )
 
   if (error) {
     const missing = error.code === '42883'
       || error.code === 'PGRST202'
-      || (error.message || '').includes('save_course_blueprint_version_atomic')
+      || (error.message || '').includes('save_course_blueprint_version_managed_atomic')
+    const ownershipMismatch = (error.message || '').includes(
+      'blueprint_teacher_material_',
+    )
     return {
       ok: false,
-      status: missing ? 503 : error.code === '40001' ? 409 : 500,
+      status: missing ? 503 : error.code === '40001' || ownershipMismatch ? 409 : 500,
       error: missing
-        ? 'Blueprint Versions require migration 112 to be applied'
+        ? 'Managed Blueprint Versions require migration 117 to be applied'
         : error.code === '40001'
           ? 'Blueprint Draft changed while saving the Version; review and retry'
+          : ownershipMismatch
+            ? 'Blueprint uploaded test material ownership could not be verified'
           : 'Failed to save Blueprint Version',
     }
   }

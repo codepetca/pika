@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { queueManagedStorageCleanupPath } from '@/lib/server/managed-storage'
 import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -177,15 +178,22 @@ async function processClaim(args: {
     }
   }
 
-  const bucket = args.supabase.storage.from(args.claim.storage_bucket)
-  let removeFailed = false
+  let cleanupQueued = false
   try {
-    const response = await bucket.remove([args.claim.storage_path])
-    removeFailed = Boolean(response.error)
+    cleanupQueued = await queueManagedStorageCleanupPath({
+      supabase: args.supabase,
+      bucket: args.claim.storage_bucket,
+      path: args.claim.storage_path,
+      errorCode: 'archive_object_cleanup_requested',
+    })
   } catch {
-    removeFailed = true
+    return failedItem({
+      ...args,
+      errorCode: 'archive_managed_cleanup_queue_failed',
+    })
   }
 
+  const bucket = args.supabase.storage.from(args.claim.storage_bucket)
   let absent = false
   let present = false
   try {
@@ -207,9 +215,9 @@ async function processClaim(args: {
     return failedItem({
       ...args,
       errorCode: present
-        ? removeFailed
-          ? 'archive_storage_delete_failed'
-          : 'archive_storage_delete_unconfirmed'
+        ? cleanupQueued
+          ? 'archive_managed_cleanup_pending'
+          : 'archive_managed_owner_missing'
         : 'archive_storage_delete_verification_failed',
     })
   }

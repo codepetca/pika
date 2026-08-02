@@ -10,10 +10,10 @@ import { loadChunkedRows } from '@/lib/server/query-chunks'
 import type { TableRow } from '@/types/database'
 import { z } from 'zod'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
+import { queueManagedStorageCleanupPath } from '@/lib/server/managed-storage'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const SIGNED_IMAGE_URL_EXPIRES_SECONDS = 60 * 60
-const STORAGE_REMOVE_CHUNK_SIZE = 1000
 const timestampSchema = z.string().datetime({ offset: true })
 
 const assignmentRowSchema = z.object({
@@ -206,14 +206,6 @@ function uniqueStoragePaths(paths: Array<string | null | undefined>): string[] {
   return Array.from(unique)
 }
 
-function chunkArray<T>(items: T[], chunkSize: number): T[][] {
-  const chunks: T[][] = []
-  for (let index = 0; index < items.length; index += chunkSize) {
-    chunks.push(items.slice(index, index + chunkSize))
-  }
-  return chunks
-}
-
 export function getRemovedImageSubmissionRequirementIds(
   existingRequirements: AssignmentSubmissionRequirement[],
   drafts: AssignmentSubmissionRequirementDraft[]
@@ -302,25 +294,26 @@ export async function removeAssignmentArtifactStorageObjects(
   const paths = uniqueStoragePaths(storagePaths)
   if (paths.length === 0) return
 
-  for (const chunk of chunkArray(paths, STORAGE_REMOVE_CHUNK_SIZE)) {
+  for (const path of paths) {
     try {
-      const { error } = await supabase.storage
-        .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-        .remove(chunk)
-
-      if (error) {
-        console.error('Failed to remove assignment artifact storage objects:', {
+      const queued = await queueManagedStorageCleanupPath({
+        supabase,
+        bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
+        path,
+        errorCode: context,
+      })
+      if (!queued) {
+        console.error('Failed to queue assignment artifact storage cleanup:', {
           context,
           bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
-          paths: chunk,
-          error,
+          path,
         })
       }
     } catch (error) {
-      console.error('Failed to remove assignment artifact storage objects:', {
+      console.error('Failed to queue assignment artifact storage cleanup:', {
         context,
         bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
-        paths: chunk,
+        path,
         error,
       })
     }

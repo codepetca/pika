@@ -157,9 +157,15 @@ Workflow records may hold a classroom reference without being owned by that
 classroom. Those exceptional edges must be declared in
 `CLASSROOM_NON_OWNING_REFERENCES`; the audit verifies the declared foreign key
 still exists and excludes that edge from archive ownership traversal. Blueprint
-change proposals and short-lived external editing sessions use this boundary
-because they are rebuilt or expired by the Blueprint workflow, not restored as
-classroom state.
+change proposals, short-lived external editing sessions, and the temporary
+permanent-deletion fence use this boundary because their owning workflow
+reconciles them instead of restoring them as classroom state.
+
+Logical lifecycle scopes that deliberately have no physical foreign key belong
+in `CLASSROOM_LOGICAL_SCOPE_REFERENCES`, not the catalog-FK exception list. The
+only current case is `managed_storage_objects.classroom_id`: its database guard
+requires exactly one hot classroom or cold tombstone for the stable classroom
+UUID.
 
 The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
 
@@ -218,7 +224,7 @@ Restore is idempotent and fail-closed:
 
 Migration 083 implements restore as bounded, resumable staging rather than one large JSON RPC.
 Every batch is limited to 500 rows and 1 MiB, must match the current table's exact columns, and must
-arrive parent-first. Finalization rejects conflicting hot rows and commits all 42 resources in one
+arrive parent-first. Finalization rejects conflicting hot rows and commits all 40 resources in one
 transaction. A transaction-local restore context prevents normal blueprint and archive revision
 triggers from mutating replayed values; the archived revision is restored explicitly. PostgreSQL,
 not the application, records final referential-integrity evidence after all inserts and ownership
@@ -317,8 +323,9 @@ semantics:
   normal classroom creation. It never copies students, submissions, grades, attendance, or other
   runtime history. Blueprint capture/linking and classroom-only promotion are classroom-locked
   transactions that recheck `archived_at`, ownership, lineage, and structural revision.
-  Permanent removal is not available through the classroom route or teacher UI; future hot-data
-  removal must run only through the verified compaction state machine.
+  **Delete permanently** starts a separate, irreversible purge operation. It is available only to
+  the owning teacher, requires the exact classroom name or `DELETE`, and is never implemented as a
+  classroom-row `DELETE` request or an assumed foreign-key cascade.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
   **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
   classroom routes until the archive is restored to `archived_hot`; **Use again** is therefore
@@ -341,6 +348,156 @@ archive restore attempt and retains it after a failed request or failed list ref
 key only after the restore succeeds and the refreshed archive state is confirmed. Listing a stored
 archive never downloads its object, expands archive contents, compacts another classroom, or purges
 data.
+
+### Permanent Hot-Archive Deletion
+
+The enforceable ownership and lifecycle redesign contract is
+[`hot-archived-classroom-purge-ownership-contract.md`](./hot-archived-classroom-purge-ownership-contract.md).
+Where the implementation summary below describes migration 117's earlier path- and feature-specific
+design, the redesign contract is authoritative until this section is reconciled with the completed
+implementation.
+
+Migrations `115_hot_archived_classroom_purge.sql`,
+`116_hot_archived_classroom_purge_trigger_reconciliation.sql`,
+`117_hot_archived_classroom_purge_review_hardening.sql`,
+`src/lib/server/classroom-purge.ts`, and
+`/api/teacher/classrooms/[id]/purge` define permanent deletion for `archived_hot`
+classrooms. The confirmation surface states that deletion cannot be undone and removes all student
+work, submissions, tests, grades, attendance and logs, feedback, roster data, and uploads. Its
+impact summary reports students, exact classroom-owned relational rows, managed files and bytes,
+verified archives, related Gradex extracts, and interrupted archive/Gradex uploads still represented
+only by operational cleanup ledgers. Course Blueprints, immutable Blueprint Versions, and user
+accounts remain outside purge ownership and are preserved.
+
+Migration 117 replaces URL and JSON reference inference with `managed_storage_objects`, an exact
+registry keyed by `(storage_bucket, storage_path)`. Every source object has exactly one lifecycle
+owner: a classroom or a Course Blueprint. User ids are attribution and data-subject metadata only;
+deleting a classroom never deletes a user account. Classroom ownership covers student assignment
+artifacts, inline submission images, teacher test materials, execution snapshots, and reconciled
+legacy objects. Reusable teacher test material is physically copied to Blueprint-owned storage
+before Blueprint capture/import completes, and copied back to new classroom-owned storage before
+instantiation completes. Internal managed-object ids are not exported in Course Packages.
+Blueprint copies use deterministic operation-owned target keys and complete only after a full
+read-back hash check. If an existing target contains different bytes, the active copy lease must
+first transition atomically into a durable cleanup phase. That phase fences upload, completion, and
+adoption for the exact key before Storage removal begins. The database resets it for immediate copy
+retry only after an exact-path lock proves authoritative `storage.objects` absence; an expired
+cleanup lease is reclaimed as cleanup work and can never silently become an upload lease. Adoption
+also takes the exact-path lock and proves the target still exists before ownership or references
+change. Legacy Blueprint/Classroom reconciliation uses the same cleanup-phase contract.
+
+All new uploads reserve exact ownership before writing Storage and atomically adopt the reservation
+after Storage confirms the object. Failed or abandoned uploads become leased, retryable cleanup work.
+The Storage trigger rejects unreserved source writes once enforcement is enabled, rejects ordinary
+deletes of managed objects, and permanently fences writes to any exact key in all five purge buckets
+once that key has entered a purge ledger. Test link
+snapshots are no longer copied while a teacher merely browses authoring or preview screens. They are
+created at the explicit manual-sync or test-activation boundary, so teacher-authored uploads remain
+stable source material while execution copies are classroom-owned and disposable.
+
+Existing classrooms begin with `classroom_managed_storage_coverage.status = pending`. A global
+backfill inventories all classroom references before writing ownership, rejects cross-classroom path
+sharing, records exact legacy ownership, injects managed ids into test documents, and verifies a
+stable classroom revision plus inventory digest. Ambiguous or unreferenced global Storage orphans
+are reported for a separate operator cleanup; purge never guesses their owner. New classrooms start
+with verified empty coverage and remain exact through managed writes.
+
+Readiness also inventories uploaded test documents in mutable Blueprint assessments and the
+`snapshot_json` of immutable Blueprint Versions. A Version is evidence only: it is never rewritten.
+If a legacy path is referenced by multiple Blueprints, readiness remains not-ready and performs no
+classroom ownership writes. A mutable Blueprint document is ready only when its `managed_object_id`
+matches an exact Blueprint-owned object. For exactly one Blueprint and one classroom, the durable
+reconciliation ledger preserves the original bytes at their old path under Blueprint ownership,
+copies and verifies a fresh classroom-owned object, then atomically rewrites only current classroom
+tests and mutable Blueprint managed IDs. Immutable Version JSON remains byte-for-byte untouched.
+An unshared legacy Blueprint path instead receives an exact Blueprint registration and mutable
+assessment managed-id attachment in one transaction; its Version snapshots are checked as evidence
+but are never rewritten. Existing classroom or cross-Blueprint ownership remains fail-closed.
+
+The begin transaction locks the classroom through the shared lifecycle advisory lock, requires both
+operator rollout gates and verified ownership coverage, rejects active archive, restore, compaction,
+storage cleanup, grading, repository review, Blueprint copy/proposal, or Blueprint editing work, and
+installs a durable fence. In that same transaction it snapshots exact managed objects plus archive,
+Gradex, and interrupted-upload ledger objects. Every object receives a retryable lease. A worker
+deletes only the exact key; the database checks authoritative `storage.objects` absence before
+accepting completion. Storage errors, lost leases, browser closure, or database-finalization errors
+leave resumable evidence instead of relying on foreign-key cascades or best-effort compensation.
+
+Once every exact object is absent, one transaction deletes the corresponding managed ownership rows,
+rechecks that no classroom-owned object remains, reconciles archive/extract and cleanup ledgers, and
+invokes the migration-115 child-first relational finalizer. Count or ownership drift rolls the whole
+finalization transaction back. Course Blueprints—including their independently owned files—and user
+accounts are outside classroom purge membership and remain intact.
+
+The finalizer sets a transaction-local purge marker. Migration 116 scopes existing submitted-work
+integrity and routine storage-cleanup triggers to normal writes, allowing only the already-fenced,
+exact purge membership to be deleted without weakening submission protection elsewhere or creating
+duplicate cleanup jobs.
+
+Migration 117 is fail-closed when installed: `enforce_ownership` and
+`hot_classroom_purge_enabled` both default to `false`, and the generic cleanup worker also requires
+`MANAGED_STORAGE_CLEANUP_ENABLED=true`. Rollout is staged: apply and replay-verify the migration;
+deploy dual-compatible producers; backfill every classroom and investigate blocked/shared paths;
+report global orphans; enable the cleanup worker; enable Storage ownership enforcement; run a named
+hot-archive canary; then enable hot purge for the application. Rollback turns the gates off and stops
+workers without discarding durable ledgers. Turning either database gate off stops new purge leases
+and relational finalization; a worker that already received a lease may still record the result of
+its issued Storage deletion so the ledger remains resumable. Applying migration 117, setting either database gate,
+enabling the worker, or running a destructive canary each requires its own named authorization.
+Migration 117 preserves the legacy assignment save/submit RPC signatures for a migration-first
+deployment, but moves their implementations behind non-callable private names. The compatibility
+signatures delegate only while `enforce_ownership=false`; after enforcement they fail closed, while
+the new application continues through ownership-validating managed wrappers. This supports a
+zero-downtime rollout. Before the gate is enabled, any stale compatibility write atomically returns
+that classroom’s coverage to `pending`, so readiness must verify it again; after the gate is enabled,
+the compatibility signature fails closed. A stale instance therefore cannot write between readiness
+and enforcement without invalidating the proof required by purge.
+
+Use `pnpm managed-storage:readiness` as the readiness and legacy-backfill operator command. With no
+subcommand it is a report/dry-run: it reads a stable, exact all-classroom resource graph, coverage,
+the managed-object registry, and the three source Storage buckets; reports per-classroom progress,
+cross-classroom references, missing objects, and global unowned orphans; and writes nothing. Save
+the JSON evidence with `pnpm managed-storage:readiness report --json --expected-project-ref REF`.
+The direct database URL must be supplied as `MANAGED_STORAGE_READINESS_DATABASE_URL`; hosted API and
+database targets are independently bound to the same `--expected-project-ref`. Durable text and JSON
+evidence contains only bucket names and SHA-256 path fingerprints, never raw Storage paths; resolving
+a fingerprint to an exact path requires a separate, explicitly authorized database investigation.
+
+After resolving every cross-classroom, cross-Blueprint, or missing reference, run `execute` (or
+`resume` after interruption). The command automatically reconciles the supported legacy case of one
+classroom and one same-teacher Blueprint sharing an uploaded test document, then rediscovers all
+state before classroom backfill.
+Registration uses deterministic object ids and same-owner upserts, so a rerun safely resumes partial
+work. The command refuses writes if either rollout gate is already enabled, if the all-classroom set
+or any source revision drifts, or if target safeguards fail. Hosted execution additionally requires
+a clean checkout at the deployed commit, `MANAGED_STORAGE_BACKFILL_ALLOW_PRODUCTION=1`, and the exact
+acknowledgement printed by a rejected attempt (`BACKFILL MANAGED STORAGE REF AT COMMIT`). Local
+execution instead requires `PIKA_ALLOW_LOCAL_MANAGED_STORAGE_BACKFILL=1`. Global orphans remain
+reported for a separately authorized cleanup and keep `ready_for_enforcement` false. The command
+never changes `enforce_ownership` or `hot_classroom_purge_enabled`; enabling either remains a separate
+operator action with separate authorization.
+
+Immutable Blueprint Versions retain their referenced Blueprint-owned test material until the
+Blueprint itself is deleted. Version creation locks the Blueprint and every uploaded-material owner
+row and refuses missing, non-ready, or foreign ownership before inserting the snapshot. Classroom
+instantiation also performs an exact application preflight for a useful error, but the transactional
+Version guard is the authoritative concurrency boundary.
+
+After completion, the purge keeps only a minimal durable audit record for idempotent status reads:
+the classroom title, exact row snapshot, fence, and raw object paths are removed or redacted. The
+remaining classroom and teacher ids, aggregate counts, object hashes, terminal statuses, and
+timestamps are purge audit metadata, not restorable classroom content.
+
+The teacher dialog drives bounded retry ticks for immediate feedback. The authenticated daily
+history-cleanup cron is a safety net for crash-abandoned or browser-closed operations. Both callers
+use the same durable leases and finalizer, so retries cannot skip inventory or repeat a completed
+destructive transition.
+
+Cold archived classroom deletion is intentionally not part of migration 117. Comprehensive
+individual-student purging is also a follow-up because current roster removal is enrollment
+management rather than an all-history privacy purge. Neither follow-up is required atomically for
+hot-classroom deletion because the classroom-wide membership snapshot already includes all students
+and all classroom-owned data.
 
 ## Cold Compaction
 

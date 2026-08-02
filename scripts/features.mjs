@@ -31,7 +31,19 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, value) {
-  const next = JSON.stringify(value, null, 2) + '\n'
+  const featureLines = value.features.map((feature, index) => {
+    const suffix = index === value.features.length - 1 ? '' : ','
+    return `    ${JSON.stringify(feature)}${suffix}`
+  })
+  const next = [
+    '{',
+    `  "meta": ${JSON.stringify(value.meta)},`,
+    '  "features": [',
+    ...featureLines,
+    '  ]',
+    '}',
+    '',
+  ].join('\n')
   fs.writeFileSync(filePath, next, 'utf8')
 }
 
@@ -286,4 +298,3 @@ try {
   console.error(`❌ ${error.message}`)
   process.exit(1)
 }
-

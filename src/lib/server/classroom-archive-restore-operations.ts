@@ -16,6 +16,10 @@ import {
   buildClassroomArchiveV2RestorePlan,
   type ClassroomArchiveV2RestorePlan,
 } from '@/lib/server/classroom-archive-restore'
+import {
+  adoptManagedStorageUpload,
+  queueManagedStorageCleanup,
+} from '@/lib/server/managed-storage'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 
@@ -330,7 +334,7 @@ function chunkRestoreRows(rows: Record<string, unknown>[]): Record<string, unkno
 async function uploadAndVerifyRestoreObject(args: {
   supabase: SupabaseClient
   object: ClassroomArchiveV2RestorePlan['storageObjects'][number]
-}): Promise<boolean> {
+}): Promise<void> {
   const bucket = args.supabase.storage.from(args.object.bucket)
   let bytes: Uint8Array | null = null
   try {
@@ -338,7 +342,6 @@ async function uploadAndVerifyRestoreObject(args: {
   } catch {
     // An upload conflict plus read-back below can still reconcile an existing object.
   }
-  let uploaded = false
   if (!bytes) {
     const upload = await bucket.upload(args.object.restorePath, args.object.bytes, {
       contentType: args.object.contentType || 'application/octet-stream',
@@ -359,7 +362,6 @@ async function uploadAndVerifyRestoreObject(args: {
         )
       }
     } else {
-      uploaded = true
       try {
         const readBack = await bucket.download(args.object.restorePath)
         bytes = await readStorageBytes(readBack.data)
@@ -375,13 +377,11 @@ async function uploadAndVerifyRestoreObject(args: {
     }
   }
   if (sha256Bytes(bytes) !== args.object.sha256) {
-    if (uploaded) {
-      try {
-        await bucket.remove([args.object.restorePath])
-      } catch {
-        // The staged upload intent leaves cleanup durable if best-effort removal fails.
-      }
-    }
+    await queueManagedStorageCleanup({
+      supabase: args.supabase,
+      objectId: args.object.managedObjectId,
+      errorCode: 'restore_storage_checksum_mismatch',
+    }).catch(() => false)
     throw new ClassroomArchiveRestoreError(
       'restore_storage_checksum_mismatch',
       'A restored classroom object failed checksum verification',
@@ -389,7 +389,20 @@ async function uploadAndVerifyRestoreObject(args: {
       false,
     )
   }
-  return uploaded
+  try {
+    await adoptManagedStorageUpload({
+      supabase: args.supabase,
+      objectId: args.object.managedObjectId,
+      contentSha256: args.object.sha256,
+    })
+  } catch {
+    throw new ClassroomArchiveRestoreError(
+      'restore_storage_adoption_failed',
+      'A restored classroom object could not be adopted by its classroom.',
+      503,
+      true,
+    )
+  }
 }
 
 async function recordRestoreFailure(args: {
@@ -435,9 +448,7 @@ export async function restoreClassroomArchive(args: {
 }): Promise<ClassroomArchiveRestoreResult> {
   const startedAt = Date.now()
   let operationStarted = false
-  let finalizationAttempted = false
   let plan: ClassroomArchiveV2RestorePlan | null = null
-  const uploadedStorageObjects: Array<{ bucket: string; path: string }> = []
 
   try {
     const metadata = await loadArchiveMetadata(args)
@@ -506,6 +517,20 @@ export async function restoreClassroomArchive(args: {
       left.storage_bucket.localeCompare(right.storage_bucket)
       || left.storage_path.localeCompare(right.storage_path)
     ))
+    const managedObjects = plan.storageObjects.map((object) => ({
+      managed_object_id: object.managedObjectId,
+      storage_bucket: object.bucket,
+      storage_path: object.restorePath,
+      purpose: object.managedPurpose,
+      created_by_user_id: object.createdByUserId,
+      data_subject_user_id: object.dataSubjectUserId,
+      resource_type: object.resourceType,
+      resource_id: object.resourceId,
+      content_type: object.contentType,
+    })).sort((left, right) => (
+      left.storage_bucket.localeCompare(right.storage_bucket)
+      || left.storage_path.localeCompare(right.storage_path)
+    ))
     if (
       canonicalJsonStringify(plan.sourceResourceCounts) !==
       canonicalJsonStringify(metadata.resource_counts)
@@ -517,7 +542,9 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const beginResponse = await args.supabase.rpc('begin_classroom_archive_restore_v2', {
+    const beginResponse = await (args.supabase as any).rpc(
+      'begin_classroom_archive_restore_managed_v2',
+      {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_classroom_id: args.classroomId,
@@ -526,17 +553,19 @@ export async function restoreClassroomArchive(args: {
         archiveId: args.archiveId,
         classroomId: args.classroomId,
         targetSchemaMigration: plan.targetSchemaMigration,
-        storageObjects,
+        storageObjects: managedObjects,
       }),
       p_target_schema_migration: plan.targetSchemaMigration,
       p_adapter_chain: plan.adapterChain,
       p_resource_counts: resourceCounts,
       p_storage_objects: storageObjects,
+      p_managed_objects: managedObjects,
       p_database_budget_bytes: args.databaseBudgetBytes,
       p_source_contract_version: plan.sourceContractVersion,
       p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
       p_source_resource_counts: plan.sourceResourceCounts,
-    })
+      },
+    )
     if (beginResponse.error) {
       const missingMigration = isMissingRestoreV2Rpc(beginResponse.error)
       throw new ClassroomArchiveRestoreError(
@@ -544,7 +573,7 @@ export async function restoreClassroomArchive(args: {
           ? 'classroom_archive_restore_migration_required'
           : 'classroom_archive_restore_begin_failed',
         missingMigration
-          ? 'Classroom archive restore requires migration 107'
+          ? 'Managed classroom archive restore requires migration 117'
           : 'Classroom archive-v2 restore could not start',
         503,
         true,
@@ -617,10 +646,7 @@ export async function restoreClassroomArchive(args: {
           true,
         )
       }
-      const uploaded = await uploadAndVerifyRestoreObject({ supabase: args.supabase, object })
-      if (uploaded) {
-        uploadedStorageObjects.push({ bucket: object.bucket, path: object.restorePath })
-      }
+      await uploadAndVerifyRestoreObject({ supabase: args.supabase, object })
     }
     for (const table of CLASSROOM_ARCHIVE_V2_RESTORE_ORDER) {
       const rows = plan.resources[table] || []
@@ -671,7 +697,6 @@ export async function restoreClassroomArchive(args: {
       restored_storage_objects_verified: true,
       adapter_chain: plan.adapterChain,
     })
-    finalizationAttempted = true
     const completeResponse = await args.supabase.rpc('complete_classroom_archive_restore', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
@@ -739,21 +764,6 @@ export async function restoreClassroomArchive(args: {
           true,
         )
       : error
-    if (!reportedError.retryable && !finalizationAttempted && cleanupAuthorized) {
-      const pathsByBucket = new Map<string, Set<string>>()
-      for (const object of uploadedStorageObjects) {
-        const paths = pathsByBucket.get(object.bucket) || new Set<string>()
-        paths.add(object.path)
-        pathsByBucket.set(object.bucket, paths)
-      }
-      for (const [bucket, paths] of pathsByBucket) {
-        try {
-          await args.supabase.storage.from(bucket).remove([...paths])
-        } catch {
-          // Durable cleanup owns any object that cannot be removed best-effort here.
-        }
-      }
-    }
     const result = publicFailure({
       operationId: args.operationId,
       code: reportedError.code,

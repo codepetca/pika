@@ -10,6 +10,7 @@ import {
 } from '@/lib/server/classroom-archive-inventory'
 import {
   CLASSROOM_NON_OWNING_REFERENCES,
+  CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   getClassroomResourceOrder,
@@ -65,6 +66,16 @@ function openApiDocument() {
       properties[column] = {
         description: `${properties[column]?.description || 'Note:'}\nThis is a Foreign Key.<fk table='users' column='id'/>`,
       }
+    }
+    definitions[resource.table] = { properties }
+  }
+  for (const resource of CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES) {
+    const properties: Record<string, { description?: string }> = {}
+    for (const column of resource.primary_key) {
+      properties[column] = { description: 'Note:\nThis is a Primary Key.<pk/>' }
+    }
+    properties[resource.scope.column] = {
+      description: `${properties[resource.scope.column]?.description || 'Note:'}\nThis is a Foreign Key.<fk table='${resource.scope.parent}' column='id'/>`,
     }
     definitions[resource.table] = { properties }
   }

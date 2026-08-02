@@ -15,6 +15,13 @@ SYNC_READY_PATH="/tmp/pika-test-document-sync-ready"
 cleanup() {
   docker exec "$DB_CONTAINER" rm -f "$SYNC_READY_PATH" >/dev/null 2>&1 || true
   docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+select 'delete from public.classroom_managed_storage_coverage
+where classroom_id in (
+  ''f1000000-0000-4000-8000-000000000002'',
+  ''f1000000-0000-4000-8000-000000000004''
+);'
+where to_regclass('public.classroom_managed_storage_coverage') is not null
+\gexec
 delete from public.classrooms
 where id in (
   'f1000000-0000-4000-8000-000000000002',

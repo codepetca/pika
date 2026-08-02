@@ -37,6 +37,107 @@ export function isValidHttpUrl(value: string): boolean {
   }
 }
 
+export function isCurrentPikaManagedTestDocumentUrl(
+  value: string,
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): boolean {
+  if (!supabaseUrl) return false
+
+  try {
+    const candidate = new URL(value)
+    const configured = new URL(supabaseUrl)
+    return candidate.origin === configured.origin
+      && /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/test-documents(?:\/|$)/
+        .test(candidate.pathname)
+  } catch {
+    return false
+  }
+}
+
+export type ManagedTestDocumentStorageClaim = {
+  document_id: string
+  reference_kind: 'teacher_upload' | 'execution_snapshot'
+  managed_object_id: string
+  storage_bucket: 'test-documents'
+  storage_path: string
+  purpose: 'teacher_test_material' | 'test_execution_snapshot'
+}
+
+export function normalizeManagedTestDocumentStoragePath(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const path = value.trim()
+  if (
+    !path
+    || path.startsWith('/')
+    || path.split('/').some((segment) => !segment || segment === '.' || segment === '..')
+  ) {
+    return null
+  }
+  return path
+}
+
+export function currentPikaManagedTestDocumentStoragePath(
+  value: unknown,
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+): string | null {
+  if (typeof value !== 'string' || !supabaseUrl) return null
+
+  try {
+    const candidate = new URL(value)
+    const configured = new URL(supabaseUrl)
+    if (candidate.origin !== configured.origin) return null
+    const match = candidate.pathname.match(
+      /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/,
+    )
+    if (!match || decodeURIComponent(match[1]) !== 'test-documents') return null
+    return normalizeManagedTestDocumentStoragePath(decodeURIComponent(match[2]))
+  } catch {
+    return null
+  }
+}
+
+export function managedTestDocumentStorageClaims(
+  value: unknown,
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+): ManagedTestDocumentStorageClaim[] | null {
+  const documents = normalizeTestDocuments(value)
+  const claims: ManagedTestDocumentStorageClaim[] = []
+
+  for (const document of documents) {
+    if (document.managed_object_id) {
+      const storagePath = document.source === 'upload'
+        ? currentPikaManagedTestDocumentStoragePath(document.url, supabaseUrl)
+        : null
+      if (!storagePath) return null
+      claims.push({
+        document_id: document.id,
+        reference_kind: 'teacher_upload',
+        managed_object_id: document.managed_object_id,
+        storage_bucket: 'test-documents',
+        storage_path: storagePath,
+        purpose: 'teacher_test_material',
+      })
+    }
+
+    if (document.snapshot_managed_object_id) {
+      const storagePath = document.source === 'link'
+        ? normalizeManagedTestDocumentStoragePath(document.snapshot_path)
+        : null
+      if (!storagePath) return null
+      claims.push({
+        document_id: document.id,
+        reference_kind: 'execution_snapshot',
+        managed_object_id: document.snapshot_managed_object_id,
+        storage_bucket: 'test-documents',
+        storage_path: storagePath,
+        purpose: 'test_execution_snapshot',
+      })
+    }
+  }
+
+  return claims
+}
+
 function normalizeTestDocumentSource(value: unknown): TestDocumentSource {
   if (value === 'upload') return 'upload'
   if (value === 'text') return 'text'
@@ -53,8 +154,14 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
     const title = typeof raw.title === 'string' ? raw.title.trim() : ''
     const source = normalizeTestDocumentSource(raw.source)
     const url = typeof raw.url === 'string' ? raw.url.trim() : ''
+    const managedObjectId =
+      typeof raw.managed_object_id === 'string' ? raw.managed_object_id.trim() : ''
     const content = typeof raw.content === 'string' ? raw.content : ''
     const snapshotPath = typeof raw.snapshot_path === 'string' ? raw.snapshot_path.trim() : ''
+    const snapshotManagedObjectId =
+      typeof raw.snapshot_managed_object_id === 'string'
+        ? raw.snapshot_managed_object_id.trim()
+        : ''
     const snapshotContentType =
       typeof raw.snapshot_content_type === 'string' ? raw.snapshot_content_type.trim().toLowerCase() : ''
     const syncedAt =
@@ -82,7 +189,11 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
       title: title.slice(0, 120),
       url,
       source,
+      ...(managedObjectId ? { managed_object_id: managedObjectId } : {}),
       ...(snapshotPath ? { snapshot_path: snapshotPath } : {}),
+      ...(snapshotManagedObjectId
+        ? { snapshot_managed_object_id: snapshotManagedObjectId }
+        : {}),
       ...(snapshotContentType ? { snapshot_content_type: snapshotContentType } : {}),
       ...(syncedAt !== undefined ? { synced_at: syncedAt } : {}),
     })
@@ -107,12 +218,20 @@ export function clearTestDocumentSnapshot(doc: TestDocument): TestDocument {
     title: doc.title,
     source: doc.source,
     ...(doc.url ? { url: doc.url } : {}),
+    ...(doc.managed_object_id ? { managed_object_id: doc.managed_object_id } : {}),
     ...(doc.content ? { content: doc.content } : {}),
   }
 }
 
 export function stripTestDocumentSnapshots(value: unknown): TestDocument[] {
   return normalizeTestDocuments(value).map(clearTestDocumentSnapshot)
+}
+
+export function stripTestDocumentInternalOwnership(value: unknown): TestDocument[] {
+  return stripTestDocumentSnapshots(value).map((document) => {
+    const { managed_object_id: _managedObjectId, ...portableDocument } = document
+    return portableDocument
+  })
 }
 
 export function preserveCurrentTestDocumentSnapshots(
@@ -138,6 +257,9 @@ export function preserveCurrentTestDocumentSnapshots(
     return {
       ...clean,
       snapshot_path: current.snapshot_path,
+      ...(current.snapshot_managed_object_id
+        ? { snapshot_managed_object_id: current.snapshot_managed_object_id }
+        : {}),
       ...(current.snapshot_content_type
         ? { snapshot_content_type: current.snapshot_content_type }
         : {}),

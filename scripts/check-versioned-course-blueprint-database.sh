@@ -36,6 +36,14 @@ cleanup() {
   if [[ -n "$RESULT_ONE" ]]; then rm -f "$RESULT_ONE"; fi
   if [[ -n "$RESULT_TWO" ]]; then rm -f "$RESULT_TWO"; fi
   run_psql -c "
+    do \$managed_coverage_cleanup\$
+    begin
+      if to_regclass('public.classroom_managed_storage_coverage') is not null then
+        execute 'delete from public.classroom_managed_storage_coverage
+          where classroom_id = ''$CLASSROOM_ID''::uuid';
+      end if;
+    end;
+    \$managed_coverage_cleanup\$;
     delete from public.classrooms
     where id = '$CLASSROOM_ID'::uuid;
     delete from public.users

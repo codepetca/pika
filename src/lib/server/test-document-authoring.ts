@@ -1,4 +1,7 @@
-import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
+import {
+  managedTestDocumentStorageClaims,
+  preserveCurrentTestDocumentSnapshots,
+} from '@/lib/test-documents'
 import {
   removeQueuedTestDocumentSnapshotPath,
 } from '@/lib/server/test-document-snapshot-storage-cleanup'
@@ -44,8 +47,26 @@ export async function updateTestDocumentsAtomic(
     input.expectedDocuments,
     input.proposedDocuments,
   )
+  const managedStorageClaims = managedTestDocumentStorageClaims(documents)
+  if (!managedStorageClaims) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Invalid managed test document reference',
+    }
+  }
+  const expectedManagedStorageClaims = managedTestDocumentStorageClaims(
+    input.expectedDocuments,
+  )
+  if (!expectedManagedStorageClaims) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Existing managed test document ownership could not be verified. Reload and try again.',
+    }
+  }
   const { data, error } = await input.supabase.rpc(
-    'update_test_documents_atomic',
+    'update_test_documents_managed_atomic',
     {
       p_documents: documents,
       p_expected_documents: input.expectedDocuments ?? [],
@@ -55,6 +76,8 @@ export async function updateTestDocumentsAtomic(
       p_teacher_id: input.teacherId,
       p_test_id: input.testId,
       p_title: input.title ?? '',
+      p_managed_storage_claims: managedStorageClaims,
+      p_expected_managed_storage_claims: expectedManagedStorageClaims,
       p_update_show_results: input.showResults !== undefined,
       p_update_status: input.status !== undefined,
       p_update_title: input.title !== undefined,
@@ -79,11 +102,18 @@ export async function updateTestDocumentsAtomic(
     if (details.includes('test_not_found')) {
       return { ok: false, status: 404, error: 'Test not found' }
     }
-    if (details.includes('update_test_documents_atomic')) {
+    if (details.includes('managed_test_document_owner_mismatch')) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Uploaded document ownership could not be verified. Reload and upload it again.',
+      }
+    }
+    if (details.includes('update_test_documents_managed_atomic')) {
       return {
         ok: false,
         status: 503,
-        error: 'Atomic test document updates require migration 110 to be applied',
+        error: 'Managed test document updates require migration 117 to be applied',
       }
     }
     console.error('Error updating test documents atomically:', error)

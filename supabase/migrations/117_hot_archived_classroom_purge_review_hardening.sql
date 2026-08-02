@@ -1,0 +1,7475 @@
+-- Explicit managed-file ownership and fail-safe hot archived classroom purge.
+--
+-- Migrations 115 and 116 are already deployed. This migration deliberately
+-- replaces their URL/JSON reference inference with exact (bucket, path)
+-- ownership while preserving their durable purge/resource ledgers.
+
+-- Migration 115's row triggers waited for the lifecycle advisory lock after
+-- PostgreSQL had already locked the row being changed. A purge finalizer takes
+-- those locks in the opposite order, so the wait could form a deadlock. Keep
+-- the blocking lock for orchestrated RPCs, but make trigger-level fencing
+-- non-blocking: a direct/legacy write either owns the lifecycle immediately or
+-- aborts retryably and releases its row lock.
+create or replace function public.classroom_purge_try_lock(p_classroom_id uuid)
+returns boolean
+language sql
+set search_path = ''
+as $$
+  select pg_try_advisory_xact_lock(
+    hashtextextended('pika-classroom-operation:' || p_classroom_id::text, 0)
+  )
+$$;
+
+create or replace function public.guard_classroom_purge_lifecycle(p_classroom_id uuid)
+returns void
+language plpgsql
+set search_path = public
+as $$
+begin
+  if p_classroom_id is null then return; end if;
+  if not public.classroom_purge_try_lock(p_classroom_id) then
+    raise exception 'classroom_operation_busy' using errcode = '40001';
+  end if;
+  if exists (
+    select 1 from public.classroom_purge_fences
+    where classroom_id = p_classroom_id
+  ) then
+    raise exception 'classroom_purge_active' using errcode = '55000';
+  end if;
+end;
+$$;
+
+create or replace function public.reject_classroom_resource_change_during_purge()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_parent_table text := tg_argv[0];
+  v_parent_column text := tg_argv[1];
+  v_old_parent_id uuid;
+  v_new_parent_id uuid;
+  v_old_classroom_id uuid;
+  v_new_classroom_id uuid;
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on' then
+    if tg_op = 'DELETE' then return old; end if;
+    return new;
+  end if;
+
+  if tg_table_name = 'classrooms' then
+    if tg_op <> 'INSERT' then v_old_classroom_id := old.id; end if;
+    if tg_op <> 'DELETE' then v_new_classroom_id := new.id; end if;
+  else
+    if tg_op <> 'INSERT' then
+      v_old_parent_id := nullif(to_jsonb(old)->>v_parent_column, '')::uuid;
+      v_old_classroom_id := public.resolve_classroom_archive_resource_classroom_id(
+        v_parent_table,
+        v_old_parent_id
+      );
+    end if;
+    if tg_op <> 'DELETE' then
+      v_new_parent_id := nullif(to_jsonb(new)->>v_parent_column, '')::uuid;
+      v_new_classroom_id := public.resolve_classroom_archive_resource_classroom_id(
+        v_parent_table,
+        v_new_parent_id
+      );
+    end if;
+  end if;
+
+  perform public.guard_classroom_purge_lifecycle(v_old_classroom_id);
+  if v_new_classroom_id is distinct from v_old_classroom_id then
+    perform public.guard_classroom_purge_lifecycle(v_new_classroom_id);
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end;
+$$;
+
+create or replace function public.reject_classroom_operation_during_purge()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_classroom_ids uuid[];
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on' then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+  if tg_table_name = 'classroom_archive_operations' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.classroom_id else null end
+    ];
+  elsif tg_table_name = 'course_blueprint_operations' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.source_classroom_id else null end,
+      case when tg_op <> 'INSERT' then old.result_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.source_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.result_classroom_id else null end
+    ];
+  elsif tg_table_name = 'course_blueprint_change_proposals' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.source_classroom_id else null end,
+      case when tg_op <> 'INSERT' then old.target_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.source_classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.target_classroom_id else null end
+    ];
+  elsif tg_table_name = 'course_blueprint_editing_sessions' then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.classroom_id else null end
+    ];
+  elsif tg_table_name in (
+    'classroom_archives',
+    'classroom_gradex_extracts',
+    'classroom_archive_source_object_cleanup'
+  ) then
+    v_classroom_ids := array[
+      case when tg_op <> 'INSERT' then old.classroom_id else null end,
+      case when tg_op <> 'DELETE' then new.classroom_id else null end
+    ];
+  elsif tg_table_name in (
+    'classroom_archive_object_upload_cleanup',
+    'classroom_gradex_extract_cleanup'
+  ) then
+    select array_agg(distinct operation.classroom_id order by operation.classroom_id)
+    into v_classroom_ids
+    from public.classroom_archive_operations operation
+    where operation.id = any(array[
+      case when tg_op <> 'INSERT' then old.operation_id else null end,
+      case when tg_op <> 'DELETE' then new.operation_id else null end
+    ]);
+  end if;
+
+  for v_classroom_id in
+    select distinct candidate
+    from unnest(v_classroom_ids) candidate
+    where candidate is not null
+    order by candidate
+  loop
+    perform public.guard_classroom_purge_lifecycle(v_classroom_id);
+  end loop;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+-- Extend migration 115's operation fence to every hot operational ledger that
+-- can be claimed or made persistent independently of its operation row.
+drop trigger if exists classroom_purge_fence_archive_operations
+  on public.classroom_archive_operations;
+drop trigger if exists classroom_purge_fence_blueprint_operations
+  on public.course_blueprint_operations;
+drop trigger if exists classroom_purge_fence_blueprint_proposals
+  on public.course_blueprint_change_proposals;
+drop trigger if exists classroom_purge_fence_blueprint_sessions
+  on public.course_blueprint_editing_sessions;
+
+do $$
+declare
+  v_table text;
+begin
+  foreach v_table in array array[
+    'classroom_archive_operations',
+    'course_blueprint_operations',
+    'course_blueprint_change_proposals',
+    'course_blueprint_editing_sessions',
+    'classroom_archives',
+    'classroom_gradex_extracts',
+    'classroom_archive_object_upload_cleanup',
+    'classroom_gradex_extract_cleanup',
+    'classroom_archive_source_object_cleanup'
+  ]
+  loop
+    execute format(
+      'drop trigger if exists %I on public.%I',
+      'classroom_purge_fence_' || v_table,
+      v_table
+    );
+    execute format(
+      'create trigger %I before insert or update or delete on public.%I '
+      || 'for each row execute function public.reject_classroom_operation_during_purge()',
+      'classroom_purge_fence_' || v_table,
+      v_table
+    );
+  end loop;
+end;
+$$;
+
+-- Save-operation rows are classroom-owned privacy/telemetry state, but they
+-- are intentionally excluded from the versioned classroom archive format.
+-- Remove historical rows whose document is already gone, then make ownership
+-- structural so a classroom root deletion cannot strand them again.
+delete from public.assignment_doc_save_operations operation
+where not exists (
+  select 1
+  from public.assignment_docs document
+  where document.id = operation.assignment_doc_id
+);
+
+alter table public.assignment_doc_save_operations
+  drop constraint if exists assignment_doc_save_operations_assignment_doc_id_fkey;
+alter table public.assignment_doc_save_operations
+  add constraint assignment_doc_save_operations_assignment_doc_id_fkey
+  foreign key (assignment_doc_id)
+  references public.assignment_docs (id)
+  on delete cascade;
+
+create index if not exists idx_assignment_doc_save_operations_assignment_doc
+  on public.assignment_doc_save_operations (assignment_doc_id);
+
+create or replace function public.guard_assignment_doc_save_operation_lifecycle()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_assignment_doc_id uuid := case when tg_op = 'DELETE'
+    then old.assignment_doc_id else new.assignment_doc_id end;
+  v_classroom_id uuid;
+  v_archived_at timestamptz;
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on'
+    or current_setting('pika.classroom_archive_compaction', true) = 'on'
+    or current_setting('pika.classroom_archive_restore', true) = 'on'
+  then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
+  select assignment.classroom_id into v_classroom_id
+  from public.assignment_docs document
+  join public.assignments assignment on assignment.id = document.assignment_id
+  where document.id = v_assignment_doc_id;
+  if not found then
+    -- PostgreSQL's internal ON DELETE CASCADE removes the parent row before
+    -- invoking this child trigger. The assignment document delete has already
+    -- passed its own classroom lifecycle guard, so only that child DELETE may
+    -- treat the missing parent as expected cascade cleanup.
+    if tg_op = 'DELETE' then
+      return old;
+    end if;
+    raise exception 'assignment_doc_not_found' using errcode = '23503';
+  end if;
+
+  perform public.guard_classroom_purge_lifecycle(v_classroom_id);
+  select archived_at into v_archived_at
+  from public.classrooms
+  where id = v_classroom_id
+  for key share;
+  if not found then
+    raise exception 'classroom_not_found' using errcode = '23503';
+  end if;
+  if tg_op <> 'DELETE' and v_archived_at is not null then
+    raise exception 'classroom_archived' using errcode = '55000';
+  end if;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+drop trigger if exists assignment_doc_save_operation_lifecycle_guard
+  on public.assignment_doc_save_operations;
+create trigger assignment_doc_save_operation_lifecycle_guard
+before insert or update or delete on public.assignment_doc_save_operations
+for each row execute function public.guard_assignment_doc_save_operation_lifecycle();
+
+-- Migration 115 coupled purge evidence to the versioned archive table list.
+-- Purge ownership is broader, so keep the same durable ledger but remove that
+-- archive-format foreign key. Insertions remain private RPC-owned.
+alter table public.classroom_purge_resources
+  drop constraint if exists classroom_purge_resources_table_name_fkey;
+
+create table public.managed_storage_settings (
+  singleton boolean primary key default true check (singleton),
+  enforce_ownership boolean not null default false,
+  hot_classroom_purge_enabled boolean not null default false,
+  hot_classroom_purge_canary_enabled boolean not null default false,
+  hot_classroom_purge_canary_teacher_id uuid,
+  hot_classroom_purge_canary_classroom_id uuid,
+  updated_at timestamptz not null default clock_timestamp(),
+  check (
+    (hot_classroom_purge_canary_teacher_id is null)
+      = (hot_classroom_purge_canary_classroom_id is null)
+  ),
+  check (
+    not hot_classroom_purge_canary_enabled
+    or (
+      hot_classroom_purge_canary_teacher_id is not null
+      and hot_classroom_purge_canary_classroom_id is not null
+    )
+  )
+);
+
+insert into public.managed_storage_settings (singleton)
+values (true)
+on conflict (singleton) do nothing;
+
+alter table public.managed_storage_settings enable row level security;
+revoke all on table public.managed_storage_settings from public, anon, authenticated, service_role;
+grant select on table public.managed_storage_settings to service_role;
+
+comment on table public.managed_storage_settings is
+  'Operator-controlled rollout gates. General release and the exact teacher/classroom canary default false; migration application cannot enable purge.';
+
+create table public.managed_storage_objects (
+  id uuid primary key default gen_random_uuid(),
+  storage_bucket text not null check (storage_bucket in (
+    'assignment-artifacts',
+    'submission-images',
+    'test-documents',
+    'classroom-archives',
+    'gradex-analytics-extracts'
+  )),
+  storage_path text not null check (
+    storage_path <> ''
+    and storage_path not like '/%'
+    and strpos(storage_path, E'\\') = 0
+    and not ('..' = any(string_to_array(storage_path, '/')))
+  ),
+  -- A classroom scope survives hot-row compaction. Its UUID is the stable
+  -- lifecycle identity used by both the hot classroom and cold tombstone;
+  -- availability tables must not force physical files to change owners.
+  classroom_id uuid,
+  course_blueprint_id uuid references public.course_blueprints (id) on delete restrict,
+  purpose text not null check (purpose in (
+    'student_assignment_artifact',
+    'student_inline_image',
+    'teacher_test_material',
+    'test_execution_snapshot',
+    'legacy_classroom_file',
+    'classroom_archive',
+    'gradex_extract'
+  )),
+  status text not null default 'pending_upload' check (status in (
+    'pending_upload',
+    'ready',
+    'cleanup_pending',
+    'cleanup_processing',
+    'purging'
+  )),
+  created_by_user_id uuid references public.users (id) on delete set null,
+  data_subject_user_id uuid references public.users (id) on delete set null,
+  resource_type text,
+  resource_id uuid,
+  content_type text,
+  byte_size bigint check (byte_size is null or byte_size >= 0),
+  content_sha256 text check (
+    content_sha256 is null or content_sha256 ~ '^[a-f0-9]{64}$'
+  ),
+  upload_expires_at timestamptz,
+  attempt_count integer not null default 0 check (attempt_count >= 0),
+  next_attempt_at timestamptz not null default clock_timestamp(),
+  lease_token uuid,
+  lease_expires_at timestamptz,
+  last_error_code text,
+  created_at timestamptz not null default clock_timestamp(),
+  ready_at timestamptz,
+  updated_at timestamptz not null default clock_timestamp(),
+  unique (storage_bucket, storage_path),
+  check (num_nonnulls(classroom_id, course_blueprint_id) = 1),
+  check (
+    purpose not in (
+      'student_assignment_artifact',
+      'student_inline_image',
+      'test_execution_snapshot',
+      'legacy_classroom_file'
+    )
+    or classroom_id is not null
+  ),
+  check (
+    (status = 'cleanup_processing' and lease_token is not null and lease_expires_at is not null)
+    or (status <> 'cleanup_processing' and lease_token is null and lease_expires_at is null)
+  ),
+  check ((status = 'ready') = (ready_at is not null)),
+  check (
+    (storage_bucket = 'classroom-archives' and purpose = 'classroom_archive')
+    or (storage_bucket = 'gradex-analytics-extracts' and purpose = 'gradex_extract')
+    or (
+      storage_bucket in ('assignment-artifacts', 'submission-images', 'test-documents')
+      and purpose not in ('classroom_archive', 'gradex_extract')
+    )
+  ),
+  check (
+    course_blueprint_id is null
+    or (storage_bucket = 'test-documents' and purpose = 'teacher_test_material')
+  )
+);
+
+create index managed_storage_objects_classroom
+  on public.managed_storage_objects (classroom_id, status, created_at)
+  where classroom_id is not null;
+create index managed_storage_objects_blueprint
+  on public.managed_storage_objects (course_blueprint_id, status, created_at)
+  where course_blueprint_id is not null;
+create index managed_storage_objects_cleanup_due
+  on public.managed_storage_objects (next_attempt_at, created_at)
+  where status in ('cleanup_pending', 'cleanup_processing');
+create index managed_storage_objects_created_by
+  on public.managed_storage_objects (created_by_user_id)
+  where created_by_user_id is not null;
+create index managed_storage_objects_data_subject
+  on public.managed_storage_objects (data_subject_user_id)
+  where data_subject_user_id is not null;
+
+alter table public.managed_storage_objects enable row level security;
+revoke all on table public.managed_storage_objects from public, anon, authenticated;
+grant select on table public.managed_storage_objects to service_role;
+
+comment on table public.managed_storage_objects is
+  'Exact physical object ownership. One object has one immutable lifecycle scope: a classroom UUID that survives hot/cold transitions, or a Course Blueprint; user ids are attribution only.';
+
+create or replace function public.guard_managed_storage_scope_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_scope_rows integer;
+begin
+  if new.classroom_id is null then return new; end if;
+  select
+    (exists (select 1 from public.classrooms where id = new.classroom_id))::integer
+    + (exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = new.classroom_id
+    ))::integer
+  into v_scope_rows;
+  if v_scope_rows <> 1 then
+    raise exception 'managed_storage_classroom_scope_invalid' using errcode = '23503';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger managed_storage_scope_owner_guard
+before insert or update of classroom_id, course_blueprint_id
+on public.managed_storage_objects
+for each row execute function public.guard_managed_storage_scope_owner();
+
+-- Storage identity is permanent. Lifecycle ownership is also immutable except
+-- for the bounded legacy reconciliation that atomically copies the Classroom
+-- target, rewrites every live reference, and transfers the shared source to
+-- its preserved Blueprint owner in one transaction.
+create or replace function public.guard_managed_storage_identity_immutable()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.storage_bucket is distinct from old.storage_bucket
+    or new.storage_path is distinct from old.storage_path
+  then
+    raise exception 'managed_storage_identity_immutable' using errcode = '55000';
+  end if;
+
+  if new.classroom_id is distinct from old.classroom_id
+    or new.course_blueprint_id is distinct from old.course_blueprint_id
+    or new.purpose is distinct from old.purpose
+  then
+    if current_setting('pika.managed_storage_owner_reconciliation', true) is distinct from 'on'
+      or old.classroom_id is null
+      or old.course_blueprint_id is not null
+      or new.classroom_id is not null
+      or new.course_blueprint_id is null
+      or old.storage_bucket <> 'test-documents'
+      or new.purpose <> 'teacher_test_material'
+      or old.status <> 'ready'
+      or new.status <> 'ready'
+    then
+      raise exception 'managed_storage_owner_immutable' using errcode = '55000';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger managed_storage_identity_immutable_guard
+before update of storage_bucket, storage_path, classroom_id, course_blueprint_id, purpose
+on public.managed_storage_objects
+for each row execute function public.guard_managed_storage_identity_immutable();
+
+create table public.classroom_managed_storage_coverage (
+  classroom_id uuid primary key constraint classroom_managed_storage_coverage_classroom_id_fkey
+    references public.classrooms (id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'verified', 'blocked')),
+  inventory_version integer not null default 1 check (inventory_version > 0),
+  source_revision bigint,
+  reference_count integer not null default 0 check (reference_count >= 0),
+  object_count integer not null default 0 check (object_count >= 0),
+  inventory_sha256 text check (
+    inventory_sha256 is null or inventory_sha256 ~ '^[a-f0-9]{64}$'
+  ),
+  error_code text,
+  verified_at timestamptz,
+  updated_at timestamptz not null default clock_timestamp(),
+  check (
+    (status = 'verified' and verified_at is not null and inventory_sha256 is not null)
+    or (status <> 'verified' and verified_at is null)
+  )
+);
+
+insert into public.classroom_managed_storage_coverage (classroom_id, status)
+select id, 'pending'
+from public.classrooms
+on conflict (classroom_id) do nothing;
+
+alter table public.classroom_managed_storage_coverage enable row level security;
+revoke all on table public.classroom_managed_storage_coverage from public, anon, authenticated;
+grant select on table public.classroom_managed_storage_coverage to service_role;
+
+-- Operational ledgers keep their immutable bucket/path evidence for archive
+-- compatibility, but the managed object id is the lifecycle/deletion owner.
+alter table public.classroom_archives
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete restrict;
+alter table public.classroom_archive_operations
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_archive_object_upload_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_archive_source_object_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_gradex_extracts
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.classroom_gradex_extract_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.assignment_artifact_storage_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+alter table public.test_document_snapshot_storage_cleanup
+  add column managed_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+
+create index classroom_archives_managed_object
+  on public.classroom_archives (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_archive_operations_managed_object
+  on public.classroom_archive_operations (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_archive_upload_cleanup_managed_object
+  on public.classroom_archive_object_upload_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_archive_source_cleanup_managed_object
+  on public.classroom_archive_source_object_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_gradex_extracts_managed_object
+  on public.classroom_gradex_extracts (managed_object_id)
+  where managed_object_id is not null;
+create index classroom_gradex_cleanup_managed_object
+  on public.classroom_gradex_extract_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index assignment_artifact_cleanup_managed_object
+  on public.assignment_artifact_storage_cleanup (managed_object_id)
+  where managed_object_id is not null;
+create index test_document_snapshot_cleanup_managed_object
+  on public.test_document_snapshot_storage_cleanup (managed_object_id)
+  where managed_object_id is not null;
+
+-- Backfill only from exact operational identities. The classroom UUID is a
+-- stable scope key, so the same statement covers hot and already-compacted
+-- classrooms without creating a second cold-ownership state machine.
+-- Verified archive artifacts.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  content_type, byte_size, content_sha256, ready_at
+)
+select
+  archive.storage_bucket,
+  archive.storage_path,
+  archive.classroom_id,
+  'classroom_archive',
+  'ready',
+  archive.teacher_id,
+  'classroom_archive',
+  archive.id,
+  'application/gzip',
+  archive.compressed_byte_size,
+  archive.artifact_sha256,
+  archive.verified_at
+from public.classroom_archives archive
+where exists (select 1 from public.classrooms where id = archive.classroom_id)
+   or exists (
+     select 1 from public.classroom_cold_tombstones
+     where classroom_id = archive.classroom_id
+   )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_archives archive
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = archive.storage_bucket
+  and object.storage_path = archive.storage_path;
+
+-- Verified Gradex artifacts.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  content_type, byte_size, content_sha256, ready_at, next_attempt_at
+)
+select
+  extract.storage_bucket,
+  extract.storage_path,
+  extract.classroom_id,
+  'gradex_extract',
+  'ready',
+  extract.teacher_id,
+  'classroom_gradex_extract',
+  extract.id,
+  'application/gzip',
+  extract.compressed_byte_size,
+  extract.artifact_sha256,
+  extract.verified_at,
+  extract.delete_after
+from public.classroom_gradex_extracts extract
+where exists (select 1 from public.classrooms where id = extract.classroom_id)
+   or exists (
+     select 1 from public.classroom_cold_tombstones
+     where classroom_id = extract.classroom_id
+   )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_gradex_extracts extract
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = extract.storage_bucket
+  and object.storage_path = extract.storage_path;
+
+-- Interrupted archive/restore uploads that are not represented by a verified
+-- archive still receive durable managed cleanup ownership.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  content_type, byte_size, content_sha256, last_error_code, next_attempt_at
+)
+select
+  cleanup.storage_bucket,
+  cleanup.storage_path,
+  operation.classroom_id,
+  case
+    when cleanup.storage_bucket = 'classroom-archives' then 'classroom_archive'
+    else 'legacy_classroom_file'
+  end,
+  'cleanup_pending',
+  operation.teacher_id,
+  'classroom_archive_upload_cleanup',
+  operation.id,
+  case when cleanup.storage_bucket = 'classroom-archives'
+    then 'application/gzip' else null end,
+  cleanup.expected_byte_size,
+  cleanup.expected_sha256,
+  'legacy_archive_upload_cleanup',
+  cleanup.next_attempt_at
+from public.classroom_archive_object_upload_cleanup cleanup
+join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+where cleanup.status <> 'deleted'
+  and (
+    exists (select 1 from public.classrooms where id = operation.classroom_id)
+    or exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = operation.classroom_id
+    )
+  )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_archive_object_upload_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where cleanup.status <> 'deleted'
+  and object.storage_bucket = cleanup.storage_bucket
+  and object.storage_path = cleanup.storage_path;
+
+-- Historical cold-compaction source cleanup is explicitly adopted. This is
+-- the production round-trip shape that must not be omitted from hot purge.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, resource_type, resource_id, byte_size, content_sha256,
+  last_error_code, next_attempt_at
+)
+select
+  cleanup.storage_bucket,
+  cleanup.storage_path,
+  cleanup.classroom_id,
+  'legacy_classroom_file',
+  'cleanup_pending',
+  'classroom_archive_source_cleanup',
+  cleanup.operation_id,
+  cleanup.expected_byte_size,
+  cleanup.expected_sha256,
+  'legacy_archive_source_cleanup',
+  cleanup.next_attempt_at
+from public.classroom_archive_source_object_cleanup cleanup
+where cleanup.status <> 'deleted'
+  and (
+    exists (select 1 from public.classrooms where id = cleanup.classroom_id)
+    or exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = cleanup.classroom_id
+    )
+  )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_archive_source_object_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where cleanup.status <> 'deleted'
+  and object.storage_bucket = cleanup.storage_bucket
+  and object.storage_path = cleanup.storage_path;
+
+-- Gradex cleanup may be the only durable evidence for an interrupted upload.
+insert into public.managed_storage_objects (
+  storage_bucket, storage_path, classroom_id,
+  purpose, status, created_by_user_id, resource_type, resource_id,
+  last_error_code, next_attempt_at
+)
+select
+  cleanup.storage_bucket,
+  cleanup.storage_path,
+  operation.classroom_id,
+  'gradex_extract',
+  'cleanup_pending',
+  operation.teacher_id,
+  'classroom_gradex_extract_cleanup',
+  cleanup.operation_id,
+  'legacy_gradex_cleanup',
+  cleanup.next_attempt_at
+from public.classroom_gradex_extract_cleanup cleanup
+join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+where cleanup.status <> 'deleted'
+  and (
+    exists (select 1 from public.classrooms where id = operation.classroom_id)
+    or exists (
+      select 1 from public.classroom_cold_tombstones
+      where classroom_id = operation.classroom_id
+    )
+  )
+on conflict (storage_bucket, storage_path) do nothing;
+
+update public.classroom_gradex_extract_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where cleanup.status <> 'deleted'
+  and object.storage_bucket = cleanup.storage_bucket
+  and object.storage_path = cleanup.storage_path;
+
+-- Operation rows are compatibility metadata. Bind their path when it exists,
+-- but never create a second owner for a key already represented above.
+update public.classroom_archive_operations operation
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where operation.storage_bucket is not null
+  and operation.storage_path is not null
+  and object.storage_bucket = operation.storage_bucket
+  and object.storage_path = operation.storage_path;
+
+update public.assignment_artifact_storage_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = 'assignment-artifacts'
+  and object.storage_path = cleanup.storage_path
+  and object.classroom_id is not null;
+
+update public.test_document_snapshot_storage_cleanup cleanup
+set managed_object_id = object.id
+from public.managed_storage_objects object
+where object.storage_bucket = 'test-documents'
+  and object.storage_path = cleanup.storage_path
+  and object.classroom_id is not null;
+
+-- An ownerless compatibility cleanup row cannot be assigned to a Classroom
+-- safely from its path. Keep it visible as global unresolved evidence until an
+-- operator reconciles or removes the row after verifying exact byte absence.
+create or replace function public.unresolved_legacy_managed_cleanup_exists()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.assignment_artifact_storage_cleanup cleanup
+    left join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+      and object.storage_bucket = 'assignment-artifacts'
+      and object.storage_path = cleanup.storage_path
+      and object.classroom_id is not null
+    where object.id is null
+  ) or exists (
+    select 1
+    from public.test_document_snapshot_storage_cleanup cleanup
+    left join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+      and object.storage_bucket = 'test-documents'
+      and object.storage_path = cleanup.storage_path
+      and object.classroom_id is not null
+    where object.id is null
+  );
+$$;
+
+-- These two pre-managed cleanup ledgers remain compatibility evidence only.
+-- Resolve their exact managed owner on every write and participate in the
+-- classroom lifecycle fence before a worker can claim or mutate a row.
+create or replace function public.prepare_legacy_managed_cleanup_ledger_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_bucket text := case tg_table_name
+    when 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'
+    when 'test_document_snapshot_storage_cleanup' then 'test-documents'
+    else null
+  end;
+  v_exact_object_id uuid;
+  v_classroom_id uuid;
+  v_enforce boolean;
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on' then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+  if v_bucket is null then
+    raise exception 'unsupported_managed_cleanup_ledger' using errcode = '55000';
+  end if;
+
+  if tg_op <> 'DELETE' then
+    select object.id
+    into v_exact_object_id
+    from public.managed_storage_objects object
+    where object.storage_bucket = v_bucket
+      and object.storage_path = new.storage_path
+      and object.classroom_id is not null;
+    if new.managed_object_id is not null
+      and new.managed_object_id is distinct from v_exact_object_id
+    then
+      raise exception 'managed_cleanup_owner_mismatch' using errcode = '23503';
+    end if;
+    new.managed_object_id := v_exact_object_id;
+    if new.managed_object_id is null then
+      select settings.enforce_ownership
+      into v_enforce
+      from public.managed_storage_settings settings
+      where settings.singleton
+      for share;
+      if coalesce(v_enforce, false) then
+        raise exception 'managed_cleanup_owner_required' using errcode = '55000';
+      end if;
+    end if;
+  end if;
+
+  for v_classroom_id in
+    select distinct object.classroom_id
+    from public.managed_storage_objects object
+    where object.classroom_id is not null
+      and object.id in (
+        case when tg_op <> 'INSERT' then old.managed_object_id end,
+        case when tg_op <> 'DELETE' then new.managed_object_id end
+      )
+    order by object.classroom_id
+  loop
+    perform public.guard_classroom_purge_lifecycle(v_classroom_id);
+  end loop;
+
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+drop trigger if exists prepare_managed_cleanup_ledger_change
+  on public.assignment_artifact_storage_cleanup;
+create trigger prepare_managed_cleanup_ledger_change
+before insert or update or delete on public.assignment_artifact_storage_cleanup
+for each row execute function public.prepare_legacy_managed_cleanup_ledger_change();
+
+drop trigger if exists prepare_managed_cleanup_ledger_change
+  on public.test_document_snapshot_storage_cleanup;
+create trigger prepare_managed_cleanup_ledger_change
+before insert or update or delete on public.test_document_snapshot_storage_cleanup
+for each row execute function public.prepare_legacy_managed_cleanup_ledger_change();
+
+-- Managed cleanup may reconcile a compatibility row before its older worker
+-- observes completion. Treat that exact absence as idempotent success, while a
+-- still-present row with a stale/wrong lease continues to fail closed.
+create or replace function public.complete_assignment_artifact_storage_cleanup(
+  p_cleanup_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.assignment_artifact_storage_cleanup
+  where id = p_cleanup_id
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  if found then return true; end if;
+  return not exists (
+    select 1 from public.assignment_artifact_storage_cleanup where id = p_cleanup_id
+  );
+end;
+$$;
+
+create or replace function public.complete_test_document_snapshot_storage_cleanup(
+  p_cleanup_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.test_document_snapshot_storage_cleanup
+  where id = p_cleanup_id
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  if found then return true; end if;
+  return not exists (
+    select 1 from public.test_document_snapshot_storage_cleanup where id = p_cleanup_id
+  );
+end;
+$$;
+
+-- The scope UUID persists through restore, so deleting a tombstone never
+-- transfers or recreates ownership. Until cold deletion is implemented, a
+-- tombstone with scoped files may disappear only as part of a verified restore
+-- that has already recreated the hot classroom with the same UUID.
+create or replace function public.guard_cold_classroom_scope_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.managed_storage_objects object
+    where object.classroom_id = old.classroom_id
+  ) then
+    return old;
+  end if;
+  if current_setting('pika.classroom_archive_restore', true) = 'on'
+    and exists (
+      select 1 from public.classrooms classroom
+      where classroom.id = old.classroom_id
+        and classroom.teacher_id = old.teacher_id
+    )
+  then
+    return old;
+  end if;
+  raise exception 'cold_classroom_deletion_not_implemented' using errcode = '55000';
+end;
+$$;
+
+drop trigger if exists guard_cold_classroom_scope_delete
+  on public.classroom_cold_tombstones;
+create trigger guard_cold_classroom_scope_delete
+before delete on public.classroom_cold_tombstones
+for each row execute function public.guard_cold_classroom_scope_delete();
+
+create or replace function public.initialize_classroom_managed_storage_coverage()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  insert into public.classroom_managed_storage_coverage (
+    classroom_id,
+    status,
+    inventory_sha256,
+    verified_at
+  ) values (
+    new.id,
+    'verified',
+    encode(extensions.digest(convert_to('[]', 'UTF8'), 'sha256'), 'hex'),
+    clock_timestamp()
+  ) on conflict (classroom_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists initialize_classroom_managed_storage_coverage on public.classrooms;
+create trigger initialize_classroom_managed_storage_coverage
+after insert on public.classrooms
+for each row execute function public.initialize_classroom_managed_storage_coverage();
+
+create table public.classroom_archive_restore_managed_objects (
+  operation_id uuid not null
+    references public.classroom_archive_operations (id) on delete cascade,
+  managed_object_id uuid not null,
+  storage_bucket text not null check (storage_bucket in (
+    'assignment-artifacts', 'submission-images', 'test-documents'
+  )),
+  storage_path text not null check (btrim(storage_path) <> ''),
+  purpose text not null check (purpose in (
+    'student_assignment_artifact',
+    'student_inline_image',
+    'teacher_test_material',
+    'test_execution_snapshot',
+    'legacy_classroom_file'
+  )),
+  created_by_user_id uuid references public.users (id) on delete set null,
+  data_subject_user_id uuid references public.users (id) on delete set null,
+  resource_type text,
+  resource_id uuid,
+  content_type text,
+  created_at timestamptz not null default clock_timestamp(),
+  primary key (operation_id, managed_object_id),
+  unique (operation_id, storage_bucket, storage_path)
+);
+
+alter table public.classroom_archive_restore_managed_objects enable row level security;
+revoke all on table public.classroom_archive_restore_managed_objects
+  from public, anon, authenticated;
+grant select on table public.classroom_archive_restore_managed_objects to service_role;
+
+create or replace function public.begin_classroom_archive_restore_managed_v2(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_archive_id uuid,
+  p_request_sha256 text,
+  p_target_schema_migration text,
+  p_adapter_chain jsonb,
+  p_resource_counts jsonb,
+  p_storage_objects jsonb,
+  p_managed_objects jsonb,
+  p_database_budget_bytes bigint,
+  p_source_contract_version integer,
+  p_restore_contract_version integer,
+  p_source_resource_counts jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result jsonb;
+  v_descriptor jsonb;
+begin
+  if jsonb_typeof(p_managed_objects) <> 'array'
+    or jsonb_array_length(p_managed_objects) <> jsonb_array_length(p_storage_objects)
+  then
+    raise exception 'Invalid managed restore inventory' using errcode = '22023';
+  end if;
+  for v_descriptor in select value from jsonb_array_elements(p_managed_objects)
+  loop
+    if jsonb_typeof(v_descriptor) <> 'object'
+      or v_descriptor - 'managed_object_id' - 'storage_bucket' - 'storage_path'
+        - 'purpose' - 'created_by_user_id' - 'data_subject_user_id'
+        - 'resource_type' - 'resource_id' - 'content_type' <> '{}'::jsonb
+      or public.managed_storage_uuid(v_descriptor->>'managed_object_id') is null
+      or v_descriptor->>'purpose' not in (
+        'student_assignment_artifact', 'student_inline_image',
+        'teacher_test_material', 'test_execution_snapshot',
+        'legacy_classroom_file'
+      )
+      or not exists (
+        select 1
+        from jsonb_array_elements(p_storage_objects) storage_object(value)
+        where storage_object.value->>'storage_bucket' = v_descriptor->>'storage_bucket'
+          and storage_object.value->>'storage_path' = v_descriptor->>'storage_path'
+      )
+    then
+      raise exception 'Invalid managed restore descriptor' using errcode = '22023';
+    end if;
+  end loop;
+
+  v_result := public.begin_classroom_archive_restore_v2(
+    p_operation_id,
+    p_teacher_id,
+    p_classroom_id,
+    p_archive_id,
+    p_request_sha256,
+    p_target_schema_migration,
+    p_adapter_chain,
+    p_resource_counts,
+    p_storage_objects,
+    p_database_budget_bytes,
+    p_source_contract_version,
+    p_restore_contract_version,
+    p_source_resource_counts
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is false then
+    return v_result;
+  end if;
+
+  insert into public.classroom_archive_restore_managed_objects (
+    operation_id,
+    managed_object_id,
+    storage_bucket,
+    storage_path,
+    purpose,
+    created_by_user_id,
+    data_subject_user_id,
+    resource_type,
+    resource_id,
+    content_type
+  )
+  select
+    p_operation_id,
+    (descriptor.value->>'managed_object_id')::uuid,
+    descriptor.value->>'storage_bucket',
+    descriptor.value->>'storage_path',
+    descriptor.value->>'purpose',
+    nullif(descriptor.value->>'created_by_user_id', '')::uuid,
+    nullif(descriptor.value->>'data_subject_user_id', '')::uuid,
+    nullif(btrim(descriptor.value->>'resource_type'), ''),
+    nullif(descriptor.value->>'resource_id', '')::uuid,
+    nullif(btrim(descriptor.value->>'content_type'), '')
+  from jsonb_array_elements(p_managed_objects) descriptor(value)
+  on conflict (operation_id, managed_object_id) do nothing;
+
+  if exists (
+    (
+      select managed_object_id, storage_bucket, storage_path, purpose,
+        created_by_user_id, data_subject_user_id, resource_type, resource_id, content_type
+      from public.classroom_archive_restore_managed_objects
+      where operation_id = p_operation_id
+      except
+      select
+        (value->>'managed_object_id')::uuid,
+        value->>'storage_bucket', value->>'storage_path', value->>'purpose',
+        nullif(value->>'created_by_user_id', '')::uuid,
+        nullif(value->>'data_subject_user_id', '')::uuid,
+        nullif(btrim(value->>'resource_type'), ''),
+        nullif(value->>'resource_id', '')::uuid,
+        nullif(btrim(value->>'content_type'), '')
+      from jsonb_array_elements(p_managed_objects)
+    ) union all (
+      select
+        (value->>'managed_object_id')::uuid,
+        value->>'storage_bucket', value->>'storage_path', value->>'purpose',
+        nullif(value->>'created_by_user_id', '')::uuid,
+        nullif(value->>'data_subject_user_id', '')::uuid,
+        nullif(btrim(value->>'resource_type'), ''),
+        nullif(value->>'resource_id', '')::uuid,
+        nullif(btrim(value->>'content_type'), '')
+      from jsonb_array_elements(p_managed_objects)
+      except
+      select managed_object_id, storage_bucket, storage_path, purpose,
+        created_by_user_id, data_subject_user_id, resource_type, resource_id, content_type
+      from public.classroom_archive_restore_managed_objects
+      where operation_id = p_operation_id
+    )
+  ) then
+    raise exception 'Managed restore inventory changed' using errcode = '40001';
+  end if;
+
+  -- Reserve every restore destination before Storage is written. The stable
+  -- classroom scope is currently represented by the cold tombstone; the same
+  -- managed rows remain valid after the atomic restore swaps it for the hot row.
+  for v_descriptor in
+    select descriptor.value
+    from jsonb_array_elements(p_managed_objects) descriptor(value)
+    order by descriptor.value->>'storage_bucket', descriptor.value->>'storage_path'
+  loop
+    perform public.managed_storage_exact_lock(
+      v_descriptor->>'storage_bucket',
+      v_descriptor->>'storage_path'
+    );
+  end loop;
+
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, purpose, status,
+    created_by_user_id, data_subject_user_id, resource_type, resource_id,
+    content_type, byte_size, content_sha256, upload_expires_at
+  )
+  select
+    descriptor.managed_object_id,
+    descriptor.storage_bucket,
+    descriptor.storage_path,
+    p_classroom_id,
+    descriptor.purpose,
+    'pending_upload',
+    descriptor.created_by_user_id,
+    descriptor.data_subject_user_id,
+    descriptor.resource_type,
+    descriptor.resource_id,
+    descriptor.content_type,
+    (storage_object.value->>'expected_byte_size')::bigint,
+    storage_object.value->>'expected_sha256',
+    operation.snapshot_expires_at
+  from public.classroom_archive_restore_managed_objects descriptor
+  join public.classroom_archive_operations operation
+    on operation.id = descriptor.operation_id
+  join lateral jsonb_array_elements(p_storage_objects) storage_object(value)
+    on storage_object.value->>'storage_bucket' = descriptor.storage_bucket
+   and storage_object.value->>'storage_path' = descriptor.storage_path
+  where descriptor.operation_id = p_operation_id
+  on conflict (id) do nothing;
+
+  if exists (
+    select 1
+    from public.classroom_archive_restore_managed_objects descriptor
+    join public.classroom_archive_operations operation
+      on operation.id = descriptor.operation_id
+    join lateral jsonb_array_elements(p_storage_objects) storage_object(value)
+      on storage_object.value->>'storage_bucket' = descriptor.storage_bucket
+     and storage_object.value->>'storage_path' = descriptor.storage_path
+    left join public.managed_storage_objects object
+      on object.id = descriptor.managed_object_id
+     and object.classroom_id = p_classroom_id
+     and object.course_blueprint_id is null
+     and object.storage_bucket = descriptor.storage_bucket
+     and object.storage_path = descriptor.storage_path
+     and object.purpose = descriptor.purpose
+     and object.resource_type is not distinct from descriptor.resource_type
+     and object.resource_id is not distinct from descriptor.resource_id
+     and object.byte_size is not distinct from
+       (storage_object.value->>'expected_byte_size')::bigint
+     and object.content_sha256 is not distinct from
+       storage_object.value->>'expected_sha256'
+    where descriptor.operation_id = p_operation_id
+      and (object.id is null or object.status = 'cleanup_processing')
+  ) then
+    raise exception 'Managed restore reservation conflicts' using errcode = '23505';
+  end if;
+
+  update public.managed_storage_objects object
+  set
+    status = 'pending_upload',
+    upload_expires_at = operation.snapshot_expires_at,
+    lease_token = null,
+    lease_expires_at = null,
+    ready_at = null,
+    last_error_code = null,
+    next_attempt_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  from public.classroom_archive_restore_managed_objects descriptor
+  join public.classroom_archive_operations operation
+    on operation.id = descriptor.operation_id
+  where descriptor.operation_id = p_operation_id
+    and object.id = descriptor.managed_object_id
+    and object.status = 'cleanup_pending';
+  return v_result;
+end;
+$$;
+
+alter function public.stage_classroom_archive_object_upload(
+  uuid, uuid, text, text, text, bigint
+) rename to stage_classroom_archive_object_upload_legacy_117;
+
+create or replace function public.stage_classroom_archive_object_upload(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_expected_sha256 text,
+  p_expected_byte_size bigint
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_managed_object_id uuid;
+  v_operation_type text;
+  v_staged boolean;
+begin
+  select operation.classroom_id into v_classroom_id
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id;
+  if not found then return false; end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms where id = v_classroom_id for update;
+  if not found then
+    perform 1 from public.classroom_cold_tombstones
+    where classroom_id = v_classroom_id for update;
+    if not found then return false; end if;
+  end if;
+  select operation.operation_type into v_operation_type
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.classroom_id = v_classroom_id
+    and operation.teacher_id = p_teacher_id
+  for update;
+  if not found then return false; end if;
+
+  v_staged := public.stage_classroom_archive_object_upload_legacy_117(
+    p_operation_id,
+    p_teacher_id,
+    p_storage_bucket,
+    p_storage_path,
+    p_expected_sha256,
+    p_expected_byte_size
+  );
+  if not v_staged or v_operation_type <> 'restore' then return v_staged; end if;
+
+  select descriptor.managed_object_id into v_managed_object_id
+  from public.classroom_archive_restore_managed_objects descriptor
+  join public.managed_storage_objects object
+    on object.id = descriptor.managed_object_id
+   and object.classroom_id = v_classroom_id
+   and object.storage_bucket = descriptor.storage_bucket
+   and object.storage_path = descriptor.storage_path
+   and object.byte_size is not distinct from p_expected_byte_size
+   and object.content_sha256 is not distinct from p_expected_sha256
+   and object.status in ('pending_upload', 'ready')
+  where descriptor.operation_id = p_operation_id
+    and descriptor.storage_bucket = p_storage_bucket
+    and descriptor.storage_path = p_storage_path
+  for update of object;
+  if not found then
+    raise exception 'Managed restore upload reservation missing' using errcode = '55000';
+  end if;
+
+  update public.classroom_archive_object_upload_cleanup
+  set managed_object_id = v_managed_object_id,
+      updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and status <> 'deleted';
+  if not found then
+    raise exception 'Managed restore upload cleanup missing' using errcode = '40001';
+  end if;
+  return true;
+end;
+$$;
+
+-- Blueprint copies are operational until the target Blueprint/classroom graph
+-- atomically adopts them. The existing Blueprint operation remains authority.
+alter table public.course_blueprint_operations
+  add column storage_copy_status text not null default 'not_required'
+    check (storage_copy_status in (
+      'not_required', 'copying', 'completed', 'failed'
+    ));
+
+create table public.course_blueprint_storage_copy_items (
+  id uuid primary key default gen_random_uuid(),
+  operation_id uuid not null references public.course_blueprint_operations (id) on delete cascade,
+  source_object_id uuid references public.managed_storage_objects (id) on delete set null,
+  source_storage_bucket text not null check (source_storage_bucket in (
+    'assignment-artifacts',
+    'submission-images',
+    'test-documents'
+  )),
+  source_storage_path text not null check (btrim(source_storage_path) <> ''),
+  target_object_id uuid not null,
+  target_storage_bucket text not null check (target_storage_bucket in (
+    'assignment-artifacts',
+    'submission-images',
+    'test-documents'
+  )),
+  target_storage_path text not null check (
+    target_storage_path <> ''
+    and target_storage_path not like '/%'
+    and strpos(target_storage_path, E'\\') = 0
+    and not ('..' = any(string_to_array(target_storage_path, '/')))
+  ),
+  target_classroom_id uuid references public.classrooms (id) on delete set null,
+  target_course_blueprint_id uuid references public.course_blueprints (id) on delete set null,
+  purpose text not null check (purpose = 'teacher_test_material'),
+  target_resource_type text not null check (
+    target_resource_type in ('course_blueprint_assessment', 'test')
+  ),
+  target_resource_id uuid not null,
+  target_document_id text not null check (btrim(target_document_id) <> ''),
+  target_public_url text,
+  content_type text,
+  status text not null default 'planned' check (status in (
+    'planned', 'copying', 'copied', 'adopted', 'failed'
+  )),
+  expected_byte_size bigint check (expected_byte_size is null or expected_byte_size >= 0),
+  expected_sha256 text check (
+    expected_sha256 is null or expected_sha256 ~ '^[a-f0-9]{64}$'
+  ),
+  attempt_count integer not null default 0 check (attempt_count >= 0),
+  next_attempt_at timestamptz not null default clock_timestamp(),
+  lease_token uuid,
+  lease_expires_at timestamptz,
+  last_error_code text,
+  created_at timestamptz not null default clock_timestamp(),
+  updated_at timestamptz not null default clock_timestamp(),
+  unique (operation_id, source_object_id),
+  unique (target_object_id),
+  unique (target_storage_bucket, target_storage_path),
+  check (
+    (status <> 'adopted' and source_object_id is not null)
+    or status = 'adopted'
+  ),
+  check (
+    (status <> 'adopted' and num_nonnulls(target_classroom_id, target_course_blueprint_id) = 1)
+    or (status = 'adopted' and num_nonnulls(target_classroom_id, target_course_blueprint_id) <= 1)
+  ),
+  check (
+    (status = 'copying' and lease_token is not null and lease_expires_at is not null)
+    or (status <> 'copying' and lease_token is null and lease_expires_at is null)
+  )
+);
+
+alter table public.course_blueprint_storage_copy_items enable row level security;
+revoke all on table public.course_blueprint_storage_copy_items from public, anon, authenticated;
+grant select on table public.course_blueprint_storage_copy_items to service_role;
+
+create or replace function public.compute_classroom_managed_storage_inventory(
+  p_classroom_id uuid
+)
+returns table (
+  reference_count integer,
+  inventory_sha256 text,
+  unsettled_object_count integer
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    count(*)::integer,
+    encode(
+      extensions.digest(
+        convert_to(
+          coalesce(
+            jsonb_agg(
+              jsonb_build_array(object.storage_bucket, object.storage_path)
+              order by object.storage_bucket, object.storage_path
+            )::text,
+            '[]'
+          ),
+          'UTF8'
+        ),
+        'sha256'
+      ),
+      'hex'
+    ),
+    count(*) filter (
+      where object.status not in ('ready', 'cleanup_pending', 'pending_upload')
+    )::integer
+  from public.managed_storage_objects object
+  where object.classroom_id = p_classroom_id;
+$$;
+
+create or replace function public.read_classroom_managed_storage_inventory_evidence(
+  p_teacher_id uuid,
+  p_classroom_id uuid
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_inventory record;
+begin
+  if not exists (
+    select 1 from public.classrooms classroom
+    where classroom.id = p_classroom_id
+      and classroom.teacher_id = p_teacher_id
+  ) then
+    raise exception 'classroom_not_found' using errcode = 'P0002';
+  end if;
+  select * into v_inventory
+  from public.compute_classroom_managed_storage_inventory(p_classroom_id);
+  return jsonb_build_object(
+    'reference_count', v_inventory.reference_count,
+    'inventory_sha256', v_inventory.inventory_sha256
+  );
+end;
+$$;
+
+create or replace function public.refresh_classroom_managed_storage_coverage(
+  p_classroom_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+  v_inventory_sha256 text;
+begin
+  if p_classroom_id is null or not exists (
+    select 1
+    from public.classroom_managed_storage_coverage coverage
+    where coverage.classroom_id = p_classroom_id
+      and coverage.status = 'verified'
+  ) then
+    return;
+  end if;
+
+  select inventory.reference_count, inventory.inventory_sha256
+  into v_count, v_inventory_sha256
+  from public.compute_classroom_managed_storage_inventory(p_classroom_id) inventory;
+
+  update public.classroom_managed_storage_coverage
+  set
+    inventory_version = inventory_version + 1,
+    reference_count = v_count,
+    object_count = v_count,
+    inventory_sha256 = v_inventory_sha256,
+    updated_at = clock_timestamp()
+  where classroom_id = p_classroom_id
+    and status = 'verified';
+end;
+$$;
+
+create or replace function public.refresh_managed_storage_coverage_after_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op <> 'INSERT' then
+    perform public.refresh_classroom_managed_storage_coverage(old.classroom_id);
+  end if;
+  if tg_op <> 'DELETE'
+    and (tg_op = 'INSERT' or new.classroom_id is distinct from old.classroom_id)
+  then
+    perform public.refresh_classroom_managed_storage_coverage(new.classroom_id);
+  elsif tg_op = 'UPDATE' and new.classroom_id is not null then
+    perform public.refresh_classroom_managed_storage_coverage(new.classroom_id);
+  end if;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+create trigger refresh_managed_storage_coverage_after_change
+after insert or update or delete on public.managed_storage_objects
+for each row execute function public.refresh_managed_storage_coverage_after_change();
+
+-- Archived capture creates an immutable provenance Version in the same
+-- transaction as the draft Blueprint. Keep that historical Version portable:
+-- managed classroom documents are staged only in the mutable draft and are
+-- added to a new final Version after their Blueprint-owned copies are adopted.
+create or replace function public.remove_blueprint_managed_storage_documents(
+  p_value jsonb
+)
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select jsonb_set(
+    p_value,
+    '{assessments}',
+    coalesce((
+      select jsonb_agg(
+        assessment.value || jsonb_build_object(
+          'documents',
+          coalesce((
+            select jsonb_agg(document.value order by document.ordinality)
+            from jsonb_array_elements(
+              coalesce(assessment.value->'documents', '[]'::jsonb)
+            ) with ordinality document(value, ordinality)
+            where not (
+              jsonb_typeof(document.value) = 'object'
+              and document.value ? 'managed_object_id'
+            )
+          ), '[]'::jsonb)
+        )
+        order by assessment.ordinality
+      )
+      from jsonb_array_elements(
+        coalesce(p_value->'assessments', '[]'::jsonb)
+      ) with ordinality assessment(value, ordinality)
+    ), '[]'::jsonb),
+    true
+  );
+$$;
+
+alter function public.archived_classroom_blueprint_snapshot_from_plan(uuid, bigint, jsonb)
+  rename to archived_classroom_blueprint_snapshot_from_plan_legacy_117;
+
+create or replace function public.archived_classroom_blueprint_snapshot_from_plan(
+  p_blueprint_id uuid,
+  p_draft_revision bigint,
+  p_plan jsonb
+)
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select public.remove_blueprint_managed_storage_documents(
+    public.archived_classroom_blueprint_snapshot_from_plan_legacy_117(
+      p_blueprint_id,
+      p_draft_revision,
+      p_plan
+    )
+  );
+$$;
+
+revoke all on function public.remove_blueprint_managed_storage_documents(jsonb)
+  from public, anon, authenticated;
+grant execute on function public.remove_blueprint_managed_storage_documents(jsonb)
+  to service_role;
+revoke all on function public.archived_classroom_blueprint_snapshot_from_plan(uuid, bigint, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.archived_classroom_blueprint_snapshot_from_plan(uuid, bigint, jsonb)
+  to service_role;
+
+alter function public.complete_classroom_archive_restore(uuid, uuid, jsonb)
+  rename to complete_classroom_archive_restore_legacy_117;
+
+create or replace function public.complete_classroom_archive_restore(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_verification jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  perform set_config(
+    'pika.classroom_archive_restore_operation_id',
+    p_operation_id::text,
+    true
+  );
+  v_result := public.complete_classroom_archive_restore_legacy_117(
+    p_operation_id,
+    p_teacher_id,
+    p_verification
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is false then
+    return v_result;
+  end if;
+
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+    and teacher_id = p_teacher_id
+    and operation_type = 'restore'
+    and status = 'completed'
+  for update;
+  if not found then
+    raise exception 'Managed restore operation was not completed' using errcode = '40001';
+  end if;
+  if not exists (
+    select 1 from public.classroom_archive_restore_managed_objects
+    where operation_id = p_operation_id
+  ) then
+    return v_result;
+  end if;
+  if exists (
+    select 1
+    from public.classroom_archive_restore_managed_objects descriptor
+    where descriptor.operation_id = p_operation_id
+      and not exists (
+        select 1 from storage.objects object
+        where object.bucket_id = descriptor.storage_bucket
+          and object.name = descriptor.storage_path
+      )
+  ) then
+    raise exception 'Managed restored object is missing' using errcode = '55000';
+  end if;
+
+  perform set_config('pika.classroom_archive_restore', 'on', true);
+  insert into public.managed_storage_objects (
+    id,
+    storage_bucket,
+    storage_path,
+    classroom_id,
+    purpose,
+    status,
+    created_by_user_id,
+    data_subject_user_id,
+    resource_type,
+    resource_id,
+    content_type,
+    ready_at
+  )
+  select
+    descriptor.managed_object_id,
+    descriptor.storage_bucket,
+    descriptor.storage_path,
+    v_operation.classroom_id,
+    descriptor.purpose,
+    'ready',
+    descriptor.created_by_user_id,
+    descriptor.data_subject_user_id,
+    descriptor.resource_type,
+    descriptor.resource_id,
+    descriptor.content_type,
+    clock_timestamp()
+  from public.classroom_archive_restore_managed_objects descriptor
+  where descriptor.operation_id = p_operation_id
+  on conflict (id) do nothing;
+
+  if exists (
+    select 1
+    from public.classroom_archive_restore_managed_objects descriptor
+    left join public.managed_storage_objects object
+      on object.id = descriptor.managed_object_id
+     and object.storage_bucket = descriptor.storage_bucket
+     and object.storage_path = descriptor.storage_path
+     and object.classroom_id = v_operation.classroom_id
+     and object.course_blueprint_id is null
+     and object.purpose = descriptor.purpose
+     and object.status = 'ready'
+    where descriptor.operation_id = p_operation_id
+      and object.id is null
+  ) then
+    raise exception 'Managed restored object ownership conflicts' using errcode = '23505';
+  end if;
+  perform public.refresh_classroom_managed_storage_coverage(v_operation.classroom_id);
+  return v_result;
+end;
+$$;
+
+-- Migration 085 owns the hot/cold availability transition. Managed files keep
+-- the same classroom scope UUID, so compaction requires no ownership transfer.
+alter function public.complete_classroom_archive_compaction(uuid, uuid, jsonb, jsonb)
+  rename to complete_classroom_archive_compaction_legacy_117;
+
+create or replace function public.complete_classroom_archive_compaction(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_actors jsonb,
+  p_verification jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+set statement_timeout = '60s'
+as $$
+begin
+  perform set_config('pika.classroom_archive_compaction', 'on', true);
+  perform set_config(
+    'pika.classroom_archive_compaction_operation_id',
+    p_operation_id::text,
+    true
+  );
+  -- Migration 085's preflight exercises the real classroom DELETE in a
+  -- rolled-back subtransaction. The delete guard below admits both that
+  -- preflight and the real delete only for this exact compaction operation.
+  perform set_config('pika.classroom_archive_compaction_dry_run', 'on', true);
+  return public.complete_classroom_archive_compaction_legacy_117(
+    p_operation_id,
+    p_teacher_id,
+    p_actors,
+    p_verification
+  );
+end;
+$$;
+
+-- The app invokes the v2 contract. Rebind it to the wrapper because PL/pgSQL
+-- dependencies retain the legacy function OID across an ALTER ... RENAME.
+alter function public.complete_classroom_archive_compaction_v2(uuid, uuid, jsonb, jsonb, integer)
+  rename to complete_classroom_archive_compaction_v2_legacy_117;
+
+create or replace function public.complete_classroom_archive_compaction_v2(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_actors jsonb,
+  p_verification jsonb,
+  p_restore_contract_version integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+set statement_timeout = '60s'
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  if p_restore_contract_version <> 2 then
+    raise exception 'Unsupported classroom archive compaction contract'
+      using errcode = '22023';
+  end if;
+
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.id is not null
+    and (
+      v_operation.source_contract_version <> 2
+      or v_operation.archive_format_version <> 2
+      or v_operation.restore_contract_version <> p_restore_contract_version
+    )
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'archive_contract_mismatch',
+      'error', 'Compaction operation contract does not match finalization',
+      'retryable', false
+    );
+  end if;
+
+  v_result := public.complete_classroom_archive_compaction(
+    p_operation_id,
+    p_teacher_id,
+    p_actors,
+    p_verification
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is true then
+    v_result := v_result || jsonb_build_object(
+      'source_contract_version', 2,
+      'archive_format_version', 2,
+      'restore_contract_version', p_restore_contract_version
+    );
+  end if;
+  return v_result;
+end;
+$$;
+
+create or replace function public.managed_storage_uuid(p_value text)
+returns uuid
+language plpgsql
+immutable
+strict
+set search_path = ''
+as $$
+begin
+  return p_value::uuid;
+exception when invalid_text_representation then
+  return null;
+end;
+$$;
+
+create or replace function public.plan_course_blueprint_storage_copies()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_planned integer := 0;
+begin
+  if new.status <> 'completed'
+    or new.storage_copy_status = 'completed'
+  then
+    return new;
+  end if;
+
+  if new.operation_type in ('capture', 'import')
+    and new.source_classroom_id is not null
+    and new.result_blueprint_id is not null
+  then
+    if exists (
+      select 1
+      from public.course_blueprint_assessments assessment
+      cross join lateral jsonb_array_elements(
+        coalesce(assessment.documents, '[]'::jsonb)
+      ) document(value)
+      where assessment.course_blueprint_id = new.result_blueprint_id
+        and document.value ? 'managed_object_id'
+        and not exists (
+          select 1
+          from public.managed_storage_objects object
+          join public.classrooms classroom on classroom.id = object.classroom_id
+          where object.id = public.managed_storage_uuid(
+              document.value->>'managed_object_id'
+            )
+            and object.classroom_id = new.source_classroom_id
+            and classroom.teacher_id = new.teacher_id
+            and object.purpose = 'teacher_test_material'
+            and object.status = 'ready'
+        )
+    ) then
+      raise exception 'blueprint_teacher_material_owner_mismatch'
+        using errcode = '55000';
+    end if;
+
+    with source_references as (
+      select distinct on (object.id)
+        object.id source_object_id,
+        object.storage_bucket,
+        object.storage_path,
+        object.content_type,
+        object.byte_size,
+        object.content_sha256,
+        assessment.id target_resource_id,
+        document.value->>'id' target_document_id
+      from public.course_blueprint_assessments assessment
+      cross join lateral jsonb_array_elements(
+        coalesce(assessment.documents, '[]'::jsonb)
+      ) document(value)
+      join public.managed_storage_objects object
+        on object.id = public.managed_storage_uuid(
+          document.value->>'managed_object_id'
+        )
+      where assessment.course_blueprint_id = new.result_blueprint_id
+        and document.value ? 'managed_object_id'
+        and object.classroom_id = new.source_classroom_id
+        and object.purpose = 'teacher_test_material'
+        and object.status = 'ready'
+      order by object.id, assessment.id, document.value->>'id'
+    ), planned as (
+      select source_references.*, gen_random_uuid() target_object_id
+      from source_references
+    )
+    insert into public.course_blueprint_storage_copy_items (
+      operation_id,
+      source_object_id,
+      source_storage_bucket,
+      source_storage_path,
+      target_object_id,
+      target_storage_bucket,
+      target_storage_path,
+      target_course_blueprint_id,
+      purpose,
+      target_resource_type,
+      target_resource_id,
+      target_document_id,
+      content_type,
+      expected_byte_size,
+      expected_sha256
+    )
+    select
+      new.id,
+      planned.source_object_id,
+      planned.storage_bucket,
+      planned.storage_path,
+      planned.target_object_id,
+      planned.storage_bucket,
+      'blueprints/' || new.result_blueprint_id::text
+        || '/tests/materials/' || planned.target_object_id::text
+        || coalesce(substring(planned.storage_path from '(\.[A-Za-z0-9]{1,12})$'), ''),
+      new.result_blueprint_id,
+      'teacher_test_material',
+      'course_blueprint_assessment',
+      planned.target_resource_id,
+      planned.target_document_id,
+      planned.content_type,
+      planned.byte_size,
+      planned.content_sha256
+    from planned
+    on conflict (operation_id, source_object_id) do nothing;
+    get diagnostics v_planned = row_count;
+  elsif new.operation_type = 'instantiate'
+    and new.source_blueprint_id is not null
+    and new.result_classroom_id is not null
+  then
+    if exists (
+      select 1
+      from public.tests test
+      cross join lateral jsonb_array_elements(
+        coalesce(test.documents, '[]'::jsonb)
+      ) document(value)
+      where test.classroom_id = new.result_classroom_id
+        and document.value->>'source' = 'upload'
+        and public.managed_storage_uuid(
+          document.value->>'managed_object_id'
+        ) is null
+    ) then
+      raise exception 'blueprint_teacher_material_ownership_required'
+        using errcode = '55000';
+    end if;
+
+    if exists (
+      select 1
+      from public.tests test
+      cross join lateral jsonb_array_elements(
+        coalesce(test.documents, '[]'::jsonb)
+      ) document(value)
+      where test.classroom_id = new.result_classroom_id
+        and document.value ? 'managed_object_id'
+        and not exists (
+          select 1
+          from public.managed_storage_objects object
+          join public.course_blueprints blueprint
+            on blueprint.id = object.course_blueprint_id
+          where object.id = public.managed_storage_uuid(
+              document.value->>'managed_object_id'
+            )
+            and object.course_blueprint_id = new.source_blueprint_id
+            and blueprint.teacher_id = new.teacher_id
+            and object.purpose = 'teacher_test_material'
+            and object.status = 'ready'
+        )
+    ) then
+      raise exception 'classroom_teacher_material_owner_mismatch'
+        using errcode = '55000';
+    end if;
+
+    with source_references as (
+      select distinct on (object.id)
+        object.id source_object_id,
+        object.storage_bucket,
+        object.storage_path,
+        object.content_type,
+        object.byte_size,
+        object.content_sha256,
+        test.id target_resource_id,
+        document.value->>'id' target_document_id
+      from public.tests test
+      cross join lateral jsonb_array_elements(
+        coalesce(test.documents, '[]'::jsonb)
+      ) document(value)
+      join public.managed_storage_objects object
+        on object.id = public.managed_storage_uuid(
+          document.value->>'managed_object_id'
+        )
+      where test.classroom_id = new.result_classroom_id
+        and document.value ? 'managed_object_id'
+        and object.course_blueprint_id = new.source_blueprint_id
+        and object.purpose = 'teacher_test_material'
+        and object.status = 'ready'
+      order by object.id, test.id, document.value->>'id'
+    ), planned as (
+      select source_references.*, gen_random_uuid() target_object_id
+      from source_references
+    )
+    insert into public.course_blueprint_storage_copy_items (
+      operation_id,
+      source_object_id,
+      source_storage_bucket,
+      source_storage_path,
+      target_object_id,
+      target_storage_bucket,
+      target_storage_path,
+      target_classroom_id,
+      purpose,
+      target_resource_type,
+      target_resource_id,
+      target_document_id,
+      content_type,
+      expected_byte_size,
+      expected_sha256
+    )
+    select
+      new.id,
+      planned.source_object_id,
+      planned.storage_bucket,
+      planned.storage_path,
+      planned.target_object_id,
+      planned.storage_bucket,
+      'classrooms/' || new.result_classroom_id::text
+        || '/tests/materials/' || planned.target_object_id::text
+        || coalesce(substring(planned.storage_path from '(\.[A-Za-z0-9]{1,12})$'), ''),
+      new.result_classroom_id,
+      'teacher_test_material',
+      'test',
+      planned.target_resource_id,
+      planned.target_document_id,
+      planned.content_type,
+      planned.byte_size,
+      planned.content_sha256
+    from planned
+    on conflict (operation_id, source_object_id) do nothing;
+    get diagnostics v_planned = row_count;
+  end if;
+
+  if v_planned > 0 or exists (
+    select 1
+    from public.course_blueprint_storage_copy_items item
+    where item.operation_id = new.id
+      and item.status <> 'adopted'
+  ) then
+    update public.course_blueprint_operations
+    set
+      status = 'running',
+      storage_copy_status = 'copying',
+      completed_at = null,
+      updated_at = clock_timestamp()
+    where id = new.id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger plan_course_blueprint_storage_copies
+after update of status, source_classroom_id, result_blueprint_id,
+  source_blueprint_id, result_classroom_id
+on public.course_blueprint_operations
+for each row execute function public.plan_course_blueprint_storage_copies();
+
+create or replace function public.claim_course_blueprint_storage_copy(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_lease_seconds integer default 60
+)
+returns setof public.course_blueprint_storage_copy_items
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_candidate public.course_blueprint_storage_copy_items;
+begin
+  if p_lease_seconds < 15 or p_lease_seconds > 300 then
+    raise exception 'invalid_blueprint_storage_copy_lease' using errcode = '22023';
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations operation
+    where operation.id = p_operation_id
+      and operation.teacher_id = p_teacher_id
+      and operation.status = 'running'
+      and operation.storage_copy_status in ('copying', 'failed')
+  ) then
+    raise exception 'blueprint_storage_copy_operation_not_found' using errcode = 'P0002';
+  end if;
+
+  select * into v_candidate
+  from public.course_blueprint_storage_copy_items item
+  where item.operation_id = p_operation_id
+    and item.next_attempt_at <= clock_timestamp()
+    and (
+      item.status in ('planned', 'failed')
+      or (item.status = 'copying' and item.lease_expires_at <= clock_timestamp())
+    )
+  order by item.created_at, item.id
+  for update skip locked
+  limit 1;
+  if not found then return; end if;
+
+  return query
+  update public.course_blueprint_storage_copy_items item
+  set
+    status = 'copying',
+    attempt_count = item.attempt_count + 1,
+    lease_token = p_lease_token,
+    lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+    -- An expired cleanup lease remains cleanup work. Never turn it back into
+    -- an upload lease until exact target absence has been committed.
+    last_error_code = case
+      when v_candidate.status = 'copying'
+        and v_candidate.last_error_code like 'blueprint_storage_copy_cleanup_%'
+        then v_candidate.last_error_code
+      else null
+    end,
+    updated_at = clock_timestamp()
+  where item.id = v_candidate.id
+  returning item.*;
+
+  update public.course_blueprint_operations
+  set storage_copy_status = 'copying', updated_at = clock_timestamp()
+  where id = p_operation_id;
+end;
+$$;
+
+create or replace function public.complete_course_blueprint_storage_copy(
+  p_item_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_target_public_url text,
+  p_byte_size bigint,
+  p_content_sha256 text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_item public.course_blueprint_storage_copy_items;
+begin
+  if p_target_public_url is null or btrim(p_target_public_url) = ''
+    or p_byte_size < 0
+    or p_content_sha256 !~ '^[a-f0-9]{64}$'
+  then
+    raise exception 'invalid_blueprint_storage_copy_result' using errcode = '22023';
+  end if;
+  select item.* into v_item
+  from public.course_blueprint_storage_copy_items item
+  join public.course_blueprint_operations operation on operation.id = item.operation_id
+  where item.id = p_item_id
+    and operation.teacher_id = p_teacher_id
+    and item.status = 'copying'
+    and item.lease_token = p_lease_token
+    and item.lease_expires_at > clock_timestamp()
+    and item.last_error_code is null
+  for update of item;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(
+    v_item.target_storage_bucket,
+    v_item.target_storage_path
+  );
+  if not exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_item.target_storage_bucket
+      and object.name = v_item.target_storage_path
+  ) then
+    raise exception 'blueprint_storage_copy_target_missing' using errcode = '55000';
+  end if;
+  if v_item.expected_byte_size is not null
+    and v_item.expected_byte_size <> p_byte_size
+  then
+    raise exception 'blueprint_storage_copy_size_mismatch' using errcode = '40001';
+  end if;
+  if v_item.expected_sha256 is not null
+    and v_item.expected_sha256 <> p_content_sha256
+  then
+    raise exception 'blueprint_storage_copy_hash_mismatch' using errcode = '40001';
+  end if;
+  update public.course_blueprint_storage_copy_items
+  set
+    status = 'copied',
+    target_public_url = p_target_public_url,
+    expected_byte_size = p_byte_size,
+    expected_sha256 = p_content_sha256,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = null,
+    updated_at = clock_timestamp()
+  where id = p_item_id;
+  return true;
+end;
+$$;
+
+create or replace function public.fail_course_blueprint_storage_copy(
+  p_item_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_error_code text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_operation_id uuid;
+  v_item public.course_blueprint_storage_copy_items;
+  v_target_storage_bucket text;
+  v_target_storage_path text;
+begin
+  -- Reserve cleanup before touching Storage. The active, unexpired copy lease
+  -- is transitioned to a durable cleanup phase with a renewed lease. Claimers
+  -- preserve this marker after expiry, so no retry can upload or adopt until
+  -- the exact target's absence is committed below.
+  if p_error_code = 'blueprint_storage_copy_cleanup_started' then
+    select item.* into v_item
+    from public.course_blueprint_storage_copy_items item
+    join public.course_blueprint_operations operation on operation.id = item.operation_id
+    where item.id = p_item_id
+      and operation.teacher_id = p_teacher_id
+      and item.status = 'copying'
+      and item.lease_token = p_lease_token
+      and item.lease_expires_at > clock_timestamp()
+      and item.last_error_code is null
+    for update of item;
+    if not found then return false; end if;
+
+    perform public.managed_storage_exact_lock(
+      v_item.target_storage_bucket,
+      v_item.target_storage_path
+    );
+
+    update public.course_blueprint_storage_copy_items item
+    set
+      last_error_code = 'blueprint_storage_copy_cleanup_processing',
+      lease_expires_at = clock_timestamp() + interval '120 seconds',
+      next_attempt_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+    where item.id = p_item_id;
+    return true;
+  end if;
+
+  if p_error_code = 'blueprint_storage_copy_target_removed' then
+    select item.* into v_item
+    from public.course_blueprint_storage_copy_items item
+    join public.course_blueprint_operations operation on operation.id = item.operation_id
+    where item.id = p_item_id
+      and operation.teacher_id = p_teacher_id
+      and item.status = 'copying'
+      and item.lease_token = p_lease_token
+      and item.lease_expires_at > clock_timestamp()
+      and item.last_error_code like 'blueprint_storage_copy_cleanup_%'
+    for update of item;
+    if not found then return false; end if;
+
+    v_target_storage_bucket := v_item.target_storage_bucket;
+    v_target_storage_path := v_item.target_storage_path;
+    perform public.managed_storage_exact_lock(
+      v_target_storage_bucket,
+      v_target_storage_path
+    );
+    if exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_target_storage_bucket
+        and object.name = v_target_storage_path
+    ) then
+      raise exception 'blueprint_storage_copy_target_still_present'
+        using errcode = '55000';
+    end if;
+
+    update public.course_blueprint_storage_copy_items item
+    set
+      status = 'failed',
+      lease_token = null,
+      lease_expires_at = null,
+      last_error_code = 'blueprint_storage_copy_target_removed',
+      next_attempt_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+    where item.id = p_item_id
+    returning item.operation_id into v_operation_id;
+  elsif exists (
+    select 1
+    from public.course_blueprint_storage_copy_items item
+    join public.course_blueprint_operations operation on operation.id = item.operation_id
+    where item.id = p_item_id
+      and operation.teacher_id = p_teacher_id
+      and item.status = 'copying'
+      and item.lease_token = p_lease_token
+      and item.last_error_code like 'blueprint_storage_copy_cleanup_%'
+  ) then
+    -- Storage failed while cleanup owned the key. Keep the cleanup phase
+    -- durable, expire this lease, and let a later worker reclaim only cleanup.
+    update public.course_blueprint_storage_copy_items item
+    set
+      last_error_code = 'blueprint_storage_copy_cleanup_failed',
+      lease_expires_at = clock_timestamp(),
+      next_attempt_at = clock_timestamp() + make_interval(
+        secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
+      ),
+      updated_at = clock_timestamp()
+    where item.id = p_item_id
+      and item.status = 'copying'
+      and item.lease_token = p_lease_token
+    returning item.operation_id into v_operation_id;
+  else
+    update public.course_blueprint_storage_copy_items item
+    set
+      status = 'failed',
+      lease_token = null,
+      lease_expires_at = null,
+      last_error_code = left(
+        coalesce(nullif(p_error_code, ''), 'blueprint_storage_copy_failed'),
+        120
+      ),
+      next_attempt_at = clock_timestamp() + make_interval(
+        secs => least(3600, greatest(5, (2 ^ least(item.attempt_count, 10))::integer))
+      ),
+      updated_at = clock_timestamp()
+    from public.course_blueprint_operations operation
+    where item.id = p_item_id
+      and operation.id = item.operation_id
+      and operation.teacher_id = p_teacher_id
+      and item.status = 'copying'
+      and item.lease_token = p_lease_token
+      and item.last_error_code is null
+    returning item.operation_id into v_operation_id;
+  end if;
+  if v_operation_id is not null then
+    update public.course_blueprint_operations
+    set storage_copy_status = 'failed', updated_at = clock_timestamp()
+    where id = v_operation_id;
+  end if;
+  return v_operation_id is not null;
+end;
+$$;
+
+create or replace function public.rewrite_managed_storage_document_owner(
+  p_value jsonb,
+  p_source_object_id uuid,
+  p_target_object_id uuid,
+  p_target_public_url text
+)
+returns jsonb
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_result jsonb;
+begin
+  case jsonb_typeof(p_value)
+    when 'object' then
+      if p_value->>'managed_object_id' = p_source_object_id::text then
+        return p_value || jsonb_build_object(
+          'managed_object_id', p_target_object_id,
+          'url', p_target_public_url
+        );
+      end if;
+      select jsonb_object_agg(
+        entry.key,
+        public.rewrite_managed_storage_document_owner(
+          entry.value,
+          p_source_object_id,
+          p_target_object_id,
+          p_target_public_url
+        )
+      ) into v_result
+      from jsonb_each(p_value) entry;
+      return coalesce(v_result, '{}'::jsonb);
+    when 'array' then
+      select jsonb_agg(
+        public.rewrite_managed_storage_document_owner(
+          item.value,
+          p_source_object_id,
+          p_target_object_id,
+          p_target_public_url
+        ) order by item.ordinality
+      ) into v_result
+      from jsonb_array_elements(p_value) with ordinality item(value, ordinality);
+      return coalesce(v_result, '[]'::jsonb);
+    else
+      return p_value;
+  end case;
+end;
+$$;
+
+create or replace function public.prevent_blueprint_version_mutation()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' and (
+    not exists (
+      select 1 from public.course_blueprints where id = old.course_blueprint_id
+    )
+    or not exists (
+      select 1 from public.users where id = old.created_by
+    )
+  ) then
+    return old;
+  end if;
+  raise exception 'Blueprint Versions are immutable' using errcode = '55000';
+end;
+$$;
+
+create or replace function public.adopt_course_blueprint_storage_copies(
+  p_operation_id uuid,
+  p_teacher_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_operation public.course_blueprint_operations;
+  v_item public.course_blueprint_storage_copy_items;
+  v_version_id uuid;
+  v_version_snapshot jsonb;
+  v_final_version public.course_blueprint_versions;
+  v_blueprint_revision bigint;
+begin
+  select * into v_operation
+  from public.course_blueprint_operations
+  where id = p_operation_id and teacher_id = p_teacher_id
+  for update;
+  if not found then
+    raise exception 'blueprint_storage_copy_operation_not_found' using errcode = 'P0002';
+  end if;
+  if v_operation.storage_copy_status in ('not_required', 'completed') then
+    return jsonb_build_object('ok', true, 'replayed', true);
+  end if;
+  if exists (
+    select 1 from public.course_blueprint_storage_copy_items
+    where operation_id = p_operation_id and status not in ('copied', 'adopted')
+  ) then
+    return jsonb_build_object(
+      'ok', false,
+      'error_code', 'blueprint_storage_copy_incomplete',
+      'retryable', true
+    );
+  end if;
+
+  v_version_id := null;
+  if v_operation.operation_type in ('capture', 'import') then
+    begin
+      v_version_id := nullif(
+        v_operation.result->>'source_blueprint_version_id',
+        ''
+      )::uuid;
+    exception when invalid_text_representation then
+      v_version_id := null;
+    end;
+  end if;
+  if v_version_id is not null then
+    select snapshot_json into v_version_snapshot
+    from public.course_blueprint_versions
+    where id = v_version_id
+      and course_blueprint_id = v_operation.result_blueprint_id
+      and created_by = p_teacher_id
+    for update;
+    if not found then
+      raise exception 'blueprint_storage_copy_version_not_found' using errcode = 'P0002';
+    end if;
+  end if;
+
+  perform set_config('pika.identity_mapping', 'on', true);
+
+  for v_item in
+    select *
+    from public.course_blueprint_storage_copy_items
+    where operation_id = p_operation_id and status = 'copied'
+    order by created_at, id
+    for update
+  loop
+    perform public.managed_storage_exact_lock(
+      v_item.target_storage_bucket,
+      v_item.target_storage_path
+    );
+    if not exists (
+      select 1
+      from storage.objects object
+      where object.bucket_id = v_item.target_storage_bucket
+        and object.name = v_item.target_storage_path
+    ) then
+      raise exception 'blueprint_storage_copy_target_missing'
+        using errcode = '55000';
+    end if;
+
+    insert into public.managed_storage_objects (
+      id,
+      storage_bucket,
+      storage_path,
+      classroom_id,
+      course_blueprint_id,
+      purpose,
+      status,
+      created_by_user_id,
+      resource_type,
+      resource_id,
+      content_type,
+      byte_size,
+      content_sha256,
+      ready_at
+    ) values (
+      v_item.target_object_id,
+      v_item.target_storage_bucket,
+      v_item.target_storage_path,
+      v_item.target_classroom_id,
+      v_item.target_course_blueprint_id,
+      v_item.purpose,
+      'ready',
+      p_teacher_id,
+      v_item.target_resource_type,
+      v_item.target_resource_id,
+      v_item.content_type,
+      v_item.expected_byte_size,
+      v_item.expected_sha256,
+      clock_timestamp()
+    );
+
+    if v_item.target_course_blueprint_id is not null then
+      update public.course_blueprint_assessments assessment
+      set documents = (
+        select coalesce(jsonb_agg(
+          case
+            when document.value->>'managed_object_id' = v_item.source_object_id::text
+            then document.value || jsonb_build_object(
+              'managed_object_id', v_item.target_object_id,
+              'url', v_item.target_public_url
+            )
+            else document.value
+          end order by document.ordinality
+        ), '[]'::jsonb)
+        from jsonb_array_elements(
+          coalesce(assessment.documents, '[]'::jsonb)
+        ) with ordinality document(value, ordinality)
+      )
+      where assessment.course_blueprint_id = v_item.target_course_blueprint_id
+        and exists (
+          select 1
+          from jsonb_array_elements(
+            coalesce(assessment.documents, '[]'::jsonb)
+          ) document(value)
+          where document.value->>'managed_object_id' = v_item.source_object_id::text
+        );
+      if v_version_snapshot is not null then
+        v_version_snapshot := public.rewrite_managed_storage_document_owner(
+          v_version_snapshot,
+          v_item.source_object_id,
+          v_item.target_object_id,
+          v_item.target_public_url
+        );
+      end if;
+    else
+      if not exists (
+        select 1
+        from public.managed_storage_objects source
+        where source.id = v_item.source_object_id
+          and source.course_blueprint_id = v_operation.source_blueprint_id
+          and source.classroom_id is null
+          and source.status = 'ready'
+      ) then
+        raise exception 'blueprint_storage_copy_source_owner_changed'
+          using errcode = '40001';
+      end if;
+      update public.tests test
+      set documents = (
+        select coalesce(jsonb_agg(
+          case
+            when document.value->>'managed_object_id' = v_item.source_object_id::text
+            then document.value || jsonb_build_object(
+              'managed_object_id', v_item.target_object_id,
+              'url', v_item.target_public_url
+            )
+            else document.value
+          end order by document.ordinality
+        ), '[]'::jsonb)
+        from jsonb_array_elements(
+          coalesce(test.documents, '[]'::jsonb)
+        ) with ordinality document(value, ordinality)
+      )
+      where test.classroom_id = v_item.target_classroom_id
+        and exists (
+          select 1
+          from jsonb_array_elements(coalesce(test.documents, '[]'::jsonb)) document(value)
+          where document.value->>'managed_object_id' = v_item.source_object_id::text
+        );
+    end if;
+
+    update public.course_blueprint_storage_copy_items
+    set status = 'adopted', updated_at = clock_timestamp()
+    where id = v_item.id;
+  end loop;
+
+  if v_version_snapshot is not null then
+    v_version_snapshot := jsonb_set(
+      v_version_snapshot,
+      '{assessments}',
+      coalesce((
+        select jsonb_agg(
+          snapshot_assessment.value || jsonb_build_object(
+            'documents', coalesce(live_assessment.documents, '[]'::jsonb)
+          )
+          order by snapshot_assessment.ordinality
+        )
+        from jsonb_array_elements(
+          coalesce(v_version_snapshot->'assessments', '[]'::jsonb)
+        ) with ordinality snapshot_assessment(value, ordinality)
+        left join public.course_blueprint_assessments live_assessment
+          on live_assessment.course_blueprint_id = v_operation.result_blueprint_id
+         and live_assessment.artifact_id::text = snapshot_assessment.value->>'artifact_id'
+      ), '[]'::jsonb),
+      true
+    );
+    select content_revision into v_blueprint_revision
+    from public.course_blueprints
+    where id = v_operation.result_blueprint_id
+      and teacher_id = p_teacher_id
+    for update;
+    if not found then
+      raise exception 'blueprint_storage_copy_blueprint_not_found' using errcode = 'P0002';
+    end if;
+
+    v_version_snapshot := jsonb_set(
+      v_version_snapshot,
+      '{draft_revision}',
+      to_jsonb(v_blueprint_revision),
+      true
+    );
+    -- This internal adoption path has already locked, copied, registered, and
+    -- rewritten every exact object above; it is the only direct caller of the
+    -- private Version insert implementation.
+    select * into v_final_version
+    from public.save_course_blueprint_version_atomic_legacy_117(
+      p_teacher_id,
+      v_operation.result_blueprint_id,
+      v_blueprint_revision,
+      coalesce((v_version_snapshot->>'schema_version')::integer, 2),
+      v_version_snapshot,
+      encode(
+        extensions.digest(
+          convert_to(
+            public.course_blueprint_canonical_jsonb_text(v_version_snapshot),
+            'UTF8'
+          ),
+          'sha256'
+        ),
+        'hex'
+      ),
+      'classroom',
+      jsonb_build_object(
+        'operation_id', p_operation_id,
+        'storage_copy_adopted_from_version_id', v_version_id
+      )
+    );
+
+    update public.classrooms
+    set
+      source_blueprint_version_id = v_final_version.id,
+      source_blueprint_origin = coalesce(source_blueprint_origin, '{}'::jsonb)
+        || jsonb_build_object(
+          'blueprint_version_id', v_final_version.id,
+          'blueprint_version_number', v_final_version.version_number
+        )
+    where id = v_operation.source_classroom_id
+      and source_blueprint_version_id = v_version_id;
+    update public.assignments
+    set source_blueprint_version_id = v_final_version.id
+    where classroom_id = v_operation.source_classroom_id
+      and source_blueprint_version_id = v_version_id;
+    update public.assignment_submission_requirements requirement
+    set source_blueprint_version_id = v_final_version.id
+    where source_blueprint_version_id = v_version_id
+      and exists (
+        select 1 from public.assignments assignment
+        where assignment.id = requirement.assignment_id
+          and assignment.classroom_id = v_operation.source_classroom_id
+      );
+    update public.tests
+    set source_blueprint_version_id = v_final_version.id
+    where classroom_id = v_operation.source_classroom_id
+      and source_blueprint_version_id = v_version_id;
+    update public.test_questions question
+    set source_blueprint_version_id = v_final_version.id
+    where source_blueprint_version_id = v_version_id
+      and exists (
+        select 1 from public.tests test
+        where test.id = question.test_id
+          and test.classroom_id = v_operation.source_classroom_id
+      );
+    update public.lesson_plans
+    set source_blueprint_version_id = v_final_version.id
+    where classroom_id = v_operation.source_classroom_id
+      and source_blueprint_version_id = v_version_id;
+    update public.classwork_materials
+    set source_blueprint_version_id = v_final_version.id
+    where classroom_id = v_operation.source_classroom_id
+      and source_blueprint_version_id = v_version_id;
+    update public.surveys
+    set source_blueprint_version_id = v_final_version.id
+    where classroom_id = v_operation.source_classroom_id
+      and source_blueprint_version_id = v_version_id;
+    update public.survey_questions question
+    set source_blueprint_version_id = v_final_version.id
+    where source_blueprint_version_id = v_version_id
+      and exists (
+        select 1 from public.surveys survey
+        where survey.id = question.survey_id
+          and survey.classroom_id = v_operation.source_classroom_id
+      );
+  end if;
+
+  update public.course_blueprint_operations
+  set
+    status = 'completed',
+    storage_copy_status = 'completed',
+    result = case
+      when v_final_version.id is null then result
+      else jsonb_set(
+        result,
+        '{source_blueprint_version_id}',
+        to_jsonb(v_final_version.id),
+        true
+      )
+    end,
+    completed_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = p_operation_id;
+  perform set_config('pika.identity_mapping', 'off', true);
+  return jsonb_build_object('ok', true, 'replayed', false);
+end;
+$$;
+
+alter table public.classroom_purge_objects
+  add column managed_storage_object_id uuid
+    references public.managed_storage_objects (id) on delete set null;
+create unique index classroom_purge_objects_managed_object
+  on public.classroom_purge_objects (operation_id, managed_storage_object_id)
+  where managed_storage_object_id is not null;
+-- Permanent key reservations are checked on every managed Storage write. The
+-- purge ledger is retained indefinitely, so this lookup must not degrade into
+-- an unbounded scan as completed operations accumulate.
+create index classroom_purge_objects_permanent_storage_identity
+  on public.classroom_purge_objects (storage_bucket, storage_path_sha256);
+
+create or replace function public.managed_storage_identity_sha256(
+  p_storage_bucket text,
+  p_storage_path text
+)
+returns text
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  select encode(
+    extensions.digest(
+      convert_to(jsonb_build_array(p_storage_bucket, p_storage_path)::text, 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  )
+$$;
+
+create or replace function public.managed_storage_exact_lock(
+  p_storage_bucket text,
+  p_storage_path text
+)
+returns void
+language sql
+set search_path = ''
+as $$
+  select pg_advisory_xact_lock(
+    hashtextextended(
+      jsonb_build_array(p_storage_bucket, p_storage_path)::text,
+      0
+    )
+  )
+$$;
+
+create or replace function public.begin_managed_storage_upload(
+  p_object_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_classroom_id uuid,
+  p_course_blueprint_id uuid,
+  p_purpose text,
+  p_created_by_user_id uuid,
+  p_data_subject_user_id uuid,
+  p_resource_type text,
+  p_resource_id uuid,
+  p_content_type text,
+  p_byte_size bigint
+)
+returns public.managed_storage_objects
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object public.managed_storage_objects;
+  v_archived_at timestamptz;
+  v_existing boolean := false;
+  v_operation public.classroom_archive_operations;
+  v_operational_intent_valid boolean := false;
+  v_student_resource_valid boolean := false;
+  v_student_enrollment_valid boolean := false;
+  v_teacher_id uuid;
+begin
+  if num_nonnulls(p_classroom_id, p_course_blueprint_id) <> 1
+    or p_object_id is null
+    or p_created_by_user_id is null
+  then
+    raise exception 'managed_storage_owner_required' using errcode = '22023';
+  end if;
+
+  if p_classroom_id is not null then
+    perform public.classroom_purge_lock(p_classroom_id);
+    select classroom.teacher_id, classroom.archived_at
+    into v_teacher_id, v_archived_at
+    from public.classrooms classroom
+    where classroom.id = p_classroom_id
+    for update;
+    if not found then
+      raise exception 'classroom_not_owned' using errcode = '42501';
+    end if;
+    if p_purpose in ('student_assignment_artifact', 'student_inline_image') then
+      if v_archived_at is not null then
+        raise exception 'classroom_not_writable' using errcode = '55000';
+      end if;
+      perform 1
+      from public.assignment_docs document
+      join public.assignments assignment on assignment.id = document.assignment_id
+      where document.id = p_resource_id
+        and document.student_id = p_created_by_user_id
+        and assignment.classroom_id = p_classroom_id
+      for key share of document, assignment;
+      v_student_resource_valid := found;
+      perform 1
+      from public.classroom_enrollments enrollment
+      where enrollment.classroom_id = p_classroom_id
+        and enrollment.student_id = p_created_by_user_id
+      for key share;
+      v_student_enrollment_valid := found;
+      if p_created_by_user_id is distinct from p_data_subject_user_id
+        or p_resource_type is distinct from 'assignment_doc'
+        or p_resource_id is null
+        or p_storage_bucket is distinct from (case p_purpose
+          when 'student_assignment_artifact' then 'assignment-artifacts'
+          else 'submission-images'
+        end)
+        or not v_student_resource_valid
+        or not v_student_enrollment_valid
+      then
+        raise exception 'classroom_student_upload_not_allowed' using errcode = '42501';
+      end if;
+    elsif v_teacher_id <> p_created_by_user_id then
+      raise exception 'classroom_not_owned' using errcode = '42501';
+    elsif p_purpose in ('classroom_archive', 'gradex_extract') then
+      select * into v_operation
+      from public.classroom_archive_operations operation
+      where operation.id = p_resource_id
+        and operation.classroom_id = p_classroom_id
+        and operation.teacher_id = p_created_by_user_id
+      for update;
+      if found and p_purpose = 'classroom_archive' then
+        perform 1
+        from public.classroom_archive_object_upload_cleanup cleanup
+        where cleanup.operation_id = p_resource_id
+          and cleanup.storage_bucket = p_storage_bucket
+          and cleanup.storage_path = p_storage_path
+          and cleanup.expected_byte_size is not distinct from p_byte_size
+          and cleanup.status = 'staged'
+        for update;
+        v_operational_intent_valid := found;
+      elsif found then
+        v_operational_intent_valid := v_operation.storage_bucket is not distinct from p_storage_bucket
+          and v_operation.storage_path is not distinct from p_storage_path;
+      end if;
+      if v_operation.id is null
+        or v_archived_at is null
+        or p_storage_bucket <> (case p_purpose
+          when 'classroom_archive' then 'classroom-archives'
+          else 'gradex-analytics-extracts'
+        end)
+        or p_resource_type <> 'classroom_archive_operation'
+        or v_operation.status <> 'snapshot_ready'
+        or v_operation.operation_type <> (case p_purpose
+          when 'classroom_archive' then 'export'
+          else 'gradex_extract'
+        end)
+        or not v_operational_intent_valid
+      then
+        raise exception 'classroom_operational_upload_not_allowed' using errcode = '55000';
+      end if;
+    elsif v_archived_at is not null then
+      raise exception 'classroom_not_writable' using errcode = '55000';
+    end if;
+    if exists (
+      select 1 from public.classroom_purge_fences
+      where classroom_id = p_classroom_id
+    ) then
+      raise exception 'classroom_purge_active' using errcode = '55000';
+    end if;
+  end if;
+
+  if p_course_blueprint_id is not null and not exists (
+    select 1 from public.course_blueprints blueprint
+    where blueprint.id = p_course_blueprint_id
+      and blueprint.teacher_id = p_created_by_user_id
+    for update
+  ) then
+    raise exception 'blueprint_not_owned' using errcode = '42501';
+  end if;
+
+  -- Existing reservations are locked before the exact Storage identity. Owner
+  -- fields and paths are immutable, so this ordering is stable on replay.
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = p_object_id
+  for update;
+  v_existing := found;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+
+  if exists (
+    select 1
+    from public.classroom_purge_objects object
+    where object.storage_bucket = p_storage_bucket
+      and object.storage_path_sha256 = public.managed_storage_identity_sha256(
+        p_storage_bucket,
+        p_storage_path
+      )
+  ) then
+    raise exception 'storage_path_permanently_reserved' using errcode = '55000';
+  end if;
+
+  if v_existing then
+    if v_object.storage_bucket is distinct from p_storage_bucket
+      or v_object.storage_path is distinct from p_storage_path
+      or v_object.classroom_id is distinct from p_classroom_id
+      or v_object.course_blueprint_id is distinct from p_course_blueprint_id
+      or v_object.purpose is distinct from p_purpose
+      or v_object.created_by_user_id is distinct from p_created_by_user_id
+      or v_object.data_subject_user_id is distinct from p_data_subject_user_id
+      or v_object.resource_type is distinct from nullif(btrim(p_resource_type), '')
+      or v_object.resource_id is distinct from p_resource_id
+      or v_object.content_type is distinct from nullif(btrim(p_content_type), '')
+      or v_object.byte_size is distinct from p_byte_size
+    then
+      raise exception 'managed_storage_reservation_conflict' using errcode = '23505';
+    end if;
+    if v_object.status = 'cleanup_processing' then
+      raise exception 'managed_storage_cleanup_active' using errcode = '55000';
+    end if;
+    if v_object.status = 'cleanup_pending' then
+      update public.managed_storage_objects object
+      set status = 'pending_upload', upload_expires_at = clock_timestamp() + interval '1 hour',
+          last_error_code = null, next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+      where object.id = p_object_id
+      returning * into v_object;
+    end if;
+  else
+    insert into public.managed_storage_objects (
+      id, storage_bucket, storage_path, classroom_id, course_blueprint_id,
+      purpose, created_by_user_id, data_subject_user_id, resource_type,
+      resource_id, content_type, byte_size, upload_expires_at
+    ) values (
+      p_object_id, p_storage_bucket, p_storage_path, p_classroom_id,
+      p_course_blueprint_id, p_purpose, p_created_by_user_id,
+      p_data_subject_user_id, nullif(btrim(p_resource_type), ''), p_resource_id,
+      nullif(btrim(p_content_type), ''), p_byte_size,
+      clock_timestamp() + interval '1 hour'
+    ) returning * into v_object;
+  end if;
+
+  if p_purpose = 'classroom_archive' then
+    update public.classroom_archive_operations
+    set managed_object_id = p_object_id,
+        storage_bucket = p_storage_bucket,
+        storage_path = p_storage_path,
+        updated_at = clock_timestamp()
+    where id = p_resource_id;
+    update public.classroom_archive_object_upload_cleanup
+    set managed_object_id = p_object_id, updated_at = clock_timestamp()
+    where operation_id = p_resource_id
+      and storage_bucket = p_storage_bucket
+      and storage_path = p_storage_path
+      and status <> 'deleted';
+  elsif p_purpose = 'gradex_extract' then
+    update public.classroom_archive_operations
+    set managed_object_id = p_object_id, updated_at = clock_timestamp()
+    where id = p_resource_id;
+    update public.classroom_gradex_extract_cleanup
+    set managed_object_id = p_object_id, updated_at = clock_timestamp()
+    where operation_id = p_resource_id
+      and storage_bucket = p_storage_bucket
+      and storage_path = p_storage_path
+      and status <> 'deleted';
+  end if;
+
+  return v_object;
+end;
+$$;
+
+create or replace function public.adopt_managed_storage_upload(
+  p_object_id uuid,
+  p_content_sha256 text default null
+)
+returns public.managed_storage_objects
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_object public.managed_storage_objects;
+  v_hot_scope boolean := false;
+begin
+  select * into v_object
+  from public.managed_storage_objects
+  where id = p_object_id;
+
+  if not found then
+    raise exception 'managed_storage_object_not_found' using errcode = 'P0002';
+  end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms classroom
+    where classroom.id = v_object.classroom_id
+    for update;
+    v_hot_scope := found;
+    if not v_hot_scope then
+      perform 1 from public.classroom_cold_tombstones tombstone
+      where tombstone.classroom_id = v_object.classroom_id
+      for update;
+      if not found then
+        raise exception 'classroom_scope_not_found' using errcode = 'P0002';
+      end if;
+      perform 1
+      from public.classroom_archive_restore_managed_objects descriptor
+      join public.classroom_archive_operations operation
+        on operation.id = descriptor.operation_id
+      where descriptor.managed_object_id = v_object.id
+        and descriptor.storage_bucket = v_object.storage_bucket
+        and descriptor.storage_path = v_object.storage_path
+        and descriptor.purpose = v_object.purpose
+        and operation.classroom_id = v_object.classroom_id
+        and operation.operation_type = 'restore'
+        and operation.status = 'snapshot_ready'
+      for update of operation;
+      if not found then
+        raise exception 'classroom_restore_upload_not_allowed' using errcode = '55000';
+      end if;
+    elsif v_object.purpose in ('classroom_archive', 'gradex_extract') then
+      perform 1 from public.classroom_archive_operations operation
+      where operation.id = v_object.resource_id
+        and operation.classroom_id = v_object.classroom_id
+        and operation.status = 'snapshot_ready'
+        and operation.managed_object_id = v_object.id
+      for update;
+      if not found then
+        raise exception 'classroom_operational_upload_not_allowed' using errcode = '55000';
+      end if;
+    end if;
+  elsif v_object.course_blueprint_id is not null then
+    perform 1 from public.course_blueprints blueprint
+    where blueprint.id = v_object.course_blueprint_id
+    for update;
+    if not found then
+      raise exception 'blueprint_not_found' using errcode = 'P0002';
+    end if;
+  end if;
+  select * into v_object
+  from public.managed_storage_objects
+  where id = p_object_id
+  for update;
+  if not found then
+    raise exception 'managed_storage_object_not_found' using errcode = 'P0002';
+  end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+  if v_object.status = 'ready' then
+    return v_object;
+  end if;
+  if v_object.status <> 'pending_upload' then
+    raise exception 'managed_storage_object_not_adoptable' using errcode = '55000';
+  end if;
+  if not exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_object.storage_bucket
+      and object.name = v_object.storage_path
+  ) then
+    raise exception 'managed_storage_upload_missing' using errcode = '55000';
+  end if;
+
+  update public.managed_storage_objects
+  set
+    status = 'ready',
+    content_sha256 = coalesce(p_content_sha256, content_sha256),
+    upload_expires_at = null,
+    ready_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = p_object_id
+  returning * into v_object;
+  return v_object;
+end;
+$$;
+
+-- Immutable archive/Gradex metadata must be born with its managed owner. A
+-- post-insert attachment would either weaken immutability or be rejected by
+-- the existing metadata guards, so bind and validate the operation's exact
+-- ready object in a BEFORE INSERT trigger.
+create or replace function public.prepare_immutable_operational_managed_owner()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_managed_object_id uuid;
+  v_purpose text := case tg_table_name
+    when 'classroom_archives' then 'classroom_archive'
+    when 'classroom_gradex_extracts' then 'gradex_extract'
+    else null
+  end;
+begin
+  if v_purpose is null then
+    raise exception 'unsupported_operational_managed_owner' using errcode = '55000';
+  end if;
+
+  select object.id into v_managed_object_id
+  from public.classroom_archive_operations operation
+  join public.managed_storage_objects object
+    on object.id = operation.managed_object_id
+   and object.classroom_id = operation.classroom_id
+   and object.course_blueprint_id is null
+   and object.storage_bucket = new.storage_bucket
+   and object.storage_path = new.storage_path
+   and object.purpose = v_purpose
+   and object.resource_type = 'classroom_archive_operation'
+   and object.resource_id = operation.id
+   and object.status = 'ready'
+  where operation.id = new.operation_id
+    and operation.classroom_id = new.classroom_id
+    and operation.teacher_id = new.teacher_id
+  for key share of operation, object;
+  if not found then
+    raise exception '%_managed_object_missing', v_purpose using errcode = '55000';
+  end if;
+  if new.managed_object_id is not null
+    and new.managed_object_id is distinct from v_managed_object_id
+  then
+    raise exception '%_managed_object_mismatch', v_purpose using errcode = '55000';
+  end if;
+  new.managed_object_id := v_managed_object_id;
+  return new;
+end;
+$$;
+
+create trigger classroom_archives_prepare_managed_owner
+before insert on public.classroom_archives
+for each row execute function public.prepare_immutable_operational_managed_owner();
+
+create trigger classroom_gradex_extracts_prepare_managed_owner
+before insert on public.classroom_gradex_extracts
+for each row execute function public.prepare_immutable_operational_managed_owner();
+
+-- Archive and Gradex finalization keep their established contracts, while the
+-- BEFORE INSERT guards attach ownership in the same statement that creates the
+-- immutable operational metadata.
+alter function public.complete_classroom_archive_export_v2(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) rename to complete_classroom_archive_export_v2_legacy_117;
+
+create or replace function public.complete_classroom_archive_export_v2(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_artifact_sha256 text,
+  p_content_sha256 text,
+  p_compressed_byte_size bigint,
+  p_uncompressed_byte_size bigint,
+  p_resource_counts jsonb,
+  p_archive_format_version integer,
+  p_archive_resource_counts jsonb,
+  p_storage_object_counts jsonb,
+  p_verification jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_object public.managed_storage_objects;
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id;
+  if not found then
+    return public.complete_classroom_archive_export_v2_legacy_117(
+      p_operation_id, p_teacher_id, p_storage_bucket, p_storage_path,
+      p_artifact_sha256, p_content_sha256, p_compressed_byte_size,
+      p_uncompressed_byte_size, p_resource_counts, p_archive_format_version,
+      p_archive_resource_counts, p_storage_object_counts, p_verification
+    );
+  end if;
+  v_classroom_id := v_operation.classroom_id;
+  if v_operation.status = 'completed' then
+    return public.complete_classroom_archive_export_v2_legacy_117(
+      p_operation_id, p_teacher_id, p_storage_bucket, p_storage_path,
+      p_artifact_sha256, p_content_sha256, p_compressed_byte_size,
+      p_uncompressed_byte_size, p_resource_counts, p_archive_format_version,
+      p_archive_resource_counts, p_storage_object_counts, p_verification
+    );
+  end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id and classroom.teacher_id = p_teacher_id
+  for update;
+  if not found then
+    raise exception 'classroom_not_owned' using errcode = '42501';
+  end if;
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.classroom_id = v_classroom_id
+    and operation.teacher_id = p_teacher_id
+    and operation.operation_type = 'export'
+  for update;
+  if not found or v_operation.managed_object_id is null then
+    raise exception 'archive_managed_object_missing' using errcode = '55000';
+  end if;
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = v_operation.managed_object_id
+  for update;
+  if not found
+    or v_object.classroom_id is distinct from v_classroom_id
+    or v_object.course_blueprint_id is not null
+    or v_object.storage_bucket is distinct from p_storage_bucket
+    or v_object.storage_path is distinct from p_storage_path
+    or v_object.purpose <> 'classroom_archive'
+    or v_object.resource_type <> 'classroom_archive_operation'
+    or v_object.resource_id is distinct from p_operation_id
+    or v_object.status <> 'ready'
+    or v_object.content_sha256 is distinct from p_artifact_sha256
+    or v_object.byte_size is distinct from p_compressed_byte_size
+  then
+    raise exception 'archive_managed_object_mismatch' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+
+  v_result := public.complete_classroom_archive_export_v2_legacy_117(
+    p_operation_id, p_teacher_id, p_storage_bucket, p_storage_path,
+    p_artifact_sha256, p_content_sha256, p_compressed_byte_size,
+    p_uncompressed_byte_size, p_resource_counts, p_archive_format_version,
+    p_archive_resource_counts, p_storage_object_counts, p_verification
+  );
+  if coalesce((v_result->>'ok')::boolean, false) then
+    perform 1 from public.classroom_archives archive
+    where archive.id = v_operation.archive_id
+      and archive.classroom_id = v_classroom_id
+      and archive.storage_bucket = p_storage_bucket
+      and archive.storage_path = p_storage_path
+      and archive.managed_object_id = v_object.id;
+    if not found then
+      raise exception 'archive_managed_attachment_failed' using errcode = '40001';
+    end if;
+  end if;
+  return v_result;
+end;
+$$;
+
+alter function public.complete_classroom_gradex_extract(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) rename to complete_classroom_gradex_extract_legacy_117;
+
+create or replace function public.complete_classroom_gradex_extract(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_artifact_sha256 text,
+  p_content_sha256 text,
+  p_compressed_byte_size bigint,
+  p_uncompressed_byte_size bigint,
+  p_resource_counts jsonb,
+  p_verification jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_object public.managed_storage_objects;
+  v_operation public.classroom_archive_operations;
+  v_result jsonb;
+begin
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id;
+  if not found then
+    return public.complete_classroom_gradex_extract_legacy_117(
+      p_operation_id, p_teacher_id, p_artifact_sha256, p_content_sha256,
+      p_compressed_byte_size, p_uncompressed_byte_size, p_resource_counts,
+      p_verification
+    );
+  end if;
+  v_classroom_id := v_operation.classroom_id;
+  if v_operation.status = 'completed' then
+    return public.complete_classroom_gradex_extract_legacy_117(
+      p_operation_id, p_teacher_id, p_artifact_sha256, p_content_sha256,
+      p_compressed_byte_size, p_uncompressed_byte_size, p_resource_counts,
+      p_verification
+    );
+  end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id and classroom.teacher_id = p_teacher_id
+  for update;
+  if not found then
+    raise exception 'classroom_not_owned' using errcode = '42501';
+  end if;
+  select * into v_operation
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.classroom_id = v_classroom_id
+    and operation.teacher_id = p_teacher_id
+    and operation.operation_type = 'gradex_extract'
+  for update;
+  if not found or v_operation.managed_object_id is null then
+    raise exception 'gradex_managed_object_missing' using errcode = '55000';
+  end if;
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = v_operation.managed_object_id
+  for update;
+  if not found
+    or v_object.classroom_id is distinct from v_classroom_id
+    or v_object.course_blueprint_id is not null
+    or v_object.storage_bucket <> 'gradex-analytics-extracts'
+    or v_object.storage_path is distinct from v_operation.storage_path
+    or v_object.purpose <> 'gradex_extract'
+    or v_object.resource_type <> 'classroom_archive_operation'
+    or v_object.resource_id is distinct from p_operation_id
+    or v_object.status <> 'ready'
+    or v_object.content_sha256 is distinct from p_artifact_sha256
+    or v_object.byte_size is distinct from p_compressed_byte_size
+  then
+    raise exception 'gradex_managed_object_mismatch' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+
+  v_result := public.complete_classroom_gradex_extract_legacy_117(
+    p_operation_id, p_teacher_id, p_artifact_sha256, p_content_sha256,
+    p_compressed_byte_size, p_uncompressed_byte_size, p_resource_counts,
+    p_verification
+  );
+  if coalesce((v_result->>'ok')::boolean, false) then
+    perform 1 from public.classroom_gradex_extracts extract
+    where extract.operation_id = p_operation_id
+      and extract.classroom_id = v_classroom_id
+      and extract.storage_bucket = v_object.storage_bucket
+      and extract.storage_path = v_object.storage_path
+      and extract.managed_object_id = v_object.id;
+    if not found then
+      raise exception 'gradex_managed_attachment_failed' using errcode = '40001';
+    end if;
+  end if;
+  return v_result;
+end;
+$$;
+
+create or replace function public.queue_managed_storage_cleanup(
+  p_object_id uuid,
+  p_error_code text default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object public.managed_storage_objects;
+begin
+  select * into v_object from public.managed_storage_objects where id = p_object_id;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then
+        raise exception 'managed_storage_classroom_scope_missing' using errcode = '55000';
+      end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then
+      raise exception 'managed_storage_blueprint_owner_missing' using errcode = '55000';
+    end if;
+  end if;
+  select * into v_object from public.managed_storage_objects
+  where id = p_object_id for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    upload_expires_at = null,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = nullif(left(coalesce(p_error_code, ''), 120), ''),
+    next_attempt_at = clock_timestamp(),
+    ready_at = null,
+    updated_at = clock_timestamp()
+  where id = p_object_id
+    and status in ('pending_upload', 'ready', 'cleanup_pending');
+  return found;
+end;
+$$;
+
+-- Removal of an object referenced by mutable test JSON must be conditional on
+-- the complete server-derived ownership tuple. An object UUID by itself is not
+-- authority: test-document payloads cross a client trust boundary.
+create or replace function public.queue_classroom_managed_storage_cleanup(
+  p_object_id uuid,
+  p_classroom_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_purpose text,
+  p_resource_type text,
+  p_resource_id uuid,
+  p_error_code text default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object public.managed_storage_objects;
+begin
+  if p_object_id is null
+    or p_classroom_id is null
+    or nullif(p_storage_bucket, '') is null
+    or nullif(p_storage_path, '') is null
+    or p_storage_path like '/%'
+    or '' = any(string_to_array(p_storage_path, '/'))
+    or '.' = any(string_to_array(p_storage_path, '/'))
+    or '..' = any(string_to_array(p_storage_path, '/'))
+    or nullif(p_purpose, '') is null
+    or nullif(p_resource_type, '') is null
+    or p_resource_id is null
+  then
+    return false;
+  end if;
+
+  perform public.guard_classroom_purge_lifecycle(p_classroom_id);
+  perform 1 from public.classrooms where id = p_classroom_id for update;
+  if not found then
+    perform 1 from public.classroom_cold_tombstones
+    where classroom_id = p_classroom_id for update;
+    if not found then return false; end if;
+  end if;
+  if p_resource_type = 'test' then
+    perform 1 from public.tests
+    where id = p_resource_id and classroom_id = p_classroom_id
+    for update;
+    if not found then return false; end if;
+  end if;
+
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = p_object_id
+    and object.classroom_id = p_classroom_id
+    and object.course_blueprint_id is null
+    and object.storage_bucket = p_storage_bucket
+    and object.storage_path = p_storage_path
+    and object.purpose = p_purpose
+    and object.resource_type = p_resource_type
+    and object.resource_id = p_resource_id
+  for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    upload_expires_at = null,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = nullif(left(coalesce(p_error_code, ''), 120), ''),
+    next_attempt_at = clock_timestamp(),
+    ready_at = null,
+    updated_at = clock_timestamp()
+  where id = p_object_id
+    and classroom_id = p_classroom_id
+    and course_blueprint_id is null
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and purpose = p_purpose
+    and resource_type = p_resource_type
+    and resource_id = p_resource_id
+    and (
+      p_resource_type <> 'test'
+      or not exists (
+        select 1
+        from public.tests test
+        cross join lateral jsonb_array_elements(
+          coalesce(test.documents, '[]'::jsonb)
+        ) document(value)
+        where test.id = p_resource_id
+          and (
+            document.value->>'managed_object_id' = p_object_id::text
+            or document.value->>'snapshot_managed_object_id' = p_object_id::text
+          )
+      )
+    )
+    and status in ('pending_upload', 'ready', 'cleanup_pending');
+  return found;
+end;
+$$;
+
+-- The browser receives a managed object UUID after upload, but that UUID is an
+-- untrusted claim when it returns in document JSON. Validate every claimed
+-- object against a server-parsed path and the locked test owner before the
+-- migration-110 atomic authoring function stores the payload.
+create or replace function public.update_test_documents_managed_atomic(
+  p_teacher_id uuid,
+  p_test_id uuid,
+  p_expected_status text,
+  p_expected_documents jsonb,
+  p_documents jsonb,
+  p_expected_managed_storage_claims jsonb,
+  p_managed_storage_claims jsonb,
+  p_update_title boolean,
+  p_title text,
+  p_update_status boolean,
+  p_status text,
+  p_update_show_results boolean,
+  p_show_results boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_archived_at timestamptz;
+  v_claim jsonb;
+  v_claim_count integer;
+  v_classroom_id uuid;
+  v_document jsonb;
+  v_object_id uuid;
+  v_owner_id uuid;
+  v_path text;
+  v_reference_count integer := 0;
+  v_expected_reference_count integer := 0;
+  v_result jsonb;
+begin
+  if jsonb_typeof(coalesce(p_documents, '[]'::jsonb)) <> 'array'
+    or jsonb_typeof(coalesce(p_managed_storage_claims, '[]'::jsonb)) <> 'array'
+    or jsonb_typeof(coalesce(p_expected_documents, '[]'::jsonb)) <> 'array'
+    or jsonb_typeof(coalesce(p_expected_managed_storage_claims, '[]'::jsonb)) <> 'array'
+  then
+    raise exception 'invalid_managed_test_document_claims' using errcode = '22023';
+  end if;
+
+  select test.classroom_id into v_classroom_id
+  from public.tests test
+  where test.id = p_test_id;
+  if not found then raise exception 'test_not_found' using errcode = 'P0002'; end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  select classroom.id, classroom.teacher_id, classroom.archived_at
+  into v_classroom_id, v_owner_id, v_archived_at
+  from public.tests test
+  join public.classrooms classroom on classroom.id = test.classroom_id
+  where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
+  for update of test, classroom;
+  if not found then raise exception 'test_not_found' using errcode = 'P0002'; end if;
+  if v_owner_id is distinct from p_teacher_id then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  if v_archived_at is not null then
+    raise exception 'classroom_archived' using errcode = '55000';
+  end if;
+
+  for v_document in
+    select value from jsonb_array_elements(coalesce(p_documents, '[]'::jsonb))
+  loop
+    if nullif(v_document->>'managed_object_id', '') is not null then
+      v_reference_count := v_reference_count + 1;
+      v_object_id := public.managed_storage_uuid(v_document->>'managed_object_id');
+      if v_object_id is null or v_document->>'source' is distinct from 'upload' then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+
+      v_claim_count := 0;
+      for v_claim in
+        select value
+        from jsonb_array_elements(coalesce(p_managed_storage_claims, '[]'::jsonb))
+        where value->>'document_id' = v_document->>'id'
+          and value->>'reference_kind' = 'teacher_upload'
+          and value->>'managed_object_id' = v_object_id::text
+      loop
+        v_claim_count := v_claim_count + 1;
+        v_path := nullif(v_claim->>'storage_path', '');
+        if v_claim - 'document_id' - 'reference_kind' - 'managed_object_id'
+            - 'storage_bucket' - 'storage_path' - 'purpose' <> '{}'::jsonb
+          or v_claim->>'storage_bucket' is distinct from 'test-documents'
+          or v_claim->>'purpose' is distinct from 'teacher_test_material'
+          or v_path is null
+          or v_path like '/%'
+          or '' = any(string_to_array(v_path, '/'))
+          or '.' = any(string_to_array(v_path, '/'))
+          or '..' = any(string_to_array(v_path, '/'))
+          or not exists (
+            select 1 from public.managed_storage_objects object
+            where object.id = v_object_id
+              and object.classroom_id = v_classroom_id
+              and object.course_blueprint_id is null
+              and object.storage_bucket = 'test-documents'
+              and object.storage_path = v_path
+              and object.purpose = 'teacher_test_material'
+              and object.resource_type = 'test'
+              and object.resource_id = p_test_id
+              and object.status = 'ready'
+          )
+        then
+          raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+        end if;
+      end loop;
+      if v_claim_count <> 1 then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+      perform 1
+      from public.managed_storage_objects object
+      where object.id = v_object_id
+        and object.classroom_id = v_classroom_id
+        and object.course_blueprint_id is null
+        and object.storage_bucket = 'test-documents'
+        and object.storage_path = v_path
+        and object.purpose = 'teacher_test_material'
+        and object.resource_type = 'test'
+        and object.resource_id = p_test_id
+        and object.status = 'ready'
+      for update;
+      if not found then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+    end if;
+
+    if nullif(v_document->>'snapshot_managed_object_id', '') is not null then
+      v_reference_count := v_reference_count + 1;
+      v_object_id := public.managed_storage_uuid(
+        v_document->>'snapshot_managed_object_id'
+      );
+      if v_object_id is null or v_document->>'source' is distinct from 'link' then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+
+      v_claim_count := 0;
+      for v_claim in
+        select value
+        from jsonb_array_elements(coalesce(p_managed_storage_claims, '[]'::jsonb))
+        where value->>'document_id' = v_document->>'id'
+          and value->>'reference_kind' = 'execution_snapshot'
+          and value->>'managed_object_id' = v_object_id::text
+      loop
+        v_claim_count := v_claim_count + 1;
+        v_path := nullif(v_claim->>'storage_path', '');
+        if v_claim - 'document_id' - 'reference_kind' - 'managed_object_id'
+            - 'storage_bucket' - 'storage_path' - 'purpose' <> '{}'::jsonb
+          or v_claim->>'storage_bucket' is distinct from 'test-documents'
+          or v_claim->>'purpose' is distinct from 'test_execution_snapshot'
+          or v_path is distinct from nullif(v_document->>'snapshot_path', '')
+          or v_path is null
+          or v_path like '/%'
+          or '' = any(string_to_array(v_path, '/'))
+          or '.' = any(string_to_array(v_path, '/'))
+          or '..' = any(string_to_array(v_path, '/'))
+          or not exists (
+            select 1 from public.managed_storage_objects object
+            where object.id = v_object_id
+              and object.classroom_id = v_classroom_id
+              and object.course_blueprint_id is null
+              and object.storage_bucket = 'test-documents'
+              and object.storage_path = v_path
+              and object.purpose = 'test_execution_snapshot'
+              and object.resource_type = 'test'
+              and object.resource_id = p_test_id
+              and object.status = 'ready'
+          )
+        then
+          raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+        end if;
+      end loop;
+      if v_claim_count <> 1 then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+      perform 1
+      from public.managed_storage_objects object
+      where object.id = v_object_id
+        and object.classroom_id = v_classroom_id
+        and object.course_blueprint_id is null
+        and object.storage_bucket = 'test-documents'
+        and object.storage_path = v_path
+        and object.purpose = 'test_execution_snapshot'
+        and object.resource_type = 'test'
+        and object.resource_id = p_test_id
+        and object.status = 'ready'
+      for update;
+      if not found then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+    end if;
+  end loop;
+
+  if v_reference_count
+    <> jsonb_array_length(coalesce(p_managed_storage_claims, '[]'::jsonb))
+  then
+    raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+  end if;
+
+  -- Validate the previous ownership claims while the test row is locked. These
+  -- claims are used only to queue objects that the successful compare-and-swap
+  -- removes, keeping the data mutation and cleanup transition in one transaction.
+  for v_document in
+    select value from jsonb_array_elements(coalesce(p_expected_documents, '[]'::jsonb))
+  loop
+    if nullif(v_document->>'managed_object_id', '') is not null then
+      v_expected_reference_count := v_expected_reference_count + 1;
+    end if;
+    if nullif(v_document->>'snapshot_managed_object_id', '') is not null then
+      v_expected_reference_count := v_expected_reference_count + 1;
+    end if;
+  end loop;
+  if v_expected_reference_count
+    <> jsonb_array_length(coalesce(p_expected_managed_storage_claims, '[]'::jsonb))
+  then
+    raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+  end if;
+
+  for v_document in
+    select value from jsonb_array_elements(coalesce(p_expected_documents, '[]'::jsonb))
+  loop
+    if nullif(v_document->>'managed_object_id', '') is not null then
+      select count(*) into v_claim_count
+      from jsonb_array_elements(
+        coalesce(p_expected_managed_storage_claims, '[]'::jsonb)
+      ) claim(value)
+      where claim.value->>'document_id' = v_document->>'id'
+        and claim.value->>'reference_kind' = 'teacher_upload'
+        and claim.value->>'managed_object_id' = v_document->>'managed_object_id';
+      if v_claim_count <> 1 then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+    end if;
+    if nullif(v_document->>'snapshot_managed_object_id', '') is not null then
+      select count(*) into v_claim_count
+      from jsonb_array_elements(
+        coalesce(p_expected_managed_storage_claims, '[]'::jsonb)
+      ) claim(value)
+      where claim.value->>'document_id' = v_document->>'id'
+        and claim.value->>'reference_kind' = 'execution_snapshot'
+        and claim.value->>'managed_object_id' = v_document->>'snapshot_managed_object_id';
+      if v_claim_count <> 1 then
+        raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+      end if;
+    end if;
+  end loop;
+
+  for v_claim in
+    select value from jsonb_array_elements(
+      coalesce(p_expected_managed_storage_claims, '[]'::jsonb)
+    )
+  loop
+    v_object_id := public.managed_storage_uuid(v_claim->>'managed_object_id');
+    v_path := nullif(v_claim->>'storage_path', '');
+    if v_claim - 'document_id' - 'reference_kind' - 'managed_object_id'
+        - 'storage_bucket' - 'storage_path' - 'purpose' <> '{}'::jsonb
+      or v_object_id is null
+      or v_claim->>'storage_bucket' is distinct from 'test-documents'
+      or v_claim->>'reference_kind' not in ('teacher_upload', 'execution_snapshot')
+      or v_claim->>'purpose' is distinct from (case v_claim->>'reference_kind'
+        when 'teacher_upload' then 'teacher_test_material'
+        else 'test_execution_snapshot'
+      end)
+      or v_path is null
+      or v_path like '/%'
+      or '' = any(string_to_array(v_path, '/'))
+      or '.' = any(string_to_array(v_path, '/'))
+      or '..' = any(string_to_array(v_path, '/'))
+      or not exists (
+        select 1
+        from jsonb_array_elements(coalesce(p_expected_documents, '[]'::jsonb)) expected(value)
+        where expected.value->>'id' = v_claim->>'document_id'
+          and expected.value->>'source' = case v_claim->>'reference_kind'
+            when 'teacher_upload' then 'upload'
+            else 'link'
+          end
+          and expected.value->>(case v_claim->>'reference_kind'
+            when 'teacher_upload' then 'managed_object_id'
+            else 'snapshot_managed_object_id'
+          end) = v_object_id::text
+          and (
+            v_claim->>'reference_kind' <> 'execution_snapshot'
+            or expected.value->>'snapshot_path' = v_path
+          )
+      )
+    then
+      raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+    end if;
+
+    perform 1
+    from public.managed_storage_objects object
+    where object.id = v_object_id
+      and object.classroom_id = v_classroom_id
+      and object.course_blueprint_id is null
+      and object.storage_bucket = 'test-documents'
+      and object.storage_path = v_path
+      and object.purpose = v_claim->>'purpose'
+      and object.resource_type = 'test'
+      and object.resource_id = p_test_id
+      and object.status = 'ready'
+    for update;
+    if not found then
+      raise exception 'managed_test_document_owner_mismatch' using errcode = '55000';
+    end if;
+  end loop;
+
+  v_result := public.update_test_documents_atomic(
+    p_teacher_id,
+    p_test_id,
+    p_expected_status,
+    p_expected_documents,
+    p_documents,
+    p_update_title,
+    p_title,
+    p_update_status,
+    p_status,
+    p_update_show_results,
+    p_show_results
+  );
+
+  if coalesce((v_result->>'ok')::boolean, false) then
+    for v_claim in
+      select previous.value from jsonb_array_elements(
+        coalesce(p_expected_managed_storage_claims, '[]'::jsonb)
+      ) previous(value)
+      where not exists (
+        select 1
+        from jsonb_array_elements(coalesce(p_managed_storage_claims, '[]'::jsonb)) current(value)
+        where current.value->>'managed_object_id' = previous.value->>'managed_object_id'
+      )
+    loop
+      perform public.queue_classroom_managed_storage_cleanup(
+        public.managed_storage_uuid(v_claim->>'managed_object_id'),
+        v_classroom_id,
+        v_claim->>'storage_bucket',
+        v_claim->>'storage_path',
+        v_claim->>'purpose',
+        'test',
+        p_test_id,
+        'test_document_removed'
+      );
+    end loop;
+  end if;
+
+  return v_result;
+end;
+$$;
+
+create or replace function public.queue_managed_storage_cleanup_path(
+  p_storage_bucket text,
+  p_storage_path text,
+  p_error_code text default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object public.managed_storage_objects;
+begin
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.storage_bucket = p_storage_bucket
+    and object.storage_path = p_storage_path;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then
+        raise exception 'managed_storage_classroom_scope_missing' using errcode = '55000';
+      end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then
+      raise exception 'managed_storage_blueprint_owner_missing' using errcode = '55000';
+    end if;
+  end if;
+  select * into v_object from public.managed_storage_objects object
+  where object.id = v_object.id for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    upload_expires_at = null,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = nullif(left(coalesce(p_error_code, ''), 120), ''),
+    next_attempt_at = clock_timestamp(),
+    ready_at = null,
+    updated_at = clock_timestamp()
+  where id = v_object.id
+    and status in ('pending_upload', 'ready', 'cleanup_pending');
+  return found;
+end;
+$$;
+
+create or replace function public.claim_managed_storage_cleanup(
+  p_lease_token uuid,
+  p_limit integer default 10,
+  p_lease_seconds integer default 60
+)
+returns setof public.managed_storage_objects
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_candidate public.managed_storage_objects;
+  v_object public.managed_storage_objects;
+begin
+  if p_limit <> 1 or p_lease_seconds < 15 or p_lease_seconds > 300 then
+    raise exception 'invalid_managed_storage_cleanup_claim' using errcode = '22023';
+  end if;
+
+  select * into v_candidate
+  from public.managed_storage_objects object
+  where (
+    object.status = 'cleanup_pending'
+    or (object.status = 'pending_upload' and object.upload_expires_at <= clock_timestamp())
+    or (object.status = 'cleanup_processing' and object.lease_expires_at <= clock_timestamp())
+  )
+    and object.next_attempt_at <= clock_timestamp()
+  order by object.next_attempt_at, object.created_at, object.id
+  limit 1;
+  if not found then return; end if;
+
+  if v_candidate.classroom_id is not null then
+    perform public.classroom_purge_lock(v_candidate.classroom_id);
+    perform 1 from public.classrooms where id = v_candidate.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_candidate.classroom_id for update;
+      if not found then
+        raise exception 'managed_storage_classroom_scope_missing' using errcode = '55000';
+      end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_candidate.course_blueprint_id for update;
+    if not found then
+      raise exception 'managed_storage_blueprint_owner_missing' using errcode = '55000';
+    end if;
+  end if;
+
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.id = v_candidate.id
+    and (
+      object.status = 'cleanup_pending'
+      or (object.status = 'pending_upload' and object.upload_expires_at <= clock_timestamp())
+      or (object.status = 'cleanup_processing' and object.lease_expires_at <= clock_timestamp())
+    )
+    and object.next_attempt_at <= clock_timestamp()
+  for update skip locked;
+  if not found then return; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+  update public.managed_storage_objects object
+  set
+    status = 'cleanup_processing',
+    attempt_count = object.attempt_count + 1,
+    lease_token = p_lease_token,
+    lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+    last_error_code = null,
+    ready_at = null,
+    updated_at = clock_timestamp()
+  where object.id = v_object.id
+  returning object.* into v_object;
+  return next v_object;
+end;
+$$;
+
+create or replace function public.complete_managed_storage_cleanup(
+  p_object_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_object public.managed_storage_objects;
+begin
+  select * into v_object from public.managed_storage_objects where id = p_object_id;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then return false; end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then return false; end if;
+  end if;
+  select * into v_object
+  from public.managed_storage_objects
+  where id = p_object_id
+    and status = 'cleanup_processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp()
+  for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+  if exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_object.storage_bucket
+      and object.name = v_object.storage_path
+  ) then
+    raise exception 'managed_storage_cleanup_not_absent' using errcode = '55000';
+  end if;
+  -- These are compatibility evidence, not retaining owners. Remove them in
+  -- the same transaction so ON DELETE SET NULL cannot leave a path-bearing,
+  -- ownerless ledger between managed completion and its legacy worker.
+  delete from public.assignment_artifact_storage_cleanup
+  where managed_object_id = p_object_id;
+  delete from public.test_document_snapshot_storage_cleanup
+  where managed_object_id = p_object_id;
+  update public.classroom_archive_source_object_cleanup cleanup
+  set next_attempt_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+  where cleanup.storage_bucket = v_object.storage_bucket
+    and cleanup.storage_path = v_object.storage_path
+    and cleanup.status = 'failed'
+    and cleanup.last_error_code = 'archive_source_managed_cleanup_pending';
+  delete from public.managed_storage_objects
+  where id = p_object_id
+    and lease_token = p_lease_token;
+  return found;
+end;
+$$;
+
+create or replace function public.fail_managed_storage_cleanup(
+  p_object_id uuid,
+  p_lease_token uuid,
+  p_error_code text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object public.managed_storage_objects;
+begin
+  select * into v_object from public.managed_storage_objects where id = p_object_id;
+  if not found then return false; end if;
+  if v_object.classroom_id is not null then
+    perform public.classroom_purge_lock(v_object.classroom_id);
+    perform 1 from public.classrooms where id = v_object.classroom_id for update;
+    if not found then
+      perform 1 from public.classroom_cold_tombstones
+      where classroom_id = v_object.classroom_id for update;
+      if not found then return false; end if;
+    end if;
+  else
+    perform 1 from public.course_blueprints
+    where id = v_object.course_blueprint_id for update;
+    if not found then return false; end if;
+  end if;
+  select * into v_object from public.managed_storage_objects
+  where id = p_object_id
+    and status = 'cleanup_processing'
+    and lease_token = p_lease_token
+  for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = left(coalesce(nullif(p_error_code, ''), 'storage_cleanup_failed'), 120),
+    next_attempt_at = clock_timestamp() + make_interval(
+      secs => least(3600, greatest(5, (2 ^ least(attempt_count, 10))::integer))
+    ),
+    updated_at = clock_timestamp()
+  where id = p_object_id
+    and status = 'cleanup_processing'
+    and lease_token = p_lease_token;
+  return found;
+end;
+$$;
+
+-- Course Blueprint deletion is deliberately not another purge workflow in this
+-- feature. The managed-storage owner FK is RESTRICT, so Blueprints with files
+-- are preserved and deletion fails closed. A dedicated Blueprint retention UX
+-- can be designed independently without coupling it to classroom deletion.
+
+create or replace function public.register_legacy_classroom_storage_object(
+  p_object_id uuid,
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_purpose text,
+  p_created_by_user_id uuid,
+  p_data_subject_user_id uuid,
+  p_resource_type text,
+  p_resource_id uuid,
+  p_content_type text,
+  p_byte_size bigint
+)
+returns public.managed_storage_objects
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_object public.managed_storage_objects;
+begin
+  perform public.classroom_purge_lock(p_classroom_id);
+  if not exists (
+    select 1 from public.classrooms
+    where id = p_classroom_id and teacher_id = p_teacher_id
+  ) then
+    raise exception 'classroom_not_found' using errcode = 'P0002';
+  end if;
+  if exists (
+    select 1 from public.classroom_purge_fences where classroom_id = p_classroom_id
+  ) then
+    raise exception 'classroom_purge_active' using errcode = '55000';
+  end if;
+  if not exists (
+    select 1 from storage.objects object
+    where object.bucket_id = p_storage_bucket
+      and object.name = p_storage_path
+  ) then
+    raise exception 'legacy_storage_object_missing' using errcode = '55000';
+  end if;
+
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, purpose,
+    status, created_by_user_id, data_subject_user_id, resource_type,
+    resource_id, content_type, byte_size, ready_at
+  ) values (
+    p_object_id, p_storage_bucket, p_storage_path, p_classroom_id, p_purpose,
+    'ready', p_created_by_user_id, p_data_subject_user_id,
+    nullif(btrim(p_resource_type), ''), p_resource_id,
+    nullif(btrim(p_content_type), ''), p_byte_size, clock_timestamp()
+  )
+  on conflict (storage_bucket, storage_path) do update
+  set
+    classroom_id = excluded.classroom_id,
+    course_blueprint_id = null,
+    purpose = excluded.purpose,
+    created_by_user_id = coalesce(
+      public.managed_storage_objects.created_by_user_id,
+      excluded.created_by_user_id
+    ),
+    data_subject_user_id = coalesce(
+      public.managed_storage_objects.data_subject_user_id,
+      excluded.data_subject_user_id
+    ),
+    resource_type = coalesce(public.managed_storage_objects.resource_type, excluded.resource_type),
+    resource_id = coalesce(public.managed_storage_objects.resource_id, excluded.resource_id),
+    content_type = coalesce(public.managed_storage_objects.content_type, excluded.content_type),
+    byte_size = coalesce(public.managed_storage_objects.byte_size, excluded.byte_size),
+    updated_at = clock_timestamp()
+  where public.managed_storage_objects.classroom_id = excluded.classroom_id
+  returning * into v_object;
+
+  if v_object.id is null then
+    raise exception 'legacy_storage_object_owner_conflict' using errcode = '23505';
+  end if;
+  return v_object;
+end;
+$$;
+
+create or replace function public.verify_classroom_managed_storage_coverage(
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_source_revision bigint,
+  p_reference_count integer,
+  p_inventory_sha256 text
+)
+returns public.classroom_managed_storage_coverage
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_coverage public.classroom_managed_storage_coverage;
+  v_revision bigint;
+  v_object_count integer;
+  v_inventory_sha256 text;
+  v_unsettled_object_count integer;
+begin
+  if p_inventory_sha256 !~ '^[a-f0-9]{64}$' or p_reference_count < 0 then
+    raise exception 'invalid_storage_coverage_evidence' using errcode = '22023';
+  end if;
+  perform public.classroom_purge_lock(p_classroom_id);
+  select revision.revision into v_revision
+  from public.classrooms classroom
+  join public.classroom_archive_revisions revision
+    on revision.classroom_id = classroom.id
+  where classroom.id = p_classroom_id
+    and classroom.teacher_id = p_teacher_id
+  for update of classroom, revision;
+  if not found then
+    raise exception 'classroom_not_found' using errcode = 'P0002';
+  end if;
+  if v_revision <> p_source_revision then
+    raise exception 'classroom_storage_coverage_revision_drift' using errcode = '40001';
+  end if;
+  select
+    inventory.reference_count,
+    inventory.inventory_sha256,
+    inventory.unsettled_object_count
+  into v_object_count, v_inventory_sha256, v_unsettled_object_count
+  from public.compute_classroom_managed_storage_inventory(p_classroom_id) inventory;
+  if v_unsettled_object_count <> 0 then
+    raise exception 'classroom_storage_coverage_has_unsettled_objects' using errcode = '55000';
+  end if;
+  if v_object_count <> p_reference_count then
+    raise exception 'classroom_storage_coverage_count_mismatch' using errcode = '40001';
+  end if;
+  if v_inventory_sha256 is distinct from p_inventory_sha256 then
+    raise exception 'classroom_storage_coverage_digest_mismatch' using errcode = '40001';
+  end if;
+
+  update public.classroom_managed_storage_coverage
+  set
+    status = 'verified',
+    inventory_version = inventory_version + 1,
+    source_revision = p_source_revision,
+    reference_count = p_reference_count,
+    object_count = v_object_count,
+    inventory_sha256 = v_inventory_sha256,
+    error_code = null,
+    verified_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where classroom_id = p_classroom_id
+  returning * into v_coverage;
+  return v_coverage;
+end;
+$$;
+
+create or replace function public.attach_legacy_test_document_managed_object(
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_test_id uuid,
+  p_document_id text,
+  p_reference_kind text,
+  p_expected_reference text,
+  p_managed_object_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_test public.tests%rowtype;
+  v_documents jsonb;
+  v_document jsonb;
+  v_index integer;
+  v_key text;
+  v_id_key text;
+  v_prior_identity_mapping text := current_setting('pika.identity_mapping', true);
+  v_prior_archive_compaction text := current_setting(
+    'pika.classroom_archive_compaction',
+    true
+  );
+begin
+  if p_reference_kind not in ('teacher_upload', 'execution_snapshot') then
+    raise exception 'invalid_legacy_test_document_reference' using errcode = '22023';
+  end if;
+  perform public.classroom_purge_lock(p_classroom_id);
+  select test.* into v_test
+  from public.tests test
+  join public.classrooms classroom on classroom.id = test.classroom_id
+  where test.id = p_test_id
+    and test.classroom_id = p_classroom_id
+    and classroom.teacher_id = p_teacher_id
+  for update of test;
+  if not found then raise exception 'test_not_found' using errcode = 'P0002'; end if;
+  if not exists (
+    select 1 from public.managed_storage_objects object
+    where object.id = p_managed_object_id
+      and object.classroom_id = p_classroom_id
+      and object.storage_bucket = 'test-documents'
+      and object.status = 'ready'
+      and object.purpose = case p_reference_kind
+        when 'teacher_upload' then 'teacher_test_material'
+        else 'test_execution_snapshot'
+      end
+  ) then
+    raise exception 'legacy_test_document_owner_mismatch' using errcode = '55000';
+  end if;
+
+  v_key := case p_reference_kind when 'teacher_upload' then 'url' else 'snapshot_path' end;
+  v_id_key := case p_reference_kind
+    when 'teacher_upload' then 'managed_object_id'
+    else 'snapshot_managed_object_id'
+  end;
+  v_documents := coalesce(v_test.documents, '[]'::jsonb);
+  select document.value, (document.ordinality - 1)::integer
+  into v_document, v_index
+  from jsonb_array_elements(v_documents) with ordinality document(value, ordinality)
+  where document.value->>'id' = p_document_id
+  limit 1;
+  if v_document is null
+    or v_document->>v_key is distinct from p_expected_reference
+  then
+    raise exception 'legacy_test_document_changed' using errcode = '40001';
+  end if;
+  if v_document->>v_id_key = p_managed_object_id::text then return true; end if;
+  if nullif(v_document->>v_id_key, '') is not null then
+    raise exception 'legacy_test_document_owner_conflict' using errcode = '23505';
+  end if;
+
+  v_documents := jsonb_set(
+    v_documents,
+    array[v_index::text],
+    v_document || jsonb_build_object(v_id_key, p_managed_object_id),
+    false
+  );
+  begin
+    -- This is ownership metadata on an already-validated document reference,
+    -- not a semantic classroom edit. Suppress both identity guards and archive
+    -- revision churn for this exact UPDATE, then restore the caller's context.
+    perform set_config('pika.identity_mapping', 'on', true);
+    perform set_config('pika.classroom_archive_compaction', 'on', true);
+    update public.tests set documents = v_documents where id = p_test_id;
+  exception when others then
+    perform set_config(
+      'pika.classroom_archive_compaction',
+      coalesce(v_prior_archive_compaction, 'off'),
+      true
+    );
+    perform set_config(
+      'pika.identity_mapping',
+      coalesce(v_prior_identity_mapping, 'off'),
+      true
+    );
+    raise;
+  end;
+  perform set_config(
+    'pika.classroom_archive_compaction',
+    coalesce(v_prior_archive_compaction, 'off'),
+    true
+  );
+  perform set_config(
+    'pika.identity_mapping',
+    coalesce(v_prior_identity_mapping, 'off'),
+    true
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.queue_removed_blueprint_test_document_files()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_document jsonb;
+  v_object_id uuid;
+  v_blueprint_id uuid := old.course_blueprint_id;
+begin
+  -- Version snapshots are immutable and may still reference material removed
+  -- from the mutable Blueprint. Retain all Blueprint-owned test material while
+  -- any Version exists; Blueprint deletion owns the eventual physical cleanup.
+  if exists (
+    select 1 from public.course_blueprint_versions
+    where course_blueprint_id = v_blueprint_id
+  ) then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
+  for v_document in
+    select value from jsonb_array_elements(coalesce(old.documents, '[]'::jsonb))
+  loop
+    v_object_id := public.managed_storage_uuid(v_document->>'managed_object_id');
+    if v_object_id is null then continue; end if;
+    if exists (
+      select 1
+      from public.course_blueprint_assessments assessment
+      cross join lateral jsonb_array_elements(
+        coalesce(assessment.documents, '[]'::jsonb)
+      ) document(value)
+      where assessment.course_blueprint_id = v_blueprint_id
+        and document.value->>'managed_object_id' = v_object_id::text
+    ) then
+      continue;
+    end if;
+    update public.managed_storage_objects
+    set
+      status = 'cleanup_pending',
+      upload_expires_at = null,
+      lease_token = null,
+      lease_expires_at = null,
+      ready_at = null,
+      next_attempt_at = clock_timestamp(),
+      last_error_code = 'blueprint_test_material_removed',
+      updated_at = clock_timestamp()
+    where id = v_object_id
+      and course_blueprint_id = v_blueprint_id
+      and status in ('pending_upload', 'ready', 'cleanup_pending');
+  end loop;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+create trigger queue_removed_blueprint_test_document_files
+after update of documents or delete on public.course_blueprint_assessments
+for each row execute function public.queue_removed_blueprint_test_document_files();
+
+create or replace function public.sync_test_document_snapshot_managed_atomic(
+  p_teacher_id uuid,
+  p_test_id uuid,
+  p_document_id text,
+  p_expected_url text,
+  p_managed_object_id uuid,
+  p_snapshot_path text,
+  p_snapshot_content_type text,
+  p_synced_at timestamptz
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_test public.tests%rowtype;
+  v_classroom_id uuid;
+  v_documents jsonb;
+  v_document jsonb;
+  v_document_index integer;
+  v_previous_snapshot_path text;
+  v_previous_managed_object_id uuid;
+begin
+  select test.classroom_id into v_classroom_id
+  from public.tests test
+  where test.id = p_test_id;
+  if not found then
+    raise exception 'test_not_found_or_not_writable' using errcode = 'P0002';
+  end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  select test.*
+  into v_test
+  from public.tests test
+  join public.classrooms classroom on classroom.id = test.classroom_id
+  where test.id = p_test_id
+    and test.classroom_id = v_classroom_id
+    and classroom.teacher_id = p_teacher_id
+    and classroom.archived_at is null
+  for update of test, classroom;
+  if not found then
+    raise exception 'test_not_found_or_not_writable' using errcode = 'P0002';
+  end if;
+  if exists (
+    select 1 from public.classroom_purge_fences where classroom_id = v_classroom_id
+  ) then raise exception 'classroom_purge_active' using errcode = '55000'; end if;
+
+  if not exists (
+    select 1
+    from public.managed_storage_objects object
+    where object.id = p_managed_object_id
+      and object.classroom_id = v_classroom_id
+      and object.storage_bucket = 'test-documents'
+      and object.storage_path = p_snapshot_path
+      and object.purpose = 'test_execution_snapshot'
+      and object.resource_type = 'test'
+      and object.resource_id = p_test_id
+      and object.status = 'ready'
+  ) then
+    raise exception 'snapshot_managed_owner_mismatch' using errcode = '55000';
+  end if;
+
+  v_documents := coalesce(v_test.documents, '[]'::jsonb);
+  select document.value, (document.ordinality - 1)::integer
+  into v_document, v_document_index
+  from jsonb_array_elements(v_documents) with ordinality document(value, ordinality)
+  where document.value ->> 'id' = p_document_id
+  limit 1;
+  if v_document is null
+    or v_document ->> 'source' is distinct from 'link'
+    or v_document ->> 'url' is distinct from p_expected_url
+  then
+    raise exception 'document_conflict' using errcode = '40001';
+  end if;
+
+  v_previous_snapshot_path := nullif(v_document ->> 'snapshot_path', '');
+  begin
+    v_previous_managed_object_id :=
+      nullif(v_document ->> 'snapshot_managed_object_id', '')::uuid;
+  exception when invalid_text_representation then
+    v_previous_managed_object_id := null;
+  end;
+
+  v_document := (
+    v_document
+    - 'snapshot_path'
+    - 'snapshot_managed_object_id'
+    - 'snapshot_content_type'
+    - 'synced_at'
+  ) || jsonb_build_object(
+    'snapshot_path', p_snapshot_path,
+    'snapshot_managed_object_id', p_managed_object_id,
+    'snapshot_content_type', p_snapshot_content_type,
+    'synced_at', p_synced_at
+  );
+  v_documents := jsonb_set(
+    v_documents,
+    array[v_document_index::text],
+    v_document,
+    false
+  );
+  update public.tests
+  set documents = v_documents
+  where id = p_test_id
+  returning * into strict v_test;
+
+  if v_previous_managed_object_id is not null
+    and v_previous_managed_object_id <> p_managed_object_id
+  then
+    perform public.queue_classroom_managed_storage_cleanup(
+      v_previous_managed_object_id,
+      v_classroom_id,
+      'test-documents',
+      v_previous_snapshot_path,
+      'test_execution_snapshot',
+      'test',
+      p_test_id,
+      'test_snapshot_replaced'
+    );
+  elsif v_previous_snapshot_path is not null
+    and v_previous_snapshot_path <> p_snapshot_path
+  then
+    insert into public.test_document_snapshot_storage_cleanup as cleanup (
+      storage_path, status, attempt_count, next_attempt_at,
+      lease_token, lease_expires_at, last_error, updated_at
+    ) values (
+      v_previous_snapshot_path, 'pending', 0, clock_timestamp(),
+      null, null, null, clock_timestamp()
+    )
+    on conflict (storage_path) do update
+    set
+      status = 'pending',
+      next_attempt_at = clock_timestamp(),
+      lease_token = null,
+      lease_expires_at = null,
+      last_error = null,
+      updated_at = clock_timestamp()
+    where cleanup.status <> 'processing'
+      or cleanup.lease_expires_at <= clock_timestamp();
+  end if;
+
+  return jsonb_build_object(
+    'previous_snapshot_path', v_previous_snapshot_path,
+    'previous_snapshot_managed_object_id', v_previous_managed_object_id,
+    'test', to_jsonb(v_test)
+  );
+end;
+$$;
+
+-- Exact Storage enforcement. Before rollout enforcement is disabled, but a
+-- permanent purge reservation is always honored so deleted keys cannot race
+-- back into existence.
+create or replace function public.enforce_managed_storage_object_ownership()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_bucket text := case when tg_op = 'DELETE' then old.bucket_id else new.bucket_id end;
+  v_path text := case when tg_op = 'DELETE' then old.name else new.name end;
+  v_object public.managed_storage_objects;
+  v_enforce boolean;
+begin
+  if tg_op <> 'DELETE'
+    and v_bucket in (
+      'assignment-artifacts',
+      'submission-images',
+      'test-documents',
+      'classroom-archives',
+      'gradex-analytics-extracts'
+    )
+  then
+    perform public.managed_storage_exact_lock(v_bucket, v_path);
+    if exists (
+      select 1
+      from public.classroom_purge_objects purge_object
+      where purge_object.storage_bucket = v_bucket
+        and purge_object.storage_path_sha256 =
+          public.managed_storage_identity_sha256(v_bucket, v_path)
+    ) then
+      raise exception 'storage_path_permanently_reserved' using errcode = '55000';
+    end if;
+  end if;
+
+  if v_bucket not in (
+    'assignment-artifacts',
+    'submission-images',
+    'test-documents',
+    'classroom-archives',
+    'gradex-analytics-extracts'
+  ) then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
+  if tg_op = 'DELETE' then
+    perform public.managed_storage_exact_lock(v_bucket, v_path);
+  end if;
+
+  select * into v_object
+  from public.managed_storage_objects object
+  where object.storage_bucket = v_bucket
+    and object.storage_path = v_path;
+
+  if tg_op = 'DELETE' then
+    if found
+      and v_object.status not in ('cleanup_processing', 'purging')
+    then
+      raise exception 'managed_storage_delete_not_reserved' using errcode = '55000';
+    end if;
+    return old;
+  end if;
+
+  if found then
+    if v_object.status not in ('pending_upload', 'ready') then
+      raise exception 'managed_storage_write_not_allowed' using errcode = '55000';
+    end if;
+    if v_object.classroom_id is not null and exists (
+      select 1 from public.classroom_purge_fences
+      where classroom_id = v_object.classroom_id
+    ) then
+      raise exception 'classroom_purge_active' using errcode = '55000';
+    end if;
+    return new;
+  end if;
+
+  -- Deterministic copy targets are intentionally unowned until adoption.
+  -- A durable cleanup phase is nevertheless exclusive: once reserved, no
+  -- stale uploader may recreate the key before absence is committed.
+  if exists (
+    select 1
+    from public.course_blueprint_storage_copy_items copy
+    where copy.target_storage_bucket = v_bucket
+      and copy.target_storage_path = v_path
+      and copy.status = 'copying'
+      and copy.last_error_code like 'blueprint_storage_copy_cleanup_%'
+  ) or exists (
+    select 1
+    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
+    where reconciliation.target_storage_bucket = v_bucket
+      and reconciliation.target_storage_path = v_path
+      and reconciliation.status = 'copying'
+      and reconciliation.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'
+  ) then
+    raise exception 'managed_storage_write_not_allowed' using errcode = '55000';
+  end if;
+
+  if exists (
+    select 1
+    from public.course_blueprint_storage_copy_items copy
+    where copy.target_storage_bucket = v_bucket
+      and copy.target_storage_path = v_path
+      and (
+        copy.status in ('planned', 'failed')
+        or (copy.status = 'copying' and copy.last_error_code is null)
+      )
+  ) or exists (
+    select 1
+    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
+    where reconciliation.target_storage_bucket = v_bucket
+      and reconciliation.target_storage_path = v_path
+      and reconciliation.status = 'copying'
+      and reconciliation.last_error_code is null
+  ) or exists (
+    select 1
+    from public.classroom_archive_object_upload_cleanup cleanup
+    join public.classroom_archive_operations operation
+      on operation.id = cleanup.operation_id
+    where cleanup.storage_bucket = v_bucket
+      and cleanup.storage_path = v_path
+      and operation.operation_type = 'restore'
+      and cleanup.status in ('staged', 'pending', 'processing', 'failed')
+  ) then
+    return new;
+  end if;
+
+  select enforce_ownership into v_enforce
+  from public.managed_storage_settings
+  where singleton;
+  if coalesce(v_enforce, false) then
+    raise exception 'managed_storage_owner_required' using errcode = '55000';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists managed_storage_object_ownership_guard on storage.objects;
+create trigger managed_storage_object_ownership_guard
+before insert or update or delete on storage.objects
+for each row execute function public.enforce_managed_storage_object_ownership();
+
+create or replace function public.complete_classroom_archive_source_object_cleanup(
+  p_operation_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_cleanup public.classroom_archive_source_object_cleanup;
+begin
+  if p_operation_id is null
+    or p_lease_token is null
+    or p_storage_bucket not in (
+      'assignment-artifacts', 'submission-images', 'test-documents'
+    )
+    or p_storage_path is null
+    or btrim(p_storage_path) = ''
+    or p_storage_path like '/%'
+    or strpos(p_storage_path, E'\\') > 0
+    or '..' = any(string_to_array(p_storage_path, '/'))
+  then
+    raise exception 'Invalid classroom archive source cleanup completion'
+      using errcode = '22023';
+  end if;
+
+  select * into v_cleanup
+  from public.classroom_archive_source_object_cleanup cleanup
+  where cleanup.operation_id = p_operation_id
+    and cleanup.storage_bucket = p_storage_bucket
+    and cleanup.storage_path = p_storage_path
+    and cleanup.ownership_verified is true
+    and cleanup.ownership_verified_at is not null
+    and cleanup.status = 'processing'
+    and cleanup.lease_token = p_lease_token
+    and cleanup.lease_expires_at > clock_timestamp()
+    and exists (
+      select 1
+      from public.classroom_archive_source_object_reservations reservation
+      where reservation.operation_id = cleanup.operation_id
+        and reservation.storage_bucket = cleanup.storage_bucket
+        and reservation.storage_path_sha256 =
+          public.classroom_archive_source_object_path_sha256(
+            cleanup.storage_bucket,
+            cleanup.storage_path
+          )
+    )
+  for update;
+  if not found then return false; end if;
+
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+  if exists (
+    select 1 from storage.objects object
+    where object.bucket_id = p_storage_bucket and object.name = p_storage_path
+  ) then
+    raise exception 'Classroom archive source object is still present'
+      using errcode = '55000';
+  end if;
+
+  update public.classroom_archive_source_object_cleanup
+  set
+    status = 'deleted',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = null,
+    deleted_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path;
+  return true;
+end;
+$$;
+
+-- Migration 096 owns the assignment-artifact archive cleanup fence. Preserve
+-- it, while recognizing an exact purge lease as an independent authorized
+-- deletion owner.
+create or replace function public.reject_reserved_classroom_archive_storage_path()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, storage, pg_temp
+as $$
+declare
+  v_bucket text;
+  v_path text;
+begin
+  for v_bucket, v_path in
+    select distinct candidate.bucket, candidate.path
+    from (values
+      (
+        case when tg_op <> 'INSERT' then old.bucket_id end,
+        case when tg_op <> 'INSERT' then old.name end
+      ),
+      (
+        case when tg_op <> 'DELETE' then new.bucket_id end,
+        case when tg_op <> 'DELETE' then new.name end
+      )
+    ) candidate(bucket, path)
+    where candidate.bucket = 'assignment-artifacts'
+      and candidate.path is not null
+    order by candidate.bucket, candidate.path
+  loop
+    perform public.managed_storage_exact_lock(v_bucket, v_path);
+  end loop;
+
+  if tg_op <> 'DELETE'
+    and new.bucket_id = 'assignment-artifacts'
+    and exists (
+      select 1
+      from public.classroom_archive_source_object_reservations reservation
+      where reservation.storage_bucket = new.bucket_id
+        and reservation.storage_path_sha256 =
+          public.classroom_archive_source_object_path_sha256(new.bucket_id, new.name)
+    )
+  then
+    raise exception 'Storage path is reserved by a classroom archive'
+      using errcode = '55000';
+  end if;
+
+  if tg_op = 'DELETE'
+    and old.bucket_id = 'assignment-artifacts'
+    and not exists (
+      select 1
+      from public.classroom_purge_objects purge_object
+      join public.classroom_purge_operations purge_operation
+        on purge_operation.id = purge_object.operation_id
+      where purge_object.storage_bucket = old.bucket_id
+        and purge_object.storage_path_sha256 =
+          public.managed_storage_identity_sha256(old.bucket_id, old.name)
+        and purge_object.status = 'processing'
+        and purge_object.lease_expires_at > clock_timestamp()
+        and purge_operation.status in ('deleting_objects', 'failed')
+    )
+    and exists (
+      select 1
+      from public.classroom_archive_source_object_cleanup cleanup
+      where cleanup.storage_bucket = old.bucket_id
+        and cleanup.storage_path = old.name
+        and cleanup.status <> 'deleted'
+        and not exists (
+          select 1
+          from public.classroom_archive_source_object_reservations reservation
+          where reservation.storage_bucket = cleanup.storage_bucket
+            and reservation.storage_path_sha256 =
+              public.classroom_archive_source_object_path_sha256(
+                cleanup.storage_bucket,
+                cleanup.storage_path
+              )
+        )
+    )
+  then
+    raise exception 'Storage deletion requires a classroom archive source reservation'
+      using errcode = '55000';
+  end if;
+
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end;
+$$;
+
+create or replace function public.reject_managed_storage_change_during_purge()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_old_classroom_id uuid := case when tg_op = 'INSERT' then null else old.classroom_id end;
+  v_new_classroom_id uuid := case when tg_op = 'DELETE' then null else new.classroom_id end;
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on'
+    or current_setting('pika.classroom_purge_begin', true) = 'on'
+  then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+  if v_old_classroom_id is not null then
+    perform public.guard_classroom_purge_lifecycle(v_old_classroom_id);
+  end if;
+  if v_new_classroom_id is not null and v_new_classroom_id is distinct from v_old_classroom_id then
+    perform public.guard_classroom_purge_lifecycle(v_new_classroom_id);
+  end if;
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+drop trigger if exists managed_storage_classroom_purge_fence on public.managed_storage_objects;
+create trigger managed_storage_classroom_purge_fence
+before insert or update or delete on public.managed_storage_objects
+for each row execute function public.reject_managed_storage_change_during_purge();
+
+create or replace function public.queue_assignment_doc_managed_storage_cleanup()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on'
+    or public.is_classroom_archive_maintenance_mode('restore')
+    or public.is_classroom_archive_maintenance_mode('compaction')
+  then return old; end if;
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    ready_at = null,
+    next_attempt_at = clock_timestamp(),
+    last_error_code = 'assignment_doc_deleted',
+    updated_at = clock_timestamp()
+  where resource_type = 'assignment_doc'
+    and resource_id = old.id
+    and status in ('pending_upload', 'ready', 'cleanup_pending');
+  return old;
+end;
+$$;
+
+drop trigger if exists queue_assignment_doc_managed_storage_cleanup
+  on public.assignment_docs;
+create trigger queue_assignment_doc_managed_storage_cleanup
+after delete on public.assignment_docs
+for each row execute function public.queue_assignment_doc_managed_storage_cleanup();
+
+create or replace function public.queue_test_managed_storage_cleanup()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if current_setting('pika.classroom_purge_finalize', true) = 'on'
+    or public.is_classroom_archive_maintenance_mode('restore')
+    or public.is_classroom_archive_maintenance_mode('compaction')
+  then return old; end if;
+  update public.managed_storage_objects
+  set
+    status = 'cleanup_pending',
+    ready_at = null,
+    next_attempt_at = clock_timestamp(),
+    last_error_code = 'test_deleted',
+    updated_at = clock_timestamp()
+  where resource_type = 'test'
+    and resource_id = old.id
+    and status in ('pending_upload', 'ready', 'cleanup_pending');
+  return old;
+end;
+$$;
+
+drop trigger if exists queue_test_managed_storage_cleanup on public.tests;
+create trigger queue_test_managed_storage_cleanup
+after delete on public.tests
+for each row execute function public.queue_test_managed_storage_cleanup();
+
+create or replace function public.classroom_purge_conflict(p_classroom_id uuid)
+returns text
+language plpgsql
+stable
+set search_path = public
+as $$
+begin
+  if public.unresolved_legacy_managed_cleanup_exists() then
+    return 'managed_storage_legacy_cleanup_unresolved';
+  end if;
+
+  if exists (
+    select 1 from public.classroom_archive_operations operation
+    where operation.classroom_id = p_classroom_id
+      and (
+        (
+          operation.status = 'snapshot_ready'
+          and operation.snapshot_expires_at > clock_timestamp()
+        )
+        or (
+          operation.status = 'failed'
+          and operation.retryable is true
+          and operation.snapshot_expires_at > clock_timestamp()
+        )
+      )
+  ) then return 'classroom_archive_operation_active'; end if;
+
+  if exists (
+    select 1
+    from public.classroom_archive_object_upload_cleanup cleanup
+    join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+    where operation.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1
+    from public.classroom_gradex_extract_cleanup cleanup
+    join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+    where operation.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1
+    from public.classroom_archive_source_object_cleanup cleanup
+    where cleanup.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1 from public.managed_storage_objects object
+    where object.classroom_id = p_classroom_id
+      and object.status = 'cleanup_processing'
+      and object.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1
+    from public.assignment_artifact_storage_cleanup cleanup
+    join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+    where object.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
+  ) or exists (
+    select 1
+    from public.test_document_snapshot_storage_cleanup cleanup
+    join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+    where object.classroom_id = p_classroom_id
+      and cleanup.status = 'processing'
+      and cleanup.lease_expires_at > clock_timestamp()
+  ) then return 'classroom_storage_cleanup_active'; end if;
+
+  if exists (
+    select 1 from public.assignment_ai_grading_runs run
+    join public.assignments assignment on assignment.id = run.assignment_id
+    where assignment.classroom_id = p_classroom_id and run.status in ('queued', 'running')
+  ) or exists (
+    select 1 from public.assignment_repo_review_runs run
+    join public.assignments assignment on assignment.id = run.assignment_id
+    where assignment.classroom_id = p_classroom_id and run.status in ('queued', 'running')
+  ) or exists (
+    select 1 from public.test_ai_grading_runs run
+    join public.tests test on test.id = run.test_id
+    where test.classroom_id = p_classroom_id and run.status in ('queued', 'running')
+  ) then return 'classroom_grading_operation_active'; end if;
+
+  if exists (
+    select 1 from public.course_blueprint_operations operation
+    where (
+        operation.status = 'running'
+        or operation.storage_copy_status in ('copying', 'failed')
+      )
+      and (
+        operation.source_classroom_id = p_classroom_id
+        or operation.result_classroom_id = p_classroom_id
+      )
+  ) or exists (
+    select 1
+    from public.course_blueprint_storage_copy_items copy
+    join public.managed_storage_objects source on source.id = copy.source_object_id
+    where source.classroom_id = p_classroom_id
+      and copy.status <> 'adopted'
+  ) or exists (
+    select 1 from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
+    where reconciliation.classroom_id = p_classroom_id
+      and reconciliation.status <> 'adopted'
+  ) or exists (
+    select 1 from public.course_blueprint_change_proposals proposal
+    where proposal.status in ('ready', 'needs_review', 'conflicted')
+      and (
+        proposal.source_classroom_id = p_classroom_id
+        or proposal.target_classroom_id = p_classroom_id
+      )
+  ) or exists (
+    select 1 from public.course_blueprint_editing_sessions session
+    where session.status = 'ready'
+      and session.expires_at > clock_timestamp()
+      and session.classroom_id = p_classroom_id
+  ) then return 'classroom_blueprint_operation_active'; end if;
+  return null;
+end;
+$$;
+
+-- Begin now snapshots exact managed files and operational objects inside the
+-- same transaction that installs the classroom fence.
+create or replace function public.begin_hot_archived_classroom_purge(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_request_sha256 text,
+  p_impact_summary jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_operation public.classroom_purge_operations;
+  v_resource record;
+  v_teacher_id uuid;
+  v_title text;
+  v_archived_at timestamptz;
+  v_revision bigint;
+  v_counts jsonb;
+  v_storage_counts jsonb;
+  v_conflict text;
+  v_enabled boolean;
+  v_enforced boolean;
+  v_canary_enabled boolean;
+  v_canary_teacher_id uuid;
+  v_canary_classroom_id uuid;
+  v_expected_source_revision bigint;
+  v_expected_inventory_version bigint;
+  v_expected_inventory_sha256 text;
+  v_coverage_status text;
+  v_coverage_inventory_version integer;
+  v_coverage_inventory_sha256 text;
+begin
+  if p_request_sha256 !~ '^[a-f0-9]{64}$'
+    or p_impact_summary is null
+    or jsonb_typeof(p_impact_summary) <> 'object'
+    or p_impact_summary->>'source_revision' is null
+    or not coalesce(
+      p_impact_summary->>'source_revision' ~ '^[1-9][0-9]{0,17}$',
+      false
+    )
+    or p_impact_summary->>'storage_inventory_version' is null
+    or not coalesce(
+      p_impact_summary->>'storage_inventory_version' ~ '^[1-9][0-9]{0,17}$',
+      false
+    )
+    or p_impact_summary->>'storage_inventory_sha256' is null
+    or not coalesce(
+      p_impact_summary->>'storage_inventory_sha256' ~ '^[a-f0-9]{64}$',
+      false
+    )
+  then raise exception 'invalid_classroom_purge_request' using errcode = '22023'; end if;
+  v_expected_source_revision := (p_impact_summary->>'source_revision')::bigint;
+  v_expected_inventory_version :=
+    (p_impact_summary->>'storage_inventory_version')::bigint;
+  v_expected_inventory_sha256 := p_impact_summary->>'storage_inventory_sha256';
+
+  select
+    hot_classroom_purge_enabled,
+    enforce_ownership,
+    hot_classroom_purge_canary_enabled,
+    hot_classroom_purge_canary_teacher_id,
+    hot_classroom_purge_canary_classroom_id
+  into
+    v_enabled,
+    v_enforced,
+    v_canary_enabled,
+    v_canary_teacher_id,
+    v_canary_classroom_id
+  from public.managed_storage_settings
+  where singleton
+  for share;
+  if not (
+    coalesce(v_enabled, false)
+    or (
+      coalesce(v_canary_enabled, false)
+      and v_canary_teacher_id = p_teacher_id
+      and v_canary_classroom_id = p_classroom_id
+    )
+  ) then
+    return jsonb_build_object(
+      'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',
+      'error', 'Permanent classroom deletion is not enabled'
+    );
+  end if;
+  if not coalesce(v_enforced, false) then
+    return jsonb_build_object(
+      'ok', false, 'status', 503, 'error_code', 'managed_storage_enforcement_required',
+      'error', 'Managed storage ownership enforcement is not enabled'
+    );
+  end if;
+
+  -- A completed replay has no classroom row to lock. Validate it read-only;
+  -- every nonterminal path continues through the canonical lifecycle order.
+  select * into v_operation
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id;
+  if found then
+    if v_operation.teacher_id <> p_teacher_id
+      or v_operation.classroom_id <> p_classroom_id
+      or v_operation.request_sha256 <> p_request_sha256
+    then
+      return jsonb_build_object(
+        'ok', false, 'status', 409, 'error_code', 'idempotency_conflict',
+        'error', 'Idempotency key was already used for a different purge request'
+      );
+    end if;
+    if v_operation.status = 'completed' then
+      return jsonb_build_object(
+        'ok', true, 'status', 200, 'operation_id', v_operation.id,
+        'operation_status', 'completed',
+        'source_revision', v_operation.source_revision,
+        'resource_counts', v_operation.resource_counts,
+        'storage_object_counts', v_operation.storage_object_counts,
+        'replayed', true
+      );
+    end if;
+  end if;
+
+  perform public.classroom_purge_lock(p_classroom_id);
+  select classroom.teacher_id, classroom.title, classroom.archived_at, revision.revision
+  into v_teacher_id, v_title, v_archived_at, v_revision
+  from public.classrooms classroom
+  join public.classroom_archive_revisions revision on revision.classroom_id = classroom.id
+  where classroom.id = p_classroom_id
+  for update of classroom, revision;
+  if not found or v_teacher_id <> p_teacher_id then
+    return jsonb_build_object(
+      'ok', false, 'status', 404, 'error_code', 'classroom_not_found',
+      'error', 'Classroom not found'
+    );
+  end if;
+  if v_archived_at is null then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_not_hot_archived',
+      'error', 'Only hot archived classrooms can be permanently deleted'
+    );
+  end if;
+  if exists (
+    select 1 from public.classroom_cold_tombstones where classroom_id = p_classroom_id
+  ) then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_is_cold_archived',
+      'error', 'Stored classroom deletion is not available yet'
+    );
+  end if;
+  if v_expected_source_revision <> v_revision then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
+      'error', 'Classroom data changed after the deletion impact was confirmed'
+    );
+  end if;
+
+  select * into v_operation
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+  for update;
+  if found then
+    if v_operation.teacher_id <> p_teacher_id
+      or v_operation.classroom_id <> p_classroom_id
+      or v_operation.request_sha256 <> p_request_sha256
+    then
+      return jsonb_build_object(
+        'ok', false, 'status', 409, 'error_code', 'idempotency_conflict',
+        'error', 'Idempotency key was already used for a different purge request'
+      );
+    end if;
+    if v_operation.status = 'failed' and v_operation.retryable is true then
+      update public.classroom_purge_operations
+      set
+        status = 'deleting_objects',
+        attempt_count = attempt_count + 1,
+        error_code = null,
+        updated_at = clock_timestamp()
+      where id = p_operation_id
+      returning * into v_operation;
+    end if;
+    return jsonb_build_object(
+      'ok', true, 'status', 202,
+      'operation_id', v_operation.id,
+      'operation_status', v_operation.status,
+      'source_revision', v_operation.source_revision,
+      'resource_counts', v_operation.resource_counts,
+      'storage_object_counts', v_operation.storage_object_counts,
+      'replayed', true
+    );
+  end if;
+  select coverage.status, coverage.inventory_version, coverage.inventory_sha256
+  into v_coverage_status, v_coverage_inventory_version, v_coverage_inventory_sha256
+  from public.classroom_managed_storage_coverage coverage
+  where coverage.classroom_id = p_classroom_id
+  for update;
+  if not found or v_coverage_status <> 'verified' then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_storage_coverage_incomplete',
+      'error', 'Classroom file ownership must be reconciled before deletion'
+    );
+  end if;
+  if v_coverage_inventory_sha256 is distinct from v_expected_inventory_sha256 then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
+      'error', 'Classroom files changed after the deletion impact was confirmed'
+    );
+  end if;
+  if v_coverage_inventory_version is distinct from v_expected_inventory_version then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_inventory_changed',
+      'error', 'Classroom files changed after the deletion impact was confirmed'
+    );
+  end if;
+  if exists (
+    select 1 from public.managed_storage_objects object
+    where object.classroom_id = p_classroom_id
+      and object.status not in ('ready', 'cleanup_pending', 'pending_upload')
+  ) then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_storage_operation_active',
+      'error', 'Finish the active classroom file operation before deleting permanently'
+    );
+  end if;
+  v_conflict := public.classroom_purge_conflict(p_classroom_id);
+  if v_conflict is not null then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', v_conflict,
+      'error', 'Finish the active classroom operation before deleting permanently'
+    );
+  end if;
+
+  insert into public.classroom_purge_operations (
+    id, teacher_id, classroom_id, classroom_title, request_sha256,
+    source_revision, impact_summary
+  ) values (
+    p_operation_id, p_teacher_id, p_classroom_id, v_title, p_request_sha256,
+    v_revision, p_impact_summary
+  );
+  insert into public.classroom_purge_fences (classroom_id, operation_id, teacher_id)
+  values (p_classroom_id, p_operation_id, p_teacher_id);
+  perform set_config('pika.classroom_purge_begin', 'on', true);
+
+  insert into public.classroom_purge_resources (operation_id, table_name, row_id)
+  values (p_operation_id, 'classrooms', p_classroom_id);
+  for v_resource in
+    select table_name, primary_key_columns[1] primary_key_column, parent_table, parent_column
+    from public.classroom_archive_resource_contract
+    where table_name <> 'classrooms'
+    order by export_position
+  loop
+    execute format(
+      'insert into public.classroom_purge_resources (operation_id, table_name, row_id)
+       select $1, $2, child.%I
+       from public.%I child
+       join public.classroom_purge_resources parent
+         on parent.operation_id = $1
+        and parent.table_name = $3
+        and child.%I = parent.row_id
+       on conflict do nothing',
+      v_resource.primary_key_column,
+      v_resource.table_name,
+      v_resource.parent_column
+    ) using p_operation_id, v_resource.table_name, v_resource.parent_table;
+  end loop;
+
+  insert into public.classroom_purge_resources (operation_id, table_name, row_id)
+  select p_operation_id, 'assignment_doc_save_operations', operation.id
+  from public.assignment_doc_save_operations operation
+  join public.classroom_purge_resources document
+    on document.operation_id = p_operation_id
+    and document.table_name = 'assignment_docs'
+    and document.row_id = operation.assignment_doc_id
+  on conflict do nothing;
+
+  insert into public.classroom_purge_objects (
+    operation_id, storage_bucket, storage_path, storage_path_sha256,
+    disposition, status, managed_storage_object_id
+  )
+  select
+    p_operation_id,
+    object.storage_bucket,
+    object.storage_path,
+    public.managed_storage_identity_sha256(object.storage_bucket, object.storage_path),
+    'delete',
+    'pending',
+    object.id
+  from public.managed_storage_objects object
+  where object.classroom_id = p_classroom_id
+  on conflict (operation_id, storage_bucket, storage_path_sha256) do nothing;
+
+  update public.managed_storage_objects object
+  set
+    status = 'purging',
+    upload_expires_at = null,
+    lease_token = null,
+    lease_expires_at = null,
+    ready_at = null,
+    updated_at = clock_timestamp()
+  where object.classroom_id = p_classroom_id;
+
+  select jsonb_object_agg(
+    contract.table_name,
+    coalesce(resource_count.row_count, 0)
+    order by contract.export_position
+  ) into v_counts
+  from (
+    select table_name, export_position
+    from public.classroom_archive_resource_contract
+    union all
+    select
+      'assignment_doc_save_operations',
+      coalesce((select max(export_position) + 1
+        from public.classroom_archive_resource_contract), 1)
+  ) contract
+  left join (
+    select table_name, count(*)::integer row_count
+    from public.classroom_purge_resources
+    where operation_id = p_operation_id
+    group by table_name
+  ) resource_count on resource_count.table_name = contract.table_name;
+
+  select coalesce(jsonb_object_agg(storage_bucket, object_count), '{}'::jsonb)
+  into v_storage_counts
+  from (
+    select storage_bucket, count(*)::integer object_count
+    from public.classroom_purge_objects
+    where operation_id = p_operation_id
+    group by storage_bucket
+  ) counts;
+
+  update public.classroom_purge_operations
+  set
+    status = 'deleting_objects',
+    resource_counts = v_counts,
+    storage_object_counts = v_storage_counts,
+    inventory_completed_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = p_operation_id;
+
+  return jsonb_build_object(
+    'ok', true, 'status', 202, 'operation_id', p_operation_id,
+    'operation_status', 'deleting_objects', 'source_revision', v_revision,
+    'resource_counts', v_counts, 'storage_object_counts', v_storage_counts,
+    'replayed', false
+  );
+exception
+  when unique_violation then
+    return jsonb_build_object(
+      'ok', false, 'status', 409, 'error_code', 'classroom_purge_active',
+      'error', 'A permanent deletion is already active for this classroom'
+    );
+end;
+$$;
+
+create or replace function public.stage_classroom_purge_objects(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_objects jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Compatibility no-op: migration 117 snapshots exact ownership at begin.
+  if not exists (
+    select 1 from public.classroom_purge_operations
+    where id = p_operation_id and teacher_id = p_teacher_id
+  ) then raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002'; end if;
+  return jsonb_build_object(
+    'ok', true, 'status', 202, 'operation_id', p_operation_id,
+    'operation_status', 'deleting_objects', 'replayed', true
+  );
+end;
+$$;
+
+create or replace function public.seal_classroom_purge_inventory(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_expected_object_count integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  select count(*)::integer into v_count
+  from public.classroom_purge_objects object
+  join public.classroom_purge_operations operation on operation.id = object.operation_id
+  where object.operation_id = p_operation_id and operation.teacher_id = p_teacher_id;
+  if v_count <> p_expected_object_count then
+    raise exception 'classroom_purge_object_count_mismatch' using errcode = '40001';
+  end if;
+  return jsonb_build_object(
+    'ok', true, 'status', 202, 'operation_id', p_operation_id,
+    'operation_status', 'deleting_objects', 'replayed', true
+  );
+end;
+$$;
+
+create or replace function public.claim_classroom_purge_object(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_lease_seconds integer default 60
+)
+returns setof public.classroom_purge_objects
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_candidate public.classroom_purge_objects;
+  v_classroom_id uuid;
+  v_enabled boolean;
+  v_enforced boolean;
+  v_canary_enabled boolean;
+  v_canary_teacher_id uuid;
+  v_canary_classroom_id uuid;
+begin
+  if p_lease_seconds < 15 or p_lease_seconds > 300 then
+    raise exception 'invalid_classroom_purge_lease' using errcode = '22023';
+  end if;
+  -- Disabling either rollout gate is the authoritative emergency stop for
+  -- new destructive work. An already-issued lease may still record its
+  -- deletion through complete_classroom_purge_object.
+  select
+    hot_classroom_purge_enabled,
+    enforce_ownership,
+    hot_classroom_purge_canary_enabled,
+    hot_classroom_purge_canary_teacher_id,
+    hot_classroom_purge_canary_classroom_id
+  into
+    v_enabled,
+    v_enforced,
+    v_canary_enabled,
+    v_canary_teacher_id,
+    v_canary_classroom_id
+  from public.managed_storage_settings
+  where singleton
+  for share;
+  if not coalesce(v_enforced, false)
+    or not (coalesce(v_enabled, false) or coalesce(v_canary_enabled, false))
+  then
+    return;
+  end if;
+
+  select operation.classroom_id into v_classroom_id
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.status in ('deleting_objects', 'failed')
+    and coalesce(operation.retryable, true);
+  if not found then
+    raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
+  end if;
+  if not coalesce(v_enabled, false)
+    and not (
+      coalesce(v_canary_enabled, false)
+      and v_canary_teacher_id = p_teacher_id
+      and v_canary_classroom_id = v_classroom_id
+    )
+  then
+    return;
+  end if;
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for update;
+  if not found then
+    raise exception 'classroom_purge_classroom_not_found' using errcode = 'P0002';
+  end if;
+  perform 1 from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_classroom_id
+    and operation.status in ('deleting_objects', 'failed')
+    and coalesce(operation.retryable, true)
+  for update;
+  if not found then
+    raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
+  end if;
+
+  update public.classroom_purge_operations
+  set
+    status = 'deleting_objects',
+    attempt_count = attempt_count + 1,
+    error_code = null,
+    retryable = true,
+    updated_at = clock_timestamp()
+  where id = p_operation_id
+    and teacher_id = p_teacher_id
+    and status = 'failed'
+    and coalesce(retryable, true);
+
+  select object.* into v_candidate
+  from public.classroom_purge_objects object
+  join public.managed_storage_objects managed_object
+    on managed_object.id = object.managed_storage_object_id
+    and managed_object.classroom_id = v_classroom_id
+    and managed_object.status = 'purging'
+  where object.operation_id = p_operation_id
+    and object.disposition = 'delete'
+    and object.next_attempt_at <= clock_timestamp()
+    and (
+      object.status in ('pending', 'failed')
+      or (object.status = 'processing' and object.lease_expires_at <= clock_timestamp())
+    )
+  order by object.next_attempt_at, object.created_at, object.id
+  for update of managed_object skip locked
+  limit 1;
+  if not found then return; end if;
+  if v_candidate.storage_path is null then
+    raise exception 'classroom_purge_object_path_redacted' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(
+    v_candidate.storage_bucket,
+    v_candidate.storage_path
+  );
+
+  select object.* into v_candidate
+  from public.classroom_purge_objects object
+  where object.id = v_candidate.id
+    and object.operation_id = p_operation_id
+    and object.disposition = 'delete'
+    and object.next_attempt_at <= clock_timestamp()
+    and (
+      object.status in ('pending', 'failed')
+      or (object.status = 'processing' and object.lease_expires_at <= clock_timestamp())
+    )
+  for update;
+  if not found then return; end if;
+  return query
+  update public.classroom_purge_objects object
+  set
+    status = 'processing',
+    attempt_count = object.attempt_count + 1,
+    lease_token = p_lease_token,
+    lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+    last_error_code = null,
+    updated_at = clock_timestamp()
+  where object.id = v_candidate.id
+  returning object.*;
+end;
+$$;
+
+create or replace function public.complete_classroom_purge_object(
+  p_object_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_object public.classroom_purge_objects;
+  v_classroom_id uuid;
+  v_candidate record;
+begin
+  select object as purge_object, operation.classroom_id as classroom_id into v_candidate
+  from public.classroom_purge_objects object
+  join public.classroom_purge_operations operation on operation.id = object.operation_id
+  where object.id = p_object_id
+    and operation.teacher_id = p_teacher_id
+    and object.status = 'processing'
+    and object.lease_token = p_lease_token
+    and object.lease_expires_at > clock_timestamp();
+  if not found then return false; end if;
+  v_object := v_candidate.purge_object;
+  v_classroom_id := v_candidate.classroom_id;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.classroom_purge_operations operation
+  where operation.id = v_object.operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.managed_storage_objects object
+  where object.id = v_object.managed_storage_object_id
+    and object.classroom_id = v_classroom_id
+    and object.status = 'purging'
+  for update;
+  if not found then
+    raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+  end if;
+  if v_object.storage_path is null then
+    raise exception 'classroom_purge_object_path_redacted' using errcode = '55000';
+  end if;
+  perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
+
+  select object.* into v_object
+  from public.classroom_purge_objects object
+  join public.classroom_purge_operations operation on operation.id = object.operation_id
+  where object.id = p_object_id
+    and operation.teacher_id = p_teacher_id
+    and object.status = 'processing'
+    and object.lease_token = p_lease_token
+    and object.lease_expires_at > clock_timestamp()
+  for update of object;
+  if not found then return false; end if;
+  if exists (
+    select 1 from storage.objects storage_object
+    where storage_object.bucket_id = v_object.storage_bucket
+      and storage_object.name = v_object.storage_path
+  ) then
+    raise exception 'classroom_purge_storage_object_still_present' using errcode = '55000';
+  end if;
+  update public.classroom_purge_objects
+  set
+    status = 'deleted',
+    storage_path = null,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = null,
+    deleted_at = clock_timestamp(),
+    updated_at = clock_timestamp()
+  where id = p_object_id;
+  return true;
+end;
+$$;
+
+create or replace function public.fail_classroom_purge_object(
+  p_object_id uuid,
+  p_teacher_id uuid,
+  p_lease_token uuid,
+  p_error_code text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object public.classroom_purge_objects;
+  v_classroom_id uuid;
+  v_candidate record;
+begin
+  select object as purge_object, operation.classroom_id as classroom_id into v_candidate
+  from public.classroom_purge_objects object
+  join public.classroom_purge_operations operation on operation.id = object.operation_id
+  where object.id = p_object_id
+    and operation.teacher_id = p_teacher_id
+    and object.status = 'processing'
+    and object.lease_token = p_lease_token;
+  if not found then return false; end if;
+  v_object := v_candidate.purge_object;
+  v_classroom_id := v_candidate.classroom_id;
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1 from public.classrooms classroom
+  where classroom.id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.classroom_purge_operations operation
+  where operation.id = v_object.operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_classroom_id
+  for update;
+  if not found then return false; end if;
+  perform 1 from public.managed_storage_objects managed_object
+  where managed_object.id = v_object.managed_storage_object_id
+    and managed_object.classroom_id = v_classroom_id
+    and managed_object.status = 'purging'
+  for update;
+  if not found then
+    raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+  end if;
+  update public.classroom_purge_objects object
+  set
+    status = 'failed',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = left(coalesce(nullif(p_error_code, ''), 'storage_delete_failed'), 120),
+    next_attempt_at = clock_timestamp() + make_interval(
+      secs => least(3600, greatest(5, (2 ^ least(object.attempt_count, 10))::integer))
+    ),
+    updated_at = clock_timestamp()
+  from public.classroom_purge_operations operation
+  where object.id = p_object_id
+    and operation.id = object.operation_id
+    and operation.teacher_id = p_teacher_id
+    and object.status = 'processing'
+    and object.lease_token = p_lease_token;
+  return found;
+end;
+$$;
+
+-- Migration 115's child-by-child finalizer is retained as non-callable history.
+-- The managed redesign uses structural FK ownership plus exact postconditions.
+alter function public.finalize_hot_archived_classroom_purge(uuid, uuid)
+  rename to finalize_hot_archived_classroom_purge_legacy_117;
+
+create or replace function public.finalize_hot_archived_classroom_purge(
+  p_operation_id uuid,
+  p_teacher_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_operation public.classroom_purge_operations;
+  v_resource record;
+  v_classroom_teacher_id uuid;
+  v_archived_at timestamptz;
+  v_revision bigint;
+  v_deleted_count integer;
+  v_remaining_count integer;
+  v_error_code text;
+  v_retryable boolean := true;
+  v_enabled boolean;
+  v_enforced boolean;
+  v_canary_enabled boolean;
+  v_canary_teacher_id uuid;
+  v_canary_classroom_id uuid;
+begin
+  -- Settings-first lock ordering serializes operator rollback with both new
+  -- leases and relational finalization. A gate UPDATE that commits first is
+  -- observed here; an UPDATE that starts later waits for this transaction.
+  select
+    hot_classroom_purge_enabled,
+    enforce_ownership,
+    hot_classroom_purge_canary_enabled,
+    hot_classroom_purge_canary_teacher_id,
+    hot_classroom_purge_canary_classroom_id
+  into
+    v_enabled,
+    v_enforced,
+    v_canary_enabled,
+    v_canary_teacher_id,
+    v_canary_classroom_id
+  from public.managed_storage_settings
+  where singleton
+  for share;
+  -- Resolve identity without a row lock, then acquire the canonical order:
+  -- settings -> classroom lifecycle -> classroom -> operation.
+  select * into v_operation
+  from public.classroom_purge_operations
+  where id = p_operation_id and teacher_id = p_teacher_id;
+  if not found then
+    raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
+  end if;
+  if v_operation.status = 'completed' then
+    return jsonb_build_object(
+      'ok', true, 'status', 200, 'operation_id', p_operation_id,
+      'operation_status', 'completed', 'replayed', true
+    );
+  end if;
+  perform public.classroom_purge_lock(v_operation.classroom_id);
+  select teacher_id, archived_at
+  into v_classroom_teacher_id, v_archived_at
+  from public.classrooms
+  where id = v_operation.classroom_id
+  for update;
+  if not found
+    or v_classroom_teacher_id <> p_teacher_id
+    or v_archived_at is null
+  then
+    raise exception 'classroom_purge_owner_or_state_drift' using errcode = '40001';
+  end if;
+  select revision into v_revision
+  from public.classroom_archive_revisions
+  where classroom_id = v_operation.classroom_id
+  for update;
+  if v_revision is null or v_revision <> v_operation.source_revision then
+    raise exception 'classroom_changed_during_purge' using errcode = '40001';
+  end if;
+  select * into v_operation
+  from public.classroom_purge_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = v_operation.classroom_id
+  for update;
+  if not found then
+    raise exception 'classroom_purge_operation_drift' using errcode = '40001';
+  end if;
+  if not exists (
+    select 1 from public.classroom_purge_fences fence
+    where fence.classroom_id = v_operation.classroom_id
+      and fence.operation_id = p_operation_id
+      and fence.teacher_id = p_teacher_id
+  ) then
+    raise exception 'classroom_purge_fence_missing' using errcode = '40001';
+  end if;
+  if not (
+    coalesce(v_enabled, false)
+    or (
+      coalesce(v_canary_enabled, false)
+      and v_canary_teacher_id = p_teacher_id
+      and v_canary_classroom_id = v_operation.classroom_id
+    )
+  ) then
+    return jsonb_build_object(
+      'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',
+      'error', 'Permanent classroom deletion is not enabled'
+    );
+  end if;
+  if not coalesce(v_enforced, false) then
+    return jsonb_build_object(
+      'ok', false, 'status', 503,
+      'error_code', 'managed_storage_enforcement_required',
+      'error', 'Managed storage ownership enforcement is not enabled'
+    );
+  end if;
+  if exists (
+    select 1 from public.classroom_purge_objects object
+    where object.operation_id = p_operation_id
+      and object.status <> 'deleted'
+  ) then
+    return jsonb_build_object(
+      'ok', true, 'status', 202, 'operation_id', p_operation_id,
+      'operation_status', 'deleting_objects', 'replayed', false
+    );
+  end if;
+  if exists (
+    select 1
+    from public.classroom_purge_objects object
+    join storage.objects storage_object
+      on storage_object.bucket_id = object.storage_bucket
+     and public.managed_storage_identity_sha256(
+       storage_object.bucket_id,
+       storage_object.name
+     ) = object.storage_path_sha256
+    where object.operation_id = p_operation_id
+      and object.disposition = 'delete'
+  ) then
+    return jsonb_build_object(
+      'ok', false, 'status', 409,
+      'error_code', 'classroom_purge_storage_reappeared',
+      'error', 'A classroom file is still present',
+      'retryable', true
+    );
+  end if;
+
+  begin
+    perform set_config('pika.classroom_purge_finalize', 'on', true);
+
+    if exists (
+      select 1
+      from public.managed_storage_objects object
+      left join public.classroom_purge_objects purge_object
+        on purge_object.operation_id = p_operation_id
+        and purge_object.managed_storage_object_id = object.id
+        and purge_object.status = 'deleted'
+      where object.classroom_id = v_operation.classroom_id
+        and purge_object.id is null
+    ) then
+      raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+    end if;
+
+    -- Preserve reusable Blueprints and users. Only reconcile workflow links to
+    -- the soon-to-be-deleted classroom.
+    update public.course_blueprint_change_proposals
+    set source_classroom_id = null, updated_at = clock_timestamp()
+    where source_classroom_id = v_operation.classroom_id;
+    delete from public.course_blueprint_change_proposals
+    where target_classroom_id = v_operation.classroom_id;
+    update public.course_blueprint_editing_sessions
+    set classroom_id = null
+    where classroom_id = v_operation.classroom_id;
+    update public.course_blueprint_operations
+    set source_classroom_id = null
+    where source_classroom_id = v_operation.classroom_id;
+    update public.course_blueprint_operations
+    set result_classroom_id = null
+    where result_classroom_id = v_operation.classroom_id;
+    delete from public.legacy_blueprint_classroom_storage_reconciliations
+    where classroom_id = v_operation.classroom_id;
+
+    -- Operational ledgers deliberately sit outside the hot-row ownership graph
+    -- because they also support cold recovery. Reconcile them explicitly before
+    -- deleting their managed object owners.
+    delete from public.classroom_gradex_extract_cleanup cleanup
+    using public.classroom_archive_operations operation
+    where cleanup.operation_id = operation.id
+      and operation.classroom_id = v_operation.classroom_id;
+    delete from public.classroom_gradex_extracts
+    where classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archive_source_object_reservations reservation
+    using public.classroom_archive_operations operation
+    where reservation.operation_id = operation.id
+      and operation.classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archive_source_object_cleanup
+    where classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archives
+    where classroom_id = v_operation.classroom_id;
+    delete from public.classroom_archive_operations
+    where classroom_id = v_operation.classroom_id;
+
+    delete from public.assignment_artifact_storage_cleanup cleanup
+    where exists (
+      select 1 from public.classroom_purge_objects purge_object
+      where purge_object.operation_id = p_operation_id
+        and purge_object.storage_bucket = 'assignment-artifacts'
+        and purge_object.status = 'deleted'
+        and (
+          purge_object.managed_storage_object_id = cleanup.managed_object_id
+          or (
+            cleanup.managed_object_id is null
+            and purge_object.storage_path_sha256 =
+              public.managed_storage_identity_sha256(
+                'assignment-artifacts', cleanup.storage_path
+              )
+          )
+        )
+    );
+    delete from public.test_document_snapshot_storage_cleanup cleanup
+    where exists (
+      select 1 from public.classroom_purge_objects purge_object
+      where purge_object.operation_id = p_operation_id
+        and purge_object.storage_bucket = 'test-documents'
+        and purge_object.status = 'deleted'
+        and (
+          purge_object.managed_storage_object_id = cleanup.managed_object_id
+          or (
+            cleanup.managed_object_id is null
+            and purge_object.storage_path_sha256 =
+              public.managed_storage_identity_sha256(
+                'test-documents', cleanup.storage_path
+              )
+          )
+        )
+    );
+
+    delete from public.managed_storage_objects object
+    using public.classroom_purge_objects purge_object
+    where purge_object.operation_id = p_operation_id
+      and purge_object.managed_storage_object_id = object.id
+      and purge_object.status = 'deleted'
+      and object.classroom_id = v_operation.classroom_id
+      and object.status = 'purging';
+    if exists (
+      select 1 from public.managed_storage_objects
+      where classroom_id = v_operation.classroom_id
+    ) then
+      raise exception 'classroom_purge_storage_owner_drift' using errcode = '40001';
+    end if;
+    delete from public.classroom_managed_storage_coverage
+    where classroom_id = v_operation.classroom_id;
+
+    -- The catalog-enforced cascade graph owns classroom teaching data. The
+    -- durable snapshot remains until every exact row id is proven absent.
+    delete from public.classrooms classroom
+    where classroom.id = v_operation.classroom_id
+      and classroom.teacher_id = p_teacher_id
+      and classroom.archived_at is not null;
+    get diagnostics v_deleted_count = row_count;
+    if v_deleted_count <> 1 then
+      raise exception 'classroom_purge_root_delete_drift' using errcode = '40001';
+    end if;
+
+    for v_resource in
+      select
+        snapshot.table_name,
+        case
+          when snapshot.table_name = 'assignment_doc_save_operations' then 'id'
+          else contract.primary_key_columns[1]
+        end as primary_key_column
+      from (
+        select distinct table_name
+        from public.classroom_purge_resources
+        where operation_id = p_operation_id
+      ) snapshot
+      left join public.classroom_archive_resource_contract contract
+        on contract.table_name = snapshot.table_name
+    loop
+      if v_resource.primary_key_column is null then
+        raise exception 'classroom_purge_unknown_resource_%', v_resource.table_name
+          using errcode = '40001';
+      end if;
+      execute format(
+        'select count(*)::integer
+         from public.%I source
+         join public.classroom_purge_resources snapshot
+           on snapshot.operation_id = $1
+          and snapshot.table_name = $2
+          and source.%I = snapshot.row_id',
+        v_resource.table_name,
+        v_resource.primary_key_column
+      ) into v_remaining_count using p_operation_id, v_resource.table_name;
+      if v_remaining_count <> 0 then
+        raise exception 'classroom_purge_postcondition_%', v_resource.table_name
+          using errcode = '40001';
+      end if;
+    end loop;
+
+    update public.classroom_purge_operations
+    set
+      status = 'completed',
+      classroom_title = null,
+      impact_summary = jsonb_build_object(
+        'relational_rows_deleted',
+        (select coalesce(sum(value::text::integer), 0)
+         from jsonb_each(resource_counts))
+      ),
+      retryable = false,
+      error_code = null,
+      completed_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+    where id = p_operation_id;
+    delete from public.classroom_purge_resources
+    where operation_id = p_operation_id;
+    delete from public.classroom_purge_fences
+    where operation_id = p_operation_id;
+
+    return jsonb_build_object(
+      'ok', true,
+      'status', 200,
+      'operation_id', p_operation_id,
+      'operation_status', 'completed',
+      'replayed', false
+    );
+  exception
+    when others then
+      v_error_code := case
+        when sqlstate = '40001' then left(sqlerrm, 120)
+        else 'database_finalize_failed'
+      end;
+      update public.classroom_purge_operations
+      set
+        status = 'failed',
+        error_code = coalesce(v_error_code, 'database_finalize_failed'),
+        retryable = v_retryable,
+        updated_at = clock_timestamp()
+      where id = p_operation_id;
+      return jsonb_build_object(
+        'ok', false, 'status', 500,
+        'error_code', coalesce(v_error_code, 'database_finalize_failed'),
+        'error', 'Permanent deletion paused before database finalization',
+        'retryable', v_retryable
+      );
+  end;
+end;
+$$;
+
+-- The lifecycle graph remains authoritative for relational rows. This guard
+-- proves no managed classroom file can be orphaned by an ordinary classroom
+-- delete or by a finalizer that skipped explicit reconciliation.
+create or replace function public.reject_classroom_delete_with_managed_storage()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if exists (
+    select 1
+    from public.legacy_blueprint_classroom_storage_reconciliations reconciliation
+    where reconciliation.classroom_id = old.id
+  ) then
+    raise exception 'classroom_blueprint_operation_active' using errcode = '55000';
+  end if;
+  if exists (
+    select 1 from public.managed_storage_objects object
+    where object.classroom_id = old.id
+  ) then
+    -- A verified compaction is the only operation allowed to remove the hot
+    -- row while files retain this stable classroom scope. Both the rolled-back
+    -- preflight delete and real delete run with these transaction-local
+    -- markers and the same snapshot-ready operation identity.
+    if current_setting('pika.classroom_archive_compaction', true) = 'on'
+      and current_setting('pika.classroom_archive_compaction_dry_run', true) = 'on'
+      and exists (
+        select 1
+        from public.classroom_archive_operations operation
+        join public.classroom_managed_storage_coverage coverage
+          on coverage.classroom_id = operation.classroom_id
+        where operation.classroom_id = old.id
+          and operation.id = nullif(
+            current_setting(
+              'pika.classroom_archive_compaction_operation_id',
+              true
+            ),
+            ''
+          )::uuid
+          and operation.operation_type = 'compact'
+          and operation.status = 'snapshot_ready'
+          and coverage.status = 'verified'
+          and coverage.source_revision = operation.source_revision
+          and coverage.object_count = coverage.reference_count
+          and coverage.object_count = (
+            select count(*)::integer
+            from public.managed_storage_objects object
+            where object.classroom_id = old.id
+          )
+      )
+    then
+      return old;
+    end if;
+    raise exception 'classroom_has_managed_storage_objects' using errcode = '55000';
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists reject_classroom_delete_with_managed_storage on public.classrooms;
+create trigger reject_classroom_delete_with_managed_storage
+before delete on public.classrooms
+for each row execute function public.reject_classroom_delete_with_managed_storage();
+
+-- Remove the path/URL inference surface from the previous local draft of 117
+-- when a developer replays this consolidated migration.
+drop function if exists public.reconcile_classroom_purge_object_sharing(uuid, uuid);
+drop function if exists public.classroom_purge_storage_path_has_external_operation_reference(uuid, text, text);
+drop function if exists public.classroom_purge_url_candidates(text);
+drop function if exists public.classroom_purge_normalize_special_url_path(text);
+drop function if exists public.classroom_purge_jsonb_references_storage_path(jsonb, text);
+drop function if exists public.classroom_purge_jsonb_text_values(jsonb);
+drop function if exists public.classroom_purge_percent_decode(text);
+drop function if exists public.classroom_purge_percent_encode_path(text);
+drop function if exists public.classroom_purge_normalize_percent_escapes(text);
+
+-- Registers an unshared legacy Blueprint source without copying it. Immutable
+-- Version snapshots are validation evidence only; only live mutable assessment
+-- documents receive the managed id in this transaction.
+create or replace function public.register_legacy_blueprint_storage_object(
+  p_object_id uuid, p_teacher_id uuid, p_blueprint_id uuid,
+  p_storage_bucket text, p_storage_path text,
+  p_mutable_blueprint_documents jsonb, p_immutable_blueprint_evidence jsonb
+)
+returns public.managed_storage_objects
+language plpgsql security definer set search_path = public, storage as $$
+declare
+  v_object public.managed_storage_objects;
+  v_assessment public.course_blueprint_assessments%rowtype;
+  v_ref jsonb; v_documents jsonb; v_document jsonb; v_index integer;
+begin
+  if p_storage_bucket <> 'test-documents' or p_storage_path = ''
+    or jsonb_typeof(p_mutable_blueprint_documents) <> 'array'
+    or jsonb_typeof(p_immutable_blueprint_evidence) <> 'array'
+    or (jsonb_array_length(p_mutable_blueprint_documents) = 0
+      and jsonb_array_length(p_immutable_blueprint_evidence) = 0) then
+    raise exception 'invalid_legacy_blueprint_registration' using errcode = '22023';
+  end if;
+  perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
+  if not exists (
+    select 1 from public.course_blueprints
+    where id = p_blueprint_id and teacher_id = p_teacher_id
+  ) then raise exception 'legacy_blueprint_registration_owner_mismatch' using errcode = 'P0002'; end if;
+  if not exists (
+    select 1 from storage.objects
+    where bucket_id = p_storage_bucket and name = p_storage_path
+  ) then raise exception 'legacy_blueprint_registration_source_missing' using errcode = '55000'; end if;
+
+  -- Validate every current mutable target before registering or rewriting one.
+  for v_ref in select value from jsonb_array_elements(p_mutable_blueprint_documents) loop
+    select * into v_assessment from public.course_blueprint_assessments
+    where id = (v_ref->>'assessmentId')::uuid and course_blueprint_id = p_blueprint_id
+    for update;
+    if not found or not exists (
+      select 1 from jsonb_array_elements(coalesce(v_assessment.documents, '[]'::jsonb)) document(value)
+      where document.value->>'id' = v_ref->>'documentId'
+        and document.value->>'source' = 'upload'
+        and document.value->>'url' = v_ref->>'expectedReference'
+        and coalesce(nullif(document.value->>'managed_object_id', ''), p_object_id::text) = p_object_id::text
+    ) then raise exception 'legacy_blueprint_registration_mutable_changed' using errcode = '40001'; end if;
+  end loop;
+  -- Deliberately no UPDATE of course_blueprint_versions follows this check.
+  for v_ref in select value from jsonb_array_elements(p_immutable_blueprint_evidence) loop
+    if not exists (
+      select 1 from public.course_blueprint_versions version
+      cross join lateral jsonb_array_elements(coalesce(version.snapshot_json->'assessments', '[]'::jsonb)) assessment(value)
+      cross join lateral jsonb_array_elements(coalesce(assessment.value->'documents', '[]'::jsonb)) document(value)
+      where version.id = (v_ref->>'versionId')::uuid
+        and version.course_blueprint_id = p_blueprint_id
+        and document.value->>'source' = 'upload'
+        and document.value->>'url' = v_ref->>'expectedReference'
+    ) then raise exception 'legacy_blueprint_registration_immutable_evidence_changed' using errcode = '40001'; end if;
+  end loop;
+
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, course_blueprint_id, purpose, status,
+    created_by_user_id, resource_type, resource_id, content_type, ready_at
+  ) values (
+    p_object_id, p_storage_bucket, p_storage_path, p_blueprint_id,
+    'teacher_test_material', 'ready', p_teacher_id,
+    'legacy_blueprint_test_material', null,
+    (select nullif(metadata->>'mimetype', '') from storage.objects
+      where bucket_id = p_storage_bucket and name = p_storage_path), clock_timestamp()
+  ) on conflict (storage_bucket, storage_path) do update set updated_at = clock_timestamp()
+    where public.managed_storage_objects.id = p_object_id
+      and public.managed_storage_objects.course_blueprint_id = p_blueprint_id
+      and public.managed_storage_objects.status = 'ready'
+  returning * into v_object;
+  if v_object.id is null then
+    raise exception 'legacy_blueprint_registration_owner_conflict' using errcode = '23505';
+  end if;
+  for v_ref in select value from jsonb_array_elements(p_mutable_blueprint_documents) loop
+    select * into v_assessment from public.course_blueprint_assessments
+    where id = (v_ref->>'assessmentId')::uuid for update;
+    v_documents := coalesce(v_assessment.documents, '[]'::jsonb);
+    select value, (ordinality - 1)::integer into v_document, v_index
+    from jsonb_array_elements(v_documents) with ordinality
+    where value->>'id' = v_ref->>'documentId';
+    if v_document->>'managed_object_id' = p_object_id::text then continue; end if;
+    v_documents := jsonb_set(v_documents, array[v_index::text],
+      v_document || jsonb_build_object('managed_object_id', p_object_id), false);
+    update public.course_blueprint_assessments set documents = v_documents
+    where id = v_assessment.id;
+  end loop;
+  return v_object;
+end;
+$$;
+
+-- A legacy test document can predate managed ownership and be referenced by
+-- exactly one Classroom and exactly one Blueprint (including immutable Version
+-- snapshots).  The original bytes must remain at their old URL for Versions;
+-- this durable ledger copies the Classroom reference to a new exact object and
+-- atomically assigns the original to the Blueprint.  Versions are evidence
+-- only: no function below updates course_blueprint_versions.
+create table public.legacy_blueprint_classroom_storage_reconciliations (
+  id uuid primary key,
+  teacher_id uuid not null references public.users (id) on delete restrict,
+  blueprint_id uuid not null references public.course_blueprints (id) on delete restrict,
+  classroom_id uuid not null references public.classrooms (id) on delete restrict,
+  source_object_id uuid not null unique,
+  target_object_id uuid not null unique,
+  source_storage_bucket text not null check (source_storage_bucket = 'test-documents'),
+  source_storage_path text not null check (btrim(source_storage_path) <> ''),
+  target_storage_bucket text not null check (target_storage_bucket = 'test-documents'),
+  target_storage_path text not null check (btrim(target_storage_path) <> ''),
+  classroom_documents jsonb not null check (jsonb_typeof(classroom_documents) = 'array'),
+  mutable_blueprint_documents jsonb not null check (jsonb_typeof(mutable_blueprint_documents) = 'array'),
+  immutable_blueprint_evidence jsonb not null check (jsonb_typeof(immutable_blueprint_evidence) = 'array'),
+  target_public_url text,
+  content_type text,
+  expected_byte_size bigint check (expected_byte_size is null or expected_byte_size >= 0),
+  expected_sha256 text check (expected_sha256 is null or expected_sha256 ~ '^[a-f0-9]{64}$'),
+  status text not null default 'planned' check (status in ('planned', 'copying', 'copied', 'adopted', 'failed')),
+  attempt_count integer not null default 0 check (attempt_count >= 0),
+  lease_token uuid,
+  lease_expires_at timestamptz,
+  last_error_code text,
+  created_at timestamptz not null default clock_timestamp(),
+  updated_at timestamptz not null default clock_timestamp(),
+  unique (blueprint_id, classroom_id, source_storage_bucket, source_storage_path),
+  unique (target_storage_bucket, target_storage_path),
+  check ((status = 'copying') = (lease_token is not null and lease_expires_at is not null)),
+  check ((status in ('copied', 'adopted')) = (target_public_url is not null))
+);
+alter table public.legacy_blueprint_classroom_storage_reconciliations enable row level security;
+revoke all on table public.legacy_blueprint_classroom_storage_reconciliations from public, anon, authenticated;
+grant select on table public.legacy_blueprint_classroom_storage_reconciliations to service_role;
+
+create or replace function public.plan_legacy_blueprint_classroom_storage_reconciliation(
+  p_reconciliation_id uuid, p_source_object_id uuid, p_target_object_id uuid,
+  p_teacher_id uuid, p_blueprint_id uuid, p_classroom_id uuid,
+  p_source_storage_bucket text, p_source_storage_path text,
+  p_target_storage_bucket text, p_target_storage_path text,
+  p_classroom_documents jsonb, p_mutable_blueprint_documents jsonb,
+  p_immutable_blueprint_evidence jsonb
+)
+returns public.legacy_blueprint_classroom_storage_reconciliations
+language plpgsql security definer set search_path = public, storage as $$
+declare v_row public.legacy_blueprint_classroom_storage_reconciliations;
+begin
+  if p_source_storage_bucket <> 'test-documents' or p_target_storage_bucket <> 'test-documents'
+    or p_source_storage_path = '' or p_target_storage_path = ''
+    or p_source_storage_path = p_target_storage_path
+    or jsonb_typeof(p_classroom_documents) <> 'array'
+    or jsonb_typeof(p_mutable_blueprint_documents) <> 'array'
+    or jsonb_typeof(p_immutable_blueprint_evidence) <> 'array'
+    -- The classroom discovery collector admits one exact path per resource.
+    -- A multi-test claim would make the single target ledger ambiguous.
+    or jsonb_array_length(p_classroom_documents) <> 1 then
+    raise exception 'invalid_legacy_blueprint_reconciliation_plan' using errcode = '22023';
+  end if;
+  perform public.classroom_purge_lock(p_classroom_id);
+  perform public.managed_storage_exact_lock(p_source_storage_bucket, p_source_storage_path);
+  if not exists (select 1 from public.classrooms where id = p_classroom_id and teacher_id = p_teacher_id)
+    or not exists (select 1 from public.course_blueprints where id = p_blueprint_id and teacher_id = p_teacher_id) then
+    raise exception 'legacy_blueprint_reconciliation_owner_mismatch' using errcode = 'P0002';
+  end if;
+  if exists (select 1 from public.classroom_purge_fences where classroom_id = p_classroom_id)
+    or not exists (select 1 from storage.objects where bucket_id = p_source_storage_bucket and name = p_source_storage_path) then
+    raise exception 'legacy_blueprint_reconciliation_source_unavailable' using errcode = '55000';
+  end if;
+  select * into v_row from public.legacy_blueprint_classroom_storage_reconciliations where id = p_reconciliation_id for update;
+  if found then
+    if v_row.teacher_id <> p_teacher_id or v_row.blueprint_id <> p_blueprint_id
+      or v_row.classroom_id <> p_classroom_id or v_row.source_object_id <> p_source_object_id
+      or v_row.target_object_id <> p_target_object_id or v_row.source_storage_path <> p_source_storage_path
+      or v_row.target_storage_path <> p_target_storage_path or v_row.classroom_documents <> p_classroom_documents
+      or v_row.mutable_blueprint_documents <> p_mutable_blueprint_documents
+      or v_row.immutable_blueprint_evidence <> p_immutable_blueprint_evidence then
+      raise exception 'legacy_blueprint_reconciliation_plan_mismatch' using errcode = '23505';
+    end if;
+    return v_row;
+  end if;
+  insert into public.legacy_blueprint_classroom_storage_reconciliations (
+    id, teacher_id, blueprint_id, classroom_id, source_object_id, target_object_id,
+    source_storage_bucket, source_storage_path, target_storage_bucket, target_storage_path,
+    classroom_documents, mutable_blueprint_documents, immutable_blueprint_evidence, content_type
+  ) values (
+    p_reconciliation_id, p_teacher_id, p_blueprint_id, p_classroom_id, p_source_object_id, p_target_object_id,
+    p_source_storage_bucket, p_source_storage_path, p_target_storage_bucket, p_target_storage_path,
+    p_classroom_documents, p_mutable_blueprint_documents, p_immutable_blueprint_evidence,
+    (select nullif(metadata->>'mimetype', '') from storage.objects
+      where bucket_id = p_source_storage_bucket and name = p_source_storage_path)
+  ) returning * into v_row;
+  return v_row;
+end;
+$$;
+
+create or replace function public.claim_legacy_blueprint_classroom_storage_reconciliation(
+  p_reconciliation_id uuid, p_teacher_id uuid, p_lease_token uuid, p_lease_seconds integer
+)
+returns public.legacy_blueprint_classroom_storage_reconciliations
+language plpgsql security definer set search_path = public as $$
+declare v_row public.legacy_blueprint_classroom_storage_reconciliations;
+begin
+  if p_lease_seconds < 30 or p_lease_seconds > 900 then raise exception 'invalid_legacy_reconciliation_lease' using errcode = '22023'; end if;
+  update public.legacy_blueprint_classroom_storage_reconciliations row set
+    status = 'copying', attempt_count = row.attempt_count + 1, lease_token = p_lease_token,
+    lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+    last_error_code = case
+      when row.status = 'copying'
+        and row.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'
+        then row.last_error_code
+      else null
+    end,
+    updated_at = clock_timestamp()
+  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
+    and (row.status in ('planned', 'failed') or (row.status = 'copying' and row.lease_expires_at <= clock_timestamp()))
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+
+create or replace function public.complete_legacy_blueprint_classroom_storage_reconciliation(
+  p_reconciliation_id uuid, p_teacher_id uuid, p_lease_token uuid,
+  p_target_public_url text, p_byte_size bigint, p_content_sha256 text
+)
+returns boolean
+language plpgsql security definer set search_path = public, storage as $$
+declare v_row public.legacy_blueprint_classroom_storage_reconciliations;
+begin
+  if p_target_public_url = '' or p_byte_size < 0 or p_content_sha256 !~ '^[a-f0-9]{64}$' then
+    raise exception 'invalid_legacy_reconciliation_completion' using errcode = '22023';
+  end if;
+  select row.* into v_row
+  from public.legacy_blueprint_classroom_storage_reconciliations row
+  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
+    and row.status = 'copying' and row.lease_token = p_lease_token
+    and row.lease_expires_at > clock_timestamp()
+    and row.last_error_code is null
+  for update;
+  if not found then return false; end if;
+  perform public.managed_storage_exact_lock(
+    v_row.target_storage_bucket,
+    v_row.target_storage_path
+  );
+  update public.legacy_blueprint_classroom_storage_reconciliations row set
+    status = 'copied', target_public_url = p_target_public_url, expected_byte_size = p_byte_size,
+    expected_sha256 = p_content_sha256, lease_token = null, lease_expires_at = null,
+    updated_at = clock_timestamp()
+  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
+    and exists (select 1 from storage.objects where bucket_id = row.target_storage_bucket and name = row.target_storage_path);
+  return found;
+end;
+$$;
+
+create or replace function public.fail_legacy_blueprint_classroom_storage_reconciliation(
+  p_reconciliation_id uuid, p_teacher_id uuid, p_lease_token uuid, p_error_code text
+)
+returns boolean
+language plpgsql security definer set search_path = public, storage as $$
+declare v_row public.legacy_blueprint_classroom_storage_reconciliations;
+begin
+  if p_error_code = 'legacy_blueprint_reconciliation_cleanup_started' then
+    select row.* into v_row
+    from public.legacy_blueprint_classroom_storage_reconciliations row
+    where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
+      and row.status = 'copying' and row.lease_token = p_lease_token
+      and row.lease_expires_at > clock_timestamp()
+      and row.last_error_code is null
+    for update;
+    if not found then return false; end if;
+    perform public.managed_storage_exact_lock(
+      v_row.target_storage_bucket,
+      v_row.target_storage_path
+    );
+    update public.legacy_blueprint_classroom_storage_reconciliations row set
+      last_error_code = 'legacy_blueprint_reconciliation_cleanup_processing',
+      lease_expires_at = clock_timestamp() + interval '120 seconds',
+      updated_at = clock_timestamp()
+    where row.id = p_reconciliation_id;
+    return true;
+  end if;
+
+  if p_error_code = 'legacy_blueprint_reconciliation_target_removed' then
+    select row.* into v_row
+    from public.legacy_blueprint_classroom_storage_reconciliations row
+    where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
+      and row.status = 'copying' and row.lease_token = p_lease_token
+      and row.lease_expires_at > clock_timestamp()
+      and row.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%'
+    for update;
+    if not found then return false; end if;
+    perform public.managed_storage_exact_lock(
+      v_row.target_storage_bucket,
+      v_row.target_storage_path
+    );
+    if exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_row.target_storage_bucket
+        and object.name = v_row.target_storage_path
+    ) then
+      raise exception 'legacy_blueprint_reconciliation_target_still_present'
+        using errcode = '55000';
+    end if;
+    update public.legacy_blueprint_classroom_storage_reconciliations row set
+      status = 'failed', lease_token = null, lease_expires_at = null,
+      last_error_code = 'legacy_blueprint_reconciliation_target_removed',
+      updated_at = clock_timestamp()
+    where row.id = p_reconciliation_id;
+    return true;
+  end if;
+
+  select row.* into v_row
+  from public.legacy_blueprint_classroom_storage_reconciliations row
+  where row.id = p_reconciliation_id and row.teacher_id = p_teacher_id
+    and row.status = 'copying' and row.lease_token = p_lease_token
+  for update;
+  if not found then return false; end if;
+  if v_row.last_error_code like 'legacy_blueprint_reconciliation_cleanup_%' then
+    update public.legacy_blueprint_classroom_storage_reconciliations row set
+      last_error_code = 'legacy_blueprint_reconciliation_cleanup_failed',
+      lease_expires_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+    where row.id = p_reconciliation_id;
+  else
+    update public.legacy_blueprint_classroom_storage_reconciliations row set
+      status = 'failed', lease_token = null, lease_expires_at = null,
+      last_error_code = left(coalesce(nullif(btrim(p_error_code), ''), 'legacy_reconciliation_failed'), 160),
+      updated_at = clock_timestamp()
+    where row.id = p_reconciliation_id;
+  end if;
+  return true;
+end;
+$$;
+
+create or replace function public.adopt_legacy_blueprint_classroom_storage_reconciliation(
+  p_reconciliation_id uuid, p_teacher_id uuid
+)
+returns jsonb
+language plpgsql security definer set search_path = public, storage as $$
+declare
+  v_row public.legacy_blueprint_classroom_storage_reconciliations;
+  v_ref jsonb; v_test public.tests%rowtype; v_docs jsonb; v_doc jsonb; v_index integer;
+  v_assessment public.course_blueprint_assessments%rowtype; v_first_test_id uuid;
+  v_prior_identity text := current_setting('pika.identity_mapping', true);
+  v_prior_compaction text := current_setting('pika.classroom_archive_compaction', true);
+  v_prior_owner_reconciliation text :=
+    current_setting('pika.managed_storage_owner_reconciliation', true);
+begin
+  select * into v_row from public.legacy_blueprint_classroom_storage_reconciliations
+    where id = p_reconciliation_id and teacher_id = p_teacher_id for update;
+  if not found then raise exception 'legacy_blueprint_reconciliation_not_found' using errcode = 'P0002'; end if;
+  if v_row.status = 'adopted' then return jsonb_build_object('ok', true); end if;
+  if v_row.status <> 'copied' then return jsonb_build_object('ok', false, 'error_code', 'legacy_blueprint_reconciliation_copy_incomplete'); end if;
+  perform public.classroom_purge_lock(v_row.classroom_id);
+  perform public.managed_storage_exact_lock(v_row.source_storage_bucket, v_row.source_storage_path);
+  perform public.managed_storage_exact_lock(v_row.target_storage_bucket, v_row.target_storage_path);
+  if exists (select 1 from public.classroom_purge_fences where classroom_id = v_row.classroom_id)
+    or not exists (select 1 from storage.objects where bucket_id = v_row.source_storage_bucket and name = v_row.source_storage_path)
+    or not exists (select 1 from storage.objects where bucket_id = v_row.target_storage_bucket and name = v_row.target_storage_path) then
+    raise exception 'legacy_blueprint_reconciliation_storage_changed' using errcode = '40001';
+  end if;
+  -- Validate all exact live rewrite targets before changing either owner.
+  for v_ref in select value from jsonb_array_elements(v_row.classroom_documents) loop
+    select * into v_test from public.tests where id = (v_ref->>'testId')::uuid and classroom_id = v_row.classroom_id for update;
+    if not found or not exists (select 1 from jsonb_array_elements(coalesce(v_test.documents, '[]'::jsonb)) d
+      where d->>'id' = v_ref->>'documentId' and d->>'source' = 'upload'
+        and d->>'url' = v_ref->>'expectedReference') then
+      raise exception 'legacy_blueprint_reconciliation_classroom_changed' using errcode = '40001';
+    end if;
+    v_first_test_id := coalesce(v_first_test_id, v_test.id);
+  end loop;
+  for v_ref in select value from jsonb_array_elements(v_row.mutable_blueprint_documents) loop
+    select * into v_assessment from public.course_blueprint_assessments
+      where id = (v_ref->>'assessmentId')::uuid and course_blueprint_id = v_row.blueprint_id for update;
+    if not found or not exists (select 1 from jsonb_array_elements(coalesce(v_assessment.documents, '[]'::jsonb)) d
+      where d->>'id' = v_ref->>'documentId' and d->>'source' = 'upload'
+        and d->>'url' = v_ref->>'expectedReference') then
+      raise exception 'legacy_blueprint_reconciliation_blueprint_changed' using errcode = '40001';
+    end if;
+  end loop;
+  for v_ref in select value from jsonb_array_elements(v_row.immutable_blueprint_evidence) loop
+    if not exists (select 1 from public.course_blueprint_versions version
+      cross join lateral jsonb_array_elements(coalesce(version.snapshot_json->'assessments', '[]'::jsonb)) assessment(value)
+      cross join lateral jsonb_array_elements(coalesce(assessment.value->'documents', '[]'::jsonb)) document(value)
+      where version.id = (v_ref->>'versionId')::uuid and version.course_blueprint_id = v_row.blueprint_id
+        and document.value->>'url' = v_ref->>'expectedReference') then
+      raise exception 'legacy_blueprint_reconciliation_immutable_evidence_changed' using errcode = '40001';
+    end if;
+  end loop;
+  perform set_config('pika.managed_storage_owner_reconciliation', 'on', true);
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, course_blueprint_id, purpose, status, created_by_user_id,
+    resource_type, resource_id, content_type, byte_size, content_sha256, ready_at
+  ) values (
+    v_row.source_object_id, v_row.source_storage_bucket, v_row.source_storage_path, v_row.blueprint_id,
+    'teacher_test_material', 'ready', v_row.teacher_id, 'legacy_blueprint_test_material', null,
+    v_row.content_type, v_row.expected_byte_size, v_row.expected_sha256, clock_timestamp()
+  ) on conflict (storage_bucket, storage_path) do update set
+      classroom_id = null, course_blueprint_id = v_row.blueprint_id,
+      purpose = 'teacher_test_material',
+      resource_type = 'legacy_blueprint_test_material', resource_id = null,
+      updated_at = clock_timestamp()
+    where public.managed_storage_objects.id = v_row.source_object_id
+      and public.managed_storage_objects.storage_bucket = v_row.source_storage_bucket
+      and public.managed_storage_objects.storage_path = v_row.source_storage_path
+      and public.managed_storage_objects.status = 'ready'
+      and (
+        public.managed_storage_objects.course_blueprint_id = v_row.blueprint_id
+        or public.managed_storage_objects.classroom_id = v_row.classroom_id
+      );
+  if not found then raise exception 'legacy_blueprint_reconciliation_source_owner_conflict' using errcode = '23505'; end if;
+  insert into public.managed_storage_objects (
+    id, storage_bucket, storage_path, classroom_id, purpose, status, created_by_user_id,
+    resource_type, resource_id, content_type, byte_size, content_sha256, ready_at
+  ) values (
+    v_row.target_object_id, v_row.target_storage_bucket, v_row.target_storage_path, v_row.classroom_id,
+    'teacher_test_material', 'ready', v_row.teacher_id, 'test', v_first_test_id,
+    v_row.content_type, v_row.expected_byte_size, v_row.expected_sha256, clock_timestamp()
+  ) on conflict (storage_bucket, storage_path) do update set updated_at = clock_timestamp()
+    where public.managed_storage_objects.id = v_row.target_object_id
+      and public.managed_storage_objects.classroom_id = v_row.classroom_id
+      and public.managed_storage_objects.status = 'ready';
+  if not found then raise exception 'legacy_blueprint_reconciliation_target_owner_conflict' using errcode = '23505'; end if;
+  for v_ref in select value from jsonb_array_elements(v_row.classroom_documents) loop
+    select * into v_test from public.tests where id = (v_ref->>'testId')::uuid for update;
+    v_docs := coalesce(v_test.documents, '[]'::jsonb);
+    select value, (ordinality - 1)::integer into v_doc, v_index from jsonb_array_elements(v_docs) with ordinality
+      where value->>'id' = v_ref->>'documentId';
+    v_docs := jsonb_set(v_docs, array[v_index::text], v_doc || jsonb_build_object(
+      'url', v_row.target_public_url, 'managed_object_id', v_row.target_object_id), false);
+    perform set_config('pika.identity_mapping', 'on', true);
+    perform set_config('pika.classroom_archive_compaction', 'on', true);
+    update public.tests set documents = v_docs where id = v_test.id;
+  end loop;
+  for v_ref in select value from jsonb_array_elements(v_row.mutable_blueprint_documents) loop
+    select * into v_assessment from public.course_blueprint_assessments where id = (v_ref->>'assessmentId')::uuid for update;
+    v_docs := coalesce(v_assessment.documents, '[]'::jsonb);
+    select value, (ordinality - 1)::integer into v_doc, v_index from jsonb_array_elements(v_docs) with ordinality
+      where value->>'id' = v_ref->>'documentId';
+    v_docs := jsonb_set(v_docs, array[v_index::text], v_doc || jsonb_build_object(
+      'managed_object_id', v_row.source_object_id), false);
+    update public.course_blueprint_assessments set documents = v_docs where id = v_assessment.id;
+  end loop;
+  perform set_config('pika.classroom_archive_compaction', coalesce(v_prior_compaction, 'off'), true);
+  perform set_config('pika.identity_mapping', coalesce(v_prior_identity, 'off'), true);
+  perform set_config(
+    'pika.managed_storage_owner_reconciliation',
+    coalesce(v_prior_owner_reconciliation, 'off'),
+    true
+  );
+  -- Adoption is the terminal transaction: after both registry owners and live
+  -- references are committed there is no resumable work left. Removing the
+  -- ledger lets normal Classroom/Blueprint lifecycles proceed, while the
+  -- restrictive owner FKs protect every nonterminal copy state.
+  delete from public.legacy_blueprint_classroom_storage_reconciliations
+    where id = v_row.id and status = 'copied';
+  if not found then
+    raise exception 'legacy_blueprint_reconciliation_adoption_conflict'
+      using errcode = '40001';
+  end if;
+  return jsonb_build_object('ok', true);
+exception when others then
+  perform set_config('pika.classroom_archive_compaction', coalesce(v_prior_compaction, 'off'), true);
+  perform set_config('pika.identity_mapping', coalesce(v_prior_identity, 'off'), true);
+  perform set_config(
+    'pika.managed_storage_owner_reconciliation',
+    coalesce(v_prior_owner_reconciliation, 'off'),
+    true
+  );
+  raise;
+end;
+$$;
+
+-- Assignment content arrives through the service-role application, but its
+-- managed-file evidence is still derived from an untrusted browser payload.
+-- Lock and revalidate every exact claim in the same transaction as the legacy
+-- save/submit RPC so a purge or cleanup cannot win between validation and write.
+create or replace function public.lock_assignment_doc_managed_storage_claims(
+  p_assignment_id uuid,
+  p_student_id uuid,
+  p_managed_storage_claims jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_classroom_id uuid;
+  v_claim jsonb;
+  v_object_id uuid;
+  v_path text;
+begin
+  if p_assignment_id is null
+    or p_student_id is null
+    or jsonb_typeof(coalesce(p_managed_storage_claims, '[]'::jsonb)) <> 'array'
+    or jsonb_array_length(coalesce(p_managed_storage_claims, '[]'::jsonb)) > 1000
+  then
+    raise exception 'invalid_assignment_doc_managed_storage_claims'
+      using errcode = '22023';
+  end if;
+
+  select assignment.classroom_id into v_classroom_id
+  from public.assignments assignment
+  where assignment.id = p_assignment_id;
+  if not found then raise exception 'assignment_not_found' using errcode = 'P0002'; end if;
+
+  perform public.classroom_purge_lock(v_classroom_id);
+  perform 1
+  from public.assignments assignment
+  join public.classrooms classroom on classroom.id = assignment.classroom_id
+  where assignment.id = p_assignment_id
+    and assignment.classroom_id = v_classroom_id
+    and classroom.archived_at is null
+  for update of assignment, classroom;
+  if not found then raise exception 'classroom_archived' using errcode = '55000'; end if;
+  if exists (
+    select 1 from public.classroom_purge_fences where classroom_id = v_classroom_id
+  ) then
+    raise exception 'classroom_purge_active' using errcode = '55000';
+  end if;
+
+  for v_claim in
+    select value from jsonb_array_elements(coalesce(p_managed_storage_claims, '[]'::jsonb))
+  loop
+    v_object_id := public.managed_storage_uuid(v_claim->>'managed_object_id');
+    v_path := nullif(v_claim->>'storage_path', '');
+    if v_claim - 'managed_object_id' - 'storage_bucket' - 'storage_path' <> '{}'::jsonb
+      or v_object_id is null
+      or nullif(v_claim->>'storage_bucket', '') is null
+      or v_path is null
+      or v_path like '/%'
+      or '' = any(string_to_array(v_path, '/'))
+      or '.' = any(string_to_array(v_path, '/'))
+      or '..' = any(string_to_array(v_path, '/'))
+    then
+      raise exception 'invalid_assignment_doc_managed_storage_claims'
+        using errcode = '22023';
+    end if;
+
+    perform 1
+    from public.managed_storage_objects object
+    where object.id = v_object_id
+      and object.classroom_id = v_classroom_id
+      and object.course_blueprint_id is null
+      and object.storage_bucket = v_claim->>'storage_bucket'
+      and object.storage_path = v_path
+      and object.status = 'ready'
+    for update;
+    if not found then
+      raise exception 'assignment_doc_managed_storage_owner_mismatch'
+        using errcode = '55000';
+    end if;
+  end loop;
+end;
+$$;
+
+-- Preserve the pre-117 implementations behind private names. The public legacy
+-- signatures remain deployment-compatible only while ownership enforcement is
+-- disabled; once enabled, stale application instances fail closed. Managed
+-- wrappers call the private implementations after taking ownership locks.
+alter function public.save_course_blueprint_version_atomic(
+  uuid, uuid, bigint, integer, jsonb, text, text, jsonb
+) rename to save_course_blueprint_version_atomic_legacy_117;
+
+create or replace function public.save_course_blueprint_version_atomic(
+  p_teacher_id uuid,
+  p_blueprint_id uuid,
+  p_expected_draft_revision bigint,
+  p_snapshot_schema_version integer,
+  p_snapshot jsonb,
+  p_snapshot_sha256 text,
+  p_source_kind text,
+  p_source_metadata jsonb
+)
+returns public.course_blueprint_versions
+language plpgsql security definer set search_path = public as $$
+declare
+  v_version public.course_blueprint_versions;
+begin
+  if exists (
+    select 1
+    from jsonb_array_elements(
+      coalesce(p_snapshot->'assessments', '[]'::jsonb)
+    ) assessment(value)
+    cross join lateral jsonb_array_elements(
+      coalesce(assessment.value->'documents', '[]'::jsonb)
+    ) document(value)
+    where document.value->>'source' = 'upload'
+  ) then
+    raise exception 'managed_blueprint_version_wrapper_required'
+      using errcode = '55000';
+  end if;
+
+  v_version := public.save_course_blueprint_version_atomic_legacy_117(
+    p_teacher_id,
+    p_blueprint_id,
+    p_expected_draft_revision,
+    p_snapshot_schema_version,
+    p_snapshot,
+    p_snapshot_sha256,
+    p_source_kind,
+    p_source_metadata
+  );
+  return v_version;
+end;
+$$;
+
+create or replace function public.save_course_blueprint_version_managed_atomic(
+  p_teacher_id uuid,
+  p_blueprint_id uuid,
+  p_expected_draft_revision bigint,
+  p_snapshot_schema_version integer,
+  p_snapshot jsonb,
+  p_snapshot_sha256 text,
+  p_source_kind text,
+  p_source_metadata jsonb,
+  p_managed_storage_claims jsonb
+)
+returns public.course_blueprint_versions
+language plpgsql security definer set search_path = public as $$
+declare
+  v_claim jsonb;
+  v_claim_count integer;
+  v_document jsonb;
+  v_object_id uuid;
+  v_path text;
+  v_reference_count integer := 0;
+  v_version public.course_blueprint_versions;
+begin
+  if jsonb_typeof(coalesce(p_managed_storage_claims, '[]'::jsonb)) <> 'array'
+  then
+    raise exception 'invalid_blueprint_version_managed_storage_claims'
+      using errcode = '22023';
+  end if;
+
+  perform 1
+  from public.course_blueprints blueprint
+  where blueprint.id = p_blueprint_id
+    and blueprint.teacher_id = p_teacher_id
+    and blueprint.content_revision = p_expected_draft_revision
+  for update;
+  if not found then
+    raise exception 'Blueprint Draft changed; rebuild the Version'
+      using errcode = '40001';
+  end if;
+
+  for v_document in
+    select document.value
+    from jsonb_array_elements(
+      coalesce(p_snapshot->'assessments', '[]'::jsonb)
+    ) assessment(value)
+    cross join lateral jsonb_array_elements(
+      coalesce(assessment.value->'documents', '[]'::jsonb)
+    ) document(value)
+    where document.value->>'source' = 'upload'
+  loop
+    v_reference_count := v_reference_count + 1;
+    v_object_id := public.managed_storage_uuid(
+      v_document->>'managed_object_id'
+    );
+    if v_object_id is null then
+      raise exception 'blueprint_teacher_material_ownership_required'
+        using errcode = '55000';
+    end if;
+
+    v_claim_count := 0;
+    for v_claim in
+      select value
+      from jsonb_array_elements(coalesce(p_managed_storage_claims, '[]'::jsonb))
+      where value->>'document_id' = v_document->>'id'
+        and value->>'reference_kind' = 'teacher_upload'
+        and value->>'managed_object_id' = v_object_id::text
+    loop
+      v_claim_count := v_claim_count + 1;
+      v_path := nullif(v_claim->>'storage_path', '');
+      if v_claim - 'document_id' - 'reference_kind' - 'managed_object_id'
+          - 'storage_bucket' - 'storage_path' - 'storage_url' - 'purpose' <> '{}'::jsonb
+        or v_claim->>'storage_bucket' is distinct from 'test-documents'
+        or v_claim->>'purpose' is distinct from 'teacher_test_material'
+        or nullif(v_claim->>'storage_url', '') is null
+        or v_claim->>'storage_url' is distinct from v_document->>'url'
+        or v_path is null
+        or v_path like '/%'
+        or '' = any(string_to_array(v_path, '/'))
+        or '.' = any(string_to_array(v_path, '/'))
+        or '..' = any(string_to_array(v_path, '/'))
+      then
+        raise exception 'invalid_blueprint_version_managed_storage_claims'
+          using errcode = '22023';
+      end if;
+    end loop;
+    if v_claim_count <> 1 then
+      raise exception 'blueprint_teacher_material_owner_mismatch'
+        using errcode = '55000';
+    end if;
+
+    perform 1
+    from public.managed_storage_objects object
+    where object.id = v_object_id
+      and object.classroom_id is null
+      and object.course_blueprint_id = p_blueprint_id
+      and object.storage_bucket = 'test-documents'
+      and object.storage_path = v_path
+      and object.purpose = 'teacher_test_material'
+      and object.status = 'ready'
+    for update;
+    if not found then
+      raise exception 'blueprint_teacher_material_owner_mismatch'
+        using errcode = '55000';
+    end if;
+  end loop;
+
+  if v_reference_count
+    <> jsonb_array_length(coalesce(p_managed_storage_claims, '[]'::jsonb))
+  then
+    raise exception 'blueprint_teacher_material_owner_mismatch'
+      using errcode = '55000';
+  end if;
+
+  v_version := public.save_course_blueprint_version_atomic_legacy_117(
+    p_teacher_id,
+    p_blueprint_id,
+    p_expected_draft_revision,
+    p_snapshot_schema_version,
+    p_snapshot,
+    p_snapshot_sha256,
+    p_source_kind,
+    p_source_metadata
+  );
+  return v_version;
+end;
+$$;
+
+alter function public.save_assignment_doc_atomic(
+  uuid, uuid, jsonb, timestamptz, text, integer, integer, jsonb, jsonb,
+  integer, integer, uuid, bigint, uuid
+) rename to save_assignment_doc_atomic_legacy_117;
+alter function public.submit_assignment_doc_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer
+) rename to submit_assignment_doc_atomic_legacy_117;
+alter function public.submit_assignment_doc_with_pal_event_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
+) rename to submit_assignment_doc_with_pal_event_atomic_legacy_117;
+
+create or replace function public.prepare_legacy_assignment_doc_write_117(
+  p_assignment_id uuid
+)
+returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_classroom_id uuid;
+  v_assignment_found boolean;
+begin
+  select classroom_id into v_classroom_id
+  from public.assignments
+  where id = p_assignment_id;
+  v_assignment_found := found;
+  if v_assignment_found then
+    perform public.classroom_purge_lock(v_classroom_id);
+  end if;
+
+  if exists (
+    select 1 from public.managed_storage_settings
+    where singleton and enforce_ownership
+  ) then
+    raise exception 'managed_assignment_wrapper_required' using errcode = '55000';
+  end if;
+  if not v_assignment_found then return; end if;
+
+  -- During the migration-first window a stale application instance may still
+  -- use this compatibility signature. Invalidate any completed readiness
+  -- proof in the same transaction as its write so enforcement/purge cannot use
+  -- a snapshot taken before the legacy payload changed.
+  update public.classroom_managed_storage_coverage
+  set
+    status = 'pending',
+    inventory_version = inventory_version + 1,
+    source_revision = null,
+    inventory_sha256 = null,
+    error_code = 'legacy_assignment_write_after_readiness',
+    verified_at = null,
+    updated_at = clock_timestamp()
+  where classroom_id = v_classroom_id
+    and status = 'verified';
+end;
+$$;
+
+create or replace function public.save_assignment_doc_atomic(
+  p_assignment_id uuid, p_student_id uuid, p_content jsonb,
+  p_expected_updated_at timestamptz, p_trigger text,
+  p_paste_word_count integer, p_keystroke_count integer,
+  p_patch jsonb, p_snapshot jsonb, p_word_count integer, p_char_count integer,
+  p_save_session_id uuid, p_save_sequence bigint, p_metric_session_id uuid
+)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.prepare_legacy_assignment_doc_write_117(p_assignment_id);
+  return public.save_assignment_doc_atomic_legacy_117(
+    p_assignment_id, p_student_id, p_content, p_expected_updated_at, p_trigger,
+    p_paste_word_count, p_keystroke_count, p_patch, p_snapshot,
+    p_word_count, p_char_count, p_save_session_id, p_save_sequence, p_metric_session_id
+  );
+end;
+$$;
+
+create or replace function public.submit_assignment_doc_atomic(
+  p_assignment_id uuid, p_student_id uuid, p_content jsonb,
+  p_expected_updated_at timestamptz, p_word_count integer, p_char_count integer
+)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.prepare_legacy_assignment_doc_write_117(p_assignment_id);
+  return public.submit_assignment_doc_atomic_legacy_117(
+    p_assignment_id, p_student_id, p_content, p_expected_updated_at,
+    p_word_count, p_char_count
+  );
+end;
+$$;
+
+create or replace function public.submit_assignment_doc_with_pal_event_atomic(
+  p_assignment_id uuid, p_student_id uuid, p_content jsonb,
+  p_expected_updated_at timestamptz, p_word_count integer, p_char_count integer,
+  p_pal_event jsonb
+)
+returns jsonb
+language plpgsql security definer set search_path = public, private as $$
+begin
+  perform public.prepare_legacy_assignment_doc_write_117(p_assignment_id);
+  return public.submit_assignment_doc_with_pal_event_atomic_legacy_117(
+    p_assignment_id, p_student_id, p_content, p_expected_updated_at,
+    p_word_count, p_char_count, p_pal_event
+  );
+end;
+$$;
+
+create or replace function public.save_assignment_doc_managed_atomic(
+  p_assignment_id uuid, p_student_id uuid, p_content jsonb,
+  p_expected_updated_at timestamptz, p_trigger text,
+  p_paste_word_count integer, p_keystroke_count integer,
+  p_patch jsonb, p_snapshot jsonb, p_word_count integer, p_char_count integer,
+  p_save_session_id uuid, p_save_sequence bigint, p_metric_session_id uuid,
+  p_managed_storage_claims jsonb
+)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.lock_assignment_doc_managed_storage_claims(
+    p_assignment_id, p_student_id, p_managed_storage_claims
+  );
+  return public.save_assignment_doc_atomic_legacy_117(
+    p_assignment_id, p_student_id, p_content, p_expected_updated_at, p_trigger,
+    p_paste_word_count, p_keystroke_count, p_patch, p_snapshot,
+    p_word_count, p_char_count, p_save_session_id, p_save_sequence, p_metric_session_id
+  );
+end;
+$$;
+
+create or replace function public.submit_assignment_doc_managed_atomic(
+  p_assignment_id uuid, p_student_id uuid, p_content jsonb,
+  p_expected_updated_at timestamptz, p_word_count integer, p_char_count integer,
+  p_managed_storage_claims jsonb
+)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.lock_assignment_doc_managed_storage_claims(
+    p_assignment_id, p_student_id, p_managed_storage_claims
+  );
+  return public.submit_assignment_doc_atomic_legacy_117(
+    p_assignment_id, p_student_id, p_content, p_expected_updated_at,
+    p_word_count, p_char_count
+  );
+end;
+$$;
+
+create or replace function public.submit_assignment_doc_with_pal_event_managed_atomic(
+  p_assignment_id uuid, p_student_id uuid, p_content jsonb,
+  p_expected_updated_at timestamptz, p_word_count integer, p_char_count integer,
+  p_pal_event jsonb, p_managed_storage_claims jsonb
+)
+returns jsonb
+language plpgsql security definer set search_path = public, private as $$
+begin
+  perform public.lock_assignment_doc_managed_storage_claims(
+    p_assignment_id, p_student_id, p_managed_storage_claims
+  );
+  return public.submit_assignment_doc_with_pal_event_atomic_legacy_117(
+    p_assignment_id, p_student_id, p_content, p_expected_updated_at,
+    p_word_count, p_char_count, p_pal_event
+  );
+end;
+$$;
+
+revoke all on function public.managed_storage_identity_sha256(text, text)
+  from public, anon, authenticated;
+revoke all on function public.managed_storage_uuid(text)
+  from public, anon, authenticated, service_role;
+revoke all on function public.begin_classroom_archive_restore_managed_v2(
+  uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, jsonb,
+  bigint, integer, integer, jsonb
+) from public, anon, authenticated;
+revoke all on function public.stage_classroom_archive_object_upload_legacy_117(
+  uuid, uuid, text, text, text, bigint
+) from public, anon, authenticated, service_role;
+revoke all on function public.stage_classroom_archive_object_upload(
+  uuid, uuid, text, text, text, bigint
+) from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_restore_legacy_117(
+  uuid, uuid, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_archive_restore(uuid, uuid, jsonb)
+  from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_compaction_legacy_117(
+  uuid, uuid, jsonb, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_archive_compaction(
+  uuid, uuid, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_compaction_v2_legacy_117(
+  uuid, uuid, jsonb, jsonb, integer
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_archive_compaction_v2(
+  uuid, uuid, jsonb, jsonb, integer
+) from public, anon, authenticated;
+revoke all on function public.rewrite_managed_storage_document_owner(
+  jsonb, uuid, uuid, text
+) from public, anon, authenticated, service_role;
+revoke all on function public.managed_storage_exact_lock(text, text)
+  from public, anon, authenticated, service_role;
+revoke all on function public.refresh_classroom_managed_storage_coverage(uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.compute_classroom_managed_storage_inventory(uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.read_classroom_managed_storage_inventory_evidence(uuid, uuid)
+  from public, anon, authenticated;
+revoke all on function public.plan_course_blueprint_storage_copies()
+  from public, anon, authenticated, service_role;
+revoke all on function public.claim_course_blueprint_storage_copy(uuid, uuid, uuid, integer)
+  from public, anon, authenticated;
+revoke all on function public.complete_course_blueprint_storage_copy(
+  uuid, uuid, uuid, text, bigint, text
+) from public, anon, authenticated;
+revoke all on function public.fail_course_blueprint_storage_copy(uuid, uuid, uuid, text)
+  from public, anon, authenticated;
+revoke all on function public.adopt_course_blueprint_storage_copies(uuid, uuid)
+  from public, anon, authenticated;
+revoke all on function public.begin_managed_storage_upload(
+  uuid, text, text, uuid, uuid, text, uuid, uuid, text, uuid, text, bigint
+) from public, anon, authenticated;
+revoke all on function public.adopt_managed_storage_upload(uuid, text)
+  from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_export_v2_legacy_117(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_archive_export_v2(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.complete_classroom_gradex_extract_legacy_117(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.complete_classroom_gradex_extract(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.queue_managed_storage_cleanup(uuid, text)
+  from public, anon, authenticated;
+revoke all on function public.queue_classroom_managed_storage_cleanup(
+  uuid, uuid, text, text, text, text, uuid, text
+) from public, anon, authenticated;
+revoke all on function public.queue_managed_storage_cleanup_path(text, text, text)
+  from public, anon, authenticated;
+revoke all on function public.update_test_documents_managed_atomic(
+  uuid, uuid, text, jsonb, jsonb, jsonb, jsonb,
+  boolean, text, boolean, text, boolean, boolean
+) from public, anon, authenticated;
+revoke all on function public.claim_managed_storage_cleanup(uuid, integer, integer)
+  from public, anon, authenticated;
+revoke all on function public.complete_managed_storage_cleanup(uuid, uuid)
+  from public, anon, authenticated;
+revoke all on function public.fail_managed_storage_cleanup(uuid, uuid, text)
+  from public, anon, authenticated;
+revoke all on function public.register_legacy_classroom_storage_object(
+  uuid, uuid, uuid, text, text, text, uuid, uuid, text, uuid, text, bigint
+) from public, anon, authenticated;
+revoke all on function public.verify_classroom_managed_storage_coverage(
+  uuid, uuid, bigint, integer, text
+) from public, anon, authenticated;
+revoke all on function public.attach_legacy_test_document_managed_object(
+  uuid, uuid, uuid, text, text, text, uuid
+) from public, anon, authenticated;
+revoke all on function public.sync_test_document_snapshot_managed_atomic(
+  uuid, uuid, text, text, uuid, text, text, timestamptz
+) from public, anon, authenticated;
+revoke all on function public.finalize_hot_archived_classroom_purge_legacy_117(uuid, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.finalize_hot_archived_classroom_purge(uuid, uuid)
+  from public, anon, authenticated;
+revoke all on function public.plan_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, text, jsonb, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.claim_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, integer
+) from public, anon, authenticated;
+revoke all on function public.complete_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, text, bigint, text
+) from public, anon, authenticated;
+revoke all on function public.fail_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, text
+) from public, anon, authenticated;
+revoke all on function public.adopt_legacy_blueprint_classroom_storage_reconciliation(uuid, uuid)
+  from public, anon, authenticated;
+revoke all on function public.register_legacy_blueprint_storage_object(
+  uuid, uuid, uuid, text, text, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.lock_assignment_doc_managed_storage_claims(uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
+revoke all on function public.save_assignment_doc_managed_atomic(
+  uuid, uuid, jsonb, timestamptz, text, integer, integer, jsonb, jsonb,
+  integer, integer, uuid, bigint, uuid, jsonb
+) from public, anon, authenticated;
+revoke all on function public.submit_assignment_doc_managed_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
+) from public, anon, authenticated;
+revoke all on function public.submit_assignment_doc_with_pal_event_managed_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, jsonb
+) from public, anon, authenticated;
+revoke all on function public.save_assignment_doc_atomic_legacy_117(
+  uuid, uuid, jsonb, timestamptz, text, integer, integer, jsonb, jsonb,
+  integer, integer, uuid, bigint, uuid
+) from public, anon, authenticated, service_role;
+revoke all on function public.submit_assignment_doc_atomic_legacy_117(
+  uuid, uuid, jsonb, timestamptz, integer, integer
+) from public, anon, authenticated, service_role;
+revoke all on function public.submit_assignment_doc_with_pal_event_atomic_legacy_117(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.save_course_blueprint_version_atomic_legacy_117(
+  uuid, uuid, bigint, integer, jsonb, text, text, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.save_course_blueprint_version_atomic(
+  uuid, uuid, bigint, integer, jsonb, text, text, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.save_course_blueprint_version_managed_atomic(
+  uuid, uuid, bigint, integer, jsonb, text, text, jsonb, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.prepare_legacy_assignment_doc_write_117(uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.save_assignment_doc_atomic(
+  uuid, uuid, jsonb, timestamptz, text, integer, integer, jsonb, jsonb,
+  integer, integer, uuid, bigint, uuid
+) from public, anon, authenticated, service_role;
+revoke all on function public.submit_assignment_doc_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer
+) from public, anon, authenticated, service_role;
+revoke all on function public.submit_assignment_doc_with_pal_event_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
+) from public, anon, authenticated, service_role;
+revoke all on function public.classroom_purge_try_lock(uuid)
+  from public, anon, authenticated;
+revoke all on function public.guard_classroom_purge_lifecycle(uuid)
+  from public, anon, authenticated;
+revoke all on function public.guard_managed_storage_scope_owner()
+  from public, anon, authenticated, service_role;
+revoke all on function public.guard_managed_storage_identity_immutable()
+  from public, anon, authenticated, service_role;
+revoke all on function public.prepare_legacy_managed_cleanup_ledger_change()
+  from public, anon, authenticated, service_role;
+revoke all on function public.unresolved_legacy_managed_cleanup_exists()
+  from public, anon, authenticated;
+revoke all on function public.prepare_immutable_operational_managed_owner()
+  from public, anon, authenticated, service_role;
+
+grant execute on function public.begin_managed_storage_upload(
+  uuid, text, text, uuid, uuid, text, uuid, uuid, text, uuid, text, bigint
+) to service_role;
+grant execute on function public.begin_classroom_archive_restore_managed_v2(
+  uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, jsonb,
+  bigint, integer, integer, jsonb
+) to service_role;
+grant execute on function public.stage_classroom_archive_object_upload(
+  uuid, uuid, text, text, text, bigint
+) to service_role;
+grant execute on function public.complete_classroom_archive_restore(uuid, uuid, jsonb)
+  to service_role;
+grant execute on function public.complete_classroom_archive_compaction(
+  uuid, uuid, jsonb, jsonb
+) to service_role;
+grant execute on function public.complete_classroom_archive_compaction_v2(
+  uuid, uuid, jsonb, jsonb, integer
+) to service_role;
+grant execute on function public.claim_course_blueprint_storage_copy(uuid, uuid, uuid, integer)
+  to service_role;
+grant execute on function public.complete_course_blueprint_storage_copy(
+  uuid, uuid, uuid, text, bigint, text
+) to service_role;
+grant execute on function public.fail_course_blueprint_storage_copy(uuid, uuid, uuid, text)
+  to service_role;
+grant execute on function public.adopt_course_blueprint_storage_copies(uuid, uuid)
+  to service_role;
+grant execute on function public.adopt_managed_storage_upload(uuid, text)
+  to service_role;
+grant execute on function public.complete_classroom_archive_export_v2(
+  uuid, uuid, text, text, text, text, bigint, bigint,
+  jsonb, integer, jsonb, jsonb, jsonb
+) to service_role;
+grant execute on function public.complete_classroom_gradex_extract(
+  uuid, uuid, text, text, bigint, bigint, jsonb, jsonb
+) to service_role;
+grant execute on function public.queue_managed_storage_cleanup(uuid, text)
+  to service_role;
+grant execute on function public.queue_classroom_managed_storage_cleanup(
+  uuid, uuid, text, text, text, text, uuid, text
+) to service_role;
+grant execute on function public.queue_managed_storage_cleanup_path(text, text, text)
+  to service_role;
+grant execute on function public.update_test_documents_managed_atomic(
+  uuid, uuid, text, jsonb, jsonb, jsonb, jsonb,
+  boolean, text, boolean, text, boolean, boolean
+) to service_role;
+grant execute on function public.claim_managed_storage_cleanup(uuid, integer, integer)
+  to service_role;
+grant execute on function public.complete_managed_storage_cleanup(uuid, uuid)
+  to service_role;
+grant execute on function public.fail_managed_storage_cleanup(uuid, uuid, text)
+  to service_role;
+grant execute on function public.register_legacy_classroom_storage_object(
+  uuid, uuid, uuid, text, text, text, uuid, uuid, text, uuid, text, bigint
+) to service_role;
+grant execute on function public.verify_classroom_managed_storage_coverage(
+  uuid, uuid, bigint, integer, text
+) to service_role;
+grant execute on function public.attach_legacy_test_document_managed_object(
+  uuid, uuid, uuid, text, text, text, uuid
+) to service_role;
+grant execute on function public.sync_test_document_snapshot_managed_atomic(
+  uuid, uuid, text, text, uuid, text, text, timestamptz
+) to service_role;
+grant execute on function public.finalize_hot_archived_classroom_purge(uuid, uuid)
+  to service_role;
+grant execute on function public.unresolved_legacy_managed_cleanup_exists()
+  to service_role;
+grant execute on function public.plan_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, text, jsonb, jsonb, jsonb
+) to service_role;
+grant execute on function public.claim_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, integer
+) to service_role;
+grant execute on function public.complete_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, text, bigint, text
+) to service_role;
+grant execute on function public.fail_legacy_blueprint_classroom_storage_reconciliation(
+  uuid, uuid, uuid, text
+) to service_role;
+grant execute on function public.adopt_legacy_blueprint_classroom_storage_reconciliation(uuid, uuid)
+  to service_role;
+grant execute on function public.register_legacy_blueprint_storage_object(
+  uuid, uuid, uuid, text, text, jsonb, jsonb
+) to service_role;
+grant execute on function public.save_assignment_doc_managed_atomic(
+  uuid, uuid, jsonb, timestamptz, text, integer, integer, jsonb, jsonb,
+  integer, integer, uuid, bigint, uuid, jsonb
+) to service_role;
+grant execute on function public.submit_assignment_doc_managed_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
+) to service_role;
+grant execute on function public.submit_assignment_doc_with_pal_event_managed_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb, jsonb
+) to service_role;
+grant execute on function public.save_assignment_doc_atomic(
+  uuid, uuid, jsonb, timestamptz, text, integer, integer, jsonb, jsonb,
+  integer, integer, uuid, bigint, uuid
+) to service_role;
+grant execute on function public.submit_assignment_doc_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer
+) to service_role;
+grant execute on function public.submit_assignment_doc_with_pal_event_atomic(
+  uuid, uuid, jsonb, timestamptz, integer, integer, jsonb
+) to service_role;
+grant execute on function public.save_course_blueprint_version_atomic(
+  uuid, uuid, bigint, integer, jsonb, text, text, jsonb
+) to service_role;
+grant execute on function public.save_course_blueprint_version_managed_atomic(
+  uuid, uuid, bigint, integer, jsonb, text, text, jsonb, jsonb
+) to service_role;
+
+comment on function public.begin_hot_archived_classroom_purge(uuid, uuid, uuid, text, jsonb) is
+  'Begins exact-ownership purge only when operator gates and legacy coverage are verified.';
+comment on function public.complete_classroom_purge_object(uuid, uuid, uuid) is
+  'Completes an exact object lease only after authoritative storage.objects absence.';
+comment on function public.finalize_hot_archived_classroom_purge(uuid, uuid) is
+  'Atomically reconciles operational ledgers, deletes the classroom root, and verifies exact relational postconditions after all managed files are absent.';

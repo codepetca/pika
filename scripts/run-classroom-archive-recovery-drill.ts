@@ -12,6 +12,12 @@ import { exportClassroomArchive } from '@/lib/server/classroom-archive-operation
 import { restoreClassroomArchive } from '@/lib/server/classroom-archive-restore-operations'
 import { classroomArchiveRestoreObjectPath } from '@/lib/server/classroom-archive-restore'
 import { runClassroomArchiveSourceCleanup } from '@/lib/server/classroom-archive-source-cleanup'
+import { runManagedStorageCleanup } from '@/lib/server/managed-storage-cleanup'
+import {
+  adoptManagedStorageUpload,
+  queueManagedStorageCleanup,
+  reserveManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 const archiveMetadataSchema = z.object({
@@ -46,6 +52,7 @@ type FixtureIds = Record<FixtureTable, string> & {
   compactionOperation: string
   restoreOperation: string
   cleanupLease: string
+  managedStorageObject: string
 }
 
 function fixtureIds(): FixtureIds {
@@ -63,6 +70,7 @@ function fixtureIds(): FixtureIds {
     compactionOperation: randomUUID(),
     restoreOperation: randomUUID(),
     cleanupLease: randomUUID(),
+    managedStorageObject: randomUUID(),
   }
 }
 
@@ -195,7 +203,6 @@ async function createFixture(args: {
     teacher_id: args.ids.teacher,
     title: 'Archive recovery drill fixture',
     class_code: `R${runLabel.replaceAll('-', '').slice(0, 5)}`,
-    archived_at: '2026-07-13T12:00:00.000Z',
   })
   await insertFixtureRow(args.supabase, 'classroom_enrollments', {
     id: args.ids.classroom_enrollments,
@@ -233,6 +240,20 @@ async function createFixture(args: {
     position: 0,
   })
 
+  await reserveManagedStorageUpload({
+    supabase: args.supabase,
+    objectId: args.ids.managedStorageObject,
+    bucket: 'assignment-artifacts',
+    path: args.sourceObjectPath,
+    classroomId: args.ids.classrooms,
+    purpose: 'student_assignment_artifact',
+    createdByUserId: args.ids.student,
+    dataSubjectUserId: args.ids.student,
+    resourceType: 'assignment_doc',
+    resourceId: args.ids.assignment_docs,
+    contentType: 'image/png',
+    byteSize: args.sourceObjectBytes.byteLength,
+  })
   const upload = await args.supabase.storage
     .from('assignment-artifacts')
     .upload(args.sourceObjectPath, args.sourceObjectBytes, {
@@ -251,6 +272,11 @@ async function createFixture(args: {
     validation_status: 'valid',
     validated_at: '2026-07-13T13:01:00.000Z',
   })
+  await adoptManagedStorageUpload({
+    supabase: args.supabase,
+    objectId: args.ids.managedStorageObject,
+    contentSha256: sha256Bytes(args.sourceObjectBytes),
+  })
 
   const submitResponse = await args.supabase
     .from('assignment_docs')
@@ -263,6 +289,54 @@ async function createFixture(args: {
     .single()
   if (submitResponse.error) {
     throw new Error(`Fixture submit failed for assignment_docs: ${submitResponse.error.code}`)
+  }
+
+  const archiveResponse = await args.supabase
+    .from('classrooms')
+    .update({ archived_at: '2026-07-13T12:00:00.000Z' })
+    .eq('id', args.ids.classrooms)
+    .select('id')
+    .single()
+  if (archiveResponse.error) {
+    throw new Error(`Fixture archive failed for classrooms: ${archiveResponse.error.code}`)
+  }
+  const revisionResponse = await args.supabase
+    .from('classroom_archive_revisions')
+    .select('revision')
+    .eq('classroom_id', args.ids.classrooms)
+    .single()
+  const sourceRevision = z.coerce.number().int().positive().safeParse(
+    revisionResponse.data?.revision,
+  )
+  if (revisionResponse.error || !sourceRevision.success) {
+    throw new Error('Fixture archive revision is unavailable')
+  }
+  const evidenceResponse = await args.supabase.rpc(
+    'read_classroom_managed_storage_inventory_evidence',
+    {
+      p_teacher_id: args.ids.teacher,
+      p_classroom_id: args.ids.classrooms,
+    },
+  )
+  const evidence = z.object({
+    reference_count: z.number().int().nonnegative(),
+    inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).safeParse(evidenceResponse.data)
+  if (evidenceResponse.error || !evidence.success) {
+    throw new Error('Fixture managed inventory evidence is unavailable')
+  }
+  const coverageResponse = await args.supabase.rpc(
+    'verify_classroom_managed_storage_coverage',
+    {
+      p_teacher_id: args.ids.teacher,
+      p_classroom_id: args.ids.classrooms,
+      p_source_revision: sourceRevision.data,
+      p_reference_count: evidence.data.reference_count,
+      p_inventory_sha256: evidence.data.inventory_sha256,
+    },
+  )
+  if (coverageResponse.error) {
+    throw new Error(`Fixture ownership verification failed: ${coverageResponse.error.code}`)
   }
 }
 
@@ -286,20 +360,12 @@ async function removeFixture(args: {
     : null
   if (pathHashResponse.error || !sourcePathHash) failures.push('reservation:path-hash')
 
-  const removeObjects = async (bucket: string, paths: string[]) => {
-    const response = await args.supabase.storage.from(bucket).remove(paths)
-    if (response.error) failures.push(`storage:${bucket}`)
-  }
-  await removeObjects('assignment-artifacts', [args.sourceObjectPath, args.restoredObjectPath])
-  if (args.archiveObjectPath) {
-    await removeObjects('classroom-archives', [args.archiveObjectPath])
-  }
-
   const deleteRows = async (table: string, column: string, values: string[]) => {
     const response = await args.supabase.from(table).delete().in(column, values)
     if (response.error) failures.push(`table:${table}:${response.error.code}`)
   }
-  await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
+  // Release operational references before the managed worker removes the
+  // remaining archive/restored bytes and their exact ownership rows.
   await deleteRows(
     'classroom_archive_operations',
     'id',
@@ -307,6 +373,47 @@ async function removeFixture(args: {
   )
   await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
   await deleteRows('classroom_archive_operations', 'id', [args.ids.exportOperation])
+  const managedObjectsResponse = await args.supabase
+    .from('managed_storage_objects')
+    .select('id')
+    .eq('classroom_id', args.ids.classrooms)
+  if (managedObjectsResponse.error) {
+    failures.push(`table:managed_storage_objects:${managedObjectsResponse.error.code}`)
+  } else {
+    for (const object of managedObjectsResponse.data || []) {
+      try {
+        if (!await queueManagedStorageCleanup({
+          supabase: args.supabase,
+          objectId: z.string().uuid().parse(object.id),
+          errorCode: 'recovery_drill_teardown',
+        })) {
+          failures.push('managed-storage:queue')
+        }
+      } catch {
+        failures.push('managed-storage:queue')
+      }
+    }
+    process.env.MANAGED_STORAGE_CLEANUP_ENABLED = 'true'
+    try {
+      const cleanup = await runManagedStorageCleanup({ supabase: args.supabase, limit: 10 })
+      if (cleanup.failed !== 0 || cleanup.retry_recording_failed !== 0) {
+        failures.push('managed-storage:cleanup')
+      }
+    } catch {
+      failures.push('managed-storage:cleanup')
+    }
+  }
+  const remainingManagedObjects = await args.supabase
+    .from('managed_storage_objects')
+    .select('id')
+    .eq('classroom_id', args.ids.classrooms)
+    .limit(1)
+  if (remainingManagedObjects.error || (remainingManagedObjects.data?.length ?? 0) > 0) {
+    failures.push('leftover:managed_storage_objects')
+  }
+
+  await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
+  await deleteRows('classroom_managed_storage_coverage', 'classroom_id', [args.ids.classrooms])
   await deleteRows('classrooms', 'id', [args.ids.classrooms])
   const cleanupPaths = [...new Set([args.sourceObjectPath, args.restoredObjectPath])]
   await deleteRows('assignment_artifact_storage_cleanup', 'storage_path', cleanupPaths)
@@ -368,6 +475,14 @@ async function runRecoveryDrill() {
   })
   const ids = fixtureIds()
   const supabase = getServiceRoleClient()
+  const existingManagedWork = await supabase
+    .from('managed_storage_objects')
+    .select('id')
+    .neq('status', 'ready')
+    .limit(1)
+  if (existingManagedWork.error || (existingManagedWork.data?.length ?? 0) > 0) {
+    throw new Error('Recovery drill requires an isolated managed cleanup queue')
+  }
   const sourceObjectPath = `recovery-drill/${ids.classrooms}/evidence.png`
   const sourceObjectBytes = Buffer.from('pika synthetic classroom archive recovery evidence')
   const sourceObjectSha256 = sha256Bytes(sourceObjectBytes)
@@ -432,16 +547,42 @@ async function runRecoveryDrill() {
     }
 
     process.env.CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED = 'true'
-    const cleaned = await runClassroomArchiveSourceCleanup({
+    const queuedCleanup = await runClassroomArchiveSourceCleanup({
       supabase,
       leaseToken: ids.cleanupLease,
       operationId: ids.compactionOperation,
       limit: 10,
       leaseSeconds: 300,
     })
-    if (!cleaned.ok) operationFailure('Archive source cleanup', cleaned)
+    if (!queuedCleanup.ok) operationFailure('Archive source cleanup queue', queuedCleanup)
+    if (
+      queuedCleanup.claimed !== 1
+      || queuedCleanup.deleted !== 0
+      || queuedCleanup.failed !== 1
+      || queuedCleanup.results[0]?.error_code !== 'archive_source_managed_cleanup_pending'
+    ) {
+      throw new Error('Archive source cleanup did not durably hand off managed deletion')
+    }
+    process.env.MANAGED_STORAGE_CLEANUP_ENABLED = 'true'
+    const managedCleanup = await runManagedStorageCleanup({ supabase, limit: 10 })
+    if (
+      managedCleanup.claimed !== 1
+      || managedCleanup.deleted !== 1
+      || managedCleanup.failed !== 0
+      || managedCleanup.retry_recording_failed !== 0
+    ) {
+      throw new Error('Managed archive source cleanup did not delete exactly one object')
+    }
+    const cleaned = await runClassroomArchiveSourceCleanup({
+      supabase,
+      leaseToken: randomUUID(),
+      operationId: ids.compactionOperation,
+      limit: 10,
+      leaseSeconds: 300,
+    })
+    if (!cleaned.ok) operationFailure('Archive source cleanup completion', cleaned)
     if (cleaned.claimed !== 1 || cleaned.deleted !== 1 || cleaned.failed !== 0) {
-      throw new Error('Ownership-fenced archive source cleanup did not delete exactly one object')
+      throw new Error('Archive source cleanup did not finalize managed deletion evidence')
     }
     await assertStorageObjectAbsent(
       supabase,

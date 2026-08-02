@@ -5,8 +5,13 @@ import { canActivateTest } from '@/lib/tests'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
-import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
+import {
+  isLinkDocumentSnapshotStale,
+  normalizeTestDocuments,
+  validateTestDocumentsPayload,
+} from '@/lib/test-documents'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
+import { syncAndAdoptExternalLinkTestDocument } from '@/lib/server/test-document-snapshots'
 import {
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
@@ -254,6 +259,16 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
           { status: 400 }
         )
       }
+    }
+
+    for (const document of normalizeTestDocuments(existing.documents)) {
+      if (!isLinkDocumentSnapshotStale(document)) continue
+      await syncAndAdoptExternalLinkTestDocument({
+        teacherId: user.id,
+        classroomId: existing.classroom_id,
+        testId: id,
+        doc: document,
+      })
     }
   }
 

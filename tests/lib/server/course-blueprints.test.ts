@@ -31,6 +31,7 @@ function makeSupabaseFromQueues(queues: Record<string, any[]>) {
   return makeStrictSupabaseFromQueues({
     course_blueprint_materials: emptyBlueprintRows(),
     course_blueprint_surveys: emptyBlueprintRows(),
+    course_blueprint_operations: emptyBlueprintRows(),
     ...queues,
   })
 }
@@ -421,14 +422,35 @@ describe('course-blueprints server helpers', () => {
     )
 
     const deleteBuilder = makeQueryBuilder({ data: null, error: null })
-    mockSupabase = makeSupabaseFromQueues({
+    const deleteSupabase = makeSupabaseFromQueues({
       course_blueprints: [
         makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
         deleteBuilder,
       ],
     })
+    mockSupabase = deleteSupabase
     await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({ ok: true })
     expect(deleteBuilder.delete).toHaveBeenCalled()
+  })
+
+  it('preserves a Blueprint when managed file ownership blocks deletion', async () => {
+    const deleteBuilder = makeQueryBuilder({
+      data: null,
+      error: { code: '23503', message: 'managed storage owner still exists' },
+    })
+    const deleteSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+        deleteBuilder,
+      ],
+    })
+    mockSupabase = deleteSupabase
+
+    await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'This Blueprint contains uploaded test material and cannot be deleted yet.',
+    })
   })
 
   it('blocks deletion while repository authority is active', async () => {
@@ -617,7 +639,7 @@ describe('course-blueprints server helpers', () => {
       ],
     })
     mockSupabase.rpc = vi.fn().mockImplementation((rpcName: string) => Promise.resolve(
-      rpcName === 'save_course_blueprint_version_atomic'
+      rpcName === 'save_course_blueprint_version_managed_atomic'
         ? {
             data: {
               id: '61000000-0000-4000-8000-000000000000',
@@ -861,6 +883,122 @@ describe('course-blueprints server helpers', () => {
     )
   })
 
+  it('blocks Blueprint instantiation until uploaded test material has managed ownership', async () => {
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: 'b-1',
+            teacher_id: 'teacher-1',
+            title: 'Legacy Blueprint',
+            content_revision: 1,
+          },
+          error: null,
+        }),
+        makeQueryBuilder({ data: { content_revision: 1 }, error: null }),
+      ],
+      course_blueprint_assignments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_assessments: [makeQueryBuilder({
+        data: [{
+          id: 'bt-1',
+          artifact_id: '41000000-0000-4000-8000-000000000000',
+          course_blueprint_id: 'b-1',
+          assessment_type: 'test',
+          title: 'Legacy Test',
+          content: { show_results: false, questions: [] },
+          documents: [{
+            id: 'doc-1',
+            title: 'Teacher PDF',
+            source: 'upload',
+            url: 'https://project.supabase.co/storage/v1/object/public/test-documents/legacy/teacher.pdf',
+          }],
+          position: 0,
+        }],
+        error: null,
+      })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({ data: [], error: null })],
+      classrooms: [makeQueryBuilder({ data: [], error: null })],
+    })
+
+    await expect(createClassroomFromBlueprint('teacher-1', {
+      blueprintId: 'b-1',
+      title: 'New Classroom',
+      start_date: '2026-09-08',
+      end_date: '2027-01-29',
+    } as any)).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      status: 409,
+      error_code: 'blueprint_teacher_material_ownership_required',
+      retryable: true,
+    }))
+    expect(mockSupabase.rpc).toBeUndefined()
+  })
+
+  it('validates exact Blueprint file ownership before freezing an immutable Version', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project.supabase.co')
+    const objectId = '62000000-0000-4000-8000-000000000000'
+    const storagePath = 'blueprints/b-1/tests/materials/teacher.pdf'
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: 'b-1', teacher_id: 'teacher-1', title: 'Blueprint', content_revision: 1,
+          },
+          error: null,
+        }),
+        makeQueryBuilder({ data: { content_revision: 1 }, error: null }),
+      ],
+      course_blueprint_assignments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_assessments: [makeQueryBuilder({
+        data: [{
+          id: 'bt-1',
+          artifact_id: '41000000-0000-4000-8000-000000000000',
+          course_blueprint_id: 'b-1',
+          assessment_type: 'test',
+          title: 'Test',
+          content: { show_results: false, questions: [] },
+          documents: [{
+            id: 'doc-1',
+            title: 'Teacher PDF',
+            source: 'upload',
+            url: `https://project.supabase.co/storage/v1/object/public/test-documents/${storagePath}`,
+            managed_object_id: objectId,
+          }],
+          position: 0,
+        }],
+        error: null,
+      })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({ data: [], error: null })],
+      classrooms: [makeQueryBuilder({ data: [], error: null })],
+      managed_storage_objects: [makeQueryBuilder({
+        data: [{
+          id: objectId,
+          storage_bucket: 'test-documents',
+          storage_path: storagePath,
+          course_blueprint_id: 'foreign-blueprint',
+          purpose: 'teacher_test_material',
+          status: 'ready',
+        }],
+        error: null,
+      })],
+    })
+
+    const result = await createClassroomFromBlueprint('teacher-1', {
+      blueprintId: 'b-1',
+      title: 'New Classroom',
+      start_date: '2026-09-08',
+      end_date: '2027-01-29',
+    } as any)
+    vi.unstubAllEnvs()
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      status: 409,
+      error_code: 'blueprint_teacher_material_ownership_required',
+    }))
+    expect(mockSupabase.rpc).toBeUndefined()
+  })
+
   it('creates a teacher-ready classroom through one atomic write plan', async () => {
     const operationId = '10000000-0000-4000-8000-000000000013'
     const classroomId = '30000000-0000-4000-8000-000000000013'
@@ -972,7 +1110,7 @@ describe('course-blueprints server helpers', () => {
       lesson_plans: [lessonUpsert],
     })
     mockSupabase.rpc = vi.fn().mockImplementation((rpcName: string) => Promise.resolve(
-      rpcName === 'save_course_blueprint_version_atomic'
+      rpcName === 'save_course_blueprint_version_managed_atomic'
         ? {
             data: {
               id: '61000000-0000-4000-8000-000000000000',
@@ -1029,6 +1167,10 @@ describe('course-blueprints server helpers', () => {
       lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
       operation_id: operationId,
     }))
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'save_course_blueprint_version_managed_atomic',
+      expect.objectContaining({ p_managed_storage_claims: [] }),
+    )
     expect(mockSupabase.rpc).toHaveBeenCalledWith(
       'instantiate_course_blueprint_atomic_v2',
       expect.objectContaining({

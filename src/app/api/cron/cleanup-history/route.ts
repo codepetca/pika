@@ -9,6 +9,8 @@ import {
   runClassroomArchiveObjectCleanup,
 } from '@/lib/server/classroom-archive-object-cleanup'
 import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
+import { runClassroomPurgeSafetyNet } from '@/lib/server/classroom-purge'
+import { runManagedStorageCleanup } from '@/lib/server/managed-storage-cleanup'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -114,6 +116,14 @@ async function handle(request: NextRequest) {
   )
 
   const supabase = getServiceRoleClient()
+  const classroomPurge = await runClassroomPurgeSafetyNet()
+  const managedStorageCleanup = await runManagedStorageCleanup({ supabase })
+  if (managedStorageCleanup.retry_recording_failed > 0) {
+    return NextResponse.json(
+      { error: 'Failed to record managed file cleanup retry' },
+      { status: 503 },
+    )
+  }
   const objectCleanupEnabled = isClassroomArchiveObjectCleanupEnabled()
   let archiveStagingCleaned: number | undefined
   if (isArchiveStagingCleanupEnabled() || objectCleanupEnabled) {
@@ -196,6 +206,12 @@ async function handle(request: NextRequest) {
       ...(archiveObjectCleanup === undefined
         ? {}
         : { archive_object_cleanup: archiveObjectCleanup }),
+      ...(classroomPurge.processed > 0 || classroomPurge.completed > 0 || classroomPurge.failed > 0
+        ? { classroom_purge: classroomPurge }
+        : {}),
+      ...(managedStorageCleanup.claimed > 0
+        ? { managed_storage_cleanup: managedStorageCleanup }
+        : {}),
     })
   }
 
@@ -305,6 +321,12 @@ async function handle(request: NextRequest) {
     ...(archiveObjectCleanup === undefined
       ? {}
       : { archive_object_cleanup: archiveObjectCleanup }),
+    ...(classroomPurge.processed > 0 || classroomPurge.completed > 0 || classroomPurge.failed > 0
+      ? { classroom_purge: classroomPurge }
+      : {}),
+    ...(managedStorageCleanup.claimed > 0
+      ? { managed_storage_cleanup: managedStorageCleanup }
+      : {}),
   })
 }
 

@@ -1,6 +1,9 @@
-Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
-local was backed up, reset without seed data, and cleanly replayed through 112;
-its migration history and generated types now match this branch.
+Focus: draft PR #963 uses explicit, single-scope managed-file ownership for hot
+archived classroom deletion. Confirmation is revision/inventory-bound; readiness
+uses the complete database inventory; and PostgreSQL enforces an exact canary
+teacher/classroom. Migration 117 has changed since its last authorized local
+replay and has not been replayed again. All gates remain off, the PR remains
+draft, and production remains through 116.
 
 ## Current Context
 

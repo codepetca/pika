@@ -62,6 +62,9 @@ function createSupabaseMock(options: {
     if (name === 'renew_classroom_gradex_extract_cleanup_lease') {
       return { data: options.renewResult ?? true, error: null }
     }
+    if (name === 'queue_managed_storage_cleanup_path') {
+      return { data: true, error: null }
+    }
     if (name === 'complete_classroom_gradex_extract_cleanup') {
       return { data: options.completeResult ?? true, error: null }
     }
@@ -180,15 +183,15 @@ describe('classroom Gradex cleanup coordinator', () => {
     expect(mock.storageFrom).not.toHaveBeenCalled()
   })
 
-  it('claims a bounded batch, removes each object, verifies absence, then completes the lease', async () => {
+  it('claims a bounded batch and delegates physical deletion to managed cleanup', async () => {
     const mock = createSupabaseMock()
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({
       ok: true,
       claimed: 1,
-      deleted: 1,
-      failed: 0,
+      deleted: 0,
+      failed: 1,
       retry_recording_failed: 0,
     }))
     expect(mock.rpc).toHaveBeenNthCalledWith(1, 'claim_due_classroom_gradex_extract_cleanup', {
@@ -200,13 +203,17 @@ describe('classroom Gradex cleanup coordinator', () => {
     expect(mock.calls).toEqual([
       'rpc:claim_due_classroom_gradex_extract_cleanup',
       'rpc:renew_classroom_gradex_extract_cleanup_lease',
-      `remove:${PATH}`,
+      'rpc:queue_managed_storage_cleanup_path',
       `download:${PATH}`,
-      'rpc:complete_classroom_gradex_extract_cleanup',
+      'rpc:fail_classroom_gradex_extract_cleanup',
     ])
     expect(mock.rpc).toHaveBeenLastCalledWith(
-      'complete_classroom_gradex_extract_cleanup',
-      { p_extract_id: EXTRACT_ID, p_lease_token: LEASE_TOKEN },
+      'fail_classroom_gradex_extract_cleanup',
+      {
+        p_extract_id: EXTRACT_ID,
+        p_lease_token: LEASE_TOKEN,
+        p_error_code: 'gradex_managed_cleanup_pending',
+      },
     )
     expect(result.ok && result.results[0]).not.toHaveProperty('storage_path')
     expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain(PATH)
@@ -253,20 +260,20 @@ describe('classroom Gradex cleanup coordinator', () => {
     )
   })
 
-  it('records a retry when removal fails and the object remains present', async () => {
+  it('records a retry while managed cleanup is pending', async () => {
     const mock = createSupabaseMock({ removeErrorPaths: [PATH] })
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({ deleted: 0, failed: 1 }))
     expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
       status: 'failed',
-      error_code: 'gradex_storage_delete_failed',
+      error_code: 'gradex_managed_cleanup_pending',
       retry_recorded: true,
     }))
     expect(mock.rpc).toHaveBeenCalledWith('fail_classroom_gradex_extract_cleanup', {
       p_extract_id: EXTRACT_ID,
       p_lease_token: LEASE_TOKEN,
-      p_error_code: 'gradex_storage_delete_failed',
+      p_error_code: 'gradex_managed_cleanup_pending',
     })
     expect(mock.rpc).not.toHaveBeenCalledWith(
       'complete_classroom_gradex_extract_cleanup',
@@ -274,13 +281,13 @@ describe('classroom Gradex cleanup coordinator', () => {
     )
   })
 
-  it('does not complete when Storage reports success but read-back still finds the object', async () => {
+  it('does not complete while read-back still finds the managed object', async () => {
     const mock = createSupabaseMock({ retainedPaths: [PATH] })
     const result = await run(mock)
 
     expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
       status: 'failed',
-      error_code: 'gradex_storage_delete_unconfirmed',
+      error_code: 'gradex_managed_cleanup_pending',
     }))
     expect(mock.rpc).not.toHaveBeenCalledWith(
       'complete_classroom_gradex_extract_cleanup',
@@ -336,7 +343,7 @@ describe('classroom Gradex cleanup coordinator', () => {
   })
 
   it('does not mutate the ledger after a stale or rejected completion', async () => {
-    const mock = createSupabaseMock({ completeResult: false })
+    const mock = createSupabaseMock({ completeResult: false, initiallyMissing: [PATH] })
     const result = await run(mock)
 
     expect(result.ok && result.results[0]).toEqual(expect.objectContaining({

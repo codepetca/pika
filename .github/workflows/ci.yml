@@ -84,6 +84,23 @@ jobs:
           CLASSROOM_SCHEMA_AUDIT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
           CLASSROOM_SCHEMA_AUDIT_LOCAL: "true"
 
+      - name: Verify permanent hot archived classroom deletion
+        shell: bash
+        env:
+          PIKA_ALLOW_LOCAL_DESTRUCTIVE_PURGE_FIXTURE: "1"
+          PIKA_LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          eval "$(supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            --override-name auth.service_role_key=SUPABASE_SECRET_KEY)"
+          export NEXT_PUBLIC_SUPABASE_URL
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+          export SUPABASE_SECRET_KEY
+          pnpm seed
+          pnpm managed-storage:readiness report --dry-run
+          pnpm verify:hot-classroom-purge-local
+
       - name: Rehearse full classroom archive recovery on local Supabase
         run: pnpm verify:classroom-archive-recovery
 

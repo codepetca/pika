@@ -7,6 +7,7 @@ import {
 import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   buildCourseBlueprintExportBundle,
+  validateCourseBlueprintPackagePortability,
   decodeCourseBlueprintPackageArchive,
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportBundle,
@@ -31,7 +32,11 @@ import type {
   TestDraftContent,
 } from '@/types'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
-import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import {
+  managedTestDocumentStorageClaims,
+  stripTestDocumentInternalOwnership,
+  stripTestDocumentSnapshots,
+} from '@/lib/test-documents'
 import {
   buildCreateBlueprintWritePlan,
   buildInstantiateBlueprintWritePlan,
@@ -41,6 +46,10 @@ import {
   resolveBlueprintOperationId,
 } from '@/lib/server/course-blueprint-operations'
 import { saveCourseBlueprintVersion } from '@/lib/server/course-blueprint-versions'
+import {
+  CourseBlueprintStorageCopyError,
+  resumeCourseBlueprintStorageCopies,
+} from '@/lib/server/course-blueprint-storage-copies'
 import { createCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
 import { createHash, randomUUID } from 'node:crypto'
 
@@ -57,6 +66,162 @@ type BlueprintOperationOptions = {
 
 function getSupabase() {
   return getServiceRoleClient()
+}
+
+async function finishBlueprintStorageCopies(
+  teacherId: string,
+  operationId: string,
+) {
+  try {
+    await resumeCourseBlueprintStorageCopies({ teacherId, operationId })
+    return null
+  } catch (error) {
+    const copyError = error instanceof CourseBlueprintStorageCopyError
+      ? error
+      : new CourseBlueprintStorageCopyError(
+          'blueprint_storage_copy_failed',
+          true,
+          error instanceof Error ? error.message : 'Course material copy failed',
+        )
+    return {
+      ok: false as const,
+      status: copyError.retryable ? 503 : 409,
+      error: copyError.message,
+      error_code: copyError.code,
+      retryable: copyError.retryable,
+      operation_id: operationId,
+    }
+  }
+}
+
+async function finishPendingBlueprintStorageCopies(
+  supabase: SupabaseClient,
+  teacherId: string,
+  operationId: string,
+) {
+  const { data, error } = await (supabase as any)
+    .from('course_blueprint_operations')
+    .select('status, storage_copy_status')
+    .eq('id', operationId)
+    .eq('teacher_id', teacherId)
+    .maybeSingle()
+  if (error) {
+    return {
+      ok: false as const,
+      status: 500,
+      error: 'Failed to inspect the Blueprint operation before retrying',
+      operation_id: operationId,
+    }
+  }
+  if (
+    data?.status === 'running'
+    && ['copying', 'failed'].includes(data.storage_copy_status)
+  ) {
+    return finishBlueprintStorageCopies(teacherId, operationId)
+  }
+  return null
+}
+
+async function validateBlueprintTeacherMaterialOwnership(
+  supabase: SupabaseClient,
+  detail: CourseBlueprintDetail,
+): Promise<
+  | { ok: true }
+  | { ok: false; status: 409 | 500; error: string; error_code: string; retryable: boolean }
+> {
+  const claims = detail.assessments.flatMap((assessment) => {
+    const assessmentClaims = managedTestDocumentStorageClaims(assessment.documents)
+    return assessmentClaims ?? [null]
+  })
+  const teacherUploadCount = detail.assessments.reduce(
+    (count, assessment) => count + assessment.documents.filter(
+      (document) => document.source === 'upload',
+    ).length,
+    0,
+  )
+  if (
+    claims.some((claim) => claim === null)
+    || claims.length !== teacherUploadCount
+  ) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'This Blueprint’s uploaded test material is still being prepared. Try again after storage readiness completes.',
+      error_code: 'blueprint_teacher_material_ownership_required',
+      retryable: true,
+    }
+  }
+  if (claims.length === 0) return { ok: true }
+
+  const exactClaims = claims.filter((claim) => claim !== null)
+  const uniqueClaims = new Map<string, (typeof exactClaims)[number]>()
+  for (const claim of exactClaims) {
+    const current = uniqueClaims.get(claim.managed_object_id)
+    if (
+      current
+      && (
+        current.storage_bucket !== claim.storage_bucket
+        || current.storage_path !== claim.storage_path
+      )
+    ) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'This Blueprint’s uploaded test material is still being prepared. Try again after storage readiness completes.',
+        error_code: 'blueprint_teacher_material_ownership_required',
+        retryable: true,
+      }
+    }
+    uniqueClaims.set(claim.managed_object_id, claim)
+  }
+  const { data, error } = await (supabase as any)
+    .from('managed_storage_objects')
+    .select('id,storage_bucket,storage_path,course_blueprint_id,purpose,status')
+    .in('id', [...uniqueClaims.keys()])
+    .eq('course_blueprint_id', detail.id)
+    .eq('purpose', 'teacher_test_material')
+    .eq('status', 'ready')
+  if (error) {
+    console.error('Failed to validate Blueprint material ownership:', error)
+    return {
+      ok: false,
+      status: 500,
+      error: 'Failed to validate this Blueprint’s uploaded test material.',
+      error_code: 'blueprint_teacher_material_ownership_validation_failed',
+      retryable: true,
+    }
+  }
+
+  type BlueprintManagedObjectRow = {
+    id: string
+    storage_bucket: string
+    storage_path: string
+    course_blueprint_id: string
+    purpose: string
+    status: string
+  }
+  const objects = new Map<string, BlueprintManagedObjectRow>(
+    (data || []).map((object: BlueprintManagedObjectRow) => [object.id, object]),
+  )
+  const hasMismatch = [...uniqueClaims.values()].some((claim) => {
+    const object = objects.get(claim.managed_object_id)
+    return !object
+      || object.storage_bucket !== claim.storage_bucket
+      || object.storage_path !== claim.storage_path
+      || object.course_blueprint_id !== detail.id
+      || object.purpose !== 'teacher_test_material'
+      || object.status !== 'ready'
+  })
+  if (hasMismatch || objects.size !== uniqueClaims.size) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'This Blueprint’s uploaded test material is still being prepared. Try again after storage readiness completes.',
+      error_code: 'blueprint_teacher_material_ownership_required',
+      retryable: true,
+    }
+  }
+  return { ok: true }
 }
 
 export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
@@ -380,7 +545,18 @@ export async function deleteCourseBlueprint(teacherId: string, blueprintId: stri
   }
 
   const supabase = getSupabase()
-  const { error } = await supabase.from('course_blueprints').delete().eq('id', blueprintId)
+  const { error } = await supabase
+    .from('course_blueprints')
+    .delete()
+    .eq('id', blueprintId)
+    .eq('teacher_id', teacherId)
+  if (error?.code === '23503') {
+    return {
+      ok: false as const,
+      status: 409,
+      error: 'This Blueprint contains uploaded test material and cannot be deleted yet.',
+    }
+  }
   if (error) return { ok: false as const, status: 500, error: 'Failed to delete course blueprint' }
   return { ok: true as const }
 }
@@ -980,6 +1156,16 @@ export async function exportCourseBlueprintBundle(teacherId: string, blueprintId
     return { ok: false as const, status: detailResult.status || 500, error: detailResult.error || 'Failed to load blueprint' }
   }
 
+  const portabilityErrors = validateCourseBlueprintPackagePortability(detailResult.detail)
+  if (portabilityErrors.length > 0) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: portabilityErrors[0],
+      errors: portabilityErrors,
+    }
+  }
+
   const supabase = getSupabase()
   const versionResult = await saveCourseBlueprintVersion({
     supabase,
@@ -1048,11 +1234,22 @@ export async function importCourseBlueprintBundle(
 ) {
   const parsed = parseCourseBlueprintImportBundle(bundle)
   if (parsed.errors.length > 0 || !parsed.manifest) {
-    return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
+    return {
+      ok: false as const,
+      status: 400,
+      error: parsed.errors[0] || 'Invalid course package',
+      errors: parsed.errors,
+    }
   }
 
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
+  const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
+    supabase,
+    teacherId,
+    operationId,
+  )
+  if (pendingStorageCopyFailure) return pendingStorageCopyFailure
   const plan = buildCreateBlueprintWritePlan({
     blueprint: parsed.blueprint,
     assignments: parsed.assignments.map((assignment) => ({
@@ -1064,6 +1261,7 @@ export async function importCourseBlueprintBundle(
     assessments: parsed.assessments.map((assessment) => ({
       ...assessment,
       artifact_id: assessment.artifact_id!,
+      documents: stripTestDocumentInternalOwnership(assessment.documents),
       points_possible: assessment.points_possible ?? null,
       gradebook_weight: assessment.gradebook_weight ?? 10,
       include_in_final: assessment.include_in_final !== false,
@@ -1098,6 +1296,11 @@ export async function importCourseBlueprintBundle(
   if (!operation.blueprint_id) {
     return { ok: false as const, status: 500, error: 'Atomic blueprint import returned no blueprint id' }
   }
+  const storageCopyFailure = await finishBlueprintStorageCopies(
+    teacherId,
+    operation.operation_id,
+  )
+  if (storageCopyFailure) return storageCopyFailure
 
   const detailResult = await getCourseBlueprintDetail(teacherId, operation.blueprint_id)
   if (!detailResult.detail) {
@@ -1138,6 +1341,12 @@ export async function createCourseBlueprintFromClassroom(
   const blueprintTitle = input.title?.trim() || source.classroom.title
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
+  const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
+    supabase,
+    teacherId,
+    operationId,
+  )
+  if (pendingStorageCopyFailure) return pendingStorageCopyFailure
   const plan = buildCreateBlueprintWritePlan({
     blueprint: {
       title: blueprintTitle,
@@ -1197,6 +1406,11 @@ export async function createCourseBlueprintFromClassroom(
   if (!operation.blueprint_id) {
     return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }
   }
+  const storageCopyFailure = await finishBlueprintStorageCopies(
+    teacherId,
+    operation.operation_id,
+  )
+  if (storageCopyFailure) return storageCopyFailure
 
   const detailResult = await getCourseBlueprintDetail(teacherId, operation.blueprint_id)
   if (!detailResult.detail) {
@@ -1242,6 +1456,18 @@ export async function createClassroomFromBlueprint(
   }
 
   const supabase = getSupabase()
+  const materialOwnership = await validateBlueprintTeacherMaterialOwnership(
+    supabase,
+    detailResult.detail,
+  )
+  if (!materialOwnership.ok) return materialOwnership
+  const operationId = resolveBlueprintOperationId(options.operationId)
+  const pendingStorageCopyFailure = await finishPendingBlueprintStorageCopies(
+    supabase,
+    teacherId,
+    operationId,
+  )
+  if (pendingStorageCopyFailure) return pendingStorageCopyFailure
   const versionResult = await saveCourseBlueprintVersion({
     supabase,
     teacherId,
@@ -1251,7 +1477,6 @@ export async function createClassroomFromBlueprint(
     sourceMetadata: { reason: 'classroom_instantiation' },
   })
   if (!versionResult.ok) return versionResult
-  const operationId = resolveBlueprintOperationId(options.operationId)
   const themeColor = input.themeColor || getDefaultClassroomThemeColor(`${teacherId}:${operationId}`)
   const planResult = buildInstantiateBlueprintWritePlan({
     detail: detailResult.detail,
@@ -1274,6 +1499,11 @@ export async function createClassroomFromBlueprint(
   if (!operation.classroom_id) {
     return { ok: false as const, status: 500, error: 'Atomic blueprint instantiation returned no classroom id' }
   }
+  const storageCopyFailure = await finishBlueprintStorageCopies(
+    teacherId,
+    operation.operation_id,
+  )
+  if (storageCopyFailure) return storageCopyFailure
 
   const { data: classroom, error: classroomError } = await supabase
     .from('classrooms')

@@ -21,6 +21,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
@@ -71,6 +72,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [reusingClassroomId, setReusingClassroomId] = useState<string | null>(null)
   const [isEditingClassrooms, setIsEditingClassrooms] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
+  const [purgeClassroom, setPurgeClassroom] = useState<Classroom | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingArchived, setIsLoadingArchived] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
@@ -520,7 +522,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           </div>
                         )}
                       </button>
-                      <div className="flex items-center gap-2 lg:justify-end">
+                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                         <Button
                           type="button"
                           variant="primary"
@@ -542,6 +544,16 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           disabled={openingClassroomId !== null || reusingClassroomId !== null}
                         >
                           Restore
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          className="text-danger hover:text-danger"
+                          onClick={() => setPurgeClassroom(c)}
+                          disabled={openingClassroomId !== null || reusingClassroomId !== null}
+                        >
+                          Delete permanently
                         </Button>
                       </div>
                     </div>
@@ -663,6 +675,22 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           setReuseReview(null)
         }}
       />
+
+      {purgeClassroom ? (
+        <ClassroomPurgeDialog
+          classroomId={purgeClassroom.id}
+          classroomTitle={purgeClassroom.title}
+          isOpen
+          onClose={() => setPurgeClassroom(null)}
+          onCompleted={() => {
+            invalidateTeacherClassrooms()
+            setArchivedClassrooms((previous) =>
+              previous.filter((classroom) => classroom.id !== purgeClassroom.id),
+            )
+            setPurgeClassroom(null)
+          }}
+        />
+      ) : null}
     </PageLayout>
   )
 }

@@ -22,6 +22,11 @@ const uuidSchema = z.string().uuid()
 const jsonRowsSchema = z.array(z.record(z.string(), z.json()))
 const archivedClassroomsSchema = z.array(z.object({ id: uuidSchema }).strict())
 const revisionSchema = z.number().int().positive()
+const managedStorageReferencesSchema = z.array(z.object({
+  bucket: z.enum(['assignment-artifacts', 'submission-images', 'test-documents']),
+  path: z.string().min(1),
+  status: z.literal('ready'),
+}).strict())
 
 const archiveContractRowSchema = z.object({
   table_name: z.string().min(1),
@@ -101,6 +106,7 @@ export interface ClassroomArchiveInventoryReader {
   readArchivedClassrooms(): Promise<unknown>
   readRevision(classroomId: string): Promise<unknown>
   readResourceRows(query: ResourceRead): Promise<unknown>
+  readManagedStorageReferences?(classroomId: string): Promise<unknown>
   readStorageObjectSize(bucket: string, path: string): Promise<unknown>
   readOperationalCounts(): Promise<unknown>
 }
@@ -298,10 +304,15 @@ async function readStableClassroomInventory(
     ) {
       throw new ArchiveSetDriftError('Archived classroom root changed during inventory')
     }
-    const references = discoverClassroomStorageReferences(
-      resources,
-      reader.supabaseUrl,
-    )
+    const managedReferences = reader.readManagedStorageReferences
+      ? await reader.readManagedStorageReferences(classroomId)
+      : null
+    const references = managedReferences === null
+      ? discoverClassroomStorageReferences(resources, reader.supabaseUrl)
+      : managedStorageReferencesSchema.parse(managedReferences).map((reference) => ({
+          bucket: reference.bucket,
+          path: reference.path,
+        }))
     const sizes = await mapWithConcurrency(references, 4, async (reference) => {
       const value = await reader.readStorageObjectSize(reference.bucket, reference.path)
       return value === null ? null : z.number().int().nonnegative().parse(value)
@@ -553,6 +564,30 @@ export function createSupabaseClassroomArchiveInventoryReader(args: {
       if (error && missingStorageObjectEvidence(error)) return null
       throwReadError('managed storage metadata', error)
       return z.number().int().nonnegative().parse(data?.size)
+    },
+    async readManagedStorageReferences(classroomId) {
+      const coverage = await (args.supabase as any)
+        .from('classroom_managed_storage_coverage')
+        .select('status')
+        .eq('classroom_id', classroomId)
+        .maybeSingle()
+      if (coverage.error || coverage.data?.status !== 'verified') return null
+      const objects = await (args.supabase as any)
+        .from('managed_storage_objects')
+        .select('storage_bucket,storage_path,status')
+        .eq('classroom_id', classroomId)
+        .order('storage_bucket', { ascending: true })
+        .order('storage_path', { ascending: true })
+      throwReadError('managed storage ownership', objects.error)
+      return z.array(z.object({
+        storage_bucket: z.string(),
+        storage_path: z.string(),
+        status: z.string(),
+      })).parse(objects.data || []).map((object) => ({
+        bucket: object.storage_bucket,
+        path: object.storage_path,
+        status: object.status,
+      }))
     },
     async readOperationalCounts() {
       type OperationalTable =
