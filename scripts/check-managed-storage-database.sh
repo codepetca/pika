@@ -77,6 +77,8 @@ do $fixture$
 declare
   v_run public.managed_storage_readiness_runs;
   v_claim public.managed_storage_objects;
+  v_artifact_cleanup public.assignment_artifact_storage_cleanup;
+  v_snapshot_cleanup public.test_document_snapshot_storage_cleanup;
 begin
   if (select status from public.managed_storage_objects
       where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
@@ -105,6 +107,19 @@ begin
   end;
 
   perform public.pause_managed_storage_enforcement();
+  begin
+    perform public.claim_managed_storage_cleanup(
+      'a1100000-0000-4000-8000-000000000021', 1, 30
+    );
+    raise exception 'Compatibility-mode cleanup claim was not rejected';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%managed_storage_cleanup_requires_enforcement%' then raise; end if;
+  end;
+  select * into v_run from public.refresh_managed_storage_readiness();
+  if v_run.status <> 'ready' then
+    raise exception 'Expected ready inventory before cleanup activation';
+  end if;
+  perform public.activate_managed_storage_enforcement(v_run.generation, v_run.inventory_digest);
   perform public.begin_managed_storage_upload(
     'a1100000-0000-4000-8000-000000000020',
     'submission-images', 'managed-fixture/interrupted.png',
@@ -134,6 +149,153 @@ begin
   if not public.complete_managed_storage_cleanup(v_claim.id, v_claim.lease_token) then
     raise exception 'Cleanup completion replay was not idempotent';
   end if;
+  if (select status from public.managed_storage_objects where id = v_claim.id) <> 'deleted' then
+    raise exception 'Cleanup did not preserve a terminal managed-object tombstone';
+  end if;
+
+  perform public.begin_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000022',
+    'assignment-artifacts', 'managed-fixture/legacy-worker.png',
+    'a1100000-0000-4000-8000-000000000003', null, null,
+    'student_assignment_artifact',
+    'a1100000-0000-4000-8000-000000000002',
+    'a1100000-0000-4000-8000-000000000002',
+    'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+    'image/png', 4
+  );
+  insert into storage.objects (bucket_id, name)
+  values ('assignment-artifacts', 'managed-fixture/legacy-worker.png');
+  perform public.verify_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000022', null
+  );
+  insert into public.assignment_artifact_storage_cleanup (
+    storage_path, managed_object_id
+  ) values (
+    'managed-fixture/legacy-worker.png',
+    'a1100000-0000-4000-8000-000000000022'
+  );
+  select * into v_artifact_cleanup
+  from public.claim_assignment_artifact_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000023', 1, 30
+  );
+  delete from storage.objects
+  where bucket_id = 'assignment-artifacts'
+    and name = 'managed-fixture/legacy-worker.png';
+  if not public.complete_assignment_artifact_storage_cleanup(
+    v_artifact_cleanup.id, v_artifact_cleanup.lease_token
+  ) or (select status from public.managed_storage_objects
+    where id = 'a1100000-0000-4000-8000-000000000022') <> 'deleted'
+  then raise exception 'Assignment cleanup did not use managed authority'; end if;
+
+  perform public.begin_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000024',
+    'test-documents',
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/legacy-worker',
+    'a1100000-0000-4000-8000-000000000003', null, null,
+    'test_execution_snapshot',
+    'a1100000-0000-4000-8000-000000000001', null,
+    'test', null, 'application/pdf', 4
+  );
+  insert into storage.objects (bucket_id, name) values (
+    'test-documents',
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/legacy-worker'
+  );
+  perform public.verify_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000024', null
+  );
+  insert into public.test_document_snapshot_storage_cleanup (
+    storage_path, managed_object_id
+  ) values (
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/legacy-worker',
+    'a1100000-0000-4000-8000-000000000024'
+  );
+  select * into v_snapshot_cleanup
+  from public.claim_test_document_snapshot_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000025', 1, 30
+  );
+  delete from storage.objects
+  where bucket_id = 'test-documents'
+    and name = 'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/legacy-worker';
+  if not public.complete_test_document_snapshot_storage_cleanup(
+    v_snapshot_cleanup.id, v_snapshot_cleanup.lease_token
+  ) or (select status from public.managed_storage_objects
+    where id = 'a1100000-0000-4000-8000-000000000024') <> 'deleted'
+  then raise exception 'Snapshot cleanup did not use managed authority'; end if;
+
+  perform public.begin_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000030',
+    'submission-images', 'managed-fixture/wrong-resource.png',
+    'a1100000-0000-4000-8000-000000000003', null, null,
+    'student_inline_image',
+    'a1100000-0000-4000-8000-000000000002',
+    'a1100000-0000-4000-8000-000000000002',
+    'assignment_doc', 'a1100000-0000-4000-8000-000000000099',
+    'image/png', 4
+  );
+  insert into storage.objects (bucket_id, name)
+  values ('submission-images', 'managed-fixture/wrong-resource.png');
+  perform public.verify_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000030', null
+  );
+  begin
+    update public.assignment_docs set content = jsonb_build_object(
+      'type', 'image', 'attrs', jsonb_build_object(
+        'src', 'https://fixture.invalid/storage/v1/object/public/submission-images/managed-fixture/wrong-resource.png',
+        'managed_object_id', 'a1100000-0000-4000-8000-000000000030'
+      )
+    ) where id = 'a1100000-0000-4000-8000-000000000005';
+    raise exception 'Assignment-document resource mismatch was not rejected';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%managed_storage_embedded_resource_mismatch%' then raise; end if;
+  end;
+  perform public.queue_managed_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000030', 'fixture_wrong_resource'
+  );
+
+  perform public.begin_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000031',
+    'submission-images', 'managed-fixture/exact.png',
+    'a1100000-0000-4000-8000-000000000003', null, null,
+    'student_inline_image',
+    'a1100000-0000-4000-8000-000000000002',
+    'a1100000-0000-4000-8000-000000000002',
+    'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+    'image/png', 4
+  );
+  insert into storage.objects (bucket_id, name)
+  values ('submission-images', 'managed-fixture/exact.png');
+  perform public.verify_managed_storage_upload(
+    'a1100000-0000-4000-8000-000000000031', null
+  );
+  begin
+    update public.assignment_docs set content = jsonb_build_object(
+      'type', 'image', 'attrs', jsonb_build_object(
+        'src', 'https://fixture.invalid/storage/v1/object/public/test-documents/managed-fixture/exact.png',
+        'managed_object_id', 'a1100000-0000-4000-8000-000000000031'
+      )
+    ) where id = 'a1100000-0000-4000-8000-000000000005';
+    raise exception 'Managed UUID and bucket/path mismatch was not rejected';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%managed_storage_embedded_owner_mismatch%' then raise; end if;
+  end;
+  update public.assignment_docs set content = jsonb_build_object(
+    'type', 'image', 'attrs', jsonb_build_object(
+      'src', 'https://fixture.invalid/storage/v1/object/public/submission-images/managed-fixture/exact.png',
+      'managed_object_id', 'a1100000-0000-4000-8000-000000000031'
+    )
+  ) where id = 'a1100000-0000-4000-8000-000000000005';
+  select * into v_run from public.refresh_managed_storage_readiness();
+  if v_run.status <> 'ready' then
+    raise exception 'Exact embedded identity did not produce ready evidence';
+  end if;
+  update public.assignment_docs set content = '{}'::jsonb
+  where id = 'a1100000-0000-4000-8000-000000000005';
+  begin
+    perform public.activate_managed_storage_enforcement(v_run.generation, v_run.inventory_digest);
+    raise exception 'Reference removal did not invalidate readiness evidence';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%managed_storage_readiness_stale%' then raise; end if;
+  end;
 end;
 $fixture$;
 

@@ -11,63 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Retired legacy Quiz UI wrappers
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass crosses shared Test component contracts, draft identity, exam-mode E2E setup, and the legacy retirement ratchet without changing rendered behavior.
-
-**Completed:**
-- Removed unused `quiz`, `quizId`, `quizTitle`, and `onQuizUpdate` component and hook aliases after confirming no production callers remained.
-- Made current Test identity and update props explicit and required.
-- Renamed the internal student action-footer automation id from `student-quiz-action-footer` to `student-test-action-footer`.
-- Updated student and teacher exam-mode E2E setup to decode the current `test` API response key.
-- Removed the final quiz-keyed Tests list payload type from assessment URL-state E2E setup after independent review.
-- Added an architecture ratchet preventing retired UI aliases and the old automation id from returning.
-- Preserved the `tab=quizzes&quizId=...` old-link tombstone, persisted `quiz_id` fields, schema, archives, gradebook tombstones, and course package compatibility.
-
-**Validation:**
-- Focused wrapper and component suites (7 files / 115 tests)
-- Full repository suite (408 files / 3,670 tests)
-- Exam-mode Playwright discovery (10 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (624 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- `git diff --check`
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next prove and remove unreachable quiz-mode rendering and legacy quiz markdown code while preserving URL and data contracts.
-
-## 2026-07-23 — Retired standalone legacy Quiz Markdown
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass removes an isolated compatibility parser/serializer and consolidates the shared editor on its already-current Test Markdown contract.
-
-**Completed:**
-- Removed `src/lib/quiz-markdown.ts` and its dedicated compatibility test after confirming no package, archive, import, or persisted-data reader depended on it.
-- Consolidated `TestDetailPanel` draft serialization, Markdown parsing, document handling, and question-field preservation on `testToMarkdown` / `markdownToTest`.
-- Added an architecture ratchet preventing the retired module and its assessment/quiz Markdown aliases from returning.
-- Updated the cleanup guide to identify unreachable quiz-mode rendering as the next implementation pass.
-- Preserved persisted `quiz_id` fields, schema, archives, gradebook tombstones, course package compatibility, and the `tab=quizzes` URL tombstone.
-
-**Validation:**
-- Focused Markdown, component, and architecture suites (3 files / 53 tests)
-- Full repository suite (407 files / 3,666 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (623 modules / 0 allowances)
-- `pnpm build`
-- Pika changed-file audit
-- `git diff --check`
-
-**Remaining:**
-- Run full repository validation, independent PR review, and exact-head CI before merge.
-- Next prove and remove unreachable quiz-mode rendering and wording from current Test components.
-
 ## 2026-07-23 — Retired unreachable Quiz rendering
 
 **Risk profile:** none
@@ -1414,3 +1357,29 @@ enforcement activation.
   readiness, and activate using exact target acknowledgements. Generic cleanup
   remains separately disabled. Permanent classroom deletion remains in PR #963
   as a later consumer and must be redesigned against this authority.
+
+## 2026-08-02 — Remediated managed-storage ownership review
+
+**Risk profile:** high — cleanup authority, embedded identity validation,
+concurrent activation, and Classroom/Blueprint ownership boundaries.
+
+**Completed:**
+- Preserved managed-object tombstones and made generic cleanup enforcement-only;
+  existing operational cleanup leases now mirror into the managed authority.
+- Made JSON evidence exact by UUID, bucket, path, resource, and subject; fenced
+  reference removal and host deletion with durable cleanup intents.
+- Blocked readiness on compatibility-era cleanup leases already in flight.
+- Copied registered legacy test documents at both Classroom/Blueprint boundaries
+  without sharing ownership, and refreshed generated database types.
+- Kept migration 117 unapplied and PR #963 unchanged.
+
+**Validation:**
+- Focused ownership, Blueprint, and startup suites pass (46 tests).
+- Full suite reached 3,973/3,974 under concurrent load; the unrelated schema
+  audit timeout passed immediately in isolation (2/2).
+- TypeScript, lint, architecture, lineage, production build, full SQL parse,
+  shell syntax, diff check, and Pika audit pass.
+
+**Remaining:**
+- Push the review batch, require fresh replay/database fixture CI, and run one
+  targeted security/concurrency re-review before the final integration gate.

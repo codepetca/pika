@@ -1144,6 +1144,7 @@ export async function createCourseBlueprintFromClassroom(
     teacherId,
     operationId,
     direction: 'to_blueprint',
+    sourceClassroomId: classroomId,
     assessments: source.tests,
   })
   const plan = buildCreateBlueprintWritePlan({
@@ -1256,6 +1257,7 @@ export async function createClassroomFromBlueprint(
     teacherId,
     operationId,
     direction: 'to_classroom',
+    sourceCourseBlueprintId: input.blueprintId,
     assessments: detailResult.detail.assessments,
   })
   const copiedDetail = {

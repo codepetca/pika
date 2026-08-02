@@ -9,6 +9,18 @@ import {
 type SupabaseLike = any
 type AssessmentLike = { documents: TestDocument[] }
 
+function testDocumentStoragePath(url: string): string | null {
+  try {
+    const marker = '/storage/v1/object/public/test-documents/'
+    const parsed = new URL(url)
+    if (!parsed.pathname.startsWith(marker)) return null
+    const path = decodeURIComponent(parsed.pathname.slice(marker.length))
+    return path && !path.startsWith('/') ? path : null
+  } catch {
+    return null
+  }
+}
+
 function isMissingFoundation(error: { code?: string; message?: string } | null): boolean {
   const message = error?.message?.toLowerCase() || ''
   return error?.code === 'PGRST202' || error?.code === '42883'
@@ -20,14 +32,22 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   teacherId: string
   operationId: string
   direction: 'to_blueprint' | 'to_classroom'
+  sourceClassroomId?: string
+  sourceCourseBlueprintId?: string
   assessments: T[]
 }): Promise<T[]> {
   const managedDocuments = input.assessments.flatMap((assessment) =>
-    assessment.documents.filter((document) => (
-      document.source === 'upload' && Boolean(document.managed_object_id)
-    )),
+    assessment.documents.filter((document) => document.source === 'upload'),
   )
   if (managedDocuments.length === 0) return input.assessments
+
+  if (input.direction === 'to_blueprint') {
+    if (!input.sourceClassroomId || input.sourceCourseBlueprintId) {
+      throw new Error('managed_storage_blueprint_copy_source_owner_invalid')
+    }
+  } else if (!input.sourceCourseBlueprintId || input.sourceClassroomId) {
+    throw new Error('managed_storage_blueprint_copy_source_owner_invalid')
+  }
 
   const protocol = await input.supabase.rpc('managed_storage_blueprint_protocol_ready', {})
   if (protocol.error) {
@@ -35,6 +55,35 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     throw new Error('managed_storage_blueprint_protocol_check_failed')
   }
   if (protocol.data !== true) return input.assessments
+
+  const sourceIdByDocument = new Map<TestDocument, string>()
+  const sourceById = new Map<string, any>()
+  for (const document of managedDocuments) {
+    const sourcePath = testDocumentStoragePath(document.url || '')
+    if (!document.managed_object_id && !sourcePath) {
+      throw new Error('managed_storage_blueprint_copy_source_identity_missing')
+    }
+    let query = input.supabase
+      .from('managed_storage_objects')
+      .select('id,storage_bucket,storage_path,status,content_type,classroom_id,course_blueprint_id,provisional_owner_id')
+      .eq('storage_bucket', 'test-documents')
+      .eq('status', 'ready')
+      .is('provisional_owner_id', null)
+    query = document.managed_object_id
+      ? query.eq('id', document.managed_object_id)
+      : query.eq('storage_path', sourcePath)
+    query = input.direction === 'to_blueprint'
+      ? query.eq('classroom_id', input.sourceClassroomId)
+      : query.eq('course_blueprint_id', input.sourceCourseBlueprintId)
+    const sourceResponse = await query.single()
+    if (sourceResponse.error || !sourceResponse.data
+      || sourceResponse.data.storage_path !== sourcePath
+      || (document.managed_object_id && sourceResponse.data.id !== document.managed_object_id)) {
+      throw new Error('managed_storage_blueprint_copy_source_invalid')
+    }
+    sourceIdByDocument.set(document, sourceResponse.data.id)
+    sourceById.set(sourceResponse.data.id, sourceResponse.data)
+  }
 
   const provisionalOwnerId = randomUUID()
   const ownerResponse = await input.supabase.rpc('begin_managed_storage_provisional_owner', {
@@ -59,19 +108,9 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   const reservedObjectIds: string[] = []
   try {
     for (const document of managedDocuments) {
-      const sourceId = document.managed_object_id as string
+      const sourceId = sourceIdByDocument.get(document) as string
       if (copiedBySourceId.has(sourceId)) continue
-      const sourceResponse = await input.supabase
-        .from('managed_storage_objects')
-        .select('id,storage_bucket,storage_path,status,content_type')
-        .eq('id', sourceId)
-        .eq('status', 'ready')
-        .single()
-      if (sourceResponse.error || !sourceResponse.data
-        || sourceResponse.data.storage_bucket !== 'test-documents') {
-        throw new Error('managed_storage_blueprint_copy_source_invalid')
-      }
-      const source = sourceResponse.data
+      const source = sourceById.get(sourceId)
       const download = await input.supabase.storage
         .from('test-documents')
         .download(source.storage_path)
@@ -143,8 +182,8 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   return input.assessments.map((assessment) => ({
     ...assessment,
     documents: assessment.documents.map((document) => (
-      document.managed_object_id
-        ? copiedBySourceId.get(document.managed_object_id) || document
+      sourceIdByDocument.has(document)
+        ? copiedBySourceId.get(sourceIdByDocument.get(document) as string) || document
         : document
     )),
   }))

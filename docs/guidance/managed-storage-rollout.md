@@ -21,7 +21,8 @@ whether a persistent managed file is live or eligible for cleanup.
 - A failed or interrupted writer leaves a reserved/verified row with an expiry,
   or explicitly queues it. Cleanup uses leased, retryable lifecycle transitions;
   Storage deletion is rejected unless the managed object is
-  `cleanup_processing`.
+  `cleanup_processing`. Completion leaves a terminal `deleted` tombstone so
+  operational foreign keys remain valid and retries are idempotent.
 - Blueprint capture and Classroom instantiation copy test documents through a
   provisional owner. The existing atomic Blueprint RPCs adopt those objects to
   the new owner inside their transaction. The pre-wrapper RPCs are not callable.
@@ -87,13 +88,18 @@ the exact migration and exact target under the schema rollout checklist.
 5. Run `pnpm managed-storage:readiness refresh` with the matching exact
    acknowledgement. Investigate only hashed finding identities. Repeat
    registration/reconciliation until the run is `ready`; do not waive findings.
+   Readiness also fails while any legacy operational cleanup lease is processing,
+   so activation cannot strand an already claimed delete.
 6. Activate with the reported generation and digest using
    `pnpm managed-storage:readiness activate`, the target, and exact
    `MANAGED STORAGE ACTIVATE <target>` acknowledgement. Database locking makes
    this ordering executable rather than a convention.
-7. Leave generic cleanup off until enforcement behavior is observed. A manual
-   cleanup batch additionally requires `MANAGED_STORAGE_CLEANUP_ENABLED=true`
-   and `MANAGED STORAGE CLEANUP <target>`. No scheduler is installed here.
+7. Leave generic cleanup off until enforcement behavior is observed. Generic
+   claiming is rejected in compatibility mode. Existing cleanup ledgers mirror
+   leases, retries, and terminal completion into the managed authority once
+   enforcement is active. A manual cleanup batch additionally requires
+   `MANAGED_STORAGE_CLEANUP_ENABLED=true` and
+   `MANAGED STORAGE CLEANUP <target>`. No scheduler is installed here.
 
 The database fixture `scripts/check-managed-storage-database.sh` is run by CI
 after a fresh migration replay. Running it locally still counts as applying the

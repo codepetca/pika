@@ -110,7 +110,7 @@ create table public.managed_storage_objects (
     'gradex_extract'
   )),
   status text not null default 'reserved' check (status in (
-    'reserved', 'verified', 'ready', 'cleanup_pending', 'cleanup_processing'
+    'reserved', 'verified', 'ready', 'cleanup_pending', 'cleanup_processing', 'deleted'
   )),
   created_by_user_id uuid references public.users (id) on delete set null,
   data_subject_user_id uuid references public.users (id) on delete set null,
@@ -130,20 +130,23 @@ create table public.managed_storage_objects (
   lease_token uuid,
   lease_expires_at timestamptz,
   last_error_code text,
+  deleted_at timestamptz,
   created_at timestamptz not null default clock_timestamp(),
   updated_at timestamptz not null default clock_timestamp(),
   unique (storage_bucket, storage_path),
+  unique (id, storage_bucket, storage_path),
   check (num_nonnulls(classroom_id, course_blueprint_id, provisional_owner_id) = 1),
   check (
     (status = 'reserved' and verified_at is null and ready_at is null)
     or (status = 'verified' and verified_at is not null and ready_at is null)
     or (status = 'ready' and verified_at is not null and ready_at is not null)
-    or status in ('cleanup_pending', 'cleanup_processing')
+    or status in ('cleanup_pending', 'cleanup_processing', 'deleted')
   ),
   check (
     (status = 'cleanup_processing' and lease_token is not null and lease_expires_at is not null)
     or (status <> 'cleanup_processing' and lease_token is null and lease_expires_at is null)
   ),
+  check ((status = 'deleted') = (deleted_at is not null)),
   check (
     (storage_bucket = 'classroom-archives' and purpose = 'classroom_archive')
     or (storage_bucket = 'gradex-analytics-extracts' and purpose = 'gradex_extract')
@@ -443,6 +446,8 @@ create table public.managed_storage_json_references (
   id uuid primary key default gen_random_uuid(),
   managed_object_id uuid not null
     references public.managed_storage_objects (id) on delete restrict,
+  storage_bucket text not null,
+  storage_path text not null,
   assignment_doc_id uuid references public.assignment_docs (id) on delete cascade,
   assignment_doc_history_id uuid references public.assignment_doc_history (id) on delete cascade,
   test_id uuid references public.tests (id) on delete cascade,
@@ -465,7 +470,11 @@ create table public.managed_storage_json_references (
     course_blueprint_assessment_id,
     course_blueprint_version_id,
     course_blueprint_change_proposal_id
-  ) = 1)
+  ) = 1),
+  constraint managed_storage_json_reference_identity_fkey
+    foreign key (managed_object_id, storage_bucket, storage_path)
+    references public.managed_storage_objects (id, storage_bucket, storage_path)
+    on delete restrict
 );
 
 create unique index managed_storage_json_reference_host_object
@@ -816,6 +825,8 @@ create table public.managed_storage_readiness_findings (
     'reference_identity_mismatch',
     'embedded_reference_missing_registry',
     'embedded_reference_owner_mismatch',
+    'embedded_reference_resource_mismatch',
+    'operational_cleanup_inflight',
     'storage_object_ownerless',
     'managed_object_missing_storage',
     'managed_object_ownerless',
@@ -883,6 +894,153 @@ as $$
     (length(p_payload::text) - length(replace(p_payload::text, p_storage_path, '')))
       / length(p_storage_path)
   end
+$$;
+
+create or replace function public.managed_storage_public_url_identity(p_value text)
+returns table (storage_bucket text, storage_path text)
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  select match[1], match[2]
+  from regexp_match(
+    p_value,
+    '/storage/v1/object/public/(assignment-artifacts|submission-images|test-documents)/([^?#]+)'
+  ) match
+  where match[2] <> ''
+$$;
+
+create or replace function public.managed_storage_payload_raw_references(p_payload jsonb)
+returns table (
+  managed_object_id uuid,
+  storage_bucket text,
+  storage_path text
+)
+language plpgsql
+immutable
+set search_path = public
+as $$
+declare
+  v_node jsonb;
+  v_pair record;
+  v_id uuid;
+  v_id_value jsonb;
+  v_ids uuid[];
+  v_text text;
+begin
+  if p_payload is null then return; end if;
+  for v_node in
+    with recursive walk(value) as (
+      select p_payload
+      union all
+      select child.value
+      from walk
+      cross join lateral (
+        select element.value
+        from jsonb_array_elements(
+          case when jsonb_typeof(walk.value) = 'array' then walk.value else '[]'::jsonb end
+        ) element
+        union all
+        select member.value
+        from jsonb_each(
+          case when jsonb_typeof(walk.value) = 'object' then walk.value else '{}'::jsonb end
+        ) member
+      ) child
+    )
+    select value from walk where jsonb_typeof(value) = 'object'
+  loop
+    v_ids := array[]::uuid[];
+    for v_id_value in
+      select value from jsonb_array_elements(
+        case when jsonb_typeof(v_node->'managed_object_ids') = 'array'
+          then v_node->'managed_object_ids' else '[]'::jsonb end
+      )
+    loop
+      begin
+        v_ids := array_append(v_ids, (v_id_value #>> '{}')::uuid);
+      exception when invalid_text_representation then
+        raise exception using errcode = '22023', message = 'managed_storage_embedded_identity_invalid';
+      end;
+    end loop;
+    begin
+      v_id := nullif(v_node->>'managed_object_id', '')::uuid;
+    exception when invalid_text_representation then
+      raise exception using errcode = '22023', message = 'managed_storage_embedded_identity_invalid';
+    end;
+    if v_id is not null then v_ids := array_append(v_ids, v_id); end if;
+
+    for v_text in
+      select value from jsonb_each_text(v_node)
+      where key in ('url', 'src', 'public_url')
+    loop
+      for v_pair in select * from public.managed_storage_public_url_identity(v_text)
+      loop
+        if coalesce(array_length(v_ids, 1), 0) = 0 then
+          managed_object_id := null;
+          storage_bucket := v_pair.storage_bucket;
+          storage_path := v_pair.storage_path;
+          return next;
+        else
+          foreach managed_object_id in array v_ids loop
+            storage_bucket := v_pair.storage_bucket;
+            storage_path := v_pair.storage_path;
+            return next;
+          end loop;
+        end if;
+      end loop;
+    end loop;
+
+    if v_node->>'storage_bucket' in (
+      'assignment-artifacts', 'submission-images', 'test-documents'
+    ) and nullif(v_node->>'storage_path', '') is not null then
+      if coalesce(array_length(v_ids, 1), 0) = 0 then
+        managed_object_id := null;
+        storage_bucket := v_node->>'storage_bucket';
+        storage_path := v_node->>'storage_path';
+        return next;
+      else
+        foreach managed_object_id in array v_ids loop
+          storage_bucket := v_node->>'storage_bucket';
+          storage_path := v_node->>'storage_path';
+          return next;
+        end loop;
+      end if;
+    end if;
+
+    if nullif(v_node->>'snapshot_path', '') is not null then
+      begin
+        v_id := nullif(v_node->>'snapshot_managed_object_id', '')::uuid;
+      exception when invalid_text_representation then
+        raise exception using errcode = '22023', message = 'managed_storage_embedded_identity_invalid';
+      end;
+      managed_object_id := v_id;
+      storage_bucket := 'test-documents';
+      storage_path := v_node->>'snapshot_path';
+      return next;
+    end if;
+  end loop;
+end;
+$$;
+
+create or replace function public.managed_storage_payload_has_exact_reference(
+  p_payload jsonb,
+  p_object_id uuid,
+  p_storage_bucket text,
+  p_storage_path text
+)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.managed_storage_payload_raw_references(p_payload) reference
+    where reference.managed_object_id = p_object_id
+      and reference.storage_bucket = p_storage_bucket
+      and reference.storage_path = p_storage_path
+  )
 $$;
 
 create or replace function public.managed_storage_legacy_object_id(
@@ -1132,6 +1290,35 @@ begin
   on conflict (run_id, finding_code, identity_sha256)
   do update set evidence_count = excluded.evidence_count;
 
+  -- Activation must not overtake a cleanup worker claimed under compatibility.
+  -- Every claim mutates a ledger under the protocol lock and advances the writer
+  -- revision; this also blocks on a claim already active when readiness begins.
+  insert into public.managed_storage_readiness_findings (
+    run_id, finding_code, bucket, identity_sha256, evidence_count
+  )
+  select v_run.id, 'operational_cleanup_inflight', source.bucket,
+    public.managed_storage_identity_sha256(source.bucket, source.path),
+    count(*)::integer
+  from (
+    select 'assignment-artifacts'::text bucket, storage_path path
+      from public.assignment_artifact_storage_cleanup where status = 'processing'
+    union all
+    select 'test-documents', storage_path
+      from public.test_document_snapshot_storage_cleanup where status = 'processing'
+    union all
+    select storage_bucket, storage_path
+      from public.classroom_archive_object_upload_cleanup where status = 'processing'
+    union all
+    select storage_bucket, storage_path
+      from public.classroom_archive_source_object_cleanup where status = 'processing'
+    union all
+    select storage_bucket, storage_path
+      from public.classroom_gradex_extract_cleanup where status = 'processing'
+  ) source
+  group by source.bucket, source.path
+  on conflict (run_id, finding_code, identity_sha256)
+  do update set evidence_count = excluded.evidence_count;
+
   -- A raw path and managed UUID must describe the same exact object.
   insert into public.managed_storage_readiness_findings (
     run_id, finding_code, bucket, identity_sha256, evidence_count
@@ -1270,24 +1457,27 @@ begin
     union all select 'course_blueprint_change_proposal', id, operations_json
       from public.course_blueprint_change_proposals
   ) host
-  where (
-    select count(*)::integer from regexp_matches(
-      coalesce(host.payload::text, ''),
-      '(assignment-artifacts|submission-images|test-documents)', 'g'
+  where exists (
+    select 1
+    from (
+      select distinct storage_bucket, storage_path
+      from public.managed_storage_payload_raw_references(host.payload)
+    ) raw_reference
+    where not exists (
+      select 1
+      from public.managed_storage_json_references reference
+      where reference.storage_bucket = raw_reference.storage_bucket
+        and reference.storage_path = raw_reference.storage_path
+        and (
+          reference.assignment_doc_id = case when host.host_type = 'assignment_doc' then host.host_id end
+          or reference.assignment_doc_history_id = case when host.host_type = 'assignment_doc_history' then host.host_id end
+          or reference.test_id = case when host.host_type = 'test' then host.host_id end
+          or reference.course_blueprint_assessment_id = case when host.host_type = 'course_blueprint_assessment' then host.host_id end
+          or reference.course_blueprint_version_id = case when host.host_type = 'course_blueprint_version' then host.host_id end
+          or reference.course_blueprint_change_proposal_id = case when host.host_type = 'course_blueprint_change_proposal' then host.host_id end
+        )
     )
-  ) > coalesce((
-    select sum(public.managed_storage_payload_path_occurrences(
-      host.payload, object.storage_path
-    ))
-    from public.managed_storage_json_references reference
-    join public.managed_storage_objects object on object.id = reference.managed_object_id
-    where reference.assignment_doc_id = case when host.host_type = 'assignment_doc' then host.host_id end
-      or reference.assignment_doc_history_id = case when host.host_type = 'assignment_doc_history' then host.host_id end
-      or reference.test_id = case when host.host_type = 'test' then host.host_id end
-      or reference.course_blueprint_assessment_id = case when host.host_type = 'course_blueprint_assessment' then host.host_id end
-      or reference.course_blueprint_version_id = case when host.host_type = 'course_blueprint_version' then host.host_id end
-      or reference.course_blueprint_change_proposal_id = case when host.host_type = 'course_blueprint_change_proposal' then host.host_id end
-  ), 0);
+  );
 
   insert into public.managed_storage_readiness_findings (
     run_id, finding_code, identity_sha256
@@ -1329,6 +1519,33 @@ begin
       and object.classroom_id is distinct from host.classroom_id)
     or (host.course_blueprint_id is not null
       and object.course_blueprint_id is distinct from host.course_blueprint_id)
+  on conflict (run_id, finding_code, identity_sha256) do nothing;
+
+  insert into public.managed_storage_readiness_findings (
+    run_id, finding_code, identity_sha256
+  )
+  select distinct v_run.id, 'embedded_reference_resource_mismatch',
+    public.managed_storage_entity_sha256(host.host_type, host.host_id)
+  from (
+    select 'assignment_doc'::text host_type, document.id host_id,
+      document.id assignment_doc_id, document.student_id data_subject_user_id
+    from public.assignment_docs document
+    union all
+    select 'assignment_doc_history', history.id, document.id, document.student_id
+    from public.assignment_doc_history history
+    join public.assignment_docs document on document.id = history.assignment_doc_id
+  ) host
+  join public.managed_storage_json_references reference on (
+    reference.assignment_doc_id = case when host.host_type = 'assignment_doc' then host.host_id end
+    or reference.assignment_doc_history_id = case
+      when host.host_type = 'assignment_doc_history' then host.host_id end
+  )
+  join public.managed_storage_objects object on object.id = reference.managed_object_id
+  where object.storage_bucket = 'submission-images' and (
+    object.resource_type is distinct from 'assignment_doc'
+    or object.resource_id is distinct from host.assignment_doc_id
+    or object.data_subject_user_id is distinct from host.data_subject_user_id
+  )
   on conflict (run_id, finding_code, identity_sha256) do nothing;
 
   select count(*) into v_findings
@@ -1385,6 +1602,9 @@ grant execute on function public.reconcile_managed_storage_relational_references
 revoke all on function public.managed_storage_identity_sha256(text, text),
   public.managed_storage_entity_sha256(text, uuid),
   public.managed_storage_payload_path_occurrences(jsonb, text),
+  public.managed_storage_public_url_identity(text),
+  public.managed_storage_payload_raw_references(jsonb),
+  public.managed_storage_payload_has_exact_reference(jsonb, uuid, text, text),
   public.managed_storage_legacy_object_id(text, text)
   from public, anon, authenticated;
 grant execute on function public.managed_storage_legacy_object_id(text, text)
@@ -1536,8 +1756,12 @@ declare
   v_reference_role text;
   v_classroom_id uuid;
   v_blueprint_id uuid;
+  v_assignment_doc_id uuid;
+  v_data_subject_user_id uuid;
   v_object public.managed_storage_objects;
   v_object_id uuid;
+  v_previous_object_id uuid;
+  v_previous_object_ids uuid[] := array[]::uuid[];
   v_enforced boolean;
   v_evidence_sha256 text;
   v_identity_count integer := 0;
@@ -1548,8 +1772,13 @@ begin
     when 'assignment_docs' then
       v_payload := new.content;
       v_reference_role := 'content';
+      v_assignment_doc_id := new.id;
+      v_data_subject_user_id := new.student_id;
       select assignment.classroom_id into v_classroom_id
       from public.assignments assignment where assignment.id = new.assignment_id;
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_previous_object_ids
+        from public.managed_storage_json_references where assignment_doc_id = new.id;
       delete from public.managed_storage_json_references where assignment_doc_id = new.id;
     when 'assignment_doc_history' then
       v_payload := coalesce(new.snapshot, new.patch);
@@ -1558,26 +1787,46 @@ begin
       from public.assignment_docs document
       join public.assignments assignment on assignment.id = document.assignment_id
       where document.id = new.assignment_doc_id;
+      select document.student_id into v_data_subject_user_id
+      from public.assignment_docs document where document.id = new.assignment_doc_id;
+      v_assignment_doc_id := new.assignment_doc_id;
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_previous_object_ids
+        from public.managed_storage_json_references where assignment_doc_history_id = new.id;
       delete from public.managed_storage_json_references where assignment_doc_history_id = new.id;
     when 'tests' then
       v_payload := new.documents;
       v_reference_role := 'teacher_document';
       v_classroom_id := new.classroom_id;
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_previous_object_ids
+        from public.managed_storage_json_references where test_id = new.id;
       delete from public.managed_storage_json_references where test_id = new.id;
     when 'course_blueprint_assessments' then
       v_payload := new.documents;
       v_reference_role := 'blueprint_document';
       v_blueprint_id := new.course_blueprint_id;
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_previous_object_ids
+        from public.managed_storage_json_references
+        where course_blueprint_assessment_id = new.id;
       delete from public.managed_storage_json_references where course_blueprint_assessment_id = new.id;
     when 'course_blueprint_versions' then
       v_payload := new.snapshot_json;
       v_reference_role := 'immutable_version';
       v_blueprint_id := new.course_blueprint_id;
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_previous_object_ids
+        from public.managed_storage_json_references where course_blueprint_version_id = new.id;
       delete from public.managed_storage_json_references where course_blueprint_version_id = new.id;
     when 'course_blueprint_change_proposals' then
       v_payload := new.operations_json;
       v_reference_role := 'proposal';
       v_blueprint_id := new.course_blueprint_id;
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_previous_object_ids
+        from public.managed_storage_json_references
+        where course_blueprint_change_proposal_id = new.id;
       delete from public.managed_storage_json_references where course_blueprint_change_proposal_id = new.id;
     else
       raise exception using errcode = '55000', message = 'managed_storage_json_host_unsupported';
@@ -1590,7 +1839,9 @@ begin
     select * into v_object from public.managed_storage_objects
     where id = v_object_id for update;
     if not found or v_object.status not in ('verified', 'ready')
-      or strpos(coalesce(v_payload::text, ''), v_object.storage_path) = 0
+      or not public.managed_storage_payload_has_exact_reference(
+        v_payload, v_object.id, v_object.storage_bucket, v_object.storage_path
+      )
     then
       raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
     end if;
@@ -1629,17 +1880,25 @@ begin
     then
       raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
     end if;
+    if v_object.storage_bucket = 'submission-images' and (
+      v_assignment_doc_id is null
+      or v_object.resource_type is distinct from 'assignment_doc'
+      or v_object.resource_id is distinct from v_assignment_doc_id
+      or v_object.data_subject_user_id is distinct from v_data_subject_user_id
+    ) then
+      raise exception using errcode = '55000', message = 'managed_storage_embedded_resource_mismatch';
+    end if;
     if v_object.status = 'verified' then
       perform public.managed_storage_mark_ready(v_object.id);
     end if;
-    v_identity_count := v_identity_count
-      + public.managed_storage_payload_path_occurrences(v_payload, v_object.storage_path);
+    v_identity_count := v_identity_count + 1;
     insert into public.managed_storage_json_references (
-      managed_object_id, assignment_doc_id, assignment_doc_history_id, test_id,
+      managed_object_id, storage_bucket, storage_path,
+      assignment_doc_id, assignment_doc_history_id, test_id,
       course_blueprint_assessment_id, course_blueprint_version_id,
       course_blueprint_change_proposal_id, reference_role, evidence_sha256
     ) values (
-      v_object.id,
+      v_object.id, v_object.storage_bucket, v_object.storage_path,
       case when tg_table_name = 'assignment_docs' then new.id end,
       case when tg_table_name = 'assignment_doc_history' then new.id end,
       case when tg_table_name = 'tests' then new.id end,
@@ -1652,13 +1911,28 @@ begin
 
   for v_object_id in
     select object.id from public.managed_storage_objects object
-    where object.status in ('verified', 'ready')
+    where not v_enforced
+      and object.status in ('verified', 'ready')
       and object.provisional_owner_id is null
-      and strpos(coalesce(v_payload::text, ''), object.storage_path) > 0
-      and strpos(coalesce(v_payload::text, ''), object.storage_bucket) > 0
+      and exists (
+        select 1
+        from public.managed_storage_payload_raw_references(v_payload) reference
+        where reference.managed_object_id is null
+          and reference.storage_bucket = object.storage_bucket
+          and reference.storage_path = object.storage_path
+      )
       and (
         (v_classroom_id is not null and object.classroom_id = v_classroom_id)
         or (v_blueprint_id is not null and object.course_blueprint_id = v_blueprint_id)
+      )
+      and (
+        object.storage_bucket <> 'submission-images'
+        or (
+          v_assignment_doc_id is not null
+          and object.resource_type = 'assignment_doc'
+          and object.resource_id = v_assignment_doc_id
+          and object.data_subject_user_id = v_data_subject_user_id
+        )
       )
       and not exists (
         select 1 from public.managed_storage_payload_ids(v_payload) payload_id
@@ -1670,14 +1944,14 @@ begin
     if v_object.status = 'verified' then
       perform public.managed_storage_mark_ready(v_object.id);
     end if;
-    v_identity_count := v_identity_count
-      + public.managed_storage_payload_path_occurrences(v_payload, v_object.storage_path);
+    v_identity_count := v_identity_count + 1;
     insert into public.managed_storage_json_references (
-      managed_object_id, assignment_doc_id, assignment_doc_history_id, test_id,
+      managed_object_id, storage_bucket, storage_path,
+      assignment_doc_id, assignment_doc_history_id, test_id,
       course_blueprint_assessment_id, course_blueprint_version_id,
       course_blueprint_change_proposal_id, reference_role, evidence_sha256
     ) values (
-      v_object.id,
+      v_object.id, v_object.storage_bucket, v_object.storage_path,
       case when tg_table_name = 'assignment_docs' then new.id end,
       case when tg_table_name = 'assignment_doc_history' then new.id end,
       case when tg_table_name = 'tests' then new.id end,
@@ -1689,16 +1963,20 @@ begin
   end loop;
 
   select count(*)::integer into v_raw_reference_count
-  from regexp_matches(
-    coalesce(v_payload::text, ''),
-    '(assignment-artifacts|submission-images|test-documents)',
-    'g'
-  );
+  from (
+    select distinct storage_bucket, storage_path
+    from public.managed_storage_payload_raw_references(v_payload)
+  ) reference;
   if v_enforced
     and v_raw_reference_count > v_identity_count
   then
     raise exception using errcode = '55000', message = 'managed_storage_embedded_identity_required';
   end if;
+  foreach v_previous_object_id in array v_previous_object_ids loop
+    perform public.queue_managed_storage_cleanup(
+      v_previous_object_id, 'embedded_reference_removed'
+    );
+  end loop;
   return new;
 end;
 $$;
@@ -1722,6 +2000,81 @@ create trigger course_blueprint_proposals_managed_storage_sync
 after insert or update of operations_json on public.course_blueprint_change_proposals
 for each row execute function public.sync_managed_storage_json_host();
 
+create or replace function public.remove_managed_storage_json_host()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_object_id uuid;
+  v_object_ids uuid[] := array[]::uuid[];
+begin
+  perform public.lock_managed_storage_protocol();
+  case tg_table_name
+    when 'assignment_docs' then
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_object_ids from public.managed_storage_json_references
+        where assignment_doc_id = old.id;
+      delete from public.managed_storage_json_references where assignment_doc_id = old.id;
+    when 'assignment_doc_history' then
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_object_ids from public.managed_storage_json_references
+        where assignment_doc_history_id = old.id;
+      delete from public.managed_storage_json_references
+        where assignment_doc_history_id = old.id;
+    when 'tests' then
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_object_ids from public.managed_storage_json_references
+        where test_id = old.id;
+      delete from public.managed_storage_json_references where test_id = old.id;
+    when 'course_blueprint_assessments' then
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_object_ids from public.managed_storage_json_references
+        where course_blueprint_assessment_id = old.id;
+      delete from public.managed_storage_json_references
+        where course_blueprint_assessment_id = old.id;
+    when 'course_blueprint_versions' then
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_object_ids from public.managed_storage_json_references
+        where course_blueprint_version_id = old.id;
+      delete from public.managed_storage_json_references
+        where course_blueprint_version_id = old.id;
+    when 'course_blueprint_change_proposals' then
+      select coalesce(array_agg(managed_object_id), array[]::uuid[])
+        into v_object_ids from public.managed_storage_json_references
+        where course_blueprint_change_proposal_id = old.id;
+      delete from public.managed_storage_json_references
+        where course_blueprint_change_proposal_id = old.id;
+    else
+      raise exception using errcode = '55000', message = 'managed_storage_json_host_unsupported';
+  end case;
+  foreach v_object_id in array v_object_ids loop
+    perform public.queue_managed_storage_cleanup(v_object_id, 'embedded_host_deleted');
+  end loop;
+  return old;
+end;
+$$;
+
+create trigger assignment_docs_managed_storage_remove
+before delete on public.assignment_docs
+for each row execute function public.remove_managed_storage_json_host();
+create trigger assignment_doc_history_managed_storage_remove
+before delete on public.assignment_doc_history
+for each row execute function public.remove_managed_storage_json_host();
+create trigger tests_managed_storage_remove
+before delete on public.tests
+for each row execute function public.remove_managed_storage_json_host();
+create trigger course_blueprint_assessments_managed_storage_remove
+before delete on public.course_blueprint_assessments
+for each row execute function public.remove_managed_storage_json_host();
+create trigger course_blueprint_versions_managed_storage_remove
+before delete on public.course_blueprint_versions
+for each row execute function public.remove_managed_storage_json_host();
+create trigger course_blueprint_proposals_managed_storage_remove
+before delete on public.course_blueprint_change_proposals
+for each row execute function public.remove_managed_storage_json_host();
+
 create or replace function public.reconcile_managed_storage_json_references()
 returns integer
 language plpgsql
@@ -1743,33 +2096,40 @@ begin
   for v_host in
     select 'assignment_docs'::text host_type, document.id host_id,
       document.content payload, 'content'::text reference_role,
-      assignment.classroom_id, null::uuid blueprint_id
+      assignment.classroom_id, null::uuid blueprint_id,
+      document.id assignment_doc_id, document.student_id data_subject_user_id
       from public.assignment_docs document
       join public.assignments assignment on assignment.id = document.assignment_id
     union all
     select 'assignment_doc_history', history.id, coalesce(history.snapshot, history.patch),
       case when history.snapshot is null then 'history_patch' else 'history_snapshot' end,
-      assignment.classroom_id, null::uuid
+      assignment.classroom_id, null::uuid, document.id, document.student_id
       from public.assignment_doc_history history
       join public.assignment_docs document on document.id = history.assignment_doc_id
       join public.assignments assignment on assignment.id = document.assignment_id
     union all
-    select 'tests', id, documents, 'teacher_document', classroom_id, null::uuid
+    select 'tests', id, documents, 'teacher_document', classroom_id, null::uuid,
+      null::uuid, null::uuid
       from public.tests
     union all
     select 'course_blueprint_assessments', id, documents, 'blueprint_document',
-      null::uuid, course_blueprint_id from public.course_blueprint_assessments
+      null::uuid, course_blueprint_id, null::uuid, null::uuid
+      from public.course_blueprint_assessments
     union all
     select 'course_blueprint_versions', id, snapshot_json, 'immutable_version',
-      null::uuid, course_blueprint_id from public.course_blueprint_versions
+      null::uuid, course_blueprint_id, null::uuid, null::uuid
+      from public.course_blueprint_versions
     union all
     select 'course_blueprint_change_proposals', id, operations_json, 'proposal',
-      null::uuid, course_blueprint_id from public.course_blueprint_change_proposals
+      null::uuid, course_blueprint_id, null::uuid, null::uuid
+      from public.course_blueprint_change_proposals
   loop
     v_matched_count := 0;
     select count(*)::integer into v_raw_count
-      from regexp_matches(coalesce(v_host.payload::text, ''),
-        '(assignment-artifacts|submission-images|test-documents)', 'g');
+    from (
+      select distinct storage_bucket, storage_path
+      from public.managed_storage_payload_raw_references(v_host.payload)
+    ) reference;
     v_evidence_sha256 := encode(extensions.digest(
       convert_to(coalesce(v_host.payload, 'null'::jsonb)::text, 'UTF8'), 'sha256'
     ), 'hex');
@@ -1780,27 +2140,33 @@ begin
       where id = v_object_id for update;
       if not found or v_object.status not in ('verified', 'ready')
         or v_object.provisional_owner_id is not null
-        or strpos(coalesce(v_host.payload::text, ''), v_object.storage_path) = 0
+        or not public.managed_storage_payload_has_exact_reference(
+          v_host.payload, v_object.id, v_object.storage_bucket, v_object.storage_path
+        )
         or (v_host.classroom_id is not null
           and v_object.classroom_id is distinct from v_host.classroom_id)
         or (v_host.blueprint_id is not null
           and v_object.course_blueprint_id is distinct from v_host.blueprint_id)
+        or (v_object.storage_bucket = 'submission-images' and (
+          v_host.assignment_doc_id is null
+          or v_object.resource_type is distinct from 'assignment_doc'
+          or v_object.resource_id is distinct from v_host.assignment_doc_id
+          or v_object.data_subject_user_id is distinct from v_host.data_subject_user_id
+        ))
       then
         raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
       end if;
       if v_object.status = 'verified' then
         perform public.managed_storage_mark_ready(v_object.id);
       end if;
-      v_matched_count := v_matched_count
-        + public.managed_storage_payload_path_occurrences(
-          v_host.payload, v_object.storage_path
-        );
+      v_matched_count := v_matched_count + 1;
       insert into public.managed_storage_json_references (
-        managed_object_id, assignment_doc_id, assignment_doc_history_id, test_id,
+        managed_object_id, storage_bucket, storage_path,
+        assignment_doc_id, assignment_doc_history_id, test_id,
         course_blueprint_assessment_id, course_blueprint_version_id,
         course_blueprint_change_proposal_id, reference_role, evidence_sha256
       ) values (
-        v_object.id,
+        v_object.id, v_object.storage_bucket, v_object.storage_path,
         case when v_host.host_type = 'assignment_docs' then v_host.host_id end,
         case when v_host.host_type = 'assignment_doc_history' then v_host.host_id end,
         case when v_host.host_type = 'tests' then v_host.host_id end,
@@ -1816,12 +2182,26 @@ begin
       select object.id from public.managed_storage_objects object
       where object.status in ('verified', 'ready')
         and object.provisional_owner_id is null
-        and strpos(coalesce(v_host.payload::text, ''), object.storage_path) > 0
-        and strpos(coalesce(v_host.payload::text, ''), object.storage_bucket) > 0
+        and exists (
+          select 1
+          from public.managed_storage_payload_raw_references(v_host.payload) reference
+          where reference.managed_object_id is null
+            and reference.storage_bucket = object.storage_bucket
+            and reference.storage_path = object.storage_path
+        )
         and (
           (v_host.classroom_id is not null and object.classroom_id = v_host.classroom_id)
           or (v_host.blueprint_id is not null
             and object.course_blueprint_id = v_host.blueprint_id)
+        )
+        and (
+          object.storage_bucket <> 'submission-images'
+          or (
+            v_host.assignment_doc_id is not null
+            and object.resource_type = 'assignment_doc'
+            and object.resource_id = v_host.assignment_doc_id
+            and object.data_subject_user_id = v_host.data_subject_user_id
+          )
         )
         and not exists (
           select 1 from public.managed_storage_payload_ids(v_host.payload) payload_id
@@ -1833,16 +2213,14 @@ begin
       if v_object.status = 'verified' then
         perform public.managed_storage_mark_ready(v_object.id);
       end if;
-      v_matched_count := v_matched_count
-        + public.managed_storage_payload_path_occurrences(
-          v_host.payload, v_object.storage_path
-        );
+      v_matched_count := v_matched_count + 1;
       insert into public.managed_storage_json_references (
-        managed_object_id, assignment_doc_id, assignment_doc_history_id, test_id,
+        managed_object_id, storage_bucket, storage_path,
+        assignment_doc_id, assignment_doc_history_id, test_id,
         course_blueprint_assessment_id, course_blueprint_version_id,
         course_blueprint_change_proposal_id, reference_role, evidence_sha256
       ) values (
-        v_object.id,
+        v_object.id, v_object.storage_bucket, v_object.storage_path,
         case when v_host.host_type = 'assignment_docs' then v_host.host_id end,
         case when v_host.host_type = 'assignment_doc_history' then v_host.host_id end,
         case when v_host.host_type = 'tests' then v_host.host_id end,
@@ -2367,6 +2745,10 @@ begin
   select * into v_object from public.managed_storage_objects
   where id = p_object_id for update;
   if not found then return false; end if;
+  if v_object.status = 'deleted' then return false; end if;
+  if v_object.status = 'cleanup_processing'
+    and v_object.lease_expires_at > clock_timestamp()
+  then return false; end if;
   perform public.managed_storage_exact_lock(v_object.storage_bucket, v_object.storage_path);
   if public.managed_storage_object_is_referenced(v_object.id) then return false; end if;
   update public.managed_storage_objects
@@ -2397,7 +2779,9 @@ begin
   then
     raise exception using errcode = '22023', message = 'managed_storage_cleanup_claim_invalid';
   end if;
-  perform public.lock_managed_storage_protocol();
+  if not public.lock_managed_storage_protocol() then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_requires_enforcement';
+  end if;
   update public.managed_storage_objects
   set status = 'cleanup_pending', cleanup_reason_code = coalesce(cleanup_reason_code, 'reservation_expired'),
       next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
@@ -2441,6 +2825,7 @@ begin
   select * into v_object from public.managed_storage_objects
   where id = p_object_id for update;
   if not found then return true; end if;
+  if v_object.status = 'deleted' then return true; end if;
   if v_object.status <> 'cleanup_processing' or v_object.lease_token <> p_lease_token then
     return false;
   end if;
@@ -2453,7 +2838,11 @@ begin
   then
     raise exception using errcode = '55000', message = 'managed_storage_cleanup_not_absent';
   end if;
-  delete from public.managed_storage_objects where id = v_object.id;
+  update public.managed_storage_objects
+  set status = 'deleted', deleted_at = clock_timestamp(),
+      lease_token = null, lease_expires_at = null,
+      reservation_expires_at = null, updated_at = clock_timestamp()
+  where id = v_object.id;
   return true;
 end;
 $$;
@@ -2481,6 +2870,181 @@ begin
   return found;
 end;
 $$;
+
+create or replace function public.sync_operational_managed_cleanup_lease()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_new jsonb := to_jsonb(new);
+  v_old jsonb := to_jsonb(old);
+  v_object public.managed_storage_objects;
+  v_object_id uuid;
+  v_bucket text;
+  v_path text;
+  v_error_code text;
+  v_enforced boolean;
+begin
+  v_enforced := public.lock_managed_storage_protocol();
+  if not v_enforced then return new; end if;
+  begin
+    v_object_id := nullif(v_new->>'managed_object_id', '')::uuid;
+  exception when invalid_text_representation then
+    raise exception using errcode = '22023', message = 'managed_storage_cleanup_identity_invalid';
+  end;
+  if v_object_id is null then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_identity_required';
+  end if;
+  v_bucket := coalesce(
+    nullif(v_new->>'storage_bucket', ''),
+    case tg_table_name
+      when 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'
+      when 'test_document_snapshot_storage_cleanup' then 'test-documents'
+    end
+  );
+  v_path := nullif(v_new->>'storage_path', '');
+  perform public.managed_storage_exact_lock(v_bucket, v_path);
+  select * into strict v_object from public.managed_storage_objects
+  where id = v_object_id and storage_bucket = v_bucket and storage_path = v_path
+  for update;
+
+  if v_new->>'status' = 'processing' then
+    if v_object.status = 'deleted' then return new; end if;
+    if public.managed_storage_object_is_referenced(v_object.id) then
+      raise exception using errcode = '55000', message = 'managed_storage_cleanup_referenced';
+    end if;
+    if v_object.status = 'cleanup_processing'
+      and v_object.lease_token is distinct from nullif(v_new->>'lease_token', '')::uuid
+      and v_object.lease_expires_at > clock_timestamp()
+    then
+      raise exception using errcode = '55000', message = 'managed_storage_cleanup_competing_claim';
+    end if;
+    update public.managed_storage_objects
+    set status = 'cleanup_processing',
+        lease_token = nullif(v_new->>'lease_token', '')::uuid,
+        lease_expires_at = nullif(v_new->>'lease_expires_at', '')::timestamptz,
+        attempt_count = attempt_count + case
+          when v_old->>'status' = 'processing' then 0 else 1 end,
+        updated_at = clock_timestamp()
+    where id = v_object.id;
+  elsif v_old->>'status' = 'processing' and v_new->>'status' in ('pending', 'failed') then
+    v_error_code := coalesce(
+      nullif(v_new->>'last_error_code', ''),
+      nullif(v_new->>'last_error', ''),
+      'operational_cleanup_failed'
+    );
+    update public.managed_storage_objects
+    set status = 'cleanup_pending', lease_token = null, lease_expires_at = null,
+        last_error_code = left(v_error_code, 80),
+        next_attempt_at = coalesce(
+          nullif(v_new->>'next_attempt_at', '')::timestamptz,
+          clock_timestamp()
+        ),
+        updated_at = clock_timestamp()
+    where id = v_object.id and status = 'cleanup_processing'
+      and lease_token = nullif(v_old->>'lease_token', '')::uuid;
+  elsif v_old->>'status' = 'processing' and v_new->>'status' = 'deleted' then
+    if exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_bucket and object.name = v_path
+    ) then
+      raise exception using errcode = '55000', message = 'managed_storage_cleanup_not_absent';
+    end if;
+    update public.managed_storage_objects
+    set status = 'deleted', deleted_at = clock_timestamp(),
+        lease_token = null, lease_expires_at = null,
+        reservation_expires_at = null, updated_at = clock_timestamp()
+    where id = v_object.id and (
+      status = 'deleted'
+      or (status = 'cleanup_processing'
+        and lease_token = nullif(v_old->>'lease_token', '')::uuid)
+    );
+    if not found then
+      raise exception using errcode = '55000', message = 'managed_storage_cleanup_lease_lost';
+    end if;
+  end if;
+  return new;
+exception when no_data_found then
+  raise exception using errcode = '55000', message = 'managed_storage_cleanup_identity_mismatch';
+end;
+$$;
+
+create trigger assignment_artifact_managed_cleanup_lease
+before update of status, lease_token, lease_expires_at
+on public.assignment_artifact_storage_cleanup
+for each row execute function public.sync_operational_managed_cleanup_lease();
+create trigger test_document_managed_cleanup_lease
+before update of status, lease_token, lease_expires_at
+on public.test_document_snapshot_storage_cleanup
+for each row execute function public.sync_operational_managed_cleanup_lease();
+create trigger archive_upload_managed_cleanup_lease
+before update of status, lease_token, lease_expires_at
+on public.classroom_archive_object_upload_cleanup
+for each row execute function public.sync_operational_managed_cleanup_lease();
+create trigger archive_source_managed_cleanup_lease
+before update of status, lease_token, lease_expires_at
+on public.classroom_archive_source_object_cleanup
+for each row execute function public.sync_operational_managed_cleanup_lease();
+create trigger gradex_managed_cleanup_lease
+before update of status, lease_token, lease_expires_at
+on public.classroom_gradex_extract_cleanup
+for each row execute function public.sync_operational_managed_cleanup_lease();
+
+create or replace function public.complete_deleted_operational_managed_cleanup()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_old jsonb := to_jsonb(old);
+  v_object_id uuid;
+  v_bucket text;
+  v_path text;
+begin
+  if v_old->>'status' <> 'processing' then return old; end if;
+  if not public.lock_managed_storage_protocol() then return old; end if;
+  v_object_id := nullif(v_old->>'managed_object_id', '')::uuid;
+  if v_object_id is null then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_identity_required';
+  end if;
+  v_bucket := case tg_table_name
+    when 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'
+    when 'test_document_snapshot_storage_cleanup' then 'test-documents'
+  end;
+  v_path := v_old->>'storage_path';
+  perform public.managed_storage_exact_lock(v_bucket, v_path);
+  if exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_bucket and object.name = v_path
+  ) then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_not_absent';
+  end if;
+  update public.managed_storage_objects
+  set status = 'deleted', deleted_at = coalesce(deleted_at, clock_timestamp()),
+      lease_token = null, lease_expires_at = null,
+      reservation_expires_at = null, updated_at = clock_timestamp()
+  where id = v_object_id and storage_bucket = v_bucket and storage_path = v_path
+    and (
+      status = 'deleted'
+      or (status = 'cleanup_processing'
+        and lease_token = nullif(v_old->>'lease_token', '')::uuid)
+    );
+  if not found then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_lease_lost';
+  end if;
+  return old;
+end;
+$$;
+
+create trigger assignment_artifact_managed_cleanup_complete
+before delete on public.assignment_artifact_storage_cleanup
+for each row execute function public.complete_deleted_operational_managed_cleanup();
+create trigger test_document_managed_cleanup_complete
+before delete on public.test_document_snapshot_storage_cleanup
+for each row execute function public.complete_deleted_operational_managed_cleanup();
 
 create or replace function public.activate_managed_storage_enforcement(
   p_generation bigint,
