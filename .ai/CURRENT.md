@@ -1,13 +1,9 @@
-Focus: draft PR #963 redesigns hot archived classroom deletion around explicit,
-single-scope managed-file ownership. The current stabilization binds the typed
-confirmation to the exact classroom revision and managed-file digest, restores
-purpose-aware student upload authorization, counts all affected student actors,
-authorizes ownership before reading purge fences, derives readiness from the
-complete database-owned file inventory, and enforces a named purge canary by
-exact teacher and classroom in PostgreSQL. Migration 117's source has changed
-since the last authorized local replay and has not been replayed again.
-Every persistent rollout gate remains disabled, PR #963 remains draft, and
-production remains through 116.
+Focus: draft PR #963 uses explicit, single-scope managed-file ownership for hot
+archived classroom deletion. Confirmation is revision/inventory-bound; readiness
+uses the complete database inventory; and PostgreSQL enforces an exact canary
+teacher/classroom. Migration 117 has changed since its last authorized local
+replay and has not been replayed again. All gates remain off, the PR remains
+draft, and production remains through 116.
 
 ## Current Context
 

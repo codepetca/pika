@@ -211,7 +211,10 @@ begin
     'public.verify_classroom_managed_storage_coverage(uuid,uuid,bigint,integer,text)'
   ) is not null then
     execute
-      'select public.verify_classroom_managed_storage_coverage($1, $2, $3, $4, $5)'
+      'select public.verify_classroom_managed_storage_coverage(
+         $1, $2, $3, inventory.reference_count, inventory.inventory_sha256
+       )
+       from public.compute_classroom_managed_storage_inventory($2) inventory'
     using
       v_teacher_id,
       v_success_classroom_id,
@@ -219,9 +222,7 @@ begin
         select revision
         from public.classroom_archive_revisions
         where classroom_id = v_success_classroom_id
-      ),
-      1,
-      repeat('7', 64);
+      );
   end if;
 
   v_result := public.begin_classroom_archive_export_v2(
@@ -1434,9 +1435,12 @@ select public.verify_classroom_managed_storage_coverage(
     from public.classroom_archive_revisions
     where classroom_id = :'classroom_id'::uuid
   ),
-  1,
-  repeat('a', 64)
-);
+  inventory.reference_count,
+  inventory.inventory_sha256
+)
+from public.compute_classroom_managed_storage_inventory(
+  :'classroom_id'::uuid
+) inventory;
 select set_config('pika.classroom_archive_compaction', 'on', true);
 select set_config('pika.classroom_archive_compaction_dry_run', 'on', true);
 select set_config(

@@ -311,17 +311,28 @@ async function createFixture(args: {
   if (revisionResponse.error || !sourceRevision.success) {
     throw new Error('Fixture archive revision is unavailable')
   }
-  const inventorySha256 = sha256Bytes(Buffer.from(JSON.stringify([
-    ['assignment-artifacts', args.sourceObjectPath],
-  ])))
+  const evidenceResponse = await args.supabase.rpc(
+    'read_classroom_managed_storage_inventory_evidence',
+    {
+      p_teacher_id: args.ids.teacher,
+      p_classroom_id: args.ids.classrooms,
+    },
+  )
+  const evidence = z.object({
+    reference_count: z.number().int().nonnegative(),
+    inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).safeParse(evidenceResponse.data)
+  if (evidenceResponse.error || !evidence.success) {
+    throw new Error('Fixture managed inventory evidence is unavailable')
+  }
   const coverageResponse = await args.supabase.rpc(
     'verify_classroom_managed_storage_coverage',
     {
       p_teacher_id: args.ids.teacher,
       p_classroom_id: args.ids.classrooms,
       p_source_revision: sourceRevision.data,
-      p_reference_count: 1,
-      p_inventory_sha256: inventorySha256,
+      p_reference_count: evidence.data.reference_count,
+      p_inventory_sha256: evidence.data.inventory_sha256,
     },
   )
   if (coverageResponse.error) {
