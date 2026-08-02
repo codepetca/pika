@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-24 — AI-readiness CLI probe, course-import fix, repo tidy
-
-**Completed:**
-- Explored making Pika "AI-ready"; built a delete-able CLI probe (`pnpm pika`, branch `cli-probe`) that drives teacher operations headlessly via the existing role-gated API — no server changes. Logs in through `POST /api/auth/login`, persists the session cookie to `.auth/` (gitignored), and reuses the shared markdown contracts so a script produces exactly what the UI does. Commands: `login`, `whoami`, `test pull/push`, `course list/push/instantiate`; writes are dry-run unless `--yes`. Added `scripts/pika-cli-smoke.ts` (`pnpm smoke:pika-cli`) whose pull→push→pull round-trip is a drift detector. Pushed the branch to start a usage trial; not a merge candidate.
-- The probe surfaced a real bug on first use: importing a course package containing tests/lesson-plans failed with `400 assessments.N: Unrecognized key: "id"`, affecting both the JSON API and the UI's tar upload. Root cause: markdown parsers attach `id: existingMatch?.id` (undefined on fresh import), which zod 4 rejects on `.strict()` schemas; assignments were normalized but assessments and lesson templates were passed raw. Fixed by normalizing all three consistently in `buildCreateBlueprintWritePlan`, with regression tests at the write-plan layer (the existing route test mocks the function, so it could not catch this). Merged as PR #932.
-- Fixed `scripts/repo-tidy.sh` to classify worktrees by PR state (reusing the existing `PR_MAP`) instead of remote presence, since squash-merge + delete-on-merge makes "not on remote" the normal state of merged work — the old logic inverted the risk signal (33 of 44 flagged items were already merged). Merged as PR #934.
-- Repo hygiene: reduced worktrees from 48 to 6 (removed 42 merged/closed-PR worktrees and local branches, remotes preserved for recovery), deleted one merged remote branch, and closed stale PR #567.
-
-**Validation:**
-- Full `pnpm test` (413 files, 3688 tests) on the #932 fix; regression tests confirmed to fail without the patch with the exact production error.
-- End-to-end via the CLI against fixed `main`: `course push` with `tests.md` imports, `course instantiate` creates a classroom, and both quizzes materialize as real tests — the exact case that failed pre-fix.
-- `pnpm smoke:pika-cli --full` passes; typecheck and `pnpm check:architecture` clean on both PRs.
-
 ## 2026-07-24 — Aligned Claude workflow guidance
 
 **Risk profile:** none
@@ -1536,3 +1523,26 @@ zero-downtime rollout
 - Push the stabilization to draft PR #963 and require clean exact-head ephemeral migration replay.
 - Run one targeted independent security/migration review, then a final integration review if clean.
 - Do not apply migration 117 or enable deletion without separate fresh authorization.
+
+## 2026-08-02 — Closed readiness and canary rollout gaps
+
+**Risk profile:** migration, production rollout scope, irreversible deletion readiness
+
+**Completed:**
+- Changed readiness verification to obtain the complete canonical classroom-managed inventory from
+  PostgreSQL after legacy adoption, including archive, Gradex, and interrupted-cleanup objects.
+- Made the verification transaction independently recompute and compare both the full object count
+  and digest while allowing only states that are stable for purge.
+- Added a distinct, default-off canary gate bound to one exact teacher UUID and classroom UUID;
+  begin, worker claim, finalization, and application eligibility all enforce that same scope.
+- Extended the destructive ephemeral fixture to exercise readiness execute/resume with operational
+  files and prove a different classroom owner cannot begin purge while only the canary is enabled.
+
+**Validation:**
+- Focused suite: 5 files / 61 tests; full test suite, TypeScript, lint, production build, Pika audit,
+  and `git diff --check` pass.
+- Migration 117 was not applied or replayed persistently. No rollout gate or deployment changed.
+
+**Remaining:**
+- Push to draft PR #963 and require exact-head ephemeral migration/type/database/UX CI.
+- Do not apply migration 117 or enable any purge gate without separate fresh authorization.

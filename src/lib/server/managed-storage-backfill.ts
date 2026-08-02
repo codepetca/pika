@@ -11,6 +11,11 @@ type BackfillClient = {
   ): PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
 }
 
+const managedStorageInventoryEvidenceSchema = z.object({
+  reference_count: z.number().int().nonnegative(),
+  inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict()
+
 export type ManagedStorageBackfillCandidate = {
   bucket: 'assignment-artifacts' | 'submission-images' | 'test-documents'
   path: string
@@ -332,7 +337,6 @@ async function backfillClassroomManagedStorage(input: {
     )
   }
   const candidates = collectManagedStorageBackfillCandidates(input)
-  const adopted: Array<{ bucket: string; path: string; objectId: string }> = []
 
   for (const candidate of candidates) {
     const { data, error } = await input.supabase.rpc(
@@ -363,7 +367,6 @@ async function backfillClassroomManagedStorage(input: {
       )
     }
     const object = managedStorageObjectSchema.parse(data)
-    adopted.push({ bucket: candidate.bucket, path: candidate.path, objectId: object.id })
 
     if (candidate.testDocument) {
       const attachment = await input.supabase.rpc(
@@ -397,17 +400,33 @@ async function backfillClassroomManagedStorage(input: {
       'Classroom changed while its legacy file ownership was being inventoried',
     )
   }
-  const inventorySha256 = createHash('sha256')
-    .update(JSON.stringify(adopted.map(({ bucket, path }) => [bucket, path])))
-    .digest('hex')
+  // Migration 117 may already own operational objects that do not appear in
+  // the relational archive graph (archives, Gradex extracts, or interrupted
+  // cleanup). Ask the database for the canonical complete inventory after all
+  // legacy references have been adopted, then bind verification to that exact
+  // evidence. The verification RPC recomputes it under the classroom lock.
+  const evidenceResult = await input.supabase.rpc(
+    'read_classroom_managed_storage_inventory_evidence',
+    {
+      p_teacher_id: input.teacherId,
+      p_classroom_id: input.classroomId,
+    },
+  )
+  if (evidenceResult.error) {
+    throw new ManagedStorageBackfillError(
+      evidenceResult.error.code || 'legacy_storage_inventory_read_failed',
+      evidenceResult.error.message || 'Managed classroom inventory could not be read',
+    )
+  }
+  const evidence = managedStorageInventoryEvidenceSchema.parse(evidenceResult.data)
   const verification = await input.supabase.rpc(
     'verify_classroom_managed_storage_coverage',
     {
       p_teacher_id: input.teacherId,
       p_classroom_id: input.classroomId,
       p_source_revision: revisionAfter,
-      p_reference_count: adopted.length,
-      p_inventory_sha256: inventorySha256,
+      p_reference_count: evidence.reference_count,
+      p_inventory_sha256: evidence.inventory_sha256,
     },
   )
   if (verification.error) {
@@ -419,8 +438,8 @@ async function backfillClassroomManagedStorage(input: {
   return {
     classroomId: input.classroomId,
     sourceRevision: revisionAfter,
-    objectCount: adopted.length,
-    inventorySha256,
+    objectCount: evidence.reference_count,
+    inventorySha256: evidence.inventory_sha256,
   }
 }
 

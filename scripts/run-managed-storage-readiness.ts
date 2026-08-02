@@ -178,13 +178,20 @@ async function readCoverage(supabase: SupabaseClient) {
 
 async function readSettings(supabase: SupabaseClient) {
   const response = await (supabase as any).from('managed_storage_settings')
-    .select('enforce_ownership,hot_classroom_purge_enabled')
+    .select(
+      'enforce_ownership,hot_classroom_purge_enabled,'
+      + 'hot_classroom_purge_canary_enabled,hot_classroom_purge_canary_teacher_id,'
+      + 'hot_classroom_purge_canary_classroom_id',
+    )
     .eq('singleton', true)
     .single()
   if (response.error) throw new Error(`Could not read managed storage settings: ${response.error.message}`)
   return z.object({
     enforce_ownership: z.boolean(),
     hot_classroom_purge_enabled: z.boolean(),
+    hot_classroom_purge_canary_enabled: z.boolean(),
+    hot_classroom_purge_canary_teacher_id: z.string().uuid().nullable(),
+    hot_classroom_purge_canary_classroom_id: z.string().uuid().nullable(),
   }).strict().parse(response.data)
 }
 
@@ -364,7 +371,11 @@ async function main() {
   }
 
   if (args.command !== 'report') {
-    if (settingsBefore.enforce_ownership || settingsBefore.hot_classroom_purge_enabled) {
+    if (
+      settingsBefore.enforce_ownership
+      || settingsBefore.hot_classroom_purge_enabled
+      || settingsBefore.hot_classroom_purge_canary_enabled
+    ) {
       throw new Error(
         'Backfill execution requires both managed storage rollout gates to remain false',
       )
@@ -472,7 +483,11 @@ async function main() {
   const settingsAfter = await readSettings(supabase)
   if (
     args.command !== 'report'
-    && (settingsAfter.enforce_ownership || settingsAfter.hot_classroom_purge_enabled)
+    && (
+      settingsAfter.enforce_ownership
+      || settingsAfter.hot_classroom_purge_enabled
+      || settingsAfter.hot_classroom_purge_canary_enabled
+    )
   ) {
     throw new Error('A managed storage rollout gate changed during backfill execution')
   }

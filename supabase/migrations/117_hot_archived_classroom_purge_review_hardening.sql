@@ -284,7 +284,21 @@ create table public.managed_storage_settings (
   singleton boolean primary key default true check (singleton),
   enforce_ownership boolean not null default false,
   hot_classroom_purge_enabled boolean not null default false,
-  updated_at timestamptz not null default clock_timestamp()
+  hot_classroom_purge_canary_enabled boolean not null default false,
+  hot_classroom_purge_canary_teacher_id uuid,
+  hot_classroom_purge_canary_classroom_id uuid,
+  updated_at timestamptz not null default clock_timestamp(),
+  check (
+    (hot_classroom_purge_canary_teacher_id is null)
+      = (hot_classroom_purge_canary_classroom_id is null)
+  ),
+  check (
+    not hot_classroom_purge_canary_enabled
+    or (
+      hot_classroom_purge_canary_teacher_id is not null
+      and hot_classroom_purge_canary_classroom_id is not null
+    )
+  )
 );
 
 insert into public.managed_storage_settings (singleton)
@@ -296,7 +310,7 @@ revoke all on table public.managed_storage_settings from public, anon, authentic
 grant select on table public.managed_storage_settings to service_role;
 
 comment on table public.managed_storage_settings is
-  'Operator-controlled rollout gates. Both values default false; migration application cannot enable purge.';
+  'Operator-controlled rollout gates. General release and the exact teacher/classroom canary default false; migration application cannot enable purge.';
 
 create table public.managed_storage_objects (
   id uuid primary key default gen_random_uuid(),
@@ -1357,6 +1371,73 @@ alter table public.course_blueprint_storage_copy_items enable row level security
 revoke all on table public.course_blueprint_storage_copy_items from public, anon, authenticated;
 grant select on table public.course_blueprint_storage_copy_items to service_role;
 
+create or replace function public.compute_classroom_managed_storage_inventory(
+  p_classroom_id uuid
+)
+returns table (
+  reference_count integer,
+  inventory_sha256 text,
+  unsettled_object_count integer
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    count(*)::integer,
+    encode(
+      extensions.digest(
+        convert_to(
+          coalesce(
+            jsonb_agg(
+              jsonb_build_array(object.storage_bucket, object.storage_path)
+              order by object.storage_bucket, object.storage_path
+            )::text,
+            '[]'
+          ),
+          'UTF8'
+        ),
+        'sha256'
+      ),
+      'hex'
+    ),
+    count(*) filter (
+      where object.status not in ('ready', 'cleanup_pending', 'pending_upload')
+    )::integer
+  from public.managed_storage_objects object
+  where object.classroom_id = p_classroom_id;
+$$;
+
+create or replace function public.read_classroom_managed_storage_inventory_evidence(
+  p_teacher_id uuid,
+  p_classroom_id uuid
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_inventory record;
+begin
+  if not exists (
+    select 1 from public.classrooms classroom
+    where classroom.id = p_classroom_id
+      and classroom.teacher_id = p_teacher_id
+  ) then
+    raise exception 'classroom_not_found' using errcode = 'P0002';
+  end if;
+  select * into v_inventory
+  from public.compute_classroom_managed_storage_inventory(p_classroom_id);
+  return jsonb_build_object(
+    'reference_count', v_inventory.reference_count,
+    'inventory_sha256', v_inventory.inventory_sha256
+  );
+end;
+$$;
+
 create or replace function public.refresh_classroom_managed_storage_coverage(
   p_classroom_id uuid
 )
@@ -1378,27 +1459,9 @@ begin
     return;
   end if;
 
-  select
-    count(*)::integer,
-    encode(
-      extensions.digest(
-        convert_to(
-          coalesce(
-            jsonb_agg(
-              jsonb_build_array(object.storage_bucket, object.storage_path)
-              order by object.storage_bucket, object.storage_path
-            )::text,
-            '[]'
-          ),
-          'UTF8'
-        ),
-        'sha256'
-      ),
-      'hex'
-    )
+  select inventory.reference_count, inventory.inventory_sha256
   into v_count, v_inventory_sha256
-  from public.managed_storage_objects object
-  where object.classroom_id = p_classroom_id;
+  from public.compute_classroom_managed_storage_inventory(p_classroom_id) inventory;
 
   update public.classroom_managed_storage_coverage
   set
@@ -4159,6 +4222,8 @@ declare
   v_coverage public.classroom_managed_storage_coverage;
   v_revision bigint;
   v_object_count integer;
+  v_inventory_sha256 text;
+  v_unsettled_object_count integer;
 begin
   if p_inventory_sha256 !~ '^[a-f0-9]{64}$' or p_reference_count < 0 then
     raise exception 'invalid_storage_coverage_evidence' using errcode = '22023';
@@ -4177,18 +4242,20 @@ begin
   if v_revision <> p_source_revision then
     raise exception 'classroom_storage_coverage_revision_drift' using errcode = '40001';
   end if;
-  if exists (
-    select 1 from public.managed_storage_objects object
-    where object.classroom_id = p_classroom_id
-      and object.status <> 'ready'
-  ) then
+  select
+    inventory.reference_count,
+    inventory.inventory_sha256,
+    inventory.unsettled_object_count
+  into v_object_count, v_inventory_sha256, v_unsettled_object_count
+  from public.compute_classroom_managed_storage_inventory(p_classroom_id) inventory;
+  if v_unsettled_object_count <> 0 then
     raise exception 'classroom_storage_coverage_has_unsettled_objects' using errcode = '55000';
   end if;
-  select count(*)::integer into v_object_count
-  from public.managed_storage_objects object
-  where object.classroom_id = p_classroom_id;
   if v_object_count <> p_reference_count then
     raise exception 'classroom_storage_coverage_count_mismatch' using errcode = '40001';
+  end if;
+  if v_inventory_sha256 is distinct from p_inventory_sha256 then
+    raise exception 'classroom_storage_coverage_digest_mismatch' using errcode = '40001';
   end if;
 
   update public.classroom_managed_storage_coverage
@@ -4198,7 +4265,7 @@ begin
     source_revision = p_source_revision,
     reference_count = p_reference_count,
     object_count = v_object_count,
-    inventory_sha256 = p_inventory_sha256,
+    inventory_sha256 = v_inventory_sha256,
     error_code = null,
     verified_at = clock_timestamp(),
     updated_at = clock_timestamp()
@@ -5070,6 +5137,9 @@ declare
   v_conflict text;
   v_enabled boolean;
   v_enforced boolean;
+  v_canary_enabled boolean;
+  v_canary_teacher_id uuid;
+  v_canary_classroom_id uuid;
   v_expected_source_revision bigint;
   v_expected_inventory_version bigint;
   v_expected_inventory_sha256 text;
@@ -5101,12 +5171,29 @@ begin
     (p_impact_summary->>'storage_inventory_version')::bigint;
   v_expected_inventory_sha256 := p_impact_summary->>'storage_inventory_sha256';
 
-  select hot_classroom_purge_enabled, enforce_ownership
-  into v_enabled, v_enforced
+  select
+    hot_classroom_purge_enabled,
+    enforce_ownership,
+    hot_classroom_purge_canary_enabled,
+    hot_classroom_purge_canary_teacher_id,
+    hot_classroom_purge_canary_classroom_id
+  into
+    v_enabled,
+    v_enforced,
+    v_canary_enabled,
+    v_canary_teacher_id,
+    v_canary_classroom_id
   from public.managed_storage_settings
   where singleton
   for share;
-  if not coalesce(v_enabled, false) then
+  if not (
+    coalesce(v_enabled, false)
+    or (
+      coalesce(v_canary_enabled, false)
+      and v_canary_teacher_id = p_teacher_id
+      and v_canary_classroom_id = p_classroom_id
+    )
+  ) then
     return jsonb_build_object(
       'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',
       'error', 'Permanent classroom deletion is not enabled'
@@ -5444,6 +5531,9 @@ declare
   v_classroom_id uuid;
   v_enabled boolean;
   v_enforced boolean;
+  v_canary_enabled boolean;
+  v_canary_teacher_id uuid;
+  v_canary_classroom_id uuid;
 begin
   if p_lease_seconds < 15 or p_lease_seconds > 300 then
     raise exception 'invalid_classroom_purge_lease' using errcode = '22023';
@@ -5451,12 +5541,24 @@ begin
   -- Disabling either rollout gate is the authoritative emergency stop for
   -- new destructive work. An already-issued lease may still record its
   -- deletion through complete_classroom_purge_object.
-  select hot_classroom_purge_enabled, enforce_ownership
-  into v_enabled, v_enforced
+  select
+    hot_classroom_purge_enabled,
+    enforce_ownership,
+    hot_classroom_purge_canary_enabled,
+    hot_classroom_purge_canary_teacher_id,
+    hot_classroom_purge_canary_classroom_id
+  into
+    v_enabled,
+    v_enforced,
+    v_canary_enabled,
+    v_canary_teacher_id,
+    v_canary_classroom_id
   from public.managed_storage_settings
   where singleton
   for share;
-  if not coalesce(v_enabled, false) or not coalesce(v_enforced, false) then
+  if not coalesce(v_enforced, false)
+    or not (coalesce(v_enabled, false) or coalesce(v_canary_enabled, false))
+  then
     return;
   end if;
 
@@ -5468,6 +5570,15 @@ begin
     and coalesce(operation.retryable, true);
   if not found then
     raise exception 'classroom_purge_operation_not_found' using errcode = 'P0002';
+  end if;
+  if not coalesce(v_enabled, false)
+    and not (
+      coalesce(v_canary_enabled, false)
+      and v_canary_teacher_id = p_teacher_id
+      and v_canary_classroom_id = v_classroom_id
+    )
+  then
+    return;
   end if;
   perform public.classroom_purge_lock(v_classroom_id);
   perform 1 from public.classrooms classroom
@@ -5723,12 +5834,25 @@ declare
   v_retryable boolean := true;
   v_enabled boolean;
   v_enforced boolean;
+  v_canary_enabled boolean;
+  v_canary_teacher_id uuid;
+  v_canary_classroom_id uuid;
 begin
   -- Settings-first lock ordering serializes operator rollback with both new
   -- leases and relational finalization. A gate UPDATE that commits first is
   -- observed here; an UPDATE that starts later waits for this transaction.
-  select hot_classroom_purge_enabled, enforce_ownership
-  into v_enabled, v_enforced
+  select
+    hot_classroom_purge_enabled,
+    enforce_ownership,
+    hot_classroom_purge_canary_enabled,
+    hot_classroom_purge_canary_teacher_id,
+    hot_classroom_purge_canary_classroom_id
+  into
+    v_enabled,
+    v_enforced,
+    v_canary_enabled,
+    v_canary_teacher_id,
+    v_canary_classroom_id
   from public.managed_storage_settings
   where singleton
   for share;
@@ -5782,7 +5906,14 @@ begin
   ) then
     raise exception 'classroom_purge_fence_missing' using errcode = '40001';
   end if;
-  if not coalesce(v_enabled, false) then
+  if not (
+    coalesce(v_enabled, false)
+    or (
+      coalesce(v_canary_enabled, false)
+      and v_canary_teacher_id = p_teacher_id
+      and v_canary_classroom_id = v_operation.classroom_id
+    )
+  ) then
     return jsonb_build_object(
       'ok', false, 'status', 503, 'error_code', 'classroom_purge_disabled',
       'error', 'Permanent classroom deletion is not enabled'
@@ -7032,6 +7163,10 @@ revoke all on function public.managed_storage_exact_lock(text, text)
   from public, anon, authenticated, service_role;
 revoke all on function public.refresh_classroom_managed_storage_coverage(uuid)
   from public, anon, authenticated, service_role;
+revoke all on function public.compute_classroom_managed_storage_inventory(uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.read_classroom_managed_storage_inventory_evidence(uuid, uuid)
+  from public, anon, authenticated;
 revoke all on function public.plan_course_blueprint_storage_copies()
   from public, anon, authenticated, service_role;
 revoke all on function public.claim_course_blueprint_storage_copy(uuid, uuid, uuid, integer)

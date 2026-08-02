@@ -35,6 +35,7 @@ describe('explicit managed-file ownership migration', () => {
   it('keeps rollout and purge disabled when the migration is merely installed', () => {
     expect(migration).toContain('enforce_ownership boolean not null default false')
     expect(migration).toContain('hot_classroom_purge_enabled boolean not null default false')
+    expect(migration).toContain('hot_classroom_purge_canary_enabled boolean not null default false')
     expect(migration).toContain("coverage.status = 'verified'")
     expect(migration).toContain("'error_code', 'classroom_purge_disabled'")
     expect(migration).toContain("'error_code', 'managed_storage_enforcement_required'")
@@ -634,6 +635,35 @@ describe('explicit managed-file ownership migration', () => {
     expect(finalizer).toContain(
       'public.managed_storage_identity_sha256(\n       storage_object.bucket_id,',
     )
+    for (const operation of [begin, claim, finalizer]) {
+      expect(operation).toContain('hot_classroom_purge_canary_teacher_id')
+      expect(operation).toContain('hot_classroom_purge_canary_classroom_id')
+      expect(operation).toContain('v_canary_teacher_id = p_teacher_id')
+    }
+    expect(begin).toContain('v_canary_classroom_id = p_classroom_id')
+    expect(claim).toContain('v_canary_classroom_id = v_classroom_id')
+    expect(finalizer).toContain('v_canary_classroom_id = v_operation.classroom_id')
+  })
+
+  it('derives readiness from the complete managed inventory including settled cleanup', () => {
+    const inventoryStart = migration.indexOf(
+      'create or replace function public.compute_classroom_managed_storage_inventory(',
+    )
+    const inventoryEnd = migration.indexOf('$$;', inventoryStart)
+    const inventory = migration.slice(inventoryStart, inventoryEnd)
+    const verifyStart = migration.indexOf(
+      'create or replace function public.verify_classroom_managed_storage_coverage(',
+    )
+    const verifyEnd = migration.indexOf('$$;', verifyStart)
+    const verify = migration.slice(verifyStart, verifyEnd)
+
+    expect(inventory).toContain("object.status not in ('ready', 'cleanup_pending', 'pending_upload')")
+    expect(inventory).toContain('jsonb_agg(')
+    expect(verify).toContain(
+      'from public.compute_classroom_managed_storage_inventory(p_classroom_id)',
+    )
+    expect(verify).toContain('v_inventory_sha256 is distinct from p_inventory_sha256')
+    expect(verify).toContain("raise exception 'classroom_storage_coverage_digest_mismatch'")
   })
 
   it('binds purge begin to the confirmed revision, digest, and monotonic inventory version', () => {

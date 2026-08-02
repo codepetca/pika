@@ -123,7 +123,8 @@ exists.
 
 No classroom is eligible for purge until readiness proves:
 
-- every current classroom reference resolves to a ready classroom-owned managed object;
+- every current classroom reference resolves to a classroom-owned managed object whose state is
+  stable for purge (`ready`, `cleanup_pending`, or a physically present interrupted upload);
 - every nonterminal archive, Gradex, restore, source-cleanup, and interrupted-upload ledger resolves
   to a managed object with the expected classroom ownership;
 - no classroom object is shared with another classroom or a Course Blueprint;
@@ -219,12 +220,18 @@ Rollout is staged:
 6. run concurrency, crash/retry, and exact-deletion fixtures;
 7. visually verify teacher/student and desktop/mobile boundaries;
 8. deploy with purge disabled;
-9. separately authorize a named production readiness pass and canary; and
+9. separately authorize a named production readiness pass and configure the database-enforced
+   canary teacher/classroom pair while the general purge gate remains off; and
 10. enable general hot purge only after canary evidence is reviewed.
 
 Turning gates off stops new work without deleting durable ledgers. No rollback process may recreate
 already deleted files. Production migration application, gate changes, worker activation, and a
 destructive canary each require fresh, separately scoped authorization.
+
+The canary gate is distinct from general release. It stores one exact teacher UUID and classroom
+UUID, and begin, claim, and finalize enforce both identifiers in the database. Enabling a canary
+therefore cannot expose permanent deletion to another owner or classroom; the global
+`hot_classroom_purge_enabled` gate remains false until canary evidence has been reviewed.
 
 ## 7. Acceptance Evidence
 

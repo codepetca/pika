@@ -1,5 +1,6 @@
 import { execFile, execFileSync } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { backfillAllClassroomManagedStorage } from '@/lib/server/managed-storage-backfill'
 import {
   getClassroomPurgeImpact,
   startClassroomPurge,
@@ -243,6 +244,9 @@ function setRolloutGateState(
     update public.managed_storage_settings
     set enforce_ownership = ${enforceValue},
         hot_classroom_purge_enabled = ${purgeValue},
+        hot_classroom_purge_canary_enabled = false,
+        hot_classroom_purge_canary_teacher_id = null,
+        hot_classroom_purge_canary_classroom_id = null,
         updated_at = clock_timestamp()
     where singleton;
     select enforce_ownership::text || ':' || hot_classroom_purge_enabled::text
@@ -251,6 +255,30 @@ function setRolloutGateState(
   assertFixture(
     result === `${enforceValue}:${purgeValue}`,
     'Fixture could not set the rollout gates exactly',
+  )
+}
+
+function setRolloutCanary(
+  databaseUrl: string,
+  teacherId: string,
+  classroomId: string,
+) {
+  const result = runSql(databaseUrl, `
+    update public.managed_storage_settings
+    set enforce_ownership = true,
+        hot_classroom_purge_enabled = false,
+        hot_classroom_purge_canary_enabled = true,
+        hot_classroom_purge_canary_teacher_id = '${teacherId}',
+        hot_classroom_purge_canary_classroom_id = '${classroomId}',
+        updated_at = clock_timestamp()
+    where singleton;
+    select hot_classroom_purge_canary_teacher_id::text || ':'
+      || hot_classroom_purge_canary_classroom_id::text
+    from public.managed_storage_settings where singleton;
+  `)
+  assertFixture(
+    result === `${teacherId}:${classroomId}`,
+    'Fixture could not scope the purge canary exactly',
   )
 }
 
@@ -327,6 +355,7 @@ async function main() {
   const otherTeacherId = randomUUID()
   const otherStudentId = randomUUID()
   const otherClassroomId = randomUUID()
+  const canaryExcludedClassroomId = randomUUID()
   const purgeOperationId = randomUUID()
   const competingPurgeOperationId = randomUUID()
   const assignmentId = randomUUID()
@@ -404,6 +433,13 @@ async function main() {
         title: `Purge authorization probe ${suffix}`,
         class_code: `PURGE-AUTH-${suffix}`,
       }))
+    dataOrThrow('insert canary exclusion classroom', await supabase.from('classrooms').insert({
+      id: canaryExcludedClassroomId,
+      teacher_id: otherTeacherId,
+      title: `Purge canary exclusion ${suffix}`,
+      class_code: `PURGE-CANARY-${suffix}`,
+      archived_at: nowIso,
+    }))
     dataOrThrow('insert fixture enrollment', await supabase.from('classroom_enrollments').insert({
       classroom_id: classroomId, student_id: student.id,
     }))
@@ -730,19 +766,6 @@ async function main() {
     const revision = dataOrThrow('read fixture classroom revision', await supabase
       .from('classroom_archive_revisions').select('revision')
       .eq('classroom_id', classroomId).single()).revision
-    const classroomObjects = managedObjects.filter((object) => object.owner === 'classroom')
-    const inventorySha256 = createHash('sha256')
-      .update(JSON.stringify(classroomObjects
-        .map((object) => [object.bucket, object.path])
-        .sort((left, right) => `${left[0]}/${left[1]}`.localeCompare(`${right[0]}/${right[1]}`))))
-      .digest('hex')
-    await rpc(supabase, 'verify_classroom_managed_storage_coverage', {
-      p_teacher_id: teacher.id,
-      p_classroom_id: classroomId,
-      p_source_revision: revision,
-      p_reference_count: classroomObjects.length,
-      p_inventory_sha256: inventorySha256,
-    })
 
     const operationalObjects: OperationalObject[] = [
       {
@@ -895,6 +918,53 @@ async function main() {
         .from(cleanupTable as any).insert(cleanupRow as any))
     }
 
+    runSql(databaseUrl, `
+      update public.classroom_managed_storage_coverage
+      set status = 'pending', source_revision = null,
+          reference_count = 0, object_count = 0,
+          inventory_sha256 = null, error_code = null,
+          verified_at = null, updated_at = clock_timestamp()
+      where classroom_id = '${classroomId}';
+    `)
+    const [executedReadiness] = await backfillAllClassroomManagedStorage({
+      inventoryScope: 'all_classrooms',
+      supabase: supabase as any,
+      supabaseUrl,
+      classrooms: [{
+        teacherId: teacher.id,
+        classroomId,
+        expectedSourceRevision: revision,
+        resources: {},
+      }],
+    })
+    assertFixture(
+      executedReadiness?.objectCount === 8,
+      'Readiness execute did not verify the complete operational inventory',
+    )
+    runSql(databaseUrl, `
+      update public.classroom_managed_storage_coverage
+      set status = 'pending', source_revision = null,
+          reference_count = 0, object_count = 0,
+          inventory_sha256 = null, error_code = 'fixture_resume',
+          verified_at = null, updated_at = clock_timestamp()
+      where classroom_id = '${classroomId}';
+    `)
+    const [resumedReadiness] = await backfillAllClassroomManagedStorage({
+      inventoryScope: 'all_classrooms',
+      supabase: supabase as any,
+      supabaseUrl,
+      classrooms: [{
+        teacherId: teacher.id,
+        classroomId,
+        expectedSourceRevision: revision,
+        resources: {},
+      }],
+    })
+    assertFixture(
+      resumedReadiness?.objectCount === 8,
+      'Readiness resume did not verify the complete operational inventory',
+    )
+
     const refreshedCoverage = dataOrThrow('read refreshed managed Storage coverage', await supabase
       .from('classroom_managed_storage_coverage')
       .select('status,reference_count,object_count')
@@ -907,7 +977,7 @@ async function main() {
       'Operational managed owners did not refresh verified classroom coverage',
     )
 
-    setRolloutGates(databaseUrl, true)
+    setRolloutCanary(databaseUrl, teacher.id, classroomId)
     const impact = await getClassroomPurgeImpact(teacher.id, classroomId)
     assertFixture(impact.managed_file_count === 8, 'Impact did not use exact owned and operational objects')
     assertFixture(impact.missing_file_count === 0, 'Impact reported missing classroom-owned bytes')
@@ -917,11 +987,34 @@ async function main() {
     assertFixture(impact.storage_counts['classroom-archives'] === 2, 'Archive inventory drift')
     assertFixture(impact.storage_counts['gradex-analytics-extracts'] === 2, 'Gradex inventory drift')
     assertFixture(impact.ownership_coverage_status === 'verified' && impact.deletion_available,
-      'Verified exact ownership did not enable the local purge')
+      'Verified exact ownership did not enable the exact local canary')
     assertFixture(
       impact.storage_inventory_sha256,
       'Verified purge impact did not include its managed-file inventory binding',
     )
+
+    const excludedImpact = await getClassroomPurgeImpact(
+      otherTeacherId,
+      canaryExcludedClassroomId,
+    )
+    assertFixture(
+      excludedImpact.deletion_available === false
+      && excludedImpact.unavailable_reason === 'Permanent classroom deletion is not enabled.',
+      'Named purge canary leaked application eligibility to another owner',
+    )
+    const excludedBegin = await rpc(supabase, 'begin_hot_archived_classroom_purge', {
+      p_operation_id: randomUUID(),
+      p_teacher_id: otherTeacherId,
+      p_classroom_id: canaryExcludedClassroomId,
+      p_request_sha256: '9'.repeat(64),
+      p_impact_summary: excludedImpact,
+    }) as { ok: boolean; error_code?: string }
+    assertFixture(
+      excludedBegin.ok === false && excludedBegin.error_code === 'classroom_purge_disabled',
+      'Database canary scope allowed another owner to begin irreversible deletion',
+    )
+
+    setRolloutGates(databaseUrl, true)
 
     await expectFailure(
       'other teacher impact read',
@@ -1349,6 +1442,7 @@ async function main() {
         where classroom_id = '${classroomId}' or course_blueprint_id = '${blueprintId}';
       delete from public.classrooms where id = '${classroomId}';
       delete from public.classrooms where id = '${otherClassroomId}';
+      delete from public.classrooms where id = '${canaryExcludedClassroomId}';
       delete from public.course_blueprints where id = '${blueprintId}';
       delete from public.users where id in ('${otherTeacherId}', '${otherStudentId}');
       commit;

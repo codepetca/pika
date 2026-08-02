@@ -98,6 +98,9 @@ const affectedUserRowSchema = z.object({
 const managedStorageSettingsSchema = z.object({
   enforce_ownership: z.boolean(),
   hot_classroom_purge_enabled: z.boolean(),
+  hot_classroom_purge_canary_enabled: z.boolean(),
+  hot_classroom_purge_canary_teacher_id: z.string().uuid().nullable(),
+  hot_classroom_purge_canary_classroom_id: z.string().uuid().nullable(),
 }).strict()
 
 type PurgeStorageBucket = z.infer<typeof purgeObjectSchema>['storage_bucket']
@@ -322,7 +325,11 @@ async function readStableInventory(
         .eq('classroom_id', classroomId),
       (supabase as any)
         .from('managed_storage_settings')
-        .select('enforce_ownership,hot_classroom_purge_enabled')
+        .select(
+          'enforce_ownership,hot_classroom_purge_enabled,'
+          + 'hot_classroom_purge_canary_enabled,hot_classroom_purge_canary_teacher_id,'
+          + 'hot_classroom_purge_canary_classroom_id',
+        )
         .eq('singleton', true)
         .single(),
     ])
@@ -346,6 +353,11 @@ async function readStableInventory(
       managedResult.data || [],
     )
     const settings = managedStorageSettingsSchema.parse(settingsResult.data)
+    const purgeGateAllowsClassroom = settings.hot_classroom_purge_enabled || (
+      settings.hot_classroom_purge_canary_enabled
+      && settings.hot_classroom_purge_canary_teacher_id === teacherId
+      && settings.hot_classroom_purge_canary_classroom_id === classroomId
+    )
     const objects = managedObjects.map((object) => ({
       bucket: object.storage_bucket as PurgeStorageBucket,
       path: object.storage_path,
@@ -449,13 +461,13 @@ async function readStableInventory(
       deletion_available:
         coverageAfter.status === 'verified'
         && settings.enforce_ownership
-        && settings.hot_classroom_purge_enabled
+        && purgeGateAllowsClassroom
         && conflict === null,
       unavailable_reason: coverageAfter.status !== 'verified'
         ? 'Classroom file ownership must be reconciled before deletion.'
         : !settings.enforce_ownership
           ? 'Managed file ownership enforcement is not enabled.'
-          : !settings.hot_classroom_purge_enabled
+          : !purgeGateAllowsClassroom
             ? 'Permanent classroom deletion is not enabled.'
             : conflict
               ? 'Finish the active classroom operation before deleting permanently.'

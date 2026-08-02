@@ -4061,18 +4061,27 @@ export type Database = {
       managed_storage_settings: {
         Row: {
           enforce_ownership: boolean
+          hot_classroom_purge_canary_classroom_id: string | null
+          hot_classroom_purge_canary_enabled: boolean
+          hot_classroom_purge_canary_teacher_id: string | null
           hot_classroom_purge_enabled: boolean
           singleton: boolean
           updated_at: string
         }
         Insert: {
           enforce_ownership?: boolean
+          hot_classroom_purge_canary_classroom_id?: string | null
+          hot_classroom_purge_canary_enabled?: boolean
+          hot_classroom_purge_canary_teacher_id?: string | null
           hot_classroom_purge_enabled?: boolean
           singleton?: boolean
           updated_at?: string
         }
         Update: {
           enforce_ownership?: boolean
+          hot_classroom_purge_canary_classroom_id?: string | null
+          hot_classroom_purge_canary_enabled?: boolean
+          hot_classroom_purge_canary_teacher_id?: string | null
           hot_classroom_purge_enabled?: boolean
           singleton?: boolean
           updated_at?: string
@@ -6381,6 +6390,14 @@ export type Database = {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
       }
+      compute_classroom_managed_storage_inventory: {
+        Args: { p_classroom_id: string }
+        Returns: {
+          inventory_sha256: string
+          reference_count: number
+          unsettled_object_count: number
+        }[]
+      }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {
         Args: { p_value: Json }
@@ -7018,6 +7035,10 @@ export type Database = {
           p_storage_path: string
         }
         Returns: boolean
+      }
+      read_classroom_managed_storage_inventory_evidence: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
       }
       record_pal_daily_log_week_configuration_atomic: {
         Args: {

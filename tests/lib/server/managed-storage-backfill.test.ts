@@ -116,7 +116,7 @@ describe('managed storage legacy backfill', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('registers and attaches teacher material before verifying coverage', async () => {
+  it('registers relational material but verifies the complete database-owned inventory', async () => {
     const objectId = '80000000-0000-4000-8000-000000000008'
     const calls: string[] = []
     const rpc = vi.fn(async (name: string) => {
@@ -147,6 +147,15 @@ describe('managed storage legacy backfill', () => {
             created_at: '2026-07-31T12:00:00.000Z',
             ready_at: '2026-07-31T12:00:00.000Z',
             updated_at: '2026-07-31T12:00:00.000Z',
+          },
+          error: null,
+        }
+      }
+      if (name === 'read_classroom_managed_storage_inventory_evidence') {
+        return {
+          data: {
+            reference_count: 4,
+            inventory_sha256: 'a'.repeat(64),
           },
           error: null,
         }
@@ -184,8 +193,16 @@ describe('managed storage legacy backfill', () => {
     expect(calls).toEqual([
       'register_legacy_classroom_storage_object',
       'attach_legacy_test_document_managed_object',
+      'read_classroom_managed_storage_inventory_evidence',
       'verify_classroom_managed_storage_coverage',
     ])
+    expect(rpc).toHaveBeenLastCalledWith(
+      'verify_classroom_managed_storage_coverage',
+      expect.objectContaining({
+        p_reference_count: 4,
+        p_inventory_sha256: 'a'.repeat(64),
+      }),
+    )
   })
 
   it('rejects all-class revision drift before the first ownership write', async () => {
