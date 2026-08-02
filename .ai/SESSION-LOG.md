@@ -1544,6 +1544,8 @@ zero-downtime rollout
   by tests: yes; remaining manual follow-up: none.
 - Migration 117 was edited but not applied or replayed. No local, staging, or production database,
   rollout gate, or deployment state changed.
+- Exact-head ephemeral CI replayed migration 117 successfully and identified only the expected new
+  internal RPC signature in generated types; the checked-in generated type was synchronized.
 
 **Remaining:**
 - Push this single remediation batch to draft PR #963 and require clean exact-head ephemeral

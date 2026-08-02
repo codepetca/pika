@@ -7740,6 +7740,10 @@ export type Database = {
         Args: { p_storage_path: string }
         Returns: boolean
       }
+      unresolved_legacy_managed_cleanup_exists: {
+        Args: never
+        Returns: boolean
+      }
       unsubmit_assignment_doc_atomic: {
         Args: { p_assignment_id: string; p_student_id: string }
         Returns: Json
