@@ -1486,6 +1486,9 @@ zero-downtime rollout
 - Updated archive, compaction, and Gradex database contracts to reserve/upload/adopt operational
   objects; compaction source cleanup now delegates physical deletion through a managed lease before
   completing its durable archive cleanup evidence.
+- Rebuilt the compaction concurrency fixture around a real guarded hot-to-cold ownership transition;
+  its race assertion accepts either permanent-reservation rejection or the retryable nonblocking
+  lifecycle fence, and its teardown now runs transactionally in dependency order.
 
 **Validation:**
 - Local migration history and generated types match migrations 001–117; seed completed.
@@ -1498,6 +1501,7 @@ zero-downtime rollout
   corrected migration function loaded inside a rollback-only transaction.
 - Archive lifecycle, compaction/managed source cleanup, and Gradex SQL contracts pass with the
   revised migration functions loaded inside rollback-only transactions.
+- The full post-rollback compaction concurrency contract passes and leaves zero fixture rows.
 - Focused migration suite: 3 files / 51 tests; shell syntax and PostgreSQL SQLFluff parsing pass.
 - Focused suite: 5 files / 88 tests; TypeScript, lint, architecture boundaries, Pika audit, and
   `git diff --check` pass.

@@ -1195,6 +1195,22 @@ cleanup_race_fixture() {
     -v storage_path="$RACE_PATH" \
     -v storage_race_path="$RACE_STORAGE_PATH" \
     -v staging_race_path="$RACE_STAGING_PATH" >/dev/null <<'SQL'
+begin;
+select set_config('pika.classroom_purge_finalize', 'on', true);
+insert into public.classrooms (id, teacher_id, title, class_code, archived_at)
+select
+  tombstone.classroom_id,
+  tombstone.teacher_id,
+  tombstone.title,
+  'CMP028',
+  tombstone.archived_at
+from public.classroom_cold_tombstones tombstone
+where tombstone.classroom_id = :'classroom_id'::uuid
+  and exists (
+    select 1 from public.users where id = tombstone.teacher_id
+  )
+on conflict (id) do nothing;
+select set_config('pika.classroom_archive_restore', 'on', true);
 delete from public.classroom_cold_tombstones where classroom_id = :'classroom_id'::uuid;
 delete from public.classroom_archive_source_object_cleanup
 where operation_id in (:'operation_id'::uuid, :'staging_operation_id'::uuid);
@@ -1214,6 +1230,9 @@ where storage_bucket = 'assignment-artifacts'
       'assignment-artifacts', :'staging_race_path'
     )
   );
+delete from public.managed_storage_objects
+where id = '29000000-0000-4000-8000-000000000029'::uuid;
+delete from public.classrooms where id = :'classroom_id'::uuid;
 select 'delete from public.classroom_managed_storage_coverage
 where classroom_id = ''21000000-0000-4000-8000-000000000030''::uuid;'
 where to_regclass('public.classroom_managed_storage_coverage') is not null
@@ -1225,6 +1244,7 @@ where id in (
   '11000000-0000-4000-8000-000000000029'::uuid,
   '11000000-0000-4000-8000-000000000030'::uuid
 );
+commit;
 SQL
   rm -f "$RACE_OUTPUT"
 }
@@ -1239,6 +1259,8 @@ docker exec -i "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STO
   -v storage_path="$RACE_PATH" \
   -v storage_race_path="$RACE_STORAGE_PATH" \
   -v staging_race_path="$RACE_STAGING_PATH" <<'SQL' >/dev/null
+begin;
+
 insert into public.users (id, email, role)
 values
   ('11000000-0000-4000-8000-000000000029', 'archive-race-teacher@example.test', 'teacher'),
@@ -1250,6 +1272,15 @@ values (
   '11000000-0000-4000-8000-000000000029',
   'Archive ownership race hot classroom',
   'CMP029'
+);
+
+insert into public.classrooms (id, teacher_id, title, class_code, archived_at)
+values (
+  :'classroom_id'::uuid,
+  '11000000-0000-4000-8000-000000000029',
+  'Archive ownership race cold source',
+  'CMP028',
+  clock_timestamp() - interval '3 minutes'
 );
 
 insert into public.assignments (id, classroom_id, title, description, due_at, created_by)
@@ -1289,13 +1320,42 @@ insert into public.classroom_archive_operations (
   :'operation_id'::uuid,
   '11000000-0000-4000-8000-000000000029'::uuid,
   :'classroom_id'::uuid,
-  'compact', repeat('1', 64), 'completed', 1, '096_race_fixture', 'fixture',
+  'compact', repeat('1', 64), 'snapshot_ready',
+  (
+    select revision
+    from public.classroom_archive_revisions
+    where classroom_id = :'classroom_id'::uuid
+  ),
+  '096_race_fixture', 'fixture',
   '{}'::jsonb, :'archive_id'::uuid, 'classroom-archives',
   'race/archive.tar.gz', repeat('2', 64), repeat('3', 64), 1, 1,
   '{}'::jsonb, clock_timestamp() - interval '2 minutes',
-  clock_timestamp() + interval '1 hour', clock_timestamp() - interval '1 minute',
-  clock_timestamp() - interval '1 minute'
+  clock_timestamp() + interval '1 hour', null, null
 );
+
+insert into public.managed_storage_objects (
+  id, storage_bucket, storage_path, classroom_id, purpose, status,
+  created_by_user_id, resource_type, resource_id, content_type,
+  byte_size, content_sha256, ready_at
+) values (
+  '29000000-0000-4000-8000-000000000029',
+  'classroom-archives',
+  'race/archive.tar.gz',
+  :'classroom_id'::uuid,
+  'classroom_archive',
+  'ready',
+  '11000000-0000-4000-8000-000000000029',
+  'classroom_archive_operation',
+  :'operation_id'::uuid,
+  'application/gzip',
+  1,
+  repeat('2', 64),
+  clock_timestamp()
+);
+
+update public.classroom_archive_operations
+set managed_object_id = '29000000-0000-4000-8000-000000000029'::uuid
+where id = :'operation_id'::uuid;
 insert into public.classroom_archive_operations (
   id, teacher_id, classroom_id, operation_type, request_sha256, status,
   source_revision, source_schema_migration, source_app_commit, retention,
@@ -1326,6 +1386,27 @@ insert into public.classroom_archives (
   1, 1, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb,
   clock_timestamp() - interval '2 minutes', clock_timestamp() - interval '1 minute'
 );
+
+select public.verify_classroom_managed_storage_coverage(
+  '11000000-0000-4000-8000-000000000029'::uuid,
+  :'classroom_id'::uuid,
+  (
+    select revision
+    from public.classroom_archive_revisions
+    where classroom_id = :'classroom_id'::uuid
+  ),
+  1,
+  repeat('a', 64)
+);
+select set_config('pika.classroom_archive_compaction', 'on', true);
+select set_config('pika.classroom_archive_compaction_dry_run', 'on', true);
+select set_config(
+  'pika.classroom_archive_compaction_operation_id',
+  :'operation_id',
+  true
+);
+delete from public.classrooms where id = :'classroom_id'::uuid;
+
 insert into public.classroom_cold_tombstones (
   classroom_id, teacher_id, archive_id, title, archived_at, compacted_at,
   source_revision
@@ -1333,8 +1414,18 @@ insert into public.classroom_cold_tombstones (
   :'classroom_id'::uuid,
   '11000000-0000-4000-8000-000000000029'::uuid,
   :'archive_id'::uuid, 'Race fixture', clock_timestamp() - interval '3 minutes',
-  clock_timestamp() - interval '1 minute', 1
+  clock_timestamp() - interval '1 minute',
+  (
+    select source_revision
+    from public.classroom_archive_operations
+    where id = :'operation_id'::uuid
+  )
 );
+update public.classroom_archive_operations
+set status = 'completed',
+    completed_at = clock_timestamp() - interval '1 minute',
+    source_object_cleanup_staged_at = clock_timestamp() - interval '1 minute'
+where id = :'operation_id'::uuid;
 insert into public.classroom_archive_source_object_cleanup (
   operation_id, archive_id, classroom_id, storage_bucket, storage_path,
   expected_sha256, expected_byte_size, status
@@ -1349,6 +1440,7 @@ insert into public.classroom_archive_source_object_cleanup (
   :'operation_id'::uuid, :'archive_id'::uuid, :'classroom_id'::uuid,
   'assignment-artifacts', :'staging_race_path', repeat('9', 64), 1, 'pending'
 );
+commit;
 SQL
 
 docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
@@ -1463,7 +1555,8 @@ wait "$RACE_VERIFIER_PID"
 RACE_STAGING_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_STAGING_OPERATION_ID'::uuid);")"
 if [[ "$RACE_STAGING_STATUS" -eq 0 ]] \
-  || [[ "$RACE_STAGING_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]]; then
+  || { [[ "$RACE_STAGING_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]] \
+    && [[ "$RACE_STAGING_OUTPUT" != *"classroom_operation_busy"* ]]; }; then
   printf '%s\n' "$RACE_STAGING_OUTPUT" >&2
   echo "Concurrent cleanup staging was not serialized behind the reservation." >&2
   exit 1
