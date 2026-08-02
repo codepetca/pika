@@ -3957,6 +3957,12 @@ begin
   where managed_object_id = p_object_id;
   delete from public.test_document_snapshot_storage_cleanup
   where managed_object_id = p_object_id;
+  update public.classroom_archive_source_object_cleanup cleanup
+  set next_attempt_at = clock_timestamp(),
+      updated_at = clock_timestamp()
+  where cleanup.managed_object_id = p_object_id
+    and cleanup.status = 'failed'
+    and cleanup.last_error_code = 'archive_source_managed_cleanup_pending';
   delete from public.managed_storage_objects
   where id = p_object_id
     and lease_token = p_lease_token;

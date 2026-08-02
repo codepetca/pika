@@ -1496,6 +1496,8 @@ zero-downtime rollout
   the guarded ownership race.
 - Corrected the schema audit to enforce cascade/index guarantees on each resource's declared scope
   edge instead of conflating secondary restore/integrity references with additional ownership.
+- Updated the recovery drill for the durable two-worker cleanup handoff: managed cleanup now wakes
+  the source ledger immediately, the drill verifies both passes, and teardown uses stable ownership.
 
 **Validation:**
 - Local migration history and generated types match migrations 001–117; seed completed.

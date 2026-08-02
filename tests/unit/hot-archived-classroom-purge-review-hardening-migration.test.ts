@@ -846,6 +846,10 @@ describe('explicit managed-file ownership migration', () => {
     expect(completion).toContain(
       'delete from public.test_document_snapshot_storage_cleanup',
     )
+    expect(completion).toContain(
+      "cleanup.last_error_code = 'archive_source_managed_cleanup_pending'",
+    )
+    expect(completion).toContain('set next_attempt_at = clock_timestamp()')
     expect(migration).toContain(
       'return not exists (\n    select 1 from public.assignment_artifact_storage_cleanup',
     )

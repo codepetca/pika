@@ -12,8 +12,10 @@ import { exportClassroomArchive } from '@/lib/server/classroom-archive-operation
 import { restoreClassroomArchive } from '@/lib/server/classroom-archive-restore-operations'
 import { classroomArchiveRestoreObjectPath } from '@/lib/server/classroom-archive-restore'
 import { runClassroomArchiveSourceCleanup } from '@/lib/server/classroom-archive-source-cleanup'
+import { runManagedStorageCleanup } from '@/lib/server/managed-storage-cleanup'
 import {
   adoptManagedStorageUpload,
+  queueManagedStorageCleanup,
   reserveManagedStorageUpload,
 } from '@/lib/server/managed-storage'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -351,27 +353,8 @@ async function removeFixture(args: {
     const response = await args.supabase.from(table).delete().in(column, values)
     if (response.error) failures.push(`table:${table}:${response.error.code}`)
   }
-  // Unregister fixture-owned objects before deleting their physical bytes so
-  // the Storage guard still rejects unreserved deletion in production paths.
-  await deleteRows('managed_storage_objects', 'classroom_id', [args.ids.classrooms])
-  await deleteRows('managed_storage_objects', 'cold_classroom_id', [args.ids.classrooms])
-  await deleteRows('classroom_managed_storage_coverage', 'classroom_id', [args.ids.classrooms])
-  await deleteRows(
-    'classroom_cold_managed_storage_coverage',
-    'classroom_id',
-    [args.ids.classrooms],
-  )
-
-  const removeObjects = async (bucket: string, paths: string[]) => {
-    const response = await args.supabase.storage.from(bucket).remove(paths)
-    if (response.error) failures.push(`storage:${bucket}`)
-  }
-  await removeObjects('assignment-artifacts', [args.sourceObjectPath, args.restoredObjectPath])
-  if (args.archiveObjectPath) {
-    await removeObjects('classroom-archives', [args.archiveObjectPath])
-  }
-
-  await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
+  // Release operational references before the managed worker removes the
+  // remaining archive/restored bytes and their exact ownership rows.
   await deleteRows(
     'classroom_archive_operations',
     'id',
@@ -379,6 +362,47 @@ async function removeFixture(args: {
   )
   await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
   await deleteRows('classroom_archive_operations', 'id', [args.ids.exportOperation])
+  const managedObjectsResponse = await args.supabase
+    .from('managed_storage_objects')
+    .select('id')
+    .eq('classroom_id', args.ids.classrooms)
+  if (managedObjectsResponse.error) {
+    failures.push(`table:managed_storage_objects:${managedObjectsResponse.error.code}`)
+  } else {
+    for (const object of managedObjectsResponse.data || []) {
+      try {
+        if (!await queueManagedStorageCleanup({
+          supabase: args.supabase,
+          objectId: z.string().uuid().parse(object.id),
+          errorCode: 'recovery_drill_teardown',
+        })) {
+          failures.push('managed-storage:queue')
+        }
+      } catch {
+        failures.push('managed-storage:queue')
+      }
+    }
+    process.env.MANAGED_STORAGE_CLEANUP_ENABLED = 'true'
+    try {
+      const cleanup = await runManagedStorageCleanup({ supabase: args.supabase, limit: 10 })
+      if (cleanup.failed !== 0 || cleanup.retry_recording_failed !== 0) {
+        failures.push('managed-storage:cleanup')
+      }
+    } catch {
+      failures.push('managed-storage:cleanup')
+    }
+  }
+  const remainingManagedObjects = await args.supabase
+    .from('managed_storage_objects')
+    .select('id')
+    .eq('classroom_id', args.ids.classrooms)
+    .limit(1)
+  if (remainingManagedObjects.error || (remainingManagedObjects.data?.length ?? 0) > 0) {
+    failures.push('leftover:managed_storage_objects')
+  }
+
+  await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
+  await deleteRows('classroom_managed_storage_coverage', 'classroom_id', [args.ids.classrooms])
   await deleteRows('classrooms', 'id', [args.ids.classrooms])
   const cleanupPaths = [...new Set([args.sourceObjectPath, args.restoredObjectPath])]
   await deleteRows('assignment_artifact_storage_cleanup', 'storage_path', cleanupPaths)
@@ -440,6 +464,14 @@ async function runRecoveryDrill() {
   })
   const ids = fixtureIds()
   const supabase = getServiceRoleClient()
+  const existingManagedWork = await supabase
+    .from('managed_storage_objects')
+    .select('id')
+    .neq('status', 'ready')
+    .limit(1)
+  if (existingManagedWork.error || (existingManagedWork.data?.length ?? 0) > 0) {
+    throw new Error('Recovery drill requires an isolated managed cleanup queue')
+  }
   const sourceObjectPath = `recovery-drill/${ids.classrooms}/evidence.png`
   const sourceObjectBytes = Buffer.from('pika synthetic classroom archive recovery evidence')
   const sourceObjectSha256 = sha256Bytes(sourceObjectBytes)
@@ -504,16 +536,42 @@ async function runRecoveryDrill() {
     }
 
     process.env.CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED = 'true'
-    const cleaned = await runClassroomArchiveSourceCleanup({
+    const queuedCleanup = await runClassroomArchiveSourceCleanup({
       supabase,
       leaseToken: ids.cleanupLease,
       operationId: ids.compactionOperation,
       limit: 10,
       leaseSeconds: 300,
     })
-    if (!cleaned.ok) operationFailure('Archive source cleanup', cleaned)
+    if (!queuedCleanup.ok) operationFailure('Archive source cleanup queue', queuedCleanup)
+    if (
+      queuedCleanup.claimed !== 1
+      || queuedCleanup.deleted !== 0
+      || queuedCleanup.failed !== 1
+      || queuedCleanup.results[0]?.error_code !== 'archive_source_managed_cleanup_pending'
+    ) {
+      throw new Error('Archive source cleanup did not durably hand off managed deletion')
+    }
+    process.env.MANAGED_STORAGE_CLEANUP_ENABLED = 'true'
+    const managedCleanup = await runManagedStorageCleanup({ supabase, limit: 10 })
+    if (
+      managedCleanup.claimed !== 1
+      || managedCleanup.deleted !== 1
+      || managedCleanup.failed !== 0
+      || managedCleanup.retry_recording_failed !== 0
+    ) {
+      throw new Error('Managed archive source cleanup did not delete exactly one object')
+    }
+    const cleaned = await runClassroomArchiveSourceCleanup({
+      supabase,
+      leaseToken: randomUUID(),
+      operationId: ids.compactionOperation,
+      limit: 10,
+      leaseSeconds: 300,
+    })
+    if (!cleaned.ok) operationFailure('Archive source cleanup completion', cleaned)
     if (cleaned.claimed !== 1 || cleaned.deleted !== 1 || cleaned.failed !== 0) {
-      throw new Error('Ownership-fenced archive source cleanup did not delete exactly one object')
+      throw new Error('Archive source cleanup did not finalize managed deletion evidence')
     }
     await assertStorageObjectAbsent(
       supabase,
