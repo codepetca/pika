@@ -168,6 +168,11 @@ async function assertRolloutGateUpdateBlocked(input: {
   applicationName: string
   destructiveSql: string
 }) {
+  const settingsBefore = runSql(input.databaseUrl, `
+    select to_jsonb(settings)::text
+    from public.managed_storage_settings settings
+    where singleton;
+  `)
   const updaterApplicationName = `${input.applicationName}_updater`
   const holder = runSqlAsync(input.databaseUrl, `
     begin;
@@ -226,9 +231,10 @@ async function assertRolloutGateUpdateBlocked(input: {
   )
   assertFixture(
     runSql(input.databaseUrl, `
-      select enforce_ownership::text || ':' || hot_classroom_purge_enabled::text
-      from public.managed_storage_settings where singleton;
-    `) === 'true:true',
+      select to_jsonb(settings)::text
+      from public.managed_storage_settings settings
+      where singleton;
+    `) === settingsBefore,
     `${input.applicationName} allowed a gate update to commit`,
   )
 }
@@ -1014,8 +1020,6 @@ async function main() {
       'Database canary scope allowed another owner to begin irreversible deletion',
     )
 
-    setRolloutGates(databaseUrl, true)
-
     await expectFailure(
       'other teacher impact read',
       () => getClassroomPurgeImpact(otherTeacherId, classroomId),
@@ -1191,7 +1195,7 @@ async function main() {
         `Disabled gate ${gate.errorCode} allowed purge progress`,
       )
     }
-    setRolloutGates(databaseUrl, true)
+    setRolloutCanary(databaseUrl, teacher.id, classroomId)
 
     // Complete one object in each operational bucket, then prove the permanent
     // hash reservation still rejects exact-key recreation after raw-path
@@ -1249,7 +1253,7 @@ async function main() {
           completedWhileDisabled === 'deleted:true:true',
           'Issued deletion lease was not durably completed and redacted after gate disable',
         )
-        setRolloutGates(databaseUrl, true)
+        setRolloutCanary(databaseUrl, teacher.id, classroomId)
       }
       const reservedOperationalWrite = await supabase.storage
         .from(operationalObject.bucket)
