@@ -71,7 +71,10 @@ describe('Pika Pal learner client', () => {
     expect(fetchImplementation).toHaveBeenNthCalledWith(
       2,
       'https://pal.example.test/api/v1/learner/snapshot',
-      expect.objectContaining({ signal: controller.signal }),
+      expect.objectContaining({
+        cache: 'no-store',
+        signal: controller.signal,
+      }),
     )
   })
 })

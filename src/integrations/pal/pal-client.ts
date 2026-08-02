@@ -69,9 +69,14 @@ export function createPikaPalClient(
     now?: () => number
   } = {},
 ): PalClient {
+  const fetchImplementation = options.fetchImplementation ?? fetch
+
   return createPalHttpClient({
     apiBaseUrl,
-    fetchImplementation: options.fetchImplementation,
+    fetchImplementation: (input, init) => fetchImplementation(input, {
+      ...init,
+      cache: 'no-store',
+    }),
     getAccessToken: (signal) => getPalReadToken(signal, options),
   })
 }

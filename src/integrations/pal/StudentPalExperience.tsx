@@ -109,7 +109,11 @@ export function StudentPalExperience({
       refreshIntervalMs={PAL_REFRESH_INTERVAL_MS}
     >
       {children}
-      {showAmbientSurfaces ? <StudentPalHostLayers /> : null}
+      {showAmbientSurfaces ? (
+        <PalFailureBoundary fallback={null} resetKey={`${scopeKey}:ambient`}>
+          <StudentPalHostLayers />
+        </PalFailureBoundary>
+      ) : null}
     </PalProvider>
   )
 }

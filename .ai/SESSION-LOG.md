@@ -1825,6 +1825,13 @@ concurrency, managed Storage ownership, and migration safety.
 - Final registry-installed smoke check confirmed the exact
   `@codepet/pal-widget@0.1.0-alpha.1` package renders the native roadmap and
   companion inside the existing Pika classroom shell without an iframe.
+- Exact-head security review confirmed Pal already responds with
+  `Cache-Control: no-store`; Pika now also forces `cache: 'no-store'` on every
+  authenticated widget request and covers that defense in depth with a client
+  regression test.
+- Exact-head architecture review narrowed failure boundaries to Pal-owned
+  roadmap and ambient surfaces, so Pika classroom exceptions continue through
+  Pika's normal error handling instead of being mislabeled as widget failures.
 
 **Remaining:**
 - Publish the Pika branch and confirm exact-head review and CI.

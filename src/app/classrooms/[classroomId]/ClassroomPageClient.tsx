@@ -20,7 +20,7 @@ import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
-import { PalFailureBoundary, StudentPalExperience } from '@/integrations/pal'
+import { StudentPalExperience } from '@/integrations/pal'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
@@ -274,6 +274,7 @@ export function ClassroomPageClient({
           updateSearchParams={updateSearchParams}
           onClassroomUpdated={handleClassroomUpdated}
           palEnabled={palAvailable}
+          palScopeKey={palScopeKey}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -281,18 +282,13 @@ export function ClassroomPageClient({
 
   if (palAvailable) {
     return (
-      <PalFailureBoundary
-        fallback={classroomPage}
-        resetKey={palScopeKey}
+      <StudentPalExperience
+        apiBaseUrl={palApiUrl}
+        scopeKey={palScopeKey}
+        showAmbientSurfaces={activeTab !== 'tests'}
       >
-        <StudentPalExperience
-          apiBaseUrl={palApiUrl}
-          scopeKey={palScopeKey}
-          showAmbientSurfaces={activeTab !== 'tests'}
-        >
-          {classroomPage}
-        </StudentPalExperience>
-      </PalFailureBoundary>
+        {classroomPage}
+      </StudentPalExperience>
     )
   }
 
@@ -440,6 +436,7 @@ function ClassroomPageContent({
   updateSearchParams,
   onClassroomUpdated,
   palEnabled,
+  palScopeKey,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -450,6 +447,7 @@ function ClassroomPageContent({
   updateSearchParams: UpdateSearchParamsFn
   onClassroomUpdated: (classroom: Classroom) => void
   palEnabled: boolean
+  palScopeKey: string | null
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1423,7 +1421,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.achievements && (
                     <TabContentTransition isActive={activeTab === 'achievements'}>
-                      <StudentAchievementsTab />
+                      <StudentAchievementsTab scopeKey={palScopeKey ?? 'unavailable'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.assignments && (

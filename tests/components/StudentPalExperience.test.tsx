@@ -77,7 +77,7 @@ describe('StudentPalExperience', () => {
     renderExperience({
       getSnapshot: async () => snapshot,
       markRewardSeen: async () => undefined,
-    }, <StudentAchievementsTab />)
+    }, <StudentAchievementsTab scopeKey="opaque-session-a" />)
 
     expect(await screen.findByRole('heading', { name: 'Your achievement path' })).toBeVisible()
     expect(screen.getByText(snapshot.companion.name)).toBeVisible()
@@ -125,7 +125,7 @@ describe('StudentPalExperience', () => {
     renderExperience({
       getSnapshot: async () => { throw new Error('Pal unavailable') },
       markRewardSeen: async () => undefined,
-    }, <><div>Academic work remains available</div><StudentAchievementsTab /></>)
+    }, <><div>Academic work remains available</div><StudentAchievementsTab scopeKey="opaque-session-a" /></>)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Achievements are temporarily unavailable',
@@ -173,7 +173,7 @@ describe('StudentPalExperience', () => {
     expect(screen.getByText('Learner B companion')).toBeVisible()
   })
 
-  it('contains a synchronous Pal render failure outside the classroom shell', () => {
+  it('contains a synchronous Pal surface failure without enclosing the classroom shell', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const suppressExpectedWindowError = (event: ErrorEvent) => event.preventDefault()
     window.addEventListener('error', suppressExpectedWindowError)
@@ -188,18 +188,39 @@ describe('StudentPalExperience', () => {
 
     render(
       <ThemeProvider>
-        <PalFailureBoundary
-          fallback={<div>Academic classroom fallback</div>}
-          resetKey="session-a"
-        >
-          <StudentPalExperience apiBaseUrl="https://pal.example.test" scopeKey="session-a">
+        <StudentPalExperience apiBaseUrl="https://pal.example.test" scopeKey="session-a">
+          <div>Academic work remains available</div>
+          <PalFailureBoundary
+            fallback={<div>Pal surface unavailable</div>}
+            resetKey="session-a:surface"
+          >
             <ThrowingPalSurface />
-          </StudentPalExperience>
-        </PalFailureBoundary>
+          </PalFailureBoundary>
+        </StudentPalExperience>
       </ThemeProvider>,
     )
 
-    expect(screen.getByText('Academic classroom fallback')).toBeVisible()
+    expect(screen.getByText('Academic work remains available')).toBeVisible()
+    expect(screen.getByText('Pal surface unavailable')).toBeVisible()
+    window.removeEventListener('error', suppressExpectedWindowError)
+    consoleError.mockRestore()
+  })
+
+  it('does not misclassify a Pika classroom exception as a Pal failure', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const suppressExpectedWindowError = (event: ErrorEvent) => event.preventDefault()
+    window.addEventListener('error', suppressExpectedWindowError)
+    const client: PalClient = {
+      getSnapshot: async () => createFixtureSnapshot(),
+      markRewardSeen: async () => undefined,
+    }
+    function ThrowingPikaShell(): ReactNode {
+      throw new Error('Pika classroom failed')
+    }
+
+    expect(() => renderExperience(client, <ThrowingPikaShell />)).toThrow(
+      'Pika classroom failed',
+    )
     window.removeEventListener('error', suppressExpectedWindowError)
     consoleError.mockRestore()
   })
