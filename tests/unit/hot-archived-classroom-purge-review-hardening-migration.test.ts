@@ -849,6 +849,8 @@ describe('explicit managed-file ownership migration', () => {
     expect(completion).toContain(
       "cleanup.last_error_code = 'archive_source_managed_cleanup_pending'",
     )
+    expect(completion).toContain('cleanup.storage_bucket = v_object.storage_bucket')
+    expect(completion).toContain('cleanup.storage_path = v_object.storage_path')
     expect(completion).toContain('set next_attempt_at = clock_timestamp()')
     expect(migration).toContain(
       'return not exists (\n    select 1 from public.assignment_artifact_storage_cleanup',
