@@ -16253,3 +16253,34 @@ future persistence shape without enabling unapproved schema behavior.
 - Full `pnpm test` (413 files, 3688 tests) on the #932 fix; regression tests confirmed to fail without the patch with the exact production error.
 - End-to-end via the CLI against fixed `main`: `course push` with `tests.md` imports, `course instantiate` creates a classroom, and both quizzes materialize as real tests — the exact case that failed pre-fix.
 - `pnpm smoke:pika-cli --full` passes; typecheck and `pnpm check:architecture` clean on both PRs.
+
+<!-- pika-session-log-archive-batch:92012ff2bb7f286dd75e2d215c38b2be7ad69d2fee50b8018aff4ef261531e19 -->
+## 2026-07-24 — Aligned Claude workflow guidance
+
+**Risk profile:** none
+
+**Completed:**
+- Aligned the Claude session-start and workflow-reset commands with the
+  canonical startup and worktree guidance.
+- Simplified the Claude issue helper to route worktree setup through
+  `docs/dev-workflow.md` instead of hardcoding one named-worktree layout.
+- Added semantic prompt invariants covering both Claude and Codex startup,
+  workflow-reset, and issue-helper surfaces.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts` passes: 31 tests.
+
+**Remaining:**
+- None.
+- `pnpm run db:types:check`
+- Pika changed-file audit and composite-widget accessibility checklist
+- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
+- Component keyboard regression for document focus entry/return and semantic region assertions
+- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
+- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
+- `git diff --check`
+
+**Remaining:**
+- Require targeted security review, final integration review, exact-head CI, and protected merge.
+- Apply migration 105 to each deployment target before deploying the updated sync route.
+- Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.

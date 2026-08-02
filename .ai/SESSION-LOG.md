@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-24 — Aligned Claude workflow guidance
-
-**Risk profile:** none
-
-**Completed:**
-- Aligned the Claude session-start and workflow-reset commands with the
-  canonical startup and worktree guidance.
-- Simplified the Claude issue helper to route worktree setup through
-  `docs/dev-workflow.md` instead of hardcoding one named-worktree layout.
-- Added semantic prompt invariants covering both Claude and Codex startup,
-  workflow-reset, and issue-helper surfaces.
-
-**Validation:**
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts` passes: 31 tests.
-
-**Remaining:**
-- None.
-- `pnpm run db:types:check`
-- Pika changed-file audit and composite-widget accessibility checklist
-- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
-- Component keyboard regression for document focus entry/return and semantic region assertions
-- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
-- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
-- `git diff --check`
-
-**Remaining:**
-- Require targeted security review, final integration review, exact-head CI, and protected merge.
-- Apply migration 105 to each deployment target before deploying the updated sync route.
-- Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.
-
 ## 2026-07-24 — Remediated test-preview review findings
 
 **Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
@@ -1546,3 +1516,36 @@ zero-downtime rollout
 **Remaining:**
 - Push to draft PR #963 and require exact-head ephemeral migration/type/database/UX CI.
 - Do not apply migration 117 or enable any purge gate without separate fresh authorization.
+
+## 2026-08-02 — Closed legacy-cleanup and interrupted-upload review findings
+
+**Risk profile:** migration, irreversible deletion, managed Storage readiness, destructive UX
+
+**Completed:**
+- Made every ownerless legacy assignment-artifact or test-snapshot cleanup row a redacted global
+  readiness finding and a database-enforced purge conflict instead of inferring ownership from its
+  raw path.
+- Restricted legacy cleanup attachment to exact classroom-owned managed objects and reject new
+  ownerless compatibility-ledger writes once managed ownership enforcement is enabled. The trigger
+  holds a shared settings lock so a pre-enforcement write cannot cross the gate transition unseen.
+- Added destructive fixture coverage proving stale readiness evidence cannot bypass the database
+  conflict, including a two-session delayed-writer/enforcement transition, and verified stale
+  ownerless rows can be explicitly reconciled before purge.
+- Added a stable interrupted-upload count to the purge impact API and confirmation dialog, including
+  pending uploads and failed archive/Gradex operations without mislabelling scheduled cleanup.
+- Updated the ownership contract and teacher/student visual matrix for the new disclosure.
+
+**Validation:**
+- Full verification passes: 468 files / 4,090 tests, lint, TypeScript, production build,
+  architecture checker, Pika audit, and `git diff --check`.
+- Playwright purge matrix passes 10/10 and screenshots were inspected for teacher/student,
+  desktop/mobile, and light/dark boundaries.
+- Composite-widget checklist reviewed: yes; keyboard behavior covered: yes; semantic state covered
+  by tests: yes; remaining manual follow-up: none.
+- Migration 117 was edited but not applied or replayed. No local, staging, or production database,
+  rollout gate, or deployment state changed.
+
+**Remaining:**
+- Push this single remediation batch to draft PR #963 and require clean exact-head ephemeral
+  migration replay plus destructive database fixture before considering rollout.
+- Do not apply migration 117 or enable deletion without separate fresh authorization.

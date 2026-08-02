@@ -772,13 +772,46 @@ update public.assignment_artifact_storage_cleanup cleanup
 set managed_object_id = object.id
 from public.managed_storage_objects object
 where object.storage_bucket = 'assignment-artifacts'
-  and object.storage_path = cleanup.storage_path;
+  and object.storage_path = cleanup.storage_path
+  and object.classroom_id is not null;
 
 update public.test_document_snapshot_storage_cleanup cleanup
 set managed_object_id = object.id
 from public.managed_storage_objects object
 where object.storage_bucket = 'test-documents'
-  and object.storage_path = cleanup.storage_path;
+  and object.storage_path = cleanup.storage_path
+  and object.classroom_id is not null;
+
+-- An ownerless compatibility cleanup row cannot be assigned to a Classroom
+-- safely from its path. Keep it visible as global unresolved evidence until an
+-- operator reconciles or removes the row after verifying exact byte absence.
+create or replace function public.unresolved_legacy_managed_cleanup_exists()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.assignment_artifact_storage_cleanup cleanup
+    left join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+      and object.storage_bucket = 'assignment-artifacts'
+      and object.storage_path = cleanup.storage_path
+      and object.classroom_id is not null
+    where object.id is null
+  ) or exists (
+    select 1
+    from public.test_document_snapshot_storage_cleanup cleanup
+    left join public.managed_storage_objects object
+      on object.id = cleanup.managed_object_id
+      and object.storage_bucket = 'test-documents'
+      and object.storage_path = cleanup.storage_path
+      and object.classroom_id is not null
+    where object.id is null
+  );
+$$;
 
 -- These two pre-managed cleanup ledgers remain compatibility evidence only.
 -- Resolve their exact managed owner on every write and participate in the
@@ -797,6 +830,7 @@ declare
   end;
   v_exact_object_id uuid;
   v_classroom_id uuid;
+  v_enforce boolean;
 begin
   if current_setting('pika.classroom_purge_finalize', true) = 'on' then
     return case when tg_op = 'DELETE' then old else new end;
@@ -810,13 +844,24 @@ begin
     into v_exact_object_id
     from public.managed_storage_objects object
     where object.storage_bucket = v_bucket
-      and object.storage_path = new.storage_path;
+      and object.storage_path = new.storage_path
+      and object.classroom_id is not null;
     if new.managed_object_id is not null
       and new.managed_object_id is distinct from v_exact_object_id
     then
       raise exception 'managed_cleanup_owner_mismatch' using errcode = '23503';
     end if;
     new.managed_object_id := v_exact_object_id;
+    if new.managed_object_id is null then
+      select settings.enforce_ownership
+      into v_enforce
+      from public.managed_storage_settings settings
+      where settings.singleton
+      for share;
+      if coalesce(v_enforce, false) then
+        raise exception 'managed_cleanup_owner_required' using errcode = '55000';
+      end if;
+    end if;
   end if;
 
   for v_classroom_id in
@@ -5001,6 +5046,10 @@ stable
 set search_path = public
 as $$
 begin
+  if public.unresolved_legacy_managed_cleanup_exists() then
+    return 'managed_storage_legacy_cleanup_unresolved';
+  end if;
+
   if exists (
     select 1 from public.classroom_archive_operations operation
     where operation.classroom_id = p_classroom_id
@@ -7300,6 +7349,8 @@ revoke all on function public.guard_managed_storage_identity_immutable()
   from public, anon, authenticated, service_role;
 revoke all on function public.prepare_legacy_managed_cleanup_ledger_change()
   from public, anon, authenticated, service_role;
+revoke all on function public.unresolved_legacy_managed_cleanup_exists()
+  from public, anon, authenticated;
 revoke all on function public.prepare_immutable_operational_managed_owner()
   from public, anon, authenticated, service_role;
 
@@ -7369,6 +7420,8 @@ grant execute on function public.sync_test_document_snapshot_managed_atomic(
   uuid, uuid, text, text, uuid, text, text, timestamptz
 ) to service_role;
 grant execute on function public.finalize_hot_archived_classroom_purge(uuid, uuid)
+  to service_role;
+grant execute on function public.unresolved_legacy_managed_cleanup_exists()
   to service_role;
 grant execute on function public.plan_legacy_blueprint_classroom_storage_reconciliation(
   uuid, uuid, uuid, uuid, uuid, uuid, text, text, text, text, jsonb, jsonb, jsonb

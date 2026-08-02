@@ -147,9 +147,16 @@ export function analyzeGlobalManagedStorage(input: {
     managedObjectId: string | null
     versionId: string | null
   }>
+  legacyCleanupLedgers?: Array<StorageIdentity & {
+    ledger: string
+    managedObjectId: string | null
+  }>
 }) {
   const physical = new Map(input.physical.map((value) => [identityKey(value), value]))
   const registered = new Map(input.registered.map((value) => [identityKey(value), value]))
+  const registeredById = new Map(input.registered
+    .filter((value) => value.id)
+    .map((value) => [value.id!, value]))
   const discoveredBlueprints = input.discoveredBlueprints || []
   const discoveredOwners = new Map<string, Set<string>>()
   for (const value of input.discovered) {
@@ -225,6 +232,15 @@ export function analyzeGlobalManagedStorage(input: {
     && value.classroomScopeState != null
     && !['hot', 'cold'].includes(value.classroomScopeState)
   ))
+  const unresolvedLegacyCleanupLedgers = (input.legacyCleanupLedgers || []).filter((value) => {
+    const owner = value.managedObjectId
+      ? registeredById.get(value.managedObjectId)
+      : undefined
+    return !owner
+      || owner.classroomId == null
+      || owner.bucket !== value.bucket
+      || owner.path !== value.path
+  })
   return {
     shared,
     classroomBlueprintShared,
@@ -238,6 +254,7 @@ export function analyzeGlobalManagedStorage(input: {
     registeredMissing,
     operationalOwnershipRequired,
     invalidClassroomScopes,
+    unresolvedLegacyCleanupLedgers,
   }
 }
 
@@ -303,6 +320,10 @@ export function redactManagedStorageFindings(input: ReturnType<
       classroom_id: value.classroomId,
       scope_state: value.classroomScopeState,
     })),
+    unresolvedLegacyCleanupLedgers: input.unresolvedLegacyCleanupLedgers.map((value) => ({
+      ...pathFingerprint(value),
+      ledger: value.ledger,
+    })),
   }
 }
 
@@ -321,9 +342,22 @@ export function readManagedStorageCatalog(
     managedObjectId: string | null
     ledger: string
   }>
+  legacyCleanupLedgers: Array<StorageIdentity & {
+    managedObjectId: string | null
+    ledger: string
+  }>
 } {
   const sql = `
-    with operational as (
+    with legacy_cleanup as (
+      select 'assignment_artifact_storage_cleanup'::text ledger,
+        'assignment-artifacts'::text bucket, cleanup.storage_path path,
+        cleanup.managed_object_id
+      from public.assignment_artifact_storage_cleanup cleanup
+      union all
+      select 'test_document_snapshot_storage_cleanup',
+        'test-documents', cleanup.storage_path, cleanup.managed_object_id
+      from public.test_document_snapshot_storage_cleanup cleanup
+    ), operational as (
       select 'classroom_archives'::text ledger, archive.classroom_id,
         archive.storage_bucket bucket, archive.storage_path path,
         archive.managed_object_id
@@ -407,6 +441,13 @@ export function readManagedStorageCatalog(
           'bucket', bucket, 'path', path, 'managedObjectId', managed_object_id
         ) order by ledger, classroom_id, bucket, path)
         from operational
+      ), '[]'::jsonb),
+      'legacyCleanupLedgers', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'ledger', ledger, 'bucket', bucket, 'path', path,
+          'managedObjectId', managed_object_id
+        ) order by ledger, bucket, path)
+        from legacy_cleanup
       ), '[]'::jsonb)
     );
   `
@@ -426,6 +467,10 @@ export function readManagedStorageCatalog(
     operational: z.array(z.object({
       ledger: z.string(), classroomId: z.string().uuid(),
       bucket: z.string(), path: z.string(), managedObjectId: z.string().uuid().nullable(),
+    })),
+    legacyCleanupLedgers: z.array(z.object({
+      ledger: z.string(), bucket: z.string(), path: z.string(),
+      managedObjectId: z.string().uuid().nullable(),
     })),
   }).parse(JSON.parse(output))
 }

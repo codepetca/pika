@@ -79,6 +79,7 @@ test.describe('classroom purge teacher experience matrix', () => {
             missing_file_count: 0,
             archive_count: 2,
             gradex_extract_count: 1,
+            interrupted_upload_count: 2,
             resource_counts: { classrooms: 1, classroom_roster: 24 },
             storage_counts: {
               'assignment-artifacts': 30,
@@ -87,6 +88,9 @@ test.describe('classroom purge teacher experience matrix', () => {
               'gradex-analytics-extracts': 1,
             },
             conflicting_operation: null,
+            ownership_coverage_status: 'verified',
+            deletion_available: true,
+            unavailable_reason: null,
           },
           operation: null,
         }),
@@ -106,6 +110,7 @@ test.describe('classroom purge teacher experience matrix', () => {
     await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
     await expect(dialog.getByText(/all student work, submissions, tests, grades/)).toBeVisible()
     await expect(dialog.getByText(/Course Blueprint and user accounts are kept/)).toBeVisible()
+    await expect(dialog.getByText(/2 interrupted uploads/)).toBeVisible()
     const deleteButton = dialog.getByRole('button', { name: 'Delete permanently' })
     await expect(deleteButton).toBeDisabled()
     await dialog.getByRole('textbox').fill('Archived Biology')

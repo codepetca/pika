@@ -81,6 +81,8 @@ const managedStorageObjectRowSchema = z.object({
     'classroom_archive',
     'gradex_extract',
   ]),
+  resource_type: z.string().min(1),
+  resource_id: z.string().uuid().nullable(),
 }).strict()
 
 const storageCoverageRowSchema = z.object({
@@ -101,6 +103,11 @@ const managedStorageSettingsSchema = z.object({
   hot_classroom_purge_canary_enabled: z.boolean(),
   hot_classroom_purge_canary_teacher_id: z.string().uuid().nullable(),
   hot_classroom_purge_canary_classroom_id: z.string().uuid().nullable(),
+}).strict()
+
+const archiveOperationImpactRowSchema = z.object({
+  id: z.string().uuid(),
+  status: z.string().min(1),
 }).strict()
 
 type PurgeStorageBucket = z.infer<typeof purgeObjectSchema>['storage_bucket']
@@ -173,6 +180,32 @@ export function countClassroomStudents(
     if (email && !studentEmails.has(email)) unmatchedRosterEmails.add(email)
   }
   return knownStudentIds.size + unmatchedRosterEmails.size
+}
+
+export function countInterruptedManagedUploads(
+  objects: Array<{
+    status: string
+    resource_type: string
+    resource_id: string | null
+  }>,
+  archiveOperations: Array<Record<string, unknown>>,
+): number {
+  const failedOperationIds = new Set(archiveOperations
+    .filter((operation) => operation.status === 'failed' && typeof operation.id === 'string')
+    .map((operation) => operation.id as string))
+  return objects.filter((object) => (
+    object.status === 'pending_upload'
+    || (
+      object.status !== 'ready'
+      && (
+        (object.resource_type === 'classroom_archive_operation'
+          && object.resource_id !== null
+          && failedOperationIds.has(object.resource_id))
+        || object.resource_type === 'classroom_archive_upload_cleanup'
+        || object.resource_type === 'classroom_gradex_extract_cleanup'
+      )
+    )
+  )).length
 }
 
 function collectAffectedUserIds(
@@ -318,10 +351,12 @@ async function readStableInventory(
         status: 'pending', inventory_version: 1, inventory_sha256: null,
       },
     )
-    const [managedResult, settingsResult] = await Promise.all([
+    const [managedResult, settingsResult, archiveOperationsResult] = await Promise.all([
       (supabase as any)
         .from('managed_storage_objects')
-        .select('id,storage_bucket,storage_path,byte_size,status,purpose')
+        .select(
+          'id,storage_bucket,storage_path,byte_size,status,purpose,resource_type,resource_id',
+        )
         .eq('classroom_id', classroomId),
       (supabase as any)
         .from('managed_storage_settings')
@@ -332,6 +367,10 @@ async function readStableInventory(
         )
         .eq('singleton', true)
         .single(),
+      (supabase as any)
+        .from('classroom_archive_operations')
+        .select('id,status')
+        .eq('classroom_id', classroomId),
     ])
     if (managedResult.error) {
       throw new ClassroomPurgeError(
@@ -349,8 +388,19 @@ async function readStableInventory(
         true,
       )
     }
+    if (archiveOperationsResult.error) {
+      throw new ClassroomPurgeError(
+        archiveOperationsResult.error.code || 'classroom_archive_inventory_failed',
+        'Could not inventory interrupted classroom uploads',
+        500,
+        true,
+      )
+    }
     const managedObjects = z.array(managedStorageObjectRowSchema).parse(
       managedResult.data || [],
+    )
+    const archiveOperations = z.array(archiveOperationImpactRowSchema).parse(
+      archiveOperationsResult.data || [],
     )
     const settings = managedStorageSettingsSchema.parse(settingsResult.data)
     const purgeGateAllowsClassroom = settings.hot_classroom_purge_enabled || (
@@ -454,6 +504,10 @@ async function readStableInventory(
           && object.purpose === 'gradex_extract'
           && object.status === 'ready',
       ).length,
+      interrupted_upload_count: countInterruptedManagedUploads(
+        managedObjects,
+        archiveOperations,
+      ),
       resource_counts: resourceCounts,
       storage_counts: storageCounts,
       conflicting_operation: conflict,

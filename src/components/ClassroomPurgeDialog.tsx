@@ -220,11 +220,16 @@ export function ClassroomPurgeDialog({
                   </p>
                 </div>
               </div>
-              {(impact.archive_count > 0 || impact.gradex_extract_count > 0) ? (
+              {(impact.archive_count > 0
+                || impact.gradex_extract_count > 0
+                || impact.interrupted_upload_count > 0) ? (
                 <p className="mt-2 text-xs text-text-muted">
                   Includes {impact.archive_count} classroom archive
                   {impact.archive_count === 1 ? '' : 's'} and {impact.gradex_extract_count} related
-                  Gradex extract{impact.gradex_extract_count === 1 ? '' : 's'}.
+                  Gradex extract{impact.gradex_extract_count === 1 ? '' : 's'}
+                  {impact.interrupted_upload_count > 0
+                    ? `, plus ${impact.interrupted_upload_count} interrupted upload${impact.interrupted_upload_count === 1 ? '' : 's'}`
+                    : ''}.
                 </p>
               ) : null}
             </div>

@@ -398,6 +398,11 @@ async function main() {
     if (analysisBefore.operationalOwnershipRequired.length > 0) {
       throw new Error('Operational storage ledgers must have exact managed classroom ownership')
     }
+    if (analysisBefore.unresolvedLegacyCleanupLedgers.length > 0) {
+      throw new Error(
+        'Legacy cleanup ledgers must have exact managed classroom ownership or be reconciled',
+      )
+    }
     if (analysisBefore.invalidClassroomScopes.length > 0) {
       throw new Error('Managed classroom objects must resolve to exactly one hot or cold lifecycle row')
     }
@@ -549,6 +554,8 @@ async function main() {
       redactedFindings.immutableBlueprintClassroomConflicts,
     registered_objects_missing_from_storage: redactedFindings.registeredMissing,
     operational_ownership_required: redactedFindings.operationalOwnershipRequired,
+    unresolved_legacy_cleanup_ledgers:
+      redactedFindings.unresolvedLegacyCleanupLedgers,
     invalid_classroom_scopes: redactedFindings.invalidClassroomScopes,
     rollout_gates: settingsAfter,
     gates_changed_by_command: false,
@@ -565,6 +572,7 @@ async function main() {
       && analysisAfter.immutableBlueprintClassroomConflicts.length === 0
       && analysisAfter.registeredMissing.length === 0
       && analysisAfter.operationalOwnershipRequired.length === 0
+      && analysisAfter.unresolvedLegacyCleanupLedgers.length === 0
       && analysisAfter.invalidClassroomScopes.length === 0,
   }
   if (args.json) {
@@ -583,6 +591,7 @@ async function main() {
       + `classroom and ${analysisAfter.missingBlueprint.length} Blueprint missing; `
       + `${analysisAfter.registeredMissing.length} registered-but-missing; `
       + `${analysisAfter.orphans.length} unowned Storage orphans; `
+      + `${analysisAfter.unresolvedLegacyCleanupLedgers.length} unresolved legacy cleanup rows; `
       + `${analysisAfter.invalidClassroomScopes.length} invalid classroom scopes.\n`,
     )
     for (const orphan of redactedFindings.orphans) {

@@ -115,7 +115,12 @@ rows retain a SHA-256 path fingerprint, not the raw path.
 Persistent owned objects have only two physical deletion authorities: the generic managed cleanup
 worker and a leased classroom purge object. Compatibility cleanup ledgers may finish once durable
 exact-object delegation commits. Ownerless historical cleanup evidence may finish only after
-authoritative absence; operational ledgers may retain their stricter completion evidence. The only
+authoritative absence. It is a global readiness and purge blocker because a raw path is not enough
+to infer a Classroom owner. Once ownership enforcement is enabled, compatibility-ledger writes
+without an exact classroom-owned managed object are rejected; deletion of verified stale evidence
+remains available for reconciliation. The compatibility trigger holds the settings row while
+accepting an ownerless pre-enforcement write, so the enforcement transition cannot overtake it.
+Operational ledgers may retain their stricter completion evidence. The only
 direct-delete exceptions are exact,
 durably reserved copy targets that have not yet been adopted by any classroom or Blueprint; those
 workflows may remove only their own provisional target and must fail closed once a managed owner
@@ -127,6 +132,8 @@ No classroom is eligible for purge until readiness proves:
   stable for purge (`ready`, `cleanup_pending`, or a physically present interrupted upload);
 - every nonterminal archive, Gradex, restore, source-cleanup, and interrupted-upload ledger resolves
   to a managed object with the expected classroom ownership;
+- every legacy assignment-artifact and test-snapshot cleanup row resolves by managed-object ID,
+  bucket, and path to a classroom-owned object;
 - no classroom object is shared with another classroom or a Course Blueprint;
 - Blueprint references resolve only to Blueprint-owned objects; and
 - the classroom resource revision and managed inventory digest remain stable across verification.

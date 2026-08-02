@@ -46,6 +46,7 @@ const impact = {
   missing_file_count: 0,
   archive_count: 1,
   gradex_extract_count: 0,
+  interrupted_upload_count: 1,
   resource_counts: { classrooms: 1 },
   storage_counts: { 'assignment-artifacts': 2, 'classroom-archives': 1 },
   conflicting_operation: null,

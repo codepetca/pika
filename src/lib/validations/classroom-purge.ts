@@ -21,6 +21,7 @@ export const classroomPurgeImpactSchema = z.object({
   missing_file_count: z.number().int().nonnegative(),
   archive_count: z.number().int().nonnegative(),
   gradex_extract_count: z.number().int().nonnegative(),
+  interrupted_upload_count: z.number().int().nonnegative(),
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
   storage_counts: z.record(z.string(), z.number().int().nonnegative()),
   conflicting_operation: z.string().min(1).nullable(),

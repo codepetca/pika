@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   countClassroomStudents,
+  countInterruptedManagedUploads,
   deleteClassroomPurgeStorageObject,
   isStableManagedInventoryCoverage,
 } from '@/lib/server/classroom-purge'
@@ -53,6 +54,25 @@ describe('classroom purge storage cleanup', () => {
       { status: 'verified', inventory_version: 9, inventory_sha256: digest },
       { status: 'verified', inventory_version: 9, inventory_sha256: digest },
     )).toBe(true)
+  })
+
+  it('counts pending and failed operational uploads without counting scheduled cleanup', () => {
+    expect(countInterruptedManagedUploads([{
+      status: 'pending_upload', resource_type: 'assignment_doc', resource_id: null,
+    }, {
+      status: 'cleanup_pending', resource_type: 'classroom_archive_operation',
+      resource_id: '10000000-0000-4000-8000-000000000001',
+    }, {
+      status: 'cleanup_pending', resource_type: 'classroom_archive_operation',
+      resource_id: '20000000-0000-4000-8000-000000000002',
+    }, {
+      status: 'cleanup_pending', resource_type: 'classroom_gradex_extract_cleanup',
+      resource_id: null,
+    }], [{
+      id: '10000000-0000-4000-8000-000000000001', status: 'failed',
+    }, {
+      id: '20000000-0000-4000-8000-000000000002', status: 'completed',
+    }])).toBe(3)
   })
 
   it('requests removal of the one exact leased object', async () => {

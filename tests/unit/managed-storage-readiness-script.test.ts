@@ -206,6 +206,47 @@ describe('managed storage readiness operator', () => {
       .not.toContain('archive/classroom.tar.gz')
   })
 
+  it('fails closed on ownerless legacy cleanup evidence without exposing its path', () => {
+    const classroomId = '10000000-0000-4000-8000-000000000001'
+    const managedObjectId = '20000000-0000-4000-8000-000000000002'
+    const path = 'private/teacher/interrupted-upload.pdf'
+    const base = {
+      physical: [],
+      registered: [{
+        id: managedObjectId,
+        bucket: 'assignment-artifacts',
+        path,
+        classroomId,
+        blueprintId: null,
+      }],
+      discovered: [],
+    }
+    const unresolved = analyzeGlobalManagedStorage({
+      ...base,
+      legacyCleanupLedgers: [{
+        ledger: 'assignment_artifact_storage_cleanup',
+        bucket: 'assignment-artifacts',
+        path,
+        managedObjectId: null,
+      }],
+    })
+    expect(unresolved.unresolvedLegacyCleanupLedgers).toHaveLength(1)
+    const redacted = JSON.stringify(redactManagedStorageFindings(unresolved))
+    expect(redacted).not.toContain(path)
+    expect(redacted).toContain('assignment_artifact_storage_cleanup')
+
+    const reconciled = analyzeGlobalManagedStorage({
+      ...base,
+      legacyCleanupLedgers: [{
+        ledger: 'assignment_artifact_storage_cleanup',
+        bucket: 'assignment-artifacts',
+        path,
+        managedObjectId,
+      }],
+    })
+    expect(reconciled.unresolvedLegacyCleanupLedgers).toEqual([])
+  })
+
   it('fails readiness when a stable classroom file scope has no lifecycle row or both rows', () => {
     const report = analyzeGlobalManagedStorage({
       physical: [

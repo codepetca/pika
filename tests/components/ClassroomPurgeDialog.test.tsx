@@ -26,6 +26,7 @@ describe('ClassroomPurgeDialog', () => {
           missing_file_count: 0,
           archive_count: 1,
           gradex_extract_count: 1,
+          interrupted_upload_count: 2,
           resource_counts: { classrooms: 1 },
           storage_counts: { 'submission-images': 1 },
           conflicting_operation: null,
@@ -51,6 +52,7 @@ describe('ClassroomPurgeDialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete classroom permanently?' })
     expect(dialog).toHaveTextContent('This cannot be undone.')
     expect(dialog).toHaveTextContent(/all student work, submissions, tests, grades/)
+    expect(dialog).toHaveTextContent(/2 interrupted uploads/)
     const confirm = screen.getByRole('textbox')
     const cancelButton = within(dialog).getByRole('button', { name: 'Cancel' })
     const deleteButton = within(dialog).getByRole('button', { name: 'Delete permanently' })

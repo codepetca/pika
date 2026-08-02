@@ -912,7 +912,16 @@ describe('explicit managed-file ownership migration', () => {
     expect(bridge).toContain("when 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'")
     expect(bridge).toContain("when 'test_document_snapshot_storage_cleanup' then 'test-documents'")
     expect(bridge).toContain('new.managed_object_id := v_exact_object_id')
+    expect(bridge).toContain('and object.classroom_id is not null')
+    expect(bridge).toContain("raise exception 'managed_cleanup_owner_required'")
+    expect(bridge).toContain('from public.managed_storage_settings settings')
+    expect(bridge).toContain('for share;')
     expect(bridge).toContain('perform public.guard_classroom_purge_lifecycle(v_classroom_id)')
+    expect(migration).toContain(
+      'create or replace function public.unresolved_legacy_managed_cleanup_exists()',
+    )
+    expect(conflict).toContain('public.unresolved_legacy_managed_cleanup_exists()')
+    expect(conflict).toContain("return 'managed_storage_legacy_cleanup_unresolved'")
     expect(conflict).toContain('from public.assignment_artifact_storage_cleanup cleanup')
     expect(conflict).toContain('from public.test_document_snapshot_storage_cleanup cleanup')
     expect(finalizer).toContain(

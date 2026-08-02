@@ -983,9 +983,78 @@ async function main() {
       'Operational managed owners did not refresh verified classroom coverage',
     )
 
+    const ownerlessArtifactCleanupPath = `purge-fixture/${fixtureId}/ownerless-artifact.bin`
+    const ownerlessTestCleanupPath = `purge-fixture/${fixtureId}/ownerless-test.bin`
+    const legacyCleanupWriterName = `legacy_cleanup_writer_${suffix}`
+    const ownershipEnablerName = `ownership_enabler_${suffix}`
+    const legacyCleanupWriter = runSqlAsync(databaseUrl, `
+      begin;
+      set local application_name = '${legacyCleanupWriterName}';
+      insert into public.assignment_artifact_storage_cleanup (storage_path)
+      values ('${ownerlessArtifactCleanupPath}');
+      insert into public.test_document_snapshot_storage_cleanup (storage_path)
+      values ('${ownerlessTestCleanupPath}');
+      select pg_sleep(2);
+      commit;
+    `)
+    const legacyCleanupWriterState = await waitForSqlSession(
+      databaseUrl,
+      legacyCleanupWriterName,
+      (state) => state.waitEventType === 'Timeout' && state.waitEvent === 'PgSleep',
+    )
+    const ownershipEnabler = runSqlAsync(databaseUrl, `
+      begin;
+      set local application_name = '${ownershipEnablerName}';
+      update public.managed_storage_settings
+      set enforce_ownership = true, updated_at = clock_timestamp()
+      where singleton;
+      commit;
+    `)
+    const ownershipEnablerState = await waitForSqlSession(
+      databaseUrl,
+      ownershipEnablerName,
+      (state) => state.waitEventType === 'Lock'
+        && state.blockingPids.includes(legacyCleanupWriterState.pid),
+    )
+    assertFixture(
+      ownershipEnablerState.blockingPids.includes(legacyCleanupWriterState.pid),
+      'Ownership enforcement did not wait for the pre-enforcement cleanup writer',
+    )
+    await legacyCleanupWriter
+    await ownershipEnabler
+    assertFixture(
+      runSql(databaseUrl, `
+        select enforce_ownership::text
+        from public.managed_storage_settings
+        where singleton;
+      `) === 'true',
+      'Ownership enforcement did not commit after the cleanup writer',
+    )
+
     setRolloutCanary(databaseUrl, teacher.id, classroomId)
+    const blockedImpact = await getClassroomPurgeImpact(teacher.id, classroomId)
+    assertFixture(
+      blockedImpact.conflicting_operation === 'managed_storage_legacy_cleanup_unresolved'
+      && blockedImpact.deletion_available === false,
+      'Ownerless legacy cleanup evidence did not block every purge fail closed',
+    )
+    expectSqlFailure(
+      databaseUrl,
+      'ownerless cleanup creation after ownership enforcement',
+      `insert into public.assignment_artifact_storage_cleanup (storage_path)
+       values ('purge-fixture/${fixtureId}/new-ownerless-artifact.bin');`,
+      'managed_cleanup_owner_required',
+    )
+    runSql(databaseUrl, `
+      delete from public.assignment_artifact_storage_cleanup
+      where storage_path = '${ownerlessArtifactCleanupPath}';
+      delete from public.test_document_snapshot_storage_cleanup
+      where storage_path = '${ownerlessTestCleanupPath}';
+    `)
+
     const impact = await getClassroomPurgeImpact(teacher.id, classroomId)
     assertFixture(impact.managed_file_count === 8, 'Impact did not use exact owned and operational objects')
+    assertFixture(impact.interrupted_upload_count === 2, 'Impact omitted interrupted uploads')
     assertFixture(impact.missing_file_count === 0, 'Impact reported missing classroom-owned bytes')
     assertFixture(impact.storage_counts['assignment-artifacts'] === 1, 'Artifact ownership drift')
     assertFixture(impact.storage_counts['submission-images'] === 1, 'Image ownership drift')
