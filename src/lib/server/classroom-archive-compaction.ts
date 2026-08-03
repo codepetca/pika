@@ -464,7 +464,9 @@ async function downloadAndVerifyArchive(args: {
   }
   return {
     restorePlan,
-    compactionResources: restorePlan.resources,
+    // The database rehearsal is rolled back and never uploads synthetic restore
+    // paths. Durable managed identities are exercised by the real restore flow.
+    compactionResources: compactionRehearsalResources(restorePlan.resources),
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
       storage_path: object.source_path,
@@ -493,6 +495,27 @@ function rowBatches(rows: ClassroomArchiveV2RestorePlan['resources'][string]) {
   }
   if (batch.length > 0) batches.push(batch)
   return batches
+}
+
+function stripRehearsalManagedStorageIdentities(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripRehearsalManagedStorageIdentities)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => ![
+      'managed_object_id',
+      'managed_object_ids',
+      'snapshot_managed_object_id',
+    ].includes(key))
+    .map(([key, item]) => [key, stripRehearsalManagedStorageIdentities(item)]))
+}
+
+function compactionRehearsalResources(
+  resources: ClassroomArchiveV2RestorePlan['resources'],
+): ClassroomArchiveV2RestorePlan['resources'] {
+  return Object.fromEntries(Object.entries(resources).map(([table, rows]) => [
+    table,
+    rows.map((row) => stripRehearsalManagedStorageIdentities(row)),
+  ])) as ClassroomArchiveV2RestorePlan['resources']
 }
 
 async function stageRestorePreflight(args: {

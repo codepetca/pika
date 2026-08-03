@@ -463,6 +463,13 @@ describe('classroom archive cold-compaction coordinator', () => {
         table === 'classrooms' || table === 'assignment_submission_artifacts',
       ),
     )
+    const artifactStage = mock.rpc.mock.calls.find(
+      ([name, args]) => name === 'stage_classroom_archive_restore_rows'
+        && args.p_table_name === 'assignment_submission_artifacts',
+    )
+    expect(artifactStage?.[1].p_rows).toEqual([
+      expect.not.objectContaining({ managed_object_id: expect.anything() }),
+    ])
   })
 
   it('refuses compaction when current actors cannot satisfy a restore preflight', async () => {

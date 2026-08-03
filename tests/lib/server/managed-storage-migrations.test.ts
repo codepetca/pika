@@ -104,5 +104,8 @@ describe('managed storage migration contract', () => {
     expect(foundation).toContain(
       'Assignment artifact storage path is reserved by a classroom archive',
     )
+    expect(foundation).toMatch(
+      /if new\.managed_object_id is null\s+and public\.is_classroom_archive_maintenance_mode\('compaction'\)\s+and public\.is_classroom_archive_maintenance_mode\('restore'\)\s+then\s+return new;/,
+    )
   })
 })

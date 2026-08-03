@@ -2522,6 +2522,12 @@ begin
     end if;
     return new;
   end if;
+  if new.managed_object_id is null
+    and public.is_classroom_archive_maintenance_mode('compaction')
+    and public.is_classroom_archive_maintenance_mode('restore')
+  then
+    return new;
+  end if;
   if new.managed_object_id is null then
     if v_enforced then
       raise exception using errcode = '55000', message = 'assignment_artifact_managed_identity_required';
@@ -3522,96 +3528,6 @@ begin
   return new;
 end;
 $$;
-
--- Temporary rollout verification aid: replay the compaction delete/restore
--- rehearsal inside a forced rollback and return only non-sensitive structural
--- evidence identifying a rejected table and phase.
-create or replace function public.diagnose_managed_storage_compaction_rehearsal(
-  p_operation_id uuid
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_operation public.classroom_archive_operations;
-  v_resource record;
-  v_rows jsonb;
-  v_phase text := 'load';
-  v_table_name text;
-begin
-  select * into v_operation from public.classroom_archive_operations
-  where id = p_operation_id and operation_type = 'compact';
-  if not found then
-    return jsonb_build_object('ok', false, 'phase', 'load', 'sqlstate', 'P0002');
-  end if;
-  begin
-    perform set_config('pika.classroom_archive_compaction', 'on', true);
-    v_phase := 'delete';
-    for v_resource in
-      select table_name, primary_key_columns[1] as primary_key_column
-      from public.classroom_archive_resource_contract
-      order by export_position desc
-    loop
-      v_table_name := v_resource.table_name;
-      execute format(
-        'delete from public.%I target
-         where public.resolve_classroom_archive_resource_classroom_id(%L, target.%I) = $1',
-        v_resource.table_name,
-        v_resource.table_name,
-        v_resource.primary_key_column
-      ) using v_operation.classroom_id;
-    end loop;
-
-    perform set_config('pika.classroom_archive_restore', 'on', true);
-    perform set_config(
-      'pika.classroom_archive_source_revision',
-      v_operation.source_revision::text,
-      true
-    );
-    v_phase := 'restore';
-    for v_resource in
-      select table_name from public.classroom_archive_resource_contract
-      order by export_position
-    loop
-      v_table_name := v_resource.table_name;
-      select coalesce(jsonb_agg(row_data order by row_id), '[]'::jsonb)
-      into v_rows from public.classroom_archive_restore_staging
-      where operation_id = p_operation_id
-        and table_name = v_resource.table_name;
-      if jsonb_array_length(v_rows) > 0 then
-        execute format(
-          'insert into public.%I
-           select * from jsonb_populate_recordset(null::public.%I, $1)',
-          v_resource.table_name,
-          v_resource.table_name
-        ) using v_rows;
-      end if;
-    end loop;
-    raise exception using errcode = 'PZ002', message = 'diagnostic_rollback';
-  exception
-    when sqlstate 'PZ002' then
-      return jsonb_build_object('ok', true);
-    when others then
-      return jsonb_build_object(
-        'ok', false,
-        'phase', v_phase,
-        'table_name', v_table_name,
-        'sqlstate', sqlstate
-      ) || case
-        when sqlerrm ~ '^[a-z0-9_]{1,80}$'
-          then jsonb_build_object('error_reason', sqlerrm)
-        else '{}'::jsonb
-      end;
-  end;
-end;
-$$;
-
-revoke all on function public.diagnose_managed_storage_compaction_rehearsal(uuid)
-  from public, anon, authenticated;
-grant execute on function public.diagnose_managed_storage_compaction_rehearsal(uuid)
-  to service_role;
 
 -- Deliberately absent: scheduler registration, purge gates, purge workers,
 -- classroom deletion routes, and deletion UX.
