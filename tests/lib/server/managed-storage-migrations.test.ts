@@ -97,6 +97,18 @@ describe('managed storage migration contract', () => {
     expect(foundation).not.toContain('else new.storage_bucket')
   })
 
+  it('settles expired unattached uploads before compatibility readiness', () => {
+    expect(foundation).toMatch(
+      /update public\.managed_storage_objects object\s+set status = 'cleanup_pending',[\s\S]*?where object\.status in \('reserved', 'verified'\)[\s\S]*?and not public\.managed_storage_object_is_referenced\(object\.id\);/,
+    )
+    expect(foundation).toContain(
+      "and object.status not in ('cleanup_pending', 'deleted');",
+    )
+    expect(foundation).toContain(
+      "v_object.resource_type = 'course_blueprint_operation'",
+    )
+  })
+
   it('fences embedded-reference removals and host deletion', () => {
     expect(foundation).toContain('embedded_reference_removed')
     expect(foundation).toContain('embedded_host_deleted')

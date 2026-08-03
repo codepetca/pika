@@ -43,7 +43,10 @@ import {
 import { saveCourseBlueprintVersion } from '@/lib/server/course-blueprint-versions'
 import { createCourseBlueprintArtifactId } from '@/lib/course-blueprint-artifact-identity'
 import { createHash, randomUUID } from 'node:crypto'
-import { copyManagedTestDocumentsForBlueprintOperation } from '@/lib/server/course-blueprint-managed-storage'
+import {
+  copyManagedTestDocumentsForBlueprintOperation,
+  queueBlueprintManagedStorageCopiesBestEffort,
+} from '@/lib/server/course-blueprint-managed-storage'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -1139,7 +1142,7 @@ export async function createCourseBlueprintFromClassroom(
   const blueprintTitle = input.title?.trim() || source.classroom.title
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
-  const copiedAssessments = await copyManagedTestDocumentsForBlueprintOperation({
+  const managedCopies = await copyManagedTestDocumentsForBlueprintOperation({
     supabase,
     teacherId,
     operationId,
@@ -1147,82 +1150,94 @@ export async function createCourseBlueprintFromClassroom(
     sourceClassroomId: classroomId,
     assessments: source.tests,
   })
-  const plan = buildCreateBlueprintWritePlan({
-    blueprint: {
-      title: blueprintTitle,
-      subject: '',
-      grade_level: '',
-      course_code: '',
-      term_template: '',
-      overview_markdown: source.classroom.course_overview_markdown,
-      outline_markdown: source.classroom.course_outline_markdown,
-      resources_markdown: source.resources_markdown,
-      gradebook_use_weights: source.grading?.use_weights ?? false,
-      gradebook_assignments_weight: source.grading?.assignments_weight ?? 70,
-      gradebook_tests_weight: source.grading?.tests_weight ?? 30,
-      planned_site_slug: null,
-      planned_site_published: false,
-      planned_site_config: normalizePlannedCourseSiteConfig(
-        source.classroom.actual_site_config,
-      ),
-    },
-    assignments: source.assignments.map((assignment) => ({
-      ...assignment,
-      submission_requirements_json: assignment.submission_requirements_json || [],
-      gradebook_weight: assignment.gradebook_weight ?? 10,
-    })),
-    assessments: copiedAssessments.map((assessment) => ({
-      ...assessment,
-      points_possible: assessment.points_possible ?? null,
-      gradebook_weight: assessment.gradebook_weight ?? 10,
-      include_in_final: assessment.include_in_final !== false,
-    })),
-    lessonTemplates: source.lesson_templates,
-    materials: source.materials || [],
-    surveys: source.surveys || [],
-    manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
-  })
-  const expectedSourceRevision =
-    source.classroom.blueprint_source_revision ?? 1
-  const operation = options.copyOnly
-    ? await createArchivedClassroomBlueprintAtomic({
-        supabase,
-        operationId,
-        teacherId,
-        sourceClassroomId: classroomId,
-        expectedSourceRevision,
-        plan,
-      })
-    : await createCourseBlueprintAtomic({
-        supabase,
-        operationId,
-        teacherId,
-        operationType: 'capture',
-        sourceClassroomId: classroomId,
-        expectedSourceRevision,
-        plan,
-      })
-  if (!operation.ok) return operation
-  if (!operation.blueprint_id) {
-    return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }
-  }
-
-  const detailResult = await getCourseBlueprintDetail(teacherId, operation.blueprint_id)
-  if (!detailResult.detail) {
-    return {
-      ok: false as const,
-      status: detailResult.status || 500,
-      error: detailResult.error || 'New blueprint was committed but could not be loaded',
-      operation_id: operation.operation_id,
+  let managedCopiesAdopted = false
+  try {
+    const plan = buildCreateBlueprintWritePlan({
+      blueprint: {
+        title: blueprintTitle,
+        subject: '',
+        grade_level: '',
+        course_code: '',
+        term_template: '',
+        overview_markdown: source.classroom.course_overview_markdown,
+        outline_markdown: source.classroom.course_outline_markdown,
+        resources_markdown: source.resources_markdown,
+        gradebook_use_weights: source.grading?.use_weights ?? false,
+        gradebook_assignments_weight: source.grading?.assignments_weight ?? 70,
+        gradebook_tests_weight: source.grading?.tests_weight ?? 30,
+        planned_site_slug: null,
+        planned_site_published: false,
+        planned_site_config: normalizePlannedCourseSiteConfig(
+          source.classroom.actual_site_config,
+        ),
+      },
+      assignments: source.assignments.map((assignment) => ({
+        ...assignment,
+        submission_requirements_json: assignment.submission_requirements_json || [],
+        gradebook_weight: assignment.gradebook_weight ?? 10,
+      })),
+      assessments: managedCopies.assessments.map((assessment) => ({
+        ...assessment,
+        points_possible: assessment.points_possible ?? null,
+        gradebook_weight: assessment.gradebook_weight ?? 10,
+        include_in_final: assessment.include_in_final !== false,
+      })),
+      lessonTemplates: source.lesson_templates,
+      materials: source.materials || [],
+      surveys: source.surveys || [],
+      manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
+    })
+    const expectedSourceRevision =
+      source.classroom.blueprint_source_revision ?? 1
+    const operation = options.copyOnly
+      ? await createArchivedClassroomBlueprintAtomic({
+          supabase,
+          operationId,
+          teacherId,
+          sourceClassroomId: classroomId,
+          expectedSourceRevision,
+          plan,
+        })
+      : await createCourseBlueprintAtomic({
+          supabase,
+          operationId,
+          teacherId,
+          operationType: 'capture',
+          sourceClassroomId: classroomId,
+          expectedSourceRevision,
+          plan,
+        })
+    if (!operation.ok) return operation
+    managedCopiesAdopted = true
+    if (!operation.blueprint_id) {
+      return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }
     }
-  }
 
-  return {
-    ok: true as const,
-    blueprint: detailResult.detail,
-    operation_id: operation.operation_id,
-    replayed: operation.replayed,
-    counts: operation.counts,
+    const detailResult = await getCourseBlueprintDetail(teacherId, operation.blueprint_id)
+    if (!detailResult.detail) {
+      return {
+        ok: false as const,
+        status: detailResult.status || 500,
+        error: detailResult.error || 'New blueprint was committed but could not be loaded',
+        operation_id: operation.operation_id,
+      }
+    }
+
+    return {
+      ok: true as const,
+      blueprint: detailResult.detail,
+      operation_id: operation.operation_id,
+      replayed: operation.replayed,
+      counts: operation.counts,
+    }
+  } finally {
+    if (!managedCopiesAdopted) {
+      await queueBlueprintManagedStorageCopiesBestEffort({
+        supabase,
+        objectIds: managedCopies.cleanupObjectIds,
+        errorCode: 'blueprint_capture_not_adopted',
+      })
+    }
   }
 }
 
@@ -1252,7 +1267,7 @@ export async function createClassroomFromBlueprint(
 
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)
-  const copiedAssessments = await copyManagedTestDocumentsForBlueprintOperation({
+  const managedCopies = await copyManagedTestDocumentsForBlueprintOperation({
     supabase,
     teacherId,
     operationId,
@@ -1260,67 +1275,79 @@ export async function createClassroomFromBlueprint(
     sourceCourseBlueprintId: input.blueprintId,
     assessments: detailResult.detail.assessments,
   })
-  const copiedDetail = {
-    ...detailResult.detail,
-    assessments: copiedAssessments,
-  }
-  const versionResult = await saveCourseBlueprintVersion({
-    supabase,
-    teacherId,
-    detail: detailResult.detail,
-    sourceKind:
-      detailResult.detail.authority_mode === 'repository' ? 'repository' : 'pika',
-    sourceMetadata: { reason: 'classroom_instantiation' },
-  })
-  if (!versionResult.ok) return versionResult
-  const themeColor = input.themeColor || getDefaultClassroomThemeColor(`${teacherId}:${operationId}`)
-  const planResult = buildInstantiateBlueprintWritePlan({
-    detail: copiedDetail,
-    input,
-    themeColor,
-    manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
-    operationId,
-  })
-  if (!planResult.ok) return planResult
-
-  const operation = await instantiateCourseBlueprintAtomic({
-    supabase,
-    operationId,
-    teacherId,
-    blueprintId: input.blueprintId,
-    blueprintVersionId: versionResult.version.id,
-    plan: planResult.plan,
-  })
-  if (!operation.ok) return operation
-  if (!operation.classroom_id) {
-    return { ok: false as const, status: 500, error: 'Atomic blueprint instantiation returned no classroom id' }
-  }
-
-  const { data: classroom, error: classroomError } = await supabase
-    .from('classrooms')
-    .select('*')
-    .eq('id', operation.classroom_id)
-    .eq('teacher_id', teacherId)
-    .single()
-
-  if (classroomError || !classroom) {
-    return {
-      ok: false as const,
-      status: 500,
-      error: 'Classroom was committed but could not be loaded',
-      operation_id: operation.operation_id,
+  let managedCopiesAdopted = false
+  try {
+    const copiedDetail = {
+      ...detailResult.detail,
+      assessments: managedCopies.assessments,
     }
-  }
+    const versionResult = await saveCourseBlueprintVersion({
+      supabase,
+      teacherId,
+      detail: detailResult.detail,
+      sourceKind:
+        detailResult.detail.authority_mode === 'repository' ? 'repository' : 'pika',
+      sourceMetadata: { reason: 'classroom_instantiation' },
+    })
+    if (!versionResult.ok) return versionResult
+    const themeColor = input.themeColor || getDefaultClassroomThemeColor(`${teacherId}:${operationId}`)
+    const planResult = buildInstantiateBlueprintWritePlan({
+      detail: copiedDetail,
+      input,
+      themeColor,
+      manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
+      operationId,
+    })
+    if (!planResult.ok) return planResult
 
-  return {
-    ok: true as const,
-    classroom,
-    lesson_mapping: operation.lesson_mapping || {
-      applied_lesson_templates: 0,
-      overflow_lesson_templates: [],
-    },
-    operation_id: operation.operation_id,
-    replayed: operation.replayed,
-    counts: operation.counts,
+    const operation = await instantiateCourseBlueprintAtomic({
+      supabase,
+      operationId,
+      teacherId,
+      blueprintId: input.blueprintId,
+      blueprintVersionId: versionResult.version.id,
+      plan: planResult.plan,
+    })
+    if (!operation.ok) return operation
+    managedCopiesAdopted = true
+    if (!operation.classroom_id) {
+      return { ok: false as const, status: 500, error: 'Atomic blueprint instantiation returned no classroom id' }
+    }
+
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('id', operation.classroom_id)
+      .eq('teacher_id', teacherId)
+      .single()
+
+    if (classroomError || !classroom) {
+      return {
+        ok: false as const,
+        status: 500,
+        error: 'Classroom was committed but could not be loaded',
+        operation_id: operation.operation_id,
+      }
+    }
+
+    return {
+      ok: true as const,
+      classroom,
+      lesson_mapping: operation.lesson_mapping || {
+        applied_lesson_templates: 0,
+        overflow_lesson_templates: [],
+      },
+      operation_id: operation.operation_id,
+      replayed: operation.replayed,
+      counts: operation.counts,
+    }
+  } finally {
+    if (!managedCopiesAdopted) {
+      await queueBlueprintManagedStorageCopiesBestEffort({
+        supabase,
+        objectIds: managedCopies.cleanupObjectIds,
+        errorCode: 'blueprint_instantiation_not_adopted',
+      })
+    }
   }
 }

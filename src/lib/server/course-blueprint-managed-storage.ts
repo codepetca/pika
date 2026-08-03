@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import type { TestDocument } from '@/types'
 import {
   queueManagedStorageCleanupBestEffort,
@@ -8,6 +8,28 @@ import {
 
 type SupabaseLike = any
 type AssessmentLike = { documents: TestDocument[] }
+
+export type BlueprintManagedStorageCopyResult<T extends AssessmentLike> = {
+  assessments: T[]
+  cleanupObjectIds: string[]
+}
+
+function deterministicBlueprintCopyUuid(seed: string): string {
+  const hex = createHash('sha256')
+    .update(`pika.managed-storage-blueprint-copy:v1:${seed}`)
+    .digest('hex')
+    .slice(0, 32)
+    .split('')
+  hex[12] = '5'
+  hex[16] = ((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16)
+  return [
+    hex.slice(0, 8).join(''),
+    hex.slice(8, 12).join(''),
+    hex.slice(12, 16).join(''),
+    hex.slice(16, 20).join(''),
+    hex.slice(20, 32).join(''),
+  ].join('-')
+}
 
 function testDocumentStoragePath(url: string): string | null {
   try {
@@ -35,11 +57,13 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   sourceClassroomId?: string
   sourceCourseBlueprintId?: string
   assessments: T[]
-}): Promise<T[]> {
+}): Promise<BlueprintManagedStorageCopyResult<T>> {
   const managedDocuments = input.assessments.flatMap((assessment) =>
     assessment.documents.filter((document) => document.source === 'upload'),
   )
-  if (managedDocuments.length === 0) return input.assessments
+  if (managedDocuments.length === 0) {
+    return { assessments: input.assessments, cleanupObjectIds: [] }
+  }
 
   if (input.direction === 'to_blueprint') {
     if (!input.sourceClassroomId || input.sourceCourseBlueprintId) {
@@ -51,10 +75,14 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
 
   const protocol = await input.supabase.rpc('managed_storage_blueprint_protocol_ready', {})
   if (protocol.error) {
-    if (isMissingFoundation(protocol.error)) return input.assessments
+    if (isMissingFoundation(protocol.error)) {
+      return { assessments: input.assessments, cleanupObjectIds: [] }
+    }
     throw new Error('managed_storage_blueprint_protocol_check_failed')
   }
-  if (protocol.data !== true) return input.assessments
+  if (protocol.data !== true) {
+    return { assessments: input.assessments, cleanupObjectIds: [] }
+  }
 
   const sourceIdByDocument = new Map<TestDocument, string>()
   const sourceById = new Map<string, any>()
@@ -94,7 +122,58 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     sourceById.set(sourceResponse.data.id, sourceResponse.data)
   }
 
-  const provisionalOwnerId = randomUUID()
+  const targetBySourceId = new Map<string, {
+    objectId: string
+    targetPath: string
+    publicUrl: string
+  }>()
+  for (const [sourceId, source] of sourceById) {
+    const objectId = deterministicBlueprintCopyUuid(
+      `object:${input.operationId}:${input.direction}:${sourceId}`,
+    )
+    const extension = /\.[a-z0-9]{1,12}$/i.exec(source.storage_path)?.[0] || ''
+    const targetPath = `managed-copies/${input.operationId}/${objectId}${extension}`
+    targetBySourceId.set(sourceId, {
+      objectId,
+      targetPath,
+      publicUrl: input.supabase.storage.from('test-documents')
+        .getPublicUrl(targetPath).data.publicUrl,
+    })
+  }
+
+  const buildAssessments = () => input.assessments.map((assessment) => ({
+    ...assessment,
+    documents: assessment.documents.map((document) => {
+      const sourceId = sourceIdByDocument.get(document)
+      if (!sourceId) return document
+      const target = targetBySourceId.get(sourceId) as {
+        objectId: string
+        publicUrl: string
+      }
+      return {
+        ...document,
+        url: target.publicUrl,
+        managed_object_id: target.objectId,
+      }
+    }),
+  }))
+
+  const operationLookup = await input.supabase
+    .from('course_blueprint_operations')
+    .select('status')
+    .eq('id', input.operationId)
+    .eq('teacher_id', input.teacherId)
+    .maybeSingle()
+  if (operationLookup.error) {
+    throw new Error('managed_storage_blueprint_operation_preflight_failed')
+  }
+  if (operationLookup.data?.status === 'completed') {
+    return { assessments: buildAssessments(), cleanupObjectIds: [] }
+  }
+
+  const provisionalOwnerId = deterministicBlueprintCopyUuid(
+    `owner:${input.operationId}:${input.direction}`,
+  )
   const ownerResponse = await input.supabase.rpc('begin_managed_storage_provisional_owner', {
     p_owner_id: provisionalOwnerId,
     p_owner_kind: input.direction === 'to_blueprint'
@@ -106,19 +185,18 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     p_target_course_blueprint_id: null,
   })
   if (ownerResponse.error) {
-    if (isMissingFoundation(ownerResponse.error)) return input.assessments
+    if (isMissingFoundation(ownerResponse.error)) {
+      return { assessments: input.assessments, cleanupObjectIds: [] }
+    }
     throw new Error('managed_storage_blueprint_copy_owner_failed')
   }
   if (ownerResponse.data !== true) {
     throw new Error('managed_storage_blueprint_copy_owner_conflict')
   }
 
-  const copiedBySourceId = new Map<string, Pick<TestDocument, 'url' | 'managed_object_id'>>()
   const reservedObjectIds: string[] = []
   try {
-    for (const document of managedDocuments) {
-      const sourceId = sourceIdByDocument.get(document) as string
-      if (copiedBySourceId.has(sourceId)) continue
+    for (const sourceId of sourceById.keys()) {
       const source = sourceById.get(sourceId)
       const download = await input.supabase.storage
         .from('test-documents')
@@ -127,14 +205,15 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
         throw new Error('managed_storage_blueprint_copy_source_missing')
       }
       const bytes = new Uint8Array(await download.data.arrayBuffer())
-      const objectId = randomUUID()
-      const extension = /\.[a-z0-9]{1,12}$/i.exec(source.storage_path)?.[0] || ''
-      const targetPath = `managed-copies/${input.operationId}/${objectId}${extension}`
+      const target = targetBySourceId.get(sourceId) as {
+        objectId: string
+        targetPath: string
+      }
       const reservation = await reserveManagedStorageUpload({
         supabase: input.supabase,
-        objectId,
+        objectId: target.objectId,
         bucket: 'test-documents',
-        path: targetPath,
+        path: target.targetPath,
         provisionalOwnerId,
         purpose: 'teacher_test_material',
         createdByUserId: input.teacherId,
@@ -144,17 +223,43 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
         byteSize: bytes.byteLength,
       })
       if (!reservation) throw new Error('managed_storage_blueprint_copy_reservation_missing')
-      reservedObjectIds.push(objectId)
-      const upload = await input.supabase.storage.from('test-documents').upload(
-        targetPath,
-        bytes,
-        {
-          contentType: source.content_type || download.data.type || 'application/octet-stream',
-          upsert: false,
-        },
-      )
-      if (upload.error) throw new Error('managed_storage_blueprint_copy_upload_failed')
-      const readBack = await input.supabase.storage.from('test-documents').download(targetPath)
+      reservedObjectIds.push(target.objectId)
+
+      if (reservation.status === 'reserved') {
+        const presence = await input.supabase.rpc('get_managed_storage_object_presence', {
+          p_storage_bucket: 'test-documents',
+          p_storage_path: target.targetPath,
+        })
+        if (presence.error) {
+          throw new Error('managed_storage_blueprint_copy_presence_failed')
+        }
+        if (presence.data?.object_exists !== true) {
+          const upload = await input.supabase.storage.from('test-documents').upload(
+            target.targetPath,
+            bytes,
+            {
+              contentType: source.content_type || download.data.type || 'application/octet-stream',
+              upsert: false,
+            },
+          )
+          if (upload.error) {
+            const retryPresence = await input.supabase.rpc(
+              'get_managed_storage_object_presence',
+              {
+                p_storage_bucket: 'test-documents',
+                p_storage_path: target.targetPath,
+              },
+            )
+            if (retryPresence.error || retryPresence.data?.object_exists !== true) {
+              throw new Error('managed_storage_blueprint_copy_upload_failed')
+            }
+          }
+        }
+      }
+
+      const readBack = await input.supabase.storage
+        .from('test-documents')
+        .download(target.targetPath)
       if (readBack.error || !readBack.data) {
         throw new Error('managed_storage_blueprint_copy_readback_failed')
       }
@@ -166,14 +271,8 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
       }
       await verifyManagedStorageUpload({
         supabase: input.supabase,
-        objectId,
+        objectId: target.objectId,
         contentSha256: targetHash,
-      })
-      const publicUrl = input.supabase.storage.from('test-documents')
-        .getPublicUrl(targetPath).data.publicUrl
-      copiedBySourceId.set(sourceId, {
-        url: publicUrl,
-        managed_object_id: objectId,
       })
     }
   } catch (error) {
@@ -187,15 +286,22 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     throw error
   }
 
-  return input.assessments.map((assessment) => ({
-    ...assessment,
-    documents: assessment.documents.map((document) => (
-      sourceIdByDocument.has(document)
-        ? {
-            ...document,
-            ...copiedBySourceId.get(sourceIdByDocument.get(document) as string),
-          }
-        : document
-    )),
-  }))
+  return {
+    assessments: buildAssessments(),
+    cleanupObjectIds: reservedObjectIds,
+  }
+}
+
+export async function queueBlueprintManagedStorageCopiesBestEffort(input: {
+  supabase: SupabaseLike
+  objectIds: string[]
+  errorCode: string
+}): Promise<void> {
+  await Promise.all(input.objectIds.map((objectId) =>
+    queueManagedStorageCleanupBestEffort({
+      supabase: input.supabase,
+      objectId,
+      errorCode: input.errorCode,
+    }),
+  ))
 }

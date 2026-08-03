@@ -23,6 +23,11 @@ import {
   makeSupabaseFromQueues as makeStrictSupabaseFromQueues,
 } from '../../support/supabase'
 
+const managedStorageCopyMocks = vi.hoisted(() => ({
+  copy: vi.fn(),
+  queue: vi.fn(),
+}))
+
 function makeSupabaseFromQueues(queues: Record<string, any[]>) {
   const emptyBlueprintRows = () => Array.from(
     { length: 12 },
@@ -53,12 +58,26 @@ vi.mock('@/lib/server/classroom-blueprint-source', () => ({
   loadClassroomBlueprintSource: (...args: any[]) => mockLoadClassroomBlueprintSource(...args),
 }))
 
+vi.mock('@/lib/server/course-blueprint-managed-storage', () => ({
+  copyManagedTestDocumentsForBlueprintOperation: (...args: any[]) =>
+    managedStorageCopyMocks.copy(...args),
+  queueBlueprintManagedStorageCopiesBestEffort: (...args: any[]) =>
+    managedStorageCopyMocks.queue(...args),
+}))
+
 describe('course-blueprints server helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAssertTeacherCanMutateClassroom.mockReset()
     mockAssertTeacherOwnsClassroom.mockReset()
     mockLoadClassroomBlueprintSource.mockReset()
+    managedStorageCopyMocks.copy.mockReset()
+    managedStorageCopyMocks.copy.mockImplementation(async (input: any) => ({
+      assessments: input.assessments,
+      cleanupObjectIds: [],
+    }))
+    managedStorageCopyMocks.queue.mockReset()
+    managedStorageCopyMocks.queue.mockResolvedValue(undefined)
   })
 
   it('hydrates missing planned-site fields with defaults', () => {
@@ -556,6 +575,11 @@ describe('course-blueprints server helpers', () => {
 
   it('fails classroom instantiation without issuing compensating deletes', async () => {
     const operationId = '10000000-0000-4000-8000-000000000011'
+    const managedObjectId = '71000000-0000-4000-8000-000000000011'
+    managedStorageCopyMocks.copy.mockImplementation(async (input: any) => ({
+      assessments: input.assessments,
+      cleanupObjectIds: [managedObjectId],
+    }))
     const deleteBuilder = makeQueryBuilder({ data: null, error: null })
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
@@ -659,6 +683,11 @@ describe('course-blueprints server helpers', () => {
     }))
 
     expect(deleteBuilder.delete).not.toHaveBeenCalled()
+    expect(managedStorageCopyMocks.queue).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      objectIds: [managedObjectId],
+      errorCode: 'blueprint_instantiation_not_adopted',
+    })
   })
 
   it('creates a new blueprint from classroom content and links the classroom to it', async () => {
@@ -1179,6 +1208,11 @@ describe('course-blueprints server helpers', () => {
 
   it('records classroom-link failure without a best-effort blueprint delete', async () => {
     const operationId = '10000000-0000-4000-8000-000000000014'
+    const managedObjectId = '71000000-0000-4000-8000-000000000014'
+    managedStorageCopyMocks.copy.mockImplementation(async (input: any) => ({
+      assessments: input.assessments,
+      cleanupObjectIds: [managedObjectId],
+    }))
     mockAssertTeacherCanMutateClassroom.mockResolvedValue({
       ok: true,
       classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
@@ -1277,5 +1311,10 @@ describe('course-blueprints server helpers', () => {
       error_code: 'source_classroom_changed',
     }))
     expect(deleteBuilder.delete).not.toHaveBeenCalled()
+    expect(managedStorageCopyMocks.queue).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      objectIds: [managedObjectId],
+      errorCode: 'blueprint_capture_not_adopted',
+    })
   })
 })

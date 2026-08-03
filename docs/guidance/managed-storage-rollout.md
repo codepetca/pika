@@ -19,15 +19,22 @@ whether a persistent managed file is live or eligible for cleanup.
   attaches the UUID in the same database transaction that changes `verified`
   to `ready`.
 - A failed or interrupted writer leaves a reserved/verified row with an expiry,
-  or explicitly queues it. Cleanup uses leased, retryable lifecycle transitions;
-  Storage deletion is rejected unless the managed object is
+  or explicitly queues it. Serialized readiness converts expired, unreferenced
+  reservations to `cleanup_pending` without deleting Storage bytes, so an
+  abandoned upload cannot deadlock activation. Cleanup uses leased, retryable
+  lifecycle transitions; Storage deletion is rejected unless the managed object is
   `cleanup_processing`. Completion leaves a terminal `deleted` tombstone so
   operational foreign keys remain valid and retries are idempotent. If a live
   reference appears after a compatibility worker claims an object, completion
   cancels the cleanup, preserves the bytes, and restores the object to `ready`.
 - Blueprint capture and Classroom instantiation copy test documents through a
-  provisional owner. The existing atomic Blueprint RPCs adopt those objects to
-  the new owner inside their transaction. The pre-wrapper RPCs are not callable.
+  provisional owner. Copy owner/object identities are deterministic for the
+  operation and source managed object, incomplete retries reuse verified bytes,
+  and completed operations are preflighted before copying. Every downstream
+  failure queues the exact unattached copies; the queue RPC refuses objects the
+  atomic operation already adopted. The existing atomic Blueprint RPCs adopt
+  those objects to the new owner inside their transaction. The pre-wrapper RPCs
+  are not callable.
 - Legacy embedded JSON can remain byte-for-byte immutable. Reconciliation binds
   exact registered bucket/path evidence to the host registry. New writers also
   persist UUIDs in JSON. A raw reference with no exact, same-owner managed object
@@ -93,6 +100,8 @@ the exact migration and exact target under the schema rollout checklist.
 5. Run `pnpm managed-storage:readiness refresh` with the matching exact
    acknowledgement. Investigate only hashed finding identities. Repeat
    registration/reconciliation until the run is `ready`; do not waive findings.
+   The serialized refresh changes expired, unreferenced reservations into
+   cleanup-pending authority rows but never deletes their Storage bytes.
    Readiness also fails while any legacy operational cleanup lease is processing,
    so activation cannot strand an already claimed delete.
 6. Activate with the reported generation and digest using

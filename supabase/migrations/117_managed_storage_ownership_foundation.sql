@@ -540,6 +540,52 @@ begin
   end if;
   perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
 
+  -- A deterministic Blueprint copy may be retried after its caller queued the
+  -- verified bytes because a later atomic step failed. Cancel only that exact,
+  -- still-provisional cleanup intent; active leases, deleted tombstones, and
+  -- every non-Blueprint producer remain non-resumable here.
+  if v_object.id is not null
+    and v_object.status = 'cleanup_pending'
+    and v_object.provisional_owner_id is not distinct from p_provisional_owner_id
+    and p_provisional_owner_id is not null
+    and v_object.resource_type = 'course_blueprint_operation'
+    and v_object.resource_id is not distinct from p_resource_id
+    and v_object.created_by_user_id is not distinct from p_created_by_user_id
+    and v_object.data_subject_user_id is not distinct from p_data_subject_user_id
+    and v_object.purpose is not distinct from p_purpose
+    and v_object.content_type is not distinct from nullif(btrim(p_content_type), '')
+    and v_object.byte_size is not distinct from p_byte_size
+  then
+    update public.managed_storage_objects object
+    set status = case
+          when object.verified_at is not null and exists (
+            select 1 from storage.objects stored
+            where stored.bucket_id = object.storage_bucket
+              and stored.name = object.storage_path
+          ) then 'verified'
+          else 'reserved'
+        end,
+        verified_at = case
+          when object.verified_at is not null and exists (
+            select 1 from storage.objects stored
+            where stored.bucket_id = object.storage_bucket
+              and stored.name = object.storage_path
+          ) then object.verified_at
+          else null
+        end,
+        ready_at = null,
+        reservation_expires_at = clock_timestamp() + interval '1 hour',
+        cleanup_reason_code = null,
+        next_attempt_at = clock_timestamp(),
+        lease_token = null,
+        lease_expires_at = null,
+        last_error_code = null,
+        updated_at = clock_timestamp()
+    where object.id = v_object.id
+    returning * into v_object;
+    return v_object;
+  end if;
+
   insert into public.managed_storage_objects (
     id, storage_bucket, storage_path, classroom_id, course_blueprint_id,
     provisional_owner_id, purpose, created_by_user_id, data_subject_user_id,
@@ -594,7 +640,16 @@ begin
     p_owner_id, p_owner_kind, p_target_classroom_id,
     p_target_course_blueprint_id, p_operation_id, p_created_by_user_id,
     clock_timestamp() + interval '1 hour'
-  ) on conflict (id) do nothing;
+  ) on conflict (id) do update
+  set expires_at = clock_timestamp() + interval '1 hour'
+  where managed_storage_provisional_owners.owner_kind = excluded.owner_kind
+    and managed_storage_provisional_owners.operation_id = excluded.operation_id
+    and managed_storage_provisional_owners.created_by_user_id = excluded.created_by_user_id
+    and managed_storage_provisional_owners.target_classroom_id
+      is not distinct from excluded.target_classroom_id
+    and managed_storage_provisional_owners.target_course_blueprint_id
+      is not distinct from excluded.target_course_blueprint_id
+    and managed_storage_provisional_owners.adopted_at is null;
   return exists (
     select 1 from public.managed_storage_provisional_owners owner
     where owner.id = p_owner_id and owner.owner_kind = p_owner_kind
@@ -1285,6 +1340,22 @@ begin
   where singleton
   returning readiness_generation into strict v_generation;
 
+  -- Readiness owns the exclusive protocol lock at this point, so no managed
+  -- writer can overtake this transition. Expired unattached uploads become
+  -- durable cleanup work before findings are computed; Storage bytes remain
+  -- untouched until an explicitly enabled post-enforcement cleanup worker
+  -- claims them.
+  update public.managed_storage_objects object
+  set status = 'cleanup_pending',
+      cleanup_reason_code = coalesce(object.cleanup_reason_code, 'reservation_expired'),
+      next_attempt_at = clock_timestamp(),
+      lease_token = null,
+      lease_expires_at = null,
+      updated_at = clock_timestamp()
+  where object.status in ('reserved', 'verified')
+    and object.reservation_expires_at <= clock_timestamp()
+    and not public.managed_storage_object_is_referenced(object.id);
+
   insert into public.managed_storage_readiness_runs (
     generation, protocol_version, status
   )
@@ -1480,7 +1551,8 @@ begin
   from public.managed_storage_objects object
   join public.managed_storage_provisional_owners owner
     on owner.id = object.provisional_owner_id
-  where owner.adopted_at is null and owner.expires_at <= clock_timestamp();
+  where owner.adopted_at is null and owner.expires_at <= clock_timestamp()
+    and object.status not in ('cleanup_pending', 'deleted');
 
   -- Fail closed when a managed bucket appears in embedded JSON but the host has
   -- no registry entry. This deliberately over-blocks uncertain legacy shapes.

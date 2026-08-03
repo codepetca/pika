@@ -39,6 +39,140 @@ insert into public.classroom_enrollments (classroom_id, student_id) values (
   'a1100000-0000-4000-8000-000000000002'
 );
 
+-- Compatibility readiness must settle abandoned uploads without deleting
+-- their bytes. Activation may then proceed, after which explicitly enabled
+-- cleanup can claim the durable work and leave terminal tombstones.
+select public.begin_managed_storage_upload(
+  'a1100000-0000-4000-8000-000000000070',
+  'submission-images', 'managed-fixture/expired-reserved.png',
+  'a1100000-0000-4000-8000-000000000003', null, null,
+  'student_inline_image',
+  'a1100000-0000-4000-8000-000000000002',
+  'a1100000-0000-4000-8000-000000000002',
+  'assignment_doc', null, 'image/png', 4
+);
+select public.begin_managed_storage_provisional_owner(
+  'a1100000-0000-4000-8000-000000000071',
+  'course_blueprint_copy',
+  'a1100000-0000-4000-8000-000000000072',
+  'a1100000-0000-4000-8000-000000000001',
+  null, null
+);
+select public.begin_managed_storage_upload(
+  'a1100000-0000-4000-8000-000000000073',
+  'test-documents', 'managed-fixture/expired-provisional.pdf',
+  null, null, 'a1100000-0000-4000-8000-000000000071',
+  'teacher_test_material',
+  'a1100000-0000-4000-8000-000000000001', null,
+  'course_blueprint_operation',
+  'a1100000-0000-4000-8000-000000000072',
+  'application/pdf', 4
+);
+insert into storage.objects (bucket_id, name) values (
+  'test-documents', 'managed-fixture/expired-provisional.pdf'
+);
+select public.verify_managed_storage_upload(
+  'a1100000-0000-4000-8000-000000000073', repeat('7', 64)
+);
+select public.queue_managed_storage_cleanup(
+  'a1100000-0000-4000-8000-000000000073',
+  'fixture_blueprint_downstream_failure'
+);
+select public.begin_managed_storage_provisional_owner(
+  'a1100000-0000-4000-8000-000000000071',
+  'course_blueprint_copy',
+  'a1100000-0000-4000-8000-000000000072',
+  'a1100000-0000-4000-8000-000000000001',
+  null, null
+);
+select public.begin_managed_storage_upload(
+  'a1100000-0000-4000-8000-000000000073',
+  'test-documents', 'managed-fixture/expired-provisional.pdf',
+  null, null, 'a1100000-0000-4000-8000-000000000071',
+  'teacher_test_material',
+  'a1100000-0000-4000-8000-000000000001', null,
+  'course_blueprint_operation',
+  'a1100000-0000-4000-8000-000000000072',
+  'application/pdf', 4
+);
+do $blueprint_retry$
+begin
+  if (select status from public.managed_storage_objects
+    where id = 'a1100000-0000-4000-8000-000000000073') <> 'verified'
+  then raise exception 'Blueprint retry did not resume verified cleanup bytes'; end if;
+end;
+$blueprint_retry$;
+update public.managed_storage_objects
+set reservation_expires_at = clock_timestamp() - interval '1 second'
+where id in (
+  'a1100000-0000-4000-8000-000000000070',
+  'a1100000-0000-4000-8000-000000000073'
+);
+update public.managed_storage_provisional_owners
+set expires_at = clock_timestamp() - interval '1 second'
+where id = 'a1100000-0000-4000-8000-000000000071';
+
+do $expired_uploads$
+declare
+  v_run public.managed_storage_readiness_runs;
+  v_claim public.managed_storage_objects;
+  v_claim_count integer := 0;
+begin
+  select * into v_run from public.refresh_managed_storage_readiness();
+  if v_run.status <> 'ready' then
+    raise exception 'Expired uploads blocked compatibility readiness with % findings',
+      v_run.finding_count;
+  end if;
+  if exists (
+    select 1 from public.managed_storage_objects
+    where id in (
+      'a1100000-0000-4000-8000-000000000070',
+      'a1100000-0000-4000-8000-000000000073'
+    ) and status <> 'cleanup_pending'
+  ) then raise exception 'Expired uploads did not become cleanup work'; end if;
+  if not exists (
+    select 1 from storage.objects
+    where bucket_id = 'test-documents'
+      and name = 'managed-fixture/expired-provisional.pdf'
+  ) then raise exception 'Readiness deleted expired provisional bytes'; end if;
+
+  perform public.activate_managed_storage_enforcement(
+    v_run.generation, v_run.inventory_digest
+  );
+  perform set_config('storage.allow_delete_query', 'true', true);
+  for v_claim in
+    select * from public.claim_managed_storage_cleanup(
+      'a1100000-0000-4000-8000-000000000074', 25, 30
+    )
+  loop
+    if v_claim.id not in (
+      'a1100000-0000-4000-8000-000000000070',
+      'a1100000-0000-4000-8000-000000000073'
+    ) then continue; end if;
+    v_claim_count := v_claim_count + 1;
+    delete from storage.objects
+    where bucket_id = v_claim.storage_bucket and name = v_claim.storage_path;
+    if not public.complete_managed_storage_cleanup(
+      v_claim.id, v_claim.lease_token
+    ) then raise exception 'Expired upload cleanup did not complete'; end if;
+  end loop;
+  if v_claim_count <> 2 or exists (
+    select 1 from public.managed_storage_objects
+    where id in (
+      'a1100000-0000-4000-8000-000000000070',
+      'a1100000-0000-4000-8000-000000000073'
+    ) and status <> 'deleted'
+  ) then raise exception 'Expired upload cleanup did not leave tombstones'; end if;
+  perform public.pause_managed_storage_enforcement();
+end;
+$expired_uploads$;
+delete from public.managed_storage_objects where id in (
+  'a1100000-0000-4000-8000-000000000070',
+  'a1100000-0000-4000-8000-000000000073'
+);
+delete from public.managed_storage_provisional_owners
+where id = 'a1100000-0000-4000-8000-000000000071';
+
 -- Reserving an operational object must not attach it before the operation has
 -- durably staged the matching bucket/path. The application binds all three
 -- identity fields atomically after staging the intent.
