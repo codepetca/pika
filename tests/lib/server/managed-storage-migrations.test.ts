@@ -59,7 +59,12 @@ describe('managed storage migration contract', () => {
     expect(foundation).toContain('claim_managed_storage_cleanup')
     expect(foundation).toContain('managed_storage_cleanup_authority_required')
     expect(foundation).toContain('managed_storage_cleanup_in_progress')
+    expect(foundation).toContain('managed_storage_cleanup_referenced_missing')
     expect(foundation).toContain('managed_storage_cleanup_requires_enforcement')
+    expect(foundation).toContain("set status = 'ready', verified_at = coalesce")
+    expect(foundation).toContain(
+      "nullif(v_old->>'lease_token', '')::uuid is distinct from",
+    )
     expect(foundation).toContain('before insert or update on storage.objects')
     expect(foundation).toContain('if not v_enforced then return new; end if;')
     expect(foundation).toContain('if not v_enforced then return old; end if;')

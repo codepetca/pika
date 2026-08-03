@@ -22,7 +22,9 @@ whether a persistent managed file is live or eligible for cleanup.
   or explicitly queues it. Cleanup uses leased, retryable lifecycle transitions;
   Storage deletion is rejected unless the managed object is
   `cleanup_processing`. Completion leaves a terminal `deleted` tombstone so
-  operational foreign keys remain valid and retries are idempotent.
+  operational foreign keys remain valid and retries are idempotent. If a live
+  reference appears after a compatibility worker claims an object, completion
+  cancels the cleanup, preserves the bytes, and restores the object to `ready`.
 - Blueprint capture and Classroom instantiation copy test documents through a
   provisional owner. The existing atomic Blueprint RPCs adopt those objects to
   the new owner inside their transaction. The pre-wrapper RPCs are not callable.
@@ -100,7 +102,9 @@ the exact migration and exact target under the schema rollout checklist.
    is bound, including during compatibility rollout; unmatched raw-only rows
    retain migration-116 behavior until readiness closes that window. An active
    managed cleanup lease fences exact-path Storage writes in either mode. A
-   manual cleanup batch additionally requires
+   migration-116 worker that observes a newly live reference completes as a
+   cancellation rather than a deletion; its managed lease returns to `ready`.
+   A manual cleanup batch additionally requires
    `MANAGED_STORAGE_CLEANUP_ENABLED=true` and
    `MANAGED STORAGE CLEANUP <target>`. No scheduler is installed here.
 

@@ -2954,7 +2954,11 @@ begin
         lease_token = nullif(v_new->>'lease_token', '')::uuid,
         lease_expires_at = nullif(v_new->>'lease_expires_at', '')::timestamptz,
         attempt_count = attempt_count + case
-          when v_old->>'status' = 'processing' then 0 else 1 end,
+          when v_old->>'status' <> 'processing' then 1
+          when nullif(v_old->>'lease_token', '')::uuid is distinct from
+            nullif(v_new->>'lease_token', '')::uuid then 1
+          else 0
+        end,
         updated_at = clock_timestamp()
     where id = v_object.id;
   elsif v_old->>'status' = 'processing' and v_new->>'status' in ('pending', 'failed') then
@@ -3032,6 +3036,8 @@ declare
   v_bucket text;
   v_path text;
   v_enforced boolean;
+  v_referenced boolean;
+  v_storage_present boolean;
 begin
   if v_old->>'status' <> 'processing' then return old; end if;
   v_enforced := public.lock_managed_storage_protocol();
@@ -3046,11 +3052,39 @@ begin
   end;
   v_path := v_old->>'storage_path';
   perform public.managed_storage_exact_lock(v_bucket, v_path);
-  if exists (
+  v_referenced := public.managed_storage_object_is_referenced(v_object_id)
+    or case tg_table_name
+      when 'assignment_artifact_storage_cleanup' then exists (
+        select 1 from public.assignment_submission_artifacts reference
+        where reference.storage_path = v_path
+      )
+      when 'test_document_snapshot_storage_cleanup' then
+        public.test_document_snapshot_path_is_referenced(v_path)
+      else false
+    end;
+  v_storage_present := exists (
     select 1 from storage.objects object
     where object.bucket_id = v_bucket and object.name = v_path
-  ) then
+  );
+  if v_storage_present and v_referenced then
+    update public.managed_storage_objects
+    set status = 'ready', verified_at = coalesce(verified_at, clock_timestamp()),
+        ready_at = coalesce(ready_at, clock_timestamp()),
+        cleanup_reason_code = null, next_attempt_at = clock_timestamp(),
+        lease_token = null, lease_expires_at = null, last_error_code = null,
+        reservation_expires_at = null, deleted_at = null,
+        updated_at = clock_timestamp()
+    where id = v_object_id and storage_bucket = v_bucket and storage_path = v_path
+      and status = 'cleanup_processing'
+      and lease_token = nullif(v_old->>'lease_token', '')::uuid;
+    if not found then
+      raise exception using errcode = '55000', message = 'managed_storage_cleanup_lease_lost';
+    end if;
+    return old;
+  elsif v_storage_present then
     raise exception using errcode = '55000', message = 'managed_storage_cleanup_not_absent';
+  elsif v_referenced then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_referenced_missing';
   end if;
   update public.managed_storage_objects
   set status = 'deleted', deleted_at = coalesce(deleted_at, clock_timestamp()),

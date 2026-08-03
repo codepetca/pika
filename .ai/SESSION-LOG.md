@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Retired unreachable Quiz rendering
-
-**Risk profile:** none
-
-**Model recommendation:** GPT-5 Codex - the pass traces Test-only callers through large teacher and student components, removes dead rendering/contracts, and preserves persistence and compatibility boundaries.
-
-**Completed:**
-- Removed assessment-mode switches and unreachable quiz submission, result, list-badge, authoring, preview, and grading branches from active Test components.
-- Consolidated student Test form submissions and returned results on current structured Test payloads.
-- Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
-- Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
-- Preserved authoring-preview freshness with uncached reads and a request-generation guard so a late stale response cannot replace a newer refresh.
-- Updated the governed native-control registry for the removed controls and modules.
-- Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
-- Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
-- Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
-
-**Validation:**
-- Focused component and architecture suites (7 files / 118 tests)
-- Full repository suite (407 files / 3,662 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (621 modules / 0 allowances)
-- `pnpm run check:ui-policy` (207 registered native controls / 65 files)
-- `pnpm build`
-- Pika changed-file audit
-- Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
-- `git diff --check`
-- Independent review found one blocking in-flight preview freshness regression; fixed with a request-generation guard and deferred-response regression coverage.
-
-**Remaining:**
-- Require independent PR review and exact-head CI before merge.
-- Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
-
 ## 2026-07-23 — Designed legacy Quiz schema retirement
 
 **Risk profile:** none
@@ -1417,3 +1383,29 @@ write/delete serialization.
 **Remaining:**
 - Publish the correction after local static checks, require green PR CI, and
   complete the approved targeted review.
+
+## 2026-08-03 — Preserved live references during cleanup cancellation
+
+**Risk profile:** high — migration-116 worker compatibility, cleanup lease
+reclamation, and managed readiness.
+
+**Completed:**
+- Distinguished physical deletion from legacy worker cancellation: a live raw
+  or managed reference with present bytes now returns the leased object to
+  `ready`, while missing referenced bytes and unreferenced present bytes still
+  fail closed.
+- Counted expired processing-lease reclamation as a new managed attempt while
+  leaving same-token renewal neutral.
+- Extended the disposable database fixture across assignment and Test snapshot
+  cancellation, retry accounting, reconciliation, readiness, Storage overwrite
+  fencing, and the local Storage-API delete simulation contract.
+- Kept generic cleanup enforcement-only, migration 117 unapplied outside CI,
+  permanent deletion unavailable, and PR #963 unchanged.
+
+**Validation:**
+- Pending focused static checks, disposable CI replay/fixture, and the approved
+  targeted follow-up review.
+
+**Remaining:**
+- Publish after local verification, require green PR CI, and complete the final
+  targeted review without starting another automatic remediation loop.

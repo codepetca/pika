@@ -95,6 +95,8 @@ declare
   v_artifact_cleanup public.assignment_artifact_storage_cleanup;
   v_snapshot_cleanup public.test_document_snapshot_storage_cleanup;
   v_compat_cleanup_id uuid;
+  v_assignment_cancel_id uuid;
+  v_snapshot_cancel_id uuid;
   v_legacy_id uuid;
 begin
   if (select status from public.managed_storage_objects
@@ -154,6 +156,7 @@ begin
   exception when sqlstate '55000' then
     if sqlerrm not like '%managed_storage_cleanup_in_progress%' then raise; end if;
   end;
+  perform set_config('storage.allow_delete_query', 'true', true);
   delete from storage.objects
   where bucket_id = 'assignment-artifacts'
     and name = 'managed-fixture/compatibility-managed.png';
@@ -165,6 +168,157 @@ begin
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then
     raise exception 'Compatibility cleanup left managed readiness blocked';
+  end if;
+
+  -- Migration-116 workers use completion to cancel a cleanup if a reference
+  -- appears after claim. Preserve the bytes and restore managed readiness.
+  insert into storage.objects (bucket_id, name)
+  values ('assignment-artifacts', 'managed-fixture/compatibility-cancelled.png');
+  v_assignment_cancel_id := public.managed_storage_legacy_object_id(
+    'assignment-artifacts', 'managed-fixture/compatibility-cancelled.png'
+  );
+  perform public.register_legacy_managed_storage_object(
+    v_assignment_cancel_id,
+    'assignment-artifacts', 'managed-fixture/compatibility-cancelled.png',
+    'a1100000-0000-4000-8000-000000000003', null,
+    'student_assignment_artifact',
+    'a1100000-0000-4000-8000-000000000001',
+    'a1100000-0000-4000-8000-000000000002',
+    'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+    'image/png', 4, repeat('d', 64)
+  );
+  insert into public.assignment_artifact_storage_cleanup (storage_path)
+  values ('managed-fixture/compatibility-cancelled.png');
+  select * into v_artifact_cleanup
+  from public.claim_assignment_artifact_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000042', 1, 30
+  );
+  if (select attempt_count from public.managed_storage_objects
+    where id = v_assignment_cancel_id) <> 1
+  then raise exception 'Initial managed cleanup attempt was not counted'; end if;
+  update public.assignment_artifact_storage_cleanup
+  set lease_expires_at = clock_timestamp() + interval '60 seconds'
+  where id = v_artifact_cleanup.id;
+  if (select attempt_count from public.managed_storage_objects
+    where id = v_assignment_cancel_id) <> 1
+  then raise exception 'Same-token lease renewal changed managed attempts'; end if;
+  update public.assignment_artifact_storage_cleanup
+  set lease_expires_at = clock_timestamp() - interval '1 second'
+  where id = v_artifact_cleanup.id;
+  select * into v_artifact_cleanup
+  from public.claim_assignment_artifact_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000043', 1, 30
+  );
+  if (select attempt_count from public.managed_storage_objects
+    where id = v_assignment_cancel_id) <> 2
+  then raise exception 'Expired lease reclaim was not counted'; end if;
+  if not public.fail_assignment_artifact_storage_cleanup(
+    v_artifact_cleanup.id, v_artifact_cleanup.lease_token, 'fixture_retry'
+  ) or (select status from public.managed_storage_objects
+    where id = v_assignment_cancel_id) <> 'cleanup_pending'
+  then raise exception 'Operational cleanup failure was not mirrored'; end if;
+  update public.assignment_artifact_storage_cleanup
+  set next_attempt_at = clock_timestamp() - interval '1 second'
+  where id = v_artifact_cleanup.id;
+  select * into v_artifact_cleanup
+  from public.claim_assignment_artifact_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000044', 1, 30
+  );
+  if (select attempt_count from public.managed_storage_objects
+    where id = v_assignment_cancel_id) <> 3
+  then raise exception 'Managed cleanup retry was not counted'; end if;
+  insert into public.assignment_submission_requirements (
+    id, assignment_id, type, label, required, position
+  ) values (
+    'a1100000-0000-4000-8000-000000000007',
+    'a1100000-0000-4000-8000-000000000004',
+    'image', 'Cancellation evidence', false, 1
+  );
+  insert into public.assignment_submission_artifacts (
+    id, assignment_doc_id, requirement_id, student_id, type, storage_path
+  ) values (
+    'a1100000-0000-4000-8000-000000000050',
+    'a1100000-0000-4000-8000-000000000005',
+    'a1100000-0000-4000-8000-000000000007',
+    'a1100000-0000-4000-8000-000000000002',
+    'image', 'managed-fixture/compatibility-cancelled.png'
+  );
+  if not public.complete_assignment_artifact_storage_cleanup(
+    v_artifact_cleanup.id, v_artifact_cleanup.lease_token
+  ) or not exists (
+    select 1 from storage.objects
+    where bucket_id = 'assignment-artifacts'
+      and name = 'managed-fixture/compatibility-cancelled.png'
+  ) or (select status from public.managed_storage_objects
+    where id = v_assignment_cancel_id) <> 'ready'
+  then raise exception 'Assignment cleanup cancellation did not restore readiness'; end if;
+  perform public.reconcile_managed_storage_relational_references();
+  if (select managed_object_id from public.assignment_submission_artifacts
+    where id = 'a1100000-0000-4000-8000-000000000050')
+      is distinct from v_assignment_cancel_id
+  then raise exception 'Cancelled assignment reference was not reconciled'; end if;
+
+  insert into storage.objects (bucket_id, name) values (
+    'test-documents',
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled'
+  );
+  v_snapshot_cancel_id := public.managed_storage_legacy_object_id(
+    'test-documents',
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled'
+  );
+  perform public.register_legacy_managed_storage_object(
+    v_snapshot_cancel_id,
+    'test-documents',
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled',
+    'a1100000-0000-4000-8000-000000000003', null,
+    'test_execution_snapshot',
+    'a1100000-0000-4000-8000-000000000001', null,
+    'test', 'a1100000-0000-4000-8000-000000000051',
+    'text/html', 4, repeat('e', 64)
+  );
+  insert into public.test_document_snapshot_storage_cleanup (storage_path)
+  values (
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled'
+  );
+  select * into v_snapshot_cleanup
+  from public.claim_test_document_snapshot_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000045', 1, 30
+  );
+  insert into public.tests (
+    id, classroom_id, title, status, created_by, documents
+  ) values (
+    'a1100000-0000-4000-8000-000000000051',
+    'a1100000-0000-4000-8000-000000000003',
+    'Compatibility cancellation test', 'draft',
+    'a1100000-0000-4000-8000-000000000001',
+    '[{
+      "id":"cancel-doc",
+      "title":"Cancellation reference",
+      "source":"link",
+      "url":"https://example.test/cancel",
+      "snapshot_path":"link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled",
+      "snapshot_content_type":"text/html",
+      "synced_at":"2026-08-03T00:00:00Z"
+    }]'::jsonb
+  );
+  if not public.complete_test_document_snapshot_storage_cleanup(
+    v_snapshot_cleanup.id, v_snapshot_cleanup.lease_token
+  ) or not exists (
+    select 1 from storage.objects
+    where bucket_id = 'test-documents'
+      and name = 'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled'
+  ) or (select status from public.managed_storage_objects
+    where id = v_snapshot_cancel_id) <> 'ready'
+  then raise exception 'Snapshot cleanup cancellation did not restore readiness'; end if;
+  perform public.reconcile_managed_storage_json_references();
+  if not exists (
+    select 1 from public.managed_storage_json_references
+    where test_id = 'a1100000-0000-4000-8000-000000000051'
+      and managed_object_id = v_snapshot_cancel_id
+  ) then raise exception 'Cancelled snapshot reference was not reconciled'; end if;
+  select * into v_run from public.refresh_managed_storage_readiness();
+  if v_run.status <> 'ready' then
+    raise exception 'Cleanup cancellation left managed readiness blocked';
   end if;
 
   insert into storage.objects (bucket_id, name)
@@ -520,6 +674,8 @@ if [[ "$activation_status" -eq 0 ]] \
 fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+begin;
+select set_config('storage.allow_delete_query', 'true', true);
 do $fixture$
 begin
   if (select mode from public.managed_storage_settings where singleton) <> 'compatibility'
@@ -538,6 +694,7 @@ delete from public.managed_storage_objects
 where id = 'a1200000-0000-4000-8000-000000000003';
 delete from public.classrooms where id = 'a1200000-0000-4000-8000-000000000002';
 delete from public.users where id = 'a1200000-0000-4000-8000-000000000001';
+commit;
 SQL
 
 echo "Managed-storage activation concurrency checks passed."
