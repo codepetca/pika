@@ -96,8 +96,11 @@ the exact migration and exact target under the schema rollout checklist.
    this ordering executable rather than a convention.
 7. Leave generic cleanup off until enforcement behavior is observed. Generic
    claiming is rejected in compatibility mode. Existing cleanup ledgers mirror
-   leases, retries, and terminal completion into the managed authority once
-   enforcement is active. A manual cleanup batch additionally requires
+   leases, retries, and terminal completion whenever an exact managed identity
+   is bound, including during compatibility rollout; unmatched raw-only rows
+   retain migration-116 behavior until readiness closes that window. An active
+   managed cleanup lease fences exact-path Storage writes in either mode. A
+   manual cleanup batch additionally requires
    `MANAGED_STORAGE_CLEANUP_ENABLED=true` and
    `MANAGED STORAGE CLEANUP <target>`. No scheduler is installed here.
 

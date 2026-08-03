@@ -2607,16 +2607,18 @@ begin
     else nullif(v_new->>'storage_bucket', '')
   end;
   v_path := nullif(v_new->>'storage_path', '');
-  if new.managed_object_id is null and v_enforced then
+  if new.managed_object_id is null then
     select * into v_object from public.managed_storage_objects object
     where object.storage_bucket = v_bucket and object.storage_path = v_path
     for key share;
-    if not found then
+    if found then
+      new.managed_object_id := v_object.id;
+    elsif v_enforced then
       raise exception using errcode = '55000', message = 'managed_storage_ledger_identity_required';
+    else
+      return new;
     end if;
-    new.managed_object_id := v_object.id;
   end if;
-  if new.managed_object_id is null then return new; end if;
   select * into v_object from public.managed_storage_objects
   where id = new.managed_object_id for key share;
   if not found or v_object.storage_bucket is distinct from v_bucket
@@ -2700,10 +2702,15 @@ begin
   ) then return new; end if;
   v_enforced := public.lock_managed_storage_protocol();
   perform public.managed_storage_exact_lock(new.bucket_id, new.name);
-  if not v_enforced then return new; end if;
   select * into v_object from public.managed_storage_objects
   where storage_bucket = new.bucket_id and storage_path = new.name
   for key share;
+  if not v_enforced then
+    if found and v_object.status = 'cleanup_processing' then
+      raise exception using errcode = '55000', message = 'managed_storage_cleanup_in_progress';
+    end if;
+    return new;
+  end if;
   if not found or v_object.status not in ('reserved', 'verified', 'ready') then
     raise exception using errcode = '55000', message = 'managed_storage_reservation_required';
   end if;
@@ -2715,7 +2722,7 @@ end;
 $$;
 
 create trigger enforce_managed_storage_object_write
-before insert or update of bucket_id, name on storage.objects
+before insert or update on storage.objects
 for each row execute function public.enforce_managed_storage_object_write();
 
 create or replace function public.enforce_managed_storage_object_delete()
@@ -2909,13 +2916,13 @@ declare
   v_enforced boolean;
 begin
   v_enforced := public.lock_managed_storage_protocol();
-  if not v_enforced then return new; end if;
   begin
     v_object_id := nullif(v_new->>'managed_object_id', '')::uuid;
   exception when invalid_text_representation then
     raise exception using errcode = '22023', message = 'managed_storage_cleanup_identity_invalid';
   end;
   if v_object_id is null then
+    if not v_enforced then return new; end if;
     raise exception using errcode = '55000', message = 'managed_storage_cleanup_identity_required';
   end if;
   v_bucket := coalesce(
@@ -3024,11 +3031,13 @@ declare
   v_object_id uuid;
   v_bucket text;
   v_path text;
+  v_enforced boolean;
 begin
   if v_old->>'status' <> 'processing' then return old; end if;
-  if not public.lock_managed_storage_protocol() then return old; end if;
+  v_enforced := public.lock_managed_storage_protocol();
   v_object_id := nullif(v_old->>'managed_object_id', '')::uuid;
   if v_object_id is null then
+    if not v_enforced then return old; end if;
     raise exception using errcode = '55000', message = 'managed_storage_cleanup_identity_required';
   end if;
   v_bucket := case tg_table_name

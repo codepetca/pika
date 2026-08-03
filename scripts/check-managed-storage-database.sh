@@ -51,7 +51,7 @@ insert into public.assignment_docs (id, assignment_id, student_id) values (
   'a1100000-0000-4000-8000-000000000002'
 );
 insert into public.assignment_submission_requirements (
-  id, assignment_id, type, title, required, position
+  id, assignment_id, type, label, required, position
 ) values (
   'a1100000-0000-4000-8000-000000000006',
   'a1100000-0000-4000-8000-000000000004',
@@ -94,6 +94,7 @@ declare
   v_claim public.managed_storage_objects;
   v_artifact_cleanup public.assignment_artifact_storage_cleanup;
   v_snapshot_cleanup public.test_document_snapshot_storage_cleanup;
+  v_compat_cleanup_id uuid;
   v_legacy_id uuid;
 begin
   if (select status from public.managed_storage_objects
@@ -113,6 +114,58 @@ begin
   delete from public.test_document_snapshot_storage_cleanup
   where storage_path =
     'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility';
+
+  -- Once an exact managed object exists, even a migration-116 cleanup writer
+  -- is bound to managed authority while the protocol remains compatible.
+  insert into storage.objects (bucket_id, name)
+  values ('assignment-artifacts', 'managed-fixture/compatibility-managed.png');
+  v_compat_cleanup_id := public.managed_storage_legacy_object_id(
+    'assignment-artifacts', 'managed-fixture/compatibility-managed.png'
+  );
+  perform public.register_legacy_managed_storage_object(
+    v_compat_cleanup_id,
+    'assignment-artifacts', 'managed-fixture/compatibility-managed.png',
+    'a1100000-0000-4000-8000-000000000003', null,
+    'student_assignment_artifact',
+    'a1100000-0000-4000-8000-000000000001',
+    'a1100000-0000-4000-8000-000000000002',
+    'assignment_doc', 'a1100000-0000-4000-8000-000000000005',
+    'image/png', 4, repeat('c', 64)
+  );
+  insert into public.assignment_artifact_storage_cleanup (storage_path)
+  values ('managed-fixture/compatibility-managed.png')
+  returning * into v_artifact_cleanup;
+  if v_artifact_cleanup.managed_object_id is distinct from v_compat_cleanup_id then
+    raise exception 'Compatibility cleanup was not bound to managed authority';
+  end if;
+  select * into v_artifact_cleanup
+  from public.claim_assignment_artifact_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000041', 1, 30
+  );
+  if v_artifact_cleanup.managed_object_id is distinct from v_compat_cleanup_id
+    or (select status from public.managed_storage_objects
+      where id = v_compat_cleanup_id) <> 'cleanup_processing'
+  then raise exception 'Compatibility cleanup lease was not mirrored'; end if;
+  begin
+    update storage.objects set name = name
+    where bucket_id = 'assignment-artifacts'
+      and name = 'managed-fixture/compatibility-managed.png';
+    raise exception 'Compatibility writer overtook a managed cleanup lease';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%managed_storage_cleanup_in_progress%' then raise; end if;
+  end;
+  delete from storage.objects
+  where bucket_id = 'assignment-artifacts'
+    and name = 'managed-fixture/compatibility-managed.png';
+  if not public.complete_assignment_artifact_storage_cleanup(
+    v_artifact_cleanup.id, v_artifact_cleanup.lease_token
+  ) or (select status from public.managed_storage_objects
+    where id = v_compat_cleanup_id) <> 'deleted'
+  then raise exception 'Compatibility cleanup did not preserve a managed tombstone'; end if;
+  select * into v_run from public.refresh_managed_storage_readiness();
+  if v_run.status <> 'ready' then
+    raise exception 'Compatibility cleanup left managed readiness blocked';
+  end if;
 
   insert into storage.objects (bucket_id, name)
   values ('assignment-artifacts', 'managed-fixture/legacy-replay.png');

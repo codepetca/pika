@@ -58,7 +58,11 @@ describe('managed storage migration contract', () => {
   it('keeps cleanup generic and independently disabled at the application boundary', () => {
     expect(foundation).toContain('claim_managed_storage_cleanup')
     expect(foundation).toContain('managed_storage_cleanup_authority_required')
+    expect(foundation).toContain('managed_storage_cleanup_in_progress')
     expect(foundation).toContain('managed_storage_cleanup_requires_enforcement')
+    expect(foundation).toContain('before insert or update on storage.objects')
+    expect(foundation).toContain('if not v_enforced then return new; end if;')
+    expect(foundation).toContain('if not v_enforced then return old; end if;')
     expect(foundation).toContain("where status = 'processing'")
     expect(foundation).toContain("set status = 'deleted', deleted_at = clock_timestamp()")
     for (const trigger of [
