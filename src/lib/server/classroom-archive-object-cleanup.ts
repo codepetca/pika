@@ -25,7 +25,7 @@ const claimSchema = z.object({
     && uuidSchema.safeParse(segments[0]).success
     && uuidSchema.safeParse(segments[1]).success
     && segments[2] === claim.operation_id
-    && segments[3] === 'classroom-v1.tar.gz'
+    && ['classroom-v1.tar.gz', 'classroom-v2.tar.gz'].includes(segments[3])
   const isRestorePath = claim.storage_bucket !== 'classroom-archives'
     && segments.length === 4
     && segments[0] === 'restores'
