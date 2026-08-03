@@ -2056,7 +2056,8 @@ begin
   for v_object_id in
     select object.id
     from public.managed_storage_objects object
-    where object.id in (
+    where object.id = any(v_previous_object_ids)
+      or object.id in (
       select managed_object_id
       from public.managed_storage_payload_ids(v_payload)
     ) or exists (

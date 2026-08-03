@@ -946,6 +946,12 @@ insert into public.tests (
     'a1400000-0000-4000-8000-000000000003',
     'Managed raw lock-order Test', 'draft',
     'a1400000-0000-4000-8000-000000000001', '[]'::jsonb
+  ),
+  (
+    'a1400000-0000-4000-8000-000000000008',
+    'a1400000-0000-4000-8000-000000000003',
+    'Managed previous-identity Test', 'draft',
+    'a1400000-0000-4000-8000-000000000001', '[]'::jsonb
   );
 select public.begin_managed_storage_upload(
   'a1400000-0000-4000-8000-000000000010',
@@ -965,16 +971,35 @@ select public.begin_managed_storage_upload(
   'test', 'a1400000-0000-4000-8000-000000000007',
   'application/pdf', 4
 );
+select public.begin_managed_storage_upload(
+  'a1400000-0000-4000-8000-000000000012',
+  'test-documents', 'managed-race/previous-identity.pdf',
+  'a1400000-0000-4000-8000-000000000003', null, null,
+  'teacher_test_material',
+  'a1400000-0000-4000-8000-000000000001', null,
+  'test', 'a1400000-0000-4000-8000-000000000008',
+  'application/pdf', 4
+);
 insert into storage.objects (bucket_id, name) values
   ('test-documents', 'managed-race/z-uuid-first.pdf'),
-  ('test-documents', 'managed-race/a-uuid-second.pdf');
+  ('test-documents', 'managed-race/a-uuid-second.pdf'),
+  ('test-documents', 'managed-race/previous-identity.pdf');
 select public.verify_managed_storage_upload(id, null)
 from public.managed_storage_objects
 where id in (
   'a1400000-0000-4000-8000-000000000010',
-  'a1400000-0000-4000-8000-000000000011'
+  'a1400000-0000-4000-8000-000000000011',
+  'a1400000-0000-4000-8000-000000000012'
 )
 order by id;
+update public.tests
+set documents = '[{
+  "id":"previous-managed-identity",
+  "source":"upload",
+  "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/previous-identity.pdf",
+  "managed_object_id":"a1400000-0000-4000-8000-000000000012"
+}]'::jsonb
+where id = 'a1400000-0000-4000-8000-000000000008';
 SQL
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
@@ -1025,10 +1050,34 @@ blueprint_late_raw_status=$?
 set -e
 wait "$blueprint_adoption_pid"
 if [[ "$blueprint_late_raw_status" -eq 0 ]] \
-  || ! grep -q 'managed_storage_embedded_owner_mismatch' \
+  || ! grep -q 'managed_storage_reference_retry' \
     "$concurrency_dir/blueprint-late-raw.err"; then
-  echo "Blueprint adoption was overtaken by a late cross-owner raw reference." >&2
+  echo "Blueprint adoption did not retry a late raw reference safely." >&2
   sed -n '1,80p' "$concurrency_dir/blueprint-late-raw.err" >&2
+  exit 1
+fi
+
+# Once the newly registered identity is visible at statement start, retrying
+# the same cross-owner write must reject the actual ownership mismatch.
+set +e
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/blueprint-late-raw-retry.out" \
+  2>"$concurrency_dir/blueprint-late-raw-retry.err" <<'SQL'
+update public.tests
+set documents = '[{
+  "id":"late-cross-owner-reference",
+  "source":"upload",
+  "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/blueprint-adoption.pdf"
+}]'::jsonb
+where id = 'a1400000-0000-4000-8000-000000000006';
+SQL
+blueprint_late_raw_retry_status=$?
+set -e
+if [[ "$blueprint_late_raw_retry_status" -eq 0 ]] \
+  || ! grep -q 'managed_storage_embedded_owner_mismatch' \
+    "$concurrency_dir/blueprint-late-raw-retry.err"; then
+  echo "Blueprint adoption was overtaken by a retried cross-owner raw reference." >&2
+  sed -n '1,80p' "$concurrency_dir/blueprint-late-raw-retry.err" >&2
   exit 1
 fi
 
@@ -1164,6 +1213,72 @@ if [[ "$raw_inverse_path_status" -ne 0 || "$raw_uuid_order_holder_status" -ne 0 
   exit 1
 fi
 
+# Removed identities belong in the same initial UUID prelock. The holder
+# emulates a writer which already owns the previous object row and will request
+# a new absent path. Replacing that object with the same absent path must wait
+# on the row before acquiring the path; the old path-then-previous-row ordering
+# deadlocks these two sessions.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/previous-identity-holder.out" \
+  2>"$concurrency_dir/previous-identity-holder.err" <<'SQL' &
+set application_name = 'managed-storage-previous-identity-holder';
+begin;
+select public.lock_managed_storage_protocol();
+select id from public.managed_storage_objects
+where id = 'a1400000-0000-4000-8000-000000000012'
+for update;
+select public.managed_storage_exact_lock(
+  'test-documents', 'managed-race/previous-identity.pdf'
+);
+select pg_sleep(3);
+select public.managed_storage_exact_lock(
+  'test-documents', 'managed-race/replacement-absent.pdf'
+);
+commit;
+SQL
+previous_identity_holder_pid=$!
+
+previous_identity_waiting=false
+for _ in $(seq 1 50); do
+  active_previous_identity="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -A -t -c \
+    "select count(*) from pg_stat_activity where application_name = 'managed-storage-previous-identity-holder' and state = 'active' and query like '%pg_sleep%';")"
+  if [[ "$active_previous_identity" = "1" ]]; then
+    previous_identity_waiting=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$previous_identity_waiting" != "true" ]]; then
+  wait "$previous_identity_holder_pid" || true
+  echo "Previous-identity holder did not reach the managed-row fence." >&2
+  exit 1
+fi
+
+set +e
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/previous-identity-replacement.out" \
+  2>"$concurrency_dir/previous-identity-replacement.err" <<'SQL'
+set statement_timeout = '10s';
+update public.tests
+set documents = '[{
+  "id":"replacement-absent-path",
+  "source":"upload",
+  "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/replacement-absent.pdf"
+}]'::jsonb
+where id = 'a1400000-0000-4000-8000-000000000008';
+SQL
+previous_identity_replacement_status=$?
+wait "$previous_identity_holder_pid"
+previous_identity_holder_status=$?
+set -e
+if [[ "$previous_identity_replacement_status" -ne 0 \
+  || "$previous_identity_holder_status" -ne 0 ]]; then
+  echo "Previous identity and absent replacement path deadlocked." >&2
+  sed -n '1,80p' "$concurrency_dir/previous-identity-replacement.err" >&2
+  sed -n '1,80p' "$concurrency_dir/previous-identity-holder.err" >&2
+  exit 1
+fi
+
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 select set_config('storage.allow_delete_query', 'true', true);
@@ -1182,6 +1297,19 @@ begin
       where id = 'a1400000-0000-4000-8000-000000000006') <> '[]'::jsonb
     or (select count(*) from public.managed_storage_json_references
       where test_id = 'a1400000-0000-4000-8000-000000000007') <> 2
+    or exists (
+      select 1 from public.managed_storage_json_references
+      where test_id = 'a1400000-0000-4000-8000-000000000008'
+    )
+    or not exists (
+      select 1
+      from public.managed_storage_payload_raw_references(
+        (select documents from public.tests
+          where id = 'a1400000-0000-4000-8000-000000000008')
+      ) reference
+      where reference.storage_bucket = 'test-documents'
+        and reference.storage_path = 'managed-race/replacement-absent.pdf'
+    )
   then
     raise exception 'Blueprint adoption/raw-writer postcondition failed';
   end if;
@@ -1190,21 +1318,24 @@ $fixture$;
 delete from public.tests where id in (
   'a1400000-0000-4000-8000-000000000005',
   'a1400000-0000-4000-8000-000000000006',
-  'a1400000-0000-4000-8000-000000000007'
+  'a1400000-0000-4000-8000-000000000007',
+  'a1400000-0000-4000-8000-000000000008'
 );
 delete from public.managed_storage_objects
 where storage_bucket = 'test-documents'
   and storage_path in (
     'managed-race/blueprint-adoption.pdf',
     'managed-race/z-uuid-first.pdf',
-    'managed-race/a-uuid-second.pdf'
+    'managed-race/a-uuid-second.pdf',
+    'managed-race/previous-identity.pdf'
   );
 delete from storage.objects
 where bucket_id = 'test-documents'
   and name in (
     'managed-race/blueprint-adoption.pdf',
     'managed-race/z-uuid-first.pdf',
-    'managed-race/a-uuid-second.pdf'
+    'managed-race/a-uuid-second.pdf',
+    'managed-race/previous-identity.pdf'
   );
 delete from public.classrooms where id in (
   'a1400000-0000-4000-8000-000000000003',
