@@ -526,9 +526,11 @@ begin
   update public.managed_storage_objects
   set reservation_expires_at = clock_timestamp() - interval '1 second'
   where id = 'a1100000-0000-4000-8000-000000000020';
-  select * into v_claim from public.claim_managed_storage_cleanup(
-    'a1100000-0000-4000-8000-000000000021', 1, 30
-  );
+  select claimed.* into v_claim
+  from public.claim_managed_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000021', 25, 30
+  ) claimed
+  where claimed.id = 'a1100000-0000-4000-8000-000000000020';
   if v_claim.id is distinct from 'a1100000-0000-4000-8000-000000000020' then
     raise exception 'Interrupted upload was not claimed for cleanup';
   end if;
