@@ -38,6 +38,50 @@ insert into public.classroom_enrollments (classroom_id, student_id) values (
   'a1100000-0000-4000-8000-000000000003',
   'a1100000-0000-4000-8000-000000000002'
 );
+
+-- Reserving an operational object must not attach it before the operation has
+-- durably staged the matching bucket/path. The application binds all three
+-- identity fields atomically after staging the intent.
+insert into public.classroom_archive_operations (
+  id, teacher_id, classroom_id, operation_type, request_sha256, status,
+  source_revision, source_schema_migration, source_app_commit, retention,
+  archive_id, snapshot_created_at, snapshot_expires_at
+) values (
+  'a1100000-0000-4000-8000-000000000008',
+  'a1100000-0000-4000-8000-000000000001',
+  'a1100000-0000-4000-8000-000000000003',
+  'export', repeat('8', 64), 'snapshot_ready', 1,
+  '107_classroom_archive_v2_direct_source', 'deadbee',
+  '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+  'a1100000-0000-4000-8000-000000000008',
+  clock_timestamp(), clock_timestamp() + interval '24 hours'
+);
+select public.begin_managed_storage_upload(
+  'a1100000-0000-4000-8000-000000000009',
+  'classroom-archives', 'managed-fixture/reserved-archive.tar.gz',
+  'a1100000-0000-4000-8000-000000000003', null, null,
+  'classroom_archive',
+  'a1100000-0000-4000-8000-000000000001', null,
+  'classroom_archive_operation',
+  'a1100000-0000-4000-8000-000000000008',
+  'application/gzip', 4
+);
+do $operation_reservation$
+begin
+  if exists (
+    select 1 from public.classroom_archive_operations
+    where id = 'a1100000-0000-4000-8000-000000000008'
+      and (managed_object_id is not null or storage_path is not null)
+  ) then
+    raise exception 'Operational reservation attached before intent staging';
+  end if;
+end;
+$operation_reservation$;
+delete from public.managed_storage_objects
+where id = 'a1100000-0000-4000-8000-000000000009';
+delete from public.classroom_archive_operations
+where id = 'a1100000-0000-4000-8000-000000000008';
+
 insert into public.assignments (id, classroom_id, title, due_at, created_by) values (
   'a1100000-0000-4000-8000-000000000004',
   'a1100000-0000-4000-8000-000000000003',

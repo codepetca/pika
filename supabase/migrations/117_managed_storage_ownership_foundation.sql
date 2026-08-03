@@ -565,11 +565,6 @@ begin
     raise exception using errcode = '23505', message = 'managed_storage_reservation_conflict';
   end if;
 
-  if p_purpose in ('classroom_archive', 'gradex_extract') then
-    update public.classroom_archive_operations
-    set managed_object_id = p_object_id, updated_at = clock_timestamp()
-    where id = p_resource_id and classroom_id = p_classroom_id;
-  end if;
   return v_object;
 end;
 $$;
