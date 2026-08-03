@@ -6599,6 +6599,10 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_managed_storage_object_presence: {
+        Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: Json
+      }
       get_teacher_log_history_preview: {
         Args: {
           p_classroom_id: string

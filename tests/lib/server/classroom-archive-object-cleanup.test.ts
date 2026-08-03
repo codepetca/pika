@@ -9,12 +9,15 @@ function createMock(options: {
   renew?: boolean
   storageBucket?: 'assignment-artifacts' | 'classroom-archives'
   storagePath?: string
+  useLocalNotFoundShape?: boolean
 } = {}) {
   const storageBucket = options.storageBucket ?? 'assignment-artifacts'
   const remove = vi.fn(async () => ({ data: [], error: null }))
   const download = vi.fn(async () => ({
     data: null,
-    error: { code: 'NoSuchKey', status: 404 },
+    error: options.useLocalNotFoundShape
+      ? { name: 'StorageUnknownError', originalError: { status: 400 } }
+      : { code: 'NoSuchKey', status: 404 },
   }))
   const rpc = vi.fn(async (name: string) => {
     if (name === 'claim_due_classroom_archive_object_upload_cleanup') {
@@ -30,6 +33,12 @@ function createMock(options: {
     }
     if (name === 'renew_classroom_archive_object_upload_cleanup_lease') {
       return { data: options.renew !== false, error: null }
+    }
+    if (name === 'get_managed_storage_object_presence') {
+      return {
+        data: { bucket_exists: true, object_exists: false },
+        error: null,
+      }
     }
     return { data: true, error: null }
   })
@@ -127,5 +136,23 @@ describe('classroom archive object cleanup', () => {
       failed: 0,
     }))
     expect(mock.remove).toHaveBeenCalledWith([archivePath])
+  })
+
+  it('confirms local Storage 400 absence with an exact managed-object lookup', async () => {
+    const mock = createMock({ useLocalNotFoundShape: true })
+    const result = await runClassroomArchiveObjectCleanup({
+      supabase: mock.client,
+      leaseToken: LEASE_TOKEN,
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      deleted: 1,
+      failed: 0,
+    }))
+    expect(mock.rpc).toHaveBeenCalledWith('get_managed_storage_object_presence', {
+      p_storage_bucket: 'assignment-artifacts',
+      p_storage_path: STORAGE_PATH,
+    })
   })
 })

@@ -2884,6 +2884,47 @@ create trigger enforce_managed_storage_object_delete
 before delete on storage.objects
 for each row execute function public.enforce_managed_storage_object_delete();
 
+create or replace function public.get_managed_storage_object_presence(
+  p_storage_bucket text,
+  p_storage_path text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, storage, pg_temp
+as $$
+begin
+  if p_storage_bucket not in (
+    'assignment-artifacts', 'submission-images', 'test-documents',
+    'classroom-archives', 'gradex-analytics-extracts'
+  )
+    or p_storage_path is null
+    or p_storage_path = ''
+    or p_storage_path like '/%'
+    or p_storage_path like '%/'
+    or p_storage_path like '%//%'
+    or strpos(p_storage_path, E'\\') > 0
+    or p_storage_path ~ '(^|/)\.{1,2}(/|$)'
+  then
+    raise exception using errcode = '22023', message = 'managed_storage_identity_invalid';
+  end if;
+  return jsonb_build_object(
+    'bucket_exists', exists (
+      select 1 from storage.buckets bucket where bucket.id = p_storage_bucket
+    ),
+    'object_exists', exists (
+      select 1 from storage.objects object
+      where object.bucket_id = p_storage_bucket and object.name = p_storage_path
+    )
+  );
+end;
+$$;
+
+revoke all on function public.get_managed_storage_object_presence(text, text)
+  from public, anon, authenticated;
+grant execute on function public.get_managed_storage_object_presence(text, text)
+  to service_role;
+
 create or replace function public.queue_managed_storage_cleanup(
   p_object_id uuid,
   p_error_code text default null
