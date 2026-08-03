@@ -263,15 +263,23 @@ begin
     'a1100000-0000-4000-8000-000000000002',
     'image', 'managed-fixture/compatibility-cancelled.png'
   );
-  if not public.complete_assignment_artifact_storage_cleanup(
+  if (select managed_object_id from public.assignment_submission_artifacts
+    where id = 'a1100000-0000-4000-8000-000000000050')
+      is distinct from v_assignment_cancel_id
+  then raise exception 'Assignment cancellation writer did not adopt managed identity'; end if;
+  if not coalesce(public.complete_assignment_artifact_storage_cleanup(
     v_artifact_cleanup.id, v_artifact_cleanup.lease_token
-  ) or not exists (
+  ), false) then raise exception 'Assignment cleanup cancellation RPC did not complete'; end if;
+  if not exists (
     select 1 from storage.objects
     where bucket_id = 'assignment-artifacts'
       and name = 'managed-fixture/compatibility-cancelled.png'
-  ) or (select status from public.managed_storage_objects
-    where id = v_assignment_cancel_id) <> 'ready'
-  then raise exception 'Assignment cleanup cancellation did not restore readiness'; end if;
+  ) then raise exception 'Assignment cleanup cancellation removed Storage bytes'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = v_assignment_cancel_id;
+  if v_object_status is distinct from 'ready' then
+    raise exception 'Assignment cleanup cancellation lifecycle state was %', v_object_status;
+  end if;
   perform public.reconcile_managed_storage_relational_references();
   if (select managed_object_id from public.assignment_submission_artifacts
     where id = 'a1100000-0000-4000-8000-000000000050')
