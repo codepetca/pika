@@ -1357,9 +1357,13 @@ deployment writers.
   when no managed row is committed yet, then re-read ownership after waiting.
 - Rejected explicit managed UUID/path mismatches before locking the
   caller-supplied path, preserving the canonical object-row/path lock order.
+- Pre-locked all existing UUID and raw-path identities in one global managed
+  UUID order; newly appearing identities abort safely for retry rather than
+  mixing path-first and row-first locking.
 - Corrected the disposable fixture to adopt its deliberate legacy Blueprint
   source before expecting readiness, and added two-session coverage for a late
-  cross-Classroom raw writer plus a held wrong-path mismatch lock.
+  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
+  path/UUID ordering without deadlock.
 - Kept all schema work consolidated in migration 117, left migrations 115/116
   unchanged, applied no migration, and left PR #963 untouched.
 

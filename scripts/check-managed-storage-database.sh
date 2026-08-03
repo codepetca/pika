@@ -940,7 +940,41 @@ insert into public.tests (
     'a1400000-0000-4000-8000-000000000004',
     'Managed adoption contender Test', 'draft',
     'a1400000-0000-4000-8000-000000000002', '[]'::jsonb
+  ),
+  (
+    'a1400000-0000-4000-8000-000000000007',
+    'a1400000-0000-4000-8000-000000000003',
+    'Managed raw lock-order Test', 'draft',
+    'a1400000-0000-4000-8000-000000000001', '[]'::jsonb
   );
+select public.begin_managed_storage_upload(
+  'a1400000-0000-4000-8000-000000000010',
+  'test-documents', 'managed-race/z-uuid-first.pdf',
+  'a1400000-0000-4000-8000-000000000003', null, null,
+  'teacher_test_material',
+  'a1400000-0000-4000-8000-000000000001', null,
+  'test', 'a1400000-0000-4000-8000-000000000007',
+  'application/pdf', 4
+);
+select public.begin_managed_storage_upload(
+  'a1400000-0000-4000-8000-000000000011',
+  'test-documents', 'managed-race/a-uuid-second.pdf',
+  'a1400000-0000-4000-8000-000000000003', null, null,
+  'teacher_test_material',
+  'a1400000-0000-4000-8000-000000000001', null,
+  'test', 'a1400000-0000-4000-8000-000000000007',
+  'application/pdf', 4
+);
+insert into storage.objects (bucket_id, name) values
+  ('test-documents', 'managed-race/z-uuid-first.pdf'),
+  ('test-documents', 'managed-race/a-uuid-second.pdf');
+select public.verify_managed_storage_upload(id, null)
+from public.managed_storage_objects
+where id in (
+  'a1400000-0000-4000-8000-000000000010',
+  'a1400000-0000-4000-8000-000000000011'
+)
+order by id;
 SQL
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
@@ -1056,6 +1090,80 @@ if [[ "$blueprint_explicit_mismatch_status" -eq 0 ]] \
   exit 1
 fi
 
+# Existing raw references must acquire managed rows in the same UUID order as
+# explicit identities. These paths deliberately sort opposite their UUIDs;
+# the explicit-order holder takes the first UUID, while the raw host update
+# starts concurrently. Both transactions must complete without deadlock.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/raw-uuid-order-holder.out" \
+  2>"$concurrency_dir/raw-uuid-order-holder.err" <<'SQL' &
+set application_name = 'managed-storage-raw-uuid-order-holder';
+begin;
+select public.lock_managed_storage_protocol();
+select id from public.managed_storage_objects
+where id = 'a1400000-0000-4000-8000-000000000010'
+for update;
+select public.managed_storage_exact_lock(
+  'test-documents', 'managed-race/z-uuid-first.pdf'
+);
+select pg_sleep(3);
+select id from public.managed_storage_objects
+where id = 'a1400000-0000-4000-8000-000000000011'
+for update;
+select public.managed_storage_exact_lock(
+  'test-documents', 'managed-race/a-uuid-second.pdf'
+);
+commit;
+SQL
+raw_uuid_order_holder_pid=$!
+
+raw_uuid_order_waiting=false
+for _ in $(seq 1 50); do
+  active_raw_uuid_order="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -A -t -c \
+    "select count(*) from pg_stat_activity where application_name = 'managed-storage-raw-uuid-order-holder' and state = 'active' and query like '%pg_sleep%';")"
+  if [[ "$active_raw_uuid_order" = "1" ]]; then
+    raw_uuid_order_waiting=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$raw_uuid_order_waiting" != "true" ]]; then
+  wait "$raw_uuid_order_holder_pid" || true
+  echo "Raw UUID-order holder did not reach the managed-row fence." >&2
+  exit 1
+fi
+
+set +e
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/raw-inverse-path-writer.out" \
+  2>"$concurrency_dir/raw-inverse-path-writer.err" <<'SQL'
+set statement_timeout = '10s';
+update public.tests
+set documents = '[
+  {
+    "id":"path-first-but-uuid-second",
+    "source":"upload",
+    "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/a-uuid-second.pdf"
+  },
+  {
+    "id":"path-second-but-uuid-first",
+    "source":"upload",
+    "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/z-uuid-first.pdf"
+  }
+]'::jsonb
+where id = 'a1400000-0000-4000-8000-000000000007';
+SQL
+raw_inverse_path_status=$?
+wait "$raw_uuid_order_holder_pid"
+raw_uuid_order_holder_status=$?
+set -e
+if [[ "$raw_inverse_path_status" -ne 0 || "$raw_uuid_order_holder_status" -ne 0 ]]; then
+  echo "Raw and explicit managed-object lock orders deadlocked." >&2
+  sed -n '1,80p' "$concurrency_dir/raw-inverse-path-writer.err" >&2
+  sed -n '1,80p' "$concurrency_dir/raw-uuid-order-holder.err" >&2
+  exit 1
+fi
+
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 select set_config('storage.allow_delete_query', 'true', true);
@@ -1072,6 +1180,8 @@ begin
     or v_object.course_blueprint_id is not null
     or (select documents from public.tests
       where id = 'a1400000-0000-4000-8000-000000000006') <> '[]'::jsonb
+    or (select count(*) from public.managed_storage_json_references
+      where test_id = 'a1400000-0000-4000-8000-000000000007') <> 2
   then
     raise exception 'Blueprint adoption/raw-writer postcondition failed';
   end if;
@@ -1079,14 +1189,23 @@ end;
 $fixture$;
 delete from public.tests where id in (
   'a1400000-0000-4000-8000-000000000005',
-  'a1400000-0000-4000-8000-000000000006'
+  'a1400000-0000-4000-8000-000000000006',
+  'a1400000-0000-4000-8000-000000000007'
 );
 delete from public.managed_storage_objects
 where storage_bucket = 'test-documents'
-  and storage_path = 'managed-race/blueprint-adoption.pdf';
+  and storage_path in (
+    'managed-race/blueprint-adoption.pdf',
+    'managed-race/z-uuid-first.pdf',
+    'managed-race/a-uuid-second.pdf'
+  );
 delete from storage.objects
 where bucket_id = 'test-documents'
-  and name = 'managed-race/blueprint-adoption.pdf';
+  and name in (
+    'managed-race/blueprint-adoption.pdf',
+    'managed-race/z-uuid-first.pdf',
+    'managed-race/a-uuid-second.pdf'
+  );
 delete from public.classrooms where id in (
   'a1400000-0000-4000-8000-000000000003',
   'a1400000-0000-4000-8000-000000000004'

@@ -1973,12 +1973,14 @@ declare
   v_object_id uuid;
   v_previous_object_id uuid;
   v_previous_object_ids uuid[] := array[]::uuid[];
+  v_locked_object_ids uuid[] := array[]::uuid[];
   v_enforced boolean;
   v_evidence_sha256 text;
   v_identity_count integer := 0;
   v_raw_reference_count integer := 0;
   v_storage_present boolean;
   v_raw_reference record;
+  v_locked_raw_paths text[] := array[]::text[];
 begin
   v_enforced := public.lock_managed_storage_protocol();
   case tg_table_name
@@ -2046,15 +2048,47 @@ begin
   end case;
 
   v_evidence_sha256 := encode(extensions.digest(convert_to(coalesce(v_payload, 'null'::jsonb)::text, 'UTF8'), 'sha256'), 'hex');
+
+  -- Pre-lock every already-resolved identity in one global UUID order,
+  -- regardless of whether this payload represents it by UUID or raw path.
+  -- Validation below reuses these locks and never introduces a second row
+  -- ordering between the two compatibility representations.
+  for v_object_id in
+    select object.id
+    from public.managed_storage_objects object
+    where object.id in (
+      select managed_object_id
+      from public.managed_storage_payload_ids(v_payload)
+    ) or exists (
+      select 1
+      from public.managed_storage_payload_raw_references(v_payload) reference
+      where reference.managed_object_id is null
+        and reference.storage_bucket = object.storage_bucket
+        and reference.storage_path = object.storage_path
+    )
+    order by object.id
+  loop
+    perform 1 from public.managed_storage_objects
+    where id = v_object_id for update;
+    v_locked_object_ids := array_append(v_locked_object_ids, v_object_id);
+  end loop;
+
   for v_object_id in select distinct managed_object_id
     from public.managed_storage_payload_ids(v_payload)
     order by managed_object_id
   loop
+    if not (v_object_id = any(v_locked_object_ids)) then
+      if exists (
+        select 1 from public.managed_storage_objects where id = v_object_id
+      ) then
+        raise exception using errcode = '40001',
+          message = 'managed_storage_reference_retry';
+      end if;
+      raise exception using errcode = '55000',
+        message = 'managed_storage_embedded_owner_mismatch';
+    end if;
     select * into v_object from public.managed_storage_objects
     where id = v_object_id for update;
-    if not found then
-      raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
-    end if;
     perform public.managed_storage_exact_lock(
       v_object.storage_bucket, v_object.storage_path
     );
@@ -2141,31 +2175,29 @@ begin
     ) on conflict do nothing;
   end loop;
 
-  for v_raw_reference in
-    select distinct reference.storage_bucket, reference.storage_path
-    from public.managed_storage_payload_raw_references(v_payload) reference
-    where reference.managed_object_id is null
-    order by reference.storage_bucket, reference.storage_path
+  for v_object_id in
+    select object.id
+    from public.managed_storage_objects object
+    where object.id = any(v_locked_object_ids)
+      and exists (
+      select 1
+      from public.managed_storage_payload_raw_references(v_payload) reference
+      where reference.managed_object_id is null
+        and reference.storage_bucket = object.storage_bucket
+        and reference.storage_path = object.storage_path
+    )
+    order by object.id
   loop
-    v_object := null;
-    select * into v_object from public.managed_storage_objects object
-    where object.storage_bucket = v_raw_reference.storage_bucket
-      and object.storage_path = v_raw_reference.storage_path
-    for update;
-    if v_object.id is null then
-      perform public.managed_storage_exact_lock(
-        v_raw_reference.storage_bucket, v_raw_reference.storage_path
-      );
-      select * into v_object from public.managed_storage_objects object
-      where object.storage_bucket = v_raw_reference.storage_bucket
-        and object.storage_path = v_raw_reference.storage_path
-      for update;
-    else
-      perform public.managed_storage_exact_lock(
-        v_raw_reference.storage_bucket, v_raw_reference.storage_path
-      );
-    end if;
-    if v_enforced or v_object.id is null then continue; end if;
+    select * into v_object from public.managed_storage_objects
+    where id = v_object_id for update;
+    perform public.managed_storage_exact_lock(
+      v_object.storage_bucket, v_object.storage_path
+    );
+    v_locked_raw_paths := array_append(
+      v_locked_raw_paths,
+      jsonb_build_array(v_object.storage_bucket, v_object.storage_path)::text
+    );
+    if v_enforced then continue; end if;
     v_storage_present := exists (
       select 1 from storage.objects object
       where object.bucket_id = v_object.storage_bucket
@@ -2209,6 +2241,34 @@ begin
       case when tg_table_name = 'course_blueprint_change_proposals' then new.id end,
       v_reference_role, v_evidence_sha256
     ) on conflict do nothing;
+  end loop;
+
+  -- Existing identities above use the same UUID row order as the explicit-ID
+  -- pass. Only paths which were genuinely absent at that point may take the
+  -- path-first lock. If an identity appeared in between, abort this host write
+  -- so a retry can classify and lock it in UUID order.
+  for v_raw_reference in
+    select distinct reference.storage_bucket, reference.storage_path
+    from public.managed_storage_payload_raw_references(v_payload) reference
+    where reference.managed_object_id is null
+    order by reference.storage_bucket, reference.storage_path
+  loop
+    if jsonb_build_array(
+      v_raw_reference.storage_bucket, v_raw_reference.storage_path
+    )::text = any(v_locked_raw_paths) then
+      continue;
+    end if;
+    perform public.managed_storage_exact_lock(
+      v_raw_reference.storage_bucket, v_raw_reference.storage_path
+    );
+    if exists (
+      select 1 from public.managed_storage_objects object
+      where object.storage_bucket = v_raw_reference.storage_bucket
+        and object.storage_path = v_raw_reference.storage_path
+    ) then
+      raise exception using errcode = '40001',
+        message = 'managed_storage_reference_retry';
+    end if;
   end loop;
 
   select count(*)::integer into v_raw_reference_count
