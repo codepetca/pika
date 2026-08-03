@@ -2637,19 +2637,29 @@ security definer
 set search_path = public
 as $$
 declare
+  v_enforced boolean;
   v_object public.managed_storage_objects;
   v_operation public.classroom_archive_operations;
   v_purpose text;
 begin
-  perform public.lock_managed_storage_protocol();
+  v_enforced := public.lock_managed_storage_protocol();
   v_purpose := case tg_table_name
     when 'classroom_archives' then 'classroom_archive'
     when 'classroom_gradex_extracts' then 'gradex_extract'
   end;
   select * into v_operation from public.classroom_archive_operations
   where id = new.operation_id for update;
-  if not found or v_operation.managed_object_id is null then
+  if not found then
     raise exception using errcode = '55000', message = 'operational_managed_identity_required';
+  end if;
+  if v_operation.managed_object_id is null then
+    if new.managed_object_id is not null then
+      raise exception using errcode = '55000', message = 'operational_managed_owner_mismatch';
+    end if;
+    if v_enforced then
+      raise exception using errcode = '55000', message = 'operational_managed_identity_required';
+    end if;
+    return new;
   end if;
   select * into v_object from public.managed_storage_objects
   where id = v_operation.managed_object_id for update;
