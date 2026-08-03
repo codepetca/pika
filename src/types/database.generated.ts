@@ -6665,10 +6665,6 @@ export type Database = {
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }
-      managed_storage_blueprint_legacy_copy_allowed: {
-        Args: never
-        Returns: boolean
-      }
       managed_storage_blueprint_protocol_ready: {
         Args: never
         Returns: boolean
@@ -6955,6 +6951,50 @@ export type Database = {
           p_table_name: string
         }
         Returns: string
+      }
+      resolve_managed_storage_blueprint_copy_source: {
+        Args: {
+          p_classroom_id: string
+          p_course_blueprint_id: string
+          p_managed_object_id?: string
+          p_storage_path: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          byte_size: number | null
+          classroom_id: string | null
+          cleanup_reason_code: string | null
+          content_sha256: string | null
+          content_type: string | null
+          course_blueprint_id: string | null
+          created_at: string
+          created_by_user_id: string | null
+          data_subject_user_id: string | null
+          deleted_at: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          provisional_owner_id: string | null
+          purpose: string
+          ready_at: string | null
+          reservation_expires_at: string | null
+          resource_id: string | null
+          resource_type: string | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          updated_at: string
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "managed_storage_objects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       retry_pal_event_outbox: {
         Args: {

@@ -14,6 +14,21 @@ describe('course Blueprint managed storage copies', () => {
       if (name === 'managed_storage_blueprint_protocol_ready') {
         return { data: true, error: null }
       }
+      if (name === 'resolve_managed_storage_blueprint_copy_source') {
+        return {
+          data: {
+            id: SOURCE_ID,
+            storage_bucket: 'test-documents',
+            storage_path: 'classrooms/source.pdf',
+            status: 'ready',
+            content_type: 'application/pdf',
+            classroom_id: CLASSROOM_ID,
+            course_blueprint_id: null,
+            provisional_owner_id: null,
+          },
+          error: null,
+        }
+      }
       if (name === 'begin_managed_storage_provisional_owner') {
         return { data: true, error: null }
       }
@@ -27,24 +42,6 @@ describe('course Blueprint managed storage copies', () => {
         error: null,
       }
     })
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      is: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({
-        data: {
-          id: SOURCE_ID,
-          storage_bucket: 'test-documents',
-          storage_path: 'classrooms/source.pdf',
-          status: 'ready',
-          content_type: 'application/pdf',
-          classroom_id: CLASSROOM_ID,
-          course_blueprint_id: null,
-          provisional_owner_id: null,
-        },
-        error: null,
-      })),
-    }
     const upload = vi.fn(async (path: string, bytes: Uint8Array) => {
       uploaded.set(path, bytes)
       return { data: { path }, error: null }
@@ -64,7 +61,7 @@ describe('course Blueprint managed storage copies', () => {
       })),
     }
     const result = await copyManagedTestDocumentsForBlueprintOperation({
-      supabase: { rpc, from: vi.fn(() => query), storage },
+      supabase: { rpc, storage },
       teacherId: USER_ID,
       operationId: OPERATION_ID,
       direction: 'to_blueprint',
@@ -82,6 +79,7 @@ describe('course Blueprint managed storage copies', () => {
     expect(result[0].documents[0].url).toContain(`/managed-copies/${OPERATION_ID}/`)
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
       'managed_storage_blueprint_protocol_ready',
+      'resolve_managed_storage_blueprint_copy_source',
       'begin_managed_storage_provisional_owner',
       'begin_managed_storage_upload',
       'verify_managed_storage_upload',
@@ -100,6 +98,21 @@ describe('course Blueprint managed storage copies', () => {
         || name === 'begin_managed_storage_provisional_owner') {
         return { data: true, error: null }
       }
+      if (name === 'resolve_managed_storage_blueprint_copy_source') {
+        return {
+          data: {
+            id: SOURCE_ID,
+            storage_bucket: 'test-documents',
+            storage_path: 'legacy/source.pdf',
+            status: 'ready',
+            content_type: 'application/pdf',
+            classroom_id: direction === 'to_blueprint' ? CLASSROOM_ID : null,
+            course_blueprint_id: direction === 'to_classroom' ? BLUEPRINT_ID : null,
+            provisional_owner_id: null,
+          },
+          error: null,
+        }
+      }
       return {
         data: {
           id: args.p_object_id,
@@ -110,24 +123,6 @@ describe('course Blueprint managed storage copies', () => {
         error: null,
       }
     })
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      is: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({
-        data: {
-          id: SOURCE_ID,
-          storage_bucket: 'test-documents',
-          storage_path: 'legacy/source.pdf',
-          status: 'ready',
-          content_type: 'application/pdf',
-          classroom_id: direction === 'to_blueprint' ? CLASSROOM_ID : null,
-          course_blueprint_id: direction === 'to_classroom' ? BLUEPRINT_ID : null,
-          provisional_owner_id: null,
-        },
-        error: null,
-      })),
-    }
     const upload = vi.fn(async (path: string, bytes: Uint8Array) => {
       uploaded.set(path, bytes)
       return { data: { path }, error: null }
@@ -147,7 +142,7 @@ describe('course Blueprint managed storage copies', () => {
       })),
     }
     const result = await copyManagedTestDocumentsForBlueprintOperation({
-      supabase: { rpc, from: vi.fn(() => query), storage },
+      supabase: { rpc, storage },
       teacherId: USER_ID,
       operationId: OPERATION_ID,
       direction,
@@ -178,7 +173,13 @@ describe('course Blueprint managed storage copies', () => {
       url: result[0].documents[0].url,
     })
     expect(upload).toHaveBeenCalledTimes(1)
-    expect(query.eq).toHaveBeenCalledWith('storage_path', 'legacy/source.pdf')
+    expect(rpc).toHaveBeenCalledWith(
+      'resolve_managed_storage_blueprint_copy_source',
+      expect.objectContaining({
+        p_storage_path: 'legacy/source.pdf',
+        p_managed_object_id: null,
+      }),
+    )
   })
 
   it.each([
@@ -190,9 +191,23 @@ describe('course Blueprint managed storage copies', () => {
     const uploaded = new Map<string, Uint8Array>()
     const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
       if (name === 'managed_storage_blueprint_protocol_ready'
-        || name === 'managed_storage_blueprint_legacy_copy_allowed'
         || name === 'begin_managed_storage_provisional_owner') {
         return { data: true, error: null }
+      }
+      if (name === 'resolve_managed_storage_blueprint_copy_source') {
+        return {
+          data: {
+            id: SOURCE_ID,
+            storage_bucket: 'test-documents',
+            storage_path: 'legacy/unregistered.pdf',
+            status: 'ready',
+            content_type: null,
+            classroom_id: direction === 'to_blueprint' ? CLASSROOM_ID : null,
+            course_blueprint_id: direction === 'to_classroom' ? BLUEPRINT_ID : null,
+            provisional_owner_id: null,
+          },
+          error: null,
+        }
       }
       return {
         data: {
@@ -206,12 +221,6 @@ describe('course Blueprint managed storage copies', () => {
         error: null,
       }
     })
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      is: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
-    }
     const upload = vi.fn(async (path: string, bytes: Uint8Array) => {
       uploaded.set(path, bytes)
       return { data: { path }, error: null }
@@ -231,7 +240,7 @@ describe('course Blueprint managed storage copies', () => {
       })),
     }
     const result = await copyManagedTestDocumentsForBlueprintOperation({
-      supabase: { rpc, from: vi.fn(() => query), storage },
+      supabase: { rpc, storage },
       teacherId: USER_ID,
       operationId: OPERATION_ID,
       direction,
@@ -253,26 +262,22 @@ describe('course Blueprint managed storage copies', () => {
     expect(result[0].documents[0].url).not.toContain('/legacy/unregistered.pdf')
     expect(upload).toHaveBeenCalledTimes(1)
     expect(rpc).toHaveBeenCalledWith(
-      'managed_storage_blueprint_legacy_copy_allowed',
-      {},
+      'resolve_managed_storage_blueprint_copy_source',
+      expect.objectContaining({
+        p_storage_path: 'legacy/unregistered.pdf',
+        p_managed_object_id: null,
+      }),
     )
   })
 
   it('rejects an unregistered legacy upload after enforcement', async () => {
-    const rpc = vi.fn(async (name: string) => ({
-      data: name === 'managed_storage_blueprint_protocol_ready',
-      error: null,
-    }))
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      is: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
-    }
+    const rpc = vi.fn(async (name: string) => name === 'managed_storage_blueprint_protocol_ready'
+      ? { data: true, error: null }
+      : { data: null, error: { code: '55000' } })
     const storage = { from: vi.fn() }
 
     await expect(copyManagedTestDocumentsForBlueprintOperation({
-      supabase: { rpc, from: vi.fn(() => query), storage },
+      supabase: { rpc, storage },
       teacherId: USER_ID,
       operationId: OPERATION_ID,
       direction: 'to_blueprint',
@@ -287,21 +292,17 @@ describe('course Blueprint managed storage copies', () => {
     expect(storage.from).not.toHaveBeenCalled()
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
       'managed_storage_blueprint_protocol_ready',
-      'managed_storage_blueprint_legacy_copy_allowed',
+      'resolve_managed_storage_blueprint_copy_source',
     ])
   })
 
   it('never treats a missing explicit managed identity as a legacy source', async () => {
-    const rpc = vi.fn(async () => ({ data: true, error: null }))
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      is: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
-    }
+    const rpc = vi.fn(async (name: string) => name === 'managed_storage_blueprint_protocol_ready'
+      ? { data: true, error: null }
+      : { data: null, error: { code: '55000' } })
 
     await expect(copyManagedTestDocumentsForBlueprintOperation({
-      supabase: { rpc, from: vi.fn(() => query), storage: { from: vi.fn() } },
+      supabase: { rpc, storage: { from: vi.fn() } },
       teacherId: USER_ID,
       operationId: OPERATION_ID,
       direction: 'to_blueprint',
@@ -314,16 +315,17 @@ describe('course Blueprint managed storage copies', () => {
         }],
       }],
     })).rejects.toThrow('managed_storage_blueprint_copy_source_invalid')
-    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      'managed_storage_blueprint_protocol_ready',
+      'resolve_managed_storage_blueprint_copy_source',
+    ])
   })
 
   it('never treats an owner-mismatched managed path as an unregistered source', async () => {
-    const rpc = vi.fn(async () => ({ data: true, error: null }))
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      maybeSingle: vi.fn(async () => ({
-        data: {
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'managed_storage_blueprint_protocol_ready'
+        ? true
+        : {
           id: SOURCE_ID,
           storage_bucket: 'test-documents',
           storage_path: 'managed/wrong-owner.pdf',
@@ -333,12 +335,11 @@ describe('course Blueprint managed storage copies', () => {
           course_blueprint_id: null,
           provisional_owner_id: null,
         },
-        error: null,
-      })),
-    }
+      error: null,
+    }))
 
     await expect(copyManagedTestDocumentsForBlueprintOperation({
-      supabase: { rpc, from: vi.fn(() => query), storage: { from: vi.fn() } },
+      supabase: { rpc, storage: { from: vi.fn() } },
       teacherId: USER_ID,
       operationId: OPERATION_ID,
       direction: 'to_blueprint',
@@ -350,6 +351,9 @@ describe('course Blueprint managed storage copies', () => {
         }],
       }],
     })).rejects.toThrow('managed_storage_blueprint_copy_source_invalid')
-    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      'managed_storage_blueprint_protocol_ready',
+      'resolve_managed_storage_blueprint_copy_source',
+    ])
   })
 })

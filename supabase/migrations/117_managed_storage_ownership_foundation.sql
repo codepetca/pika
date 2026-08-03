@@ -1695,26 +1695,158 @@ revoke all on function public.managed_storage_blueprint_protocol_ready()
 grant execute on function public.managed_storage_blueprint_protocol_ready()
   to service_role;
 
-create or replace function public.managed_storage_blueprint_legacy_copy_allowed()
-returns boolean
+create or replace function public.resolve_managed_storage_blueprint_copy_source(
+  p_teacher_id uuid,
+  p_storage_path text,
+  p_classroom_id uuid,
+  p_course_blueprint_id uuid,
+  p_managed_object_id uuid default null
+)
+returns public.managed_storage_objects
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
   v_enforced boolean;
-  v_protocol_version integer;
+  v_object public.managed_storage_objects;
+  v_resource_id uuid;
+  v_resource_type text;
 begin
   v_enforced := public.lock_managed_storage_protocol();
-  select protocol_version into strict v_protocol_version
-  from public.managed_storage_settings where singleton;
-  return not v_enforced and v_protocol_version >= 2;
+  if p_teacher_id is null
+    or p_storage_path is null or p_storage_path = ''
+    or num_nonnulls(p_classroom_id, p_course_blueprint_id) <> 1
+    or (p_classroom_id is not null and not exists (
+      select 1 from public.classrooms classroom
+      where classroom.id = p_classroom_id and classroom.teacher_id = p_teacher_id
+    ))
+    or (p_course_blueprint_id is not null and not exists (
+      select 1 from public.course_blueprints blueprint
+      where blueprint.id = p_course_blueprint_id and blueprint.teacher_id = p_teacher_id
+    ))
+  then
+    raise exception using errcode = '55000',
+      message = 'managed_storage_blueprint_copy_source_invalid';
+  end if;
+
+  if p_managed_object_id is not null then
+    select * into v_object from public.managed_storage_objects object
+    where object.id = p_managed_object_id for update;
+  else
+    select * into v_object from public.managed_storage_objects object
+    where object.storage_bucket = 'test-documents'
+      and object.storage_path = p_storage_path
+    for update;
+  end if;
+
+  if not found then
+    if p_managed_object_id is not null or v_enforced then
+      raise exception using errcode = '55000',
+        message = 'managed_storage_blueprint_copy_source_invalid';
+    end if;
+    perform public.managed_storage_exact_lock('test-documents', p_storage_path);
+    select * into v_object from public.managed_storage_objects object
+    where object.storage_bucket = 'test-documents'
+      and object.storage_path = p_storage_path
+    for update;
+    if not found then
+      if p_classroom_id is not null then
+        select test.id into v_resource_id
+        from public.tests test
+        where test.classroom_id = p_classroom_id
+          and exists (
+            select 1
+            from public.managed_storage_payload_raw_references(test.documents) reference
+            where reference.managed_object_id is null
+              and reference.storage_bucket = 'test-documents'
+              and reference.storage_path = p_storage_path
+          )
+        order by test.id limit 1;
+        v_resource_type := 'test';
+      else
+        select assessment.id into v_resource_id
+        from public.course_blueprint_assessments assessment
+        where assessment.course_blueprint_id = p_course_blueprint_id
+          and exists (
+            select 1
+            from public.managed_storage_payload_raw_references(assessment.documents) reference
+            where reference.managed_object_id is null
+              and reference.storage_bucket = 'test-documents'
+              and reference.storage_path = p_storage_path
+          )
+        order by assessment.id limit 1;
+        v_resource_type := 'course_blueprint_assessment';
+      end if;
+      if v_resource_id is null or exists (
+        select 1
+        from (
+          select test.classroom_id, null::uuid course_blueprint_id,
+            test.documents payload from public.tests test
+          union all
+          select assignment.classroom_id, null::uuid, document.content
+            from public.assignment_docs document
+            join public.assignments assignment on assignment.id = document.assignment_id
+          union all
+          select assignment.classroom_id, null::uuid,
+            coalesce(history.snapshot, history.patch)
+            from public.assignment_doc_history history
+            join public.assignment_docs document on document.id = history.assignment_doc_id
+            join public.assignments assignment on assignment.id = document.assignment_id
+          union all
+          select null::uuid, assessment.course_blueprint_id, assessment.documents
+            from public.course_blueprint_assessments assessment
+          union all
+          select null::uuid, version.course_blueprint_id, version.snapshot_json
+            from public.course_blueprint_versions version
+          union all
+          select null::uuid, proposal.course_blueprint_id, proposal.operations_json
+            from public.course_blueprint_change_proposals proposal
+        ) host
+        cross join lateral public.managed_storage_payload_raw_references(host.payload) reference
+        where reference.storage_bucket = 'test-documents'
+          and reference.storage_path = p_storage_path
+          and (
+            host.classroom_id is distinct from p_classroom_id
+            or host.course_blueprint_id is distinct from p_course_blueprint_id
+          )
+      ) then
+        raise exception using errcode = '55000',
+          message = 'managed_storage_blueprint_copy_source_ambiguous';
+      end if;
+      v_object := public.register_legacy_managed_storage_object(
+        public.managed_storage_legacy_object_id('test-documents', p_storage_path),
+        'test-documents', p_storage_path,
+        p_classroom_id, p_course_blueprint_id,
+        'teacher_test_material', p_teacher_id, null,
+        v_resource_type, v_resource_id, null, null, null
+      );
+      return v_object;
+    end if;
+  end if;
+
+  perform public.managed_storage_exact_lock('test-documents', p_storage_path);
+  if v_object.storage_bucket <> 'test-documents'
+    or v_object.storage_path is distinct from p_storage_path
+    or v_object.status <> 'ready'
+    or v_object.provisional_owner_id is not null
+    or v_object.classroom_id is distinct from p_classroom_id
+    or v_object.course_blueprint_id is distinct from p_course_blueprint_id
+  then
+    raise exception using errcode = '55000',
+      message = 'managed_storage_blueprint_copy_source_invalid';
+  end if;
+  return v_object;
 end;
 $$;
 
-revoke all on function public.managed_storage_blueprint_legacy_copy_allowed()
+revoke all on function public.resolve_managed_storage_blueprint_copy_source(
+  uuid, text, uuid, uuid, uuid
+)
   from public, anon, authenticated;
-grant execute on function public.managed_storage_blueprint_legacy_copy_allowed()
+grant execute on function public.resolve_managed_storage_blueprint_copy_source(
+  uuid, text, uuid, uuid, uuid
+)
   to service_role;
 
 revoke all on sequence public.managed_storage_writer_revision_seq

@@ -78,9 +78,9 @@ the exact migration and exact target under the schema rollout checklist.
    schema 116: producers explicitly fall back to legacy writes when the new RPC
    is absent. Blueprint copies probe protocol version 2 before using provisional
    adoption. While mode remains `compatibility`, an identity-less legacy Test
-   upload may be read only to create a distinct managed provisional copy; an
-   explicit identity mismatch still fails closed, and this fallback is rejected
-   after enforcement.
+   upload is atomically registered to its exact existing owner before creating
+   a distinct managed provisional copy. Ambiguous or explicit identity
+   mismatches fail closed, and lazy registration is rejected after enforcement.
 3. Register legacy Storage objects only after assigning one unambiguous owner.
    `managed_storage_legacy_object_id(bucket,path)` supplies the mandatory
    deterministic UUID; `register_legacy_managed_storage_object` rejects missing

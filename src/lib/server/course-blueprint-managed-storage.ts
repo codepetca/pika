@@ -58,66 +58,40 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
 
   const sourceIdByDocument = new Map<TestDocument, string>()
   const sourceById = new Map<string, any>()
-  let legacyCopyAllowed: boolean | null = null
   for (const document of managedDocuments) {
     const sourcePath = testDocumentStoragePath(document.url || '')
     if (!document.managed_object_id && !sourcePath) {
       throw new Error('managed_storage_blueprint_copy_source_identity_missing')
     }
-    let query = input.supabase
-      .from('managed_storage_objects')
-      .select('id,storage_bucket,storage_path,status,content_type,classroom_id,course_blueprint_id,provisional_owner_id')
-      .eq('storage_bucket', 'test-documents')
-    query = document.managed_object_id
-      ? query.eq('id', document.managed_object_id)
-      : query.eq('storage_path', sourcePath)
-    const sourceResponse = await query.maybeSingle()
-    if (sourceResponse.error) {
+    const sourceResponse = await input.supabase.rpc(
+      'resolve_managed_storage_blueprint_copy_source',
+      {
+        p_teacher_id: input.teacherId,
+        p_storage_path: sourcePath,
+        p_classroom_id: input.sourceClassroomId || null,
+        p_course_blueprint_id: input.sourceCourseBlueprintId || null,
+        p_managed_object_id: document.managed_object_id || null,
+      },
+    )
+    if (sourceResponse.error || !sourceResponse.data) {
       throw new Error('managed_storage_blueprint_copy_source_invalid')
     }
-    if (sourceResponse.data) {
-      const ownerMatches = input.direction === 'to_blueprint'
-        ? sourceResponse.data.classroom_id === input.sourceClassroomId
-          && sourceResponse.data.course_blueprint_id === null
-        : sourceResponse.data.course_blueprint_id === input.sourceCourseBlueprintId
-          && sourceResponse.data.classroom_id === null
-      if (sourceResponse.data.storage_path !== sourcePath
-        || sourceResponse.data.status !== 'ready'
-        || sourceResponse.data.provisional_owner_id !== null
-        || !ownerMatches
-        || (document.managed_object_id
-          && sourceResponse.data.id !== document.managed_object_id)) {
-        throw new Error('managed_storage_blueprint_copy_source_invalid')
-      }
-      sourceIdByDocument.set(document, sourceResponse.data.id)
-      sourceById.set(sourceResponse.data.id, sourceResponse.data)
-      continue
-    }
-    if (document.managed_object_id || !sourcePath) {
+    const ownerMatches = input.direction === 'to_blueprint'
+      ? sourceResponse.data.classroom_id === input.sourceClassroomId
+        && sourceResponse.data.course_blueprint_id === null
+      : sourceResponse.data.course_blueprint_id === input.sourceCourseBlueprintId
+        && sourceResponse.data.classroom_id === null
+    if (sourceResponse.data.storage_bucket !== 'test-documents'
+      || sourceResponse.data.storage_path !== sourcePath
+      || sourceResponse.data.status !== 'ready'
+      || sourceResponse.data.provisional_owner_id !== null
+      || !ownerMatches
+      || (document.managed_object_id
+        && sourceResponse.data.id !== document.managed_object_id)) {
       throw new Error('managed_storage_blueprint_copy_source_invalid')
     }
-    if (legacyCopyAllowed === null) {
-      const compatibility = await input.supabase.rpc(
-        'managed_storage_blueprint_legacy_copy_allowed',
-        {},
-      )
-      if (compatibility.error || typeof compatibility.data !== 'boolean') {
-        throw new Error('managed_storage_blueprint_protocol_check_failed')
-      }
-      legacyCopyAllowed = compatibility.data
-    }
-    if (!legacyCopyAllowed) {
-      throw new Error('managed_storage_blueprint_copy_source_invalid')
-    }
-    const sourceId = `legacy:${createHash('sha256')
-      .update(`test-documents\0${sourcePath}`)
-      .digest('hex')}`
-    sourceIdByDocument.set(document, sourceId)
-    sourceById.set(sourceId, {
-      id: sourceId,
-      storage_path: sourcePath,
-      content_type: null,
-    })
+    sourceIdByDocument.set(document, sourceResponse.data.id)
+    sourceById.set(sourceResponse.data.id, sourceResponse.data)
   }
 
   const provisionalOwnerId = randomUUID()

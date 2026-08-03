@@ -132,6 +132,24 @@ insert into public.assignment_submission_artifacts (
   'a1100000-0000-4000-8000-000000000010'
 );
 
+insert into storage.objects (bucket_id, name) values (
+  'test-documents', 'managed-fixture/legacy-blueprint-copy.pdf'
+);
+insert into public.tests (
+  id, classroom_id, title, status, created_by, documents
+) values (
+  'a1100000-0000-4000-8000-000000000007',
+  'a1100000-0000-4000-8000-000000000003',
+  'Legacy Blueprint copy source', 'draft',
+  'a1100000-0000-4000-8000-000000000001',
+  '[{
+    "id":"legacy-copy-document",
+    "title":"Legacy copy",
+    "source":"upload",
+    "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-fixture/legacy-blueprint-copy.pdf"
+  }]'::jsonb
+);
+
 do $fixture$
 declare
   v_run public.managed_storage_readiness_runs;
@@ -143,6 +161,7 @@ declare
   v_snapshot_cancel_id uuid;
   v_referenced_missing_id uuid;
   v_legacy_id uuid;
+  v_blueprint_source public.managed_storage_objects;
   v_object_status text;
 begin
   if (select status from public.managed_storage_objects
@@ -513,9 +532,20 @@ begin
   end;
   perform public.queue_managed_storage_cleanup(v_legacy_id, 'fixture_legacy_replay');
 
-  if not public.managed_storage_blueprint_legacy_copy_allowed() then
-    raise exception 'Blueprint legacy copy was unavailable in compatibility mode';
+  select * into v_blueprint_source
+  from public.resolve_managed_storage_blueprint_copy_source(
+    'a1100000-0000-4000-8000-000000000001',
+    'managed-fixture/legacy-blueprint-copy.pdf',
+    'a1100000-0000-4000-8000-000000000003', null, null
+  );
+  if v_blueprint_source.status <> 'ready'
+    or v_blueprint_source.classroom_id is distinct from
+      'a1100000-0000-4000-8000-000000000003'
+    or v_blueprint_source.storage_path <> 'managed-fixture/legacy-blueprint-copy.pdf'
+  then
+    raise exception 'Blueprint legacy source was not atomically registered';
   end if;
+  perform public.reconcile_managed_storage_json_references();
 
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then
@@ -528,9 +558,16 @@ begin
   if not public.lock_managed_storage_protocol() then
     raise exception 'Managed-storage protocol lock did not observe enforcement';
   end if;
-  if public.managed_storage_blueprint_legacy_copy_allowed() then
-    raise exception 'Blueprint legacy copy remained available after enforcement';
-  end if;
+  begin
+    perform public.resolve_managed_storage_blueprint_copy_source(
+      'a1100000-0000-4000-8000-000000000001',
+      'managed-fixture/legacy-after-enforcement.pdf',
+      'a1100000-0000-4000-8000-000000000003', null, null
+    );
+    raise exception 'Blueprint lazy registration remained available after enforcement';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%managed_storage_blueprint_copy_source_invalid%' then raise; end if;
+  end;
 
   begin
     update public.assignment_submission_artifacts

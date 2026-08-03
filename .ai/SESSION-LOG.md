@@ -1364,9 +1364,10 @@ recovery preservation across managed ownership activation.
   scheduler, purge path, or enabled production worker.
 - Added a service-role-only exact managed-object presence probe so cleanup can
   verify local Storage API 400 responses without trusting bucket-level evidence.
-- Closed the final Blueprint rollout gap: identity-less Test uploads can be read
-  only in compatibility mode to produce a distinct managed provisional copy;
-  explicit, owner-mismatched, unsettled, and post-enforcement sources fail closed.
+- Closed the final Blueprint rollout gap: identity-less Test uploads are
+  atomically registered to their exact existing owner in compatibility mode
+  before producing a distinct managed provisional copy; ambiguous, explicit,
+  owner-mismatched, unsettled, and post-enforcement sources fail closed.
 - Kept migrations 115/116 byte-identical to deployed production history, kept
   all new schema work in migration 117, applied no migration outside disposable
   CI, and left draft PR #963 unchanged.
