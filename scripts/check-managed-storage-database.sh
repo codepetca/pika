@@ -99,6 +99,7 @@ declare
   v_snapshot_cancel_id uuid;
   v_referenced_missing_id uuid;
   v_legacy_id uuid;
+  v_object_status text;
 begin
   if (select status from public.managed_storage_objects
       where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
@@ -169,11 +170,18 @@ begin
   if public.managed_storage_object_is_referenced(v_compat_cleanup_id) then
     raise exception 'Compatibility cleanup incorrectly retained a live reference';
   end if;
-  if not public.complete_assignment_artifact_storage_cleanup(
+  if exists (
+    select 1 from public.assignment_submission_artifacts reference
+    where reference.storage_path = 'managed-fixture/compatibility-managed.png'
+  ) then raise exception 'Compatibility cleanup unexpectedly retained a raw reference'; end if;
+  if not coalesce(public.complete_assignment_artifact_storage_cleanup(
     v_artifact_cleanup.id, v_artifact_cleanup.lease_token
-  ) or (select status from public.managed_storage_objects
-    where id = v_compat_cleanup_id) <> 'deleted'
-  then raise exception 'Compatibility cleanup did not preserve a managed tombstone'; end if;
+  ), false) then raise exception 'Compatibility cleanup RPC did not complete'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = v_compat_cleanup_id;
+  if v_object_status is distinct from 'deleted' then
+    raise exception 'Compatibility cleanup lifecycle state was %', v_object_status;
+  end if;
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then
     raise exception 'Compatibility cleanup left managed readiness blocked';
