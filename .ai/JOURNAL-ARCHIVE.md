@@ -15934,3 +15934,43 @@ future persistence shape without enabling unapproved schema behavior.
 - Next create the envelope tables and versioned database archive registry, then
   activate v2 export/restore, only after explicit approval to create the named
   migration; applying it requires separate exact target-and-filename permission.
+
+<!-- pika-session-log-archive-batch:acc3a61fcd78b0b0ac74542dc594790ce8079b5bf63d829cee0a2c9f07e63b60 -->
+## 2026-07-23 — Staged the additive archive-v2 contract locally
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration `105_classroom_archive_v2_contract.sql` with private retired
+  assessment envelopes, a version-keyed archive registry, operation contract
+  pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
+  preserving every deployed v1 RPC and source table.
+- Validated archive-v2 export through deterministic v1 Quiz adaptation and
+  validated the explicit v1/v2-to-envelope restore path. Kept current
+  application export and restore on v1 because compaction remains v1-only and
+  migration 105 is not hosted.
+- Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
+  fail closed until the freeze/backfill pass provides direct v2 snapshots.
+- Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
+  with actor references; added a direct v1-to-v2 archive/restore round trip.
+- Applied migration 105 only to the local validation database after explicit
+  authorization. The first attempt rolled back on deferred FK ordering; moved
+  the version-registry FK creation after seed rows and validated the corrected
+  schema. No hosted database was changed.
+- Regenerated `src/types/database.generated.ts` and added a transactional v2
+  database harness to CI. Legacy v1 export/restore/compaction and Gradex
+  database harnesses remain green.
+
+**Validation:**
+- Full repository suite at the final head: 412 files / 3,710 tests.
+- Focused final suite: 20 files / 232 tests.
+- Local v1 export, v1 restore, v1 compaction, Gradex, and v2 export/restore
+  database contracts.
+- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm run db:types:check`, migration
+  filename/static checks, `git diff --check`, and Pika changed-file audit.
+
+**Remaining:**
+- Run architecture/build/full final validation at the exact head.
+- Open the PR, independently review and remediate it, then require exact-head CI.
+- Migration 105 still requires separate explicit authorization for every hosted
+  target. The next implementation pass is the atomic freeze/backfill ledger.

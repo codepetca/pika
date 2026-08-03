@@ -1740,6 +1740,14 @@ begin
     for update;
   end if;
 
+  if found and p_managed_object_id is not null and (
+    v_object.storage_bucket <> 'test-documents'
+    or v_object.storage_path is distinct from p_storage_path
+  ) then
+    raise exception using errcode = '55000',
+      message = 'managed_storage_blueprint_copy_source_invalid';
+  end if;
+
   if not found then
     if p_managed_object_id is not null or v_enforced then
       raise exception using errcode = '55000',
@@ -1970,6 +1978,7 @@ declare
   v_identity_count integer := 0;
   v_raw_reference_count integer := 0;
   v_storage_present boolean;
+  v_raw_reference record;
 begin
   v_enforced := public.lock_managed_storage_protocol();
   case tg_table_name
@@ -2132,51 +2141,52 @@ begin
     ) on conflict do nothing;
   end loop;
 
-  for v_object_id in
-    select object.id from public.managed_storage_objects object
-    where not v_enforced
-      and object.provisional_owner_id is null
-      and exists (
-        select 1
-        from public.managed_storage_payload_raw_references(v_payload) reference
-        where reference.managed_object_id is null
-          and reference.storage_bucket = object.storage_bucket
-          and reference.storage_path = object.storage_path
-      )
-      and (
-        (v_classroom_id is not null and object.classroom_id = v_classroom_id)
-        or (v_blueprint_id is not null and object.course_blueprint_id = v_blueprint_id)
-      )
-      and (
-        object.storage_bucket <> 'submission-images'
-        or (
-          v_assignment_doc_id is not null
-          and object.resource_type = 'assignment_doc'
-          and object.resource_id = v_assignment_doc_id
-          and object.data_subject_user_id = v_data_subject_user_id
-        )
-      )
-      and not exists (
-        select 1 from public.managed_storage_payload_ids(v_payload) payload_id
-        where payload_id.managed_object_id = object.id
-      )
-    order by object.id
-    for update
+  for v_raw_reference in
+    select distinct reference.storage_bucket, reference.storage_path
+    from public.managed_storage_payload_raw_references(v_payload) reference
+    where reference.managed_object_id is null
+    order by reference.storage_bucket, reference.storage_path
   loop
-    select * into v_object from public.managed_storage_objects where id = v_object_id;
-    perform public.managed_storage_exact_lock(
-      v_object.storage_bucket, v_object.storage_path
-    );
+    v_object := null;
+    select * into v_object from public.managed_storage_objects object
+    where object.storage_bucket = v_raw_reference.storage_bucket
+      and object.storage_path = v_raw_reference.storage_path
+    for update;
+    if v_object.id is null then
+      perform public.managed_storage_exact_lock(
+        v_raw_reference.storage_bucket, v_raw_reference.storage_path
+      );
+      select * into v_object from public.managed_storage_objects object
+      where object.storage_bucket = v_raw_reference.storage_bucket
+        and object.storage_path = v_raw_reference.storage_path
+      for update;
+    else
+      perform public.managed_storage_exact_lock(
+        v_raw_reference.storage_bucket, v_raw_reference.storage_path
+      );
+    end if;
+    if v_enforced or v_object.id is null then continue; end if;
     v_storage_present := exists (
       select 1 from storage.objects object
       where object.bucket_id = v_object.storage_bucket
         and object.name = v_object.storage_path
     );
-    if v_object.status not in ('verified', 'ready')
+    if v_object.provisional_owner_id is not null
+      or (v_classroom_id is not null
+        and v_object.classroom_id is distinct from v_classroom_id)
+      or (v_blueprint_id is not null
+        and v_object.course_blueprint_id is distinct from v_blueprint_id)
+      or (v_object.status not in ('verified', 'ready')
       and not (
         v_object.status = 'cleanup_processing'
         and v_storage_present
-      )
+      ))
+      or (v_object.storage_bucket = 'submission-images' and (
+        v_assignment_doc_id is null
+        or v_object.resource_type is distinct from 'assignment_doc'
+        or v_object.resource_id is distinct from v_assignment_doc_id
+        or v_object.data_subject_user_id is distinct from v_data_subject_user_id
+      ))
     then
       raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
     end if;

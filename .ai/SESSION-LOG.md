@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Staged the additive archive-v2 contract locally
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Added migration `105_classroom_archive_v2_contract.sql` with private retired
-  assessment envelopes, a version-keyed archive registry, operation contract
-  pins, archive format-v2 metadata, and distinct v2 export/restore RPCs while
-  preserving every deployed v1 RPC and source table.
-- Validated archive-v2 export through deterministic v1 Quiz adaptation and
-  validated the explicit v1/v2-to-envelope restore path. Kept current
-  application export and restore on v1 because compaction remains v1-only and
-  migration 105 is not hosted.
-- Kept Gradex on v1 and made v2 compaction plus envelope-backed source export
-  fail closed until the freeze/backfill pass provides direct v2 snapshots.
-- Preserved full Quiz, question, response, manual-score, and Quiz-draft payloads
-  with actor references; added a direct v1-to-v2 archive/restore round trip.
-- Applied migration 105 only to the local validation database after explicit
-  authorization. The first attempt rolled back on deferred FK ordering; moved
-  the version-registry FK creation after seed rows and validated the corrected
-  schema. No hosted database was changed.
-- Regenerated `src/types/database.generated.ts` and added a transactional v2
-  database harness to CI. Legacy v1 export/restore/compaction and Gradex
-  database harnesses remain green.
-
-**Validation:**
-- Full repository suite at the final head: 412 files / 3,710 tests.
-- Focused final suite: 20 files / 232 tests.
-- Local v1 export, v1 restore, v1 compaction, Gradex, and v2 export/restore
-  database contracts.
-- `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm run db:types:check`, migration
-  filename/static checks, `git diff --check`, and Pika changed-file audit.
-
-**Remaining:**
-- Run architecture/build/full final validation at the exact head.
-- Open the PR, independently review and remediate it, then require exact-head CI.
-- Migration 105 still requires separate explicit authorization for every hosted
-  target. The next implementation pass is the atomic freeze/backfill ledger.
-
 ## 2026-07-23 — Closed archive-v2 contract review blockers
 
 **Risk profile:** runtime-platform
@@ -1385,3 +1346,27 @@ recovery preservation across managed ownership activation.
 - Require exact-head disposable CI and final read-only review, update draft PR
   #967's validation summary, and keep deployment/application of migration 117
   under fresh target-specific authorization.
+
+## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
+
+**Risk profile:** high — exact-path ownership adoption and concurrent rolling
+deployment writers.
+
+**Completed:**
+- Made every embedded raw-path writer take the exact-path lifecycle fence even
+  when no managed row is committed yet, then re-read ownership after waiting.
+- Rejected explicit managed UUID/path mismatches before locking the
+  caller-supplied path, preserving the canonical object-row/path lock order.
+- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
+  source before expecting readiness, and added two-session coverage for a late
+  cross-Classroom raw writer plus a held wrong-path mismatch lock.
+- Kept all schema work consolidated in migration 117, left migrations 115/116
+  unchanged, applied no migration, and left PR #963 untouched.
+
+**Validation:**
+- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
+  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
+
+**Remaining:**
+- Push the correction, require exact-head disposable database CI, and obtain a
+  targeted independent concurrency review before the final integration gate.

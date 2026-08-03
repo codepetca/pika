@@ -168,6 +168,24 @@ begin
       where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
   then raise exception 'Relational attach did not atomically adopt the object'; end if;
 
+  -- Compatibility readiness must not be evaluated while this deliberate raw
+  -- Blueprint source is still ownerless. Resolve it through the same atomic
+  -- adoption path used by the application before any ready-state assertion.
+  select * into v_blueprint_source
+  from public.resolve_managed_storage_blueprint_copy_source(
+    'a1100000-0000-4000-8000-000000000001',
+    'managed-fixture/legacy-blueprint-copy.pdf',
+    'a1100000-0000-4000-8000-000000000003', null, null
+  );
+  if v_blueprint_source.status <> 'ready'
+    or v_blueprint_source.classroom_id is distinct from
+      'a1100000-0000-4000-8000-000000000003'
+    or v_blueprint_source.storage_path <> 'managed-fixture/legacy-blueprint-copy.pdf'
+  then
+    raise exception 'Blueprint legacy source was not atomically registered';
+  end if;
+  perform public.reconcile_managed_storage_json_references();
+
   -- Both raw-only cleanup tables must remain writable by migration-116 code
   -- while the protocol is in compatibility mode.
   insert into public.assignment_artifact_storage_cleanup (storage_path)
@@ -532,21 +550,6 @@ begin
   end;
   perform public.queue_managed_storage_cleanup(v_legacy_id, 'fixture_legacy_replay');
 
-  select * into v_blueprint_source
-  from public.resolve_managed_storage_blueprint_copy_source(
-    'a1100000-0000-4000-8000-000000000001',
-    'managed-fixture/legacy-blueprint-copy.pdf',
-    'a1100000-0000-4000-8000-000000000003', null, null
-  );
-  if v_blueprint_source.status <> 'ready'
-    or v_blueprint_source.classroom_id is distinct from
-      'a1100000-0000-4000-8000-000000000003'
-    or v_blueprint_source.storage_path <> 'managed-fixture/legacy-blueprint-copy.pdf'
-  then
-    raise exception 'Blueprint legacy source was not atomically registered';
-  end if;
-  perform public.reconcile_managed_storage_json_references();
-
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then
     raise exception 'Expected ready managed inventory, found % findings', v_run.finding_count;
@@ -895,6 +898,207 @@ commit;
 SQL
 
 echo "Managed-storage activation concurrency checks passed."
+
+# Prove that atomic compatibility adoption and a late raw cross-owner writer
+# share the exact-path fence. The writer starts while the path is still
+# ownerless, waits for the resolver to register Classroom A, then must recheck
+# and reject attaching that path to Classroom B.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+insert into public.users (id, email, role) values
+  ('a1400000-0000-4000-8000-000000000001', 'managed-adopt-a@example.test', 'teacher'),
+  ('a1400000-0000-4000-8000-000000000002', 'managed-adopt-b@example.test', 'teacher');
+insert into public.classrooms (id, teacher_id, title, class_code) values
+  (
+    'a1400000-0000-4000-8000-000000000003',
+    'a1400000-0000-4000-8000-000000000001',
+    'Managed adoption source', 'MSOADA'
+  ),
+  (
+    'a1400000-0000-4000-8000-000000000004',
+    'a1400000-0000-4000-8000-000000000002',
+    'Managed adoption contender', 'MSOADB'
+  );
+insert into storage.objects (bucket_id, name) values (
+  'test-documents', 'managed-race/blueprint-adoption.pdf'
+);
+insert into public.tests (
+  id, classroom_id, title, status, created_by, documents
+) values
+  (
+    'a1400000-0000-4000-8000-000000000005',
+    'a1400000-0000-4000-8000-000000000003',
+    'Managed adoption source Test', 'draft',
+    'a1400000-0000-4000-8000-000000000001',
+    '[{
+      "id":"adoption-source",
+      "source":"upload",
+      "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/blueprint-adoption.pdf"
+    }]'::jsonb
+  ),
+  (
+    'a1400000-0000-4000-8000-000000000006',
+    'a1400000-0000-4000-8000-000000000004',
+    'Managed adoption contender Test', 'draft',
+    'a1400000-0000-4000-8000-000000000002', '[]'::jsonb
+  );
+SQL
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/blueprint-adoption.out" \
+  2>"$concurrency_dir/blueprint-adoption.err" <<'SQL' &
+set application_name = 'managed-storage-blueprint-adoption';
+begin;
+select public.lock_managed_storage_protocol();
+select public.managed_storage_exact_lock(
+  'test-documents', 'managed-race/blueprint-adoption.pdf'
+);
+select pg_sleep(3);
+select public.resolve_managed_storage_blueprint_copy_source(
+  'a1400000-0000-4000-8000-000000000001',
+  'managed-race/blueprint-adoption.pdf',
+  'a1400000-0000-4000-8000-000000000003', null, null
+);
+commit;
+SQL
+blueprint_adoption_pid=$!
+
+adoption_waiting=false
+for _ in $(seq 1 50); do
+  active_adoption="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -A -t -c \
+    "select count(*) from pg_stat_activity where application_name = 'managed-storage-blueprint-adoption' and state = 'active' and query like '%pg_sleep%';")"
+  if [[ "$active_adoption" = "1" ]]; then adoption_waiting=true; break; fi
+  sleep 0.1
+done
+if [[ "$adoption_waiting" != "true" ]]; then
+  wait "$blueprint_adoption_pid" || true
+  echo "Blueprint adoption did not reach the exact-path fence." >&2
+  exit 1
+fi
+
+set +e
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/blueprint-late-raw.out" \
+  2>"$concurrency_dir/blueprint-late-raw.err" <<'SQL'
+update public.tests
+set documents = '[{
+  "id":"late-cross-owner-reference",
+  "source":"upload",
+  "url":"https://fixture.invalid/storage/v1/object/public/test-documents/managed-race/blueprint-adoption.pdf"
+}]'::jsonb
+where id = 'a1400000-0000-4000-8000-000000000006';
+SQL
+blueprint_late_raw_status=$?
+set -e
+wait "$blueprint_adoption_pid"
+if [[ "$blueprint_late_raw_status" -eq 0 ]] \
+  || ! grep -q 'managed_storage_embedded_owner_mismatch' \
+    "$concurrency_dir/blueprint-late-raw.err"; then
+  echo "Blueprint adoption was overtaken by a late cross-owner raw reference." >&2
+  sed -n '1,80p' "$concurrency_dir/blueprint-late-raw.err" >&2
+  exit 1
+fi
+
+# An explicit UUID/path mismatch must fail before trying to lock the untrusted
+# caller path. Holding that wrong-path lock turns the old ordering into a
+# statement timeout and proves the corrected ordering returns immediately.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/blueprint-wrong-path-lock.out" \
+  2>"$concurrency_dir/blueprint-wrong-path-lock.err" <<'SQL' &
+set application_name = 'managed-storage-blueprint-wrong-path-lock';
+begin;
+select public.managed_storage_exact_lock(
+  'test-documents', 'managed-race/caller-mismatch.pdf'
+);
+select pg_sleep(3);
+commit;
+SQL
+blueprint_wrong_path_pid=$!
+
+wrong_path_waiting=false
+for _ in $(seq 1 50); do
+  active_wrong_path="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -A -t -c \
+    "select count(*) from pg_stat_activity where application_name = 'managed-storage-blueprint-wrong-path-lock' and state = 'active' and query like '%pg_sleep%';")"
+  if [[ "$active_wrong_path" = "1" ]]; then wrong_path_waiting=true; break; fi
+  sleep 0.1
+done
+if [[ "$wrong_path_waiting" != "true" ]]; then
+  wait "$blueprint_wrong_path_pid" || true
+  echo "Blueprint wrong-path holder did not reach the exact-path fence." >&2
+  exit 1
+fi
+
+set +e
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/blueprint-explicit-mismatch.out" \
+  2>"$concurrency_dir/blueprint-explicit-mismatch.err" <<'SQL'
+set statement_timeout = '1s';
+select public.resolve_managed_storage_blueprint_copy_source(
+  'a1400000-0000-4000-8000-000000000001',
+  'managed-race/caller-mismatch.pdf',
+  'a1400000-0000-4000-8000-000000000003', null,
+  (
+    select id from public.managed_storage_objects
+    where storage_bucket = 'test-documents'
+      and storage_path = 'managed-race/blueprint-adoption.pdf'
+  )
+);
+SQL
+blueprint_explicit_mismatch_status=$?
+set -e
+wait "$blueprint_wrong_path_pid"
+if [[ "$blueprint_explicit_mismatch_status" -eq 0 ]] \
+  || ! grep -q 'managed_storage_blueprint_copy_source_invalid' \
+    "$concurrency_dir/blueprint-explicit-mismatch.err" \
+  || grep -q 'statement timeout' \
+    "$concurrency_dir/blueprint-explicit-mismatch.err"; then
+  echo "Blueprint explicit mismatch tried to lock the caller-supplied path." >&2
+  sed -n '1,80p' "$concurrency_dir/blueprint-explicit-mismatch.err" >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+begin;
+select set_config('storage.allow_delete_query', 'true', true);
+do $fixture$
+declare
+  v_object public.managed_storage_objects;
+begin
+  select * into v_object from public.managed_storage_objects
+  where storage_bucket = 'test-documents'
+    and storage_path = 'managed-race/blueprint-adoption.pdf';
+  if v_object.status <> 'ready'
+    or v_object.classroom_id is distinct from
+      'a1400000-0000-4000-8000-000000000003'
+    or v_object.course_blueprint_id is not null
+    or (select documents from public.tests
+      where id = 'a1400000-0000-4000-8000-000000000006') <> '[]'::jsonb
+  then
+    raise exception 'Blueprint adoption/raw-writer postcondition failed';
+  end if;
+end;
+$fixture$;
+delete from public.tests where id in (
+  'a1400000-0000-4000-8000-000000000005',
+  'a1400000-0000-4000-8000-000000000006'
+);
+delete from public.managed_storage_objects
+where storage_bucket = 'test-documents'
+  and storage_path = 'managed-race/blueprint-adoption.pdf';
+delete from storage.objects
+where bucket_id = 'test-documents'
+  and name = 'managed-race/blueprint-adoption.pdf';
+delete from public.classrooms where id in (
+  'a1400000-0000-4000-8000-000000000003',
+  'a1400000-0000-4000-8000-000000000004'
+);
+delete from public.users where id in (
+  'a1400000-0000-4000-8000-000000000001',
+  'a1400000-0000-4000-8000-000000000002'
+);
+commit;
+SQL
+
+echo "Managed-storage Blueprint adoption concurrency checks passed."
 
 # Prove that compatibility references and cleanup deletion share one lifecycle
 # fence. A reference which holds the managed row first cancels cleanup; a
