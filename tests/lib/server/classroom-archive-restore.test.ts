@@ -268,6 +268,32 @@ describe('classroom archive restore planning', () => {
     expect(plan.storageObjects.every((object) =>
       object.restorePath.startsWith(`restores/${CLASSROOM_ID}/${OPERATION_ID}/`),
     )).toBe(true)
+    expect(plan.storageObjects.find((object) => object.bucket === 'assignment-artifacts'))
+      .toEqual(expect.objectContaining({
+        purpose: 'student_assignment_artifact',
+        createdByUserId: TEACHER_ID,
+        dataSubjectUserId: STUDENT_ID,
+        resourceType: 'assignment_doc',
+        resourceId: '20000000-0000-4000-8000-000000000001',
+      }))
+    expect(plan.storageObjects.find((object) => object.bucket === 'submission-images'))
+      .toEqual(expect.objectContaining({
+        purpose: 'student_inline_image',
+        createdByUserId: TEACHER_ID,
+        dataSubjectUserId: STUDENT_ID,
+        resourceType: 'assignment_doc',
+        resourceId: '20000000-0000-4000-8000-000000000001',
+      }))
+    expect(plan.storageObjects.filter((object) => object.bucket === 'test-documents'))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          purpose: 'test_execution_snapshot',
+          createdByUserId: TEACHER_ID,
+          dataSubjectUserId: null,
+          resourceType: 'test',
+          resourceId: '40000000-0000-4000-8000-000000000001',
+        }),
+      ]))
 
     expect(plan.resources.assignment_submission_artifacts[0].storage_path).toMatch(
       new RegExp(`^restores/${CLASSROOM_ID}/${OPERATION_ID}/`),

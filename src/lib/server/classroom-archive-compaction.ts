@@ -453,6 +453,7 @@ async function downloadAndVerifyArchive(args: {
       operationId: args.operationId,
       currentActors,
       supabaseUrl: args.supabaseUrl,
+      deriveLegacyManagedOwnership: false,
     })
   } catch {
     throw new ClassroomArchiveCompactionError(

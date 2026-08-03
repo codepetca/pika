@@ -173,14 +173,6 @@ function deterministicRestoreManagedObjectId(args: {
   ].join('-'))
 }
 
-function fallbackRestorePurpose(
-  bucket: ClassroomArchiveRestoreStorageObject['bucket'],
-): ClassroomArchiveRestoreStorageObject['purpose'] {
-  if (bucket === 'assignment-artifacts') return 'student_assignment_artifact'
-  if (bucket === 'submission-images') return 'student_inline_image'
-  return 'teacher_test_material'
-}
-
 function parseManagedUrl(
   candidate: string,
   supabaseOrigin: string,
@@ -201,6 +193,111 @@ function parseManagedUrl(
     }
   } catch {
     return null
+  }
+}
+
+function hasManagedStorageReference(args: {
+  value: unknown
+  supabaseOrigin: string
+  bucket: ClassroomArchiveRestoreStorageObject['bucket']
+  path: string
+  key?: string
+}): boolean {
+  if (typeof args.value === 'string') {
+    if (
+      args.bucket === 'test-documents'
+      && args.key === 'snapshot_path'
+      && args.value === args.path
+    ) return true
+    return [...args.value.matchAll(managedUrlPattern)].some((match) => {
+      const parsed = parseManagedUrl(match[0], args.supabaseOrigin)
+      return parsed?.bucket === args.bucket && parsed.path === args.path
+    })
+  }
+  if (Array.isArray(args.value)) {
+    return args.value.some((value) => hasManagedStorageReference({ ...args, value, key: undefined }))
+  }
+  if (!isJsonObject(args.value)) return false
+  return Object.entries(args.value).some(([key, value]) =>
+    hasManagedStorageReference({ ...args, value, key }))
+}
+
+function legacyRestoreManagedOwner(args: {
+  object: VerifiedBundle['manifest']['storage_objects'][number]
+  resources: Record<string, JsonObject[]>
+  teacherId: string
+  supabaseOrigin: string
+}): Pick<ClassroomArchiveRestoreStorageObject,
+  'purpose' | 'createdByUserId' | 'dataSubjectUserId' | 'resourceType' | 'resourceId'> {
+  const { object, resources } = args
+  if (object.bucket === 'assignment-artifacts') {
+    const owners = (resources.assignment_submission_artifacts || []).filter((row) =>
+      row.storage_path === object.source_path
+      && typeof row.assignment_doc_id === 'string'
+      && typeof row.student_id === 'string')
+    if (owners.length !== 1) throw new Error('Legacy assignment artifact ownership is ambiguous')
+    return {
+      purpose: 'student_assignment_artifact',
+      createdByUserId: args.teacherId,
+      dataSubjectUserId: uuidSchema.parse(owners[0].student_id),
+      resourceType: 'assignment_doc',
+      resourceId: uuidSchema.parse(owners[0].assignment_doc_id),
+    }
+  }
+  if (object.bucket === 'submission-images') {
+    const documents = new Map((resources.assignment_docs || []).map((row) => [row.id, row]))
+    const ownerKeys = new Set<string>()
+    for (const document of documents.values()) {
+      if (
+        typeof document.id === 'string'
+        && typeof document.student_id === 'string'
+        && hasManagedStorageReference({
+          value: document.content,
+          supabaseOrigin: args.supabaseOrigin,
+          bucket: object.bucket,
+          path: object.source_path,
+        })
+      ) ownerKeys.add(`${document.id}\0${document.student_id}`)
+    }
+    for (const history of resources.assignment_doc_history || []) {
+      const document = documents.get(history.assignment_doc_id)
+      if (
+        document
+        && typeof document.id === 'string'
+        && typeof document.student_id === 'string'
+        && hasManagedStorageReference({
+          value: { snapshot: history.snapshot, patch: history.patch },
+          supabaseOrigin: args.supabaseOrigin,
+          bucket: object.bucket,
+          path: object.source_path,
+        })
+      ) ownerKeys.add(`${document.id}\0${document.student_id}`)
+    }
+    if (ownerKeys.size !== 1) throw new Error('Legacy submission image ownership is ambiguous')
+    const [resourceId, dataSubjectUserId] = [...ownerKeys][0].split('\0')
+    return {
+      purpose: 'student_inline_image',
+      createdByUserId: args.teacherId,
+      dataSubjectUserId: uuidSchema.parse(dataSubjectUserId),
+      resourceType: 'assignment_doc',
+      resourceId: uuidSchema.parse(resourceId),
+    }
+  }
+  const tests = (resources.tests || []).filter((row) =>
+    typeof row.id === 'string'
+    && hasManagedStorageReference({
+      value: row.documents,
+      supabaseOrigin: args.supabaseOrigin,
+      bucket: object.bucket,
+      path: object.source_path,
+    }))
+  if (tests.length !== 1) throw new Error('Legacy test document ownership is ambiguous')
+  return {
+    purpose: 'test_execution_snapshot',
+    createdByUserId: args.teacherId,
+    dataSubjectUserId: null,
+    resourceType: 'test',
+    resourceId: uuidSchema.parse(tests[0].id),
   }
 }
 
@@ -319,6 +416,7 @@ type BuildClassroomArchiveRestorePlanArgs = {
   operationId: string
   currentActors: CurrentActor[]
   supabaseUrl: string
+  deriveLegacyManagedOwnership?: boolean
 }
 
 function buildClassroomArchiveRestorePlanForVersion(
@@ -421,6 +519,28 @@ function buildClassroomArchiveRestorePlanForVersion(
     .map((object) => {
       const bytes = args.verified.files.get(object.archive_path)
       if (!bytes) throw new Error(`Archive storage object is missing: ${object.archive_path}`)
+      const owner = object.managed_owner
+        ? {
+            purpose: object.managed_owner.purpose,
+            createdByUserId: object.managed_owner.created_by_user_id,
+            dataSubjectUserId: object.managed_owner.data_subject_user_id,
+            resourceType: object.managed_owner.resource_type,
+            resourceId: object.managed_owner.resource_id,
+          }
+        : args.deriveLegacyManagedOwnership === false
+          ? {
+              purpose: 'legacy_classroom_file' as const,
+              createdByUserId: manifest.teacher_id,
+              dataSubjectUserId: null,
+              resourceType: null,
+              resourceId: null,
+            }
+          : legacyRestoreManagedOwner({
+              object,
+              resources: retainedSourceResources,
+              teacherId: manifest.teacher_id,
+              supabaseOrigin: origin,
+            })
       return {
         bucket: object.bucket,
         sourcePath: object.source_path,
@@ -437,11 +557,11 @@ function buildClassroomArchiveRestorePlanForVersion(
           sourcePath: object.source_path,
         }),
         sourceManagedObjectId: object.managed_owner?.object_id || null,
-        purpose: object.managed_owner?.purpose || fallbackRestorePurpose(object.bucket),
-        createdByUserId: object.managed_owner?.created_by_user_id || null,
-        dataSubjectUserId: object.managed_owner?.data_subject_user_id || null,
-        resourceType: object.managed_owner?.resource_type || null,
-        resourceId: object.managed_owner?.resource_id || null,
+        purpose: owner.purpose,
+        createdByUserId: owner.createdByUserId,
+        dataSubjectUserId: owner.dataSubjectUserId,
+        resourceType: owner.resourceType,
+        resourceId: owner.resourceId,
         archivePath: object.archive_path,
         contentType: object.content_type,
         sha256: object.sha256,
