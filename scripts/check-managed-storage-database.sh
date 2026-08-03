@@ -329,15 +329,19 @@ begin
       "synced_at":"2026-08-03T00:00:00Z"
     }]'::jsonb
   );
-  if not public.complete_test_document_snapshot_storage_cleanup(
+  if not coalesce(public.complete_test_document_snapshot_storage_cleanup(
     v_snapshot_cleanup.id, v_snapshot_cleanup.lease_token
-  ) or not exists (
+  ), false) then raise exception 'Snapshot cleanup cancellation RPC did not complete'; end if;
+  if not exists (
     select 1 from storage.objects
     where bucket_id = 'test-documents'
       and name = 'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility-cancelled'
-  ) or (select status from public.managed_storage_objects
-    where id = v_snapshot_cancel_id) <> 'ready'
-  then raise exception 'Snapshot cleanup cancellation did not restore readiness'; end if;
+  ) then raise exception 'Snapshot cleanup cancellation removed Storage bytes'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = v_snapshot_cancel_id;
+  if v_object_status is distinct from 'ready' then
+    raise exception 'Snapshot cleanup cancellation lifecycle state was %', v_object_status;
+  end if;
   perform public.reconcile_managed_storage_json_references();
   if not exists (
     select 1 from public.managed_storage_json_references
@@ -396,11 +400,14 @@ begin
   end;
   delete from public.managed_storage_json_references
   where managed_object_id = v_referenced_missing_id;
-  if not public.complete_test_document_snapshot_storage_cleanup(
+  if not coalesce(public.complete_test_document_snapshot_storage_cleanup(
     v_snapshot_cleanup.id, v_snapshot_cleanup.lease_token
-  ) or (select status from public.managed_storage_objects
-    where id = v_referenced_missing_id) <> 'deleted'
-  then raise exception 'Referenced-missing cleanup recovery failed'; end if;
+  ), false) then raise exception 'Referenced-missing cleanup recovery RPC failed'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = v_referenced_missing_id;
+  if v_object_status is distinct from 'deleted' then
+    raise exception 'Referenced-missing cleanup recovery state was %', v_object_status;
+  end if;
 
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then
@@ -559,11 +566,14 @@ begin
   delete from storage.objects
   where bucket_id = 'assignment-artifacts'
     and name = 'managed-fixture/legacy-worker.png';
-  if not public.complete_assignment_artifact_storage_cleanup(
+  if not coalesce(public.complete_assignment_artifact_storage_cleanup(
     v_artifact_cleanup.id, v_artifact_cleanup.lease_token
-  ) or (select status from public.managed_storage_objects
-    where id = 'a1100000-0000-4000-8000-000000000022') <> 'deleted'
-  then raise exception 'Assignment cleanup did not use managed authority'; end if;
+  ), false) then raise exception 'Assignment cleanup RPC did not complete'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = 'a1100000-0000-4000-8000-000000000022';
+  if v_object_status is distinct from 'deleted' then
+    raise exception 'Assignment cleanup authority state was %', v_object_status;
+  end if;
 
   perform public.begin_managed_storage_upload(
     'a1100000-0000-4000-8000-000000000024',
@@ -594,11 +604,14 @@ begin
   delete from storage.objects
   where bucket_id = 'test-documents'
     and name = 'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/legacy-worker';
-  if not public.complete_test_document_snapshot_storage_cleanup(
+  if not coalesce(public.complete_test_document_snapshot_storage_cleanup(
     v_snapshot_cleanup.id, v_snapshot_cleanup.lease_token
-  ) or (select status from public.managed_storage_objects
-    where id = 'a1100000-0000-4000-8000-000000000024') <> 'deleted'
-  then raise exception 'Snapshot cleanup did not use managed authority'; end if;
+  ), false) then raise exception 'Snapshot cleanup RPC did not complete'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = 'a1100000-0000-4000-8000-000000000024';
+  if v_object_status is distinct from 'deleted' then
+    raise exception 'Snapshot cleanup authority state was %', v_object_status;
+  end if;
 
   perform public.begin_managed_storage_upload(
     'a1100000-0000-4000-8000-000000000030',
