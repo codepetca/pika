@@ -28,6 +28,7 @@ const compactionDiagnosticSchema = z.object({
   phase: z.enum(['load', 'delete', 'restore']).optional(),
   table_name: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/).optional(),
   sqlstate: z.string().regex(/^[A-Z0-9]{5}$/).optional(),
+  error_reason: z.string().regex(/^[a-z0-9_]{1,80}$/).optional(),
 }).strict()
 
 const fixtureTables = [

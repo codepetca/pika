@@ -3599,7 +3599,11 @@ begin
         'phase', v_phase,
         'table_name', v_table_name,
         'sqlstate', sqlstate
-      );
+      ) || case
+        when sqlerrm ~ '^[a-z0-9_]{1,80}$'
+          then jsonb_build_object('error_reason', sqlerrm)
+        else '{}'::jsonb
+      end;
   end;
 end;
 $$;
