@@ -523,6 +523,21 @@ begin
   then
     raise exception using errcode = '22023', message = 'managed_storage_owner_required';
   end if;
+  select * into v_object from public.managed_storage_objects
+  where id = p_object_id for update;
+  if found and (
+    v_object.storage_bucket is distinct from p_storage_bucket
+    or v_object.storage_path is distinct from p_storage_path
+  ) then
+    raise exception using errcode = '23505', message = 'managed_storage_reservation_conflict';
+  elsif not found then
+    select * into v_object from public.managed_storage_objects
+    where storage_bucket = p_storage_bucket and storage_path = p_storage_path
+    for update;
+    if found and v_object.id is distinct from p_object_id then
+      raise exception using errcode = '23505', message = 'managed_storage_reservation_conflict';
+    end if;
+  end if;
   perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
 
   insert into public.managed_storage_objects (
@@ -1101,6 +1116,21 @@ begin
     or num_nonnulls(p_classroom_id, p_course_blueprint_id) <> 1
   then
     raise exception using errcode = '22023', message = 'legacy_managed_owner_required';
+  end if;
+  select * into v_object from public.managed_storage_objects
+  where id = p_object_id for update;
+  if found and (
+    v_object.storage_bucket is distinct from p_storage_bucket
+    or v_object.storage_path is distinct from p_storage_path
+  ) then
+    raise exception using errcode = '23505', message = 'legacy_managed_storage_ambiguous';
+  elsif not found then
+    select * into v_object from public.managed_storage_objects
+    where storage_bucket = p_storage_bucket and storage_path = p_storage_path
+    for update;
+    if found and v_object.id is distinct from p_object_id then
+      raise exception using errcode = '23505', message = 'legacy_managed_storage_ambiguous';
+    end if;
   end if;
   perform public.managed_storage_exact_lock(p_storage_bucket, p_storage_path);
   if not exists (
@@ -1786,6 +1816,7 @@ declare
   v_evidence_sha256 text;
   v_identity_count integer := 0;
   v_raw_reference_count integer := 0;
+  v_storage_present boolean;
 begin
   v_enforced := public.lock_managed_storage_protocol();
   case tg_table_name
@@ -1855,10 +1886,29 @@ begin
   v_evidence_sha256 := encode(extensions.digest(convert_to(coalesce(v_payload, 'null'::jsonb)::text, 'UTF8'), 'sha256'), 'hex');
   for v_object_id in select distinct managed_object_id
     from public.managed_storage_payload_ids(v_payload)
+    order by managed_object_id
   loop
     select * into v_object from public.managed_storage_objects
     where id = v_object_id for update;
-    if not found or v_object.status not in ('verified', 'ready')
+    if not found then
+      raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
+    end if;
+    perform public.managed_storage_exact_lock(
+      v_object.storage_bucket, v_object.storage_path
+    );
+    v_storage_present := exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_object.storage_bucket
+        and object.name = v_object.storage_path
+    );
+    if (
+        v_object.status not in ('verified', 'ready')
+        and not (
+          not v_enforced
+          and v_object.status = 'cleanup_processing'
+          and v_storage_present
+        )
+      )
       or not public.managed_storage_payload_has_exact_reference(
         v_payload, v_object.id, v_object.storage_bucket, v_object.storage_path
       )
@@ -1932,7 +1982,6 @@ begin
   for v_object_id in
     select object.id from public.managed_storage_objects object
     where not v_enforced
-      and object.status in ('verified', 'ready')
       and object.provisional_owner_id is null
       and exists (
         select 1
@@ -1958,9 +2007,26 @@ begin
         select 1 from public.managed_storage_payload_ids(v_payload) payload_id
         where payload_id.managed_object_id = object.id
       )
+    order by object.id
     for update
   loop
     select * into v_object from public.managed_storage_objects where id = v_object_id;
+    perform public.managed_storage_exact_lock(
+      v_object.storage_bucket, v_object.storage_path
+    );
+    v_storage_present := exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_object.storage_bucket
+        and object.name = v_object.storage_path
+    );
+    if v_object.status not in ('verified', 'ready')
+      and not (
+        v_object.status = 'cleanup_processing'
+        and v_storage_present
+      )
+    then
+      raise exception using errcode = '55000', message = 'managed_storage_embedded_owner_mismatch';
+    end if;
     if v_object.status = 'verified' then
       perform public.managed_storage_mark_ready(v_object.id);
     end if;
@@ -2448,6 +2514,7 @@ declare
   v_enforced boolean;
   v_object public.managed_storage_objects;
   v_classroom_id uuid;
+  v_storage_present boolean;
 begin
   v_enforced := public.lock_managed_storage_protocol();
   if new.storage_path is null then
@@ -2460,15 +2527,39 @@ begin
     if v_enforced then
       raise exception using errcode = '55000', message = 'assignment_artifact_managed_identity_required';
     end if;
-    return new;
+    select * into v_object from public.managed_storage_objects
+    where storage_bucket = 'assignment-artifacts'
+      and storage_path = new.storage_path
+    for update;
+    if not found then return new; end if;
+    new.managed_object_id := v_object.id;
+  else
+    select * into v_object from public.managed_storage_objects
+    where id = new.managed_object_id for update;
+    if not found then
+      raise exception using errcode = '55000', message = 'assignment_artifact_managed_owner_mismatch';
+    end if;
   end if;
   select assignment.classroom_id into v_classroom_id
   from public.assignment_docs document
   join public.assignments assignment on assignment.id = document.assignment_id
   where document.id = new.assignment_doc_id and document.student_id = new.student_id;
-  select * into v_object from public.managed_storage_objects
-  where id = new.managed_object_id for update;
-  if not found or v_object.status not in ('verified', 'ready')
+  perform public.managed_storage_exact_lock(
+    v_object.storage_bucket, v_object.storage_path
+  );
+  v_storage_present := exists (
+    select 1 from storage.objects object
+    where object.bucket_id = v_object.storage_bucket
+      and object.name = v_object.storage_path
+  );
+  if (
+      v_object.status not in ('verified', 'ready')
+      and not (
+        not v_enforced
+        and v_object.status = 'cleanup_processing'
+        and v_storage_present
+      )
+    )
     or v_object.storage_bucket <> 'assignment-artifacts'
     or v_object.storage_path <> new.storage_path
     or v_object.classroom_id is distinct from v_classroom_id
@@ -2701,12 +2792,14 @@ begin
     'classroom-archives', 'gradex-analytics-extracts'
   ) then return new; end if;
   v_enforced := public.lock_managed_storage_protocol();
-  perform public.managed_storage_exact_lock(new.bucket_id, new.name);
   select * into v_object from public.managed_storage_objects
   where storage_bucket = new.bucket_id and storage_path = new.name
-  for key share;
+  for update;
+  perform public.managed_storage_exact_lock(new.bucket_id, new.name);
   if not v_enforced then
-    if found and v_object.status = 'cleanup_processing' then
+    if v_object.id is not null
+      and v_object.status in ('cleanup_pending', 'cleanup_processing', 'deleted')
+    then
       raise exception using errcode = '55000', message = 'managed_storage_cleanup_in_progress';
     end if;
     return new;
@@ -2733,21 +2826,38 @@ set search_path = public, storage
 as $$
 declare
   v_enforced boolean;
+  v_object public.managed_storage_objects;
+  v_referenced boolean;
 begin
   if old.bucket_id not in (
     'assignment-artifacts', 'submission-images', 'test-documents',
     'classroom-archives', 'gradex-analytics-extracts'
   ) then return old; end if;
   v_enforced := public.lock_managed_storage_protocol();
+  select * into v_object from public.managed_storage_objects object
+  where object.storage_bucket = old.bucket_id
+    and object.storage_path = old.name
+  for update;
   perform public.managed_storage_exact_lock(old.bucket_id, old.name);
-  if v_enforced and not exists (
-    select 1 from public.managed_storage_objects object
-    where object.storage_bucket = old.bucket_id
-      and object.storage_path = old.name
-      and object.status = 'cleanup_processing'
-    for key share
-  ) then
+  if v_object.id is null then
+    if not v_enforced then return old; end if;
     raise exception using errcode = '55000', message = 'managed_storage_cleanup_authority_required';
+  end if;
+  if v_object.status <> 'cleanup_processing' then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_authority_required';
+  end if;
+  v_referenced := public.managed_storage_object_is_referenced(v_object.id)
+    or case v_object.storage_bucket
+      when 'assignment-artifacts' then exists (
+        select 1 from public.assignment_submission_artifacts reference
+        where reference.storage_path = v_object.storage_path
+      )
+      when 'test-documents' then
+        public.test_document_snapshot_path_is_referenced(v_object.storage_path)
+      else false
+    end;
+  if v_referenced then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_referenced';
   end if;
   return old;
 end;
@@ -2933,14 +3043,24 @@ begin
     end
   );
   v_path := nullif(v_new->>'storage_path', '');
-  perform public.managed_storage_exact_lock(v_bucket, v_path);
   select * into strict v_object from public.managed_storage_objects
   where id = v_object_id and storage_bucket = v_bucket and storage_path = v_path
   for update;
+  perform public.managed_storage_exact_lock(v_bucket, v_path);
 
   if v_new->>'status' = 'processing' then
     if v_object.status = 'deleted' then return new; end if;
-    if public.managed_storage_object_is_referenced(v_object.id) then
+    if public.managed_storage_object_is_referenced(v_object.id)
+      or case tg_table_name
+        when 'assignment_artifact_storage_cleanup' then exists (
+          select 1 from public.assignment_submission_artifacts reference
+          where reference.storage_path = v_path
+        )
+        when 'test_document_snapshot_storage_cleanup' then
+          public.test_document_snapshot_path_is_referenced(v_path)
+        else false
+      end
+    then
       raise exception using errcode = '55000', message = 'managed_storage_cleanup_referenced';
     end if;
     if v_object.status = 'cleanup_processing'
@@ -3032,6 +3152,7 @@ set search_path = public, storage
 as $$
 declare
   v_old jsonb := to_jsonb(old);
+  v_object public.managed_storage_objects;
   v_object_id uuid;
   v_bucket text;
   v_path text;
@@ -3051,6 +3172,14 @@ begin
     when 'test_document_snapshot_storage_cleanup' then 'test-documents'
   end;
   v_path := v_old->>'storage_path';
+  select * into v_object from public.managed_storage_objects object
+  where object.id = v_object_id
+    and object.storage_bucket = v_bucket
+    and object.storage_path = v_path
+  for update;
+  if not found then
+    raise exception using errcode = '55000', message = 'managed_storage_cleanup_identity_mismatch';
+  end if;
   perform public.managed_storage_exact_lock(v_bucket, v_path);
   v_referenced := public.managed_storage_object_is_referenced(v_object_id)
     or case tg_table_name

@@ -15830,3 +15830,47 @@
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.
 - Next gather read-only production evidence and design the archive-compatible schema retirement plan; no migration may be applied without exact one-time approval.
+
+<!-- pika-session-log-archive-batch:97a543fee61161897b1d6c437b976c5401be3e6bbbd863affa760707fe56bdd0 -->
+## 2026-07-23 — Designed legacy Quiz schema retirement
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - the pass crosses hosted evidence, archive format versioning, deterministic backfill, package compatibility, and destructive migration rollback without applying schema changes.
+
+**Completed:**
+- Added a target-pinned, redirect-rejecting, read-only inventory for legacy Quiz table rows, Quiz drafts, Quiz blueprint assessments, and verified archive manifest counts.
+- Required two matching aggregate snapshots and emitted no row ids, titles, content, storage paths, or credentials.
+- Ran the inventory against production project `zhioqbapgfcrronyuidm`: 1 quiz, 3 questions, 60 responses, 0 manual score overrides, 0 Quiz drafts, and 0 Quiz blueprint assessments.
+- Confirmed the single verified archive-v1 manifest contains the same non-empty Quiz graph.
+- Designed archive-v2 retired-assessment envelopes instead of mapping historical Quiz rows into active Tests, which would resurface removed product data and lose whole-assessment override semantics.
+- Defined additive adapter, freeze/backfill, production-proof, destructive-retirement, gradebook, and course-package passes with explicit approval, validation, and forward-repair gates.
+- Created no migration and performed no production write.
+
+**Validation:**
+- Focused inventory, archive, package, gradebook, docs, and architecture suites (8 files / 96 tests)
+- Full repository suite after review remediation (409 files / 3,672 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (622 modules / 0 allowances)
+- `pnpm build`
+- Pika changed-file audit
+- Production inventory completed with two stable snapshots
+
+**Review:**
+- Independent review found that the plan needed an explicit version-keyed
+  TypeScript/database archive transition and an atomic fate for zero-row Quiz
+  blueprint assessments.
+- The same review found that equal-count archive replacement was not part of
+  private snapshot stability evidence.
+- Added the versioned registry, operation/RPC, constraint, deployed-code fixture,
+  and blueprint lock/preflight requirements; added private archive UUID/checksum
+  comparison and concrete duplicate, count-drift, and truncated-page tests.
+- Targeted review caught ambiguous destructive-pass wording; clarified that v2
+  becomes current without deleting either immutable registry graph or the v1
+  adapter, and required a post-drop v1 restore fixture.
+- Re-ran the target-pinned production inventory with stable unchanged aggregates.
+
+**Remaining:**
+- Require independent PR review and exact-head CI before merge.
+- Next implement the additive retired-resource envelope and archive-v2/v1 adapter only after explicit approval to create its named migration; do not apply it without separate exact target-and-filename authorization.
