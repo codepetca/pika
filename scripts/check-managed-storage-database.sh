@@ -513,6 +513,10 @@ begin
   end;
   perform public.queue_managed_storage_cleanup(v_legacy_id, 'fixture_legacy_replay');
 
+  if not public.managed_storage_blueprint_legacy_copy_allowed() then
+    raise exception 'Blueprint legacy copy was unavailable in compatibility mode';
+  end if;
+
   select * into v_run from public.refresh_managed_storage_readiness();
   if v_run.status <> 'ready' then
     raise exception 'Expected ready managed inventory, found % findings', v_run.finding_count;
@@ -523,6 +527,9 @@ begin
   then raise exception 'Managed-storage activation did not persist enforced mode'; end if;
   if not public.lock_managed_storage_protocol() then
     raise exception 'Managed-storage protocol lock did not observe enforcement';
+  end if;
+  if public.managed_storage_blueprint_legacy_copy_allowed() then
+    raise exception 'Blueprint legacy copy remained available after enforcement';
   end if;
 
   begin

@@ -6665,6 +6665,10 @@ export type Database = {
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }
+      managed_storage_blueprint_legacy_copy_allowed: {
+        Args: never
+        Returns: boolean
+      }
       managed_storage_blueprint_protocol_ready: {
         Args: never
         Returns: boolean

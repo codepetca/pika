@@ -1695,6 +1695,28 @@ revoke all on function public.managed_storage_blueprint_protocol_ready()
 grant execute on function public.managed_storage_blueprint_protocol_ready()
   to service_role;
 
+create or replace function public.managed_storage_blueprint_legacy_copy_allowed()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_enforced boolean;
+  v_protocol_version integer;
+begin
+  v_enforced := public.lock_managed_storage_protocol();
+  select protocol_version into strict v_protocol_version
+  from public.managed_storage_settings where singleton;
+  return not v_enforced and v_protocol_version >= 2;
+end;
+$$;
+
+revoke all on function public.managed_storage_blueprint_legacy_copy_allowed()
+  from public, anon, authenticated;
+grant execute on function public.managed_storage_blueprint_legacy_copy_allowed()
+  to service_role;
+
 revoke all on sequence public.managed_storage_writer_revision_seq
   from public, anon, authenticated, service_role;
 

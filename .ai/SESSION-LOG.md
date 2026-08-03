@@ -1364,6 +1364,9 @@ recovery preservation across managed ownership activation.
   scheduler, purge path, or enabled production worker.
 - Added a service-role-only exact managed-object presence probe so cleanup can
   verify local Storage API 400 responses without trusting bucket-level evidence.
+- Closed the final Blueprint rollout gap: identity-less Test uploads can be read
+  only in compatibility mode to produce a distinct managed provisional copy;
+  explicit, owner-mismatched, unsettled, and post-enforcement sources fail closed.
 - Kept migrations 115/116 byte-identical to deployed production history, kept
   all new schema work in migration 117, applied no migration outside disposable
   CI, and left draft PR #963 unchanged.
@@ -1374,8 +1377,10 @@ recovery preservation across managed ownership activation.
   teardown, Browser Experience Matrix, full tests, TypeScript, lint, and build.
 - Focused cleanup and migration tests, Pika audit, migration-lineage hashes,
   diff checks, and branch/remote cleanliness pass at `06983ebd`.
+- Focused Blueprint compatibility and migration contracts pass after the final
+  review remediation, along with TypeScript, shell syntax, and changed-file audit.
 
 **Remaining:**
-- Complete the final cumulative read-only review, update draft PR #967's
-  validation summary, and keep deployment/application of migration 117 under
-  fresh target-specific authorization.
+- Require exact-head disposable CI and final read-only review, update draft PR
+  #967's validation summary, and keep deployment/application of migration 117
+  under fresh target-specific authorization.

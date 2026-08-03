@@ -62,6 +62,10 @@ describe('managed storage migration contract', () => {
     expect(foundation).toContain('managed_storage_cleanup_referenced_missing')
     expect(foundation).toContain('managed_storage_cleanup_requires_enforcement')
     expect(foundation).toContain(
+      'create or replace function public.managed_storage_blueprint_legacy_copy_allowed()',
+    )
+    expect(foundation).toContain('return not v_enforced and v_protocol_version >= 2;')
+    expect(foundation).toContain(
       'create or replace function public.get_managed_storage_object_presence(',
     )
     expect(foundation).toContain(
