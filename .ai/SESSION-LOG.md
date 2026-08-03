@@ -1385,6 +1385,9 @@ and cleanup completion.
   outcomes and a referenced-but-absent completion fixture that fails closed.
 - Materialized the cleanup live-reference predicate before its conditional
   after the first disposable replay exposed a PL/pgSQL parser ambiguity.
+- Corrected readiness revision capture to bind by the serialized generation;
+  the earlier digest predicate ran before the refresh stored that digest and
+  made first-time enforcement activation fail stale despite a ready inventory.
 - Kept migration 117 unapplied outside disposable CI, permanent deletion
   unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
 

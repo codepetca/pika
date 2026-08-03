@@ -1739,8 +1739,7 @@ begin
   set writer_revision = v_revision where id = new.id;
   update public.managed_storage_settings
   set readiness_writer_revision = v_revision, updated_at = clock_timestamp()
-  where singleton and readiness_generation = new.generation
-    and readiness_digest = new.inventory_digest;
+  where singleton and readiness_generation = new.generation;
   return new;
 end;
 $$;
