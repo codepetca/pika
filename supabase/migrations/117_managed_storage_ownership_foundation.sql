@@ -3485,7 +3485,9 @@ as $$
 declare
   v_path text;
 begin
-  if public.is_classroom_archive_maintenance_mode('compaction') then
+  if public.is_classroom_archive_maintenance_mode('compaction')
+    and public.is_classroom_archive_maintenance_mode('restore')
+  then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
   for v_path in

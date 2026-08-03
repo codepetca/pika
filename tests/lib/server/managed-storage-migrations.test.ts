@@ -96,7 +96,10 @@ describe('managed storage migration contract', () => {
       'create or replace function public.reject_reserved_assignment_artifact_path()',
     )
     expect(foundation).toContain(
-      "if public.is_classroom_archive_maintenance_mode('compaction') then",
+      "if public.is_classroom_archive_maintenance_mode('compaction')",
+    )
+    expect(foundation).toContain(
+      "and public.is_classroom_archive_maintenance_mode('restore')",
     )
     expect(foundation).toContain(
       'Assignment artifact storage path is reserved by a classroom archive',
