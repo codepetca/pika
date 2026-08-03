@@ -1146,6 +1146,8 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -
   "select public.complete_test_document_snapshot_storage_cleanup('a1300000-0000-4000-8000-000000000023', 'a1300000-0000-4000-8000-000000000033');"
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+begin;
+select set_config('storage.allow_delete_query', 'true', true);
 do $fixture$
 begin
   if (select status from public.managed_storage_objects
@@ -1229,6 +1231,7 @@ where id in (
   'a1300000-0000-4000-8000-000000000001',
   'a1300000-0000-4000-8000-000000000002'
 );
+commit;
 SQL
 
 echo "Managed-storage reference/deletion concurrency checks passed."
