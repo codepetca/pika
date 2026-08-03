@@ -1383,6 +1383,8 @@ and cleanup completion.
   under the same lifecycle fence.
 - Added disposable two-session assignment/Test race fixtures for both ordering
   outcomes and a referenced-but-absent completion fixture that fails closed.
+- Materialized the cleanup live-reference predicate before its conditional
+  after the first disposable replay exposed a PL/pgSQL parser ambiguity.
 - Kept migration 117 unapplied outside disposable CI, permanent deletion
   unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
 

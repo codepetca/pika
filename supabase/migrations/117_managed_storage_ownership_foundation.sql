@@ -3024,6 +3024,7 @@ declare
   v_path text;
   v_error_code text;
   v_enforced boolean;
+  v_referenced boolean;
 begin
   v_enforced := public.lock_managed_storage_protocol();
   begin
@@ -3050,7 +3051,7 @@ begin
 
   if v_new->>'status' = 'processing' then
     if v_object.status = 'deleted' then return new; end if;
-    if public.managed_storage_object_is_referenced(v_object.id)
+    v_referenced := public.managed_storage_object_is_referenced(v_object.id)
       or case tg_table_name
         when 'assignment_artifact_storage_cleanup' then exists (
           select 1 from public.assignment_submission_artifacts reference
@@ -3059,8 +3060,8 @@ begin
         when 'test_document_snapshot_storage_cleanup' then
           public.test_document_snapshot_path_is_referenced(v_path)
         else false
-      end
-    then
+      end;
+    if v_referenced then
       raise exception using errcode = '55000', message = 'managed_storage_cleanup_referenced';
     end if;
     if v_object.status = 'cleanup_processing'
