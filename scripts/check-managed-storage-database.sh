@@ -229,11 +229,14 @@ begin
   if (select attempt_count from public.managed_storage_objects
     where id = v_assignment_cancel_id) <> 2
   then raise exception 'Expired lease reclaim was not counted'; end if;
-  if not public.fail_assignment_artifact_storage_cleanup(
+  if not coalesce(public.fail_assignment_artifact_storage_cleanup(
     v_artifact_cleanup.id, v_artifact_cleanup.lease_token, 'fixture_retry'
-  ) or (select status from public.managed_storage_objects
-    where id = v_assignment_cancel_id) <> 'cleanup_pending'
-  then raise exception 'Operational cleanup failure was not mirrored'; end if;
+  ), false) then raise exception 'Operational cleanup failure RPC did not complete'; end if;
+  select status into v_object_status from public.managed_storage_objects
+  where id = v_assignment_cancel_id;
+  if v_object_status is distinct from 'cleanup_pending' then
+    raise exception 'Operational cleanup failure lifecycle state was %', v_object_status;
+  end if;
   update public.assignment_artifact_storage_cleanup
   set next_attempt_at = clock_timestamp() - interval '1 second'
   where id = v_artifact_cleanup.id;
