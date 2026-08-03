@@ -193,7 +193,7 @@ describe('classroom data inventory', () => {
     }))
   })
 
-  it('keeps Blueprint workflow references outside classroom archive ownership', () => {
+  it('keeps workflow and derived-registry references outside classroom archive ownership', () => {
     const audit = auditClassroomResourceSchema(
       contractRelationships(),
       contractPrimaryKeys(),
@@ -202,6 +202,8 @@ describe('classroom data inventory', () => {
     expect(audit.ok).toBe(true)
     expect(audit.untracked_tables).not.toContain('course_blueprint_change_proposals')
     expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
+    expect(audit.untracked_tables).not.toContain('classroom_purge_fences')
+    expect(audit.untracked_tables).not.toContain('managed_storage_json_references')
 
     const missingReference = contractRelationships().filter((relationship) =>
       !(relationship.child_table === 'course_blueprint_editing_sessions' &&
