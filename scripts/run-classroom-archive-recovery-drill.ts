@@ -11,14 +11,28 @@ import { compactClassroomArchive } from '@/lib/server/classroom-archive-compacti
 import { exportClassroomArchive } from '@/lib/server/classroom-archive-operations'
 import { restoreClassroomArchive } from '@/lib/server/classroom-archive-restore-operations'
 import { classroomArchiveRestoreObjectPath } from '@/lib/server/classroom-archive-restore'
+import { runClassroomArchiveObjectCleanup } from '@/lib/server/classroom-archive-object-cleanup'
 import { runClassroomArchiveSourceCleanup } from '@/lib/server/classroom-archive-source-cleanup'
+import { runAssignmentArtifactStorageCleanup } from '@/lib/server/assignment-artifact-storage-cleanup'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 const archiveMetadataSchema = z.object({
   id: z.string().uuid(),
   storage_bucket: z.literal('classroom-archives'),
   storage_path: z.string().min(1),
+  artifact_sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  compressed_byte_size: z.number().int().nonnegative(),
+  managed_object_id: z.string().uuid(),
 }).passthrough()
+const restoredManagedOwnerSchema = z.object({
+  id: z.string().uuid(),
+  status: z.literal('ready'),
+  classroom_id: z.string().uuid(),
+  purpose: z.literal('student_assignment_artifact'),
+  data_subject_user_id: z.string().uuid(),
+  resource_type: z.literal('assignment_doc'),
+  resource_id: z.string().uuid(),
+}).strict()
 const sourceObjectPresenceSchema = z.object({
   bucket_exists: z.boolean(),
   object_exists: z.boolean(),
@@ -272,6 +286,7 @@ async function removeFixture(args: {
   sourceObjectPath: string
   restoredObjectPath: string
   archiveObjectPath?: string
+  completed: boolean
 }) {
   const failures: string[] = []
   const pathHashResponse = await args.supabase.rpc(
@@ -290,24 +305,85 @@ async function removeFixture(args: {
     const response = await args.supabase.storage.from(bucket).remove(paths)
     if (response.error) failures.push(`storage:${bucket}`)
   }
-  await removeObjects('assignment-artifacts', [args.sourceObjectPath, args.restoredObjectPath])
-  if (args.archiveObjectPath) {
-    await removeObjects('classroom-archives', [args.archiveObjectPath])
-  }
-
   const deleteRows = async (table: string, column: string, values: string[]) => {
     const response = await args.supabase.from(table).delete().in(column, values)
     if (response.error) failures.push(`table:${table}:${response.error.code}`)
   }
+  if (!args.completed) {
+    await removeObjects('assignment-artifacts', [args.sourceObjectPath, args.restoredObjectPath])
+    if (args.archiveObjectPath) {
+      await removeObjects('classroom-archives', [args.archiveObjectPath])
+    }
+  }
+
   await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
+  if (args.completed) {
+    const archiveResponse = await args.supabase
+      .from('classroom_archives')
+      .select('*')
+      .eq('id', args.ids.exportOperation)
+      .single()
+    const archive = !archiveResponse.error
+      ? archiveMetadataSchema.safeParse(archiveResponse.data)
+      : null
+    if (!archive?.success) failures.push('teardown:archive-metadata')
+
+    await deleteRows('classrooms', 'id', [args.ids.classrooms])
+    const artifactCleanup = await runAssignmentArtifactStorageCleanup({
+      supabase: args.supabase,
+      limit: 10,
+      leaseSeconds: 120,
+    })
+    if (artifactCleanup.completed < 1 || artifactCleanup.failed > 0) {
+      failures.push('teardown:assignment-artifact-cleanup')
+    }
+
+    await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
+    if (archive?.success) {
+      const ledger = await args.supabase
+        .from('classroom_archive_object_upload_cleanup')
+        .insert({
+          operation_id: args.ids.exportOperation,
+          storage_bucket: archive.data.storage_bucket,
+          storage_path: archive.data.storage_path,
+          expected_sha256: archive.data.artifact_sha256,
+          expected_byte_size: archive.data.compressed_byte_size,
+          managed_object_id: archive.data.managed_object_id,
+          status: 'pending',
+        })
+      if (ledger.error) failures.push(`teardown:archive-ledger:${ledger.error.code}`)
+      const failedOperation = await args.supabase
+        .from('classroom_archive_operations')
+        .update({ status: 'failed', retryable: false, error_code: 'fixture_teardown' })
+        .eq('id', args.ids.exportOperation)
+      if (failedOperation.error) {
+        failures.push(`teardown:archive-operation:${failedOperation.error.code}`)
+      }
+      process.env.CLASSROOM_ARCHIVE_OBJECT_CLEANUP_ENABLED = 'true'
+      const archiveCleanup = await runClassroomArchiveObjectCleanup({
+        supabase: args.supabase,
+        leaseToken: randomUUID(),
+        limit: 1,
+        leaseSeconds: 120,
+      })
+      if (!archiveCleanup.ok || archiveCleanup.deleted !== 1) {
+        failures.push('teardown:archive-object-cleanup')
+      }
+    }
+  }
+
   await deleteRows(
     'classroom_archive_operations',
     'id',
     [args.ids.restoreOperation, args.ids.compactionOperation],
   )
-  await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
+  if (!args.completed) {
+    await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
+  }
   await deleteRows('classroom_archive_operations', 'id', [args.ids.exportOperation])
-  await deleteRows('classrooms', 'id', [args.ids.classrooms])
+  if (!args.completed) {
+    await deleteRows('classrooms', 'id', [args.ids.classrooms])
+  }
   const cleanupPaths = [...new Set([args.sourceObjectPath, args.restoredObjectPath])]
   await deleteRows('assignment_artifact_storage_cleanup', 'storage_path', cleanupPaths)
   await deleteRows('users', 'id', [args.ids.student, args.ids.teacher])
@@ -460,8 +536,26 @@ async function runRecoveryDrill() {
     })
     if (!restored.ok) operationFailure('Archive restore', restored)
 
+    const restoredOwnerResponse = await supabase
+      .from('managed_storage_objects')
+      .select('id,status,classroom_id,purpose,data_subject_user_id,resource_type,resource_id')
+      .eq('storage_bucket', 'assignment-artifacts')
+      .eq('storage_path', restoredObjectPath)
+      .single()
+    const restoredOwner = !restoredOwnerResponse.error
+      ? restoredManagedOwnerSchema.safeParse(restoredOwnerResponse.data)
+      : null
+    if (
+      !restoredOwner?.success
+      || restoredOwner.data.classroom_id !== ids.classrooms
+      || restoredOwner.data.data_subject_user_id !== ids.student
+      || restoredOwner.data.resource_id !== ids.assignment_docs
+    ) {
+      throw new Error('Restored classroom object has invalid managed ownership')
+    }
     const expectedRestoredRows = structuredClone(expectedRows)
     expectedRestoredRows.assignment_submission_artifacts.storage_path = restoredObjectPath
+    expectedRestoredRows.assignment_submission_artifacts.managed_object_id = restoredOwner.data.id
     const actualRestoredRows = await loadFixtureSnapshot(supabase, ids)
     if (
       canonicalJsonStringify(actualRestoredRows) !==
@@ -556,6 +650,7 @@ async function runRecoveryDrill() {
         sourceObjectPath,
         restoredObjectPath,
         archiveObjectPath,
+        completed,
       })
     } catch (error) {
       if (completed) throw error
