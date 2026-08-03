@@ -776,7 +776,9 @@ set -e
 wait "$writer_pid"
 if [[ "$activation_status" -eq 0 ]] \
   || ! rg -q 'managed_storage_readiness_stale' "$concurrency_dir/activation.err"; then
-  echo "Managed-storage activation overtook a pre-enforcement writer." >&2
+  echo "Managed-storage activation overtook a pre-enforcement writer (status ${activation_status})." >&2
+  sed -n '1,80p' "$concurrency_dir/activation.err" >&2
+  sed -n '1,40p' "$concurrency_dir/activation.out" >&2
   exit 1
 fi
 
