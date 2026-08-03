@@ -474,6 +474,12 @@ begin
     raise exception 'Expected ready managed inventory, found % findings', v_run.finding_count;
   end if;
   perform public.activate_managed_storage_enforcement(v_run.generation, v_run.inventory_digest);
+  if (select mode from public.managed_storage_settings where singleton)
+      is distinct from 'enforced'
+  then raise exception 'Managed-storage activation did not persist enforced mode'; end if;
+  if not public.lock_managed_storage_protocol() then
+    raise exception 'Managed-storage protocol lock did not observe enforcement';
+  end if;
 
   begin
     update public.assignment_submission_artifacts
