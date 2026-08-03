@@ -1388,6 +1388,9 @@ and cleanup completion.
 - Corrected readiness revision capture to bind by the serialized generation;
   the earlier digest predicate ran before the refresh stored that digest and
   made first-time enforcement activation fail stale despite a ready inventory.
+- Replaced the Storage writer trigger's implicit `FOUND` check with an explicit
+  managed UUID check because the intervening exact-path lock overwrote
+  `FOUND`, allowing an unreserved write even after enforcement activated.
 - Kept migration 117 unapplied outside disposable CI, permanent deletion
   unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
 

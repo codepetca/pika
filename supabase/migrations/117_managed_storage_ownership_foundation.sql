@@ -2803,7 +2803,9 @@ begin
     end if;
     return new;
   end if;
-  if not found or v_object.status not in ('reserved', 'verified', 'ready') then
+  if v_object.id is null
+    or v_object.status not in ('reserved', 'verified', 'ready')
+  then
     raise exception using errcode = '55000', message = 'managed_storage_reservation_required';
   end if;
   if tg_op = 'UPDATE' and (old.bucket_id, old.name) is distinct from (new.bucket_id, new.name) then
