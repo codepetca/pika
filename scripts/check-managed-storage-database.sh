@@ -100,6 +100,20 @@ begin
       where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
   then raise exception 'Relational attach did not atomically adopt the object'; end if;
 
+  -- Both raw-only cleanup tables must remain writable by migration-116 code
+  -- while the protocol is in compatibility mode.
+  insert into public.assignment_artifact_storage_cleanup (storage_path)
+  values ('managed-fixture/compatibility-assignment.png');
+  insert into public.test_document_snapshot_storage_cleanup (storage_path)
+  values (
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility'
+  );
+  delete from public.assignment_artifact_storage_cleanup
+  where storage_path = 'managed-fixture/compatibility-assignment.png';
+  delete from public.test_document_snapshot_storage_cleanup
+  where storage_path =
+    'link-docs/a1100000-0000-4000-8000-000000000001/snapshots/compatibility';
+
   insert into storage.objects (bucket_id, name)
   values ('assignment-artifacts', 'managed-fixture/legacy-replay.png');
   v_legacy_id := public.managed_storage_legacy_object_id(

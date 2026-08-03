@@ -71,6 +71,8 @@ describe('managed storage migration contract', () => {
       expect(foundation).toContain(trigger)
     }
     expect(foundation).not.toContain("set mode = 'enforced' where")
+    expect(foundation.match(/v_new jsonb := to_jsonb\(new\);/g)).toHaveLength(3)
+    expect(foundation).not.toContain('else new.storage_bucket')
   })
 
   it('fences embedded-reference removals and host deletion', () => {

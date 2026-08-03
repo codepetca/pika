@@ -1384,7 +1384,10 @@ concurrent activation, and Classroom/Blueprint ownership boundaries.
   shell syntax, diff check, and Pika audit pass.
 - CI's isolated 115→117 migration replay succeeds; the first remediation run
   stopped only on generated-type ordering, now matched exactly to its diff.
+- A later database fixture exposed polymorphic cleanup triggers reading absent
+  record fields; both now use JSON-safe optional-field access, with direct
+  compatibility inserts plus enforced worker coverage.
 
 **Remaining:**
-- Push remediation batch 2, require the complete database fixture CI, and run
-  targeted security/concurrency re-review before the final integration gate.
+- Push the approved extra correction, require complete database fixture CI,
+  and run the final cumulative integration review.

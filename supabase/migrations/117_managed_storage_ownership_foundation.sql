@@ -318,6 +318,7 @@ security definer
 set search_path = public
 as $$
 declare
+  v_new jsonb := to_jsonb(new);
   v_object public.managed_storage_objects;
   v_bucket text;
   v_path text;
@@ -327,9 +328,9 @@ begin
   v_bucket := case
     when tg_table_name = 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'
     when tg_table_name = 'test_document_snapshot_storage_cleanup' then 'test-documents'
-    else new.storage_bucket
+    else nullif(v_new->>'storage_bucket', '')
   end;
-  v_path := new.storage_path;
+  v_path := nullif(v_new->>'storage_path', '');
   if new.managed_object_id is null then
     select * into v_object from public.managed_storage_objects object
     where object.storage_bucket = v_bucket and object.storage_path = v_path
@@ -352,11 +353,11 @@ begin
     'classroom_gradex_extract_cleanup'
   ) then
     if tg_table_name = 'classroom_archive_source_object_cleanup' then
-      v_classroom_id := new.classroom_id;
+      v_classroom_id := nullif(v_new->>'classroom_id', '')::uuid;
     else
       select operation.classroom_id into v_classroom_id
       from public.classroom_archive_operations operation
-      where operation.id = new.operation_id;
+      where operation.id = nullif(v_new->>'operation_id', '')::uuid;
     end if;
     if v_classroom_id is null
       or v_object.classroom_id is distinct from v_classroom_id
@@ -2592,6 +2593,7 @@ security definer
 set search_path = public
 as $$
 declare
+  v_new jsonb := to_jsonb(new);
   v_enforced boolean;
   v_object public.managed_storage_objects;
   v_bucket text;
@@ -2602,9 +2604,9 @@ begin
   v_bucket := case
     when tg_table_name = 'assignment_artifact_storage_cleanup' then 'assignment-artifacts'
     when tg_table_name = 'test_document_snapshot_storage_cleanup' then 'test-documents'
-    else new.storage_bucket
+    else nullif(v_new->>'storage_bucket', '')
   end;
-  v_path := new.storage_path;
+  v_path := nullif(v_new->>'storage_path', '');
   if new.managed_object_id is null and v_enforced then
     select * into v_object from public.managed_storage_objects object
     where object.storage_bucket = v_bucket and object.storage_path = v_path
@@ -2629,11 +2631,11 @@ begin
     'classroom_gradex_extract_cleanup'
   ) then
     if tg_table_name = 'classroom_archive_source_object_cleanup' then
-      v_classroom_id := new.classroom_id;
+      v_classroom_id := nullif(v_new->>'classroom_id', '')::uuid;
     else
       select operation.classroom_id into v_classroom_id
       from public.classroom_archive_operations operation
-      where operation.id = new.operation_id;
+      where operation.id = nullif(v_new->>'operation_id', '')::uuid;
     end if;
     if v_classroom_id is null
       or v_object.classroom_id is distinct from v_classroom_id
