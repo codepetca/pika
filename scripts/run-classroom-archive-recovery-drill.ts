@@ -23,6 +23,12 @@ const sourceObjectPresenceSchema = z.object({
   bucket_exists: z.boolean(),
   object_exists: z.boolean(),
 }).strict()
+const compactionDiagnosticSchema = z.object({
+  ok: z.boolean(),
+  phase: z.enum(['load', 'delete', 'restore']).optional(),
+  table_name: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/).optional(),
+  sqlstate: z.string().regex(/^[A-Z0-9]{5}$/).optional(),
+}).strict()
 
 const fixtureTables = [
   'classrooms',
@@ -420,7 +426,23 @@ async function runRecoveryDrill() {
       archiveId: ids.exportOperation,
       supabaseUrl: target.supabaseUrl,
     })
-    if (!compacted.ok) operationFailure('Archive compaction', compacted)
+    if (!compacted.ok) {
+      if (compacted.error_code === 'archive_compaction_finalize_failed') {
+        const diagnosticResponse = await supabase.rpc(
+          'diagnose_managed_storage_compaction_rehearsal',
+          { p_operation_id: ids.compactionOperation },
+        )
+        const diagnostic = !diagnosticResponse.error
+          ? compactionDiagnosticSchema.safeParse(diagnosticResponse.data)
+          : null
+        if (diagnostic?.success) {
+          console.warn('[classroom-archive-compaction-rehearsal]', JSON.stringify(
+            diagnostic.data,
+          ))
+        }
+      }
+      operationFailure('Archive compaction', compacted)
+    }
     await assertRowAbsent(supabase, 'classrooms', 'id', ids.classrooms)
     const coldTombstone = await supabase
       .from('classroom_cold_tombstones')
