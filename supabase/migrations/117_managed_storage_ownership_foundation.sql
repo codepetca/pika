@@ -775,7 +775,10 @@ begin
     ))
   then return false; end if;
   update public.classroom_archive_operations
-  set managed_object_id = v_object.id, updated_at = clock_timestamp()
+  set managed_object_id = v_object.id,
+      storage_bucket = v_object.storage_bucket,
+      storage_path = v_object.storage_path,
+      updated_at = clock_timestamp()
   where id = p_operation_id;
   update public.classroom_archive_object_upload_cleanup
   set managed_object_id = v_object.id
