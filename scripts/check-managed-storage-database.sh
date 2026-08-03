@@ -775,7 +775,7 @@ activation_status=$?
 set -e
 wait "$writer_pid"
 if [[ "$activation_status" -eq 0 ]] \
-  || ! rg -q 'managed_storage_readiness_stale' "$concurrency_dir/activation.err"; then
+  || ! grep -q 'managed_storage_readiness_stale' "$concurrency_dir/activation.err"; then
   echo "Managed-storage activation overtook a pre-enforcement writer (status ${activation_status})." >&2
   sed -n '1,80p' "$concurrency_dir/activation.err" >&2
   sed -n '1,40p' "$concurrency_dir/activation.out" >&2
@@ -1079,7 +1079,7 @@ assignment_late_status=$?
 set -e
 wait "$assignment_delete_pid"
 if [[ "$assignment_late_status" -eq 0 ]] \
-  || ! rg -q 'assignment_artifact_managed_owner_mismatch' \
+  || ! grep -q 'assignment_artifact_managed_owner_mismatch' \
     "$concurrency_dir/assignment-late-reference.err"; then
   echo "Assignment deletion was overtaken by a late compatibility reference." >&2
   exit 1
@@ -1137,7 +1137,7 @@ test_late_status=$?
 set -e
 wait "$test_delete_pid"
 if [[ "$test_late_status" -eq 0 ]] \
-  || ! rg -q 'managed_storage_embedded_owner_mismatch' \
+  || ! grep -q 'managed_storage_embedded_owner_mismatch' \
     "$concurrency_dir/test-late-reference.err"; then
   echo "Test deletion was overtaken by a late compatibility reference." >&2
   exit 1
