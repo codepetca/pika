@@ -301,6 +301,15 @@ begin
   if (select status from public.managed_storage_objects
       where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
   then raise exception 'Relational attach did not atomically adopt the object'; end if;
+  if public.queue_managed_storage_cleanup(
+    'a1100000-0000-4000-8000-000000000010',
+    'fixture_replayed_copy_not_adopted'
+  ) then
+    raise exception 'Replay cleanup queued a concurrently adopted object';
+  end if;
+  if (select status from public.managed_storage_objects
+      where id = 'a1100000-0000-4000-8000-000000000010') <> 'ready'
+  then raise exception 'Replay cleanup changed a concurrently adopted object'; end if;
 
   -- Compatibility readiness must not be evaluated while this deliberate raw
   -- Blueprint source is still ownerless. Resolve it through the same atomic

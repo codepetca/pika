@@ -1094,9 +1094,14 @@ describe('course-blueprints server helpers', () => {
     expect(mockSupabase.from).not.toHaveBeenCalledWith('announcements')
   })
 
-  it('copies an archived classroom without asking the capture RPC to mutate it', async () => {
+  it('queues unadopted managed copies when archived classroom capture replays', async () => {
     const operationId = '10000000-0000-4000-8000-000000000020'
     const blueprintId = '20000000-0000-4000-8000-000000000020'
+    const managedObjectId = '71000000-0000-4000-8000-000000000020'
+    managedStorageCopyMocks.copy.mockImplementation(async (input: any) => ({
+      assessments: input.assessments,
+      cleanupObjectIds: [managedObjectId],
+    }))
     mockAssertTeacherOwnsClassroom.mockResolvedValue({
       ok: true,
       classroom: {
@@ -1162,7 +1167,7 @@ describe('course-blueprints server helpers', () => {
         status: 201,
         operation_id: operationId,
         operation_type: 'import',
-        replayed: false,
+        replayed: true,
         blueprint_id: blueprintId,
         result_content_revision: 1,
         counts: {
@@ -1204,6 +1209,11 @@ describe('course-blueprints server helpers', () => {
         }),
       }),
     )
+    expect(managedStorageCopyMocks.queue).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      objectIds: [managedObjectId],
+      errorCode: 'blueprint_capture_not_adopted',
+    })
   })
 
   it('records classroom-link failure without a best-effort blueprint delete', async () => {

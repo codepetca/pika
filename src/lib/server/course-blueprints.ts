@@ -1208,7 +1208,7 @@ export async function createCourseBlueprintFromClassroom(
           plan,
         })
     if (!operation.ok) return operation
-    managedCopiesAdopted = true
+    managedCopiesAdopted = !operation.replayed
     if (!operation.blueprint_id) {
       return { ok: false as const, status: 500, error: 'Atomic classroom capture returned no blueprint id' }
     }
@@ -1309,7 +1309,7 @@ export async function createClassroomFromBlueprint(
       plan: planResult.plan,
     })
     if (!operation.ok) return operation
-    managedCopiesAdopted = true
+    managedCopiesAdopted = !operation.replayed
     if (!operation.classroom_id) {
       return { ok: false as const, status: 500, error: 'Atomic blueprint instantiation returned no classroom id' }
     }

@@ -1355,6 +1355,9 @@ provisional ownership, and idempotent Blueprint file copies.
 - Added a narrowly scoped retry transition for queued, still-provisional
   Blueprint copies, plus regressions for expiry, readiness, activation,
   tombstone cleanup, failed atomic operations, and same-operation replay.
+- Corrected semantic Blueprint replays that succeed without adopting copies:
+  exact provisional copies are queued, while the database refuses cleanup for
+  any concurrently adopted/referenced winner.
 - Kept migrations 115/116 unchanged, kept all corrections in unapplied
   migration 117, applied no migration, enabled no worker, exposed no deletion,
   and left PR #963 untouched.
@@ -1364,6 +1367,8 @@ provisional ownership, and idempotent Blueprint file copies.
   syntax, and diff checks pass.
 - Focused ownership/Blueprint tests pass (36 tests); the full suite passes
   (459 files, 3,986 tests); the production build passes.
+- The semantic replay regression, TypeScript, shell syntax, and diff checks
+  pass after the final correction.
 - The extended database fixture was not executed locally because migration
   application/replay still requires fresh authorization naming migration 117
   and the local target; exact-head disposable CI remains required.
