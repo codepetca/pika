@@ -465,7 +465,8 @@ async function downloadAndVerifyArchive(args: {
   return {
     restorePlan,
     // The database rehearsal is rolled back and never uploads synthetic restore
-    // paths. Durable managed identities are exercised by the real restore flow.
+    // paths. Null preserves the current relational column shape; durable managed
+    // identities are exercised by the real restore flow.
     compactionResources: compactionRehearsalResources(restorePlan.resources),
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
@@ -501,12 +502,13 @@ function stripRehearsalManagedStorageIdentities(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripRehearsalManagedStorageIdentities)
   if (!value || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-    .filter(([key]) => ![
+    .map(([key, item]) => [
       'managed_object_id',
       'managed_object_ids',
       'snapshot_managed_object_id',
-    ].includes(key))
-    .map(([key, item]) => [key, stripRehearsalManagedStorageIdentities(item)]))
+    ].includes(key)
+      ? [key, null]
+      : [key, stripRehearsalManagedStorageIdentities(item)]))
 }
 
 function compactionRehearsalResources(

@@ -468,7 +468,7 @@ describe('classroom archive cold-compaction coordinator', () => {
         && args.p_table_name === 'assignment_submission_artifacts',
     )
     expect(artifactStage?.[1].p_rows).toEqual([
-      expect.not.objectContaining({ managed_object_id: expect.anything() }),
+      expect.objectContaining({ managed_object_id: null }),
     ])
   })
 
