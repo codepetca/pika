@@ -338,6 +338,11 @@ async function removeFixture(args: {
       failures.push('teardown:assignment-artifact-cleanup')
     }
 
+    await deleteRows(
+      'classroom_archive_operations',
+      'id',
+      [args.ids.restoreOperation, args.ids.compactionOperation],
+    )
     await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
     if (archive?.success) {
       const ledger = await args.supabase
@@ -372,11 +377,13 @@ async function removeFixture(args: {
     }
   }
 
-  await deleteRows(
-    'classroom_archive_operations',
-    'id',
-    [args.ids.restoreOperation, args.ids.compactionOperation],
-  )
+  if (!args.completed) {
+    await deleteRows(
+      'classroom_archive_operations',
+      'id',
+      [args.ids.restoreOperation, args.ids.compactionOperation],
+    )
+  }
   if (!args.completed) {
     await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
   }
