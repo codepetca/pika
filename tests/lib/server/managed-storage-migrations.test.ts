@@ -11,7 +11,16 @@ describe('managed storage migration contract', () => {
   it('keeps migration application passive and purge entry points unavailable', () => {
     expect(foundation).toContain("default 'compatibility'")
     expect(foundation).toContain('revoke all on function public.begin_hot_archived_classroom_purge')
+    expect(foundation).toMatch(
+      /revoke all on function public\.finalize_hot_archived_classroom_purge\(uuid, uuid\)\s+from public, anon, authenticated, service_role;/,
+    )
     expect(foundation).not.toMatch(/cron\.schedule|pg_cron|permanent.*delete/i)
+  })
+
+  it('restores a cleanup lease to ready when a late live reference stops deletion', () => {
+    expect(foundation).toMatch(
+      /elsif v_old->>'status' = 'processing' and v_new->>'status' in \('pending', 'failed'\)[\s\S]*?if v_referenced and v_storage_present then[\s\S]*?set status = 'ready'/,
+    )
   })
 
   it('serializes readiness with writers and binds activation to exact evidence', () => {

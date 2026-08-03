@@ -1358,6 +1358,11 @@ provisional ownership, and idempotent Blueprint file copies.
 - Corrected semantic Blueprint replays that succeed without adopting copies:
   exact provisional copies are queued, while the database refuses cleanup for
   any concurrently adopted/referenced winner.
+- Closed the compatibility cleanup race where a live reference could arrive
+  after a legacy worker claim but before Storage deletion: the protected delete
+  failure now restores the managed object to `ready` instead of re-queuing it.
+- Reconfirmed that migration 117 revokes all migration-115 purge entry points,
+  including `service_role`; no purge capability was added or exposed.
 - Kept migrations 115/116 unchanged, kept all corrections in unapplied
   migration 117, applied no migration, enabled no worker, exposed no deletion,
   and left PR #963 untouched.

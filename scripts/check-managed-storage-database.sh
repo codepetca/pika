@@ -22,6 +22,19 @@ begin
   then
     raise exception 'Managed protocol lock helper is externally executable';
   end if;
+  if has_function_privilege(
+      'service_role',
+      'public.begin_hot_archived_classroom_purge(uuid,uuid,uuid,text,jsonb)',
+      'execute'
+    )
+    or has_function_privilege(
+      'service_role',
+      'public.finalize_hot_archived_classroom_purge(uuid,uuid)',
+      'execute'
+    )
+  then
+    raise exception 'Permanent classroom purge entry point remains executable';
+  end if;
 end;
 $privileges$;
 
@@ -1672,11 +1685,33 @@ if [[ "$reference_waiting" != "true" ]]; then
   echo "Assignment reference did not reach the lifecycle fence." >&2
   exit 1
 fi
-docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -c \
-  "select public.complete_assignment_artifact_storage_cleanup('a1300000-0000-4000-8000-000000000020', 'a1300000-0000-4000-8000-000000000030');" \
-  >"$concurrency_dir/assignment-reference-complete.out" \
-  2>"$concurrency_dir/assignment-reference-complete.err"
+set +e
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  >"$concurrency_dir/assignment-reference-delete.out" \
+  2>"$concurrency_dir/assignment-reference-delete.err" <<'SQL'
+begin;
+select set_config('storage.allow_delete_query', 'true', true);
+delete from storage.objects
+where bucket_id = 'assignment-artifacts'
+  and name = 'managed-race/assignment-reference-first.png';
+commit;
+SQL
+assignment_reference_delete_status=$?
+set -e
 wait "$assignment_reference_pid"
+if [[ "$assignment_reference_delete_status" -eq 0 ]] \
+  || ! grep -q 'managed_storage_cleanup_referenced' \
+    "$concurrency_dir/assignment-reference-delete.err"; then
+  echo "Late assignment reference did not stop Storage deletion." >&2
+  exit 1
+fi
+assignment_reference_failure_result="$(docker exec "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -A -t -v ON_ERROR_STOP=1 -c \
+  "select public.fail_assignment_artifact_storage_cleanup('a1300000-0000-4000-8000-000000000020', 'a1300000-0000-4000-8000-000000000030', 'managed_storage_cleanup_referenced');")"
+if [[ "$assignment_reference_failure_result" != "t" ]]; then
+  echo "Late assignment reference cleanup failure did not settle." >&2
+  exit 1
+fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
   >"$concurrency_dir/test-reference.out" \

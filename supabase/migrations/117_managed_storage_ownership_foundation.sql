@@ -3380,6 +3380,7 @@ declare
   v_error_code text;
   v_enforced boolean;
   v_referenced boolean;
+  v_storage_present boolean;
 begin
   v_enforced := public.lock_managed_storage_protocol();
   begin
@@ -3443,16 +3444,42 @@ begin
       nullif(v_new->>'last_error', ''),
       'operational_cleanup_failed'
     );
-    update public.managed_storage_objects
-    set status = 'cleanup_pending', lease_token = null, lease_expires_at = null,
-        last_error_code = left(v_error_code, 80),
-        next_attempt_at = coalesce(
-          nullif(v_new->>'next_attempt_at', '')::timestamptz,
-          clock_timestamp()
-        ),
-        updated_at = clock_timestamp()
-    where id = v_object.id and status = 'cleanup_processing'
-      and lease_token = nullif(v_old->>'lease_token', '')::uuid;
+    v_referenced := public.managed_storage_object_is_referenced(v_object.id)
+      or case tg_table_name
+        when 'assignment_artifact_storage_cleanup' then exists (
+          select 1 from public.assignment_submission_artifacts reference
+          where reference.storage_path = v_path
+        )
+        when 'test_document_snapshot_storage_cleanup' then
+          public.test_document_snapshot_path_is_referenced(v_path)
+        else false
+      end;
+    v_storage_present := exists (
+      select 1 from storage.objects object
+      where object.bucket_id = v_bucket and object.name = v_path
+    );
+    if v_referenced and v_storage_present then
+      update public.managed_storage_objects
+      set status = 'ready', verified_at = coalesce(verified_at, clock_timestamp()),
+          ready_at = coalesce(ready_at, clock_timestamp()),
+          cleanup_reason_code = null, next_attempt_at = clock_timestamp(),
+          lease_token = null, lease_expires_at = null, last_error_code = null,
+          reservation_expires_at = null, deleted_at = null,
+          updated_at = clock_timestamp()
+      where id = v_object.id and status = 'cleanup_processing'
+        and lease_token = nullif(v_old->>'lease_token', '')::uuid;
+    else
+      update public.managed_storage_objects
+      set status = 'cleanup_pending', lease_token = null, lease_expires_at = null,
+          last_error_code = left(v_error_code, 80),
+          next_attempt_at = coalesce(
+            nullif(v_new->>'next_attempt_at', '')::timestamptz,
+            clock_timestamp()
+          ),
+          updated_at = clock_timestamp()
+      where id = v_object.id and status = 'cleanup_processing'
+        and lease_token = nullif(v_old->>'lease_token', '')::uuid;
+    end if;
   elsif v_old->>'status' = 'processing' and v_new->>'status' = 'deleted' then
     if exists (
       select 1 from storage.objects object
