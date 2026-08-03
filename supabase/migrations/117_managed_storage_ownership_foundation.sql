@@ -1278,8 +1278,10 @@ begin
   -- A readiness run invalidates prior evidence and is serialized with writers.
   update public.managed_storage_settings
   set readiness_generation = readiness_generation + 1,
-      readiness_digest = null,
-      readiness_verified_at = null,
+      readiness_digest = case when mode = 'enforced' then readiness_digest end,
+      readiness_verified_at = case
+        when mode = 'enforced' then readiness_verified_at
+      end,
       activated_at = case when mode = 'enforced' then activated_at else null end,
       updated_at = clock_timestamp()
   where singleton

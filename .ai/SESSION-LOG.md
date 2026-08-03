@@ -1391,6 +1391,9 @@ and cleanup completion.
 - Replaced the Storage writer trigger's implicit `FOUND` check with an explicit
   managed UUID check because the intervening exact-path lock overwrote
   `FOUND`, allowing an unreserved write even after enforcement activated.
+- Preserved active readiness evidence while an enforced deployment runs a new
+  readiness scan, avoiding an invalid transient settings row without pausing
+  enforcement; only a ready scan replaces the active evidence.
 - Kept migration 117 unapplied outside disposable CI, permanent deletion
   unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
 
