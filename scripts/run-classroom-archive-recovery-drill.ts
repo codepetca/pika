@@ -371,8 +371,16 @@ async function removeFixture(args: {
         limit: 1,
         leaseSeconds: 120,
       })
-      if (!archiveCleanup.ok || archiveCleanup.deleted !== 1) {
-        failures.push('teardown:archive-object-cleanup')
+      if (!archiveCleanup.ok) {
+        failures.push(`teardown:archive-object-cleanup:${archiveCleanup.error_code}`)
+      } else if (archiveCleanup.deleted !== 1) {
+        const resultCodes = archiveCleanup.results.map((result) => (
+          result.error_code || result.status
+        )).join('+') || 'no_claims'
+        failures.push(
+          `teardown:archive-object-cleanup:${archiveCleanup.claimed}:` +
+          `${archiveCleanup.deleted}:${archiveCleanup.failed}:${resultCodes}`,
+        )
       }
     }
   }
