@@ -600,6 +600,21 @@ function emitArchiveMetric(result: ClassroomArchiveExportResult, startedAt: numb
   }))
 }
 
+function emitUnexpectedArchiveErrorMetric(operationId: string, error: unknown) {
+  const diagnostic = error && typeof error === 'object'
+    ? error as { name?: unknown; code?: unknown }
+    : null
+  const safeToken = (value: unknown) =>
+    typeof value === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(value)
+      ? value
+      : undefined
+  console.warn('[classroom-archive-unexpected-error]', JSON.stringify({
+    operation_id: operationId,
+    error_name: safeToken(diagnostic?.name),
+    error_code: safeToken(diagnostic?.code),
+  }))
+}
+
 async function beginArchiveExport(args: {
   supabase: SupabaseClient
   operationId: string
@@ -895,6 +910,9 @@ export async function exportClassroomArchive(args: {
     emitArchiveMetric(result, startedAt)
     return result
   } catch (error) {
+    if (!(error instanceof ClassroomArchiveExportError)) {
+      emitUnexpectedArchiveErrorMetric(args.operationId, error)
+    }
     const archiveError = error instanceof ClassroomArchiveExportError
       ? error
       : new ClassroomArchiveExportError(
