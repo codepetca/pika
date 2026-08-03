@@ -90,4 +90,16 @@ describe('managed storage migration contract', () => {
     expect(foundation).toContain('before delete on public.assignment_docs')
     expect(foundation).toContain('before delete on public.course_blueprint_assessments')
   })
+
+  it('preserves the source reservation fence during compaction rehearsal', () => {
+    expect(foundation).toContain(
+      'create or replace function public.reject_reserved_assignment_artifact_path()',
+    )
+    expect(foundation).toContain(
+      "if public.is_classroom_archive_maintenance_mode('compaction') then",
+    )
+    expect(foundation).toContain(
+      'Assignment artifact storage path is reserved by a classroom archive',
+    )
+  })
 })

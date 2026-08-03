@@ -6367,10 +6367,6 @@ export type Database = {
         Args: { p_teacher_id: string; p_test_id: string }
         Returns: Json
       }
-      diagnose_managed_storage_compaction_rehearsal: {
-        Args: { p_operation_id: string }
-        Returns: Json
-      }
       enqueue_assignment_artifact_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean

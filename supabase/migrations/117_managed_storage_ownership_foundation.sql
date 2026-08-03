@@ -3473,91 +3473,53 @@ begin
 end;
 $$;
 
--- Temporary rollout verification aid: replay the compaction delete/restore
--- rehearsal inside a forced rollback and return only non-sensitive structural
--- evidence identifying a rejected table and phase.
-create or replace function public.diagnose_managed_storage_compaction_rehearsal(
-  p_operation_id uuid
-)
-returns jsonb
+-- Migration 096's reservation fence predates the compactor's rollback-only
+-- delete/restore rehearsal. The rehearsal must be able to reinsert the exact
+-- staged source row, while every real writer remains fenced.
+create or replace function public.reject_reserved_assignment_artifact_path()
+returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_operation public.classroom_archive_operations;
-  v_resource record;
-  v_rows jsonb;
-  v_phase text := 'load';
-  v_table_name text;
+  v_path text;
 begin
-  select * into v_operation from public.classroom_archive_operations
-  where id = p_operation_id and operation_type = 'compact';
-  if not found then
-    return jsonb_build_object('ok', false, 'phase', 'load', 'sqlstate', 'P0002');
+  if public.is_classroom_archive_maintenance_mode('compaction') then
+    return case when tg_op = 'DELETE' then old else new end;
   end if;
-  begin
-    perform set_config('pika.classroom_archive_compaction', 'on', true);
-    v_phase := 'delete';
-    for v_resource in
-      select table_name, primary_key_columns[1] as primary_key_column
-      from public.classroom_archive_resource_contract
-      order by export_position desc
-    loop
-      v_table_name := v_resource.table_name;
-      execute format(
-        'delete from public.%I target
-         where public.resolve_classroom_archive_resource_classroom_id(%L, target.%I) = $1',
-        v_resource.table_name,
-        v_resource.table_name,
-        v_resource.primary_key_column
-      ) using v_operation.classroom_id;
-    end loop;
-
-    perform set_config('pika.classroom_archive_restore', 'on', true);
-    perform set_config(
-      'pika.classroom_archive_source_revision',
-      v_operation.source_revision::text,
-      true
+  for v_path in
+    select distinct candidate.path
+    from (values
+      (case when tg_op <> 'INSERT' then old.storage_path end),
+      (case when tg_op <> 'DELETE' then new.storage_path end)
+    ) as candidate(path)
+    where candidate.path is not null
+    order by candidate.path
+  loop
+    perform pg_advisory_xact_lock(
+      hashtextextended(jsonb_build_array('assignment-artifacts', v_path)::text, 0)
     );
-    v_phase := 'restore';
-    for v_resource in
-      select table_name from public.classroom_archive_resource_contract
-      order by export_position
-    loop
-      v_table_name := v_resource.table_name;
-      select coalesce(jsonb_agg(row_data order by row_id), '[]'::jsonb)
-      into v_rows from public.classroom_archive_restore_staging
-      where operation_id = p_operation_id
-        and table_name = v_resource.table_name;
-      if jsonb_array_length(v_rows) > 0 then
-        execute format(
-          'insert into public.%I
-           select * from jsonb_populate_recordset(null::public.%I, $1)',
-          v_resource.table_name,
-          v_resource.table_name
-        ) using v_rows;
-      end if;
-    end loop;
-    raise exception using errcode = 'PZ002', message = 'diagnostic_rollback';
-  exception
-    when sqlstate 'PZ002' then
-      return jsonb_build_object('ok', true);
-    when others then
-      return jsonb_build_object(
-        'ok', false,
-        'phase', v_phase,
-        'table_name', v_table_name,
-        'sqlstate', sqlstate
-      );
-  end;
+  end loop;
+  if tg_op <> 'DELETE'
+    and new.storage_path is not null
+    and exists (
+      select 1
+      from public.classroom_archive_source_object_reservations reservation
+      where reservation.storage_bucket = 'assignment-artifacts'
+        and reservation.storage_path_sha256 =
+          public.classroom_archive_source_object_path_sha256(
+            'assignment-artifacts', new.storage_path
+          )
+    )
+  then
+    raise exception 'Assignment artifact storage path is reserved by a classroom archive'
+      using errcode = '55000';
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
 end;
 $$;
-
-revoke all on function public.diagnose_managed_storage_compaction_rehearsal(uuid)
-  from public, anon, authenticated;
-grant execute on function public.diagnose_managed_storage_compaction_rehearsal(uuid)
-  to service_role;
 
 -- Deliberately absent: scheduler registration, purge gates, purge workers,
 -- classroom deletion routes, and deletion UX.
