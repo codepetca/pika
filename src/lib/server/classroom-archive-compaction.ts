@@ -661,6 +661,21 @@ function emitCompactionMetric(result: ClassroomArchiveCompactionResult, startedA
   }))
 }
 
+function emitUnexpectedCompactionErrorMetric(
+  operationId: string,
+  error: { code?: string; message?: string },
+) {
+  const safeToken = (value: unknown) =>
+    typeof value === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(value)
+      ? value
+      : undefined
+  console.warn('[classroom-archive-compaction-unexpected-error]', JSON.stringify({
+    operation_id: operationId,
+    error_code: safeToken(error.code),
+    error_reason: safeToken(error.message),
+  }))
+}
+
 export async function compactClassroomArchive(args: {
   supabase: SupabaseClient
   operationId: string
@@ -796,6 +811,7 @@ export async function compactClassroomArchive(args: {
       p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
     if (completeResponse.error) {
+      emitUnexpectedCompactionErrorMetric(operationId, completeResponse.error)
       const missingMigration = isMissingCompactionRpc(completeResponse.error)
       const terminalVerificationError = completeResponse.error.code === '22023'
       throw new ClassroomArchiveCompactionError(

@@ -691,6 +691,7 @@ describe('classroom archive cold-compaction coordinator', () => {
   })
 
   it('records finalization transport failure only after verification and staging', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const mock = createSupabaseMock({
       completeError: { code: '08006', message: 'connection failure' },
     })
@@ -706,6 +707,12 @@ describe('classroom archive cold-compaction coordinator', () => {
       .toBeLessThan(mock.calls.indexOf('rpc:complete_classroom_archive_compaction_v2'))
     expect(mock.calls.indexOf('rpc:complete_classroom_archive_compaction_v2'))
       .toBeLessThan(mock.calls.indexOf('rpc:fail_classroom_archive_compaction'))
+    expect(warn).toHaveBeenCalledWith(
+      '[classroom-archive-compaction-unexpected-error]',
+      expect.stringContaining('08006'),
+    )
+    expect(JSON.stringify(warn.mock.calls))
+      .not.toContain('connection failure')
   })
 
   it('durably records a valid terminal completion failure', async () => {
