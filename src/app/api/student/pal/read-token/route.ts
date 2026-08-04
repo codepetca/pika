@@ -25,6 +25,23 @@ export const POST = withErrorHandler('PostStudentPalReadToken', async () => {
       headers: noStoreHeaders,
     })
   } catch (error) {
+    if (
+      error instanceof Error
+      && error.name === 'PalReadTokenRateLimitError'
+      && 'retryAfterSeconds' in error
+      && typeof error.retryAfterSeconds === 'number'
+    ) {
+      return NextResponse.json(
+        { error: 'Achievements are temporarily unavailable' },
+        {
+          status: 429,
+          headers: {
+            ...noStoreHeaders,
+            'Retry-After': String(error.retryAfterSeconds),
+          },
+        },
+      )
+    }
     console.error('Failed to mint Pal read token:', error)
     return NextResponse.json(
       { error: 'Achievements are temporarily unavailable' },

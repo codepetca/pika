@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createPalReadTokenBroker,
   mintPalReadToken,
+  PalReadTokenRateLimitError,
 } from '@/lib/server/pal-read-token'
 
 describe('Pal learner read token', () => {
@@ -89,6 +90,7 @@ describe('Pal learner read token', () => {
     const getToken = createPalReadTokenBroker({
       mint,
       now: () => Date.parse('2026-09-16T18:20:00.000Z'),
+      mintStarts: new Map(),
     })
 
     const burst = Array.from(
@@ -119,7 +121,11 @@ describe('Pal learner read token', () => {
       token: `${studentId}-${mint.mock.calls.length}`,
       expires_at: '2026-09-16T18:25:00.000Z',
     }))
-    const getToken = createPalReadTokenBroker({ mint, now: () => now })
+    const getToken = createPalReadTokenBroker({
+      mint,
+      now: () => now,
+      mintStarts: new Map(),
+    })
 
     await expect(getToken({ studentId: 'student-1' })).resolves.toMatchObject({
       token: 'student-1-1',
@@ -133,7 +139,8 @@ describe('Pal learner read token', () => {
     expect(mint).toHaveBeenCalledTimes(3)
   })
 
-  it('does not cache a failed mint', async () => {
+  it('does not cache a failed mint after its retry backoff', async () => {
+    let now = Date.parse('2026-09-16T18:20:00.000Z')
     const mint = vi.fn()
       .mockRejectedValueOnce(new Error('Pal unavailable'))
       .mockResolvedValueOnce({
@@ -142,15 +149,49 @@ describe('Pal learner read token', () => {
       })
     const getToken = createPalReadTokenBroker({
       mint,
-      now: () => Date.parse('2026-09-16T18:20:00.000Z'),
+      now: () => now,
+      mintStarts: new Map(),
     })
 
     await expect(getToken({ studentId: 'student-1' })).rejects.toThrow(
       'Pal unavailable',
     )
+    now += 30_000
     await expect(getToken({ studentId: 'student-1' })).resolves.toMatchObject({
       token: 'recovered-token',
     })
     expect(mint).toHaveBeenCalledTimes(2)
+  })
+
+  it('backs off repeated failures and short tokens across broker instances', async () => {
+    let now = Date.parse('2026-09-16T18:20:00.000Z')
+    const failedMint = vi.fn().mockRejectedValue(new Error('Pal unavailable'))
+    const secondMint = vi.fn().mockResolvedValue({
+      token: 'too-short-to-cache',
+      expires_at: '2026-09-16T18:20:20.000Z',
+    })
+    const firstBroker = createPalReadTokenBroker({
+      mint: failedMint,
+      now: () => now,
+    })
+    const secondBroker = createPalReadTokenBroker({
+      mint: secondMint,
+      now: () => now,
+    })
+
+    await expect(firstBroker({ studentId: 'student-module-shared' })).rejects.toThrow(
+      'Pal unavailable',
+    )
+    await expect(secondBroker({ studentId: 'student-module-shared' })).rejects
+      .toEqual(new PalReadTokenRateLimitError(30))
+    expect(secondMint).not.toHaveBeenCalled()
+
+    now += 30_000
+    await expect(secondBroker({ studentId: 'student-module-shared' })).resolves
+      .toMatchObject({ token: 'too-short-to-cache' })
+    await expect(firstBroker({ studentId: 'student-module-shared' })).rejects
+      .toEqual(new PalReadTokenRateLimitError(30))
+    expect(failedMint).toHaveBeenCalledTimes(1)
+    expect(secondMint).toHaveBeenCalledTimes(1)
   })
 })

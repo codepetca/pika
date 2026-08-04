@@ -59,6 +59,23 @@ describe('POST /api/student/pal/read-token', () => {
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
 
+  it('returns a no-store retry window when minting is rate limited', async () => {
+    const error = new Error('rate limited') as Error & {
+      retryAfterSeconds: number
+    }
+    error.name = 'PalReadTokenRateLimitError'
+    error.retryAfterSeconds = 30
+    mockGetPalReadTokenForStudent.mockRejectedValue(error)
+
+    const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+    }) as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('retry-after')).toBe('30')
+  })
+
   it('fails closed before minting when enabled configuration is incomplete', async () => {
     vi.stubEnv('PAL_INTEGRATION_SECRET', '')
     const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
