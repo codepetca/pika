@@ -20,7 +20,6 @@ import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
-import { StudentPalExperience } from '@/integrations/pal'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
@@ -36,6 +35,7 @@ import {
   useRightSidebar,
 } from '@/components/layout'
 import { getRouteKeyFromTab } from '@/lib/layout-config'
+import { notifyPikaLocationChange } from '@/lib/browser-navigation'
 import { RichTextViewer } from '@/components/editor'
 import { Spinner } from '@/components/Spinner'
 import {
@@ -80,8 +80,6 @@ interface ClassroomPageClientProps {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
-  palApiUrl?: string | null
-  palScopeKey?: string | null
 }
 
 type UpdateSearchOptions = {
@@ -130,20 +128,13 @@ export function ClassroomPageClient({
   initialTab,
   initialSearchParams,
   palEnabled = false,
-  palApiUrl = null,
-  palScopeKey = null,
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
   const [clientClassroom, setClientClassroom] = useState(classroom)
   const [clientTeacherClassrooms, setClientTeacherClassrooms] = useState(teacherClassrooms)
 
   const isTeacher = user.role === 'teacher'
-  const palAvailable = (
-    !isTeacher
-    && palEnabled
-    && palApiUrl !== null
-    && palScopeKey !== null
-  )
+  const palAvailable = !isTeacher && palEnabled
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
   const isArchived = isTeacher && !!effectiveClassroom.archived_at
   const basePath = `/classrooms/${effectiveClassroom.id}`
@@ -228,6 +219,7 @@ export function ClassroomPageClient({
       } else {
         window.history.pushState(nextState, '', nextUrl)
       }
+      notifyPikaLocationChange()
       queryStringRef.current = next
       setQueryString(next)
     },
@@ -274,23 +266,10 @@ export function ClassroomPageClient({
           updateSearchParams={updateSearchParams}
           onClassroomUpdated={handleClassroomUpdated}
           palEnabled={palAvailable}
-          palScopeKey={palScopeKey}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
   )
-
-  if (palAvailable) {
-    return (
-      <StudentPalExperience
-        apiBaseUrl={palApiUrl}
-        scopeKey={palScopeKey}
-        showAmbientSurfaces={activeTab !== 'tests'}
-      >
-        {classroomPage}
-      </StudentPalExperience>
-    )
-  }
 
   return classroomPage
 }
@@ -436,7 +415,6 @@ function ClassroomPageContent({
   updateSearchParams,
   onClassroomUpdated,
   palEnabled,
-  palScopeKey,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -447,7 +425,6 @@ function ClassroomPageContent({
   updateSearchParams: UpdateSearchParamsFn
   onClassroomUpdated: (classroom: Classroom) => void
   palEnabled: boolean
-  palScopeKey: string | null
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1421,7 +1398,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.achievements && (
                     <TabContentTransition isActive={activeTab === 'achievements'}>
-                      <StudentAchievementsTab scopeKey={palScopeKey ?? 'unavailable'} />
+                      <StudentAchievementsTab />
                     </TabContentTransition>
                   )}
                   {mountedTabs.assignments && (

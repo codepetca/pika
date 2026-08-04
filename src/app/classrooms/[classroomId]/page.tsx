@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { redirect, notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -7,7 +6,7 @@ import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
-import { getPalApiUrl, isPalEnabled } from '@/lib/server/pal-config'
+import { getPalApiUrl } from '@/lib/server/pal-config'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -77,8 +76,6 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         initialTab={tab}
         initialSearchParams={initialSearchParams}
         palEnabled={false}
-        palApiUrl={null}
-        palScopeKey={null}
       />
     )
   }
@@ -111,7 +108,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     notFound()
   }
 
-  const palEnabled = isPalEnabled()
+  const palEnabled = getPalApiUrl() !== null
 
   return (
     <ClassroomPageClient
@@ -126,8 +123,6 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
       initialTab={tab}
       initialSearchParams={initialSearchParams}
       palEnabled={palEnabled}
-      palApiUrl={palEnabled ? getPalApiUrl() : null}
-      palScopeKey={palEnabled ? randomUUID() : null}
     />
   )
 }

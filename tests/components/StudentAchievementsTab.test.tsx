@@ -22,7 +22,7 @@ describe('StudentAchievementsTab', () => {
         initialSnapshot={snapshot}
         scopeKey="test-learner-generation"
       >
-        <StudentAchievementsTab scopeKey="test-learner-generation" />
+        <StudentAchievementsTab />
       </PalProvider>,
     )
 

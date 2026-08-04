@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createPikaPalClient, getPalReadToken } from '@/integrations/pal/pal-client'
+import {
+  createPalReadTokenProvider,
+  createPikaPalClient,
+  getPalReadToken,
+} from '@/integrations/pal/pal-client'
 
 const NOW = Date.parse('2026-08-01T15:00:00.000Z')
 
@@ -76,5 +80,39 @@ describe('Pika Pal learner client', () => {
         signal: controller.signal,
       }),
     )
+  })
+
+  it('caches a token until its expires_at refresh buffer begins', async () => {
+    let now = NOW
+    const fetchImplementation = vi.fn(async () => tokenResponse())
+    const getAccessToken = createPalReadTokenProvider({
+      fetchImplementation: fetchImplementation as typeof fetch,
+      now: () => now,
+    })
+
+    await expect(getAccessToken()).resolves.toBe('learner-scoped-token')
+    now += 4 * 60 * 1000
+    await expect(getAccessToken()).resolves.toBe('learner-scoped-token')
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
+
+    now += 31 * 1000
+    await expect(getAccessToken()).resolves.toBe('learner-scoped-token')
+    expect(fetchImplementation).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not return a cached token to an already-aborted scope request', async () => {
+    const fetchImplementation = vi.fn(async () => tokenResponse())
+    const getAccessToken = createPalReadTokenProvider({
+      fetchImplementation: fetchImplementation as typeof fetch,
+      now: () => NOW,
+    })
+    await getAccessToken()
+
+    const controller = new AbortController()
+    controller.abort()
+    await expect(getAccessToken(controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(fetchImplementation).toHaveBeenCalledTimes(1)
   })
 })

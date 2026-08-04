@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
+import { StudentPalExperience } from '@/integrations/pal'
+import { getPalApiUrl } from '@/lib/server/pal-config'
 
 /**
  * Minimal layout for classrooms - just handles auth check.
@@ -14,6 +17,16 @@ export default async function ClassroomsLayout({
 
   if (!user) {
     redirect('/login')
+  }
+
+  const palApiUrl = user.role === 'student' ? getPalApiUrl() : null
+
+  if (palApiUrl) {
+    return (
+      <StudentPalExperience apiBaseUrl={palApiUrl} scopeKey={randomUUID()}>
+        {children}
+      </StudentPalExperience>
+    )
   }
 
   return <>{children}</>

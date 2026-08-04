@@ -330,10 +330,6 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
 vi.mock('@/app/classrooms/[classroomId]/StudentAchievementsTab', () => ({
   StudentAchievementsTab: () => <div data-testid="student-achievements">native Pal</div>,
 }))
-vi.mock('@/integrations/pal', () => ({
-  PalFailureBoundary: ({ children }: any) => <>{children}</>,
-  StudentPalExperience: ({ children }: any) => <>{children}</>,
-}))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,
 }))
@@ -387,8 +383,6 @@ function renderStudentClient(options?: {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
-  palApiUrl?: string | null
-  palScopeKey?: string | null
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
@@ -403,8 +397,6 @@ function renderStudentClient(options?: {
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
         palEnabled={options?.palEnabled}
-        palApiUrl={options?.palApiUrl}
-        palScopeKey={options?.palScopeKey}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -457,8 +449,6 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       initialTab: 'today',
       initialSearchParams: { tab: 'today' },
       palEnabled: true,
-      palApiUrl: 'https://pal.example',
-      palScopeKey: 'opaque-session-generation',
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Go Achievements' }))

@@ -37,8 +37,10 @@ use independently generated high-entropy values rather than human phrases.
 fragment. Loopback HTTP is allowed only outside production. When
 `PAL_ENABLED=true`, incomplete or unsafe configuration fails at the feature
 gate instead of silently running authoritative learner actions without their
-achievement fact. Authenticated-session telemetry remains best-effort so an
-adapter outage cannot invalidate a genuine login.
+achievement fact. The optional browser widget is contained separately: invalid
+widget configuration removes its navigation and shell surfaces instead of
+blocking academic pages. Authenticated-session telemetry remains best-effort so
+an adapter outage cannot invalidate a genuine login.
 
 When the switch is false or absent:
 
@@ -68,7 +70,7 @@ Do not enable the switch until all prerequisites are true:
    learners act on the first day of a pilot week.
 
 Pal must support a contract version before Pika emits it. Pika pins the reviewed
-public `@codepet/pal-widget@0.1.0-alpha.1` release exactly. Keep the switch off
+public `@codepet/pal-widget@0.1.0-alpha.2` release exactly. Keep the switch off
 until steps 3–7 are complete in the target environment.
 
 The pilot does not backfill actions that happened while the switch was off.
@@ -189,10 +191,13 @@ Achievements pane. The companion and reward layers share the same learner
 provider without creating an iframe or a second application shell.
 
 The integration secret and raw learner ID never enter the browser. The token
-is supplied only through Pal's learner client. Pika also creates a fresh opaque
-scope generation for each authenticated classroom page session. The scope is
+is supplied only through Pal's learner client and cached until its server-provided
+`expires_at` enters the safe refresh window. Pika also creates a fresh opaque
+scope generation in the persistent authenticated student classroom layout. The scope is
 not a learner identifier and is never sent to Pal; it only prevents an in-flight
 or cached snapshot from one authenticated session from appearing in another.
+The provider therefore survives classroom route and tab changes but unmounts
+before the user can leave that authenticated route family and switch sessions.
 An unavailable, incomplete, or synchronously failing Pal implementation falls
 back to the unchanged Pika classroom shell. Pika rejects malformed or
 already-expired read tokens and caps accepted token lifetime at ten minutes,

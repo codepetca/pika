@@ -99,6 +99,21 @@ describe('Pal pilot configuration', () => {
     expect(getPalApiUrl()).toBe('https://pal.example.test')
   })
 
+  it('contains invalid widget configuration instead of breaking academic pages', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', '')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
+
+    expect(getPalApiUrl()).toBeNull()
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining('Pal widget is unavailable'),
+      expect.any(Error),
+    )
+    consoleError.mockRestore()
+  })
+
   it.each([
     'https://user:pass@pal.example.test',
     'https://pal.example.test/api',

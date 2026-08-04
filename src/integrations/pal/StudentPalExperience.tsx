@@ -6,10 +6,19 @@ import {
   PalRewardCelebration,
   usePalWidget,
 } from '@codepet/pal-widget'
-import { Component, useCallback, useMemo, type ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
+import {
+  Component,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import { useTheme } from '@/contexts/ThemeContext'
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
+import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
 import { ModalLayer } from '@/ui'
 
 import { createPikaPalClient } from './pal-client'
@@ -50,21 +59,44 @@ export class PalFailureBoundary extends Component<
 }
 
 function StudentPalHostLayers() {
+  const searchParams = useSearchParams()
+  const narrowViewport = useIsBreakpoint('max', 768)
   const { dismissReward, isRewardPending, snapshot } = usePalWidget()
+  const [ambientSurfacesEnabled, setAmbientSurfacesEnabled] = useState(
+    () => searchParams.get('tab') !== 'tests',
+  )
   const reward = snapshot?.rewards[0]
   const rewardPending = reward ? isRewardPending(reward.id) : false
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      setAmbientSurfacesEnabled(
+        new URLSearchParams(window.location.search).get('tab') !== 'tests',
+      )
+    }
+
+    syncFromLocation()
+    window.addEventListener('popstate', syncFromLocation)
+    window.addEventListener(PIKA_LOCATION_CHANGE_EVENT, syncFromLocation)
+    return () => {
+      window.removeEventListener('popstate', syncFromLocation)
+      window.removeEventListener(PIKA_LOCATION_CHANGE_EVENT, syncFromLocation)
+    }
+  }, [searchParams])
 
   const closeReward = useCallback(() => {
     if (!reward || rewardPending) return
     void dismissReward(reward.id)
   }, [dismissReward, reward, rewardPending])
 
+  if (!ambientSurfacesEnabled) return null
+
   return (
     <>
       <PalWidgetThemeBoundary
         className="pointer-events-none fixed bottom-4 right-4 z-floating"
       >
-        <PalCompanion variant="compact" />
+        <PalCompanion scale={narrowViewport ? 0.4 : 0.55} />
       </PalWidgetThemeBoundary>
 
       <ModalLayer
@@ -96,7 +128,14 @@ export function StudentPalExperience({
 }) {
   const { theme } = useTheme()
   const narrowViewport = useIsBreakpoint('max', 768)
-  const client = useMemo(() => createPikaPalClient(apiBaseUrl), [apiBaseUrl])
+  const client = useMemo(
+    () => {
+      // A scope transition must also discard the previous learner's token cache.
+      void scopeKey
+      return createPikaPalClient(apiBaseUrl)
+    },
+    [apiBaseUrl, scopeKey],
+  )
 
   return (
     <PalProvider

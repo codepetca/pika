@@ -10,6 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const { mockCreatePikaPalClient } = vi.hoisted(() => ({
   mockCreatePikaPalClient: vi.fn(),
 }))
+const { mockUseSearchParams } = vi.hoisted(() => ({
+  mockUseSearchParams: vi.fn(() => new URLSearchParams()),
+}))
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: mockUseSearchParams,
+}))
 
 vi.mock('@/integrations/pal/pal-client', () => ({
   createPikaPalClient: mockCreatePikaPalClient,
@@ -21,6 +28,7 @@ import {
   StudentPalExperience,
 } from '@/integrations/pal/StudentPalExperience'
 import { StudentAchievementsTab } from '@/app/classrooms/[classroomId]/StudentAchievementsTab'
+import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
 
 function withReward(): PalWidgetSnapshot {
   const snapshot = createFixtureSnapshot()
@@ -54,6 +62,7 @@ function renderExperience(
 
 describe('StudentPalExperience', () => {
   beforeEach(() => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams())
     window.localStorage.clear()
     vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
       matches: false,
@@ -68,6 +77,7 @@ describe('StudentPalExperience', () => {
   })
 
   afterEach(() => {
+    window.history.replaceState({}, '', '/')
     vi.clearAllMocks()
     vi.unstubAllGlobals()
   })
@@ -77,10 +87,13 @@ describe('StudentPalExperience', () => {
     renderExperience({
       getSnapshot: async () => snapshot,
       markRewardSeen: async () => undefined,
-    }, <StudentAchievementsTab scopeKey="opaque-session-a" />)
+    }, <StudentAchievementsTab />)
 
     expect(await screen.findByRole('heading', { name: 'Your achievement path' })).toBeVisible()
-    expect(screen.getByText(snapshot.companion.name)).toBeVisible()
+    expect(document.querySelector('aside.pal-companion')).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining(snapshot.companion.name),
+    )
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(document.querySelector('iframe')).toBeNull()
@@ -125,7 +138,7 @@ describe('StudentPalExperience', () => {
     renderExperience({
       getSnapshot: async () => { throw new Error('Pal unavailable') },
       markRewardSeen: async () => undefined,
-    }, <><div>Academic work remains available</div><StudentAchievementsTab scopeKey="opaque-session-a" /></>)
+    }, <><div>Academic work remains available</div><StudentAchievementsTab /></>)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Achievements are temporarily unavailable',
@@ -167,10 +180,17 @@ describe('StudentPalExperience', () => {
       </ThemeProvider>,
     )
 
-    expect(await screen.findByText('Learner B companion')).toBeVisible()
+    expect(await screen.findByRole('complementary', {
+      name: /Learner B companion/,
+    })).toBeVisible()
     await act(async () => resolveLearnerA?.(learnerA))
-    expect(screen.queryByText('Learner A companion')).toBeNull()
-    expect(screen.getByText('Learner B companion')).toBeVisible()
+    expect(screen.queryByRole('complementary', {
+      name: /Learner A companion/,
+    })).toBeNull()
+    expect(screen.getByRole('complementary', {
+      name: /Learner B companion/,
+    })).toBeVisible()
+    expect(mockCreatePikaPalClient).toHaveBeenCalledTimes(2)
   })
 
   it('contains a synchronous Pal surface failure without enclosing the classroom shell', () => {
@@ -226,15 +246,44 @@ describe('StudentPalExperience', () => {
   })
 
   it('defers companion and reward overlays on the student tests surface', async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('tab=tests'))
+    window.history.replaceState({}, '', '/classrooms/example?tab=tests')
     const snapshot = withReward()
     renderExperience({
       getSnapshot: async () => snapshot,
       markRewardSeen: async () => undefined,
-    }, <div>Student test workspace</div>, false)
+    }, <div>Student test workspace</div>)
 
     await waitFor(() => expect(mockCreatePikaPalClient).toHaveBeenCalled())
     expect(screen.getByText('Student test workspace')).toBeVisible()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByText(snapshot.companion.name)).toBeNull()
+  })
+
+  it('tracks Pika History API tab changes after the persistent layout mounts', async () => {
+    renderExperience({
+      getSnapshot: async () => createFixtureSnapshot(),
+      markRewardSeen: async () => undefined,
+    })
+
+    expect(await screen.findByRole('complementary', {
+      name: /your Pal companion/,
+    })).toBeVisible()
+
+    act(() => {
+      window.history.pushState({}, '', '/classrooms/example?tab=tests')
+      window.dispatchEvent(new Event(PIKA_LOCATION_CHANGE_EVENT))
+    })
+    expect(screen.queryByRole('complementary', {
+      name: /your Pal companion/,
+    })).toBeNull()
+
+    act(() => {
+      window.history.pushState({}, '', '/classrooms/example?tab=today')
+      window.dispatchEvent(new Event(PIKA_LOCATION_CHANGE_EVENT))
+    })
+    expect(screen.getByRole('complementary', {
+      name: /your Pal companion/,
+    })).toBeVisible()
   })
 })

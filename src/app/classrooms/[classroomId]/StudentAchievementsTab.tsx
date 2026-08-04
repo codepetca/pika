@@ -5,7 +5,7 @@ import { PalAchievements } from '@codepet/pal-widget'
 import { PalFailureBoundary, PalWidgetThemeBoundary } from '@/integrations/pal'
 import { PageState } from '@/ui'
 
-export function StudentAchievementsTab({ scopeKey }: { scopeKey: string }) {
+export function StudentAchievementsTab() {
   return (
     <PalFailureBoundary
       fallback={(
@@ -16,7 +16,7 @@ export function StudentAchievementsTab({ scopeKey }: { scopeKey: string }) {
           compact
         />
       )}
-      resetKey={`${scopeKey}:achievements`}
+      resetKey="achievements"
     >
       <PalWidgetThemeBoundary className="min-h-0 flex-1">
         <PalAchievements />

@@ -2,10 +2,16 @@ import { createPalHttpClient, type PalClient } from '@codepet/pal-widget'
 
 const MAX_READ_TOKEN_LIFETIME_MS = 10 * 60 * 1000
 const CLOCK_SKEW_ALLOWANCE_MS = 30 * 1000
+const READ_TOKEN_REFRESH_BUFFER_MS = 30 * 1000
 
 interface PalReadTokenResponse {
   token: string
   expires_at: string
+}
+
+interface CachedPalReadToken {
+  token: string
+  expiresAtMs: number
 }
 
 function parseReadTokenResponse(value: unknown, now: number): PalReadTokenResponse {
@@ -35,13 +41,13 @@ function parseReadTokenResponse(value: unknown, now: number): PalReadTokenRespon
   return { token, expires_at: expiresAt }
 }
 
-export async function getPalReadToken(
+async function requestPalReadToken(
   signal?: AbortSignal,
   options: {
     fetchImplementation?: typeof fetch
     now?: () => number
   } = {},
-): Promise<string> {
+): Promise<CachedPalReadToken> {
   const fetchImplementation = options.fetchImplementation ?? fetch
   const response = await fetchImplementation('/api/student/pal/read-token', {
     method: 'POST',
@@ -59,7 +65,45 @@ export async function getPalReadToken(
     await response.json(),
     options.now?.() ?? Date.now(),
   )
-  return body.token
+  return {
+    token: body.token,
+    expiresAtMs: Date.parse(body.expires_at),
+  }
+}
+
+export function createPalReadTokenProvider(
+  options: {
+    fetchImplementation?: typeof fetch
+    now?: () => number
+  } = {},
+): (signal?: AbortSignal) => Promise<string> {
+  let cachedToken: CachedPalReadToken | null = null
+
+  return async (signal?: AbortSignal) => {
+    signal?.throwIfAborted()
+    const now = options.now?.() ?? Date.now()
+    if (
+      cachedToken
+      && cachedToken.expiresAtMs - READ_TOKEN_REFRESH_BUFFER_MS > now
+    ) {
+      return cachedToken.token
+    }
+
+    const nextToken = await requestPalReadToken(signal, options)
+    signal?.throwIfAborted()
+    cachedToken = nextToken
+    return nextToken.token
+  }
+}
+
+export async function getPalReadToken(
+  signal?: AbortSignal,
+  options: {
+    fetchImplementation?: typeof fetch
+    now?: () => number
+  } = {},
+): Promise<string> {
+  return createPalReadTokenProvider(options)(signal)
 }
 
 export function createPikaPalClient(
@@ -70,6 +114,7 @@ export function createPikaPalClient(
   } = {},
 ): PalClient {
   const fetchImplementation = options.fetchImplementation ?? fetch
+  const getAccessToken = createPalReadTokenProvider(options)
 
   return createPalHttpClient({
     apiBaseUrl,
@@ -77,6 +122,6 @@ export function createPikaPalClient(
       ...init,
       cache: 'no-store',
     }),
-    getAccessToken: (signal) => getPalReadToken(signal, options),
+    getAccessToken,
   })
 }
