@@ -22,19 +22,6 @@ begin
   then
     raise exception 'Managed protocol lock helper is externally executable';
   end if;
-  if has_function_privilege(
-      'service_role',
-      'public.begin_hot_archived_classroom_purge(uuid,uuid,uuid,text,jsonb)',
-      'execute'
-    )
-    or has_function_privilege(
-      'service_role',
-      'public.finalize_hot_archived_classroom_purge(uuid,uuid)',
-      'execute'
-    )
-  then
-    raise exception 'Permanent classroom purge entry point remains executable';
-  end if;
 end;
 $privileges$;
 

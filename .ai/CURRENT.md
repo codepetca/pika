@@ -1,10 +1,8 @@
-Focus: PR #967 managed storage; #963 unchanged. Migrations 115/116 exact; 117 unapplied.
-
-## Context
-
-- Status: `.ai/features.json`; design: `DESIGN.md`; workflow: `docs/dev-workflow.md`.
-- Worktrees: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`.
-- Env: `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
-- Toronto/server/`withErrorHandler`/semantic/human-migration invariants apply.
-- Rollout: `docs/guidance/managed-storage-rollout.md`; enforcement, cleanup, and
-  deletion are off. Shared local has PR #963's different 117.
+Focus: managed-ID hot-archive deletion; leave #963 unchanged.
+Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
+Env: maintainers use `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
+Migration 118 is draft/disabled. Local has the old body; hosted targets and
+gates are untouched. Five high-risk review launches are clean after fixes for
+safe retries, RPC-only ledgers, legacy-upgrade refusal, operational impact, and
+cron compatibility. Exact-head DB CI is next. Applying 118 requires fresh
+authorization.

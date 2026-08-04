@@ -66,6 +66,12 @@ jobs:
       - name: Verify managed-storage ownership and enforcement
         run: bash scripts/check-managed-storage-database.sh
 
+      - name: Lint hot archived classroom purge database functions
+        run: pnpm run check:classroom-purge-db-lint
+
+      - name: Verify hot archived classroom purge durability and concurrency
+        run: bash scripts/check-hot-archived-classroom-purge-database.sh
+
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
 

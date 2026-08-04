@@ -64,6 +64,7 @@ describe('TeacherClassroomsIndex', () => {
       classrooms: [],
       coldArchives: [],
       coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
     })
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -80,6 +81,7 @@ describe('TeacherClassroomsIndex', () => {
 
     const pageFrame = screen.getByTestId('classroom-card').closest('.max-w-reading')
     expect(pageFrame).toHaveClass('mx-auto', 'w-full', 'max-w-reading')
+    expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
   })
 
   it('does not refetch classrooms on initial mount (#302)', async () => {
@@ -118,6 +120,7 @@ describe('TeacherClassroomsIndex', () => {
       ],
       coldArchives: [],
       coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
     })
 
     renderTeacherClassroomsIndex([])
@@ -128,15 +131,17 @@ describe('TeacherClassroomsIndex', () => {
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
     expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
   })
 
-  it('offers reuse and restore without ever issuing classroom DELETE requests', async () => {
+  it('offers permanent deletion only for hot archived classrooms without issuing direct DELETE requests', async () => {
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
       classrooms: [
         createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
       ],
       coldArchives: [],
       coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: ['archived-1'],
     })
 
     renderTeacherClassroomsIndex([])
@@ -145,7 +150,7 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Use again' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
   })
 
@@ -387,6 +392,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(await screen.findByText('Stored history classroom')).toBeInTheDocument()
     expect(screen.getByText('Stored archive')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Restore' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
   })
 
   it('restores a stored classroom with an idempotency key and refreshes the archived list', async () => {

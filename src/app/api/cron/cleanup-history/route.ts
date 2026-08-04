@@ -9,6 +9,7 @@ import {
   runClassroomArchiveObjectCleanup,
 } from '@/lib/server/classroom-archive-object-cleanup'
 import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
+import { runClassroomPurgeSafetyNet } from '@/lib/server/classroom-purge'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -114,6 +115,7 @@ async function handle(request: NextRequest) {
   )
 
   const supabase = getServiceRoleClient()
+  const classroomPurge = await runClassroomPurgeSafetyNet()
   const objectCleanupEnabled = isClassroomArchiveObjectCleanupEnabled()
   let archiveStagingCleaned: number | undefined
   if (isArchiveStagingCleanupEnabled() || objectCleanupEnabled) {
@@ -196,6 +198,9 @@ async function handle(request: NextRequest) {
       ...(archiveObjectCleanup === undefined
         ? {}
         : { archive_object_cleanup: archiveObjectCleanup }),
+      ...(classroomPurge.processed > 0
+        ? { classroom_purge: classroomPurge }
+        : {}),
     })
   }
 
@@ -305,6 +310,9 @@ async function handle(request: NextRequest) {
     ...(archiveObjectCleanup === undefined
       ? {}
       : { archive_object_cleanup: archiveObjectCleanup }),
+    ...(classroomPurge.processed > 0
+      ? { classroom_purge: classroomPurge }
+      : {}),
   })
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
   CLASSROOM_NON_OWNING_REFERENCES,
+  CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   auditClassroomResourceSchema,
@@ -59,6 +60,11 @@ function contractRelationships() {
   })
   return [
     ...ownedRelationships,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((resource) => ({
+      child_table: resource.table,
+      parent_table: resource.scope.parent,
+      child_columns: [resource.scope.column],
+    })),
     ...CLASSROOM_NON_OWNING_REFERENCES.map((relationship) => ({
       ...relationship,
       child_columns: [...relationship.child_columns],
@@ -67,7 +73,10 @@ function contractRelationships() {
 }
 
 function contractPrimaryKeys() {
-  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+  return [
+    ...CLASSROOM_RELATIONAL_RESOURCES,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
+  ].map((resource) => ({
     table_name: resource.table,
     columns: resource.primary_key,
   }))

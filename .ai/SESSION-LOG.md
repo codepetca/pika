@@ -11,114 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Kept archive v1 current through compaction
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Final integration review found that making v2 the current application export
-  format was incompatible with the still-v1-only compaction path.
-- Kept explicit v2 construction and v1/v2 restore support, but restored v1 as
-  the current application writer and retained the deployed v1 RPC flow.
-- Updated contract and coordinator tests to prove the current writer preserves
-  historical Quiz rows in v1 while the explicit v2 compatibility path remains
-  independently testable.
-- Shortened the continuity summary to restore the startup-document budget.
-
-**Validation:**
-- The full local archive recovery drill passes export, compaction, restore,
-  cleanup, and idempotent replay with the frozen 42-resource v1 graph.
-- Focused archive and migration suites, startup-document tests, TypeScript, and
-  lint pass.
-
-**Remaining:**
-- Run final repository checks, integration review, and exact-head CI before
-  merging PR 927.
-- Migration 105 remains unapplied to every hosted target.
-
-## 2026-07-23 — Preserved pre-105 archive restore rollout
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Final integration review found that the application restore coordinator
-  required migration 105 even though no hosted target has it.
-- Restored the active coordinator and compaction preflight to the deployed v1
-  planner and migration-083 RPCs; current export, compaction, and restore now
-  share the frozen 42-resource v1 contract.
-- Kept a separate explicit v2 planner for compatibility validation without
-  making it reachable from the current application coordinator.
-- Froze the v1 restore order and protected it with a digest and exact resource
-  set regression.
-- Clarified that migration 105 is additive for data and public API surface, but
-  broadens v1-only constraints and wraps selected implementations internally.
-- Added a live database assertion that all six deployed v1 archive RPC
-  signatures and service-role grants survive migration 105.
-
-**Validation:**
-- Active v1 and explicit v2 restore planning tests pass.
-- Local v1 export, restore, compaction, Gradex, and v2 database harnesses pass.
-- Full local archive recovery drill passes export, compaction, restore,
-  cleanup, and idempotent replay.
-- TypeScript, lint, shell syntax, Pika changed-file audit, and focused tests
-  pass.
-
-**Remaining:**
-- Push the remediation, run the final authorized targeted review, and require
-  exact-head CI before merging PR 927.
-- Migration 105 remains unapplied to every hosted target.
-
-## 2026-07-23 — Froze archive restore ordering
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Derived the inactive v2 restore order from the frozen topological v1 order
-  with Quiz resources removed, then appended the retired-assessment record and
-  actor resources parent-first.
-- Removed the final live classroom-graph dependency from v1 compaction
-  preflight staging.
-- Added regressions for every declared v2 parent-before-child dependency and
-  the actual non-empty v1 compaction staging sequence.
-
-**Validation:**
-- Focused archive contract, restore, and compaction tests pass.
-- TypeScript and lint pass.
-- Local compaction database harness and full archive recovery drill pass.
-
-**Remaining:**
-- Publish, independently review, and require exact-head CI before merge.
-- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
-
-## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
-  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
-  parent/child `NOWAIT` locks roll back immediately on live conflicts.
-- Added deterministic SQL envelope IDs and canonical payload checksums matching
-  the TypeScript adapter, parent and actor preflights, collision checks, and an
-  aggregate-only five-resource parity ledger.
-- Kept every source row intact for the observation window and added no
-  dual-write or active Test-table mapping.
-- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
-  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
-- Documented that migration 106 cannot be hosted until direct v2 snapshots,
-  version-aware compaction, and v1-to-v2 restore dispatch are current.
-
-**Validation:**
-- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
-  `git diff --check` pass.
-- Migration 106 was not applied to the shared local database or a hosted
-  target; its executable rehearsal is reserved for disposable PR CI.
-
-**Remaining:**
-- Run repository checks, independent review, and exact-head CI before merge.
-- Next pass: implement the version-aware archive runtime required before
-  migration 106 can receive target-specific application approval.
-
 ## 2026-07-23 — Activated direct archive-v2 runtime
 
 **Risk profile:** runtime-platform
@@ -1381,3 +1273,115 @@ provisional ownership, and idempotent Blueprint file copies.
 **Remaining:**
 - Push the correction to PR #967, require exact-head CI including disposable
   migration replay/database fixtures, and perform a final read-only review.
+
+## 2026-08-04 — Hardened purge rollout visibility and verification gates
+
+**Risk profile:** runtime-platform — irreversible classroom purge rollout,
+PostgreSQL function semantics, and conflicting background operations.
+
+**Completed:**
+- Added a fail-closed, server-authoritative archive-list field so permanent
+  deletion is visible only when managed ownership is enforced and the exact
+  teacher/classroom rollout gate is open; the purge RPC remains final authority.
+- Corrected the migration-118 conflict function volatility and added a scoped
+  database-lint gate that checks every function created or replaced by 118
+  without making unrelated historical warnings a new CI baseline.
+- Expanded the rollback-only destructive fixture to independently prove active
+  archive, restore, assignment grading, repository grading, test grading,
+  Blueprint operation, proposal, and editing-session conflicts.
+- Visually verified teacher archived list/dialog and the student boundary on
+  desktop/mobile in light/dark through Playwright interception, without changing
+  local rollout settings.
+
+**Validation:**
+- Pika audit, TypeScript, lint, architecture, design/UI policy, diff checks, and
+  production build pass; full Vitest passes (464 files, 4,010 tests).
+- The current old local migration body makes the new database lint and purge
+  fixture fail exactly at the known composite-row assignment; all newly added
+  conflict assertions pass before that expected boundary.
+
+**Remaining:**
+- Obtain fresh authorization to reset/reseed local Supabase, replay corrected
+  migration 118, regenerate types, and rerun the lint/readiness/destructive
+  fixtures. Keep staging/production untouched and rollout gates disabled.
+
+## 2026-08-04 — Replayed and verified managed-ownership purge locally
+
+**Risk profile:** runtime-platform — authorized destructive local database reset
+and verification of irreversible purge infrastructure.
+
+**Completed:**
+- Used the one-time authorization to reset local Supabase, replay migrations
+  001–118 once, regenerate database types, and reseed the development fixtures.
+- Passed migration-118 PostgreSQL lint, the managed-storage readiness and
+  concurrency fixture, and the rollback-only destructive purge fixture covering
+  conflict blocking, authorization, retries, partial failure, storage cleanup,
+  preservation, and operation locks.
+- Reconfirmed post-fixture safe defaults: classroom purge remains `disabled`
+  and managed storage remains in `compatibility` mode.
+- Applied nothing to staging or production and left PR #963 untouched.
+
+**Validation:**
+- Generated Supabase types match the replayed schema; TypeScript passes.
+- Focused purge/API/UI/migration coverage passes (7 files, 50 tests).
+- Teacher/student desktop/mobile light/dark verification already passed without
+  enabling the rollout gates.
+
+**Remaining:**
+- Complete final read-only change-set review, then commit and publish the draft
+  replacement PR only when authorized.
+
+## 2026-08-04 — Stopped at purge review circuit breaker
+
+**Risk profile:** runtime-platform — irreversible deletion, managed Storage,
+authorization, concurrency, and migration compatibility.
+
+**Completed:**
+- Ran the high-risk independent review topology: security/concurrency and
+  architecture initial reviewers, one targeted security re-review, and one
+  final cumulative integration review.
+- Used two consolidated remediation batches to close retry/backoff and live-
+  lease state, durable Storage resurrection evidence, migration-115 upgrade
+  refusal, RPC-only ledger writes, operational impact/digest/fences, code-first
+  compatibility handling, and browser no-progress request storms.
+- Kept migration 118 draft and rollout-disabled; changed no local/hosted database
+  after the earlier authorized replay, and left PR #963 unchanged.
+
+**Validation:**
+- TypeScript, focused tests (47), startup tests (38), production build, lint,
+  architecture/design/UI policy, lineage, generated-type compatibility, Pika
+  audit, shell syntax, and diff checks pass.
+- The full suite before remediation batch 2 had 4,012 passing tests and only the
+  subsequently fixed startup-document budget failures.
+
+**Remaining:**
+- Two final P1s require an owner-approved third remediation batch: probe the
+  migration-118-only settings authority before cron reads legacy purge rows,
+  and pass the operational digest in the primary destructive fixture.
+- After those narrow fixes, run exact-head ephemeral DB CI and one final targeted
+  review before committing/publishing the replacement draft PR.
+
+## 2026-08-04 — Cleared final purge review blockers
+
+**Risk profile:** runtime-platform — code-first migration compatibility and
+exact-head destructive purge verification.
+
+**Completed:**
+- Added a migration-118-only readiness probe before the cleanup cron can read or
+  advance legacy migration-115 purge operations; pre-118 targets now fail closed
+  without RPC or Storage access.
+- Updated the primary destructive fixture to pass the complete server inventory,
+  including the operational inventory digest required by migration 118.
+- Used the owner-authorized final remediation batch and fifth targeted reviewer;
+  no P0/P1 or merge-blocking findings remain in the bounded fixes.
+
+**Validation:**
+- Focused purge/cron/migration coverage passes (3 files, 35 tests), including the
+  pre-118 no-op regression.
+- TypeScript, destructive-fixture shell syntax, migration-118 function lint,
+  continuity validation, and diff checks pass.
+
+**Remaining:**
+- Publish the draft replacement PR while leaving #963 unchanged.
+- Run exact-head database CI before enabling or deploying deletion. Migration
+  118 still requires fresh authorization for every database target.
