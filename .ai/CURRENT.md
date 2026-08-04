@@ -1,6 +1,6 @@
-Focus: managed-ID hot-archive deletion; leave #963 unchanged.
+Focus: verified managed-ID hot-archive deletion in draft PR #968; leave #963 unchanged.
 Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
 Env: maintainers use `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
-Migration 118 is draft/disabled; local has the old body and hosted targets and
-gates are untouched. PR #968 CI fails in managed-storage concurrency before the
-purge fixture; diagnose next. Applying 118 requires fresh authorization.
+Exact-head CI/review pass at `ab4ce5f6`, including replay, destructive/concurrency
+fixtures, recovery rehearsal, and teacher/student UI. Migration 118 remains draft
+and rollout-disabled; applying it requires fresh target-specific authorization.

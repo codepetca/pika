@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Activated direct archive-v2 runtime
-
-**Risk profile:** runtime-platform
-
-**Completed:**
-- Recorded the maintainer decision that experimental Quiz rows, drafts,
-  envelopes, and Quiz portions of v1 artifacts are disposable.
-- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
-  drafts to Tests, promote the live archive registry to v2, and capture source
-  contract 2 directly.
-- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
-  fallback. V1 restore now discards Quiz resources while retaining other
-  classroom content.
-- Extended disposable replay through migrations 106-107 and proved direct
-  source counts, snapshot membership, upload intent, and finalization.
-- Review remediation now purges the frozen Quiz source rows, fences retryable
-  operations, and makes compaction use migration-107-specific v2 RPCs. V1
-  archives must be re-exported before compaction.
-
-**Validation:**
-- Focused archive coordinator tests and TypeScript pass.
-- The disposable freeze/backfill/direct-source database harness passes.
-- Current-export and atomic-compaction database harnesses pass against the
-  disposable post-107 schema, including a complete v2 cold transition.
-- No shared local or hosted migration was applied.
-
-**Remaining:**
-- Complete repository validation, independent review, exact-head CI, and merge.
-- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
-  remaining active compatibility types and payload fields.
-
 ## 2026-07-23 — Prepared legacy Quiz hard removal
 
 **Risk profile:** runtime-platform/destructive-schema
@@ -1385,3 +1354,28 @@ exact-head destructive purge verification.
 - Publish the draft replacement PR while leaving #963 unchanged.
 - Run exact-head database CI before enabling or deploying deletion. Migration
   118 still requires fresh authorization for every database target.
+
+## 2026-08-04 — Verified draft hot-archive purge replacement
+
+**Risk profile:** runtime-platform — irreversible classroom deletion,
+concurrency, managed Storage ownership, and migration safety.
+
+**Completed:**
+- Reconciled existing managed-cleanup and archive-compaction concurrency
+  fixtures with migration 118's fail-fast lifecycle lock and retry contract.
+- Hardened the rollback-only purge fixture to simulate provider-side object
+  resurrection without weakening Supabase Storage ownership or app-role access.
+- Kept PR #968 draft, PR #963 unchanged, rollout gates disabled, and migration
+  118 unapplied by this remediation.
+
+**Validation:**
+- Exact-head CI run 30952362597 passed Architecture Database Contracts, Test &
+  Build, Browser Experience Matrix, and Vercel at `ab4ce5f6`.
+- Pika audit, shell syntax, diff checks, and 27 focused tests pass.
+- Targeted security/concurrency and final cumulative integration reviews found
+  no P0/P1 or merge-blocking findings.
+
+**Remaining:**
+- Keep migration 118 and deletion disabled until separately authorized rollout
+  and canary verification. Cold archives and individual-student purge remain
+  follow-up scopes.
