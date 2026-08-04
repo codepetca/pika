@@ -16,6 +16,11 @@ import {
   verifyGradexExtractBundle,
 } from '@/lib/server/classroom-gradex-extract'
 import { getServiceRoleClient } from '@/lib/supabase'
+import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 
 export const CLASSROOM_GRADEX_EXTRACT_BUCKET = 'gradex-analytics-extracts' as const
 export const CLASSROOM_GRADEX_EXTRACT_MAX_BYTES = 50 * 1024 * 1024
@@ -391,6 +396,7 @@ async function uploadAndReadBackExtract(args: {
   storagePath: string
   extract: Uint8Array
   artifactSha256: string
+  managedObjectId?: string
 }): Promise<{ bytes: Uint8Array; uploadedByThisAttempt: boolean }> {
   const bucket = args.supabase.storage.from(CLASSROOM_GRADEX_EXTRACT_BUCKET)
   const existing = await bucket.download(args.storagePath)
@@ -419,7 +425,7 @@ async function uploadAndReadBackExtract(args: {
       const readBack = await bucket.download(args.storagePath)
       bytes = await readStorageBytes(readBack.data)
       if (!bytes) {
-        await removeGradexObject(args)
+        if (!args.managedObjectId) await removeGradexObject(args)
         throw new ClassroomGradexExtractError(
           'gradex_storage_readback_failed',
           'Gradex extract could not be read back after upload',
@@ -431,7 +437,7 @@ async function uploadAndReadBackExtract(args: {
   }
 
   if (sha256Bytes(bytes) !== args.artifactSha256) {
-    if (uploadedByThisAttempt) await removeGradexObject(args)
+    if (uploadedByThisAttempt && !args.managedObjectId) await removeGradexObject(args)
     throw new ClassroomGradexExtractError(
       'gradex_storage_checksum_mismatch',
       'Stored Gradex extract checksum does not match the generated artifact',
@@ -549,6 +555,7 @@ export async function createClassroomGradexExtract(args: {
   let uploadedByThisAttempt = false
   let storagePath: string | null = null
   let finalizationMayHaveCommitted = false
+  let managedReservationId: string | null = null
   let source: Awaited<ReturnType<typeof loadAndVerifySourceArchiveBeforeOperation>>
 
   try {
@@ -580,6 +587,21 @@ export async function createClassroomGradexExtract(args: {
   }
 
   try {
+    storagePath = classroomGradexStoragePath({ operationId, teacherId, classroomId })
+    const reservation = await reserveManagedStorageUpload({
+      supabase: args.supabase,
+      objectId: operationId,
+      bucket: CLASSROOM_GRADEX_EXTRACT_BUCKET,
+      path: storagePath,
+      classroomId,
+      purpose: 'gradex_extract',
+      createdByUserId: teacherId,
+      resourceType: 'classroom_archive_operation',
+      resourceId: operationId,
+      contentType: 'application/gzip',
+      allowLegacyCompatibility: true,
+    })
+    managedReservationId = reservation ? operationId : null
     const beginResponse = await args.supabase.rpc('begin_classroom_gradex_extract', {
       p_operation_id: operationId,
       p_teacher_id: teacherId,
@@ -617,6 +639,21 @@ export async function createClassroomGradexExtract(args: {
       classroomId,
       deleteAfter,
     })
+    if (reservation) {
+      const binding = await (args.supabase as any).rpc('bind_managed_storage_operation_ledgers', {
+        p_operation_id: operationId,
+        p_teacher_id: teacherId,
+        p_managed_object_id: operationId,
+      })
+      if (binding.error || binding.data !== true) {
+        throw new ClassroomGradexExtractError(
+          'gradex_managed_storage_binding_failed',
+          'Gradex extract ownership binding failed',
+          503,
+          true,
+        )
+      }
+    }
     if (!parsedBegin.data.ok) {
       emitGradexMetric(parsedBegin.data, startedAt)
       return parsedBegin.data
@@ -674,7 +711,15 @@ export async function createClassroomGradexExtract(args: {
       storagePath,
       extract: bundle.extract,
       artifactSha256: bundle.artifactSha256,
+      managedObjectId: reservation ? snapshot.extract_id : undefined,
     })
+    if (reservation) {
+      await verifyManagedStorageUpload({
+        supabase: args.supabase,
+        objectId: snapshot.extract_id,
+        contentSha256: bundle.artifactSha256,
+      })
+    }
     uploadedByThisAttempt = stored.uploadedByThisAttempt
     const verifiedExtract = verifyGradexExtractBundle(stored.bytes)
     if (!verifiedExtract.ok) {
@@ -770,7 +815,13 @@ export async function createClassroomGradexExtract(args: {
           parsedComplete.data.retryable,
         ),
       })
-      if (!parsedComplete.data.retryable && uploadedByThisAttempt && failureRecorded) {
+      if (!parsedComplete.data.retryable && managedReservationId && failureRecorded) {
+        await queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId: managedReservationId,
+          errorCode: 'gradex_finalization_rejected',
+        })
+      } else if (!parsedComplete.data.retryable && uploadedByThisAttempt && failureRecorded) {
         await removeGradexObject({ supabase: args.supabase, operationId, storagePath })
       }
       emitGradexMetric(parsedComplete.data, startedAt)
@@ -815,12 +866,20 @@ export async function createClassroomGradexExtract(args: {
     })
     if (
       !gradexError.retryable &&
-      uploadedByThisAttempt &&
+      (managedReservationId || uploadedByThisAttempt) &&
       storagePath &&
       !finalizationMayHaveCommitted &&
       failureRecorded
     ) {
-      await removeGradexObject({ supabase: args.supabase, operationId, storagePath })
+      if (managedReservationId) {
+        await queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId: managedReservationId,
+          errorCode: gradexError.code,
+        })
+      } else {
+        await removeGradexObject({ supabase: args.supabase, operationId, storagePath })
+      }
     }
     const result: ClassroomGradexExtractResult = {
       ok: false,

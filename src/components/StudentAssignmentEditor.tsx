@@ -1490,6 +1490,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 className="h-full"
                 toolbarPreset="document"
                 enableImageUpload
+                assignmentDocId={doc?.id}
                 onImageUploadError={(message) => setError(message)}
               />
             </div>

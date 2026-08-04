@@ -105,6 +105,7 @@ describe('POST /api/teacher/tests/[id]/documents/[docId]/sync', () => {
 
     expect(response.status).toBe(200)
     expect(syncExternalLinkTestDocument).toHaveBeenCalledWith({
+      classroomId: 'classroom-1',
       doc: expect.objectContaining({
         id: 'doc-1',
         url: 'https://nodejs.org/api/fs.html',

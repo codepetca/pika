@@ -1,14 +1,10 @@
-Focus: PR #952 is rebased; Pal owns migration 111 and Blueprint is 112. Shared
-local was backed up, reset without seed data, and cleanly replayed through 112;
-its migration history and generated types now match this branch.
+Focus: PR #967 managed storage; #963 unchanged. Migrations 115/116 exact; 117 unapplied.
 
-## Current Context
+## Context
 
-- `DESIGN.md` is canonical; product status: `.ai/features.json`.
-- Pal remains disabled; its widget package is an external dependency.
-- Worktrees: `$HOME/.codex/worktrees/pika/` or
-  `$HOME/.codex/worktrees/<id>/pika`; maintainer env:
-  `$HOME/Repos/.env/pika/.env.local`; collaborators may copy `.env.example`.
-- Toronto deadlines, server logic, `withErrorHandler`, semantic tokens, and
-  human-controlled migrations are invariants. Workflow: `docs/dev-workflow.md`.
-- Trim session logs after updates. `production` uses the protected PR flow.
+- Status: `.ai/features.json`; design: `DESIGN.md`; workflow: `docs/dev-workflow.md`.
+- Worktrees: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`.
+- Env: `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
+- Toronto/server/`withErrorHandler`/semantic/human-migration invariants apply.
+- Rollout: `docs/guidance/managed-storage-rollout.md`; enforcement, cleanup, and
+  deletion are off. Shared local has PR #963's different 117.

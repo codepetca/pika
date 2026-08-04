@@ -70,9 +70,9 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   tests: ['created_by'],
 } as const satisfies Record<string, readonly string[]>
 
-// These are workflow references to a classroom, not classroom-owned state.
-// They remain outside classroom archives and must be rebuilt or expired by the
-// Blueprint workflow rather than restored as part of a classroom.
+// These references do not extend classroom-owned archive state. Workflow
+// records are rebuilt or expired by their owning workflow, and the managed
+// JSON registry is deterministically rebuilt from its persisted host JSON.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
   {
     child_table: 'course_blueprint_change_proposals',
@@ -88,6 +88,41 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     child_table: 'course_blueprint_editing_sessions',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'classroom_purge_fences',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'assignment_docs',
+    child_columns: ['assignment_doc_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'assignment_doc_history',
+    child_columns: ['assignment_doc_history_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'tests',
+    child_columns: ['test_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'course_blueprint_assessments',
+    child_columns: ['course_blueprint_assessment_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'course_blueprint_versions',
+    child_columns: ['course_blueprint_version_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'course_blueprint_change_proposals',
+    child_columns: ['course_blueprint_change_proposal_id'],
   },
 ] as const satisfies readonly ClassroomSchemaRelationship[]
 

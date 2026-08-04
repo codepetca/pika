@@ -3,14 +3,18 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { getImageValidationError } from '@/lib/image-upload'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
+import { z } from 'zod'
+import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 
 export const dynamic = 'force-dynamic'
 
 export const POST = withErrorHandler('PostUploadImage', async (request: NextRequest) => {
   const user = await requireAuth()
-  if (!user.id) {
-    throw new ApiError(401, 'Unauthorized')
-  }
+  if (!user.id) throw new ApiError(401, 'Unauthorized')
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null
@@ -24,12 +28,44 @@ export const POST = withErrorHandler('PostUploadImage', async (request: NextRequ
   if (validationError) {
     throw new ApiError(400, validationError)
   }
+  const assignmentDocId = z.string().uuid().parse(formData.get('assignment_doc_id'))
 
   const supabase = getServiceRoleClient()
+  const { data: assignmentDoc, error: assignmentDocError } = await supabase
+    .from('assignment_docs')
+    .select('id,student_id,assignment_id')
+    .eq('id', assignmentDocId)
+    .eq('student_id', user.id)
+    .maybeSingle()
+  if (assignmentDocError) throw new ApiError(500, 'Failed to verify assignment document')
+  if (!assignmentDoc) throw new ApiError(404, 'Assignment document not found')
+  const { data: assignment, error: assignmentError } = await supabase
+    .from('assignments')
+    .select('id,classroom_id')
+    .eq('id', assignmentDoc.assignment_id)
+    .maybeSingle()
+  if (assignmentError) throw new ApiError(500, 'Failed to verify assignment')
+  if (!assignment) throw new ApiError(404, 'Assignment not found')
 
   // Generate unique filename
   const ext = file.name.split('.').pop() || 'png'
-  const filename = `${user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const objectId = crypto.randomUUID()
+  const filename = `classrooms/${assignment.classroom_id}/students/${user.id}/assignment-docs/${assignmentDoc.id}/${objectId}.${ext}`
+  const reservation = await reserveManagedStorageUpload({
+    supabase,
+    objectId,
+    bucket: 'submission-images',
+    path: filename,
+    classroomId: assignment.classroom_id,
+    purpose: 'student_inline_image',
+    createdByUserId: user.id,
+    dataSubjectUserId: user.id,
+    resourceType: 'assignment_doc',
+    resourceId: assignmentDoc.id,
+    contentType: file.type,
+    byteSize: file.size,
+    allowLegacyCompatibility: true,
+  })
 
   // Convert File to ArrayBuffer then to Buffer for upload
   const arrayBuffer = await file.arrayBuffer()
@@ -44,8 +80,28 @@ export const POST = withErrorHandler('PostUploadImage', async (request: NextRequ
     })
 
   if (uploadError) {
+    if (reservation) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'submission_image_upload_failed',
+      })
+    }
     console.error('Upload error:', uploadError)
     throw new ApiError(500, 'Failed to upload image')
+  }
+
+  if (reservation) {
+    try {
+      await verifyManagedStorageUpload({ supabase, objectId })
+    } catch (error) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'submission_image_verification_failed',
+      })
+      throw error
+    }
   }
 
   // Get public URL
@@ -53,5 +109,8 @@ export const POST = withErrorHandler('PostUploadImage', async (request: NextRequ
     .from('submission-images')
     .getPublicUrl(filename)
 
-  return NextResponse.json({ url: urlData.publicUrl })
+  return NextResponse.json({
+    url: urlData.publicUrl,
+    ...(reservation ? { managed_object_id: objectId } : {}),
+  })
 })

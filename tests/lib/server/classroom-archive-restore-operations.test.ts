@@ -364,6 +364,7 @@ describe('classroom archive restore coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({ ok: true, status: 201, replayed: false }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_managed_storage_upload',
       'begin_classroom_archive_restore_v2',
       'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
@@ -372,14 +373,17 @@ describe('classroom archive restore coordinator', () => {
       'stage_classroom_archive_restore_rows',
       'complete_classroom_archive_restore',
     ])
-    expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
+    expect(mock.rpc.mock.calls[1][1]).toEqual(expect.objectContaining({
       p_target_schema_migration: '107_classroom_archive_v2_direct_source',
       p_source_contract_version: 1,
       p_restore_contract_version: 2,
       p_source_resource_counts: archiveV1ResourceCounts(),
       p_resource_counts: archiveV2ResourceCounts(),
     }))
-    expect(mock.rpc.mock.calls[6][1].p_verification).not.toHaveProperty(
+    const completionCall = mock.rpc.mock.calls.find(([name]) => (
+      name === 'complete_classroom_archive_restore'
+    ))
+    expect(completionCall?.[1].p_verification).not.toHaveProperty(
       'referential_integrity_verified',
     )
     expect(result.ok && result.verification.referential_integrity_verified).toBe(true)
@@ -404,6 +408,7 @@ describe('classroom archive restore coordinator', () => {
       error_code: 'classroom_archive_restore_migration_required',
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_managed_storage_upload',
       'begin_classroom_archive_restore_v2',
     ])
   })
@@ -427,6 +432,7 @@ describe('classroom archive restore coordinator', () => {
       error_code: 'classroom_archive_restore_begin_failed',
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_managed_storage_upload',
       'begin_classroom_archive_restore_v2',
     ])
   })
@@ -470,6 +476,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: true,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_managed_storage_upload',
       'begin_classroom_archive_restore_v2',
     ])
   })
@@ -491,6 +498,7 @@ describe('classroom archive restore coordinator', () => {
       retryable: false,
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_managed_storage_upload',
       'begin_classroom_archive_restore_v2',
       'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
