@@ -1685,7 +1685,16 @@ commit;
 SQL
 assignment_reference_delete_status=$?
 set -e
+set +e
 wait "$assignment_reference_pid"
+assignment_reference_status=$?
+set -e
+if [[ "$assignment_reference_status" -ne 0 ]]; then
+  echo "Assignment reference transaction failed unexpectedly." >&2
+  sed -n '1,200p' "$concurrency_dir/assignment-reference.out" >&2
+  sed -n '1,200p' "$concurrency_dir/assignment-reference.err" >&2
+  exit 1
+fi
 if [[ "$assignment_reference_delete_status" -eq 0 ]] \
   || ! grep -q 'managed_storage_cleanup_referenced' \
     "$concurrency_dir/assignment-reference-delete.err"; then

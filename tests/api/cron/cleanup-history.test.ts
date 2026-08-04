@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, POST } from '@/app/api/cron/cleanup-history/route'
+import { GET, POST, maxDuration } from '@/app/api/cron/cleanup-history/route'
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 const cleanupMocks = vi.hoisted(() => ({
@@ -205,6 +205,10 @@ function cronRequest(method: 'GET' | 'POST' = 'GET') {
 }
 
 describe('cron cleanup-history route', () => {
+  it('reserves the bounded runtime needed by purge recovery work', () => {
+    expect(maxDuration).toBe(60)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()

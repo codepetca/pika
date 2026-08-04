@@ -13,6 +13,7 @@ import { runClassroomPurgeSafetyNet } from '@/lib/server/classroom-purge'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const maxDuration = 60
 
 const TIMEZONE = 'America/Toronto'
 const DELETE_CHUNK_SIZE = 200
