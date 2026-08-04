@@ -3,27 +3,49 @@ import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { isPalEnabled } from '@/lib/server/pal-config'
-import { mintPalReadToken } from '@/lib/server/pal-read-token'
+import { getPalReadTokenForStudent } from '@/lib/server/pal-read-token'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const noStoreHeaders = { 'Cache-Control': 'no-store' }
+
 export const POST = withErrorHandler('PostStudentPalReadToken', async () => {
   const user = await requireRole('student')
   if (!isPalEnabled()) {
-    return NextResponse.json({ error: 'Achievements are unavailable' }, { status: 404 })
+    return NextResponse.json(
+      { error: 'Achievements are unavailable' },
+      { status: 404, headers: noStoreHeaders },
+    )
   }
 
   try {
-    const token = await mintPalReadToken({ studentId: user.id })
+    const token = await getPalReadTokenForStudent({ studentId: user.id })
     return NextResponse.json(token, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: noStoreHeaders,
     })
   } catch (error) {
+    if (
+      error instanceof Error
+      && error.name === 'PalReadTokenRateLimitError'
+      && 'retryAfterSeconds' in error
+      && typeof error.retryAfterSeconds === 'number'
+    ) {
+      return NextResponse.json(
+        { error: 'Achievements are temporarily unavailable' },
+        {
+          status: 429,
+          headers: {
+            ...noStoreHeaders,
+            'Retry-After': String(error.retryAfterSeconds),
+          },
+        },
+      )
+    }
     console.error('Failed to mint Pal read token:', error)
     return NextResponse.json(
       { error: 'Achievements are temporarily unavailable' },
-      { status: 503 },
+      { status: 503, headers: noStoreHeaders },
     )
   }
 })

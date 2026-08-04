@@ -332,13 +332,10 @@ For the Pal achievement system:
 - Pika approves pet placement and clearance; Pal owns the art and pose.
 
 The public `--pal-*` contract is owned by
-`@pal/widget/theme-contract`. While that package remains private and
-unpublished, Pika vendors only the dependency-free manifest in
-[`src/vendor/pal-widget-theme`](./src/vendor/pal-widget-theme) and maps it in
+`@codepet/pal-widget/theme-contract`. Pika imports that package contract
+directly and maps it in
 [`src/integrations/pal/pal-widget-theme.module.css`](./src/integrations/pal/pal-widget-theme.module.css).
-The vendored manifest is temporary release plumbing, not a second authority.
-Delete it and import the package contract directly when Pika installs a
-published `@pal/widget`.
+Pika must not vendor a second copy of the contract.
 
 ### Pal handoff packet
 

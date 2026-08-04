@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@codepet/pal-widget':
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -313,6 +316,12 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@codepet/pal-widget@0.1.0-alpha.2':
+    resolution: {integrity: sha512-9POsVY5IQj9O25muuPcmWGF7+CnMxhCUmiKdpkH2s2euzKmHvq0BwRTybsmDGytpPgwZTowvkGis6EKGpq2mQQ==}
+    peerDependencies:
+      react: ^18.3.0 || ^19.0.0
+      react-dom: ^18.3.0 || ^19.0.0
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -3976,6 +3985,11 @@ snapshots:
       '@babel/helper-validator-identifier': 7.28.5
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@codepet/pal-widget@0.1.0-alpha.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   '@csstools/color-helpers@5.1.0': {}
 

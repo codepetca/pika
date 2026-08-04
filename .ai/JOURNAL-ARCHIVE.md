@@ -16159,3 +16159,176 @@ future persistence shape without enabling unapproved schema behavior.
 - Complete repository validation, independent review, exact-head CI, and merge.
 - Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
   remaining active compatibility types and payload fields.
+
+<!-- pika-session-log-archive-batch:ffdc275a58762f56a51626d42ba1a2da03459452f8657f411aba891ccdca1d90 -->
+## 2026-07-23 — Froze archive restore ordering
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Derived the inactive v2 restore order from the frozen topological v1 order
+  with Quiz resources removed, then appended the retired-assessment record and
+  actor resources parent-first.
+- Removed the final live classroom-graph dependency from v1 compaction
+  preflight staging.
+- Added regressions for every declared v2 parent-before-child dependency and
+  the actual non-empty v1 compaction staging sequence.
+
+**Validation:**
+- Focused archive contract, restore, and compaction tests pass.
+- TypeScript and lint pass.
+- Local compaction database harness and full archive recovery drill pass.
+
+**Remaining:**
+- Publish, independently review, and require exact-head CI before merge.
+- Then proceed to the separately authorized atomic Quiz freeze/backfill pass.
+
+## 2026-07-23 — Prepared atomic legacy Quiz freeze and backfill
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Added migration 106 to freeze the retired Quiz tables and drafts, prove Quiz
+  blueprints are empty, and narrow the constraint to Test-only. Archive-ordered
+  parent/child `NOWAIT` locks roll back immediately on live conflicts.
+- Added deterministic SQL envelope IDs and canonical payload checksums matching
+  the TypeScript adapter, parent and actor preflights, collision checks, and an
+  aggregate-only five-resource parity ledger.
+- Kept every source row intact for the observation window and added no
+  dual-write or active Test-table mapping.
+- Added a disposable rehearsal for v1/v2 compatibility, failed preflights,
+  envelope/source lock contention, the freeze and ledger, and SQL/TS parity.
+- Documented that migration 106 cannot be hosted until direct v2 snapshots,
+  version-aware compaction, and v1-to-v2 restore dispatch are current.
+
+**Validation:**
+- Focused migration and archive-v2 unit tests, TypeScript, shell syntax, and
+  `git diff --check` pass.
+- Migration 106 was not applied to the shared local database or a hosted
+  target; its executable rehearsal is reserved for disposable PR CI.
+
+**Remaining:**
+- Run repository checks, independent review, and exact-head CI before merge.
+- Next pass: implement the version-aware archive runtime required before
+  migration 106 can receive target-specific application approval.
+
+## 2026-07-23 — Activated direct archive-v2 runtime
+
+**Risk profile:** runtime-platform
+
+**Completed:**
+- Recorded the maintainer decision that experimental Quiz rows, drafts,
+  envelopes, and Quiz portions of v1 artifacts are disposable.
+- Added migration 107 to purge Quiz source rows/drafts/envelopes, narrow
+  drafts to Tests, promote the live archive registry to v2, and capture source
+  contract 2 directly.
+- Made export, restore, and compaction strict v2 paths with no pre-107 RPC
+  fallback. V1 restore now discards Quiz resources while retaining other
+  classroom content.
+- Extended disposable replay through migrations 106-107 and proved direct
+  source counts, snapshot membership, upload intent, and finalization.
+- Review remediation now purges the frozen Quiz source rows, fences retryable
+  operations, and makes compaction use migration-107-specific v2 RPCs. V1
+  archives must be re-exported before compaction.
+
+**Validation:**
+- Focused archive coordinator tests and TypeScript pass.
+- The disposable freeze/backfill/direct-source database harness passes.
+- Current-export and atomic-compaction database harnesses pass against the
+  disposable post-107 schema, including a complete v2 cold transition.
+- No shared local or hosted migration was applied.
+
+**Remaining:**
+- Complete repository validation, independent review, exact-head CI, and merge.
+- Next pass: migration 108 hard-drops the legacy Quiz schema and removes the
+  remaining active compatibility types and payload fields.
+
+## 2026-07-23 — Prepared legacy Quiz hard removal
+
+**Risk profile:** runtime-platform/destructive-schema
+
+**Completed:**
+- Added migration 108 to fail closed unless migration 107 purged all retired
+  data, then drop the four Quiz tables, their catalog helpers, the private
+  backfill ledger/functions, `gradebook_settings.quizzes_weight`, v1 database
+  export RPCs/registry rows, and retired site-configuration keys.
+- Removed active Quiz branches and aliases from assessment drafts, gradebook,
+  course packages, publishing, blueprints, current domain types, and server
+  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
+  discards `quizzes.md` while preserving reusable non-Quiz content.
+- Reduced the live classroom ownership graph from 44 to 40 resources while
+  retaining the immutable archive-v1 resource contract solely for discard-only
+  restore of non-Quiz classroom data.
+- Regenerated Supabase database types from a disposable post-108 database; the
+  generated contract has no Quiz tables, fields, or functions.
+- Removed obsolete retirement inventory, backfill parity, and envelope adapter
+  utilities after their destructive decision was finalized.
+- Review remediation preserves course-package v2 as an import-only boundary,
+  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
+  classroom restore now excludes Quiz-only actors and storage objects from the
+  restore plan after validating the complete source artifact.
+- Migration 108 now requires exact equality between the live archive registry
+  and versioned source contract 2. The disposable harness proves registry drift
+  fails without deleting v1 metadata or Quiz tables before restoring the
+  registry and completing hard removal.
+- Final integration review found the production archive canary still bound to
+  archive v1. The operator runner and runbook now use archive format 2, the
+  40-resource graph, migration-107 source/restore contracts, and the current v2
+  restore planner. A subprocess smoke test loads the actual excluded script so
+  future import drift fails in Vitest.
+
+**Validation:**
+- Fresh disposable replay through migrations 106-108 passes freeze, direct
+  archive-v2 activation, hard-removal catalog assertions, current export,
+  restore, and compaction contracts.
+- Generated Supabase types exactly match the disposable post-108 schema.
+- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
+  and the Pika pre-commit audit pass.
+- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
+  database contract also passes against the disposable database.
+- The focused post-review archive suite passes: 4 files and 53 tests, including
+  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
+  and the Pika audit remain green after the canary port.
+- Migration 108 was not applied to the shared local database or any hosted
+  target.
+
+**Remaining:**
+- Complete PR review/remediation, exact-head CI, and merge. Applying migration
+  108 remains separately target-authorized.
+
+## 2026-07-23 — Rebased test-preview hardening after Quiz removal
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
+  the canonical test-only API and both preview request-order regressions.
+- Resequenced the atomic snapshot migration to 109 and consolidated the
+  uncommitted document-authoring and durable-cleanup schema into migration 110.
+- Kept ordinary document writers behind compare-and-swap updates, added a
+  leased storage-cleanup queue and cron worker, and retained real transport
+  SSRF/timeout coverage.
+- Left the shared local database unchanged. It remains reset and seeded through
+  migration 104; migrations 105-110 are unapplied there.
+
+**Validation:**
+- Full Vitest coverage passes: 421 files and 3,749 tests.
+- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
+- No local or hosted migration was applied.
+
+**Remaining:**
+- Run targeted security rereview and final integration review.
+- Push the rebased exact head, wait for CI, and merge only after approval.
+
+## 2026-07-24 — AI-readiness CLI probe, course-import fix, repo tidy
+
+**Completed:**
+- Explored making Pika "AI-ready"; built a delete-able CLI probe (`pnpm pika`, branch `cli-probe`) that drives teacher operations headlessly via the existing role-gated API — no server changes. Logs in through `POST /api/auth/login`, persists the session cookie to `.auth/` (gitignored), and reuses the shared markdown contracts so a script produces exactly what the UI does. Commands: `login`, `whoami`, `test pull/push`, `course list/push/instantiate`; writes are dry-run unless `--yes`. Added `scripts/pika-cli-smoke.ts` (`pnpm smoke:pika-cli`) whose pull→push→pull round-trip is a drift detector. Pushed the branch to start a usage trial; not a merge candidate.
+- The probe surfaced a real bug on first use: importing a course package containing tests/lesson-plans failed with `400 assessments.N: Unrecognized key: "id"`, affecting both the JSON API and the UI's tar upload. Root cause: markdown parsers attach `id: existingMatch?.id` (undefined on fresh import), which zod 4 rejects on `.strict()` schemas; assignments were normalized but assessments and lesson templates were passed raw. Fixed by normalizing all three consistently in `buildCreateBlueprintWritePlan`, with regression tests at the write-plan layer (the existing route test mocks the function, so it could not catch this). Merged as PR #932.
+- Fixed `scripts/repo-tidy.sh` to classify worktrees by PR state (reusing the existing `PR_MAP`) instead of remote presence, since squash-merge + delete-on-merge makes "not on remote" the normal state of merged work — the old logic inverted the risk signal (33 of 44 flagged items were already merged). Merged as PR #934.
+- Repo hygiene: reduced worktrees from 48 to 6 (removed 42 merged/closed-PR worktrees and local branches, remotes preserved for recovery), deleted one merged remote branch, and closed stale PR #567.
+
+**Validation:**
+- Full `pnpm test` (413 files, 3688 tests) on the #932 fix; regression tests confirmed to fail without the patch with the exact production error.
+- End-to-end via the CLI against fixed `main`: `course push` with `tests.md` imports, `course instantiate` creates a classroom, and both quizzes materialize as real tests — the exact case that failed pre-fix.
+- `pnpm smoke:pika-cli --full` passes; typecheck and `pnpm check:architecture` clean on both PRs.

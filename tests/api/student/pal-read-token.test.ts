@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockMintPalReadToken, mockRequireRole } = vi.hoisted(() => ({
-  mockMintPalReadToken: vi.fn(),
+const { mockGetPalReadTokenForStudent, mockRequireRole } = vi.hoisted(() => ({
+  mockGetPalReadTokenForStudent: vi.fn(),
   mockRequireRole: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireRole: mockRequireRole }))
 vi.mock('@/lib/server/pal-read-token', () => ({
-  mintPalReadToken: mockMintPalReadToken,
+  getPalReadTokenForStudent: mockGetPalReadTokenForStudent,
 }))
 
 import { POST } from '@/app/api/student/pal/read-token/route'
@@ -20,7 +20,7 @@ describe('POST /api/student/pal/read-token', () => {
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
     vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     mockRequireRole.mockResolvedValue({ id: 'student-1', role: 'student' })
-    mockMintPalReadToken.mockResolvedValue({
+    mockGetPalReadTokenForStudent.mockResolvedValue({
       token: 'short-lived-token',
       expires_at: '2026-09-16T18:25:00.000Z',
     })
@@ -33,7 +33,9 @@ describe('POST /api/student/pal/read-token', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('no-store')
-    expect(mockMintPalReadToken).toHaveBeenCalledWith({ studentId: 'student-1' })
+    expect(mockGetPalReadTokenForStudent).toHaveBeenCalledWith({
+      studentId: 'student-1',
+    })
   })
 
   it('does not expose the endpoint while the pilot is disabled', async () => {
@@ -43,7 +45,35 @@ describe('POST /api/student/pal/read-token', () => {
     }) as any, { params: Promise.resolve({}) })
 
     expect(response.status).toBe(404)
-    expect(mockMintPalReadToken).not.toHaveBeenCalled()
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(mockGetPalReadTokenForStudent).not.toHaveBeenCalled()
+  })
+
+  it('does not cache a temporary Pal failure', async () => {
+    mockGetPalReadTokenForStudent.mockRejectedValue(new Error('Pal unavailable'))
+    const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+    }) as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('returns a no-store retry window when minting is rate limited', async () => {
+    const error = new Error('rate limited') as Error & {
+      retryAfterSeconds: number
+    }
+    error.name = 'PalReadTokenRateLimitError'
+    error.retryAfterSeconds = 30
+    mockGetPalReadTokenForStudent.mockRejectedValue(error)
+
+    const response = await POST(new Request('http://localhost/api/student/pal/read-token', {
+      method: 'POST',
+    }) as any, { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('retry-after')).toBe('30')
   })
 
   it('fails closed before minting when enabled configuration is incomplete', async () => {
@@ -53,6 +83,6 @@ describe('POST /api/student/pal/read-token', () => {
     }) as any, { params: Promise.resolve({}) })
 
     expect(response.status).toBe(500)
-    expect(mockMintPalReadToken).not.toHaveBeenCalled()
+    expect(mockGetPalReadTokenForStudent).not.toHaveBeenCalled()
   })
 })

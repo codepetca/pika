@@ -11,96 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-23 — Prepared legacy Quiz hard removal
-
-**Risk profile:** runtime-platform/destructive-schema
-
-**Completed:**
-- Added migration 108 to fail closed unless migration 107 purged all retired
-  data, then drop the four Quiz tables, their catalog helpers, the private
-  backfill ledger/functions, `gradebook_settings.quizzes_weight`, v1 database
-  export RPCs/registry rows, and retired site-configuration keys.
-- Removed active Quiz branches and aliases from assessment drafts, gradebook,
-  course packages, publishing, blueprints, current domain types, and server
-  helpers. Course packages now export v4 and import v2/v3/v4; the v2 reader
-  discards `quizzes.md` while preserving reusable non-Quiz content.
-- Reduced the live classroom ownership graph from 44 to 40 resources while
-  retaining the immutable archive-v1 resource contract solely for discard-only
-  restore of non-Quiz classroom data.
-- Regenerated Supabase database types from a disposable post-108 database; the
-  generated contract has no Quiz tables, fields, or functions.
-- Removed obsolete retirement inventory, backfill parity, and envelope adapter
-  utilities after their destructive decision was finalized.
-- Review remediation preserves course-package v2 as an import-only boundary,
-  discarding `quizzes.md` while retaining reusable non-Quiz content. V1
-  classroom restore now excludes Quiz-only actors and storage objects from the
-  restore plan after validating the complete source artifact.
-- Migration 108 now requires exact equality between the live archive registry
-  and versioned source contract 2. The disposable harness proves registry drift
-  fails without deleting v1 metadata or Quiz tables before restoring the
-  registry and completing hard removal.
-- Final integration review found the production archive canary still bound to
-  archive v1. The operator runner and runbook now use archive format 2, the
-  40-resource graph, migration-107 source/restore contracts, and the current v2
-  restore planner. A subprocess smoke test loads the actual excluded script so
-  future import drift fails in Vitest.
-
-**Validation:**
-- Fresh disposable replay through migrations 106-108 passes freeze, direct
-  archive-v2 activation, hard-removal catalog assertions, current export,
-  restore, and compaction contracts.
-- Generated Supabase types exactly match the disposable post-108 schema.
-- TypeScript, lint, architecture, UI policy, shell syntax, `git diff --check`,
-  and the Pika pre-commit audit pass.
-- Full coverage passes: 413 files and 3,684 tests. The post-108 atomic blueprint
-  database contract also passes against the disposable database.
-- The focused post-review archive suite passes: 4 files and 53 tests, including
-  actual operator-runner loading. TypeScript, lint, architecture, diff checks,
-  and the Pika audit remain green after the canary port.
-- Migration 108 was not applied to the shared local database or any hosted
-  target.
-
-**Remaining:**
-- Complete PR review/remediation, exact-head CI, and merge. Applying migration
-  108 remains separately target-authorized.
-
-## 2026-07-23 — Rebased test-preview hardening after Quiz removal
-
-**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
-
-**Completed:**
-- Rebased PR 920 onto the completed legacy Quiz removal on `main`, preserving
-  the canonical test-only API and both preview request-order regressions.
-- Resequenced the atomic snapshot migration to 109 and consolidated the
-  uncommitted document-authoring and durable-cleanup schema into migration 110.
-- Kept ordinary document writers behind compare-and-swap updates, added a
-  leased storage-cleanup queue and cron worker, and retained real transport
-  SSRF/timeout coverage.
-- Left the shared local database unchanged. It remains reset and seeded through
-  migration 104; migrations 105-110 are unapplied there.
-
-**Validation:**
-- Full Vitest coverage passes: 421 files and 3,749 tests.
-- Pika pre-commit audit, ESLint, production build, and `git diff --check` pass.
-- No local or hosted migration was applied.
-
-**Remaining:**
-- Run targeted security rereview and final integration review.
-- Push the rebased exact head, wait for CI, and merge only after approval.
-
-## 2026-07-24 — AI-readiness CLI probe, course-import fix, repo tidy
-
-**Completed:**
-- Explored making Pika "AI-ready"; built a delete-able CLI probe (`pnpm pika`, branch `cli-probe`) that drives teacher operations headlessly via the existing role-gated API — no server changes. Logs in through `POST /api/auth/login`, persists the session cookie to `.auth/` (gitignored), and reuses the shared markdown contracts so a script produces exactly what the UI does. Commands: `login`, `whoami`, `test pull/push`, `course list/push/instantiate`; writes are dry-run unless `--yes`. Added `scripts/pika-cli-smoke.ts` (`pnpm smoke:pika-cli`) whose pull→push→pull round-trip is a drift detector. Pushed the branch to start a usage trial; not a merge candidate.
-- The probe surfaced a real bug on first use: importing a course package containing tests/lesson-plans failed with `400 assessments.N: Unrecognized key: "id"`, affecting both the JSON API and the UI's tar upload. Root cause: markdown parsers attach `id: existingMatch?.id` (undefined on fresh import), which zod 4 rejects on `.strict()` schemas; assignments were normalized but assessments and lesson templates were passed raw. Fixed by normalizing all three consistently in `buildCreateBlueprintWritePlan`, with regression tests at the write-plan layer (the existing route test mocks the function, so it could not catch this). Merged as PR #932.
-- Fixed `scripts/repo-tidy.sh` to classify worktrees by PR state (reusing the existing `PR_MAP`) instead of remote presence, since squash-merge + delete-on-merge makes "not on remote" the normal state of merged work — the old logic inverted the risk signal (33 of 44 flagged items were already merged). Merged as PR #934.
-- Repo hygiene: reduced worktrees from 48 to 6 (removed 42 merged/closed-PR worktrees and local branches, remotes preserved for recovery), deleted one merged remote branch, and closed stale PR #567.
-
-**Validation:**
-- Full `pnpm test` (413 files, 3688 tests) on the #932 fix; regression tests confirmed to fail without the patch with the exact production error.
-- End-to-end via the CLI against fixed `main`: `course push` with `tests.md` imports, `course instantiate` creates a classroom, and both quizzes materialize as real tests — the exact case that failed pre-fix.
-- `pnpm smoke:pika-cli --full` passes; typecheck and `pnpm check:architecture` clean on both PRs.
-
 ## 2026-07-24 — Aligned Claude workflow guidance
 
 **Risk profile:** none
@@ -118,18 +28,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - None.
-- `pnpm run db:types:check`
-- Pika changed-file audit and composite-widget accessibility checklist
-- Playwright teacher preview captures at desktop and mobile light/dark, including mobile-dark document-open focus, plus a student-authenticated denial capture; no horizontal overflow
-- Component keyboard regression for document focus entry/return and semantic region assertions
-- Live pinned public HTTPS fetch returned `200`; direct/mixed/private/IPv4/IPv6/NAT64 and redirect rejection tests issue no unsafe request
-- Local migration history reports 105 applied; generated types match; the RPC exists with execute granted only to `service_role`
-- `git diff --check`
-
-**Remaining:**
-- Require targeted security review, final integration review, exact-head CI, and protected merge.
-- Apply migration 105 to each deployment target before deploying the updated sync route.
-- Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.
 
 ## 2026-07-24 — Remediated test-preview review findings
 
@@ -958,6 +856,66 @@ classroom lineage.
 **Remaining:**
 - None.
 
+## 2026-08-01 — Native Pal learner experience
+
+**Risk profile:** runtime-platform.
+
+**Completed:**
+- Replaced the student achievements iframe/postMessage prototype with the
+  native `@codepet/pal-widget` roadmap, companion, and reward surfaces behind
+  the existing `PAL_ENABLED` gate.
+- Added a student-only Pal provider that obtains short-lived read tokens from
+  Pika's same-origin authenticated route; raw learner IDs and integration
+  credentials remain server-side.
+- Bound provider state to a server-generated opaque generation for each
+  authenticated classroom page session, preventing stale in-flight snapshots
+  or reward state from crossing a learner/session transition.
+- Added a fail-open integration boundary so a synchronous Pal package or
+  surface failure re-renders the unchanged Pika classroom outside Pal.
+- Made Pika's `ModalLayer` the sole reward dialog owner. Reward close paths
+  acknowledge the pending Pal reward, acknowledgement failure stays visible
+  and retryable, and the student Tests surface suppresses ambient Pal overlays.
+- Imported the package stylesheet once, switched theme-contract validation to
+  the package export, removed the temporary vendored manifest, and added the
+  integrations directory to Tailwind content discovery.
+- Published and registry-verified `@codepet/pal-widget@0.1.0-alpha.1`, then
+  replaced the workstation-local tarball with the exact immutable npm version
+  and integrity-pinned lockfile entry.
+- Updated the Pika design and pilot guides for the native package boundary and
+  host-owned reward lifecycle.
+
+**Validation:**
+- Full Vitest suite: 458 files / 3,975 tests.
+- TypeScript, lint, architecture, design policy, UI policy, production build,
+  and diff checks pass.
+- Real local Pika-to-Pal flow: learner-scoped token and snapshot; Pika login and
+  on-time assignment-completion facts delivered from the transactional outbox;
+  achievement and fish reward rendered natively; reward acknowledgement
+  returned 204 on the initial call and two replays.
+- Cross-learner check: a second authenticated Pika learner received a separate
+  empty roadmap while the first retained login and on-time achievements.
+- Automated transition coverage proves a late learner-A snapshot cannot paint
+  after the authenticated scope changes to learner B; a hard render-failure
+  test proves the academic shell remains available.
+- Playwright visual inspection passed for student desktop/mobile, light/dark,
+  companion placement, host-owned reward modal, and Pal-unavailable retry
+  containment; Pika Today remained usable while Pal was stopped.
+- Final registry-installed smoke check confirmed the exact
+  `@codepet/pal-widget@0.1.0-alpha.1` package renders the native roadmap and
+  companion inside the existing Pika classroom shell without an iframe.
+- Exact-head security review confirmed Pal already responds with
+  `Cache-Control: no-store`; Pika now also forces `cache: 'no-store'` on every
+  authenticated widget request and covers that defense in depth with a client
+  regression test.
+- Exact-head architecture review narrowed failure boundaries to Pal-owned
+  roadmap and ambient surfaces, so Pika classroom exceptions continue through
+  Pika's normal error handling instead of being mislabeled as widget failures.
+
+**Remaining:**
+- Publish the Pika branch and confirm exact-head review and CI.
+
+## 2026-08-01 — Native Pal learner experience
+
 ## 2026-08-02 — Built managed-storage ownership foundation
 
 **Risk profile:** high — rolling schema/application compatibility, cross-owner
@@ -1379,3 +1337,43 @@ concurrency, managed Storage ownership, and migration safety.
 - Keep migration 118 and deletion disabled until separately authorized rollout
   and canary verification. Cold archives and individual-student purge remain
   follow-up scopes.
+
+## 2026-08-04 — Complete native Pal shell integration
+
+**Risk profile:** runtime-platform — authenticated learner scope, external
+widget runtime, and persistent classroom shell behavior.
+
+**Completed:**
+- Moved the single student-only `PalProvider` into the persistent authenticated
+  classroom layout so the roadmap, companion, and reward surfaces share one
+  learner snapshot across classroom and tab navigation.
+- Kept teachers and invalid/disabled Pal configurations outside the provider;
+  optional widget failures remain contained without taking down academic pages.
+- Rotated the Pal client and its token cache whenever the opaque authenticated
+  scope changes, and cached learner read tokens only until their server-issued
+  expiry enters the safe refresh window.
+- Added bounded server-side per-learner token reuse, in-flight coalescing, and
+  module-shared mint-start backoff so a browser-cache bypass cannot fan out
+  privileged Pal mint calls, including failure and short-token paths.
+- Kept the native achievement roadmap in Pika's Achievements tab and suppressed
+  the ambient companion and reward modal while the student Tests surface is
+  active, including Pika's History API tab transitions.
+- Published and registry-verified `@codepet/pal-widget@0.1.0-alpha.2`, then
+  replaced the temporary package tarball with the exact immutable npm version
+  and its integrity-pinned lockfile entry.
+
+**Validation:**
+- Full Vitest suite: 467 files / 4,044 tests.
+- TypeScript, architecture policy, UI policy, production build, and diff checks
+  pass against the registry-installed `0.1.0-alpha.2` package.
+- Live local Pika-to-Pal flow returned a same-origin learner read token, fetched
+  the cross-origin learner snapshot, and rendered the canonical cat-on-grass
+  companion with no iframe.
+- Playwright inspection passed for the authenticated student surface at
+  desktop/mobile and light/dark viewports. Component coverage verifies the
+  native roadmap, host-owned reward modal, retry containment, scope rotation,
+  and Tests-tab ambient suppression.
+
+**Remaining:**
+- Push the token-burst review remediation to PR #966, then require exact-head
+  CI and final independent confirmation before merge.
