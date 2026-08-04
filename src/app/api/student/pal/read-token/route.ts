@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { isPalEnabled } from '@/lib/server/pal-config'
-import { mintPalReadToken } from '@/lib/server/pal-read-token'
+import { getPalReadTokenForStudent } from '@/lib/server/pal-read-token'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -20,7 +20,7 @@ export const POST = withErrorHandler('PostStudentPalReadToken', async () => {
   }
 
   try {
-    const token = await mintPalReadToken({ studentId: user.id })
+    const token = await getPalReadTokenForStudent({ studentId: user.id })
     return NextResponse.json(token, {
       headers: noStoreHeaders,
     })

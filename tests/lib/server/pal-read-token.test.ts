@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { mintPalReadToken } from '@/lib/server/pal-read-token'
+import {
+  createPalReadTokenBroker,
+  mintPalReadToken,
+} from '@/lib/server/pal-read-token'
 
 describe('Pal learner read token', () => {
   afterEach(() => vi.unstubAllEnvs())
@@ -72,5 +75,82 @@ describe('Pal learner read token', () => {
       fetchImpl,
       now: new Date('2026-09-16T18:20:00.000Z'),
     })).rejects.toThrow()
+  })
+
+  it('coalesces a burst and reuses the token for one authenticated learner', async () => {
+    let resolveMint: ((token: {
+      token: string
+      expires_at: string
+    }) => void) | undefined
+    const mint = vi.fn(() => new Promise<{
+      token: string
+      expires_at: string
+    }>((resolve) => { resolveMint = resolve }))
+    const getToken = createPalReadTokenBroker({
+      mint,
+      now: () => Date.parse('2026-09-16T18:20:00.000Z'),
+    })
+
+    const burst = Array.from(
+      { length: 20 },
+      () => getToken({ studentId: 'student-1' }),
+    )
+    expect(mint).toHaveBeenCalledTimes(1)
+    resolveMint?.({
+      token: 'shared-token',
+      expires_at: '2026-09-16T18:25:00.000Z',
+    })
+
+    await expect(Promise.all(burst)).resolves.toEqual(
+      Array.from({ length: 20 }, () => ({
+        token: 'shared-token',
+        expires_at: '2026-09-16T18:25:00.000Z',
+      })),
+    )
+    await expect(getToken({ studentId: 'student-1' })).resolves.toMatchObject({
+      token: 'shared-token',
+    })
+    expect(mint).toHaveBeenCalledTimes(1)
+  })
+
+  it('isolates learners and refreshes when a token enters its safety buffer', async () => {
+    let now = Date.parse('2026-09-16T18:20:00.000Z')
+    const mint = vi.fn(async ({ studentId }: { studentId: string }) => ({
+      token: `${studentId}-${mint.mock.calls.length}`,
+      expires_at: '2026-09-16T18:25:00.000Z',
+    }))
+    const getToken = createPalReadTokenBroker({ mint, now: () => now })
+
+    await expect(getToken({ studentId: 'student-1' })).resolves.toMatchObject({
+      token: 'student-1-1',
+    })
+    await expect(getToken({ studentId: 'student-2' })).resolves.toMatchObject({
+      token: 'student-2-2',
+    })
+    now = Date.parse('2026-09-16T18:24:31.000Z')
+    await getToken({ studentId: 'student-1' })
+
+    expect(mint).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not cache a failed mint', async () => {
+    const mint = vi.fn()
+      .mockRejectedValueOnce(new Error('Pal unavailable'))
+      .mockResolvedValueOnce({
+        token: 'recovered-token',
+        expires_at: '2026-09-16T18:25:00.000Z',
+      })
+    const getToken = createPalReadTokenBroker({
+      mint,
+      now: () => Date.parse('2026-09-16T18:20:00.000Z'),
+    })
+
+    await expect(getToken({ studentId: 'student-1' })).rejects.toThrow(
+      'Pal unavailable',
+    )
+    await expect(getToken({ studentId: 'student-1' })).resolves.toMatchObject({
+      token: 'recovered-token',
+    })
+    expect(mint).toHaveBeenCalledTimes(2)
   })
 })

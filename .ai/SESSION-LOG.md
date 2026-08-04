@@ -1352,6 +1352,9 @@ widget runtime, and persistent classroom shell behavior.
 - Rotated the Pal client and its token cache whenever the opaque authenticated
   scope changes, and cached learner read tokens only until their server-issued
   expiry enters the safe refresh window.
+- Added bounded server-side per-learner token reuse and in-flight coalescing so
+  an authenticated browser-cache bypass cannot fan out privileged Pal mint
+  calls; failures remain retryable and are never cached.
 - Kept the native achievement roadmap in Pika's Achievements tab and suppressed
   the ambient companion and reward modal while the student Tests surface is
   active, including Pika's History API tab transitions.
@@ -1360,7 +1363,7 @@ widget runtime, and persistent classroom shell behavior.
   and its integrity-pinned lockfile entry.
 
 **Validation:**
-- Full Vitest suite: 462 files / 4,009 tests.
+- Full Vitest suite: 467 files / 4,042 tests.
 - TypeScript, architecture policy, UI policy, production build, and diff checks
   pass against the registry-installed `0.1.0-alpha.2` package.
 - Live local Pika-to-Pal flow returned a same-origin learner read token, fetched
@@ -1372,5 +1375,5 @@ widget runtime, and persistent classroom shell behavior.
   and Tests-tab ambient suppression.
 
 **Remaining:**
-- Commit and push the exact registry integration to PR #966, then require
-  exact-head CI and independent review before merge.
+- Push the token-burst review remediation to PR #966, then require exact-head
+  CI and final independent confirmation before merge.
