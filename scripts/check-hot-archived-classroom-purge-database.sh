@@ -7,6 +7,39 @@ if [[ -z "$DB_CONTAINER" ]]; then
   exit 2
 fi
 
+cleanup_storage_reappearance_helper() {
+  docker exec -i "$DB_CONTAINER" sh -c \
+    'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U supabase_storage_admin -d postgres -X -v ON_ERROR_STOP=1 -c "drop function if exists storage.insert_classroom_purge_reappearance_fixture()"' \
+    >/dev/null 2>&1 || true
+}
+trap cleanup_storage_reappearance_helper EXIT
+
+# A real provider can recreate bytes outside PostgreSQL. The local Storage
+# emulator represents those bytes with storage.objects, whose table owner is
+# deliberately not postgres. Install one fixed-input, storage-owner-only test
+# helper so the resurrection check preserves that production ownership boundary.
+docker exec -i "$DB_CONTAINER" sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U supabase_storage_admin -d postgres -X -v ON_ERROR_STOP=1' <<'SQL'
+create or replace function storage.insert_classroom_purge_reappearance_fixture()
+returns void
+language plpgsql
+security definer
+set search_path = storage, pg_temp
+as $$
+begin
+  lock table storage.objects in access exclusive mode;
+  alter table storage.objects disable trigger enforce_managed_storage_object_write;
+  insert into storage.objects (bucket_id, name)
+  values ('test-documents', 'purge-fixture/reappeared.bin');
+  alter table storage.objects enable trigger enforce_managed_storage_object_write;
+end;
+$$;
+revoke all on function storage.insert_classroom_purge_reappearance_fixture()
+  from public, anon, authenticated, service_role;
+grant execute on function storage.insert_classroom_purge_reappearance_fixture()
+  to postgres;
+SQL
+
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 
@@ -639,20 +672,26 @@ begin
   if not coalesce((v_result->>'ok')::boolean, false) then
     raise exception 'Reappearance purge did not begin: %', v_result;
   end if;
+  update public.classroom_purge_objects
+  set next_attempt_at = case managed_storage_object_id
+    when 'b1800000-0000-4000-8000-000000000108' then clock_timestamp()
+    else clock_timestamp() + interval '1 minute'
+  end
+  where operation_id = 'b1800000-0000-4000-8000-000000000201';
   select * into strict v_claim from public.claim_classroom_purge_object(
     'b1800000-0000-4000-8000-000000000201',
     'b1800000-0000-4000-8000-000000000001', gen_random_uuid(), 60
   );
+  if v_claim.managed_storage_object_id <>
+    'b1800000-0000-4000-8000-000000000108'
+  then raise exception 'Reappearance fixture claimed the wrong object'; end if;
   delete from storage.objects
   where bucket_id = v_claim.storage_bucket and name = v_claim.storage_path;
   if not public.complete_classroom_purge_object(
     v_claim.id, 'b1800000-0000-4000-8000-000000000001', v_claim.lease_token
   ) then raise exception 'Reappearance object did not complete'; end if;
 
-  alter table storage.objects disable trigger enforce_managed_storage_object_write;
-  insert into storage.objects (bucket_id, name)
-  values ('test-documents', 'purge-fixture/reappeared.bin');
-  alter table storage.objects enable trigger enforce_managed_storage_object_write;
+  perform storage.insert_classroom_purge_reappearance_fixture();
 
   select * into v_claim from public.claim_classroom_purge_object(
     'b1800000-0000-4000-8000-000000000201',
@@ -693,6 +732,9 @@ $storage_reappeared$;
 
 rollback;
 SQL
+
+cleanup_storage_reappearance_helper
+trap - EXIT
 
 # Prove a trigger-level writer fails fast instead of deadlocking while purge
 # owns the lifecycle advisory lock. No fixture rows are required for this lock.
