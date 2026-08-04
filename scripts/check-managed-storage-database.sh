@@ -22,19 +22,6 @@ begin
   then
     raise exception 'Managed protocol lock helper is externally executable';
   end if;
-  if has_function_privilege(
-      'service_role',
-      'public.begin_hot_archived_classroom_purge(uuid,uuid,uuid,text,jsonb)',
-      'execute'
-    )
-    or has_function_privilege(
-      'service_role',
-      'public.finalize_hot_archived_classroom_purge(uuid,uuid)',
-      'execute'
-    )
-  then
-    raise exception 'Permanent classroom purge entry point remains executable';
-  end if;
 end;
 $privileges$;
 
@@ -1698,16 +1685,34 @@ commit;
 SQL
 assignment_reference_delete_status=$?
 set -e
+set +e
 wait "$assignment_reference_pid"
+assignment_reference_status=$?
+set -e
+if [[ "$assignment_reference_status" -ne 0 ]]; then
+  echo "Assignment reference transaction failed unexpectedly." >&2
+  sed -n '1,200p' "$concurrency_dir/assignment-reference.out" >&2
+  sed -n '1,200p' "$concurrency_dir/assignment-reference.err" >&2
+  exit 1
+fi
 if [[ "$assignment_reference_delete_status" -eq 0 ]] \
   || ! grep -q 'managed_storage_cleanup_referenced' \
     "$concurrency_dir/assignment-reference-delete.err"; then
   echo "Late assignment reference did not stop Storage deletion." >&2
   exit 1
 fi
+set +e
 assignment_reference_failure_result="$(docker exec "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -A -t -v ON_ERROR_STOP=1 -c \
-  "select public.fail_assignment_artifact_storage_cleanup('a1300000-0000-4000-8000-000000000020', 'a1300000-0000-4000-8000-000000000030', 'managed_storage_cleanup_referenced');")"
+  "select public.fail_assignment_artifact_storage_cleanup('a1300000-0000-4000-8000-000000000020', 'a1300000-0000-4000-8000-000000000030', 'managed_storage_cleanup_referenced');" \
+  2>"$concurrency_dir/assignment-reference-failure.err")"
+assignment_reference_failure_status=$?
+set -e
+if [[ "$assignment_reference_failure_status" -ne 0 ]]; then
+  echo "Late assignment reference cleanup failure RPC errored." >&2
+  sed -n '1,200p' "$concurrency_dir/assignment-reference-failure.err" >&2
+  exit 1
+fi
 if [[ "$assignment_reference_failure_result" != "t" ]]; then
   echo "Late assignment reference cleanup failure did not settle." >&2
   exit 1
@@ -1749,11 +1754,29 @@ if [[ "$reference_waiting" != "true" ]]; then
   echo "Test reference did not reach the lifecycle fence." >&2
   exit 1
 fi
+set +e
 docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -c \
   "select public.complete_test_document_snapshot_storage_cleanup('a1300000-0000-4000-8000-000000000022', 'a1300000-0000-4000-8000-000000000032');" \
   >"$concurrency_dir/test-reference-complete.out" \
   2>"$concurrency_dir/test-reference-complete.err"
+test_reference_complete_status=$?
+set -e
+if [[ "$test_reference_complete_status" -eq 0 ]] \
+  || ! grep -q 'classroom_operation_busy' \
+    "$concurrency_dir/test-reference-complete.err"; then
+  echo "Concurrent test cleanup completion did not fail retryably." >&2
+  sed -n '1,200p' "$concurrency_dir/test-reference-complete.out" >&2
+  sed -n '1,200p' "$concurrency_dir/test-reference-complete.err" >&2
+  exit 1
+fi
 wait "$test_reference_pid"
+test_reference_retry_result="$(docker exec "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -A -t -v ON_ERROR_STOP=1 -c \
+  "select public.complete_test_document_snapshot_storage_cleanup('a1300000-0000-4000-8000-000000000022', 'a1300000-0000-4000-8000-000000000032');")"
+if [[ "$test_reference_retry_result" != "t" ]]; then
+  echo "Retrying test cleanup completion did not reconcile the late reference." >&2
+  exit 1
+fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
   >"$concurrency_dir/assignment-delete.out" \

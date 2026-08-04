@@ -24,6 +24,7 @@
     "check:design-policy": "tsx scripts/check-design-policy.ts",
     "check:ui-policy": "tsx scripts/check-ui-policy.ts",
     "check:managed-storage-lineage": "node scripts/check-managed-storage-migration-lineage.mjs",
+    "check:classroom-purge-db-lint": "node scripts/check-hot-archived-classroom-purge-lint.mjs",
     "managed-storage:readiness": "tsx scripts/run-managed-storage-readiness.ts",
     "managed-storage:cleanup": "tsx scripts/run-managed-storage-cleanup.ts",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",

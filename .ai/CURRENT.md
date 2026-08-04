@@ -1,10 +1,6 @@
-Focus: PR #967 managed storage; #963 unchanged. Migrations 115/116 exact; 117 unapplied.
-
-## Context
-
-- Status: `.ai/features.json`; design: `DESIGN.md`; workflow: `docs/dev-workflow.md`.
-- Worktrees: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`.
-- Env: `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
-- Toronto/server/`withErrorHandler`/semantic/human-migration invariants apply.
-- Rollout: `docs/guidance/managed-storage-rollout.md`; enforcement, cleanup, and
-  deletion are off. Shared local has PR #963's different 117.
+Focus: verified managed-ID hot-archive deletion in draft PR #968; leave #963 unchanged.
+Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
+Env: maintainers use `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
+Exact-head CI/review pass at `ab4ce5f6`, including replay, destructive/concurrency
+fixtures, recovery rehearsal, and teacher/student UI. Migration 118 remains draft
+and rollout-disabled; applying it requires fresh target-specific authorization.
