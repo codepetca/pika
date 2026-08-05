@@ -43,6 +43,7 @@ function createMockFile(
 // Helper to create a mock request with FormData
 function createMockRequest(file?: File): NextRequest {
   const formData = new FormData()
+  formData.append('assignment_doc_id', '10000000-0000-4000-8000-000000000001')
   if (file) {
     formData.append('file', file)
   }
@@ -72,7 +73,30 @@ describe('POST /api/upload-image', () => {
       data: { publicUrl: 'https://storage.example.com/submission-images/user-123/test.png' },
     })
 
+    const tableRows: Record<string, Record<string, unknown>> = {
+      assignment_docs: {
+        id: '10000000-0000-4000-8000-000000000001',
+        student_id: 'user-123',
+        assignment_id: '20000000-0000-4000-8000-000000000001',
+      },
+      assignments: {
+        id: '20000000-0000-4000-8000-000000000001',
+        classroom_id: '30000000-0000-4000-8000-000000000001',
+      },
+    }
     ;(getServiceRoleClient as any).mockReturnValue({
+      rpc: vi.fn(async () => ({
+        data: null,
+        error: { code: 'PGRST202', message: 'begin_managed_storage_upload' },
+      })),
+      from: vi.fn((table: string) => {
+        const query: any = {
+          select: vi.fn(() => query),
+          eq: vi.fn(() => query),
+          maybeSingle: vi.fn(async () => ({ data: tableRows[table], error: null })),
+        }
+        return query
+      }),
       storage: {
         from: vi.fn(() => ({
           upload: mockStorageUpload,
@@ -125,7 +149,7 @@ describe('POST /api/upload-image', () => {
       await POST(request)
 
       expect(requireAuth).toHaveBeenCalledTimes(1)
-      expect(mockStorageUpload.mock.calls[0][0]).toMatch(/^teacher-456\//)
+      expect(mockStorageUpload.mock.calls[0][0]).toContain('/students/teacher-456/')
     })
   })
 
@@ -214,7 +238,7 @@ describe('POST /api/upload-image', () => {
       const [filename, buffer, options] = mockStorageUpload.mock.calls[0]
 
       // Filename should include user ID
-      expect(filename).toMatch(/^user-123\//)
+      expect(filename).toContain('/students/user-123/')
       expect(filename).toMatch(/\.png$/)
       expect(buffer).toBeInstanceOf(Buffer)
       expect(options.contentType).toBe('image/png')

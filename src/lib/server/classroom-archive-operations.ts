@@ -18,6 +18,11 @@ import {
 } from '@/lib/server/classroom-archive-format'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
+import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 
 export const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
 export const CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION =
@@ -388,10 +393,68 @@ async function mapWithConcurrency<T, R>(
 
 async function downloadStorageObjects(
   supabase: SupabaseClient,
+  classroomId: string,
   resources: Record<string, unknown[]>,
   supabaseUrl: string,
 ): Promise<ClassroomArchiveStorageObject[]> {
-  const references = discoverClassroomStorageReferences(resources, supabaseUrl)
+  type StorageReference = ReturnType<typeof discoverClassroomStorageReferences>[number] & {
+    managedOwner?: NonNullable<ClassroomArchiveStorageObject['managedOwner']>
+  }
+  let references: StorageReference[] = discoverClassroomStorageReferences(resources, supabaseUrl)
+  let settings: { data: { mode?: string } | null; error: unknown } = {
+    data: null,
+    error: { code: 'managed_storage_compatibility' },
+  }
+  try {
+    const query = (supabase as any)
+      .from('managed_storage_settings')
+      .select('mode')
+      .eq('singleton', true)
+    if (typeof query.maybeSingle === 'function') settings = await query.maybeSingle()
+  } catch {
+    // The settings table is absent before migration 117.
+  }
+  if (!settings.error && settings.data?.mode === 'enforced') {
+    const inventory = await (supabase as any)
+      .from('managed_storage_objects')
+      .select('id,storage_bucket,storage_path,purpose,status,created_by_user_id,data_subject_user_id,resource_type,resource_id')
+      .eq('classroom_id', classroomId)
+      .eq('status', 'ready')
+      .in('storage_bucket', ['assignment-artifacts', 'submission-images', 'test-documents'])
+    if (inventory.error) {
+      throw new ClassroomArchiveExportError(
+        'archive_managed_storage_inventory_failed',
+        'Classroom file ownership could not be read',
+        503,
+        true,
+      )
+    }
+    references = z.array(z.object({
+      id: z.string().uuid(),
+      storage_bucket: z.enum(['assignment-artifacts', 'submission-images', 'test-documents']),
+      storage_path: z.string().min(1),
+      purpose: z.enum([
+        'student_assignment_artifact', 'student_inline_image', 'teacher_test_material',
+        'test_execution_snapshot', 'legacy_classroom_file',
+      ]),
+      status: z.literal('ready'),
+      created_by_user_id: z.string().uuid().nullable(),
+      data_subject_user_id: z.string().uuid().nullable(),
+      resource_type: z.string().nullable(),
+      resource_id: z.string().uuid().nullable(),
+    }).passthrough()).parse(inventory.data || []).map((object) => ({
+      bucket: object.storage_bucket,
+      path: object.storage_path,
+      managedOwner: {
+        objectId: object.id,
+        purpose: object.purpose,
+        createdByUserId: object.created_by_user_id,
+        dataSubjectUserId: object.data_subject_user_id,
+        resourceType: object.resource_type,
+        resourceId: object.resource_id,
+      },
+    }))
+  }
   return mapWithConcurrency(references, 4, async (reference) => {
     const { data, error } = await supabase.storage.from(reference.bucket).download(reference.path)
     if (error || !data) {
@@ -407,6 +470,7 @@ async function downloadStorageObjects(
       sourcePath: reference.path,
       contentType: data.type || null,
       bytes: new Uint8Array(await data.arrayBuffer()),
+      ...(reference.managedOwner ? { managedOwner: reference.managedOwner } : {}),
     }
   })
 }
@@ -436,6 +500,7 @@ async function uploadAndReadBackArchive(args: {
   storagePath: string
   archive: Uint8Array
   artifactSha256: string
+  managedObjectId?: string
 }): Promise<{ bytes: Uint8Array; uploadedByThisAttempt: boolean }> {
   const bucket = args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET)
   const existing = await bucket.download(args.storagePath)
@@ -464,7 +529,7 @@ async function uploadAndReadBackArchive(args: {
       const readBack = await bucket.download(args.storagePath)
       bytes = await readStorageBytes(readBack.data)
       if (!bytes) {
-        await bucket.remove([args.storagePath])
+        if (!args.managedObjectId) await bucket.remove([args.storagePath])
         throw new ClassroomArchiveExportError(
           'archive_storage_readback_failed',
           'Classroom archive could not be read back after upload',
@@ -476,7 +541,7 @@ async function uploadAndReadBackArchive(args: {
   }
 
   if (sha256Bytes(bytes) !== args.artifactSha256) {
-    if (uploadedByThisAttempt) await bucket.remove([args.storagePath])
+    if (uploadedByThisAttempt && !args.managedObjectId) await bucket.remove([args.storagePath])
     throw new ClassroomArchiveExportError(
       'archive_storage_checksum_mismatch',
       'Stored classroom archive checksum does not match',
@@ -532,6 +597,21 @@ function emitArchiveMetric(result: ClassroomArchiveExportResult, startedAt: numb
     resource_counts: result.ok ? result.resource_counts : undefined,
     error_code: result.ok ? undefined : result.error_code,
     retryable: result.ok ? undefined : result.retryable,
+  }))
+}
+
+function emitUnexpectedArchiveErrorMetric(operationId: string, error: unknown) {
+  const diagnostic = error && typeof error === 'object'
+    ? error as { name?: unknown; code?: unknown }
+    : null
+  const safeToken = (value: unknown) =>
+    typeof value === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(value)
+      ? value
+      : undefined
+  console.warn('[classroom-archive-unexpected-error]', JSON.stringify({
+    operation_id: operationId,
+    error_name: safeToken(diagnostic?.name),
+    error_code: safeToken(diagnostic?.code),
   }))
 }
 
@@ -622,6 +702,7 @@ export async function exportClassroomArchive(args: {
     const actors = await loadActorSnapshots(args.supabase, args.operationId)
     const storageObjects = await downloadStorageObjects(
       args.supabase,
+      args.classroomId,
       resources,
       args.supabaseUrl,
     )
@@ -656,6 +737,20 @@ export async function exportClassroomArchive(args: {
       archiveId: snapshot.archive_id,
       version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
+    const reservation = await reserveManagedStorageUpload({
+      supabase: args.supabase,
+      objectId: snapshot.archive_id,
+      bucket: CLASSROOM_ARCHIVE_BUCKET,
+      path: storagePath,
+      classroomId: args.classroomId,
+      purpose: 'classroom_archive',
+      createdByUserId: args.teacherId,
+      resourceType: 'classroom_archive_operation',
+      resourceId: args.operationId,
+      contentType: 'application/gzip',
+      byteSize: bundle.archive.byteLength,
+      allowLegacyCompatibility: true,
+    })
     const uploadIntentResponse = await args.supabase.rpc(
       'stage_classroom_archive_object_upload',
       {
@@ -678,15 +773,44 @@ export async function exportClassroomArchive(args: {
         true,
       )
     }
+    if (reservation) {
+      const binding = await (args.supabase as any).rpc('bind_managed_storage_operation_ledgers', {
+        p_operation_id: args.operationId,
+        p_teacher_id: args.teacherId,
+        p_managed_object_id: snapshot.archive_id,
+      })
+      if (binding.error || binding.data !== true) {
+        throw new ClassroomArchiveExportError(
+          'archive_managed_storage_binding_failed',
+          'Classroom archive ownership binding failed',
+          503,
+          true,
+        )
+      }
+    }
     const stored = await uploadAndReadBackArchive({
       supabase: args.supabase,
       storagePath,
       archive: bundle.archive,
       artifactSha256: bundle.artifactSha256,
+      managedObjectId: reservation ? snapshot.archive_id : undefined,
     })
+    if (reservation) {
+      await verifyManagedStorageUpload({
+        supabase: args.supabase,
+        objectId: snapshot.archive_id,
+        contentSha256: bundle.artifactSha256,
+      })
+    }
     const verification = verifyClassroomArchiveBundle(stored.bytes)
     if (!verification.ok) {
-      if (stored.uploadedByThisAttempt) {
+      if (reservation) {
+        await queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId: snapshot.archive_id,
+          errorCode: 'archive_readback_verification_failed',
+        })
+      } else if (stored.uploadedByThisAttempt) {
         await args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET).remove([storagePath])
       }
       throw new ClassroomArchiveExportError(
@@ -701,7 +825,13 @@ export async function exportClassroomArchive(args: {
       verification.manifest.classroom_id !== args.classroomId ||
       verification.manifest.teacher_id !== args.teacherId
     ) {
-      if (stored.uploadedByThisAttempt) {
+      if (reservation) {
+        await queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId: snapshot.archive_id,
+          errorCode: 'archive_readback_identity_mismatch',
+        })
+      } else if (stored.uploadedByThisAttempt) {
         await args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET).remove([storagePath])
       }
       throw new ClassroomArchiveExportError(
@@ -763,7 +893,13 @@ export async function exportClassroomArchive(args: {
       )
     }
     if (!parsedComplete.data.ok) {
-      if (!parsedComplete.data.retryable && stored.uploadedByThisAttempt) {
+      if (!parsedComplete.data.retryable && reservation) {
+        await queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId: snapshot.archive_id,
+          errorCode: 'archive_finalization_rejected',
+        })
+      } else if (!parsedComplete.data.retryable && stored.uploadedByThisAttempt) {
         await args.supabase.storage.from(CLASSROOM_ARCHIVE_BUCKET).remove([storagePath])
       }
       emitArchiveMetric(parsedComplete.data, startedAt)
@@ -774,6 +910,9 @@ export async function exportClassroomArchive(args: {
     emitArchiveMetric(result, startedAt)
     return result
   } catch (error) {
+    if (!(error instanceof ClassroomArchiveExportError)) {
+      emitUnexpectedArchiveErrorMetric(args.operationId, error)
+    }
     const archiveError = error instanceof ClassroomArchiveExportError
       ? error
       : new ClassroomArchiveExportError(

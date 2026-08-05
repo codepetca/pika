@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, POST } from '@/app/api/cron/cleanup-history/route'
+import { GET, POST, maxDuration } from '@/app/api/cron/cleanup-history/route'
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 const cleanupMocks = vi.hoisted(() => ({
@@ -8,6 +8,7 @@ const cleanupMocks = vi.hoisted(() => ({
   leaseToken: vi.fn(() => '00000000-0000-4000-8000-000000000001'),
   run: vi.fn(),
 }))
+const purgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -17,6 +18,10 @@ vi.mock('@/lib/server/classroom-archive-object-cleanup', () => ({
   isClassroomArchiveObjectCleanupEnabled: cleanupMocks.enabled,
   resolveClassroomArchiveObjectCleanupLeaseToken: cleanupMocks.leaseToken,
   runClassroomArchiveObjectCleanup: cleanupMocks.run,
+}))
+
+vi.mock('@/lib/server/classroom-purge', () => ({
+  runClassroomPurgeSafetyNet: purgeMocks.run,
 }))
 
 type QueryLog = {
@@ -200,10 +205,15 @@ function cronRequest(method: 'GET' | 'POST' = 'GET') {
 }
 
 describe('cron cleanup-history route', () => {
+  it('reserves the bounded runtime needed by purge recovery work', () => {
+    expect(maxDuration).toBe(60)
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     cleanupMocks.enabled.mockReturnValue(false)
+    purgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
   })
 
@@ -247,6 +257,23 @@ describe('cron cleanup-history route', () => {
       'cleanup_assignment_doc_save_operations',
       { p_completed_before: expect.any(String) }
     )
+  })
+
+  it('advances durable classroom purges through the authenticated safety net', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    purgeMocks.run.mockResolvedValue({ processed: 2, completed: 1, failed: 0 })
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      status: 'ok',
+      deleted: 0,
+      classroom_purge: { processed: 2, completed: 1, failed: 0 },
+    })
+    expect(purgeMocks.run).toHaveBeenCalledOnce()
   })
 
   it('fails when assignment save operation retention cannot be recorded', async () => {

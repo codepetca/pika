@@ -25,7 +25,7 @@ const claimSchema = z.object({
     && uuidSchema.safeParse(segments[0]).success
     && uuidSchema.safeParse(segments[1]).success
     && segments[2] === claim.operation_id
-    && segments[3] === 'classroom-v1.tar.gz'
+    && ['classroom-v1.tar.gz', 'classroom-v2.tar.gz'].includes(segments[3])
   const isRestorePath = claim.storage_bucket !== 'classroom-archives'
     && segments.length === 4
     && segments[0] === 'restores'
@@ -41,6 +41,10 @@ const claimSchema = z.object({
   }
 })
 const booleanRpcSchema = z.boolean()
+const objectPresenceSchema = z.object({
+  bucket_exists: z.boolean(),
+  object_exists: z.boolean(),
+}).strict()
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 type CleanupClaim = z.infer<typeof claimSchema>
@@ -99,14 +103,21 @@ function isMissingCleanupRpc(error: { code?: string; message?: string } | null |
 async function isAuthoritativeMissingObject(
   supabase: SupabaseClient,
   bucket: z.infer<typeof bucketSchema>,
+  path: string,
   error: unknown,
 ): Promise<boolean> {
   const evidence = missingStorageObjectEvidence(error)
   if (evidence === 'object') return true
-  if (evidence !== 'generic') return false
   try {
-    const response = await supabase.storage.getBucket(bucket)
-    return !response.error && response.data?.id === bucket
+    const response = await supabase.rpc('get_managed_storage_object_presence', {
+      p_storage_bucket: bucket,
+      p_storage_path: path,
+    })
+    if (response.error) return false
+    const presence = objectPresenceSchema.safeParse(response.data)
+    return presence.success
+      && presence.data.bucket_exists
+      && !presence.data.object_exists
   } catch {
     return false
   }
@@ -194,12 +205,14 @@ async function processClaim(args: {
     absent = !response.data && await isAuthoritativeMissingObject(
       args.supabase,
       args.claim.storage_bucket,
+      args.claim.storage_path,
       response.error,
     )
   } catch (error) {
     absent = await isAuthoritativeMissingObject(
       args.supabase,
       args.claim.storage_bucket,
+      args.claim.storage_path,
       error,
     )
   }

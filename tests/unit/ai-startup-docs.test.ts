@@ -230,6 +230,19 @@ describe('AI startup docs', () => {
     }
   })
 
+  it('keeps commit prompts on the canonical worktree safety flow', () => {
+    const prompts = ['.claude/commands/commit-and-pr.md', '.codex/prompts/commit-and-pr.md']
+
+    for (const promptPath of prompts) {
+      const prompt = readRepoFile(promptPath)
+
+      expect(prompt).toContain('git rev-parse --show-toplevel')
+      expect(prompt).toContain('$HOME/Repos/pika')
+      expect(prompt).toContain('detached HEAD')
+      expect(prompt).toContain('Never force-push')
+    }
+  })
+
   it('documents orient-only startup for read-only work', () => {
     const files = ['.ai/START-HERE.md', '.claude/commands/session-start.md', '.codex/prompts/session-start.md']
 

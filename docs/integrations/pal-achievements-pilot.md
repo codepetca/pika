@@ -37,8 +37,10 @@ use independently generated high-entropy values rather than human phrases.
 fragment. Loopback HTTP is allowed only outside production. When
 `PAL_ENABLED=true`, incomplete or unsafe configuration fails at the feature
 gate instead of silently running authoritative learner actions without their
-achievement fact. Authenticated-session telemetry remains best-effort so an
-adapter outage cannot invalidate a genuine login.
+achievement fact. The optional browser widget is contained separately: invalid
+widget configuration removes its navigation and shell surfaces instead of
+blocking academic pages. Authenticated-session telemetry remains best-effort so
+an adapter outage cannot invalidate a genuine login.
 
 When the switch is false or absent:
 
@@ -57,19 +59,19 @@ Do not enable the switch until all prerequisites are true:
 2. Configure all server-only Pal settings.
 3. Confirm Pal accepts the six version 1 event shapes.
 4. Confirm Pal implements `POST /api/v1/integration/read-token`.
-5. Publish a reviewed `@pal/widget` package version exposing
-   `@pal/widget/theme-contract`.
-6. Replace the interim iframe host with the native widget surfaces, import
-   `@pal/widget/styles.css` once, wrap the provider in
+5. Publish a reviewed `@codepet/pal-widget` package version exposing
+   `@codepet/pal-widget/theme-contract`.
+6. Mount the native widget surfaces, import
+   `@codepet/pal-widget/styles.css` once, wrap each surface in
    `PalWidgetThemeBoundary`, and pass Pika's scoped theme, density, viewport,
    and motion values.
 7. Run the Pika/Pal theme-contract drift test and visual verification matrix.
 8. Enable `PAL_ENABLED=true` in the pilot environment only, preferably before
    learners act on the first day of a pilot week.
 
-Pal must support a contract version before Pika emits it. The current package is
-private and unpublished, so the switch must remain off until steps 3–7 are
-complete.
+Pal must support a contract version before Pika emits it. Pika pins the reviewed
+public `@codepet/pal-widget@0.1.0-alpha.2` release exactly. Keep the switch off
+until steps 3–7 are complete in the target environment.
 
 The pilot does not backfill actions that happened while the switch was off.
 Enabling midweek is safe, but Pal will only receive facts asserted from that
@@ -163,7 +165,7 @@ order.
 
 ## Native widget boundary
 
-The rollout target is the native React `@pal/widget` package. When enabled,
+The rollout target is the native React `@codepet/pal-widget` package. When enabled,
 students see Achievements in the existing classroom sidebar.
 `PalAchievements` renders inside the normal content pane; the full roadmap is
 not a Pika overlay. `PalCompanion` and `PalRewardCelebration` mount only in
@@ -173,19 +175,33 @@ Pika imports Pal's stylesheet but does not copy it. The
 `PalWidgetThemeBoundary` wrapper aliases current Pika semantic tokens into the
 public `--pal-*` inputs. `PalProvider` receives the active theme plus explicit
 `density`, `viewport`, and motion values. Pal does not inspect Pika routes,
-roles, Tailwind breakpoints, theme context, or `@/ui` components.
+roles, Tailwind breakpoints, theme context, or `@/ui` components. Pika's
+canonical `ModalLayer` owns reward portal/dialog semantics, inertness, focus,
+Escape/backdrop policy, and scroll lock. Pal renders reward content with
+`hostManaged`; every host close path acknowledges the pending reward and a
+failed acknowledgement leaves the same reward visible and retryable.
+Pika suppresses ambient companion and reward layers on the student Tests
+surface so Pal cannot interrupt an assessment; pending rewards appear after the
+learner leaves that surface.
 
-The adapter, vendored contract manifest, and their drift tests can land before
-package publication. They do not make the interim iframe themeable: CSS custom
-properties do not cross an iframe origin. `StudentAchievementsTab` remains a
-disabled prototype on this branch and must be replaced, not enabled, after the
-package release.
+The package contract is the single machine-readable theme authority; Pika does
+not retain a vendored copy. `StudentAchievementsTab` renders the native roadmap
+component directly and contains Pal loading/error/retry states inside the
+Achievements pane. The companion and reward layers share the same learner
+provider without creating an iframe or a second application shell.
 
 The integration secret and raw learner ID never enter the browser. The token
-is supplied only through Pal's learner client. An unavailable or incomplete Pal
-implementation produces a bounded retry state while the rest of Pika remains
-usable. Pika rejects malformed or already-expired read tokens and caps accepted
-token lifetime at ten minutes, with a small allowance for server clock skew.
+is supplied only through Pal's learner client and cached until its server-provided
+`expires_at` enters the safe refresh window. Pika also creates a fresh opaque
+scope generation in the persistent authenticated student classroom layout. The scope is
+not a learner identifier and is never sent to Pal; it only prevents an in-flight
+or cached snapshot from one authenticated session from appearing in another.
+The provider therefore survives classroom route and tab changes but unmounts
+before the user can leave that authenticated route family and switch sessions.
+An unavailable, incomplete, or synchronously failing Pal implementation falls
+back to the unchanged Pika classroom shell. Pika rejects malformed or
+already-expired read tokens and caps accepted token lifetime at ten minutes,
+with a small allowance for server clock skew.
 
 ## Verification
 

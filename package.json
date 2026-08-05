@@ -23,6 +23,10 @@
     "check:architecture": "tsx scripts/check-architecture.ts",
     "check:design-policy": "tsx scripts/check-design-policy.ts",
     "check:ui-policy": "tsx scripts/check-ui-policy.ts",
+    "check:managed-storage-lineage": "node scripts/check-managed-storage-migration-lineage.mjs",
+    "check:classroom-purge-db-lint": "node scripts/check-hot-archived-classroom-purge-lint.mjs",
+    "managed-storage:readiness": "tsx scripts/run-managed-storage-readiness.ts",
+    "managed-storage:cleanup": "tsx scripts/run-managed-storage-cleanup.ts",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
     "dev-feedback": "node scripts/dev-feedback.mjs",
     "eval:grading-reviews": "tsx scripts/summarize-grading-reviews.ts",
@@ -44,6 +48,7 @@
     "smoke:pika-cli": "tsx scripts/pika-cli-smoke.ts"
   },
   "dependencies": {
+    "@codepet/pal-widget": "0.1.0-alpha.2",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

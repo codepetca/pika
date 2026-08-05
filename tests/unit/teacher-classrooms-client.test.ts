@@ -76,6 +76,9 @@ describe('teacher classrooms client', () => {
         classrooms: [archivedClassroom],
         cold_archives: [coldArchive],
         cold_archive_restore_enabled: true,
+        hot_classroom_purge_enabled_ids: [
+          '00000000-0000-4000-8000-000000000003',
+        ],
       }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -83,6 +86,9 @@ describe('teacher classrooms client', () => {
       classrooms: [archivedClassroom],
       coldArchives: [coldArchive],
       coldArchiveRestoreEnabled: true,
+      hotClassroomPurgeEnabledIds: [
+        '00000000-0000-4000-8000-000000000003',
+      ],
     })
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/classrooms?archived=true')
   })

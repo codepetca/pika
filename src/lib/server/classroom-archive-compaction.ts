@@ -453,6 +453,7 @@ async function downloadAndVerifyArchive(args: {
       operationId: args.operationId,
       currentActors,
       supabaseUrl: args.supabaseUrl,
+      deriveLegacyManagedOwnership: false,
     })
   } catch {
     throw new ClassroomArchiveCompactionError(
@@ -464,7 +465,10 @@ async function downloadAndVerifyArchive(args: {
   }
   return {
     restorePlan,
-    compactionResources: restorePlan.resources,
+    // The database rehearsal is rolled back and never uploads synthetic restore
+    // paths. Null preserves the current relational column shape; durable managed
+    // identities are exercised by the real restore flow.
+    compactionResources: compactionRehearsalResources(restorePlan.resources),
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
       storage_path: object.source_path,
@@ -493,6 +497,28 @@ function rowBatches(rows: ClassroomArchiveV2RestorePlan['resources'][string]) {
   }
   if (batch.length > 0) batches.push(batch)
   return batches
+}
+
+function stripRehearsalManagedStorageIdentities(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripRehearsalManagedStorageIdentities)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .map(([key, item]) => [
+      'managed_object_id',
+      'managed_object_ids',
+      'snapshot_managed_object_id',
+    ].includes(key)
+      ? [key, null]
+      : [key, stripRehearsalManagedStorageIdentities(item)]))
+}
+
+function compactionRehearsalResources(
+  resources: ClassroomArchiveV2RestorePlan['resources'],
+): ClassroomArchiveV2RestorePlan['resources'] {
+  return Object.fromEntries(Object.entries(resources).map(([table, rows]) => [
+    table,
+    rows.map((row) => stripRehearsalManagedStorageIdentities(row)),
+  ])) as ClassroomArchiveV2RestorePlan['resources']
 }
 
 async function stageRestorePreflight(args: {
@@ -661,6 +687,21 @@ function emitCompactionMetric(result: ClassroomArchiveCompactionResult, startedA
   }))
 }
 
+function emitUnexpectedCompactionErrorMetric(
+  operationId: string,
+  error: { code?: string; message?: string },
+) {
+  const safeToken = (value: unknown) =>
+    typeof value === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(value)
+      ? value
+      : undefined
+  console.warn('[classroom-archive-compaction-unexpected-error]', JSON.stringify({
+    operation_id: operationId,
+    error_code: safeToken(error.code),
+    error_reason: safeToken(error.message),
+  }))
+}
+
 export async function compactClassroomArchive(args: {
   supabase: SupabaseClient
   operationId: string
@@ -796,6 +837,7 @@ export async function compactClassroomArchive(args: {
       p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
     if (completeResponse.error) {
+      emitUnexpectedCompactionErrorMetric(operationId, completeResponse.error)
       const missingMigration = isMissingCompactionRpc(completeResponse.error)
       const terminalVerificationError = completeResponse.error.code === '22023'
       throw new ClassroomArchiveCompactionError(

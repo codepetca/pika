@@ -116,8 +116,12 @@ describe('classroom archive source ownership fence migration', () => {
     expect(databaseContract).toContain(
       'Pre-fence source cleanup worker deleted without a reservation',
     )
+    expect(databaseContract).toContain('classroom_operation_busy')
     expect(databaseContract).toContain(
-      'Concurrent cleanup staging was not serialized',
+      'Concurrent cleanup staging did not fail closed behind the verifier',
+    )
+    expect(databaseContract).toContain(
+      'Retried cleanup staging crossed the committed reservation',
     )
     expect(databaseContract).toContain(
       'Exact source-object presence lookup missed an existing object',

@@ -1,11 +1,12 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 
 describe('TestDocumentsEditor', () => {
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
   })
 
   it('exposes document types as keyboard-navigable tabs without adding a panel tab stop', async () => {
@@ -28,5 +29,61 @@ describe('TestDocumentsEditor', () => {
 
     await user.tab()
     expect(screen.getByRole('textbox', { name: 'Document title' })).toHaveFocus()
+  })
+
+  it('persists the managed object identity returned by a PDF upload', async () => {
+    const onDocumentsChange = vi.fn()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: 'https://project.supabase.co/storage/v1/object/public/test-documents/file.pdf',
+          title: 'file.pdf',
+          managed_object_id: '30000000-0000-4000-8000-000000000001',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          test: {
+            documents: [{
+              id: 'document-1',
+              title: 'file.pdf',
+              source: 'upload',
+              url: 'https://project.supabase.co/storage/v1/object/public/test-documents/file.pdf',
+              managed_object_id: '30000000-0000-4000-8000-000000000001',
+            }],
+          },
+        }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('crypto', { randomUUID: () => 'document-1' })
+    render(
+      <TestDocumentsEditor
+        testId="test-1"
+        isEditable
+        onDocumentsChange={onDocumentsChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'PDF' }))
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')
+    expect(input).not.toBeNull()
+    fireEvent.change(input!, {
+      target: { files: [new File(['pdf'], 'file.pdf', { type: 'application/pdf' })] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Upload pdf document' }))
+
+    await vi.waitFor(() => expect(onDocumentsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        managed_object_id: '30000000-0000-4000-8000-000000000001',
+      }),
+    ]))
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).documents[0]).toEqual(
+      expect.objectContaining({
+        managed_object_id: '30000000-0000-4000-8000-000000000001',
+      }),
+    )
   })
 })

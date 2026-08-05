@@ -1299,12 +1299,29 @@ RACE_STAGING_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME
   -c "set statement_timeout = '10s'; select public.stage_classroom_archive_compaction_objects('$RACE_STAGING_OPERATION_ID'::uuid, '11000000-0000-4000-8000-000000000029'::uuid, jsonb_build_array(jsonb_build_object('storage_bucket', 'assignment-artifacts', 'storage_path', '$RACE_STAGING_PATH', 'sha256', repeat('a', 64), 'byte_size', 1)));" 2>&1)" && RACE_STAGING_STATUS=0 || RACE_STAGING_STATUS=$?
 wait "$RACE_VERIFIER_PID"
 
+if [[ "$RACE_STAGING_STATUS" -eq 0 ]]; then
+  printf '%s\n' "$RACE_STAGING_OUTPUT" >&2
+  echo "Concurrent cleanup staging crossed the active verifier." >&2
+  exit 1
+fi
+
+RACE_STAGING_FINAL_STATUS="$RACE_STAGING_STATUS"
+RACE_STAGING_FINAL_OUTPUT="$RACE_STAGING_OUTPUT"
+if [[ "$RACE_STAGING_OUTPUT" == *"classroom_operation_busy"* ]]; then
+  RACE_STAGING_FINAL_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
+    -c "set statement_timeout = '10s'; select public.stage_classroom_archive_compaction_objects('$RACE_STAGING_OPERATION_ID'::uuid, '11000000-0000-4000-8000-000000000029'::uuid, jsonb_build_array(jsonb_build_object('storage_bucket', 'assignment-artifacts', 'storage_path', '$RACE_STAGING_PATH', 'sha256', repeat('a', 64), 'byte_size', 1)));" 2>&1)" && RACE_STAGING_FINAL_STATUS=0 || RACE_STAGING_FINAL_STATUS=$?
+elif [[ "$RACE_STAGING_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]]; then
+  printf '%s\n' "$RACE_STAGING_OUTPUT" >&2
+  echo "Concurrent cleanup staging did not fail closed behind the verifier." >&2
+  exit 1
+fi
+
 RACE_STAGING_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$DB_NAME" -X -Atc \
   "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_STAGING_OPERATION_ID'::uuid);")"
-if [[ "$RACE_STAGING_STATUS" -eq 0 ]] \
-  || [[ "$RACE_STAGING_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]]; then
-  printf '%s\n' "$RACE_STAGING_OUTPUT" >&2
-  echo "Concurrent cleanup staging was not serialized behind the reservation." >&2
+if [[ "$RACE_STAGING_FINAL_STATUS" -eq 0 ]] \
+  || [[ "$RACE_STAGING_FINAL_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]]; then
+  printf '%s\n' "$RACE_STAGING_FINAL_OUTPUT" >&2
+  echo "Retried cleanup staging crossed the committed reservation." >&2
   exit 1
 fi
 if [[ "$RACE_STAGING_COUNTS" != "3|3|0" ]]; then
