@@ -53,8 +53,14 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
     const title = typeof raw.title === 'string' ? raw.title.trim() : ''
     const source = normalizeTestDocumentSource(raw.source)
     const url = typeof raw.url === 'string' ? raw.url.trim() : ''
+    const managedObjectId = typeof raw.managed_object_id === 'string'
+      ? raw.managed_object_id.trim()
+      : ''
     const content = typeof raw.content === 'string' ? raw.content : ''
     const snapshotPath = typeof raw.snapshot_path === 'string' ? raw.snapshot_path.trim() : ''
+    const snapshotManagedObjectId = typeof raw.snapshot_managed_object_id === 'string'
+      ? raw.snapshot_managed_object_id.trim()
+      : ''
     const snapshotContentType =
       typeof raw.snapshot_content_type === 'string' ? raw.snapshot_content_type.trim().toLowerCase() : ''
     const syncedAt =
@@ -82,7 +88,11 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
       title: title.slice(0, 120),
       url,
       source,
+      ...(managedObjectId ? { managed_object_id: managedObjectId } : {}),
       ...(snapshotPath ? { snapshot_path: snapshotPath } : {}),
+      ...(snapshotManagedObjectId
+        ? { snapshot_managed_object_id: snapshotManagedObjectId }
+        : {}),
       ...(snapshotContentType ? { snapshot_content_type: snapshotContentType } : {}),
       ...(syncedAt !== undefined ? { synced_at: syncedAt } : {}),
     })
@@ -107,6 +117,7 @@ export function clearTestDocumentSnapshot(doc: TestDocument): TestDocument {
     title: doc.title,
     source: doc.source,
     ...(doc.url ? { url: doc.url } : {}),
+    ...(doc.managed_object_id ? { managed_object_id: doc.managed_object_id } : {}),
     ...(doc.content ? { content: doc.content } : {}),
   }
 }
@@ -138,6 +149,9 @@ export function preserveCurrentTestDocumentSnapshots(
     return {
       ...clean,
       snapshot_path: current.snapshot_path,
+      ...(current.snapshot_managed_object_id
+        ? { snapshot_managed_object_id: current.snapshot_managed_object_id }
+        : {}),
       ...(current.snapshot_content_type
         ? { snapshot_content_type: current.snapshot_content_type }
         : {}),

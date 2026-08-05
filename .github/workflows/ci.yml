@@ -3,8 +3,11 @@ name: CI
 on:
   pull_request:
     branches: [main, production]
-  push:
-    branches: [main, production]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   architecture-database-contracts:
@@ -33,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify managed-storage migration lineage
+        run: pnpm run check:managed-storage-lineage
+
       - name: Start ephemeral Supabase and replay migrations
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
@@ -56,6 +62,15 @@ jobs:
 
       - name: Verify test document snapshot concurrency and cleanup
         run: bash scripts/check-test-document-snapshot-concurrency.sh
+
+      - name: Verify managed-storage ownership and enforcement
+        run: bash scripts/check-managed-storage-database.sh
+
+      - name: Lint hot archived classroom purge database functions
+        run: pnpm run check:classroom-purge-db-lint
+
+      - name: Verify hot archived classroom purge durability and concurrency
+        run: bash scripts/check-hot-archived-classroom-purge-database.sh
 
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
@@ -109,7 +124,7 @@ jobs:
       - name: Get pnpm store directory
         shell: bash
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
 
       - name: Setup pnpm cache
         uses: actions/cache@v6
@@ -124,6 +139,39 @@ jobs:
 
       - name: Check architecture boundaries
         run: pnpm run check:architecture
+
+      - name: Check governed UI imports and native controls
+        run: pnpm run check:ui-policy
+
+      - name: Check governed design values
+        run: pnpm run check:design-policy
+
+      - name: "Check No dark: Classes in App Code"
+        run: |
+          echo "Checking for dark: classes outside /ui..."
+
+          # Collect dark: usages outside /ui (excluding tiptap and logo which uses image filters)
+          DARK_MATCHES="$(
+            grep -r "dark:" src/app src/components --include="*.tsx" |
+              grep -v "src/ui/" |
+              grep -v "src/components/tiptap" |
+              grep -v "PikaLogo.tsx" ||
+              true
+          )"
+          DARK_COUNT="$(printf '%s' "$DARK_MATCHES" | awk 'NF { count++ } END { print count + 0 }')"
+
+          if [ "$DARK_COUNT" -gt 0 ]; then
+            echo "ERROR: Found $DARK_COUNT dark: classes outside /ui"
+            echo ""
+            echo "Files with dark: classes:"
+            printf '%s\n' "$DARK_MATCHES" | cut -d: -f1 | sort -u
+            echo ""
+            echo "Use semantic tokens instead (bg-surface, text-text-default, border-border, etc.)"
+            echo "See src/ui/README.md for the design system documentation."
+            exit 1
+          fi
+
+          echo "All dark: classes are properly contained in /ui!"
 
       - name: Run tests with coverage
         run: pnpm run test:coverage
@@ -145,7 +193,7 @@ jobs:
           SESSION_SECRET: placeholder-session-secret-at-least-32-chars-long
 
       - name: Upload coverage reports
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
@@ -193,9 +241,11 @@ jobs:
             --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
             --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
             --override-name auth.service_role_key=SUPABASE_SECRET_KEY)"
-          echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" >> "$GITHUB_ENV"
-          echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY" >> "$GITHUB_ENV"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY"
+          } >> "$GITHUB_ENV"
 
       - name: Seed browser fixtures
         run: pnpm seed

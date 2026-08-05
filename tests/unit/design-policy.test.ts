@@ -244,7 +244,7 @@ describe('design value policy', () => {
   it('keeps the repository command, CI workflow, and guidance wired together', () => {
     const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'))
     const workflow = readFileSync(
-      resolve(process.cwd(), '.github/workflows/ui-policy.yml'),
+      resolve(process.cwd(), '.github/workflows/ci.yml'),
       'utf8',
     )
     const stableGuidance = readFileSync(

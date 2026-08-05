@@ -59,9 +59,10 @@ const largeDraft = {
 }
 
 vi.mock('@/components/editor', () => ({
-  RichTextEditor: ({ content, onBlur, onChange, onKeystroke }: any) => (
+  RichTextEditor: ({ assignmentDocId, content, onBlur, onChange, onKeystroke }: any) => (
     <div>
       <output data-testid="editor-content">{JSON.stringify(content)}</output>
+      <output data-testid="editor-assignment-doc-id">{assignmentDocId}</output>
       <button type="button" onClick={() => onChange(olderInFlightDraft)}>Edit older response</button>
       <button type="button" onClick={() => onChange(latestDraft)}>Edit response</button>
       <button type="button" onClick={() => onChange(savedDraft)}>Revert response</button>
@@ -185,6 +186,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     )
 
     await screen.findByText('Assignment Title')
+    expect(screen.getByTestId('editor-assignment-doc-id')).toHaveTextContent('doc-1')
     await user.click(screen.getByRole('button', { name: 'Edit response' }))
 
     await act(async () => {

@@ -70,9 +70,9 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   tests: ['created_by'],
 } as const satisfies Record<string, readonly string[]>
 
-// These are workflow references to a classroom, not classroom-owned state.
-// They remain outside classroom archives and must be rebuilt or expired by the
-// Blueprint workflow rather than restored as part of a classroom.
+// These references do not extend classroom-owned archive state. Workflow
+// records are rebuilt or expired by their owning workflow, and the managed
+// JSON registry is deterministically rebuilt from its persisted host JSON.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
   {
     child_table: 'course_blueprint_change_proposals',
@@ -88,6 +88,41 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     child_table: 'course_blueprint_editing_sessions',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'classroom_purge_fences',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'assignment_docs',
+    child_columns: ['assignment_doc_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'assignment_doc_history',
+    child_columns: ['assignment_doc_history_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'tests',
+    child_columns: ['test_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'course_blueprint_assessments',
+    child_columns: ['course_blueprint_assessment_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'course_blueprint_versions',
+    child_columns: ['course_blueprint_version_id'],
+  },
+  {
+    child_table: 'managed_storage_json_references',
+    parent_table: 'course_blueprint_change_proposals',
+    child_columns: ['course_blueprint_change_proposal_id'],
   },
 ] as const satisfies readonly ClassroomSchemaRelationship[]
 
@@ -263,6 +298,31 @@ export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[num
 
 classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)
 
+// Classroom-owned state that must be purged but is intentionally excluded
+// from the portable archive format. Every entry requires a structural FK to
+// its parent; migration 118 makes this relationship cascading.
+export const CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES = [
+  {
+    table: 'assignment_doc_save_operations',
+    primary_key: ['id'],
+    scope: {
+      kind: 'foreign_key',
+      parent: 'assignment_docs',
+      column: 'assignment_doc_id',
+    },
+    privacy: ['student_work', 'operations'],
+  },
+] as const satisfies readonly {
+  table: string
+  primary_key: readonly string[]
+  scope: {
+    kind: 'foreign_key'
+    parent: string
+    column: string
+  }
+  privacy: readonly ClassroomDataPrivacyClass[]
+}[]
+
 export const GRADEX_RESOURCE_TABLES = CLASSROOM_RELATIONAL_RESOURCES
   .filter((resource) => resource.gradex === 'include_structured')
   .map((resource) => resource.table)
@@ -329,11 +389,21 @@ export function auditClassroomResourceSchema(
   const resourcesByTable = new Map<string, ClassroomResource>(
     CLASSROOM_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
   )
-  const contractTables = new Set<string>(resourcesByTable.keys())
+  const purgeOnlyResourcesByTable = new Map(
+    CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
+  )
+  const purgeOnlyTables = new Set<string>(purgeOnlyResourcesByTable.keys())
+  const contractTables = new Set<string>([
+    ...resourcesByTable.keys(),
+    ...purgeOnlyResourcesByTable.keys(),
+  ])
   const untrackedTables = Array.from(descendants)
     .filter((table) => !contractTables.has(table))
     .sort()
-  const staleTables = Array.from(contractTables)
+  // Portable archive resources are always required. Purge-only resources are
+  // accepted and validated once their ownership FK is deployed, but must not
+  // break archive inventory during the migration-before-code rollout window.
+  const staleTables = Array.from(resourcesByTable.keys())
     .filter((table) => !descendants.has(table))
     .sort()
   const missingRestoreDependencies: string[] = []
@@ -370,10 +440,32 @@ export function auditClassroomResourceSchema(
       ? []
       : [`${resource.table}.${scope.column}->${scope.parent}`]
   })
+  invalidSelectionScopes.push(
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.flatMap((resource) => {
+      // Purge-only descendants are introduced by their deletion migration and
+      // are deliberately optional for archive inventory during staged rollout.
+      // Once the FK makes one a classroom descendant, validate it strictly.
+      if (!descendants.has(resource.table)) return []
+      const relationship = relationships.find((candidate) =>
+        candidate.child_table === resource.table &&
+        candidate.parent_table === resource.scope.parent &&
+        candidate.child_columns.includes(resource.scope.column),
+      )
+      return relationship
+        ? []
+        : [`${resource.table}.${resource.scope.column}->${resource.scope.parent}`]
+    }),
+  )
   const primaryKeysByTable = new Map(
     primaryKeys.map((primaryKey) => [primaryKey.table_name, primaryKey.columns]),
   )
-  const invalidPrimaryKeys = CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
+  const invalidPrimaryKeys = [
+    ...CLASSROOM_RELATIONAL_RESOURCES,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
+  ].flatMap((resource) => {
+    if (purgeOnlyTables.has(resource.table) && !descendants.has(resource.table)) {
+      return []
+    }
     const actual = primaryKeysByTable.get(resource.table)
     return actual &&
       actual.length === resource.primary_key.length &&

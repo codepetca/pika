@@ -85,9 +85,15 @@ export function requirePalEnvironment(): {
   }
 }
 
-export function getPalEmbedUrl(): string | null {
-  if (!isPalEnabled()) return null
+export function getPalApiUrl(): string | null {
+  if (!isPalFlagEnabled()) return null
 
-  const { apiUrl } = requirePalEnvironment()
-  return new URL('/embed/roadmap', apiUrl).toString()
+  try {
+    const { apiUrl } = requirePalEnvironment()
+    return apiUrl
+  } catch (error) {
+    // Widget configuration must not make the authenticated academic shell fail.
+    console.error('Pal widget is unavailable because its server configuration is invalid:', error)
+    return null
+  }
 }

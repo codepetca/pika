@@ -242,9 +242,9 @@ describe('UI policy', () => {
     ])).toThrow('Invalid native-control reason legacy-form-control for input:file')
   })
 
-  it('keeps the repository command and pull-request policy workflow wired together', () => {
+  it('keeps the repository command and pull-request CI workflow wired together', () => {
     const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'))
-    const workflow = readFileSync(resolve(process.cwd(), '.github/workflows/ui-policy.yml'), 'utf8')
+    const workflow = readFileSync(resolve(process.cwd(), '.github/workflows/ci.yml'), 'utf8')
     const stableGuidance = readFileSync(resolve(process.cwd(), 'docs/guidance/ui/stable.md'), 'utf8')
 
     expect(packageJson.scripts['check:ui-policy']).toBe('tsx scripts/check-ui-policy.ts')

@@ -51,6 +51,15 @@ export type ClassroomArchiveStorageObject = {
   sourcePath: string
   contentType: string | null
   bytes: Uint8Array
+  managedOwner?: {
+    objectId: string
+    purpose: 'student_assignment_artifact' | 'student_inline_image'
+      | 'teacher_test_material' | 'test_execution_snapshot' | 'legacy_classroom_file'
+    createdByUserId: string | null
+    dataSubjectUserId: string | null
+    resourceType: string | null
+    resourceId: string | null
+  }
 }
 
 type ArchiveRetention =
@@ -428,6 +437,16 @@ export function buildClassroomArchiveBundle(
         byte_size: object.bytes.byteLength,
         sha256: sha256Bytes(object.bytes),
         content_type: object.contentType || null,
+        ...(object.managedOwner ? {
+          managed_owner: {
+            object_id: object.managedOwner.objectId,
+            purpose: object.managedOwner.purpose,
+            created_by_user_id: object.managedOwner.createdByUserId,
+            data_subject_user_id: object.managedOwner.dataSubjectUserId,
+            resource_type: object.managedOwner.resourceType,
+            resource_id: object.managedOwner.resourceId,
+          },
+        } : {}),
       }
     })
 

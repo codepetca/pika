@@ -11,14 +11,24 @@ import {
 import {
   removeQueuedTestDocumentSnapshotPath,
 } from '@/lib/server/test-document-snapshot-storage-cleanup'
+import { queueManagedStorageCleanupBestEffort } from '@/lib/server/managed-storage'
 
 export const dynamic = 'force-dynamic'
 
 async function removeSnapshotAfterConflict(
   supabase: ReturnType<typeof getServiceRoleClient>,
   snapshotPath: string,
+  managedObjectId?: string,
 ): Promise<void> {
   try {
+    if (managedObjectId) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId: managedObjectId,
+        errorCode: 'test_snapshot_attachment_failed',
+      })
+      return
+    }
     await removeQueuedTestDocumentSnapshotPath({ supabase, storagePath: snapshotPath })
   } catch (error) {
     console.error('Failed to remove uncommitted test document snapshot:', error)
@@ -41,13 +51,19 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
 
   const snapshot = await syncExternalLinkTestDocument({
     teacherId: user.id,
+    classroomId: access.test.classroom_id,
     testId,
     doc,
   })
 
   const supabase = getServiceRoleClient()
+  const managedObjectId = 'snapshot_managed_object_id' in snapshot
+    ? snapshot.snapshot_managed_object_id
+    : undefined
   const { data: result, error } = await supabase.rpc(
-    'sync_test_document_snapshot_atomic',
+    (managedObjectId
+      ? 'sync_test_document_snapshot_managed_atomic'
+      : 'sync_test_document_snapshot_atomic') as any,
     {
       p_document_id: docId,
       p_expected_url: doc.url,
@@ -56,11 +72,12 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
       p_synced_at: snapshot.synced_at,
       p_teacher_id: user.id,
       p_test_id: testId,
+      ...(managedObjectId ? { p_managed_object_id: managedObjectId } : {}),
     },
   )
 
   if (error) {
-    await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path)
+    await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path, managedObjectId)
     const details = `${error.message || ''} ${error.details || ''}`.toLowerCase()
     if (
       details.includes('document_conflict')
@@ -97,7 +114,7 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
   } | null
   const test = atomicResult?.test
   if (!test) {
-    await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path)
+    await removeSnapshotAfterConflict(supabase, snapshot.snapshot_path, managedObjectId)
     return NextResponse.json({ error: 'Failed to save synced document' }, { status: 500 })
   }
 

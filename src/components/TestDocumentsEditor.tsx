@@ -357,6 +357,9 @@ export function TestDocumentsEditor({
           id: crypto.randomUUID(),
           title: String(title).trim().slice(0, 120),
           url: String(uploadData.url || ''),
+          ...(uploadData.managed_object_id
+            ? { managed_object_id: String(uploadData.managed_object_id) }
+            : {}),
           source: 'upload' as const,
         },
       ]

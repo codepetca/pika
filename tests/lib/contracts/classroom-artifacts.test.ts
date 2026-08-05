@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
   CLASSROOM_NON_OWNING_REFERENCES,
+  CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   auditClassroomResourceSchema,
@@ -59,6 +60,11 @@ function contractRelationships() {
   })
   return [
     ...ownedRelationships,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((resource) => ({
+      child_table: resource.table,
+      parent_table: resource.scope.parent,
+      child_columns: [resource.scope.column],
+    })),
     ...CLASSROOM_NON_OWNING_REFERENCES.map((relationship) => ({
       ...relationship,
       child_columns: [...relationship.child_columns],
@@ -67,7 +73,10 @@ function contractRelationships() {
 }
 
 function contractPrimaryKeys() {
-  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+  return [
+    ...CLASSROOM_RELATIONAL_RESOURCES,
+    ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
+  ].map((resource) => ({
     table_name: resource.table,
     columns: resource.primary_key,
   }))
@@ -193,7 +202,7 @@ describe('classroom data inventory', () => {
     }))
   })
 
-  it('keeps Blueprint workflow references outside classroom archive ownership', () => {
+  it('keeps workflow and derived-registry references outside classroom archive ownership', () => {
     const audit = auditClassroomResourceSchema(
       contractRelationships(),
       contractPrimaryKeys(),
@@ -202,6 +211,8 @@ describe('classroom data inventory', () => {
     expect(audit.ok).toBe(true)
     expect(audit.untracked_tables).not.toContain('course_blueprint_change_proposals')
     expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
+    expect(audit.untracked_tables).not.toContain('classroom_purge_fences')
+    expect(audit.untracked_tables).not.toContain('managed_storage_json_references')
 
     const missingReference = contractRelationships().filter((relationship) =>
       !(relationship.child_table === 'course_blueprint_editing_sessions' &&

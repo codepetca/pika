@@ -9,6 +9,7 @@ type TeacherClassroomsResponse = {
   classrooms?: Classroom[]
   cold_archives?: unknown
   cold_archive_restore_enabled?: unknown
+  hot_classroom_purge_enabled_ids?: unknown
 }
 
 type TeacherClassroomsOptions = {
@@ -22,6 +23,7 @@ export type TeacherArchivedClassroomState = {
   classrooms: Classroom[]
   coldArchives: ClassroomColdArchiveSummary[]
   coldArchiveRestoreEnabled: boolean
+  hotClassroomPurgeEnabledIds?: string[]
 }
 
 function getTeacherClassroomsListSegment(options: TeacherClassroomsOptions = {}) {
@@ -74,11 +76,13 @@ export async function fetchTeacherArchivedClassroomState(): Promise<TeacherArchi
   const recovery = teacherArchivedClassroomRecoverySchema.parse({
     cold_archives: data.cold_archives ?? [],
     cold_archive_restore_enabled: data.cold_archive_restore_enabled ?? false,
+    hot_classroom_purge_enabled_ids: data.hot_classroom_purge_enabled_ids ?? [],
   })
   return {
     classrooms: data.classrooms || [],
     coldArchives: recovery.cold_archives,
     coldArchiveRestoreEnabled: recovery.cold_archive_restore_enabled,
+    hotClassroomPurgeEnabledIds: recovery.hot_classroom_purge_enabled_ids,
   }
 }
 

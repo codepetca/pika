@@ -880,8 +880,10 @@ export interface TestDocument {
   title: string
   source: TestDocumentSource
   url?: string
+  managed_object_id?: string
   content?: string
   snapshot_path?: string
+  snapshot_managed_object_id?: string
   snapshot_content_type?: string
   synced_at?: string | null
 }

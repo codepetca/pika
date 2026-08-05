@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  getPalEmbedUrl,
+  getPalApiUrl,
   isPalEnabled,
   requirePalEnvironment,
   requirePalPseudonymSecret,
@@ -90,13 +90,28 @@ describe('Pal pilot configuration', () => {
     },
   )
 
-  it('exposes only the chrome-free public embed URL to the learner page', () => {
+  it('exposes only the validated public Pal API origin to the learner page', () => {
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test/')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
     vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
 
-    expect(getPalEmbedUrl()).toBe('https://pal.example.test/embed/roadmap')
+    expect(getPalApiUrl()).toBe('https://pal.example.test')
+  })
+
+  it('contains invalid widget configuration instead of breaking academic pages', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', '')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
+
+    expect(getPalApiUrl()).toBeNull()
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining('Pal widget is unavailable'),
+      expect.any(Error),
+    )
+    consoleError.mockRestore()
   })
 
   it.each([

@@ -466,7 +466,13 @@ export function buildCourseBlueprintExportBundle(
       assessment_type: 'test' as const,
       title: assessment.title,
       content: assessment.content as any,
-      documents: stripTestDocumentSnapshots(assessment.documents),
+      // Course packages contain portable definitions, never Pika-internal
+      // Storage identities or URLs. Managed upload bytes remain owned by the
+      // Blueprint inside Pika and are copied on instantiation.
+      documents: stripTestDocumentSnapshots(assessment.documents)
+        .filter((document) => document.source !== 'upload')
+        .map(({ managed_object_id: _managedObjectId,
+          snapshot_managed_object_id: _snapshotManagedObjectId, ...document }) => document),
       points_possible: assessment.points_possible,
       gradebook_weight: assessment.gradebook_weight,
       include_in_final: assessment.include_in_final,
@@ -680,6 +686,14 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         return []
       })
     : []
+  const packageStorageErrors = [
+    files['tests.md'] ?? '',
+  ].some((value) => (
+    /managed_object_id|snapshot_managed_object_id/.test(value)
+    || /storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//.test(value)
+  ))
+    ? ['Course packages cannot contain Pika-managed storage references']
+    : []
 
   return {
     manifest,
@@ -719,6 +733,7 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       ...surveyResult.errors,
       ...identityErrors,
       ...positionErrors,
+      ...packageStorageErrors,
     ],
   }
 }

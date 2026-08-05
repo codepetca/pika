@@ -7,6 +7,11 @@ import {
   createProvisionalTestDocumentSnapshotCleanup,
 } from '@/lib/server/test-document-snapshot-storage-cleanup'
 import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
+import {
   normalizeSnapshotContentType,
   normalizeTestDocuments,
   isSupportedLinkSnapshotContentType,
@@ -18,20 +23,17 @@ import type { TestAccessRecord } from '@/lib/server/tests'
 
 const TEST_DOCUMENTS_BUCKET = 'test-documents'
 
-function buildSnapshotStoragePath(teacherId: string, testId: string, docId: string): string {
-  return `link-docs/${teacherId}/${testId}/${docId}/snapshots/${randomUUID()}`
-}
-
 export function findTestDocument(test: Pick<TestAccessRecord, 'documents'>, docId: string): TestDocument | null {
   return normalizeTestDocuments(test.documents).find((doc) => doc.id === docId) ?? null
 }
 
 export async function syncExternalLinkTestDocument(options: {
   teacherId: string
+  classroomId: string
   testId: string
   doc: TestDocument
 }) {
-  const { teacherId, testId, doc } = options
+  const { teacherId, classroomId, testId, doc } = options
   if (doc.source !== 'link' || !doc.url) {
     throw new ApiError(400, 'Only link documents can be synced')
   }
@@ -54,12 +56,27 @@ export async function syncExternalLinkTestDocument(options: {
   }
 
   const supabase = getServiceRoleClient()
-  const snapshotPath = buildSnapshotStoragePath(teacherId, testId, doc.id)
-  const cleanup = await createProvisionalTestDocumentSnapshotCleanup({
+  const managedObjectId = randomUUID()
+  const snapshotPath = `link-docs/${teacherId}/${testId}/${doc.id}/snapshots/${managedObjectId}`
+  const reservation = await reserveManagedStorageUpload({
+    supabase,
+    objectId: managedObjectId,
+    bucket: TEST_DOCUMENTS_BUCKET,
+    path: snapshotPath,
+    classroomId,
+    purpose: 'test_execution_snapshot',
+    createdByUserId: teacherId,
+    resourceType: 'test',
+    resourceId: testId,
+    contentType,
+    byteSize: body.byteLength,
+    allowLegacyCompatibility: true,
+  })
+  const cleanup = reservation ? null : await createProvisionalTestDocumentSnapshotCleanup({
     supabase,
     storagePath: snapshotPath,
   })
-  if (!cleanup) {
+  if (!reservation && !cleanup) {
     throw new ApiError(
       503,
       'Test document snapshot cleanup requires migration 110 to be applied',
@@ -74,6 +91,13 @@ export async function syncExternalLinkTestDocument(options: {
     })
 
   if (uploadError) {
+    if (reservation) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId: managedObjectId,
+        errorCode: 'test_snapshot_upload_failed',
+      })
+    }
     const details = `${uploadError.message || ''} ${(uploadError as { details?: string }).details || ''}`.toLowerCase()
     if (details.includes('mime type') || details.includes('not supported')) {
       throw new ApiError(400, 'HTML link snapshots require migration 052 to be applied')
@@ -84,8 +108,22 @@ export async function syncExternalLinkTestDocument(options: {
     throw new ApiError(500, 'Failed to store synced document')
   }
 
+  if (reservation) {
+    try {
+      await verifyManagedStorageUpload({ supabase, objectId: managedObjectId })
+    } catch (error) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId: managedObjectId,
+        errorCode: 'test_snapshot_verification_failed',
+      })
+      throw error
+    }
+  }
+
   return {
     snapshot_path: snapshotPath,
+    ...(reservation ? { snapshot_managed_object_id: managedObjectId } : {}),
     snapshot_content_type: contentType,
     synced_at: new Date().toISOString(),
   }

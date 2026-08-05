@@ -7,6 +7,7 @@ import { Button } from "@/components/tiptap-ui-primitive/button"
 import { CloseIcon } from "@/components/tiptap-icons/close-icon"
 import "@/components/tiptap-node/image-upload-node/image-upload-node.scss"
 import { focusNextNode, isValidPosition } from "@/lib/tiptap-utils"
+import type { ImageUploadResult } from "./image-upload-node-extension"
 
 export interface FileItem {
   /**
@@ -32,6 +33,7 @@ export interface FileItem {
    * @optional
    */
   url?: string
+  managedObjectId?: string
   /**
    * Controller that can be used to abort the upload process
    * @optional
@@ -64,13 +66,13 @@ export interface UploadOptions {
     file: File,
     onProgress: (event: { progress: number }) => void,
     signal: AbortSignal
-  ) => Promise<string>
+  ) => Promise<ImageUploadResult>
   /**
    * Callback triggered when a file is uploaded successfully
    * @param {string} url - URL of the successfully uploaded file
    * @optional
    */
-  onSuccess?: (url: string) => void
+  onSuccess?: (result: ImageUploadResult) => void
   /**
    * Callback triggered when an error occurs during upload
    * @param {Error} error - The error that occurred
@@ -85,7 +87,7 @@ export interface UploadOptions {
 function useFileUpload(options: UploadOptions) {
   const [fileItems, setFileItems] = useState<FileItem[]>([])
 
-  const uploadFile = async (file: File): Promise<string | null> => {
+  const uploadFile = async (file: File): Promise<ImageUploadResult | null> => {
     if (file.size > options.maxSize) {
       const error = new Error(
         `File size exceeds maximum allowed (${options.maxSize / 1024 / 1024}MB)`
@@ -112,7 +114,7 @@ function useFileUpload(options: UploadOptions) {
         throw new Error("Upload function is not defined")
       }
 
-      const url = await options.upload(
+      const result = await options.upload(
         file,
         (event: { progress: number }) => {
           setFileItems((prev) =>
@@ -124,18 +126,24 @@ function useFileUpload(options: UploadOptions) {
         abortController.signal
       )
 
-      if (!url) throw new Error("Upload failed: No URL returned")
+      if (!result.url) throw new Error("Upload failed: No URL returned")
 
       if (!abortController.signal.aborted) {
         setFileItems((prev) =>
           prev.map((item) =>
             item.id === fileId
-              ? { ...item, status: "success", url, progress: 100 }
+              ? {
+                  ...item,
+                  status: "success",
+                  url: result.url,
+                  managedObjectId: result.managedObjectId,
+                  progress: 100,
+                }
               : item
           )
         )
-        options.onSuccess?.(url)
-        return url
+        options.onSuccess?.(result)
+        return result
       }
 
       return null
@@ -156,7 +164,7 @@ function useFileUpload(options: UploadOptions) {
     }
   }
 
-  const uploadFiles = async (files: File[]): Promise<string[]> => {
+  const uploadFiles = async (files: File[]): Promise<ImageUploadResult[]> => {
     if (!files || files.length === 0) {
       options.onError?.(new Error("No files to upload"))
       return []
@@ -176,7 +184,7 @@ function useFileUpload(options: UploadOptions) {
     const results = await Promise.all(uploadPromises)
 
     // Filter out null results (failed uploads)
-    return results.filter((url): url is string => url !== null)
+    return results.filter((result): result is ImageUploadResult => result !== null)
   }
 
   const removeFileItem = (fileId: string) => {
@@ -451,20 +459,21 @@ export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
     useFileUpload(uploadOptions)
 
   const handleUpload = async (files: File[]) => {
-    const urls = await uploadFiles(files)
+    const results = await uploadFiles(files)
 
-    if (urls.length > 0) {
+    if (results.length > 0) {
       const pos = props.getPos()
 
       if (isValidPosition(pos)) {
-        const imageNodes = urls.map((url, index) => {
+        const imageNodes = results.map((result, index) => {
           const filename =
             files[index]?.name.replace(/\.[^/.]+$/, "") || "unknown"
           return {
             type: extension.options.type,
             attrs: {
               ...extension.options,
-              src: url,
+              src: result.url,
+              managed_object_id: result.managedObjectId ?? null,
               alt: filename,
               title: filename,
             },

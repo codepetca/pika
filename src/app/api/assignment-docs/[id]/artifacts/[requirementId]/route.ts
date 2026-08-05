@@ -25,6 +25,11 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assignmentArtifactPutRequestSchema } from '@/lib/validations/assignment-doc-submissions'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
+import {
+  queueManagedStorageCleanupBestEffort,
+  reserveManagedStorageUpload,
+  verifyManagedStorageUpload,
+} from '@/lib/server/managed-storage'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -302,25 +307,73 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
   }
 
   const ext = file.name.split('.').pop() || 'png'
-  const storagePath = `${user.id}/${assignmentId}/${requirement.id}-${Date.now()}-${crypto.randomUUID()}.${ext}`
-  const provisionalCleanup = await createProvisionalAssignmentArtifactStorageCleanup({
+  const objectId = crypto.randomUUID()
+  const storagePath = `${user.id}/${assignmentId}/${requirement.id}-${Date.now()}-${objectId}.${ext}`
+  const { data: assignmentOwner, error: assignmentOwnerError } = await supabase
+    .from('assignments')
+    .select('classroom_id')
+    .eq('id', assignmentId)
+    .single()
+  if (assignmentOwnerError || !assignmentOwner) {
+    throw new Error('Failed to resolve assignment file ownership')
+  }
+  const managedStoragePath = `classrooms/${assignmentOwner.classroom_id}/students/${user.id}/assignment-docs/${doc.id}/artifacts/${objectId}.${ext}`
+  const reservation = await reserveManagedStorageUpload({
     supabase,
-    storagePath,
+    objectId,
+    bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
+    path: managedStoragePath,
+    classroomId: assignmentOwner.classroom_id,
+    purpose: 'student_assignment_artifact',
+    createdByUserId: user.id,
+    dataSubjectUserId: user.id,
+    resourceType: 'assignment_doc',
+    resourceId: doc.id,
+    contentType: file.type,
+    byteSize: file.size,
+    allowLegacyCompatibility: true,
   })
-  if (!provisionalCleanup) {
+  const effectiveStoragePath = reservation ? managedStoragePath : storagePath
+  const provisionalCleanup = reservation
+    ? null
+    : await createProvisionalAssignmentArtifactStorageCleanup({
+        supabase,
+        storagePath: effectiveStoragePath,
+      })
+  if (!reservation && !provisionalCleanup) {
     throw new Error('Failed to protect image upload with durable cleanup evidence')
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const { error: uploadError } = await supabase.storage
     .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-    .upload(storagePath, buffer, {
+    .upload(effectiveStoragePath, buffer, {
       contentType: file.type,
       upsert: false,
     })
 
   if (uploadError) {
+    if (reservation) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'assignment_artifact_upload_failed',
+      })
+    }
     throw new Error('Failed to upload image')
+  }
+
+  if (reservation) {
+    try {
+      await verifyManagedStorageUpload({ supabase, objectId })
+    } catch (verificationError) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'assignment_artifact_verification_failed',
+      })
+      throw verificationError
+    }
   }
 
   let artifact: unknown = null
@@ -328,44 +381,70 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
   try {
     const signed = await supabase.storage
       .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-      .createSignedUrl(storagePath, SIGNED_IMAGE_URL_EXPIRES_SECONDS)
+      .createSignedUrl(effectiveStoragePath, SIGNED_IMAGE_URL_EXPIRES_SECONDS)
     const signedUrl = signed.data?.signedUrl ?? null
 
     const validation = await validateAssignmentSubmissionArtifactValue({
       type: 'image',
-      storagePath,
+      storagePath: effectiveStoragePath,
       url: signedUrl,
     })
 
+    const artifactWrite = {
+      assignment_doc_id: doc.id,
+      requirement_id: requirement.id,
+      student_id: user.id,
+      type: requirement.type,
+      url: null,
+      storage_path: effectiveStoragePath,
+      metadata_json: {
+        file_name: file.name,
+        file_size: file.size,
+        content_type: file.type,
+      },
+      validation_status: validation.validation_status,
+      validation_message: validation.validation_message,
+      validated_at: new Date().toISOString(),
+      ...(reservation ? { managed_object_id: objectId } : {}),
+    }
     const save = await supabase
       .from('assignment_submission_artifacts')
-      .upsert({
-        assignment_doc_id: doc.id,
-        requirement_id: requirement.id,
-        student_id: user.id,
-        type: requirement.type,
-        url: null,
-        storage_path: storagePath,
-        metadata_json: {
-          file_name: file.name,
-          file_size: file.size,
-          content_type: file.type,
-        },
-        validation_status: validation.validation_status,
-        validation_message: validation.validation_message,
-        validated_at: new Date().toISOString(),
-      }, { onConflict: 'assignment_doc_id,requirement_id' })
+      .upsert(artifactWrite as any, { onConflict: 'assignment_doc_id,requirement_id' })
       .select('*')
       .single()
     artifact = save.data
     error = save.error
   } catch (saveError) {
-    await compensateUploadedArtifact({ supabase, storagePath, provisionalCleanup })
+    if (reservation) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'assignment_artifact_attachment_failed',
+      })
+    } else {
+      await compensateUploadedArtifact({
+        supabase,
+        storagePath: effectiveStoragePath,
+        provisionalCleanup,
+      })
+    }
     throw saveError
   }
 
   if (error || !artifact) {
-    await compensateUploadedArtifact({ supabase, storagePath, provisionalCleanup })
+    if (reservation) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId,
+        errorCode: 'assignment_artifact_attachment_failed',
+      })
+    } else {
+      await compensateUploadedArtifact({
+        supabase,
+        storagePath: effectiveStoragePath,
+        provisionalCleanup,
+      })
+    }
 
     if (isSubmittedArtifactMutationError(error)) {
       return submittedArtifactMutationResponse()
@@ -376,12 +455,14 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     throw new Error('Failed to save image artifact')
   }
 
-  await adoptProvisionalAssignmentArtifactStorageCleanup({
-    supabase,
-    cleanup: provisionalCleanup,
-  })
+  if (provisionalCleanup) {
+    await adoptProvisionalAssignmentArtifactStorageCleanup({
+      supabase,
+      cleanup: provisionalCleanup,
+    })
+  }
 
-  if (previousArtifact?.storage_path && previousArtifact.storage_path !== storagePath) {
+  if (previousArtifact?.storage_path && previousArtifact.storage_path !== effectiveStoragePath) {
     await removeQueuedAssignmentArtifactStoragePath({
       supabase,
       storagePath: previousArtifact.storage_path,

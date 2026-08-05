@@ -7,6 +7,7 @@ import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
+import { listHotClassroomPurgeEnabledIds } from '@/lib/server/classroom-purge-availability'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 
 export const dynamic = 'force-dynamic'
@@ -37,10 +38,19 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       throw new ApiError(status, 'Failed to fetch classroom archives')
     }
 
+    const hotClassroomPurgeEnabledIds = await listHotClassroomPurgeEnabledIds({
+      supabase,
+      teacherId: user.id,
+      hotClassroomIds: archived.hot_classrooms.flatMap((classroom) =>
+        typeof classroom.id === 'string' ? [classroom.id] : [],
+      ),
+    })
+
     return NextResponse.json({
       classrooms: hydrateClassroomRecords(archived.hot_classrooms as Record<string, any>[]),
       cold_archives: archived.cold_archives,
       cold_archive_restore_enabled: archived.cold_archive_restore_enabled,
+      hot_classroom_purge_enabled_ids: hotClassroomPurgeEnabledIds,
     })
   }
 
