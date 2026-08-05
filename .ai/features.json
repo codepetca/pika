@@ -1,9 +1,5 @@
 {
-  "meta": {
-    "project": "pika", "lastUpdated": "2026-08-04", "phase": "Versioned Course Blueprint Lineage",
-    "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.", "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 18, "passing": 15, "failing": 3
-  },
+  "meta": {"project":"pika","lastUpdated":"2026-08-05","phase":"Versioned Course Blueprint Lineage","DO_NOT_DELETE_FEATURES":"APPEND-ONLY. Never delete entries.","deletionPolicy":"PROHIBITED","totalFeatures":19,"passing":17,"failing":2},
   "features": [
     {"id":"epic-setup","phase":"Phase 0 — Setup","description":"Next.js, TypeScript, Tailwind, and Supabase bootstrap","passes":true,"verification":"Run: pnpm test","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
     {"id":"epic-auth","phase":"Phase 1 — Auth","description":"Email-code auth, password login, secure sessions, lockout, and role routing","passes":true,"verification":"Run: pnpm test. Manual smoke: signup → verify → create password → login → logout → reset password","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
@@ -11,100 +7,18 @@
     {"id":"epic-teacher-dashboard","phase":"Phase 3 — Teacher Dashboard","description":"Teacher attendance matrix, entry drill-down, class day management, and CSV export","passes":true,"verification":"Run: pnpm test. Manual smoke: teacher views classroom attendance and exports CSV","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
     {"id":"epic-classrooms-rosters","phase":"Phase 4 — Classrooms & Rosters","description":"Classrooms, join codes/links, enrollments, roster CSV, and class days","passes":true,"verification":"Run: pnpm test. Manual smoke: teacher creates classroom and uploads roster; student joins by code","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
     {"id":"epic-assignments","phase":"Phase 5 — Assignments","description":"Classroom assignments with autosave, submit/unsubmit, late detection, and teacher views","passes":true,"verification":"Run: pnpm test. Manual smoke: student edits + submits; teacher views submission status","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
-    {
-      "id": "epic-tests-polish",
-      "phase": "Phase 6 — Tests & Polish",
-      "description": "Expand coverage, harden security, and keep docs in sync (coverage thresholds met and stable)",
-      "passes": true,
-      "verification": "Run: pnpm test:coverage (and meet thresholds). Add missing tests as needed.",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2025-12-12",
-      "completedDate": "2025-12-14"
-    },
-    {
-      "id": "epic-ai-effectiveness-layer",
-      "phase": "Infrastructure",
-      "description": "AI continuity layer (.ai/) and standardized protocols",
-      "passes": true,
-      "verification": "Run: bash scripts/verify-env.sh and node scripts/features.mjs validate.",
-      "issueRefs": [
-        "#8"
-      ],
-      "blockedBy": [],
-      "addedDate": "2025-12-12",
-      "completedDate": "2025-12-14"
-    },
-    {
-      "id": "epic-daily-log-summaries",
-      "phase": "Phase 7 — AI (Daily Logs)",
-      "description": "Legacy entry_summaries per-entry log snippets. Removed; distinct from active classroom/day log_summaries.",
-      "passes": true,
-      "verification": "Removed in #241; migration 032 drops entry_summaries.",
-      "issueRefs": [
-        "#241"
-      ],
-      "blockedBy": [],
-      "addedDate": "2025-12-13",
-      "completedDate": "2025-12-14",
-      "removedDate": "2026-01-31"
-    },
-    {
-      "id": "epic-course-blueprints",
-      "phase": "Phase 8 — Course Authoring",
-      "description": "Teacher-owned flat course blueprints with markdown-first editing, classroom instantiation, and portable package import/export",
-      "passes": true,
-      "verification": "Run: pnpm lint && pnpm build && pnpm test tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-04-17",
-      "completedDate": "2026-04-17"
-    },
-    {
-      "id": "epic-classwork-surveys",
-      "phase": "Phase 9 — Surveys",
-      "description": "Classwork surveys: MC/text/link, updates, results",
-      "passes": true,
-      "verification": "pnpm lint && pnpm test && pnpm build",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-05-13",
-      "completedDate": "2026-05-13"
-    },
-    {
-      "id": "epic-developer-feedback-helper",
-      "phase": "Infrastructure",
-      "description": "Agent queue for Pika improvement candidates from logs and Send Feedback",
-      "passes": true,
-      "verification": "focused developer feedback tests",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-05-21",
-      "completedDate": "2026-05-21"
-    },
-    {
-      "id": "epic-classroom-lifecycle-archives",
-      "phase": "Classroom Archives",
-      "description": "Reversible hot/cold classroom archives with managed storage and deidentified Gradex extracts",
-      "passes": true,
-      "verification": "Contract/DB audit, restore equality canary, cold recovery drill, production verification",
-      "issueRefs": [],
-      "blockedBy": [],
-      "addedDate": "2026-07-13",
-      "completedDate": "2026-07-15"
-    },
-    {
-      "id": "epic-product-experience-architecture",
-      "phase": "Product Experience Architecture",
-      "description": "Six-phase teacher/student product audit, shared experience foundation, vertical workflow improvements, Gradex integration, blueprint/archive productization, and final verification",
-      "passes": false,
-      "verification": "Complete the exit evidence in docs/guidance/ui/product-experience-audit-2026-07.md",
-      "issueRefs": ["#889", "#890", "#891", "#893", "#894", "#895", "#896", "#897", "#898", "#899", "#900", "#902", "#903", "#904", "#905"],
-      "blockedBy": [], "addedDate": "2026-07-16"
-    },
+    {"id":"epic-tests-polish","phase":"Phase 6 — Tests & Polish","description":"Expand coverage, harden security, and keep docs in sync (coverage thresholds met and stable)","passes":true,"verification":"Run: pnpm test:coverage (and meet thresholds). Add missing tests as needed.","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12","completedDate":"2025-12-14"},
+    {"id":"epic-ai-effectiveness-layer","phase":"Infrastructure","description":"AI continuity layer (.ai/) and standardized protocols","passes":true,"verification":"Run: bash scripts/verify-env.sh and node scripts/features.mjs validate.","issueRefs":["#8"],"blockedBy":[],"addedDate":"2025-12-12","completedDate":"2025-12-14"},
+    {"id":"epic-daily-log-summaries","phase":"Phase 7 — AI (Daily Logs)","description":"Legacy entry_summaries per-entry log snippets. Removed; distinct from active classroom/day log_summaries.","passes":true,"verification":"Removed in #241; migration 032 drops entry_summaries.","issueRefs":["#241"],"blockedBy":[],"addedDate":"2025-12-13","completedDate":"2025-12-14","removedDate":"2026-01-31"},
+    {"id":"epic-course-blueprints","phase":"Phase 8 — Course Authoring","description":"Teacher-owned flat course blueprints with markdown-first editing, classroom instantiation, and portable package import/export","passes":true,"verification":"Run: pnpm lint && pnpm build && pnpm test tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts","issueRefs":[],"blockedBy":[],"addedDate":"2026-04-17","completedDate":"2026-04-17"},
+    {"id":"epic-classwork-surveys","phase":"Phase 9 — Surveys","description":"Classwork surveys: MC/text/link, updates, results","passes":true,"verification":"pnpm lint && pnpm test && pnpm build","issueRefs":[],"blockedBy":[],"addedDate":"2026-05-13","completedDate":"2026-05-13"},
+    {"id":"epic-developer-feedback-helper","phase":"Infrastructure","description":"Agent queue for Pika improvement candidates from logs and Send Feedback","passes":true,"verification":"focused developer feedback tests","issueRefs":[],"blockedBy":[],"addedDate":"2026-05-21","completedDate":"2026-05-21"},
+    {"id":"epic-classroom-lifecycle-archives","phase":"Classroom Archives","description":"Reversible hot/cold classroom archives with managed storage and deidentified Gradex extracts","passes":true,"verification":"Contract/DB audit, restore equality canary, cold recovery drill, production verification","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-13","completedDate":"2026-07-15"},
+    {"id":"epic-product-experience-architecture","phase":"Product Experience Architecture","description":"Six-phase teacher/student product audit, shared experience foundation, vertical workflow improvements, Gradex integration, blueprint/archive productization, and final verification","passes":false,"verification":"Complete the exit evidence in docs/guidance/ui/product-experience-audit-2026-07.md","issueRefs":["#889","#890","#891","#893","#894","#895","#896","#897","#898","#899","#900","#902","#903","#904","#905"],"blockedBy":[],"addedDate":"2026-07-16"},
     {"id":"epic-pal-achievements-pilot","phase":"Pal Pilot","description":"Feature-gated Pika facts, outbox, weekly config, and native Pal widget","passes":true,"verification":"Tests plus duplicate-safe vertical slice","issueRefs":["pal#32","pal#35"],"blockedBy":[],"addedDate":"2026-07-25"},
     {"id":"epic-versioned-course-blueprint-lineage","phase":"Course Authoring","description":"Stable artifact lineage, immutable Versions, authority, and stale-safe proposals","passes":true,"verification":"Migration 112 replay/contracts; shared local reset and verified through Pal 111 plus Blueprint 112.","issueRefs":[],"blockedBy":[],"addedDate":"2026-07-26"},
-    {"id":"epic-managed-storage-ownership","phase":"Classroom Lifecycle Foundation","description":"Managed Storage ownership and enforcement foundation; no permanent deletion","passes":false,"verification":"Authorized migration 117 replay/fixture plus app checks","issueRefs":["#963","#967"],"blockedBy":[],"addedDate":"2026-08-02"},
-    {"id":"epic-hot-archive-purge-v2","phase":"Deletion","description":"Managed-ID hot-archive purge","passes":true,"verification":"Exact-head migration 118 replay, fixtures, and UI","issueRefs":[],"blockedBy":[],"addedDate":"2026-08-03","completedDate":"2026-08-04"}
+    {"id":"epic-managed-storage-ownership","phase":"Classroom Lifecycle Foundation","description":"Managed Storage ownership and enforcement foundation; no permanent deletion","passes":true,"verification":"Authorized migration 117 replay/fixture plus app checks","issueRefs":["#963","#967"],"blockedBy":[],"addedDate":"2026-08-02","completedDate":"2026-08-05"},
+    {"id":"epic-hot-archive-purge-v2","phase":"Deletion","description":"Managed-ID hot-archive purge","passes":true,"verification":"Exact-head migration 119 replay, fixtures, and UI","issueRefs":[],"blockedBy":[],"addedDate":"2026-08-03","completedDate":"2026-08-04"},
+    {"id":"epic-managed-blueprint-deletion","phase":"Course Authoring Deletion","description":"Durable deletion of Pika-owned Course Blueprints and their managed files, plus a canary proving classroom creation from the Blueprint preserved by classroom purge","passes":false,"verification":"Managed-file Blueprint purge fixtures and teacher UI boundaries; create and verify a classroom from preserved Blueprint c318ef23-5039-4b64-9977-66bceee54ba0 before deleting that Blueprint","issueRefs":[],"blockedBy":[],"addedDate":"2026-08-05"}
   ]
 }

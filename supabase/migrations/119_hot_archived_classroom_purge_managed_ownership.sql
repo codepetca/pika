@@ -1,4 +1,4 @@
--- Permanent deletion for teacher-owned hot archived classrooms.
+-- Migration 119: permanent deletion for teacher-owned hot archived classrooms.
 --
 -- Migration 117 is the sole managed-file ownership authority. This migration
 -- adds only the deletion state machine: exact ownership snapshots, leases,

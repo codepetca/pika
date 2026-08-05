@@ -315,7 +315,7 @@ begin
     'b1800000-0000-4000-8000-000000000001',
     'b1800000-0000-4000-8000-000000000010',
     'export', repeat('1', 64), 'snapshot_ready', 1,
-    '118_hot_archived_classroom_purge_managed_ownership', 'fixture',
+    '119_hot_archived_classroom_purge_managed_ownership', 'fixture',
     '{"mode":"teacher_managed","delete_after":null}'::jsonb,
     clock_timestamp(), clock_timestamp() + interval '1 hour'
   );
@@ -337,10 +337,10 @@ begin
     'b1800000-0000-4000-8000-000000000001',
     'b1800000-0000-4000-8000-000000000010',
     'restore', repeat('2', 64), 'snapshot_ready', 1,
-    '118_hot_archived_classroom_purge_managed_ownership', 'fixture',
+    '119_hot_archived_classroom_purge_managed_ownership', 'fixture',
     '{"mode":"teacher_managed","delete_after":null}'::jsonb,
     clock_timestamp(), clock_timestamp() + interval '1 hour',
-    '118_hot_archived_classroom_purge_managed_ownership', '[]'::jsonb
+    '119_hot_archived_classroom_purge_managed_ownership', '[]'::jsonb
   );
   v_conflict := public.classroom_purge_conflict(
     'b1800000-0000-4000-8000-000000000010'
@@ -528,7 +528,7 @@ declare
 begin
   -- Database fixture equivalent of the application worker's Storage API
   -- delete. Supabase protects direct SQL deletes unless this transaction-local
-  -- test override is set; migration 118's exact purge lease still authorizes
+  -- test override is set; migration 119's exact purge lease still authorizes
   -- each object independently.
   perform set_config('storage.allow_delete_query', 'true', true);
   loop

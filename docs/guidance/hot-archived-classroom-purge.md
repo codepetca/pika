@@ -64,10 +64,13 @@ for active classrooms, cold archives, and student surfaces.
 
 ## Rollout
 
-Migration 118 creates `classroom_purge_settings` in `disabled` mode. Applying a
+Migration 118 adds the validated one-time managed identity binding required for
+verified archive rows created before managed storage. It does not add deletion.
+
+Migration 119 creates `classroom_purge_settings` in `disabled` mode. Applying a
 migration does not enable deletion.
 
-Before applying 118, verify that migration 115 has no unfinished deletion:
+Before applying 119, verify that migration 115 has no unfinished deletion:
 
 ```sql
 select id, classroom_id, status, retryable, error_code
@@ -75,16 +78,16 @@ from public.classroom_purge_operations
 where status <> 'completed';
 ```
 
-Migration 118 aborts with `unfinished_legacy_classroom_purge_operations` if this
+Migration 119 aborts with `unfinished_legacy_classroom_purge_operations` if this
 query returns a row. Stop and obtain a separately reviewed reconciliation plan;
 do not coerce the legacy raw-path ledger into managed ownership or delete its
 fence by hand.
 
-1. Replay migrations 001–118 in a disposable/local environment and run the
+1. Replay migrations 001–119 in a disposable/local environment and run the
    destructive, concurrency, retry, authorization, and partial-failure fixtures.
 2. Deploy compatibility app code while both managed ownership enforcement and
    classroom purge rollout remain disabled. The daily cleanup route treats a
-   missing migration-118 table as a no-op so code-first deployment stays safe.
+   missing migration-119 table as a no-op so code-first deployment stays safe.
 3. Complete migration-117 readiness and activate managed ownership under its
    own runbook.
 4. Enable one exact teacher/classroom canary in `classroom_purge_settings`.
@@ -94,3 +97,14 @@ fence by hand.
 Every migration application or rollout-gate change requires fresh authorization
 naming the exact target and migration or SQL change. Nothing in this branch
 authorizes staging or production changes.
+
+## Follow-up scopes
+
+- Add a durable, resumable deletion operation for teacher-owned Course
+  Blueprints and their managed files. Until that exists, Blueprint deletion must
+  fail closed when managed ownership would otherwise be orphaned.
+- Before deleting the preserved production canary Blueprint, create and verify
+  a Classroom from it to prove that classroom purge preserved a reusable course
+  package, including its managed test material.
+- Cold archived Classroom deletion and comprehensive individual-student purging
+  remain separate follow-up scopes.

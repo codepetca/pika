@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
-const migrationPath = 'supabase/migrations/118_hot_archived_classroom_purge_managed_ownership.sql'
+const migrationPath = 'supabase/migrations/119_hot_archived_classroom_purge_managed_ownership.sql'
 const migration = readFileSync(migrationPath, 'utf8')
 const migrationFunctions = new Set(
   Array.from(
@@ -52,7 +52,7 @@ const findings = (report.results || []).filter(
 )
 
 if (findings.length > 0) {
-  console.error('Migration 118 PostgreSQL function lint failed:')
+  console.error('Migration 119 PostgreSQL function lint failed:')
   for (const finding of findings) {
     for (const issue of finding.issues) {
       const line = issue.statement?.lineNumber ? ` line ${issue.statement.lineNumber}` : ''
@@ -62,4 +62,4 @@ if (findings.length > 0) {
   process.exit(1)
 }
 
-console.log(`Migration 118 PostgreSQL function lint passed (${migrationFunctions.size} functions).`)
+console.log(`Migration 119 PostgreSQL function lint passed (${migrationFunctions.size} functions).`)

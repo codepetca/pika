@@ -123,7 +123,7 @@ describe('classroom purge helpers', () => {
     expect(isMissingClassroomPurgeSchemaError(null)).toBe(false)
   })
 
-  it('does not touch legacy purge operations when migration 118 readiness is absent', async () => {
+  it('does not touch legacy purge operations when migration 119 readiness is absent', async () => {
     serviceClient.from.mockImplementation((table: string) => {
       if (table === 'classroom_purge_settings') {
         return {

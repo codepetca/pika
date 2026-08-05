@@ -9,7 +9,8 @@ const expected = new Map([
 ])
 const required = [
   '117_managed_storage_ownership_foundation.sql',
-  '118_hot_archived_classroom_purge_managed_ownership.sql',
+  '118_managed_storage_archive_binding_compatibility.sql',
+  '119_hot_archived_classroom_purge_managed_ownership.sql',
 ]
 
 for (const [filename, expectedSha256] of expected) {
@@ -36,12 +37,19 @@ if (!/mode\s*=\s*'enforced'/i.test(foundation)) {
   throw new Error('Migration 117 must contain explicit database enforcement activation')
 }
 
-const purge = readFileSync(new URL(required[1], migrationDir), 'utf8')
-if (!/rollout_mode\s+text\s+not\s+null\s+default\s+'disabled'/i.test(purge)) {
-  throw new Error('Migration 118 must leave permanent deletion disabled')
-}
-if (!/managed_storage_object_id\s+uuid/i.test(purge)) {
-  throw new Error('Migration 118 must consume exact managed ownership identities')
+const compatibility = readFileSync(new URL(required[1], migrationDir), 'utf8')
+if (!/old\.managed_object_id\s+is\s+null/i.test(compatibility)
+  || !/new\.managed_object_id\s+is\s+not\s+null/i.test(compatibility)
+  || !/managed_storage_legacy_object_id/i.test(compatibility)) {
+  throw new Error('Migration 118 must narrowly reconcile legacy archive ownership')
 }
 
-console.log(`Managed-storage lineage verified: ${join('115', '116', '117', '118')}`)
+const purge = readFileSync(new URL(required[2], migrationDir), 'utf8')
+if (!/rollout_mode\s+text\s+not\s+null\s+default\s+'disabled'/i.test(purge)) {
+  throw new Error('Migration 119 must leave permanent deletion disabled')
+}
+if (!/managed_storage_object_id\s+uuid/i.test(purge)) {
+  throw new Error('Migration 119 must consume exact managed ownership identities')
+}
+
+console.log(`Managed-storage lineage verified: ${join('115', '116', '117', '118', '119')}`)

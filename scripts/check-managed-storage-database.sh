@@ -39,6 +39,116 @@ insert into public.classroom_enrollments (classroom_id, student_id) values (
   'a1100000-0000-4000-8000-000000000002'
 );
 
+-- Verified archive metadata remains immutable, but migration 118 must permit
+-- one exact legacy managed-object binding after the operation ledger binds.
+do $legacy_archive_binding$
+declare
+  v_operation_id constant uuid := 'a1100000-0000-4000-8000-000000000080';
+  v_archive_id constant uuid := 'a1100000-0000-4000-8000-000000000081';
+  v_path constant text := 'managed-fixture/legacy-archive.tar.gz';
+  v_managed_object_id uuid := public.managed_storage_legacy_object_id(
+    'classroom-archives', v_path
+  );
+begin
+  insert into public.classroom_archive_operations (
+    id, teacher_id, classroom_id, operation_type, request_sha256, status,
+    source_revision, source_schema_migration, source_app_commit, retention,
+    resource_counts, storage_object_counts, archive_id, storage_bucket,
+    storage_path, artifact_sha256, content_sha256, compressed_byte_size,
+    uncompressed_byte_size, verification, snapshot_created_at,
+    snapshot_expires_at, completed_at
+  ) values (
+    v_operation_id,
+    'a1100000-0000-4000-8000-000000000001',
+    'a1100000-0000-4000-8000-000000000003',
+    'export', repeat('8', 64), 'completed', 1,
+    '107_classroom_archive_v2_direct_source', 'fixture',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    '{}'::jsonb, '{}'::jsonb, v_archive_id, 'classroom-archives', v_path,
+    repeat('a', 64), repeat('b', 64), 4, 8,
+    '{"read_back_verified":true}'::jsonb,
+    clock_timestamp(), clock_timestamp() + interval '1 hour', clock_timestamp()
+  );
+  insert into public.classroom_archives (
+    id, operation_id, classroom_id, teacher_id, format, format_version,
+    source_revision, source_schema_migration, source_app_commit, storage_bucket,
+    storage_path, artifact_sha256, content_sha256, compressed_byte_size,
+    uncompressed_byte_size, resource_counts, storage_object_counts, verification,
+    retention, created_at, verified_at
+  ) values (
+    v_archive_id, v_operation_id,
+    'a1100000-0000-4000-8000-000000000003',
+    'a1100000-0000-4000-8000-000000000001',
+    'pika.classroom-archive', 1, 1,
+    '107_classroom_archive_v2_direct_source', 'fixture',
+    'classroom-archives', v_path, repeat('a', 64), repeat('b', 64), 4, 8,
+    '{}'::jsonb, '{}'::jsonb, '{"read_back_verified":true}'::jsonb,
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+    clock_timestamp(), clock_timestamp()
+  );
+  insert into storage.objects (bucket_id, name, metadata)
+  values (
+    'classroom-archives', v_path,
+    '{"mimetype":"application/gzip","size":4}'::jsonb
+  );
+  perform public.register_legacy_managed_storage_object(
+    v_managed_object_id,
+    'classroom-archives', v_path,
+    'a1100000-0000-4000-8000-000000000003', null,
+    'classroom_archive',
+    'a1100000-0000-4000-8000-000000000001', null,
+    'classroom_archive_operation', v_operation_id,
+    'application/gzip', 4, repeat('a', 64)
+  );
+
+  begin
+    update public.classroom_archives
+    set managed_object_id = gen_random_uuid()
+    where id = v_archive_id;
+    raise exception 'Archive accepted a managed identity before operation binding';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%Verified classroom archive metadata is immutable%'
+    then raise; end if;
+  end;
+
+  perform public.reconcile_managed_storage_relational_references();
+  if (select managed_object_id from public.classroom_archive_operations
+      where id = v_operation_id) is distinct from v_managed_object_id
+    or (select managed_object_id from public.classroom_archives
+      where id = v_archive_id) is distinct from v_managed_object_id
+  then
+    raise exception 'Legacy archive identity did not reconcile atomically';
+  end if;
+  perform public.reconcile_managed_storage_relational_references();
+
+  begin
+    update public.classroom_archives
+    set content_sha256 = repeat('c', 64)
+    where id = v_archive_id;
+    raise exception 'Verified archive content metadata became mutable';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%Verified classroom archive metadata is immutable%'
+    then raise; end if;
+  end;
+  begin
+    update public.classroom_archives
+    set managed_object_id = null
+    where id = v_archive_id;
+    raise exception 'Legacy managed identity could be removed';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%Verified classroom archive metadata is immutable%'
+    then raise; end if;
+  end;
+
+  delete from public.classroom_archives where id = v_archive_id;
+  delete from public.classroom_archive_operations where id = v_operation_id;
+  delete from public.managed_storage_objects where id = v_managed_object_id;
+  perform set_config('storage.allow_delete_query', 'true', true);
+  delete from storage.objects
+  where bucket_id = 'classroom-archives' and name = v_path;
+end;
+$legacy_archive_binding$;
+
 -- Compatibility readiness must settle abandoned uploads without deleting
 -- their bytes. Activation may then proceed, after which explicitly enabled
 -- cleanup can claim the durable work and leave terminal tombstones.
