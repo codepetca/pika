@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-27 — PR 952 migration resequence
-
-**Risk profile:** high — migration ordering and local-history drift.
-
-**Completed:**
-- Rebased PR #952 onto current `origin/main`, preserving Pal and Blueprint
-  continuity entries.
-- Resequenced the branch-only Blueprint migration from 111 to 112 after Pal
-  claimed 111 on `main`; updated runtime errors, docs, and tests.
-- Kept the shared local database untouched because its earlier Blueprint-as-111
-  history requires separate reset or repair authorization.
-- Compacted current AI context under the enforced startup budget.
-
-**Validation:**
-- Full Vitest suite: 451 files / 3,933 tests.
-- Focused Blueprint/startup suite: 43 tests.
-- TypeScript, lint, architecture, design/UI policy, audit, ShellCheck, Bash
-  syntax, session-log validation, duplicate migration-prefix check, and diff
-  checks pass.
-
-**Remaining:**
-- Build, commit, force-push with lease, and require fresh 001–112 CI replay,
-  generated-type parity, database contracts, and exact-head review.
-
 ## 2026-07-27 — Local migration-history reconciliation
 
 **Risk profile:** high — destructive local database reset.
@@ -1195,9 +1171,22 @@ hot-archived Classroom with a student, assignment artifact, and test material.
 
 - Full Vitest passed: 468 files and 4,047 tests. Production build, lint,
   TypeScript, Pika audit, focused migration/server tests, migration lineage,
-  migration-119 function lint, feature validation, shell syntax, and diff checks
+  migration-118 function lint, feature validation, shell syntax, and diff checks
   also passed.
 - The shared local database currently lacks the managed-storage/purge schema, so
   database fixtures stopped before mutation on missing migration-117/119
   objects. No reset or migration application was performed. Disposable CI must
   replay 001–119 and pass both database fixtures before merge.
+
+## 2026-08-05 — Preserve merged migration 118 during reconciliation
+
+- Independent review found that replacing merged migration version 118 would
+  break databases that had already applied `main`: they would skip the new 118
+  and fail when the non-idempotent purge DDL moved to 119.
+- Restored the merged purge migration 118 byte-for-byte, hash-locked it, and
+  appended archive-binding compatibility as migration 119. Current clean replay
+  therefore exercises the real upgrade order, and the managed-storage database
+  fixture proves the legacy binding after that upgrade.
+- Verified production already has the equivalent final schemas recorded as
+  versions 118 and 119 under its separately authorized reconciliation history;
+  this source correction performed no remote migration or state change.

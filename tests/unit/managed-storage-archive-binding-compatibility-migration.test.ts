@@ -1,13 +1,24 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(resolve(
   process.cwd(),
-  'supabase/migrations/118_managed_storage_archive_binding_compatibility.sql',
+  'supabase/migrations/119_managed_storage_archive_binding_compatibility.sql',
 ), 'utf8')
+const mergedPurgeBytes = readFileSync(resolve(
+  process.cwd(),
+  'supabase/migrations/118_hot_archived_classroom_purge_managed_ownership.sql',
+))
 
 describe('managed-storage archive binding compatibility migration', () => {
+  it('appends after the byte-identical purge migration already merged as 118', () => {
+    expect(createHash('sha256').update(mergedPurgeBytes).digest('hex')).toBe(
+      'be00e84d6a996f5e7c21ad2488aa568d24aceba85ab4ff5547cf315796ccd177',
+    )
+  })
+
   it('allows only a one-time identity attachment without changing archive evidence', () => {
     expect(sql).toContain('old.managed_object_id is null')
     expect(sql).toContain('new.managed_object_id is not null')

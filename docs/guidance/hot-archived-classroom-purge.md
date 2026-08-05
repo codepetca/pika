@@ -64,13 +64,14 @@ for active classrooms, cold archives, and student surfaces.
 
 ## Rollout
 
-Migration 118 adds the validated one-time managed identity binding required for
-verified archive rows created before managed storage. It does not add deletion.
+Migration 118 creates `classroom_purge_settings` in `disabled` mode. Applying it
+does not enable deletion.
 
-Migration 119 creates `classroom_purge_settings` in `disabled` mode. Applying a
-migration does not enable deletion.
+Migration 119 appends the validated one-time managed identity binding required
+for verified archive rows created before managed storage. It does not enable
+deletion or cleanup.
 
-Before applying 119, verify that migration 115 has no unfinished deletion:
+Before applying 118, verify that migration 115 has no unfinished deletion:
 
 ```sql
 select id, classroom_id, status, retryable, error_code
@@ -78,7 +79,7 @@ from public.classroom_purge_operations
 where status <> 'completed';
 ```
 
-Migration 119 aborts with `unfinished_legacy_classroom_purge_operations` if this
+Migration 118 aborts with `unfinished_legacy_classroom_purge_operations` if this
 query returns a row. Stop and obtain a separately reviewed reconciliation plan;
 do not coerce the legacy raw-path ledger into managed ownership or delete its
 fence by hand.
@@ -87,7 +88,7 @@ fence by hand.
    destructive, concurrency, retry, authorization, and partial-failure fixtures.
 2. Deploy compatibility app code while both managed ownership enforcement and
    classroom purge rollout remain disabled. The daily cleanup route treats a
-   missing migration-119 table as a no-op so code-first deployment stays safe.
+   missing migration-118 table as a no-op so code-first deployment stays safe.
 3. Complete migration-117 readiness and activate managed ownership under its
    own runbook.
 4. Enable one exact teacher/classroom canary in `classroom_purge_settings`.
@@ -97,6 +98,12 @@ fence by hand.
 Every migration application or rollout-gate change requires fresh authorization
 naming the exact target and migration or SQL change. Nothing in this branch
 authorizes staging or production changes.
+
+The verified production database already contains the final schemas from both
+versions under its separately authorized reconciliation history. Do not reapply
+or repair either remote version. The canonical source order keeps merged
+migration 118 immutable and appends compatibility migration 119 so databases
+that already applied `main` can upgrade safely.
 
 ## Follow-up scopes
 

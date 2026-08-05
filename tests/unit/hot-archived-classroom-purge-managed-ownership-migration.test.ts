@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(resolve(
   process.cwd(),
-  'supabase/migrations/119_hot_archived_classroom_purge_managed_ownership.sql',
+  'supabase/migrations/118_hot_archived_classroom_purge_managed_ownership.sql',
 ), 'utf8')
 
 describe('managed-ownership classroom purge migration', () => {

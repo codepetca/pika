@@ -16937,3 +16937,28 @@ application invariants.
 - Publish the draft revision and require ephemeral migration replay, the live
   versioned-Blueprint database contract, exact-head CI, and final review before
   marking PR #952 ready again.
+
+<!-- pika-session-log-archive-batch:1b8254dbb0133027649a88da0cdd1f6c173a769da367ab81de5eb185c9b71e56 -->
+## 2026-07-27 — PR 952 migration resequence
+
+**Risk profile:** high — migration ordering and local-history drift.
+
+**Completed:**
+- Rebased PR #952 onto current `origin/main`, preserving Pal and Blueprint
+  continuity entries.
+- Resequenced the branch-only Blueprint migration from 111 to 112 after Pal
+  claimed 111 on `main`; updated runtime errors, docs, and tests.
+- Kept the shared local database untouched because its earlier Blueprint-as-111
+  history requires separate reset or repair authorization.
+- Compacted current AI context under the enforced startup budget.
+
+**Validation:**
+- Full Vitest suite: 451 files / 3,933 tests.
+- Focused Blueprint/startup suite: 43 tests.
+- TypeScript, lint, architecture, design/UI policy, audit, ShellCheck, Bash
+  syntax, session-log validation, duplicate migration-prefix check, and diff
+  checks pass.
+
+**Remaining:**
+- Build, commit, force-push with lease, and require fresh 001–112 CI replay,
+  generated-type parity, database contracts, and exact-head review.

@@ -39,7 +39,7 @@ insert into public.classroom_enrollments (classroom_id, student_id) values (
   'a1100000-0000-4000-8000-000000000002'
 );
 
--- Verified archive metadata remains immutable, but migration 118 must permit
+-- Verified archive metadata remains immutable, but migration 119 must permit
 -- one exact legacy managed-object binding after the operation ledger binds.
 do $legacy_archive_binding$
 declare
