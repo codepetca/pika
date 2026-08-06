@@ -1,9 +1,7 @@
-Focus: finish migration-118/119 reconciliation; #968 merged, #963 held.
-Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
-Env: maintainers use `$HOME/Repos/.env/pika/.env.local`; collaborators copy
-`.env.example`. Prod: migrations 117–119; managed Storage enforced. Canaries
-deleted 210 rows/four files; inventory is 140/140 ready. The canary Blueprint
-and users are preserved. Canary targets a deleted Classroom; cleanup and global
-rollout are disabled. Follow-up: prove Classroom creation from that Blueprint,
-then add durable Blueprint/managed-file deletion. Production changes require
-authorization.
+Focus: land managed Blueprint deletion. Prod has migrations 117–119; all
+deletion/cleanup gates are off. Local 001–120 replay, generated types, seed,
+managed-storage checks, and Blueprint purge fixture pass.
+WT: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`.
+Env: `$HOME/Repos/.env/pika/.env.local` or collaborator `.env.example`.
+Every unclosed copy intent blocks purge, with guarded operator recovery.
+Migration 120 is not remote.

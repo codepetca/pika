@@ -1196,3 +1196,210 @@ hot-archived Classroom with a student, assignment artifact, and test material.
 - Playwright visual verification passed for the unauthenticated desktop/mobile
   login screen in light and dark themes, including default, hover, and focus
   states. Teacher/student authenticated variants are not applicable.
+## 2026-08-05 — Prove post-purge Blueprint reuse in production
+
+**Risk profile:** exact synthetic production create/archive/purge canary; no
+broader rollout, generic cleanup, migration, or Blueprint deletion.
+
+**Completed:**
+- Created Classroom `362b444c-ec43-4f33-bdc5-47d957c4bcc0` named
+  `Post-Purge Blueprint Reuse Canary` from preserved Blueprint
+  `c318ef23-5039-4b64-9977-66bceee54ba0` through the teacher UI.
+- Verified 96 class days, one assignment, one test and document, and distinct
+  ready Classroom-owned managed object
+  `dfffde84-1b21-502e-8b30-167d4fe4de79` (14,760 bytes).
+- Hot archived the Classroom, conditionally retargeted only the existing
+  synthetic canary binding, typed `DELETE`, and completed durable purge
+  operation `c40b3f5d-865f-4997-8046-c780eb77b401` in one tick.
+
+**Validation:**
+- The impact summary reported 0 students, 102 relational rows, and one 15 KB
+  managed file, with no missing file or conflicting operation.
+- The Classroom and its managed object are absent; the audit object is terminal
+  `deleted`, its path is redacted, and the purge resource snapshot is empty.
+- The instantiate operation remains completed with Blueprint lineage preserved
+  and deleted Classroom references reconciled to null.
+- The Blueprint still has one assignment, one assessment, one Version, and its
+  original ready 14,760-byte managed PDF in Storage. Teacher and student
+  accounts remain.
+- Global managed state returned from 141/141 to 140/140, with zero non-ready,
+  missing, or unregistered objects.
+- Teacher/student desktop/mobile light/dark verification passed before and
+  after deletion. The teacher sees the preserved Blueprint test/PDF; the
+  student sees `Classroom unavailable` for the purged Classroom.
+
+**Remaining:**
+- The exact canary row points to the deleted Classroom and enables no remaining
+  Classroom. Global rollout and generic cleanup are still disabled.
+- Durable teacher-owned Blueprint/managed-file deletion remains the next local
+  implementation scope. Production migration or Blueprint deletion needs fresh
+  exact authorization.
+
+## 2026-08-05 — Implement durable Course Blueprint deletion locally
+
+**Contract:**
+- Owning teachers may permanently delete only Pika-managed Course Blueprints.
+  Deletion removes the draft graph, immutable Versions, planned course site,
+  proposals/sessions, audit identifiers, and exact Blueprint-owned
+  `test-documents` objects.
+- Linked Classrooms, their independently copied files and student data, all
+  users, and unrelated Blueprints remain. Linked Classrooms and artifact rows
+  are explicitly unlinked from the deleted Blueprint/Versions.
+
+**Implementation:**
+- Added unapplied migration 120 with an independent disabled rollout gate,
+  durable operation/fence/object ledgers, exact-object leases, retries,
+  storage-absence and reappearance checks, raw-path redaction/reservation,
+  explicit graph finalization, and fail-closed direct root deletion.
+- Added Blueprint/Version-lineage, managed-object, provisional-copy, and
+  Storage fences. Blueprint-to-Classroom copies now establish a source-aware
+  provisional intent before provider work, with a safe pre-120 fallback.
+- Added owner-scoped purge APIs, typed impact/confirmation validation, a
+  resumable worker and cron safety net, and a Blueprint deletion dialog that
+  states the irreversible scope and preserved Classroom/user boundary.
+- Added a transactional database fixture covering authorization, active
+  operation conflicts, concurrency fences, provider failure/retry, exact file
+  cleanup, path reappearance, explicit database finalization, Classroom/user
+  preservation, and durable audit evidence. The fixture is authored but not run
+  because migration 120 has not been authorized for local replay.
+- Documented the contract and staged rollout in
+  `docs/guidance/course-blueprint-purge.md`.
+
+**Validation:**
+- Full Vitest, production build, lint, TypeScript, Pika audit, shell syntax,
+  static migration contracts, focused server/API/UI tests, and diff checks
+  pass after updating the cleanup-cron mocks for the new safety net.
+- Teacher UI verified at 1440×1000 and 390×844 with a read-only intercepted
+  impact response. Confirmation remains disabled until the exact title or
+  `DELETE`; the mobile dialog scrolls to reachable actions. Student purge API
+  access returned 403 and `/teacher/blueprints` redirected to Classrooms.
+- No migration 120 replay, local reset, remote mutation, rollout activation, or
+  Blueprint deletion occurred.
+
+**Remaining:**
+- Obtain exact authorization to reset local Supabase, replay 001–120,
+  regenerate types, reseed, and run the destructive transactional database
+  fixture. Keep all remote rollout gates disabled.
+
+## 2026-08-05 — Verify Course Blueprint purge on clean local replay
+
+**Completed:**
+- Reset local Supabase and replayed migrations 001–120 from the dedicated
+  worktree, regenerated database types, and reseeded against loopback Supabase.
+- Corrected migration-120 PL/pgSQL row selection, made the polymorphic Blueprint
+  trigger use table-safe JSON fields, and removed an unnecessary transaction-
+  scoped begin bypass that could outlive purge initialization.
+- Updated the Blueprint purge fixture to model the Storage API's transaction-
+  local delete capability while retaining exact managed-object authority.
+
+**Validation:**
+- Managed-storage readiness, activation, Blueprint-adoption, and reference/
+  deletion concurrency fixtures pass against `supabase_db_pika`.
+- The Blueprint purge database fixture passes authorization, conflict, fence,
+  retry, exact Storage deletion, reappearance, finalization, Classroom unlinking
+  and preservation, user preservation, and unrelated-Blueprint preservation.
+- Migration history is exactly 001–120, generated database types match, seeded
+  users remain, and diff/static migration checks pass.
+- Local managed Storage is `compatibility`; Classroom purge, Blueprint purge,
+  and generic cleanup remain disabled. No staging or production state changed.
+
+## 2026-08-06 — Harden Blueprint purge recovery boundaries
+
+**Review remediation:**
+- Active purges are rediscovered before fresh inventory, return their persisted
+  impact, and reuse a client-retained operation UUID after a lost start response.
+  Pre-migration APIs now fail closed with an intentional 503 instead of a
+  generic 500.
+- Source-aware Blueprint copies now heartbeat a durable intent and explicitly
+  settle it as adopted or aborted after ownership or cleanup is durable.
+  Expired abandoned intents no longer block purge forever, while a running
+  operation or heartbeat keeps the fence live.
+- The confirmation digest now includes each linked Classroom's Blueprint
+  Version, source revision, and origin identity, and begin locks those lineage
+  rows before sealing inventory.
+- A periodic heartbeat now spans individual provider calls, and finalization
+  uses a separate Blueprint-owned membership digest so preserved Classroom
+  edits cannot strand deletion after Storage cleanup.
+- Expanded unit, API, UI, static migration, and transactional database fixtures
+  for lost responses, partial deletion, pre-120 compatibility, copy failures,
+  intent lifetime, and equal-membership lineage drift.
+
+**Validation and boundary:**
+- Focused remediation tests pass (58/58), with TypeScript, focused ESLint,
+  shell syntax, feature validation, and diff checks also passing.
+- Full Vitest (4,078 tests), lint, and production build pass. Final targeted
+  review still found one P1: after a transient heartbeat failure, the current
+  timer stops renewing while an in-flight provider call can remain stalled.
+  The feature remains failing pending an abortable deadline or durable copy
+  operation ledger; no further review-fix batch was taken in this session.
+- The changed migration 120 has not been replayed after this review batch;
+  fresh exact local-reset authorization is required before database fixture and
+  generated-type verification. No staging or production state changed, and all
+  deletion/cleanup rollout gates remain disabled.
+
+## 2026-08-06 — Make Blueprint copy fences fail closed
+
+**Implementation:**
+- Removed lease expiry from Blueprint purge authorization: every unclosed
+  source-copy intent now blocks purge until durable settlement.
+- Heartbeats continue after transient failures; a later successful heartbeat
+  clears the operational error while the durable intent remains the safety
+  boundary throughout provider I/O.
+- Added a private, service-role-only hard-crash recovery RPC. It requires the
+  exact owner/operation/teacher/source tuple and expiry snapshot, 24 hours of
+  staleness, no running operation, no live provisional files, and explicit
+  confirmation that no worker remains. Recovery is compare-and-swap and
+  idempotent.
+- Expanded static, runtime, privilege, stale-intent, exact-snapshot, running-
+  operation, and provisional-file reconciliation fixtures.
+- Classified heartbeat transport failures as retryable and intent/fence
+  rejection as terminal. A single wrapper now checks authority before and after
+  every asynchronous copy action so no later reservation, read-back, or
+  verification begins after authority is lost.
+- Completed-operation retries return the deterministic owner identity and
+  idempotently repair lost settlement. Migration 120 also binds and closes only
+  legacy adopted owners proven by a matching completed operation and live
+  teacher-owned source Blueprint.
+
+**Boundary:**
+- Full Vitest (4,083 tests), lint, architecture, production build, Pika audit,
+  shell syntax, static migration checks, and final bounded reviews pass.
+  Migration 120 has not been replayed after this change; generated types and
+  the database fixture still require a fresh authorized local reset. No staging
+  or production state changed, and all rollout gates remain disabled.
+
+## 2026-08-06 — Verify revised Blueprint purge on clean local replay
+
+**Risk profile:** runtime-platform — authorized destructive local reset and
+schema/Storage concurrency verification only.
+
+**Completed:**
+- Verified the target was loopback `127.0.0.1:54321` with the healthy
+  `supabase_db_pika` container, then used the one-time authorization to reset
+  local Supabase and replay migrations 001–120 including the revised migration
+  120.
+- Regenerated `database.generated.ts`, reseeded one teacher, two students, one
+  Classroom, assignments, tests, grades, and history, and confirmed generated
+  types match the replayed schema.
+- Passed the managed-storage contract/readiness and multi-session concurrency
+  fixtures plus the transactional Course Blueprint purge fixture, including
+  fail-closed copy intents and guarded recovery.
+
+**Postconditions:**
+- Migration history is exactly 001–120 with no gaps or mismatches. Both purge
+  modes are `disabled`; managed Storage is `compatibility`; cleanup/compaction
+  environment gates are disabled or unset; no purge operation is active.
+- Synthetic fixture users and Storage objects were removed. No staging or
+  production state changed, and migration 120 remains local only.
+
+## 2026-08-06 — Prepare verified Blueprint deletion draft
+
+**Risk profile:** workspace-state — publish the already verified feature only.
+
+**Prepared:**
+- Reconfirmed this dedicated branch matches current `origin/main`, the complete
+  worktree diff is limited to Course Blueprint deletion and its continuity
+  metadata, and the Pika audit and diff checks pass.
+- Prepared migration 120, the disabled-by-default application/API/UI flow,
+  tests, fixtures, and rollout guidance for a separate draft PR. PR #963 and
+  all staging and production state remain untouched.
