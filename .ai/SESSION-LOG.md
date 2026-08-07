@@ -1191,6 +1191,8 @@ hot-archived Classroom with a student, assignment artifact, and test material.
 **Validation:**
 - Focused LoginClient tests, lint, design/UI policy checks, Pika audit, and
   diff checks passed.
+- Regenerated and reviewed the affected Playwright desktop light/dark login
+  visual-regression baselines; their focused snapshot suite passed.
 - Playwright visual verification passed for the unauthenticated desktop/mobile
   login screen in light and dark themes, including default, hover, and focus
   states. Teacher/student authenticated variants are not applicable.
