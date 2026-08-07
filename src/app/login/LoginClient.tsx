@@ -121,16 +121,6 @@ export function LoginClient() {
             />
           </FormField>
 
-          <div className="mt-2 text-right">
-            <button
-              type="button"
-              onClick={() => router.push('/forgot-password')}
-              className="text-sm text-primary hover:underline"
-            >
-              Forgot password?
-            </button>
-          </div>
-
           <Button
             type="submit"
             className="w-full mt-6"
@@ -138,9 +128,19 @@ export function LoginClient() {
           >
             {loading ? 'Logging in...' : 'Login'}
           </Button>
+
+          <div className="mt-2 text-center">
+            <button
+              type="button"
+              onClick={() => router.push('/forgot-password')}
+              className="inline-flex min-h-control items-center justify-center rounded-control px-2 text-sm text-primary outline-none hover:underline focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-2 text-center">
           <p className="text-sm text-text-muted">
             Don&apos;t have an account?{' '}
             <button
