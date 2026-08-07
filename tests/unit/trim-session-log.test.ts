@@ -152,6 +152,46 @@ describe('trim-session-log script', () => {
     }
   })
 
+  it('rejects empty entries without writing output', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-empty-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const source = [
+        '# Pika Session Log',
+        '',
+        '## 2026-08-01 - Empty entry',
+        '',
+        '## 2026-08-02 - Valid entry',
+        'completed work',
+        '',
+      ].join('\n')
+
+      writeFileSync(sourcePath, source)
+
+      const commands = [
+        ['--check', '--source', sourcePath],
+        ['--source', sourcePath, '--output', outputPath, '--no-archive'],
+      ]
+
+      for (const args of commands) {
+        const result = spawnSync('node', [scriptPath, ...args], {
+          cwd: repoRoot,
+          encoding: 'utf8',
+        })
+
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('entries must include content after the heading')
+        expect(result.stderr).toContain('## 2026-08-01 - Empty entry')
+        expect(readFileSync(sourcePath, 'utf8')).toBe(source)
+        expect(existsSync(outputPath)).toBe(false)
+      }
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('defaults to compacting below the CI cap', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-buffer-'))
 
