@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-27 — Local migration-history reconciliation
-
-**Risk profile:** high — destructive local database reset.
-
-**Completed:**
-- Verified the feature worktree and local-only Supabase target, then confirmed
-  the ledger collision: local 111 contained the earlier Blueprint draft while
-  current 111 is Pal and Blueprint is 112.
-- Created and checksum-verified a full custom-format PostgreSQL backup.
-- With explicit authorization, reset only the local database without seed data
-  and replayed migrations 001–112.
-
-**Validation:**
-- Local migration ledger matches Pal 111 and Blueprint 112; push dry-run is a
-  no-op.
-- Generated database types match.
-- Live versioned-Blueprint database contract passed.
-- Pal outbox and Blueprint Version objects exist.
-
-**Remaining:**
-- The rebuilt local database contains no users or seed data. Recover prior data
-  only through a separately planned selective restore; a full restore would
-  reintroduce the old migration history.
-
 ## 2026-07-28 — Submitted-requirement Blueprint capture fix
 
 **Risk profile:** runtime-platform — submitted-work integrity trigger and
@@ -1202,3 +1178,21 @@ hot-archived Classroom with a student, assignment artifact, and test material.
   existing empty duplicate heading, and added focused regression coverage.
 - Validation passed: focused trim/startup tests (51), full Vitest (468 files,
   4,049 tests), lint, session-log check, TOML parsing, and diff checks.
+## 2026-08-07 — Center login password-recovery link
+
+**Risk profile:** none — localized unauthenticated login layout refinement.
+
+**Completed:**
+- Moved “Forgot password?” from the password-field edge to a centered row
+  between the Login button and Sign up link.
+- Preserved the recovery navigation and added the shared minimum target and
+  visible keyboard-focus treatment.
+
+**Validation:**
+- Focused LoginClient tests, lint, design/UI policy checks, Pika audit, and
+  diff checks passed.
+- Regenerated and reviewed the affected Playwright desktop light/dark login
+  visual-regression baselines; their focused snapshot suite passed.
+- Playwright visual verification passed for the unauthenticated desktop/mobile
+  login screen in light and dark themes, including default, hover, and focus
+  states. Teacher/student authenticated variants are not applicable.

@@ -16962,3 +16962,28 @@ application invariants.
 **Remaining:**
 - Build, commit, force-push with lease, and require fresh 001–112 CI replay,
   generated-type parity, database contracts, and exact-head review.
+
+<!-- pika-session-log-archive-batch:526e47e6a8c56ce69094aca27b5855479c417324c009dbe5461e47066d2c98c2 -->
+## 2026-07-27 — Local migration-history reconciliation
+
+**Risk profile:** high — destructive local database reset.
+
+**Completed:**
+- Verified the feature worktree and local-only Supabase target, then confirmed
+  the ledger collision: local 111 contained the earlier Blueprint draft while
+  current 111 is Pal and Blueprint is 112.
+- Created and checksum-verified a full custom-format PostgreSQL backup.
+- With explicit authorization, reset only the local database without seed data
+  and replayed migrations 001–112.
+
+**Validation:**
+- Local migration ledger matches Pal 111 and Blueprint 112; push dry-run is a
+  no-op.
+- Generated database types match.
+- Live versioned-Blueprint database contract passed.
+- Pal outbox and Blueprint Version objects exist.
+
+**Remaining:**
+- The rebuilt local database contains no users or seed data. Recover prior data
+  only through a separately planned selective restore; a full restore would
+  reintroduce the old migration history.
