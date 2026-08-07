@@ -6,7 +6,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
 - Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
 - CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to verify the log is chronological and within the 60-entry cap.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
@@ -298,8 +298,6 @@ classroom lineage.
 
 **Remaining:**
 - Publish the Pika branch and confirm exact-head review and CI.
-
-## 2026-08-01 — Native Pal learner experience
 
 ## 2026-08-02 — Built managed-storage ownership foundation
 
@@ -1190,3 +1188,17 @@ hot-archived Classroom with a student, assignment artifact, and test material.
 - Verified production already has the equivalent final schemas recorded as
   versions 118 and 119 under its separately authorized reconciliation history;
   this source correction performed no remote migration or state change.
+
+## 2026-08-07 — Add workflow-friction guardrails
+
+**Risk profile:** workspace-state.
+
+- Updated the E2E coverage and weekly simplification automations to create their
+  named task branch before edits when Codex starts them on a detached HEAD, and
+  to stop on any unexpected checkout state.
+- Added an explicit fallback for the workflow-friction review memory path while
+  retaining the configured hub project roots and report-only boundary.
+- Made session-log trim and check operations reject empty entries, removed the
+  existing empty duplicate heading, and added focused regression coverage.
+- Validation passed: focused trim/startup tests (51), full Vitest (468 files,
+  4,049 tests), lint, session-log check, TOML parsing, and diff checks.

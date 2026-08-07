@@ -64,7 +64,7 @@ function usage() {
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
     'Trimmed entries are appended to the archive file so history is preserved; pass --no-archive to discard them instead.',
-    'Use --check to fail when dated entries are out of order or the source has more entries than the check cap.',
+    'Use --check to fail when entries are empty, dated entries are out of order, or the source has more entries than the check cap.',
   ].join('\n')
 }
 
@@ -102,6 +102,18 @@ function assertDatedEntries(entries, source) {
     throw new Error(
       `${source} entry headings must start with a valid ISO date (YYYY-MM-DD); found: ${heading}`,
     )
+  }
+}
+
+function assertNonEmptyEntries(entries, source) {
+  const emptyEntry = entries.find((entry) => {
+    const [, ...bodyLines] = entry.split('\n')
+    return bodyLines.join('\n').trim().length === 0
+  })
+
+  if (emptyEntry) {
+    const heading = emptyEntry.split('\n', 1)[0]
+    throw new Error(`${source} entries must include content after the heading; found: ${heading}`)
   }
 }
 
@@ -147,7 +159,7 @@ function buildSessionLog(entries) {
     '- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.',
     '- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.',
     '- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.',
-    '- Use `node scripts/trim-session-log.mjs --check` to verify the log is chronological and within the 60-entry cap.',
+    '- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.',
     '- Keep enough recent entries for weekly automations to inspect roughly the last week of work.',
     '- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.',
     '- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.',
@@ -199,6 +211,7 @@ function trimSessionLog({ keep, source, output, archive }) {
   }
 
   assertDatedEntries(entries, source)
+  assertNonEmptyEntries(entries, source)
   const orderedEntries = orderEntriesChronologically(entries)
   const retainedEntries = orderedEntries.slice(-keep)
   const removedEntries = orderedEntries.slice(0, orderedEntries.length - retainedEntries.length)
@@ -238,6 +251,7 @@ function checkSessionLog({ maxEntries, source }) {
   }
 
   assertDatedEntries(entries, source)
+  assertNonEmptyEntries(entries, source)
   if (!entriesAreChronological(entries)) {
     throw new Error(
       `${source} dated entries are not in chronological order; run node scripts/trim-session-log.mjs to repair the order.`,

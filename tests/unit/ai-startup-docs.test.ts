@@ -125,7 +125,7 @@ describe('AI startup docs', () => {
     expect(sessionLog).toContain('valid ISO date (`## YYYY-MM-DD ...`)')
     expect(sessionLog).toContain('node scripts/trim-session-log.mjs --check')
     expect(startHere).toContain('valid ISO-date heading (`## YYYY-MM-DD ...`)')
-    expect(startHere).toContain('verify heading dates, chronological order, and the cap')
+    expect(startHere).toContain('empty entries, heading dates, order, and the cap')
     expect(entryCount).toBeGreaterThan(0)
     if (entryCount > 60) {
       throw new Error(
