@@ -11,6 +11,32 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-02 — Closed compatibility cleanup authority gap
+
+**Risk profile:** high — rolling cleanup compatibility and exact-path Storage
+write/delete serialization.
+
+**Completed:**
+- Made legacy cleanup rows opportunistically bind exact registered managed
+  identities during compatibility rollout while leaving unmatched raw-only rows
+  on their migration-116 behavior.
+- Mirrored managed cleanup leases, retries, and terminal tombstones in both
+  protocol modes, and fenced all exact-path Storage updates while such a lease
+  is active.
+- Added a real compatibility-mode claim, overwrite rejection, delete,
+  completion, tombstone, and readiness fixture; corrected the fixture's
+  submission-requirement column to the deployed `label` schema.
+- Kept generic cleanup enforcement-only, migration 117 unapplied outside
+  disposable CI, permanent deletion unavailable, and PR #963 unchanged.
+
+**Validation:**
+- Pending focused checks, disposable CI replay/fixture, and final targeted
+  independent review.
+
+**Remaining:**
+- Publish the correction after local static checks, require green PR CI, and
+  complete the approved targeted review.
+
 ## 2026-08-03 — Preserved live references during cleanup cancellation
 
 **Risk profile:** high — migration-116 worker compatibility, cleanup lease
@@ -1123,3 +1149,23 @@ concurrency, outage recovery, and production release evidence.
 - Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
   architecture/design/UI policy checks, Pika audit, production build, both
   real-database/HTTP Pal harnesses, continuity validation, and diff checks.
+## 2026-08-08 — Install production Blueprint purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified the dedicated worktree at merged `main`, the hub-linked production
+  Pika project, migration history through 119, migration 120 static checks, and
+  the managed-storage lineage.
+- Confirmed the linked dry run contained only
+  `120_course_blueprint_purge_managed_ownership.sql`.
+- Applied migration 120 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Production migration history now records 120.
+- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
+  and Blueprint IDs are null, and no Blueprint purge operation exists.
+- No purge, managed-storage cleanup, rollout activation, or Storage deletion
+  ran. Enabling a canary remains a separate production decision.
