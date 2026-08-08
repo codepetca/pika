@@ -1117,5 +1117,5 @@ state refresh behavior.
   added atomic recovery of expired immediate-delivery leases.
 
 **Validation:**
-- Full Vitest passed (473 files, 4,092 tests), plus TypeScript, lint,
+- Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
   architecture/UI policy checks, production build, and diff checks.
