@@ -56,18 +56,18 @@ export async function loadPalOutboxStatus(input: {
       .lte('lease_expires_at', nowIso),
     supabase
       .from('pal_event_outbox')
-      .select('created_at')
+      .select('next_attempt_at')
       .eq('status', 'pending')
       .lte('next_attempt_at', nowIso)
-      .order('created_at', { ascending: true })
+      .order('next_attempt_at', { ascending: true })
       .limit(1)
       .maybeSingle(),
     supabase
       .from('pal_event_outbox')
-      .select('created_at')
+      .select('lease_expires_at')
       .eq('status', 'processing')
       .lte('lease_expires_at', nowIso)
-      .order('created_at', { ascending: true })
+      .order('lease_expires_at', { ascending: true })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -110,14 +110,15 @@ export async function loadPalOutboxStatus(input: {
     const parsed = Date.parse(value)
     return Number.isFinite(parsed) ? parsed : null
   }
-  const oldestCandidates = [
-    oldestPendingResult.data,
-    oldestExpiredResult.data,
-  ].map((row) => {
-    const createdAt = row && typeof row === 'object' && 'created_at' in row
-      ? (row as { created_at: unknown }).created_at
+  const readyTimestamps = [
+    [oldestPendingResult.data, 'next_attempt_at'],
+    [oldestExpiredResult.data, 'lease_expires_at'],
+  ] as const
+  const oldestCandidates = readyTimestamps.map(([row, field]) => {
+    const readyAt = row && typeof row === 'object' && field in row
+      ? (row as Record<typeof field, unknown>)[field]
       : null
-    return { value: createdAt, milliseconds: timestamp(createdAt) }
+    return { value: readyAt, milliseconds: timestamp(readyAt) }
   }).filter((candidate): candidate is { value: string; milliseconds: number } =>
     typeof candidate.value === 'string' && candidate.milliseconds !== null)
   oldestCandidates.sort((left, right) => left.milliseconds - right.milliseconds)

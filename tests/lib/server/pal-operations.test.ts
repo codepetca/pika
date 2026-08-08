@@ -45,8 +45,8 @@ describe('Pal outbox operations observability', () => {
       },
       { count: 3, error: null },
       { count: 1, error: null },
-      { data: { created_at: '2026-08-08T15:50:00.000Z' }, error: null },
-      { data: { created_at: '2026-08-08T15:55:00.000Z' }, error: null },
+      { data: { next_attempt_at: '2026-08-08T15:59:00.000Z' }, error: null },
+      { data: { lease_expires_at: '2026-08-08T15:55:00.000Z' }, error: null },
       {
         data: [
           {
@@ -66,6 +66,8 @@ describe('Pal outbox operations observability', () => {
       },
     ]
     const builders = results.map(query)
+    const oldestPendingBuilder = builders[7]
+    const oldestExpiredBuilder = builders[8]
     const from = vi.fn(() => builders.shift())
     const rpc = vi.fn(async () => ({ data: 2, error: null }))
 
@@ -84,8 +86,8 @@ describe('Pal outbox operations observability', () => {
         ready: 2,
         retrying: 3,
         expired_leases: 1,
-        oldest_ready_at: '2026-08-08T15:50:00.000Z',
-        oldest_ready_age_seconds: 600,
+        oldest_ready_at: '2026-08-08T15:55:00.000Z',
+        oldest_ready_age_seconds: 300,
         delivery_latency_24h: {
           sample_size: 3,
           p50_ms: 500,
@@ -95,6 +97,16 @@ describe('Pal outbox operations observability', () => {
       },
       exceptions: expect.any(Array),
     })
+    expect(oldestPendingBuilder.select).toHaveBeenCalledWith('next_attempt_at')
+    expect(oldestPendingBuilder.order).toHaveBeenCalledWith(
+      'next_attempt_at',
+      { ascending: true },
+    )
+    expect(oldestExpiredBuilder.select).toHaveBeenCalledWith('lease_expires_at')
+    expect(oldestExpiredBuilder.order).toHaveBeenCalledWith(
+      'lease_expires_at',
+      { ascending: true },
+    )
 
     const serialized = JSON.stringify(await loadPalOutboxStatus({
       supabase: {

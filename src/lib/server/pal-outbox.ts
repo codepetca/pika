@@ -494,6 +494,8 @@ export async function deliverPalOutboxBatch(input: {
   concurrency?: number
   deadlineAtMs?: number
   clock?: () => number
+  signal?: AbortSignal
+  transitionSignal?: AbortSignal
 } = {}): Promise<PalOutboxDeliverySummary> {
   if (!isPalEnabled()) {
     return {
@@ -510,10 +512,13 @@ export async function deliverPalOutboxBatch(input: {
   const fetchImpl = input.fetchImpl ?? fetch
   const now = input.now ?? new Date()
   const clock = input.clock ?? Date.now
-  const { data, error } = await supabase.rpc('claim_pal_event_outbox', {
-    p_limit: input.limit ?? 10,
-    p_lease_seconds: 60,
-  })
+  const { data, error } = await withAbortSignal(
+    supabase.rpc('claim_pal_event_outbox', {
+      p_limit: input.limit ?? 10,
+      p_lease_seconds: 60,
+    }),
+    input.signal,
+  )
 
   if (error) {
     if (error.code === '42883' || error.code === 'PGRST202') {
@@ -547,6 +552,8 @@ export async function deliverPalOutboxBatch(input: {
       now,
       deadlineAtMs: input.deadlineAtMs,
       clock,
+      signal: input.signal,
+      transitionSignal: input.transitionSignal,
     })
     if (result === 'delivered') summary.delivered += 1
     else if (result === 'retrying') summary.retrying += 1
@@ -579,9 +586,17 @@ function categorizePalOutboxDrainError(error: unknown):
   | 'count'
   | 'transition'
   | 'contract'
+  | 'deadline'
   | 'unexpected' {
   if (error instanceof z.ZodError) return 'contract'
   if (!(error instanceof Error)) return 'unexpected'
+  if (
+    error.name === 'AbortError'
+    || error.name === 'TimeoutError'
+    || error.message.includes('bounded execution deadline')
+  ) {
+    return 'deadline'
+  }
   if (error.message.includes('PAL_') || error.message.includes('Pal configuration')) {
     return 'configuration'
   }
@@ -604,7 +619,11 @@ async function drainPalOutboxWithinDeadline(
   const maxDurationMs = input.maxDurationMs ?? 8_000
   const clock = input.clock ?? Date.now
   const startedAt = clock()
-  const deliveryDeadlineAt = startedAt + Math.max(1_000, maxDurationMs - 1_000)
+  const cleanupBudgetMs = Math.min(1_000, Math.max(1, Math.floor(maxDurationMs / 4)))
+  const deliveryBudgetMs = Math.max(1, maxDurationMs - cleanupBudgetMs)
+  const deliveryDeadlineAt = startedAt + deliveryBudgetMs
+  const deliverySignal = AbortSignal.timeout(deliveryBudgetMs)
+  const transitionSignal = AbortSignal.timeout(Math.max(1, maxDurationMs))
   const summary: PalOutboxDrainSummary = {
     status: 'ok',
     claimed: 0,
@@ -630,6 +649,8 @@ async function drainPalOutboxWithinDeadline(
       concurrency: 10,
       deadlineAtMs: deliveryDeadlineAt,
       clock,
+      signal: deliverySignal,
+      transitionSignal,
     })
     if (delivered.status === 'disabled') {
       return {
@@ -663,7 +684,10 @@ async function drainPalOutboxWithinDeadline(
   }
 
   const supabase = input.supabase ?? getServiceRoleClient()
-  const { data, error } = await supabase.rpc('count_pal_event_outbox_ready')
+  const { data, error } = await withAbortSignal(
+    supabase.rpc('count_pal_event_outbox_ready'),
+    transitionSignal,
+  )
   if (error) {
     throw new Error(`Failed to count ready Pal outbox rows: ${error.message ?? 'unknown error'}`)
   }
@@ -676,9 +700,19 @@ export async function drainPalOutbox(
 ): Promise<PalOutboxDrainSummary> {
   const clock = input.clock ?? Date.now
   const startedAt = clock()
+  const maxDurationMs = Math.max(1, input.maxDurationMs ?? 8_000)
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Pal outbox drain exceeded its bounded execution deadline'))
+    }, maxDurationMs)
+  })
 
   try {
-    const summary = await drainPalOutboxWithinDeadline(input)
+    const summary = await Promise.race([
+      drainPalOutboxWithinDeadline({ ...input, maxDurationMs }),
+      timeout,
+    ])
     emitPalTelemetry('[pal-outbox-drain]', {
       status: summary.status,
       claimed: summary.claimed,
@@ -697,5 +731,7 @@ export async function drainPalOutbox(
       duration_ms: Math.max(0, Math.round(clock() - startedAt)),
     })
     throw error
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
   }
 }

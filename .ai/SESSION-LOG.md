@@ -1111,11 +1111,13 @@ concurrency, outage recovery, and production release evidence.
 - Closed independent-review gaps by emitting sanitized error-category drain
   telemetry, reserving a 60-second cron execution budget, and replacing timing
   assumptions with database-observed claim and lock contention gates.
+- Bounded the complete drain path across claims, delivery transitions, and the
+  final count, and made ready-backlog age use the actual retry/lease-ready time.
 - Confirmed read-only that the current production adapter is enabled and has
   delivered events; no Pal code, Pal PR #50, migration, or production data was
   changed by the readiness implementation.
 
 **Validation:**
-- Full Vitest passed (475 files, 4,100 tests), plus TypeScript, lint,
+- Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
   architecture/design/UI policy checks, Pika audit, production build, both
   real-database/HTTP Pal harnesses, continuity validation, and diff checks.

@@ -339,6 +339,36 @@ describe('Pal outbox adapter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
+  it('bounds a batch drain when a delivery transition never resolves', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const rpc = vi.fn((name: string) => {
+      if (name === 'claim_pal_event_outbox') {
+        return Promise.resolve({ data: [claimedRow()], error: null })
+      }
+      if (name === 'complete_pal_event_outbox') {
+        return new Promise<never>(() => undefined)
+      }
+      return Promise.resolve({ data: 0, error: null })
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+    const startedAt = performance.now()
+
+    await expect(drainPalOutbox({
+      supabase: { rpc },
+      fetchImpl,
+      now: occurredAt,
+      maxDurationMs: 20,
+    })).rejects.toThrow('bounded execution deadline')
+
+    expect(performance.now() - startedAt).toBeLessThan(250)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toEqual({
+      status: 'error',
+      error_category: 'deadline',
+      duration_ms: expect.any(Number),
+    })
+  })
+
   it('uses the cleanup budget to record retry after the Pal request times out', async () => {
     const supabase = buildImmediateSupabase({
       lookups: [immediateRow()],
