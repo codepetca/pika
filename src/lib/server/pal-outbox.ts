@@ -186,6 +186,7 @@ async function deliverClaimedPalOutboxRow(input: {
   deadlineAtMs?: number
   clock: () => number
   signal?: AbortSignal
+  transitionSignal?: AbortSignal
 }): Promise<ClaimedDeliveryResult> {
   const validation = v1.validateV1Event(input.row.payload)
   if (!validation.ok) {
@@ -194,7 +195,7 @@ async function deliverClaimedPalOutboxRow(input: {
       input.row,
       validation.error,
       'Pika outbox payload failed the pinned Pal v1 validator',
-      input.signal,
+      input.transitionSignal,
     )
     return 'non_retryable'
   }
@@ -209,7 +210,7 @@ async function deliverClaimedPalOutboxRow(input: {
       input.now,
       'worker_deadline',
       'Pal delivery worker reached its bounded execution deadline',
-      input.signal,
+      input.transitionSignal,
     )
     return 'retrying'
   }
@@ -233,7 +234,7 @@ async function deliverClaimedPalOutboxRow(input: {
       input.now,
       'network_error',
       'Pal delivery failed before an HTTP response was received',
-      input.signal,
+      input.transitionSignal,
     )
     return 'retrying'
   }
@@ -245,7 +246,7 @@ async function deliverClaimedPalOutboxRow(input: {
         p_outbox_id: input.row.id,
         p_lease_token: input.row.lease_token,
       },
-    }, input.signal)
+    }, input.transitionSignal)
     return 'delivered'
   }
 
@@ -258,7 +259,7 @@ async function deliverClaimedPalOutboxRow(input: {
       input.now,
       errorCode,
       errorDetail,
-      input.signal,
+      input.transitionSignal,
     )
     return 'retrying'
   }
@@ -268,7 +269,7 @@ async function deliverClaimedPalOutboxRow(input: {
     input.row,
     errorCode,
     errorDetail,
-    input.signal,
+    input.transitionSignal,
   )
   return 'non_retryable'
 }
@@ -345,6 +346,7 @@ async function attemptImmediatePalEventDeliveryWithinDeadline(input: {
   deadlineAtMs: number
   clock: () => number
   signal: AbortSignal
+  transitionSignal: AbortSignal
 }): Promise<PalImmediateDeliveryStatus> {
   try {
     const { apiUrl, integrationSecret } = requirePalEnvironment()
@@ -385,6 +387,7 @@ async function attemptImmediatePalEventDeliveryWithinDeadline(input: {
       deadlineAtMs: input.deadlineAtMs,
       clock: input.clock,
       signal: input.signal,
+      transitionSignal: input.transitionSignal,
     })
     if (result === 'delivered') return 'delivered'
     if (result === 'non_retryable') return 'non_retryable'
@@ -407,7 +410,9 @@ export async function attemptImmediatePalEventDelivery(input: {
 
   const timeoutMs = Math.max(1, input.timeoutMs ?? 2_000)
   const clock = input.clock ?? Date.now
-  const signal = AbortSignal.timeout(timeoutMs)
+  const cleanupBudgetMs = Math.min(500, Math.max(1, Math.floor(timeoutMs / 4)))
+  const signal = AbortSignal.timeout(Math.max(1, timeoutMs - cleanupBudgetMs))
+  const transitionSignal = AbortSignal.timeout(timeoutMs)
   let timeoutId: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<PalImmediateDeliveryStatus>((resolve) => {
     timeoutId = setTimeout(() => resolve('pending'), timeoutMs)
@@ -423,6 +428,7 @@ export async function attemptImmediatePalEventDelivery(input: {
         deadlineAtMs: clock() + timeoutMs,
         clock,
         signal,
+        transitionSignal,
       }),
       timeout,
     ])

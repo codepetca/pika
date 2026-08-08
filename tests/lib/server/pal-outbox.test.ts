@@ -325,6 +325,36 @@ describe('Pal outbox adapter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
+  it('uses the cleanup budget to record retry after the Pal request times out', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>((_input, init) => new Promise((_resolve, reject) => {
+      const signal = init?.signal
+      if (!signal) {
+        reject(new Error('missing timeout signal'))
+        return
+      }
+      signal.addEventListener('abort', () => reject(new Error('request timed out')), {
+        once: true,
+      })
+    }))
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+      timeoutMs: 40,
+    })).resolves.toBe('pending')
+
+    expect(supabase.calls.at(-1)).toMatchObject({
+      name: 'retry_pal_event_outbox',
+      args: { p_error_code: 'network_error' },
+    })
+  })
+
   it('retries network and server failures with bounded exponential delay', async () => {
     const supabase = buildSupabase([claimedRow(event, 3)])
     const fetchImpl = vi.fn<typeof fetch>(async () =>
