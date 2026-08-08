@@ -581,13 +581,27 @@ begin
 end
 \$contract\$;
 
-delete from public.course_blueprints where id = '$BLUEPRINT_ID';
 do \$contract\$
+declare
+  v_direct_delete_rejected boolean := false;
 begin
-  if exists (
+  begin
+    delete from public.course_blueprints where id = '$BLUEPRINT_ID';
+  exception when sqlstate '55000' then
+    if sqlerrm not like '%course_blueprint_purge_required%' then
+      raise;
+    end if;
+    v_direct_delete_rejected := true;
+  end;
+  if not v_direct_delete_rejected then
+    raise exception 'Direct Blueprint deletion bypassed the durable purge contract';
+  end if;
+  if not exists (
+    select 1 from public.course_blueprints where id = '$BLUEPRINT_ID'
+  ) or not exists (
     select 1 from public.course_blueprint_versions where id = '$VERSION_ID'
   ) then
-    raise exception 'Blueprint deletion did not cascade through immutable Versions';
+    raise exception 'Rejected direct Blueprint deletion removed protected records';
   end if;
 end
 \$contract\$;

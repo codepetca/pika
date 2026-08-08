@@ -384,7 +384,7 @@ describe('course-blueprints server helpers', () => {
     expect(deleteBuilder.delete).not.toHaveBeenCalled()
   })
 
-  it('loads detail hydration and deletes owned blueprints', async () => {
+  it('loads detail hydration and fails legacy owned-Blueprint deletion closed', async () => {
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
         makeQueryBuilder({
@@ -439,15 +439,16 @@ describe('course-blueprints server helpers', () => {
       })
     )
 
-    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
         makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
-        deleteBuilder,
       ],
     })
-    await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({ ok: true })
-    expect(deleteBuilder.delete).toHaveBeenCalled()
+    await expect(deleteCourseBlueprint('teacher-1', 'b-1')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Use the durable permanent-deletion flow for Course Blueprints.',
+    })
   })
 
   it('blocks deletion while repository authority is active', async () => {
@@ -687,6 +688,11 @@ describe('course-blueprints server helpers', () => {
       supabase: mockSupabase,
       objectIds: [managedObjectId],
       errorCode: 'blueprint_instantiation_not_adopted',
+      provisionalOwnerId: undefined,
+      operationId,
+      teacherId: 'teacher-1',
+      sourceCourseBlueprintId: 'b-1',
+      adopted: false,
     })
   })
 
@@ -1213,6 +1219,10 @@ describe('course-blueprints server helpers', () => {
       supabase: mockSupabase,
       objectIds: [managedObjectId],
       errorCode: 'blueprint_capture_not_adopted',
+      provisionalOwnerId: undefined,
+      operationId,
+      teacherId: 'teacher-1',
+      adopted: false,
     })
   })
 
@@ -1325,6 +1335,10 @@ describe('course-blueprints server helpers', () => {
       supabase: mockSupabase,
       objectIds: [managedObjectId],
       errorCode: 'blueprint_capture_not_adopted',
+      provisionalOwnerId: undefined,
+      operationId,
+      teacherId: 'teacher-1',
+      adopted: false,
     })
   })
 })

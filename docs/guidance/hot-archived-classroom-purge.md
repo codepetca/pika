@@ -64,8 +64,12 @@ for active classrooms, cold archives, and student surfaces.
 
 ## Rollout
 
-Migration 118 creates `classroom_purge_settings` in `disabled` mode. Applying a
-migration does not enable deletion.
+Migration 118 creates `classroom_purge_settings` in `disabled` mode. Applying it
+does not enable deletion.
+
+Migration 119 appends the validated one-time managed identity binding required
+for verified archive rows created before managed storage. It does not enable
+deletion or cleanup.
 
 Before applying 118, verify that migration 115 has no unfinished deletion:
 
@@ -80,7 +84,7 @@ query returns a row. Stop and obtain a separately reviewed reconciliation plan;
 do not coerce the legacy raw-path ledger into managed ownership or delete its
 fence by hand.
 
-1. Replay migrations 001–118 in a disposable/local environment and run the
+1. Replay migrations 001–119 in a disposable/local environment and run the
    destructive, concurrency, retry, authorization, and partial-failure fixtures.
 2. Deploy compatibility app code while both managed ownership enforcement and
    classroom purge rollout remain disabled. The daily cleanup route treats a
@@ -94,3 +98,20 @@ fence by hand.
 Every migration application or rollout-gate change requires fresh authorization
 naming the exact target and migration or SQL change. Nothing in this branch
 authorizes staging or production changes.
+
+The verified production database already contains the final schemas from both
+versions under its separately authorized reconciliation history. Do not reapply
+or repair either remote version. The canonical source order keeps merged
+migration 118 immutable and appends compatibility migration 119 so databases
+that already applied `main` can upgrade safely.
+
+## Follow-up scopes
+
+- Add a durable, resumable deletion operation for teacher-owned Course
+  Blueprints and their managed files. Until that exists, Blueprint deletion must
+  fail closed when managed ownership would otherwise be orphaned.
+- Before deleting the preserved production canary Blueprint, create and verify
+  a Classroom from it to prove that classroom purge preserved a reusable course
+  package, including its managed test material.
+- Cold archived Classroom deletion and comprehensive individual-student purging
+  remain separate follow-up scopes.

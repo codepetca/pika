@@ -9,9 +9,21 @@ import {
 type SupabaseLike = any
 type AssessmentLike = { documents: TestDocument[] }
 
+class BlueprintCopyHeartbeatError extends Error {
+  constructor(readonly retryable: boolean) {
+    super('managed_storage_blueprint_copy_heartbeat_failed')
+  }
+}
+
+type BlueprintCopyHeartbeatController = {
+  assertHealthy: () => void
+  stop: () => Promise<void>
+}
+
 export type BlueprintManagedStorageCopyResult<T extends AssessmentLike> = {
   assessments: T[]
   cleanupObjectIds: string[]
+  provisionalOwnerId?: string
 }
 
 function deterministicBlueprintCopyUuid(seed: string): string {
@@ -47,6 +59,119 @@ function isMissingFoundation(error: { code?: string; message?: string } | null):
   const message = error?.message?.toLowerCase() || ''
   return error?.code === 'PGRST202' || error?.code === '42883'
     || message.includes('begin_managed_storage_provisional_owner')
+}
+
+function isMissingBlueprintCopyOwner(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  const message = error?.message?.toLowerCase() || ''
+  return error?.code === 'PGRST202' || error?.code === '42883'
+    || message.includes('begin_managed_storage_blueprint_copy_owner')
+}
+
+function isRetryableBlueprintCopyHeartbeatError(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  const code = error?.code?.toUpperCase() || ''
+  const detail = `${error?.code || ''} ${error?.message || ''}`.toLowerCase()
+  return code.startsWith('08')
+    || ['40001', '40P01', '53300', '57014', '57P01', 'PGRST000', 'PGRST001', 'PGRST002']
+      .includes(code)
+    || detail.includes('timeout')
+    || detail.includes('network')
+    || detail.includes('connection')
+    || detail.includes('fetch failed')
+}
+
+async function heartbeatBlueprintCopyOwner(input: {
+  supabase: SupabaseLike
+  provisionalOwnerId: string
+  operationId: string
+  teacherId: string
+  sourceCourseBlueprintId?: string
+}): Promise<void> {
+  if (!input.sourceCourseBlueprintId) return
+  let response
+  try {
+    response = await input.supabase.rpc(
+      'heartbeat_managed_storage_blueprint_copy_owner',
+      {
+        p_owner_id: input.provisionalOwnerId,
+        p_operation_id: input.operationId,
+        p_created_by_user_id: input.teacherId,
+        p_source_course_blueprint_id: input.sourceCourseBlueprintId,
+      },
+    )
+  } catch {
+    throw new BlueprintCopyHeartbeatError(true)
+  }
+  if (response.error && isMissingBlueprintCopyOwner(response.error)) return
+  if (response.error) {
+    throw new BlueprintCopyHeartbeatError(
+      isRetryableBlueprintCopyHeartbeatError(response.error),
+    )
+  }
+  if (response.data !== true) {
+    throw new BlueprintCopyHeartbeatError(false)
+  }
+}
+
+async function startBlueprintCopyHeartbeat(input: {
+  supabase: SupabaseLike
+  provisionalOwnerId: string
+  operationId: string
+  teacherId: string
+  sourceCourseBlueprintId?: string
+}): Promise<BlueprintCopyHeartbeatController> {
+  if (!input.sourceCourseBlueprintId) {
+    return { assertHealthy: () => undefined, stop: async () => undefined }
+  }
+  await heartbeatBlueprintCopyOwner(input)
+  let inFlight = Promise.resolve()
+  let latestHeartbeatError: unknown
+  let terminalHeartbeatError: unknown
+  let stopped = false
+  const timer = setInterval(() => {
+    if (stopped || terminalHeartbeatError) return
+    inFlight = inFlight
+      .then(async () => {
+        try {
+          await heartbeatBlueprintCopyOwner(input)
+          latestHeartbeatError = undefined
+        } catch (error) {
+          latestHeartbeatError = error
+          if (error instanceof BlueprintCopyHeartbeatError && !error.retryable) {
+            terminalHeartbeatError = error
+          }
+        }
+      })
+  }, 5 * 60 * 1000)
+  ;(timer as unknown as { unref?: () => void }).unref?.()
+
+  return {
+    assertHealthy: () => {
+      if (terminalHeartbeatError) throw terminalHeartbeatError
+    },
+    stop: async () => {
+      if (!stopped) {
+        stopped = true
+        clearInterval(timer)
+      }
+      await inFlight
+      if (terminalHeartbeatError) throw terminalHeartbeatError
+      if (latestHeartbeatError) throw latestHeartbeatError
+    },
+  }
+}
+
+async function runWithBlueprintCopyHeartbeat<T>(
+  heartbeat: BlueprintCopyHeartbeatController,
+  action: () => T,
+): Promise<Awaited<T>> {
+  heartbeat.assertHealthy()
+  const result = await action()
+  heartbeat.assertHealthy()
+  return result as Awaited<T>
 }
 
 export async function copyManagedTestDocumentsForBlueprintOperation<T extends AssessmentLike>(input: {
@@ -158,6 +283,9 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     }),
   }))
 
+  const provisionalOwnerId = deterministicBlueprintCopyUuid(
+    `owner:${input.operationId}:${input.direction}`,
+  )
   const operationLookup = await input.supabase
     .from('course_blueprint_operations')
     .select('status')
@@ -168,22 +296,49 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
     throw new Error('managed_storage_blueprint_operation_preflight_failed')
   }
   if (operationLookup.data?.status === 'completed') {
-    return { assessments: buildAssessments(), cleanupObjectIds: [] }
+    return {
+      assessments: buildAssessments(),
+      cleanupObjectIds: [],
+      provisionalOwnerId: input.direction === 'to_classroom'
+        ? provisionalOwnerId
+        : undefined,
+    }
   }
 
-  const provisionalOwnerId = deterministicBlueprintCopyUuid(
-    `owner:${input.operationId}:${input.direction}`,
-  )
-  const ownerResponse = await input.supabase.rpc('begin_managed_storage_provisional_owner', {
-    p_owner_id: provisionalOwnerId,
-    p_owner_kind: input.direction === 'to_blueprint'
-      ? 'course_blueprint_copy'
-      : 'classroom_copy',
-    p_operation_id: input.operationId,
-    p_created_by_user_id: input.teacherId,
-    p_target_classroom_id: null,
-    p_target_course_blueprint_id: null,
-  })
+  let ownerResponse
+  if (input.direction === 'to_classroom') {
+    ownerResponse = await input.supabase.rpc(
+      'begin_managed_storage_blueprint_copy_owner',
+      {
+        p_owner_id: provisionalOwnerId,
+        p_operation_id: input.operationId,
+        p_created_by_user_id: input.teacherId,
+        p_source_course_blueprint_id: input.sourceCourseBlueprintId,
+      },
+    )
+    // Deploying this application change before migration 120 remains safe:
+    // the existing provisional-owner protocol is used until the source-aware
+    // fence becomes available. Blueprint purge itself stays rollout-disabled.
+    if (ownerResponse.error && isMissingBlueprintCopyOwner(ownerResponse.error)) {
+      ownerResponse = await input.supabase.rpc('begin_managed_storage_provisional_owner', {
+        p_owner_id: provisionalOwnerId,
+        p_owner_kind: 'classroom_copy',
+        p_operation_id: input.operationId,
+        p_created_by_user_id: input.teacherId,
+        p_target_classroom_id: null,
+        p_target_course_blueprint_id: null,
+      })
+    }
+  } else {
+    ownerResponse = await input.supabase.rpc('begin_managed_storage_provisional_owner', {
+      p_owner_id: provisionalOwnerId,
+      p_owner_kind: 'course_blueprint_copy',
+      p_operation_id: input.operationId,
+      p_created_by_user_id: input.teacherId,
+      p_target_classroom_id: null,
+      p_target_course_blueprint_id: null,
+    })
+  }
   if (ownerResponse.error) {
     if (isMissingFoundation(ownerResponse.error)) {
       return { assessments: input.assessments, cleanupObjectIds: [] }
@@ -195,60 +350,85 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
   }
 
   const reservedObjectIds: string[] = []
+  let heartbeat: BlueprintCopyHeartbeatController = {
+    assertHealthy: () => undefined,
+    stop: async () => undefined,
+  }
   try {
+    heartbeat = await startBlueprintCopyHeartbeat({
+      supabase: input.supabase,
+      provisionalOwnerId,
+      operationId: input.operationId,
+      teacherId: input.teacherId,
+      sourceCourseBlueprintId: input.sourceCourseBlueprintId,
+    })
     for (const sourceId of sourceById.keys()) {
       const source = sourceById.get(sourceId)
-      const download = await input.supabase.storage
-        .from('test-documents')
-        .download(source.storage_path)
+      const download = await runWithBlueprintCopyHeartbeat(
+        heartbeat,
+        () => input.supabase.storage.from('test-documents').download(source.storage_path),
+      )
       if (download.error || !download.data) {
         throw new Error('managed_storage_blueprint_copy_source_missing')
       }
-      const bytes = new Uint8Array(await download.data.arrayBuffer())
+      const sourceBuffer = await runWithBlueprintCopyHeartbeat(
+        heartbeat,
+        () => download.data.arrayBuffer(),
+      )
+      const bytes = new Uint8Array(sourceBuffer)
       const target = targetBySourceId.get(sourceId) as {
         objectId: string
         targetPath: string
       }
-      const reservation = await reserveManagedStorageUpload({
-        supabase: input.supabase,
-        objectId: target.objectId,
-        bucket: 'test-documents',
-        path: target.targetPath,
-        provisionalOwnerId,
-        purpose: 'teacher_test_material',
-        createdByUserId: input.teacherId,
-        resourceType: 'course_blueprint_operation',
-        resourceId: input.operationId,
-        contentType: source.content_type || download.data.type || 'application/octet-stream',
-        byteSize: bytes.byteLength,
-      })
+      const reservation = await runWithBlueprintCopyHeartbeat(
+        heartbeat,
+        () => reserveManagedStorageUpload({
+          supabase: input.supabase,
+          objectId: target.objectId,
+          bucket: 'test-documents',
+          path: target.targetPath,
+          provisionalOwnerId,
+          purpose: 'teacher_test_material',
+          createdByUserId: input.teacherId,
+          resourceType: 'course_blueprint_operation',
+          resourceId: input.operationId,
+          contentType: source.content_type || download.data.type || 'application/octet-stream',
+          byteSize: bytes.byteLength,
+        }),
+      )
       if (!reservation) throw new Error('managed_storage_blueprint_copy_reservation_missing')
       reservedObjectIds.push(target.objectId)
 
       if (reservation.status === 'reserved') {
-        const presence = await input.supabase.rpc('get_managed_storage_object_presence', {
-          p_storage_bucket: 'test-documents',
-          p_storage_path: target.targetPath,
-        })
+        const presence = await runWithBlueprintCopyHeartbeat(
+          heartbeat,
+          () => input.supabase.rpc('get_managed_storage_object_presence', {
+            p_storage_bucket: 'test-documents',
+            p_storage_path: target.targetPath,
+          }),
+        )
         if (presence.error) {
           throw new Error('managed_storage_blueprint_copy_presence_failed')
         }
         if (presence.data?.object_exists !== true) {
-          const upload = await input.supabase.storage.from('test-documents').upload(
-            target.targetPath,
-            bytes,
-            {
-              contentType: source.content_type || download.data.type || 'application/octet-stream',
-              upsert: false,
-            },
+          const upload = await runWithBlueprintCopyHeartbeat(
+            heartbeat,
+            () => input.supabase.storage.from('test-documents').upload(
+              target.targetPath,
+              bytes,
+              {
+                contentType: source.content_type || download.data.type || 'application/octet-stream',
+                upsert: false,
+              },
+            ),
           )
           if (upload.error) {
-            const retryPresence = await input.supabase.rpc(
-              'get_managed_storage_object_presence',
-              {
+            const retryPresence = await runWithBlueprintCopyHeartbeat(
+              heartbeat,
+              () => input.supabase.rpc('get_managed_storage_object_presence', {
                 p_storage_bucket: 'test-documents',
                 p_storage_path: target.targetPath,
-              },
+              }),
             )
             if (retryPresence.error || retryPresence.data?.object_exists !== true) {
               throw new Error('managed_storage_blueprint_copy_upload_failed')
@@ -257,38 +437,52 @@ export async function copyManagedTestDocumentsForBlueprintOperation<T extends As
         }
       }
 
-      const readBack = await input.supabase.storage
-        .from('test-documents')
-        .download(target.targetPath)
+      const readBack = await runWithBlueprintCopyHeartbeat(
+        heartbeat,
+        () => input.supabase.storage.from('test-documents').download(target.targetPath),
+      )
       if (readBack.error || !readBack.data) {
         throw new Error('managed_storage_blueprint_copy_readback_failed')
       }
-      const readBackBytes = new Uint8Array(await readBack.data.arrayBuffer())
+      const readBackBuffer = await runWithBlueprintCopyHeartbeat(
+        heartbeat,
+        () => readBack.data.arrayBuffer(),
+      )
+      const readBackBytes = new Uint8Array(readBackBuffer)
       const sourceHash = createHash('sha256').update(bytes).digest('hex')
       const targetHash = createHash('sha256').update(readBackBytes).digest('hex')
       if (sourceHash !== targetHash || bytes.byteLength !== readBackBytes.byteLength) {
         throw new Error('managed_storage_blueprint_copy_verification_failed')
       }
-      await verifyManagedStorageUpload({
-        supabase: input.supabase,
-        objectId: target.objectId,
-        contentSha256: targetHash,
-      })
+      await runWithBlueprintCopyHeartbeat(
+        heartbeat,
+        () => verifyManagedStorageUpload({
+          supabase: input.supabase,
+          objectId: target.objectId,
+          contentSha256: targetHash,
+        }),
+      )
     }
+    await heartbeat.stop()
   } catch (error) {
-    await Promise.all(reservedObjectIds.map((objectId) =>
-      queueManagedStorageCleanupBestEffort({
-        supabase: input.supabase,
-        objectId,
-        errorCode: 'blueprint_storage_copy_failed',
-      }),
-    ))
+    try { await heartbeat.stop() } catch { /* preserve the primary failure */ }
+    await queueBlueprintManagedStorageCopiesBestEffort({
+      supabase: input.supabase,
+      objectIds: reservedObjectIds,
+      errorCode: 'blueprint_storage_copy_failed',
+      provisionalOwnerId,
+      operationId: input.operationId,
+      teacherId: input.teacherId,
+      sourceCourseBlueprintId: input.sourceCourseBlueprintId,
+      adopted: false,
+    })
     throw error
   }
 
   return {
     assessments: buildAssessments(),
     cleanupObjectIds: reservedObjectIds,
+    provisionalOwnerId,
   }
 }
 
@@ -296,12 +490,35 @@ export async function queueBlueprintManagedStorageCopiesBestEffort(input: {
   supabase: SupabaseLike
   objectIds: string[]
   errorCode: string
+  provisionalOwnerId?: string
+  operationId?: string
+  teacherId?: string
+  sourceCourseBlueprintId?: string
+  adopted?: boolean
 }): Promise<void> {
-  await Promise.all(input.objectIds.map((objectId) =>
-    queueManagedStorageCleanupBestEffort({
-      supabase: input.supabase,
-      objectId,
-      errorCode: input.errorCode,
-    }),
-  ))
+  if (!input.adopted) {
+    await Promise.all(input.objectIds.map((objectId) =>
+      queueManagedStorageCleanupBestEffort({
+        supabase: input.supabase,
+        objectId,
+        errorCode: input.errorCode,
+      }),
+    ))
+  }
+  if (!input.provisionalOwnerId || !input.operationId || !input.teacherId
+    || !input.sourceCourseBlueprintId) return
+  const response = await input.supabase.rpc(
+    'settle_managed_storage_blueprint_copy_owner',
+    {
+      p_owner_id: input.provisionalOwnerId,
+      p_operation_id: input.operationId,
+      p_created_by_user_id: input.teacherId,
+      p_source_course_blueprint_id: input.sourceCourseBlueprintId,
+      p_outcome: input.adopted ? 'adopted' : 'aborted',
+    },
+  )
+  if (response.error && isMissingBlueprintCopyOwner(response.error)) return
+  if (response.error || response.data !== true) {
+    throw new Error('managed_storage_blueprint_copy_settlement_failed')
+  }
 }

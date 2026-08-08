@@ -92,9 +92,8 @@ describe('teacher course blueprints routes', () => {
     expect(data.blueprint.title).toBe('Updated Blueprint')
   })
 
-  it('deletes a blueprint', async () => {
+  it('fails the legacy delete endpoint closed', async () => {
     const { deleteCourseBlueprint } = await import('@/lib/server/course-blueprints')
-    ;(deleteCourseBlueprint as any).mockResolvedValue({ ok: true })
 
     const response = await DELETE(new NextRequest('http://localhost:3000/api/teacher/course-blueprints/b-1', {
       method: 'DELETE',
@@ -102,8 +101,9 @@ describe('teacher course blueprints routes', () => {
       params: Promise.resolve({ id: 'b-1' }),
     } as any)
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(409)
     const data = await response.json()
-    expect(data.success).toBe(true)
+    expect(data.error).toMatch(/durable permanent-deletion flow/)
+    expect(deleteCourseBlueprint).not.toHaveBeenCalled()
   })
 })

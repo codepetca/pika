@@ -383,10 +383,11 @@ export async function deleteCourseBlueprint(teacherId: string, blueprintId: stri
     }
   }
 
-  const supabase = getSupabase()
-  const { error } = await supabase.from('course_blueprints').delete().eq('id', blueprintId)
-  if (error) return { ok: false as const, status: 500, error: 'Failed to delete course blueprint' }
-  return { ok: true as const }
+  return {
+    ok: false as const,
+    status: 409,
+    error: 'Use the durable permanent-deletion flow for Course Blueprints.',
+  }
 }
 
 async function validateBlueprintClassworkPositions(
@@ -1231,13 +1232,15 @@ export async function createCourseBlueprintFromClassroom(
       counts: operation.counts,
     }
   } finally {
-    if (!managedCopiesAdopted) {
-      await queueBlueprintManagedStorageCopiesBestEffort({
-        supabase,
-        objectIds: managedCopies.cleanupObjectIds,
-        errorCode: 'blueprint_capture_not_adopted',
-      })
-    }
+    await queueBlueprintManagedStorageCopiesBestEffort({
+      supabase,
+      objectIds: managedCopies.cleanupObjectIds,
+      errorCode: 'blueprint_capture_not_adopted',
+      provisionalOwnerId: managedCopies.provisionalOwnerId,
+      operationId,
+      teacherId,
+      adopted: managedCopiesAdopted,
+    })
   }
 }
 
@@ -1342,12 +1345,15 @@ export async function createClassroomFromBlueprint(
       counts: operation.counts,
     }
   } finally {
-    if (!managedCopiesAdopted) {
-      await queueBlueprintManagedStorageCopiesBestEffort({
-        supabase,
-        objectIds: managedCopies.cleanupObjectIds,
-        errorCode: 'blueprint_instantiation_not_adopted',
-      })
-    }
+    await queueBlueprintManagedStorageCopiesBestEffort({
+      supabase,
+      objectIds: managedCopies.cleanupObjectIds,
+      errorCode: 'blueprint_instantiation_not_adopted',
+      provisionalOwnerId: managedCopies.provisionalOwnerId,
+      operationId,
+      teacherId,
+      sourceCourseBlueprintId: input.blueprintId,
+      adopted: managedCopiesAdopted,
+    })
   }
 }
