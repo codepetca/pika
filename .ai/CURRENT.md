@@ -1,6 +1,7 @@
-Focus: verified managed-ID hot-archive deletion in draft PR #968; leave #963 unchanged.
-Worktrees: `$HOME/.codex/worktrees/pika/`, `$HOME/.codex/worktrees/<id>/pika`.
-Env: maintainers use `$HOME/Repos/.env/pika/.env.local`; collaborators copy `.env.example`.
-Exact-head CI/review pass at `ab4ce5f6`, including replay, destructive/concurrency
-fixtures, recovery rehearsal, and teacher/student UI. Migration 118 remains draft
-and rollout-disabled; applying it requires fresh target-specific authorization.
+Focus: land managed Blueprint deletion. Prod has migrations 117–119; all
+deletion/cleanup gates are off. Local 001–120 replay, generated types, seed,
+managed-storage checks, and Blueprint purge fixture pass.
+WT: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`.
+Env: `$HOME/Repos/.env/pika/.env.local` or collaborator `.env.example`.
+Every unclosed copy intent blocks purge, with guarded operator recovery.
+Migration 120 is not remote.

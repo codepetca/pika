@@ -9,6 +9,7 @@ const cleanupMocks = vi.hoisted(() => ({
   run: vi.fn(),
 }))
 const purgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
+const blueprintPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -22,6 +23,10 @@ vi.mock('@/lib/server/classroom-archive-object-cleanup', () => ({
 
 vi.mock('@/lib/server/classroom-purge', () => ({
   runClassroomPurgeSafetyNet: purgeMocks.run,
+}))
+
+vi.mock('@/lib/server/course-blueprint-purge', () => ({
+  runCourseBlueprintPurgeSafetyNet: blueprintPurgeMocks.run,
 }))
 
 type QueryLog = {
@@ -214,6 +219,7 @@ describe('cron cleanup-history route', () => {
     vi.unstubAllEnvs()
     cleanupMocks.enabled.mockReturnValue(false)
     purgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
+    blueprintPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
   })
 
@@ -259,9 +265,10 @@ describe('cron cleanup-history route', () => {
     )
   })
 
-  it('advances durable classroom purges through the authenticated safety net', async () => {
+  it('advances durable classroom and Blueprint purges through the authenticated safety net', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     purgeMocks.run.mockResolvedValue({ processed: 2, completed: 1, failed: 0 })
+    blueprintPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 1, failed: 0 })
     const mock = createCleanupMock({ classrooms: [] })
     ;(mockSupabaseClient.from as any) = mock.from
 
@@ -272,8 +279,10 @@ describe('cron cleanup-history route', () => {
       status: 'ok',
       deleted: 0,
       classroom_purge: { processed: 2, completed: 1, failed: 0 },
+      course_blueprint_purge: { processed: 1, completed: 1, failed: 0 },
     })
     expect(purgeMocks.run).toHaveBeenCalledOnce()
+    expect(blueprintPurgeMocks.run).toHaveBeenCalledOnce()
   })
 
   it('fails when assignment save operation retention cannot be recorded', async () => {

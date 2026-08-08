@@ -3,7 +3,6 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { updateCourseBlueprintSchema } from '@/lib/validations/course-blueprints'
 import {
-  deleteCourseBlueprint,
   getCourseBlueprintDetail,
   updateCourseBlueprint,
 } from '@/lib/server/course-blueprints'
@@ -33,11 +32,10 @@ export const PATCH = withErrorHandler('PatchTeacherCourseBlueprint', async (requ
 })
 
 export const DELETE = withErrorHandler('DeleteTeacherCourseBlueprint', async (_request, context) => {
-  const user = await requireRole('teacher')
-  const { id } = await context.params
-  const result = await deleteCourseBlueprint(user.id, id)
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status })
-  }
-  return NextResponse.json({ success: true })
+  await requireRole('teacher')
+  await context.params
+  return NextResponse.json(
+    { error: 'Use the durable permanent-deletion flow for Course Blueprints' },
+    { status: 409 },
+  )
 })
