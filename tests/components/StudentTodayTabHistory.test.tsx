@@ -9,6 +9,7 @@ import type { Classroom, Entry } from '@/types'
 const getTodayInTorontoMock = vi.hoisted(() => vi.fn(() => '2025-12-16'))
 const invalidateStudentEntriesForClassroomMock = vi.hoisted(() => vi.fn())
 const redirectToLoginForReauthMock = vi.hoisted(() => vi.fn())
+const notifyImmediatePalDeliveryMock = vi.hoisted(() => vi.fn())
 const classDaysContextMock = vi.hoisted(() => ({
   classDays: [
     { id: 'd1', classroom_id: 'c1', date: '2025-12-16', prompt_text: null, is_class_day: true },
@@ -33,6 +34,10 @@ vi.mock('@/lib/client-auth', async (importOriginal) => {
     redirectToLoginForReauth: redirectToLoginForReauthMock,
   }
 })
+
+vi.mock('@/lib/pal-browser-events', () => ({
+  notifyImmediatePalDelivery: notifyImmediatePalDeliveryMock,
+}))
 
 vi.mock('@/lib/student-entries-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/student-entries-client')>()
@@ -166,6 +171,7 @@ describe('StudentTodayTab history section', () => {
     vi.restoreAllMocks()
     invalidateStudentEntriesForClassroomMock.mockClear()
     redirectToLoginForReauthMock.mockClear()
+    notifyImmediatePalDeliveryMock.mockClear()
     invalidateCachedJSONMatching('student-entries:')
     invalidateCachedJSONMatching('student-lesson-plans:')
     getTodayInTorontoMock.mockReturnValue('2025-12-16')
@@ -711,6 +717,7 @@ describe('StudentTodayTab history section', () => {
       if (url === '/api/student/entries' && init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body))
         return mockJson({
+          pal_delivery: 'delivered',
           entry: {
             id: 'entry-today',
             student_id: 's1',
@@ -752,6 +759,7 @@ describe('StudentTodayTab history section', () => {
     expect(saveCall).toBeDefined()
     expect(JSON.parse(String(saveCall?.[1]?.body)).date).toBe('2025-05-11')
     expect(invalidateStudentEntriesForClassroomMock).toHaveBeenCalledWith(classroom.id)
+    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
   })
 
   it('invalidates entry caches and clears session history on partial save conflict', async () => {

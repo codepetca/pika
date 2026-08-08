@@ -3,10 +3,14 @@
  * Tests joining classrooms by code or ID
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/student/classrooms/join/route'
 import { NextRequest } from 'next/server'
 import { mockAuthenticationError } from '../setup'
+
+const { mockAttemptImmediatePalEventDelivery } = vi.hoisted(() => ({
+  mockAttemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -20,8 +24,16 @@ vi.mock('@/lib/auth', () => ({
     throw new Error('Unauthorized')
   }),
 }))
+vi.mock('@/lib/server/pal-outbox', () => ({
+  attemptImmediatePalEventDelivery: mockAttemptImmediatePalEventDelivery,
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  delete (mockSupabaseClient as any).rpc
+})
 
 describe('POST /api/student/classrooms/join', () => {
   beforeEach(() => {
@@ -339,7 +351,11 @@ describe('POST /api/student/classrooms/join', () => {
       })
     })
 
-    it('should enroll student when classroom found by code', async () => {
+    it('atomically enrolls and immediately delivers the classroom fact', async () => {
+      vi.stubEnv('PAL_ENABLED', 'true')
+      vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+      vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+      vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
       const mockInsert = vi.fn(() => ({
         select: vi.fn(() => ({
           single: vi.fn().mockResolvedValue({
@@ -348,6 +364,15 @@ describe('POST /api/student/classrooms/join', () => {
           }),
         })),
       }))
+      const mockRpc = vi.fn().mockResolvedValue({
+        data: {
+          ok: true,
+          created: true,
+          enrollment: { id: 'enrollment-new-1' },
+        },
+        error: null,
+      })
+      ;(mockSupabaseClient as any).rpc = mockRpc
 
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classrooms') {
@@ -409,9 +434,19 @@ describe('POST /api/student/classrooms/join', () => {
       expect(response.status).toBe(201)
       expect(data.success).toBe(true)
       expect(data.classroom.id).toBe('classroom-1')
-      expect(mockInsert).toHaveBeenCalledWith({
-        classroom_id: 'classroom-1',
-        student_id: 'student-1',
+      expect(data.pal_delivery).toBe('delivered')
+      expect(mockInsert).not.toHaveBeenCalled()
+      expect(mockRpc).toHaveBeenCalledWith(
+        'create_classroom_enrollment_with_pal_event_atomic',
+        expect.objectContaining({
+          p_classroom_id: 'classroom-1',
+          p_student_id: 'student-1',
+          p_pal_event: expect.objectContaining({ event_type: 'classroom.joined' }),
+        }),
+      )
+      expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+        event: expect.objectContaining({ event_type: 'classroom.joined' }),
+        supabase: mockSupabaseClient,
       })
     })
 

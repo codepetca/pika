@@ -45,6 +45,12 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify Pal outbox claim concurrency and lease recovery
+        run: bash scripts/check-pal-outbox-concurrency.sh
+
+      - name: Verify Pal HTTP outage and queued recovery
+        run: pnpm run smoke:pal-delivery-recovery
+
       - name: Verify atomic assignment feedback returns
         run: bash scripts/check-atomic-assignment-feedback-returns.sh
 

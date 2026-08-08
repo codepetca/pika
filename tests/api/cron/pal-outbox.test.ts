@@ -34,6 +34,19 @@ describe('POST /api/cron/pal-outbox', () => {
     mockLoadPalOutboxStatus.mockResolvedValue({
       enabled: true,
       counts: { pending: 2, processing: 0, delivered: 8, non_retryable: 1 },
+      observability: {
+        ready: 1,
+        retrying: 1,
+        expired_leases: 0,
+        oldest_ready_at: '2026-08-08T15:50:00.000Z',
+        oldest_ready_age_seconds: 600,
+        delivery_latency_24h: {
+          sample_size: 8,
+          p50_ms: 120,
+          p95_ms: 650,
+          max_ms: 900,
+        },
+      },
       exceptions: [],
     })
   })
@@ -66,6 +79,12 @@ describe('POST /api/cron/pal-outbox', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({
       counts: { pending: 2, non_retryable: 1 },
+      observability: {
+        ready: 1,
+        retrying: 1,
+        expired_leases: 0,
+        delivery_latency_24h: { p95_ms: 650 },
+      },
     })
   })
 
