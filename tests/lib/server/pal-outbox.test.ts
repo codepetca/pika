@@ -36,10 +36,21 @@ function buildImmediateSupabase(input: {
   claimed?: unknown
 }) {
   const lookupResults = [...input.lookups]
+  const claimFilters: Array<{
+    method: 'eq' | 'lte'
+    column: string
+    value: unknown
+  }> = []
   const update = vi.fn((values: Record<string, unknown>) => {
     const claimBuilder: any = {
-      eq: vi.fn(() => claimBuilder),
-      lte: vi.fn(() => claimBuilder),
+      eq: vi.fn((column: string, value: unknown) => {
+        claimFilters.push({ method: 'eq', column, value })
+        return claimBuilder
+      }),
+      lte: vi.fn((column: string, value: unknown) => {
+        claimFilters.push({ method: 'lte', column, value })
+        return claimBuilder
+      }),
       select: vi.fn(() => ({
         maybeSingle: vi.fn(async () => ({ data: input.claimed ?? null, error: null })),
       })),
@@ -64,17 +75,24 @@ function buildImmediateSupabase(input: {
       from: vi.fn(() => ({ select, update })),
     },
     calls: batch.calls,
+    claimFilters,
     update,
   }
 }
 
-function immediateRow(status: 'pending' | 'processing' | 'delivered' | 'non_retryable' = 'pending') {
+function immediateRow(
+  status: 'pending' | 'processing' | 'delivered' | 'non_retryable' = 'pending',
+  leaseExpiresAt: string | null = status === 'processing'
+    ? '2026-09-16T18:21:00.000Z'
+    : null,
+) {
   return {
     id: rowId,
     payload: event,
     status,
     attempts: 0,
     next_attempt_at: '2026-09-16T18:19:00.000Z',
+    lease_expires_at: leaseExpiresAt,
   }
 }
 
@@ -252,6 +270,59 @@ describe('Pal outbox adapter', () => {
     })).resolves.toBe('pending')
 
     expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('atomically reclaims an expired immediate lease on a later action', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow('processing', '2026-09-16T18:19:00.000Z')],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('delivered')
+
+    expect(supabase.claimFilters).toContainEqual({
+      method: 'eq',
+      column: 'status',
+      value: 'processing',
+    })
+    expect(supabase.claimFilters).toContainEqual({
+      method: 'lte',
+      column: 'lease_expires_at',
+      value: occurredAt.toISOString(),
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns within its bound when a delivery transition never resolves', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    supabase.client.rpc = vi.fn((name: string) => {
+      if (name === 'complete_pal_event_outbox') {
+        return new Promise<never>(() => undefined)
+      }
+      return Promise.resolve({ data: true, error: null })
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+    const startedAt = performance.now()
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+      timeoutMs: 20,
+    })).resolves.toBe('pending')
+
+    expect(performance.now() - startedAt).toBeLessThan(250)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
   it('retries network and server failures with bounded exponential delay', async () => {

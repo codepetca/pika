@@ -1113,7 +1113,9 @@ state refresh behavior.
 - Documented the reusable host/provider SaaS boundary and clarified that the
   daily cron owns weekly configuration reconciliation plus delivery recovery,
   not the primary user-action response path.
+- Independent review tightened the hard caller deadline across adapter I/O and
+  added atomic recovery of expired immediate-delivery leases.
 
 **Validation:**
-- Full Vitest passed (473 files, 4,090 tests), plus TypeScript, lint,
+- Full Vitest passed (473 files, 4,092 tests), plus TypeScript, lint,
   architecture/UI policy checks, production build, and diff checks.
