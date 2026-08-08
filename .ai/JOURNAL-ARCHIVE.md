@@ -16987,3 +16987,314 @@ application invariants.
 - The rebuilt local database contains no users or seed data. Recover prior data
   only through a separately planned selective restore; a full restore would
   reintroduce the old migration history.
+
+<!-- pika-session-log-archive-batch:cd59374b446e065ea724c8602ee0752ac89a11790a95c159f6868794d9116321 -->
+## 2026-07-28 — Submitted-requirement Blueprint capture fix
+
+**Risk profile:** runtime-platform — submitted-work integrity trigger and
+service-role Blueprint capture.
+
+**Completed:**
+- Diagnosed the production Codepet Labs capture failure as migration 099's
+  requirement guard rejecting migration 112's stable identity-only update
+  after assignment documents had been submitted.
+- Added migration 113, which permits only service-role, transaction-marked
+  updates where the three Blueprint lineage columns are the sole differences.
+  Requirement ownership and pedagogical fields remain immutable.
+- Added safe RPC diagnostics that log the database error code without database
+  message, detail, or row content.
+- Expanded the live versioned-Blueprint database contract to capture an
+  assignment with one link requirement and four submitted documents, prove the
+  documents remain byte-for-byte unchanged, verify lineage mapping, reject a
+  forged authenticated marker, and reject service-role content changes.
+
+**Validation:**
+- Full Vitest suite: 452 files / 3,936 tests.
+- Live local PostgreSQL contract passed twice consecutively with exact fixture
+  cleanup.
+- Production build, generated database types, lint, Bash syntax, focused
+  migration/server tests, migration numbering, Pika audit, and diff checks
+  passed.
+
+**Remaining:**
+- Publish and review the fix PR.
+- Applying migration 113 to production requires a fresh one-time authorization
+  naming production and migration 113; no production mutation was performed.
+
+## 2026-07-29 — Minimal guidance design contract
+
+**Risk profile:** none — documentation-only design guidance.
+
+**Completed:**
+- Added a canonical content-and-guidance contract to `DESIGN.md`.
+- Established minimal default screens, contextual optional help, dismissible
+  first-visit orientation, short search placeholders, and narrow exceptions for
+  persistent explanatory copy.
+
+**Validation:**
+- Markdown diff review and `git diff --check`.
+
+**Remaining:**
+- Apply the contract incrementally when Blueprint and other product surfaces
+  are deliberately revised.
+
+## 2026-07-29 — Course Blueprint deletion control
+
+**Risk profile:** none — teacher-owned Blueprint UI over the existing
+ownership-checked deletion endpoint.
+
+**Completed:**
+- Added a destructive Course Blueprint action to the desktop action bar and
+  mobile overflow menu.
+- Added confirmation copy that distinguishes unlinked Blueprints from linked
+  Blueprints, whose classrooms remain intact while their Blueprint connection
+  is removed.
+- Bound each confirmation to the exact loaded Blueprint and suppress deletion
+  while a newly selected Blueprint is loading, preventing stale-detail deletion
+  races.
+- Hid deletion while repository authority is active and added the matching
+  server-side 409 guard; teachers can switch authority back to Pika before
+  deleting.
+- Kept the Blueprint list, selected detail, route, and request cache consistent
+  after deletion.
+- Added component coverage for confirmation, endpoint invocation, cache
+  invalidation, route cleanup, selecting the next Blueprint, stale selection,
+  and repository authority. Added server coverage for the repository guard.
+
+**Validation:**
+- Full pre-review Vitest suite: 452 files / 3,937 tests.
+- Post-review focused suite: 2 files / 23 tests.
+- Production build, TypeScript, Pika audit, and diff checks passed.
+- Visually verified desktop and mobile layouts, light and dark themes, default,
+  overflow-menu, and confirmation states. The student role safely redirects
+  away from the teacher-only route.
+- Independent review identified and the implementation resolved the
+  stale-detail deletion race and repository-authority bypass.
+
+**Remaining:**
+- Complete targeted re-review and exact-head CI, then merge and release the
+  deletion control.
+- Use the released control to remove the temporary production smoke Blueprint.
+
+## 2026-07-29 — Archived classroom Use again foundation
+
+**Risk profile:** reusable course lineage and archived-classroom UX.
+
+**Completed:**
+- Added a compact **Use again** action to hot archived classroom cards while
+  preserving the separate Restore action and cold-archive recovery boundary.
+- Compared reusable classroom content with its exact source Blueprint Version
+  and current Draft, normalizing expected instantiation transformations.
+- Reused the current Draft when safe, promoted classroom-only changes through
+  the atomic proposal path, and routed concurrent classroom/Draft changes to
+  review without silently choosing a side.
+- Created and linked a Pika-managed Blueprint copy for legacy archived
+  classrooms with no lineage; no student or runtime data enters the copy.
+- Opened normal classroom creation with the prepared Blueprint selected and
+  added a direct review handoff to Classroom Updates.
+- Documented the archive and Blueprint-version contracts for the flow.
+
+**Validation:**
+- Full Vitest suite: 454 files / 3,948 tests.
+- Focused final suites: 5 files / 50 tests, plus copy-only Blueprint coverage.
+- TypeScript, lint, production build, Pika audit, and diff checks.
+- Playwright teacher matrix: desktop/mobile and light/dark for the archived
+  card and conflict dialog. Student classrooms were checked and are unaffected.
+- Composite-widget checklist reviewed; existing ConfirmDialog keyboard/focus
+  behavior and semantic roles are covered, with no manual follow-up.
+
+**Remaining:**
+- Publish for independent review and exact-head CI before merge.
+- A later slice can replace the advanced Classroom Updates conflict handoff
+  with a more guided normal-user reconciliation surface.
+
+## 2026-07-29 — Archived classroom Use again review remediation
+
+**Risk profile:** high — concurrent Blueprint graph creation and archived
+classroom lineage.
+
+**Completed:**
+- Added migration 114 with a classroom-row transaction fence so unlinked
+  archived capture and lineage linking commit together; concurrent or
+  crash/retry requests reuse one linked Blueprint.
+- Added an archive-specific proposal finalizer that locks and rechecks the hot
+  archive before changing the Blueprint, then saves the resulting immutable
+  Version and advances source provenance in the same transaction.
+- Made simultaneous classroom and Draft changes require review even when both
+  sides independently reached matching current content.
+- Replaced current-calendar lesson inference with persisted lesson artifact
+  lineage, preventing overflow templates from becoming false deletions after
+  calendar edits.
+- Included reusable public-site visibility defaults in capture, comparison,
+  suggestions, and promotion while excluding operational slug/publication
+  state.
+- Completed root and nested artifact lineage mapping for both initial archived
+  capture and later promotion, including exact source Version IDs.
+- Made initial Version hashing match Pika's recursive canonical JSON and pass
+  the canonical result digest from TypeScript for promoted Versions.
+- Regenerated the Supabase function contracts for all migration 114 RPCs and
+  internal helpers after CI applied the migration successfully.
+
+**Validation:**
+- Focused suites: 6 files / 57 tests.
+- Full Vitest suite: 455 files / 3,956 tests.
+- TypeScript, lint, production build, migration contract, and diff checks pass.
+- Post-review lineage/digest suites: 6 files / 47 tests; TypeScript and lint
+  pass.
+
+**Remaining:**
+- Run Pika audit, complete targeted re-review and exact-head CI.
+- Migration 114 requires explicit target authorization before application.
+
+## 2026-07-30 — Simplify GitHub Actions usage
+
+**Risk profile:** runtime-platform.
+
+**Completed:**
+- Changed comprehensive CI to run for pull requests to `main` and `production`
+  or by manual dispatch, removing duplicate post-merge branch runs.
+- Added per-PR concurrency so newer commits cancel stale CI runs.
+- Folded UI import, design-value, and dark-class policies into the required
+  Test & Build job and retired the separate UI Policy workflow.
+- Limited coverage artifact uploads to failed Test & Build jobs.
+- Added workflow contract coverage and updated the existing policy tests to
+  prove the consolidated CI wiring.
+- Enabled strict up-to-date required status checks in the active `main` and
+  `production` GitHub rulesets while preserving the required Test & Build
+  context and existing review rules.
+
+**Validation:**
+- `actionlint .github/workflows/ci.yml`.
+- Architecture, UI policy, design policy, dark-class, lint, and production
+  build checks pass.
+- Full coverage suite: 456 files / 3,960 tests.
+- New and updated workflow contract suites: 3 files / 23 tests.
+
+**Remaining:**
+- Publish the branch and confirm the real pull-request CI run on GitHub.
+
+## 2026-07-31 — Tightened commit prompt worktree guardrails
+
+**Risk profile:** none
+
+**Completed:**
+- Added the missing repo-root guard to the Codex `commit-and-pr` prompt so it
+  now resolves `git rev-parse --show-toplevel` and stops in the hub checkout at
+  `$HOME/Repos/pika` before any commit/push flow.
+- Extended the startup-doc regression suite to require both the Claude and
+  Codex commit prompts to include the canonical worktree safety checks:
+  repo-root resolution, hub-checkout stop, detached-HEAD stop, and no
+  force-push guidance.
+- Installed local dependencies in this app-managed worktree so the focused
+  startup-doc suite could run here.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`
+
+**Remaining:**
+- None.
+
+## 2026-08-01 — Native Pal learner experience
+
+**Risk profile:** runtime-platform.
+
+**Completed:**
+- Replaced the student achievements iframe/postMessage prototype with the
+  native `@codepet/pal-widget` roadmap, companion, and reward surfaces behind
+  the existing `PAL_ENABLED` gate.
+- Added a student-only Pal provider that obtains short-lived read tokens from
+  Pika's same-origin authenticated route; raw learner IDs and integration
+  credentials remain server-side.
+- Bound provider state to a server-generated opaque generation for each
+  authenticated classroom page session, preventing stale in-flight snapshots
+  or reward state from crossing a learner/session transition.
+- Added a fail-open integration boundary so a synchronous Pal package or
+  surface failure re-renders the unchanged Pika classroom outside Pal.
+- Made Pika's `ModalLayer` the sole reward dialog owner. Reward close paths
+  acknowledge the pending Pal reward, acknowledgement failure stays visible
+  and retryable, and the student Tests surface suppresses ambient Pal overlays.
+- Imported the package stylesheet once, switched theme-contract validation to
+  the package export, removed the temporary vendored manifest, and added the
+  integrations directory to Tailwind content discovery.
+- Published and registry-verified `@codepet/pal-widget@0.1.0-alpha.1`, then
+  replaced the workstation-local tarball with the exact immutable npm version
+  and integrity-pinned lockfile entry.
+- Updated the Pika design and pilot guides for the native package boundary and
+  host-owned reward lifecycle.
+
+**Validation:**
+- Full Vitest suite: 458 files / 3,975 tests.
+- TypeScript, lint, architecture, design policy, UI policy, production build,
+  and diff checks pass.
+- Real local Pika-to-Pal flow: learner-scoped token and snapshot; Pika login and
+  on-time assignment-completion facts delivered from the transactional outbox;
+  achievement and fish reward rendered natively; reward acknowledgement
+  returned 204 on the initial call and two replays.
+- Cross-learner check: a second authenticated Pika learner received a separate
+  empty roadmap while the first retained login and on-time achievements.
+- Automated transition coverage proves a late learner-A snapshot cannot paint
+  after the authenticated scope changes to learner B; a hard render-failure
+  test proves the academic shell remains available.
+- Playwright visual inspection passed for student desktop/mobile, light/dark,
+  companion placement, host-owned reward modal, and Pal-unavailable retry
+  containment; Pika Today remained usable while Pal was stopped.
+- Final registry-installed smoke check confirmed the exact
+  `@codepet/pal-widget@0.1.0-alpha.1` package renders the native roadmap and
+  companion inside the existing Pika classroom shell without an iframe.
+- Exact-head security review confirmed Pal already responds with
+  `Cache-Control: no-store`; Pika now also forces `cache: 'no-store'` on every
+  authenticated widget request and covers that defense in depth with a client
+  regression test.
+- Exact-head architecture review narrowed failure boundaries to Pal-owned
+  roadmap and ambient surfaces, so Pika classroom exceptions continue through
+  Pika's normal error handling instead of being mislabeled as widget failures.
+
+**Remaining:**
+- Publish the Pika branch and confirm exact-head review and CI.
+
+## 2026-08-02 — Built managed-storage ownership foundation
+
+**Risk profile:** high — rolling schema/application compatibility, cross-owner
+file copies, Storage/relational atomicity, legacy reconciliation, and concurrent
+enforcement activation.
+
+**Completed:**
+- Created `codex/managed-storage-ownership-foundation` from `origin/main` in a
+  dedicated worktree and left draft PR #963 and all of its worktrees unchanged.
+- Restored deployed migrations 115/116 byte-for-byte and added a lineage hash
+  guard. Added one forward-only migration 117 for compatibility schema,
+  deterministic registration/reconciliation/readiness, serialized enforcement,
+  provisional Blueprint/Classroom copies, and leased generic cleanup.
+- Converted all five managed buckets' active producers to reserve, upload/copy,
+  verify, and atomic attach/adopt. Added managed UUIDs to relational,
+  operational, cleanup, archive, restore, Gradex, and embedded JSON references.
+- Made archive export use the exact managed Classroom inventory under
+  enforcement; restore creates deterministic new managed identities and rewrites
+  preserved references; compaction queues source objects after hot deletion.
+- Added target-acknowledged reconciliation/readiness/activation/pause and manual
+  cleanup commands. No cleanup scheduler, purge worker/gate, permanent deletion
+  route, or deletion UX was added.
+- Documented the exact rollout, rollback, Classroom/Blueprint preservation, and
+  migration-116 compatibility contract in
+  `docs/guidance/managed-storage-rollout.md`.
+
+**Validation:**
+- Full Vitest suite: 459 files / 3,971 tests; all passed.
+- Focused managed-storage, archive, restore, compaction, Gradex, Blueprint,
+  upload, and component suites pass.
+- TypeScript, lint, production build, SQLFluff parse, migration lineage hashes,
+  shell syntax, diff check, and Pika audit pass.
+- The database fixture includes mismatch rejection, legacy writer rejection,
+  interrupted cleanup retry/idempotency, and a real two-session writer versus
+  activation fence. It was not run locally because no migration application was
+  authorized; CI runs it only after a fresh isolated replay.
+
+**Remaining:**
+- Obtain fresh authorization naming exact migration 117 and an isolated
+  target before any replay. The shared local database contains PR #963's
+  different migration 117 and was only queried read-only.
+- After an authorized deployment, register legacy objects, reconcile, refresh
+  readiness, and activate using exact target acknowledgements. Generic cleanup
+  remains separately disabled. Permanent classroom deletion remains in PR #963
+  as a later consumer and must be redesigned against this authority.

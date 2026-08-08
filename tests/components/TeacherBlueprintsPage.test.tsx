@@ -36,6 +36,24 @@ vi.mock('@/components/CreateClassroomModal', () => ({
   CreateClassroomModal: () => null,
 }))
 
+vi.mock('@/components/CourseBlueprintPurgeDialog', () => ({
+  CourseBlueprintPurgeDialog: ({
+    courseBlueprintTitle,
+    onCompleted,
+  }: {
+    courseBlueprintTitle: string
+    onCompleted: () => void
+  }) => (
+    <div role="dialog" aria-label={`Delete ${courseBlueprintTitle}?`}>
+      <p>
+        Linked Classrooms are kept, but their Blueprint connection is removed.
+        This cannot be undone.
+      </p>
+      <button type="button" onClick={onCompleted}>Confirm permanent deletion</button>
+    </div>
+  ),
+}))
+
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div>Loading…</div>,
 }))
@@ -298,21 +316,14 @@ describe('TeacherBlueprintsPage', () => {
       expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Course Blueprint' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
 
     expect(screen.getByRole('dialog', { name: 'Delete Blueprint Two?' })).toBeInTheDocument()
     expect(screen.getByText(
-      '1 linked classroom will stay intact, but its Blueprint connection will be removed. This cannot be undone.',
+      'Linked Classrooms are kept, but their Blueprint connection is removed. This cannot be undone.',
     )).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/teacher/course-blueprints/b-2',
-        { method: 'DELETE' },
-      )
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm permanent deletion' }))
     expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
     expect(mockPush).toHaveBeenCalledWith('/teacher/blueprints')
 
@@ -343,7 +354,7 @@ describe('TeacherBlueprintsPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
 
-    expect(screen.queryByRole('button', { name: 'Delete Course Blueprint' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete permanently' })).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
 
     await act(async () => {
@@ -351,19 +362,13 @@ describe('TeacherBlueprintsPage', () => {
       await delayedBlueprintOne
     })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete Course Blueprint' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
     expect(screen.getByRole('dialog', { name: 'Delete Blueprint One?' })).toBeInTheDocument()
     expect(screen.getByText(
-      'This permanently deletes the Course Blueprint and its saved Versions. This cannot be undone.',
+      'Linked Classrooms are kept, but their Blueprint connection is removed. This cannot be undone.',
     )).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/teacher/course-blueprints/b-1',
-        { method: 'DELETE' },
-      )
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm permanent deletion' }))
   })
 
   it('does not offer deletion while repository authority is active', async () => {
@@ -384,6 +389,6 @@ describe('TeacherBlueprintsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Repository-managed')).toBeInTheDocument()
     })
-    expect(screen.queryByRole('button', { name: 'Delete Course Blueprint' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete permanently' })).toBeNull()
   })
 })
