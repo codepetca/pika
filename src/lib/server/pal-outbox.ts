@@ -53,6 +53,13 @@ export type PalOutboxDrainSummary = PalOutboxDeliverySummary & {
   stoppedReason: 'disabled' | 'empty' | 'drained' | 'batch_limit' | 'time_limit'
 }
 
+function emitPalTelemetry(
+  label: '[pal-delivery]' | '[pal-outbox-drain]',
+  fields: Record<string, unknown>,
+): void {
+  console.info(label, JSON.stringify(fields))
+}
+
 function retryDelayMs(attempts: number): number {
   return Math.min(30_000 * 2 ** Math.max(0, attempts - 1), 6 * 60 * 60 * 1000)
 }
@@ -410,6 +417,7 @@ export async function attemptImmediatePalEventDelivery(input: {
 
   const timeoutMs = Math.max(1, input.timeoutMs ?? 2_000)
   const clock = input.clock ?? Date.now
+  const startedAt = clock()
   const cleanupBudgetMs = Math.min(500, Math.max(1, Math.floor(timeoutMs / 4)))
   const signal = AbortSignal.timeout(Math.max(1, timeoutMs - cleanupBudgetMs))
   const transitionSignal = AbortSignal.timeout(timeoutMs)
@@ -418,8 +426,9 @@ export async function attemptImmediatePalEventDelivery(input: {
     timeoutId = setTimeout(() => resolve('pending'), timeoutMs)
   })
 
+  let result: PalImmediateDeliveryStatus
   try {
-    return await Promise.race([
+    result = await Promise.race([
       attemptImmediatePalEventDeliveryWithinDeadline({
         event: input.event,
         supabase: input.supabase ?? getServiceRoleClient(),
@@ -435,6 +444,14 @@ export async function attemptImmediatePalEventDelivery(input: {
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId)
   }
+
+  emitPalTelemetry('[pal-delivery]', {
+    mode: 'immediate',
+    event_type: input.event.event_type,
+    outcome: result,
+    duration_ms: Math.max(0, Math.round(clock() - startedAt)),
+  })
+  return result
 }
 
 export async function enqueueStandalonePalEvent(input: {
@@ -588,7 +605,22 @@ export async function drainPalOutbox(input: {
       clock,
     })
     if (delivered.status === 'disabled') {
-      return { ...summary, status: 'disabled', stoppedReason: 'disabled' }
+      const disabledSummary: PalOutboxDrainSummary = {
+        ...summary,
+        status: 'disabled',
+        stoppedReason: 'disabled',
+      }
+      emitPalTelemetry('[pal-outbox-drain]', {
+        status: disabledSummary.status,
+        claimed: disabledSummary.claimed,
+        delivered: disabledSummary.delivered,
+        retrying: disabledSummary.retrying,
+        non_retryable: disabledSummary.nonRetryable,
+        remaining_ready: disabledSummary.remainingReady,
+        stopped_reason: disabledSummary.stoppedReason,
+        duration_ms: Math.max(0, Math.round(clock() - startedAt)),
+      })
+      return disabledSummary
     }
 
     summary.batches += 1
@@ -620,5 +652,15 @@ export async function drainPalOutbox(input: {
     throw new Error(`Failed to count ready Pal outbox rows: ${error.message ?? 'unknown error'}`)
   }
   summary.remainingReady = z.number().int().nonnegative().parse(data)
+  emitPalTelemetry('[pal-outbox-drain]', {
+    status: summary.status,
+    claimed: summary.claimed,
+    delivered: summary.delivered,
+    retrying: summary.retrying,
+    non_retryable: summary.nonRetryable,
+    remaining_ready: summary.remainingReady,
+    stopped_reason: summary.stoppedReason,
+    duration_ms: Math.max(0, Math.round(clock() - startedAt)),
+  })
   return summary
 }

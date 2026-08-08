@@ -182,10 +182,21 @@ lease so an overlapping worker cannot reclaim a slow in-flight batch.
 The same credential protects the focused outbox operations:
 
 - `GET /api/cron/pal-outbox` — counts plus up to 25 privacy-safe pending or
-  failed summaries; no payloads or learner/source IDs.
+  failed summaries; no payloads or learner/source IDs. Its `observability`
+  block reports the exact ready and retrying counts, expired leases, oldest
+  ready age, and p50/p95/max end-to-end delivery latency from up to the latest
+  500 deliveries in the previous 24 hours.
 - `POST /api/cron/pal-outbox` — deliver one bounded batch.
 - `PATCH /api/cron/pal-outbox` with `{ "outbox_id": "<uuid>" }` — explicitly
   requeue a retained non-retryable row after its cause is corrected.
+
+Immediate attempts emit one privacy-safe structured `[pal-delivery]` log with
+delivery mode, event type, outcome, and duration. Daily recovery emits one
+`[pal-outbox-drain]` log with claimed, delivered, retrying, non-retryable,
+remaining-ready, stop-reason, and duration fields. These logs deliberately omit
+idempotency keys, learner IDs, source IDs, payloads, and error bodies. Use the
+protected status endpoint for current backlog and retained error-code detail;
+use the structured logs for latency and outcome trends in Vercel.
 
 Batch delivery rows use leases and `FOR UPDATE SKIP LOCKED`; targeted delivery
 uses a conditional pending-row update with the same lease fields. Overlapping
@@ -252,7 +263,17 @@ pnpm exec vitest run \
 pnpm exec tsc --noEmit
 pnpm check:architecture
 pnpm check:ui-policy
+bash scripts/check-pal-outbox-concurrency.sh
+pnpm run smoke:pal-delivery-recovery
 ```
+
+The PostgreSQL harness creates and drops a disposable database, replays the
+current migrations, and proves that two concurrent workers produce exactly one
+winner for pending and expired batch claims as well as the conditional UPDATE
+used by targeted delivery. The recovery smoke command refuses non-loopback
+Supabase targets, creates one synthetic fixture, receives a real HTTP 503,
+proves durable retry evidence, restores the local HTTP peer, drains the queued
+event once with the same idempotency key, and removes the fixture.
 
 Then run a real pilot vertical slice only after Pal's prerequisites exist:
 
@@ -267,3 +288,11 @@ Then run a real pilot vertical slice only after Pal's prerequisites exist:
    succeeds while the event remains queued.
 6. Restore Pal, run the delivery worker, and confirm the queued fact is applied
    once.
+
+Do not deliberately interrupt the production Pal service to perform step 5.
+Use the guarded local recovery smoke for the outage path. In a deployed pilot,
+verify the success path with a dedicated or already-authorized learner account,
+then inspect the protected status endpoint and `[pal-delivery]` log for the same
+time window. Production verification must not create a testing backdoor, expose
+integration credentials to a preview, or reuse a real learner's identity as a
+fixture.

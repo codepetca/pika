@@ -190,6 +190,7 @@ describe('Pal outbox adapter', () => {
   })
 
   it('claims and delivers only the outbox fact committed by the current action', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     const supabase = buildImmediateSupabase({
       lookups: [immediateRow()],
       claimed: claimedRow(),
@@ -216,6 +217,13 @@ describe('Pal outbox adapter', () => {
         p_lease_token: leaseToken,
       },
     })
+    expect(info.mock.calls.at(-1)?.[0]).toBe('[pal-delivery]')
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toMatchObject({
+      mode: 'immediate',
+      event_type: 'platform.session.started',
+      outcome: 'delivered',
+      duration_ms: expect.any(Number),
+    })
   })
 
   it('does not redeliver an idempotent action whose fact is already delivered', async () => {
@@ -234,6 +242,7 @@ describe('Pal outbox adapter', () => {
   })
 
   it('leaves an immediate network failure queued for durable retry', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     const supabase = buildImmediateSupabase({
       lookups: [immediateRow()],
       claimed: claimedRow(),
@@ -252,6 +261,11 @@ describe('Pal outbox adapter', () => {
     expect(supabase.calls.at(-1)).toMatchObject({
       name: 'retry_pal_event_outbox',
       args: { p_error_code: 'network_error' },
+    })
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toMatchObject({
+      mode: 'immediate',
+      event_type: 'platform.session.started',
+      outcome: 'pending',
     })
   })
 
@@ -460,6 +474,7 @@ describe('Pal outbox adapter', () => {
   })
 
   it('drains more than one class-day of events and reports no ready backlog', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     const batchSizes = [20, 20, 20, 20, 20, 20, 0]
     let claim = 0
     const rpc = vi.fn(async (name: string, args?: Record<string, unknown>) => {
@@ -495,5 +510,16 @@ describe('Pal outbox adapter', () => {
     })
     expect(fetchImpl).toHaveBeenCalledTimes(120)
     expect(rpc).toHaveBeenCalledWith('count_pal_event_outbox_ready')
+    expect(info.mock.calls.at(-1)?.[0]).toBe('[pal-outbox-drain]')
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toMatchObject({
+      status: 'ok',
+      claimed: 120,
+      delivered: 120,
+      retrying: 0,
+      non_retryable: 0,
+      remaining_ready: 0,
+      stopped_reason: 'drained',
+      duration_ms: expect.any(Number),
+    })
   })
 })

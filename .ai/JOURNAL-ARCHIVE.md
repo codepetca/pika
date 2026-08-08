@@ -17333,3 +17333,30 @@ concurrent activation, and Classroom/Blueprint ownership boundaries.
 **Remaining:**
 - Push the approved extra correction, require complete database fixture CI,
   and run the final cumulative integration review.
+
+<!-- pika-session-log-archive-batch:18dcf003dbc4e93548d0689482bbd3913f0282e6706dc8339d4d1a6fea3e534c -->
+## 2026-08-02 — Closed compatibility cleanup authority gap
+
+**Risk profile:** high — rolling cleanup compatibility and exact-path Storage
+write/delete serialization.
+
+**Completed:**
+- Made legacy cleanup rows opportunistically bind exact registered managed
+  identities during compatibility rollout while leaving unmatched raw-only rows
+  on their migration-116 behavior.
+- Mirrored managed cleanup leases, retries, and terminal tombstones in both
+  protocol modes, and fenced all exact-path Storage updates while such a lease
+  is active.
+- Added a real compatibility-mode claim, overwrite rejection, delete,
+  completion, tombstone, and readiness fixture; corrected the fixture's
+  submission-requirement column to the deployed `label` schema.
+- Kept generic cleanup enforcement-only, migration 117 unapplied outside
+  disposable CI, permanent deletion unavailable, and PR #963 unchanged.
+
+**Validation:**
+- Pending focused checks, disposable CI replay/fixture, and final targeted
+  independent review.
+
+**Remaining:**
+- Publish the correction after local static checks, require green PR CI, and
+  complete the approved targeted review.
