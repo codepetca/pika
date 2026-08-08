@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildSessionStartedEvent } from '@/lib/server/pal-events'
 import {
+  attemptImmediatePalEventDelivery,
   deliverPalOutboxBatch,
   drainPalOutbox,
   enqueueStandalonePalEvent,
@@ -28,6 +29,71 @@ function buildSupabase(rows: unknown[] = []) {
     return { data: true, error: null }
   })
   return { client: { rpc }, calls }
+}
+
+function buildImmediateSupabase(input: {
+  lookups: unknown[]
+  claimed?: unknown
+}) {
+  const lookupResults = [...input.lookups]
+  const claimFilters: Array<{
+    method: 'eq' | 'lte'
+    column: string
+    value: unknown
+  }> = []
+  const update = vi.fn((values: Record<string, unknown>) => {
+    const claimBuilder: any = {
+      eq: vi.fn((column: string, value: unknown) => {
+        claimFilters.push({ method: 'eq', column, value })
+        return claimBuilder
+      }),
+      lte: vi.fn((column: string, value: unknown) => {
+        claimFilters.push({ method: 'lte', column, value })
+        return claimBuilder
+      }),
+      select: vi.fn(() => ({
+        maybeSingle: vi.fn(async () => ({ data: input.claimed ?? null, error: null })),
+      })),
+    }
+    return claimBuilder
+  })
+  const select = vi.fn(() => {
+    const lookupBuilder: any = {
+      eq: vi.fn(() => ({
+        maybeSingle: vi.fn(async () => ({
+          data: lookupResults.shift() ?? null,
+          error: null,
+        })),
+      })),
+    }
+    return lookupBuilder
+  })
+  const batch = buildSupabase()
+  return {
+    client: {
+      rpc: batch.client.rpc,
+      from: vi.fn(() => ({ select, update })),
+    },
+    calls: batch.calls,
+    claimFilters,
+    update,
+  }
+}
+
+function immediateRow(
+  status: 'pending' | 'processing' | 'delivered' | 'non_retryable' = 'pending',
+  leaseExpiresAt: string | null = status === 'processing'
+    ? '2026-09-16T18:21:00.000Z'
+    : null,
+) {
+  return {
+    id: rowId,
+    payload: event,
+    status,
+    attempts: 0,
+    next_attempt_at: '2026-09-16T18:19:00.000Z',
+    lease_expires_at: leaseExpiresAt,
+  }
 }
 
 function claimedRow(payload: unknown = event, attempts = 1) {
@@ -120,6 +186,172 @@ describe('Pal outbox adapter', () => {
         p_outbox_id: rowId,
         p_lease_token: leaseToken,
       },
+    })
+  })
+
+  it('claims and delivers only the outbox fact committed by the current action', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('delivered')
+
+    expect(supabase.client.from).toHaveBeenCalledWith('pal_event_outbox')
+    expect(supabase.update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'processing',
+      attempts: 1,
+    }))
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(supabase.calls.at(-1)).toEqual({
+      name: 'complete_pal_event_outbox',
+      args: {
+        p_outbox_id: rowId,
+        p_lease_token: leaseToken,
+      },
+    })
+  })
+
+  it('does not redeliver an idempotent action whose fact is already delivered', async () => {
+    const supabase = buildImmediateSupabase({ lookups: [immediateRow('delivered')] })
+    const fetchImpl = vi.fn<typeof fetch>()
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('already_delivered')
+
+    expect(supabase.update).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('leaves an immediate network failure queued for durable retry', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      throw new Error('network unavailable')
+    })
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('pending')
+
+    expect(supabase.calls.at(-1)).toMatchObject({
+      name: 'retry_pal_event_outbox',
+      args: { p_error_code: 'network_error' },
+    })
+  })
+
+  it('backs off when another worker wins the targeted claim', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow(), immediateRow('processing')],
+      claimed: null,
+    })
+    const fetchImpl = vi.fn<typeof fetch>()
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('pending')
+
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('atomically reclaims an expired immediate lease on a later action', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow('processing', '2026-09-16T18:19:00.000Z')],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('delivered')
+
+    expect(supabase.claimFilters).toContainEqual({
+      method: 'eq',
+      column: 'status',
+      value: 'processing',
+    })
+    expect(supabase.claimFilters).toContainEqual({
+      method: 'lte',
+      column: 'lease_expires_at',
+      value: occurredAt.toISOString(),
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns within its bound when a delivery transition never resolves', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    supabase.client.rpc = vi.fn((name: string) => {
+      if (name === 'complete_pal_event_outbox') {
+        return new Promise<never>(() => undefined)
+      }
+      return Promise.resolve({ data: true, error: null })
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+    const startedAt = performance.now()
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+      timeoutMs: 20,
+    })).resolves.toBe('pending')
+
+    expect(performance.now() - startedAt).toBeLessThan(250)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the cleanup budget to record retry after the Pal request times out', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>((_input, init) => new Promise((_resolve, reject) => {
+      const signal = init?.signal
+      if (!signal) {
+        reject(new Error('missing timeout signal'))
+        return
+      }
+      signal.addEventListener('abort', () => reject(new Error('request timed out')), {
+        once: true,
+      })
+    }))
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+      timeoutMs: 40,
+    })).resolves.toBe('pending')
+
+    expect(supabase.calls.at(-1)).toMatchObject({
+      name: 'retry_pal_event_outbox',
+      args: { p_error_code: 'network_error' },
     })
   })
 

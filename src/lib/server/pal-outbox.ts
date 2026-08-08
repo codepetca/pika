@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { z } from 'zod'
 
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -9,12 +11,33 @@ export type PalOutboxClient = Pick<
   'rpc'
 >
 
+export type PalImmediateDeliveryClient = Pick<
+  ReturnType<typeof getServiceRoleClient>,
+  'from' | 'rpc'
+>
+
 const claimedOutboxRowSchema = z.object({
   id: z.string().uuid(),
   payload: z.unknown(),
   attempts: z.number().int().positive(),
   lease_token: z.string().uuid(),
 }).passthrough()
+
+const immediateOutboxRowSchema = z.object({
+  id: z.string().uuid(),
+  payload: z.unknown(),
+  status: z.enum(['pending', 'processing', 'delivered', 'non_retryable']),
+  attempts: z.number().int().nonnegative(),
+  next_attempt_at: z.string(),
+  lease_expires_at: z.string().nullable(),
+}).passthrough()
+
+export type PalImmediateDeliveryStatus =
+  | 'disabled'
+  | 'delivered'
+  | 'already_delivered'
+  | 'pending'
+  | 'non_retryable'
 
 export type PalOutboxDeliverySummary = {
   status: 'disabled' | 'ok'
@@ -69,17 +92,27 @@ type PalOutboxTransition =
 async function transition(
   supabase: PalOutboxClient,
   transition: PalOutboxTransition,
+  signal?: AbortSignal,
 ): Promise<void> {
   let result: { data: boolean | null; error: { message?: string } | null }
   switch (transition.functionName) {
     case 'complete_pal_event_outbox':
-      result = await supabase.rpc(transition.functionName, transition.args)
+      result = await withAbortSignal(
+        supabase.rpc(transition.functionName, transition.args),
+        signal,
+      )
       break
     case 'retry_pal_event_outbox':
-      result = await supabase.rpc(transition.functionName, transition.args)
+      result = await withAbortSignal(
+        supabase.rpc(transition.functionName, transition.args),
+        signal,
+      )
       break
     case 'fail_pal_event_outbox':
-      result = await supabase.rpc(transition.functionName, transition.args)
+      result = await withAbortSignal(
+        supabase.rpc(transition.functionName, transition.args),
+        signal,
+      )
       break
   }
   const { data, error } = result
@@ -91,12 +124,25 @@ async function transition(
   }
 }
 
+function withAbortSignal<T>(
+  request: PromiseLike<T>,
+  signal?: AbortSignal,
+): PromiseLike<T> {
+  const abortable = request as PromiseLike<T> & {
+    abortSignal?: (requestSignal: AbortSignal) => PromiseLike<T>
+  }
+  return signal && typeof abortable.abortSignal === 'function'
+    ? abortable.abortSignal(signal)
+    : request
+}
+
 async function markRetry(
   supabase: PalOutboxClient,
   row: z.infer<typeof claimedOutboxRowSchema>,
   now: Date,
   errorCode: string,
   errorDetail: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   await transition(supabase, {
     functionName: 'retry_pal_event_outbox',
@@ -107,7 +153,7 @@ async function markRetry(
       p_error_code: errorCode,
       p_error_detail: errorDetail,
     },
-  })
+  }, signal)
 }
 
 async function markNonRetryable(
@@ -115,6 +161,7 @@ async function markNonRetryable(
   row: z.infer<typeof claimedOutboxRowSchema>,
   errorCode: string,
   errorDetail: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   await transition(supabase, {
     functionName: 'fail_pal_event_outbox',
@@ -124,7 +171,270 @@ async function markNonRetryable(
       p_error_code: errorCode,
       p_error_detail: errorDetail,
     },
+  }, signal)
+}
+
+type ClaimedDeliveryResult = 'delivered' | 'retrying' | 'non_retryable'
+
+async function deliverClaimedPalOutboxRow(input: {
+  supabase: PalOutboxClient
+  row: z.infer<typeof claimedOutboxRowSchema>
+  apiUrl: string
+  integrationSecret: string
+  fetchImpl: typeof fetch
+  now: Date
+  deadlineAtMs?: number
+  clock: () => number
+  signal?: AbortSignal
+  transitionSignal?: AbortSignal
+}): Promise<ClaimedDeliveryResult> {
+  const validation = v1.validateV1Event(input.row.payload)
+  if (!validation.ok) {
+    await markNonRetryable(
+      input.supabase,
+      input.row,
+      validation.error,
+      'Pika outbox payload failed the pinned Pal v1 validator',
+      input.transitionSignal,
+    )
+    return 'non_retryable'
+  }
+
+  const remainingMs = input.deadlineAtMs === undefined
+    ? 3_000
+    : input.deadlineAtMs - input.clock()
+  if (remainingMs <= 0) {
+    await markRetry(
+      input.supabase,
+      input.row,
+      input.now,
+      'worker_deadline',
+      'Pal delivery worker reached its bounded execution deadline',
+      input.transitionSignal,
+    )
+    return 'retrying'
+  }
+
+  let response: Response
+  try {
+    response = await input.fetchImpl(`${input.apiUrl}/api/v1/events`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.integrationSecret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(validation.event),
+      signal: input.signal
+        ?? AbortSignal.timeout(Math.max(1, Math.min(3_000, remainingMs))),
+    })
+  } catch {
+    await markRetry(
+      input.supabase,
+      input.row,
+      input.now,
+      'network_error',
+      'Pal delivery failed before an HTTP response was received',
+      input.transitionSignal,
+    )
+    return 'retrying'
+  }
+
+  if (response.ok) {
+    await transition(input.supabase, {
+      functionName: 'complete_pal_event_outbox',
+      args: {
+        p_outbox_id: input.row.id,
+        p_lease_token: input.row.lease_token,
+      },
+    }, input.transitionSignal)
+    return 'delivered'
+  }
+
+  const errorCode = `http_${response.status}`
+  const errorDetail = `Pal returned HTTP ${response.status}`
+  if (response.status === 408 || response.status === 429 || response.status >= 500) {
+    await markRetry(
+      input.supabase,
+      input.row,
+      input.now,
+      errorCode,
+      errorDetail,
+      input.transitionSignal,
+    )
+    return 'retrying'
+  }
+
+  await markNonRetryable(
+    input.supabase,
+    input.row,
+    errorCode,
+    errorDetail,
+    input.transitionSignal,
+  )
+  return 'non_retryable'
+}
+
+async function findImmediateOutboxRow(
+  supabase: PalImmediateDeliveryClient,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<z.infer<typeof immediateOutboxRowSchema> | null> {
+  const request = supabase
+    .from('pal_event_outbox')
+    .select('id, payload, status, attempts, next_attempt_at, lease_expires_at')
+    .eq('idempotency_key', idempotencyKey)
+    .maybeSingle()
+  const { data, error } = await withAbortSignal(request, signal)
+
+  if (error) {
+    throw new Error(`Failed to find immediate Pal outbox row: ${error.message ?? 'unknown error'}`)
+  }
+  return data === null ? null : immediateOutboxRowSchema.parse(data)
+}
+
+async function claimImmediateOutboxRow(input: {
+  supabase: PalImmediateDeliveryClient
+  row: z.infer<typeof immediateOutboxRowSchema>
+  now: Date
+  signal?: AbortSignal
+}): Promise<z.infer<typeof claimedOutboxRowSchema> | null> {
+  const pendingReady = input.row.status === 'pending'
+    && new Date(input.row.next_attempt_at).getTime() <= input.now.getTime()
+  const expiredProcessing = input.row.status === 'processing'
+    && input.row.lease_expires_at !== null
+    && new Date(input.row.lease_expires_at).getTime() <= input.now.getTime()
+  if (!pendingReady && !expiredProcessing) return null
+
+  const leaseToken = randomUUID()
+  let request = input.supabase
+    .from('pal_event_outbox')
+    .update({
+      status: 'processing',
+      attempts: input.row.attempts + 1,
+      lease_token: leaseToken,
+      lease_expires_at: new Date(input.now.getTime() + 60_000).toISOString(),
+      last_attempt_at: input.now.toISOString(),
+      updated_at: input.now.toISOString(),
+    })
+    .eq('id', input.row.id)
+    .eq('status', input.row.status)
+    .eq('attempts', input.row.attempts)
+  request = input.row.status === 'pending'
+    ? request.lte('next_attempt_at', input.now.toISOString())
+    : request.lte('lease_expires_at', input.now.toISOString())
+  const claim = request
+    .select('id, payload, attempts, lease_token')
+    .maybeSingle()
+  const { data, error } = await withAbortSignal(claim, input.signal)
+
+  if (error) {
+    throw new Error(`Failed to claim immediate Pal outbox row: ${error.message ?? 'unknown error'}`)
+  }
+  return data === null ? null : claimedOutboxRowSchema.parse(data)
+}
+
+/**
+ * Best-effort delivery for the event committed by the current Pika action.
+ * The source transaction has already succeeded, so every adapter failure is
+ * converted to `pending` and left for the durable outbox recovery worker.
+ */
+async function attemptImmediatePalEventDeliveryWithinDeadline(input: {
+  event: v1.V1Envelope
+  supabase: PalImmediateDeliveryClient
+  fetchImpl: typeof fetch
+  now: Date
+  deadlineAtMs: number
+  clock: () => number
+  signal: AbortSignal
+  transitionSignal: AbortSignal
+}): Promise<PalImmediateDeliveryStatus> {
+  try {
+    const { apiUrl, integrationSecret } = requirePalEnvironment()
+    const row = await findImmediateOutboxRow(
+      input.supabase,
+      input.event.idempotency_key,
+      input.signal,
+    )
+
+    if (row === null) return 'pending'
+    if (row.status === 'delivered') return 'already_delivered'
+    if (row.status === 'non_retryable') return 'non_retryable'
+
+    const claimed = await claimImmediateOutboxRow({
+      supabase: input.supabase,
+      row,
+      now: input.now,
+      signal: input.signal,
+    })
+    if (claimed === null) {
+      const latest = await findImmediateOutboxRow(
+        input.supabase,
+        input.event.idempotency_key,
+        input.signal,
+      )
+      if (latest?.status === 'delivered') return 'already_delivered'
+      if (latest?.status === 'non_retryable') return 'non_retryable'
+      return 'pending'
+    }
+
+    const result = await deliverClaimedPalOutboxRow({
+      supabase: input.supabase,
+      row: claimed,
+      apiUrl,
+      integrationSecret,
+      fetchImpl: input.fetchImpl,
+      now: input.now,
+      deadlineAtMs: input.deadlineAtMs,
+      clock: input.clock,
+      signal: input.signal,
+      transitionSignal: input.transitionSignal,
+    })
+    if (result === 'delivered') return 'delivered'
+    if (result === 'non_retryable') return 'non_retryable'
+    return 'pending'
+  } catch (error) {
+    console.error('Immediate Pal delivery failed; event remains queued:', error)
+    return 'pending'
+  }
+}
+
+export async function attemptImmediatePalEventDelivery(input: {
+  event: v1.V1Envelope
+  supabase?: PalImmediateDeliveryClient
+  fetchImpl?: typeof fetch
+  now?: Date
+  timeoutMs?: number
+  clock?: () => number
+}): Promise<PalImmediateDeliveryStatus> {
+  if (!isPalEnabled()) return 'disabled'
+
+  const timeoutMs = Math.max(1, input.timeoutMs ?? 2_000)
+  const clock = input.clock ?? Date.now
+  const cleanupBudgetMs = Math.min(500, Math.max(1, Math.floor(timeoutMs / 4)))
+  const signal = AbortSignal.timeout(Math.max(1, timeoutMs - cleanupBudgetMs))
+  const transitionSignal = AbortSignal.timeout(timeoutMs)
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<PalImmediateDeliveryStatus>((resolve) => {
+    timeoutId = setTimeout(() => resolve('pending'), timeoutMs)
   })
+
+  try {
+    return await Promise.race([
+      attemptImmediatePalEventDeliveryWithinDeadline({
+        event: input.event,
+        supabase: input.supabase ?? getServiceRoleClient(),
+        fetchImpl: input.fetchImpl ?? fetch,
+        now: input.now ?? new Date(),
+        deadlineAtMs: clock() + timeoutMs,
+        clock,
+        signal,
+        transitionSignal,
+      }),
+      timeout,
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
 }
 
 export async function enqueueStandalonePalEvent(input: {
@@ -211,77 +521,19 @@ export async function deliverPalOutboxBatch(input: {
     if (rowIndex >= rows.length) return
     const row = rows[rowIndex]
 
-    const validation = v1.validateV1Event(row.payload)
-    if (!validation.ok) {
-      await markNonRetryable(
-        supabase,
-        row,
-        validation.error,
-        'Pika outbox payload failed the pinned Pal v1 validator',
-      )
-      summary.nonRetryable += 1
-      return deliverNext()
-    }
-
-    const remainingMs = input.deadlineAtMs === undefined
-      ? 3_000
-      : input.deadlineAtMs - clock()
-    if (remainingMs <= 0) {
-      await markRetry(
-        supabase,
-        row,
-        now,
-        'worker_deadline',
-        'Pal delivery worker reached its bounded execution deadline',
-      )
-      summary.retrying += 1
-      return deliverNext()
-    }
-
-    let response: Response
-    try {
-      response = await fetchImpl(`${apiUrl}/api/v1/events`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${integrationSecret}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(validation.event),
-        signal: AbortSignal.timeout(Math.max(1, Math.min(3_000, remainingMs))),
-      })
-    } catch {
-      await markRetry(
-        supabase,
-        row,
-        now,
-        'network_error',
-        'Pal delivery failed before an HTTP response was received',
-      )
-      summary.retrying += 1
-      return deliverNext()
-    }
-
-    if (response.ok) {
-      await transition(supabase, {
-        functionName: 'complete_pal_event_outbox',
-        args: {
-          p_outbox_id: row.id,
-          p_lease_token: row.lease_token,
-        },
-      })
-      summary.delivered += 1
-      return deliverNext()
-    }
-
-    const errorCode = `http_${response.status}`
-    const errorDetail = `Pal returned HTTP ${response.status}`
-    if (response.status === 408 || response.status === 429 || response.status >= 500) {
-      await markRetry(supabase, row, now, errorCode, errorDetail)
-      summary.retrying += 1
-    } else {
-      await markNonRetryable(supabase, row, errorCode, errorDetail)
-      summary.nonRetryable += 1
-    }
+    const result = await deliverClaimedPalOutboxRow({
+      supabase,
+      row,
+      apiUrl,
+      integrationSecret,
+      fetchImpl,
+      now,
+      deadlineAtMs: input.deadlineAtMs,
+      clock,
+    })
+    if (result === 'delivered') summary.delivered += 1
+    else if (result === 'retrying') summary.retrying += 1
+    else summary.nonRetryable += 1
     return deliverNext()
   }
 

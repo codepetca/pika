@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-02 — Remediated managed-storage ownership review
-
-**Risk profile:** high — cleanup authority, embedded identity validation,
-concurrent activation, and Classroom/Blueprint ownership boundaries.
-
-**Completed:**
-- Preserved managed-object tombstones and made generic cleanup enforcement-only;
-  existing operational cleanup leases now mirror into the managed authority.
-- Made JSON evidence exact by UUID, bucket, path, resource, and subject; fenced
-  reference removal and host deletion with durable cleanup intents.
-- Blocked readiness on compatibility-era cleanup leases already in flight.
-- Copied registered legacy test documents at both Classroom/Blueprint boundaries
-  without sharing ownership, and refreshed generated database types.
-- Revoked the internal protocol-lock helper from API roles, made deterministic
-  legacy replays compare every subject/resource/integrity field, and preserved
-  per-reference document metadata when a source file is copied once.
-- Kept migration 117 unapplied and PR #963 unchanged.
-
-**Validation:**
-- Focused ownership, Blueprint, and startup suites pass (46 tests).
-- Full suite reached 3,973/3,974 under concurrent load; the unrelated schema
-  audit timeout passed immediately in isolation (2/2).
-- TypeScript, lint, architecture, lineage, production build, full SQL parse,
-  shell syntax, diff check, and Pika audit pass.
-- CI's isolated 115→117 migration replay succeeds; the first remediation run
-  stopped only on generated-type ordering, now matched exactly to its diff.
-- A later database fixture exposed polymorphic cleanup triggers reading absent
-  record fields; both now use JSON-safe optional-field access, with direct
-  compatibility inserts plus enforced worker coverage.
-
-**Remaining:**
-- Push the approved extra correction, require complete database fixture CI,
-  and run the final cumulative integration review.
-
 ## 2026-08-02 — Closed compatibility cleanup authority gap
 
 **Risk profile:** high — rolling cleanup compatibility and exact-path Storage
@@ -1130,3 +1096,26 @@ schema/Storage concurrency verification only.
   147 focused tests, both Blueprint database contracts, feature validation,
   TypeScript, lint, production build, and diff checks pass.
 - Fresh cumulative PR review and GitHub CI remain before merge.
+
+## 2026-08-08 — Add immediate Pal event delivery
+
+**Risk profile:** runtime-platform — transactional outbox delivery and learner
+state refresh behavior.
+
+**Completed:**
+- Added a targeted, two-second post-commit delivery attempt for authenticated
+  sessions, classroom joins, qualifying daily logs, first assignment views, and
+  assignment completions while preserving the existing durable outbox,
+  idempotency, leases, retry backoff, and daily recovery worker.
+- Refreshes the mounted Pal provider only after a newly confirmed delivery, so
+  achievements and companion reactions can update without waiting for the
+  60-second polling fallback.
+- Documented the reusable host/provider SaaS boundary and clarified that the
+  daily cron owns weekly configuration reconciliation plus delivery recovery,
+  not the primary user-action response path.
+- Independent review tightened the hard caller deadline across adapter I/O and
+  added atomic recovery of expired immediate-delivery leases.
+
+**Validation:**
+- Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
+  architecture/UI policy checks, production build, and diff checks.

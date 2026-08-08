@@ -17,6 +17,10 @@ import {
 import { assignmentDocSaveRequestSchema } from '@/lib/validations/assignment-doc-submissions'
 import { isPalEnabled } from '@/lib/server/pal-config'
 import { buildLearningItemViewedEvent } from '@/lib/server/pal-events'
+import {
+  attemptImmediatePalEventDelivery,
+  type PalImmediateDeliveryStatus,
+} from '@/lib/server/pal-outbox'
 import { createAssignmentDocWithPalEvent } from '@/lib/server/pal-source-writes'
 
 export const dynamic = 'force-dynamic'
@@ -156,6 +160,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
 
   // Track whether this request cleared an assignment notification.
   let wasFirstView = false
+  let palDelivery: PalImmediateDeliveryStatus | undefined
 
   if (docError) {
     if (docError.code === 'PGRST116') {
@@ -200,6 +205,10 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           })
           created = result.doc
           createdByThisRequest = result.created
+          palDelivery = await attemptImmediatePalEventDelivery({
+            event: palEvent,
+            supabase,
+          })
         } catch (error) {
           console.error('Error creating assignment doc with Pal outbox:', error)
           return NextResponse.json(
@@ -276,6 +285,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
         feedback_entries: feedbackEntries,
         ...submissionContext,
         wasFirstView: createdByThisRequest,
+        pal_delivery: palDelivery,
       })
     }
     console.error('Error fetching assignment doc:', docError)
