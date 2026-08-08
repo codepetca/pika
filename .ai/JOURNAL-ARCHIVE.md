@@ -17298,3 +17298,38 @@ enforcement activation.
   readiness, and activate using exact target acknowledgements. Generic cleanup
   remains separately disabled. Permanent classroom deletion remains in PR #963
   as a later consumer and must be redesigned against this authority.
+
+<!-- pika-session-log-archive-batch:1b95cc3a0db886e0c95638a02fa447fc0bdc034fdf68b9e18da8c47b9a063149 -->
+## 2026-08-02 — Remediated managed-storage ownership review
+
+**Risk profile:** high — cleanup authority, embedded identity validation,
+concurrent activation, and Classroom/Blueprint ownership boundaries.
+
+**Completed:**
+- Preserved managed-object tombstones and made generic cleanup enforcement-only;
+  existing operational cleanup leases now mirror into the managed authority.
+- Made JSON evidence exact by UUID, bucket, path, resource, and subject; fenced
+  reference removal and host deletion with durable cleanup intents.
+- Blocked readiness on compatibility-era cleanup leases already in flight.
+- Copied registered legacy test documents at both Classroom/Blueprint boundaries
+  without sharing ownership, and refreshed generated database types.
+- Revoked the internal protocol-lock helper from API roles, made deterministic
+  legacy replays compare every subject/resource/integrity field, and preserved
+  per-reference document metadata when a source file is copied once.
+- Kept migration 117 unapplied and PR #963 unchanged.
+
+**Validation:**
+- Focused ownership, Blueprint, and startup suites pass (46 tests).
+- Full suite reached 3,973/3,974 under concurrent load; the unrelated schema
+  audit timeout passed immediately in isolation (2/2).
+- TypeScript, lint, architecture, lineage, production build, full SQL parse,
+  shell syntax, diff check, and Pika audit pass.
+- CI's isolated 115→117 migration replay succeeds; the first remediation run
+  stopped only on generated-type ordering, now matched exactly to its diff.
+- A later database fixture exposed polymorphic cleanup triggers reading absent
+  record fields; both now use JSON-safe optional-field access, with direct
+  compatibility inserts plus enforced worker coverage.
+
+**Remaining:**
+- Push the approved extra correction, require complete database fixture CI,
+  and run the final cumulative integration review.

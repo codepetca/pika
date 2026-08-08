@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-02 — Remediated managed-storage ownership review
-
-**Risk profile:** high — cleanup authority, embedded identity validation,
-concurrent activation, and Classroom/Blueprint ownership boundaries.
-
-**Completed:**
-- Preserved managed-object tombstones and made generic cleanup enforcement-only;
-  existing operational cleanup leases now mirror into the managed authority.
-- Made JSON evidence exact by UUID, bucket, path, resource, and subject; fenced
-  reference removal and host deletion with durable cleanup intents.
-- Blocked readiness on compatibility-era cleanup leases already in flight.
-- Copied registered legacy test documents at both Classroom/Blueprint boundaries
-  without sharing ownership, and refreshed generated database types.
-- Revoked the internal protocol-lock helper from API roles, made deterministic
-  legacy replays compare every subject/resource/integrity field, and preserved
-  per-reference document metadata when a source file is copied once.
-- Kept migration 117 unapplied and PR #963 unchanged.
-
-**Validation:**
-- Focused ownership, Blueprint, and startup suites pass (46 tests).
-- Full suite reached 3,973/3,974 under concurrent load; the unrelated schema
-  audit timeout passed immediately in isolation (2/2).
-- TypeScript, lint, architecture, lineage, production build, full SQL parse,
-  shell syntax, diff check, and Pika audit pass.
-- CI's isolated 115→117 migration replay succeeds; the first remediation run
-  stopped only on generated-type ordering, now matched exactly to its diff.
-- A later database fixture exposed polymorphic cleanup triggers reading absent
-  record fields; both now use JSON-safe optional-field access, with direct
-  compatibility inserts plus enforced worker coverage.
-
-**Remaining:**
-- Push the approved extra correction, require complete database fixture CI,
-  and run the final cumulative integration review.
-
 ## 2026-08-02 — Closed compatibility cleanup authority gap
 
 **Risk profile:** high — rolling cleanup compatibility and exact-path Storage
@@ -1130,3 +1096,24 @@ schema/Storage concurrency verification only.
   147 focused tests, both Blueprint database contracts, feature validation,
   TypeScript, lint, production build, and diff checks pass.
 - Fresh cumulative PR review and GitHub CI remain before merge.
+
+## 2026-08-08 — Install production Blueprint purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified the dedicated worktree at merged `main`, the hub-linked production
+  Pika project, migration history through 119, migration 120 static checks, and
+  the managed-storage lineage.
+- Confirmed the linked dry run contained only
+  `120_course_blueprint_purge_managed_ownership.sql`.
+- Applied migration 120 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Production migration history now records 120.
+- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
+  and Blueprint IDs are null, and no Blueprint purge operation exists.
+- No purge, managed-storage cleanup, rollout activation, or Storage deletion
+  ran. Enabling a canary remains a separate production decision.
