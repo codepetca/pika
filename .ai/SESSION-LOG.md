@@ -1113,6 +1113,8 @@ concurrency, outage recovery, and production release evidence.
   assumptions with database-observed claim and lock contention gates.
 - Bounded the complete drain path across claims, delivery transitions, and the
   final count, and made ready-backlog age use the actual retry/lease-ready time.
+- Classified both direct and PostgREST-wrapped abort/timeout failures as the
+  sanitized `deadline` drain outcome.
 - Confirmed read-only that the current production adapter is enabled and has
   delivered events; no Pal code, Pal PR #50, migration, or production data was
   changed by the readiness implementation.

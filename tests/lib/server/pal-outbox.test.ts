@@ -369,6 +369,34 @@ describe('Pal outbox adapter', () => {
     })
   })
 
+  it('classifies a wrapped PostgREST claim timeout as a drain deadline', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const stalledRequest = Object.assign(new Promise<never>(() => undefined), {
+      abortSignal: (signal: AbortSignal) => new Promise((resolve) => {
+        const resolveTimeout = () => resolve({
+          data: null,
+          error: { message: 'TimeoutError: operation aborted by signal' },
+        })
+        if (signal.aborted) resolveTimeout()
+        else signal.addEventListener('abort', resolveTimeout, { once: true })
+      }),
+    })
+    const rpc = vi.fn(() => stalledRequest)
+    const startedAt = performance.now()
+
+    await expect(drainPalOutbox({
+      supabase: { rpc } as any,
+      maxDurationMs: 40,
+    })).rejects.toThrow('Failed to claim Pal outbox rows')
+
+    expect(performance.now() - startedAt).toBeLessThan(250)
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toEqual({
+      status: 'error',
+      error_category: 'deadline',
+      duration_ms: expect.any(Number),
+    })
+  })
+
   it('uses the cleanup budget to record retry after the Pal request times out', async () => {
     const supabase = buildImmediateSupabase({
       lookups: [immediateRow()],

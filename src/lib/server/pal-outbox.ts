@@ -593,6 +593,8 @@ function categorizePalOutboxDrainError(error: unknown):
   if (
     error.name === 'AbortError'
     || error.name === 'TimeoutError'
+    || error.message.includes('AbortError')
+    || error.message.includes('TimeoutError')
     || error.message.includes('bounded execution deadline')
   ) {
     return 'deadline'
