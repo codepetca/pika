@@ -10,6 +10,10 @@ import { mockAuthenticationError } from '../setup'
 import { createJsonPatch } from '@/lib/json-patch'
 import type { TiptapContent } from '@/types'
 
+const { mockAttemptImmediatePalEventDelivery } = vi.hoisted(() => ({
+  mockAttemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
+}))
+
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -37,6 +41,9 @@ vi.mock('@/lib/server/classrooms', () => ({
     ok: true,
     classroom: { id: 'classroom-1', archived_at: null },
   })),
+}))
+vi.mock('@/lib/server/pal-outbox', () => ({
+  attemptImmediatePalEventDelivery: mockAttemptImmediatePalEventDelivery,
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -1084,6 +1091,7 @@ describe('PATCH /api/student/entries', () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({
       entry: { id: 'entry-1' },
+      pal_delivery: 'delivered',
     })
     expect(mockRpc).toHaveBeenCalledWith(
       'upsert_student_entry_with_pal_event_atomic',
@@ -1097,6 +1105,10 @@ describe('PATCH /api/student/entries', () => {
         }),
       }),
     )
+    expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      event: expect.objectContaining({ event_type: 'daily_log.completed' }),
+      supabase: mockSupabaseClient,
+    })
   })
 
   it('atomically saves an empty autosave without emitting a completion fact', async () => {

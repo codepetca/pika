@@ -21,6 +21,7 @@ import { createJsonPatch } from '@/lib/json-patch'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import { isPalEnabled } from '@/lib/server/pal-config'
 import { buildLearningItemCompletedEvent } from '@/lib/server/pal-events'
+import { attemptImmediatePalEventDelivery } from '@/lib/server/pal-outbox'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -154,6 +155,10 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     return NextResponse.json({ error: submitResult.error }, { status: submitResult.status })
   }
 
+  const palDelivery = palEvent
+    ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+    : undefined
+
   const doc = submitResult.doc
 
   // Parse content if it's a string (for backwards compatibility)
@@ -190,5 +195,8 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     console.error('Error computing authenticity score:', authError)
   }
 
-  return NextResponse.json({ doc: sanitizeDocForStudent(doc) })
+  return NextResponse.json({
+    doc: sanitizeDocForStudent(doc),
+    pal_delivery: palDelivery,
+  })
 })

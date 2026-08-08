@@ -7,12 +7,18 @@ import {
   type StudentAssignmentEditorHandle,
 } from '@/components/StudentAssignmentEditor'
 
+const notifyImmediatePalDeliveryMock = vi.hoisted(() => vi.fn())
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }))
 
 vi.mock('@/components/StudentNotificationsProvider', () => ({
   useStudentNotifications: () => null,
+}))
+
+vi.mock('@/lib/pal-browser-events', () => ({
+  notifyImmediatePalDelivery: notifyImmediatePalDeliveryMock,
 }))
 
 vi.mock('@/components/Spinner', () => ({
@@ -113,6 +119,7 @@ function makeDoc() {
 describe('StudentAssignmentEditor save-before-submit integrity', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    notifyImmediatePalDeliveryMock.mockClear()
     window.sessionStorage.clear()
     window.localStorage.clear()
   })
@@ -167,7 +174,10 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
       if (url.endsWith('/assignment-docs/assignment-1/submit')) {
         return {
           ok: true,
-          json: async () => ({ doc: { ...makeDoc(), content: latestDraft, is_submitted: true } }),
+          json: async () => ({
+            doc: { ...makeDoc(), content: latestDraft, is_submitted: true },
+            pal_delivery: 'delivered',
+          }),
         }
       }
 
@@ -222,6 +232,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     })
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
     expect(screen.queryByText(/not submitted.*try again/i)).not.toBeInTheDocument()
+    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
   })
 
   it('submits the pending editor snapshot before React rerenders', async () => {

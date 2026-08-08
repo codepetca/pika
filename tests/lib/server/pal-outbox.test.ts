@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildSessionStartedEvent } from '@/lib/server/pal-events'
 import {
+  attemptImmediatePalEventDelivery,
   deliverPalOutboxBatch,
   drainPalOutbox,
   enqueueStandalonePalEvent,
@@ -28,6 +29,53 @@ function buildSupabase(rows: unknown[] = []) {
     return { data: true, error: null }
   })
   return { client: { rpc }, calls }
+}
+
+function buildImmediateSupabase(input: {
+  lookups: unknown[]
+  claimed?: unknown
+}) {
+  const lookupResults = [...input.lookups]
+  const update = vi.fn((values: Record<string, unknown>) => {
+    const claimBuilder: any = {
+      eq: vi.fn(() => claimBuilder),
+      lte: vi.fn(() => claimBuilder),
+      select: vi.fn(() => ({
+        maybeSingle: vi.fn(async () => ({ data: input.claimed ?? null, error: null })),
+      })),
+    }
+    return claimBuilder
+  })
+  const select = vi.fn(() => {
+    const lookupBuilder: any = {
+      eq: vi.fn(() => ({
+        maybeSingle: vi.fn(async () => ({
+          data: lookupResults.shift() ?? null,
+          error: null,
+        })),
+      })),
+    }
+    return lookupBuilder
+  })
+  const batch = buildSupabase()
+  return {
+    client: {
+      rpc: batch.client.rpc,
+      from: vi.fn(() => ({ select, update })),
+    },
+    calls: batch.calls,
+    update,
+  }
+}
+
+function immediateRow(status: 'pending' | 'processing' | 'delivered' | 'non_retryable' = 'pending') {
+  return {
+    id: rowId,
+    payload: event,
+    status,
+    attempts: 0,
+    next_attempt_at: '2026-09-16T18:19:00.000Z',
+  }
 }
 
 function claimedRow(payload: unknown = event, attempts = 1) {
@@ -121,6 +169,89 @@ describe('Pal outbox adapter', () => {
         p_lease_token: leaseToken,
       },
     })
+  })
+
+  it('claims and delivers only the outbox fact committed by the current action', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('delivered')
+
+    expect(supabase.client.from).toHaveBeenCalledWith('pal_event_outbox')
+    expect(supabase.update).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'processing',
+      attempts: 1,
+    }))
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(supabase.calls.at(-1)).toEqual({
+      name: 'complete_pal_event_outbox',
+      args: {
+        p_outbox_id: rowId,
+        p_lease_token: leaseToken,
+      },
+    })
+  })
+
+  it('does not redeliver an idempotent action whose fact is already delivered', async () => {
+    const supabase = buildImmediateSupabase({ lookups: [immediateRow('delivered')] })
+    const fetchImpl = vi.fn<typeof fetch>()
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('already_delivered')
+
+    expect(supabase.update).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('leaves an immediate network failure queued for durable retry', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow()],
+      claimed: claimedRow(),
+    })
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      throw new Error('network unavailable')
+    })
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('pending')
+
+    expect(supabase.calls.at(-1)).toMatchObject({
+      name: 'retry_pal_event_outbox',
+      args: { p_error_code: 'network_error' },
+    })
+  })
+
+  it('backs off when another worker wins the targeted claim', async () => {
+    const supabase = buildImmediateSupabase({
+      lookups: [immediateRow(), immediateRow('processing')],
+      claimed: null,
+    })
+    const fetchImpl = vi.fn<typeof fetch>()
+
+    await expect(attemptImmediatePalEventDelivery({
+      event,
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toBe('pending')
+
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('retries network and server failures with bounded exponential delay', async () => {

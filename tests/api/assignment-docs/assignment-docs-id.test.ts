@@ -2,11 +2,15 @@
  * API tests for GET/PATCH /api/assignment-docs/[id]
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, PATCH } from '@/app/api/assignment-docs/[id]/route'
 import { NextRequest } from 'next/server'
 import * as auth from '@/lib/auth'
 import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
+
+const { mockAttemptImmediatePalEventDelivery } = vi.hoisted(() => ({
+  mockAttemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
+}))
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({
@@ -22,8 +26,16 @@ vi.mock('@/lib/server/classrooms', () => ({
 vi.mock('@/lib/server/assignment-doc-submissions', () => ({
   saveAssignmentDocAtomic: vi.fn(),
 }))
+vi.mock('@/lib/server/pal-outbox', () => ({
+  attemptImmediatePalEventDelivery: mockAttemptImmediatePalEventDelivery,
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  delete (mockSupabaseClient as any).rpc
+})
 
 describe('GET /api/assignment-docs/[id]', () => {
   beforeEach(() => {
@@ -50,14 +62,36 @@ describe('GET /api/assignment-docs/[id]', () => {
     expect(response.status).toBe(404)
   })
 
-  it('should create a doc when missing', async () => {
+  it('atomically creates a first-view doc and immediately delivers its Pal fact', async () => {
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
+    const mockRpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        created: true,
+        doc: {
+          id: 'doc-new',
+          assignment_id: 'assign-1',
+          student_id: 'student-1',
+          content: { type: 'doc', content: [] },
+        },
+      },
+      error: null,
+    })
+    ;(mockSupabaseClient as any).rpc = mockRpc
     const mockFrom = vi.fn((table: string) => {
       if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'assign-1', classroom_id: 'class-1' },
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  released_at: '2026-04-01T12:00:00.000Z',
+                },
                 error: null,
               }),
             })),
@@ -110,6 +144,19 @@ describe('GET /api/assignment-docs/[id]', () => {
     const data = await response.json()
     expect(response.status).toBe(200)
     expect(data.doc.id).toBe('doc-new')
+    expect(data.pal_delivery).toBe('delivered')
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_assignment_doc_with_pal_event_atomic',
+      expect.objectContaining({
+        p_assignment_id: 'assign-1',
+        p_student_id: 'student-1',
+        p_pal_event: expect.objectContaining({ event_type: 'learning_item.viewed' }),
+      }),
+    )
+    expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      event: expect.objectContaining({ event_type: 'learning_item.viewed' }),
+      supabase: mockSupabaseClient,
+    })
   })
 
   it('refreshes viewed_at when returned feedback is newer than the last view', async () => {

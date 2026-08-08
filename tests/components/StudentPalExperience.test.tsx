@@ -29,6 +29,7 @@ import {
 } from '@/integrations/pal/StudentPalExperience'
 import { StudentAchievementsTab } from '@/app/classrooms/[classroomId]/StudentAchievementsTab'
 import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
+import { PIKA_PAL_REFRESH_EVENT } from '@/lib/pal-browser-events'
 
 function withReward(): PalWidgetSnapshot {
   const snapshot = createFixtureSnapshot()
@@ -285,5 +286,19 @@ describe('StudentPalExperience', () => {
     expect(screen.getByRole('complementary', {
       name: /your Pal companion/,
     })).toBeVisible()
+  })
+
+  it('refreshes the learner snapshot immediately after a confirmed event delivery', async () => {
+    const getSnapshot = vi.fn(async () => createFixtureSnapshot())
+    renderExperience({
+      getSnapshot,
+      markRewardSeen: async () => undefined,
+    }, <div>Student work</div>, false)
+
+    await waitFor(() => expect(getSnapshot).toHaveBeenCalledTimes(1))
+    act(() => {
+      window.dispatchEvent(new Event(PIKA_PAL_REFRESH_EVENT))
+    })
+    await waitFor(() => expect(getSnapshot).toHaveBeenCalledTimes(2))
   })
 })

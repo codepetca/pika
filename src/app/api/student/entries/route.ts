@@ -14,6 +14,10 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { hasQualifyingDailyLogContent } from '@/lib/attendance'
 import { isPalEnabled } from '@/lib/server/pal-config'
 import { buildDailyLogCompletedEvent } from '@/lib/server/pal-events'
+import {
+  attemptImmediatePalEventDelivery,
+  type PalImmediateDeliveryStatus,
+} from '@/lib/server/pal-outbox'
 import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
 import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
 
@@ -253,6 +257,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   }
 
   let entry
+  let palDelivery: PalImmediateDeliveryStatus | undefined
 
   if (isPalEnabled()) {
     const preservedMinutes = minutes_reported === undefined
@@ -288,6 +293,12 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
         )
       }
       entry = result.entry
+      if (palEvent) {
+        palDelivery = await attemptImmediatePalEventDelivery({
+          event: palEvent,
+          supabase,
+        })
+      }
     } catch (error) {
       console.error('Error saving entry with Pal outbox:', error)
       return NextResponse.json(
@@ -347,7 +358,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
     entry = data
   }
 
-  return NextResponse.json({ entry })
+  return NextResponse.json({ entry, pal_delivery: palDelivery })
 })
 
 /**
@@ -491,7 +502,10 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
             { status: result.status },
           )
         }
-        return NextResponse.json({ entry: result.entry })
+        const palDelivery = palEvent
+          ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+          : undefined
+        return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
       } catch (error) {
         console.error('Error creating entry with Pal outbox:', error)
         return NextResponse.json(
@@ -594,7 +608,10 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
           { status: result.status },
         )
       }
-      return NextResponse.json({ entry: result.entry })
+      const palDelivery = palEvent
+        ? await attemptImmediatePalEventDelivery({ event: palEvent, supabase })
+        : undefined
+      return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
     } catch (error) {
       console.error('Error updating entry with Pal outbox:', error)
       return NextResponse.json(

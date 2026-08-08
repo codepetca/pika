@@ -4,6 +4,10 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { isPalEnabled } from '@/lib/server/pal-config'
 import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
+import {
+  attemptImmediatePalEventDelivery,
+  type PalImmediateDeliveryStatus,
+} from '@/lib/server/pal-outbox'
 import { createClassroomEnrollmentWithPalEvent } from '@/lib/server/pal-source-writes'
 
 export const dynamic = 'force-dynamic'
@@ -180,6 +184,7 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
   }
 
   let enrollment
+  let palDelivery: PalImmediateDeliveryStatus | undefined
   if (isPalEnabled()) {
     const occurredAt = new Date()
     const palEvent = buildClassroomJoinedEvent({
@@ -203,6 +208,10 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
           alreadyEnrolled: true,
         })
       }
+      palDelivery = await attemptImmediatePalEventDelivery({
+        event: palEvent,
+        supabase,
+      })
     } catch (error) {
       console.error('Error enrolling student with Pal outbox:', error)
       return NextResponse.json(
@@ -248,5 +257,6 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
     success: true,
     classroom,
     enrollment,
+    pal_delivery: palDelivery,
   }, { status: 201 })
 })

@@ -31,6 +31,7 @@ import {
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
 import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
@@ -456,6 +457,8 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save')
       }
+
+      notifyImmediatePalDelivery(data.pal_delivery)
 
       const savedEntry = data.entry as Entry
       const savedContentStillCurrent = JSON.stringify(currentContentRef.current) === newContentStr
