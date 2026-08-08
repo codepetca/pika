@@ -22,6 +22,63 @@ cleanup() {
 }
 trap cleanup EXIT
 
+wait_for_worker_lock() {
+  local application_name="$1"
+  local observed=""
+
+  for _ in {1..100}; do
+    observed="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc "
+      select exists (
+        select 1
+        from pg_stat_activity
+        where datname = '$TMP_DB'
+          and application_name = '$application_name'
+          and state = 'active'
+          and wait_event = 'PgSleep'
+      );
+    ")"
+    if [[ "$observed" == "t" ]]; then
+      return
+    fi
+    sleep 0.05
+  done
+
+  echo "Worker $application_name did not acquire its claim before the contention check." >&2
+  return 1
+}
+
+wait_for_worker_contention() {
+  local application_name="$1"
+  local observed=""
+
+  for _ in {1..100}; do
+    observed="$(docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -Atc "
+      select exists (
+        select 1
+        from pg_stat_activity
+        where datname = '$TMP_DB'
+          and application_name = '$application_name'
+          and state = 'active'
+          and wait_event_type = 'Lock'
+      );
+    ")"
+    if [[ "$observed" == "t" ]]; then
+      return
+    fi
+    sleep 0.05
+  done
+
+  echo "Worker $application_name did not contend on the claimed row." >&2
+  return 1
+}
+
+release_worker() {
+  local scenario="$1"
+  docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 \
+    -c "update public.pal_outbox_concurrency_gate set released = true where scenario = '$scenario'" \
+    >/dev/null
+}
+
 docker exec "$DB_CONTAINER" createdb -U postgres "$TMP_DB"
 docker exec "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 -c '
   drop schema public;
@@ -78,6 +135,17 @@ create table public.pal_outbox_concurrency_evidence (
   primary key (scenario, worker)
 );
 
+create table public.pal_outbox_concurrency_gate (
+  scenario text primary key,
+  released boolean not null default false
+);
+
+insert into public.pal_outbox_concurrency_gate (scenario) values
+  ('batch_pending'),
+  ('batch_expired'),
+  ('targeted_pending'),
+  ('targeted_expired');
+
 insert into public.users (id, email, role, email_verified_at) values (
   '7a100000-0000-4000-8000-000000000001',
   'pal-concurrency-student@example.invalid',
@@ -124,26 +192,36 @@ update public.pal_event_outbox
 set status = 'pending', attempts = 0, next_attempt_at = clock_timestamp() - interval '1 minute'
 where id = '7a100000-0000-4000-8000-000000000011';
 SQL
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+docker exec -e PGAPPNAME=pal_batch_pending_a -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 with claimed as (
   select id from public.claim_pal_event_outbox(1, 60)
 )
 insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'batch_pending', 'a', count(*) from claimed;
-select pg_sleep(1);
+do $$
+begin
+  while not (select released from public.pal_outbox_concurrency_gate
+             where scenario = 'batch_pending') loop
+    perform pg_sleep(0.05);
+  end loop;
+end;
+$$;
 commit;
 SQL
 BATCH_PENDING_A_PID=$!
-sleep 0.2
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+wait_for_worker_lock pal_batch_pending_a
+docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'batch_pending', 'b', count(*)
 from public.claim_pal_event_outbox(1, 60);
 SQL
 BATCH_PENDING_B_PID=$!
-wait "$BATCH_PENDING_A_PID"
 wait "$BATCH_PENDING_B_PID"
+release_worker batch_pending
+wait "$BATCH_PENDING_A_PID"
 
 # The same batch race must reclaim one expired processing lease exactly once.
 docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
@@ -153,26 +231,36 @@ set status = 'processing', attempts = 1,
     lease_expires_at = clock_timestamp() - interval '1 minute'
 where id = '7a100000-0000-4000-8000-000000000012';
 SQL
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+docker exec -e PGAPPNAME=pal_batch_expired_a -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 with claimed as (
   select id from public.claim_pal_event_outbox(1, 60)
 )
 insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'batch_expired', 'a', count(*) from claimed;
-select pg_sleep(1);
+do $$
+begin
+  while not (select released from public.pal_outbox_concurrency_gate
+             where scenario = 'batch_expired') loop
+    perform pg_sleep(0.05);
+  end loop;
+end;
+$$;
 commit;
 SQL
 BATCH_EXPIRED_A_PID=$!
-sleep 0.2
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+wait_for_worker_lock pal_batch_expired_a
+docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'batch_expired', 'b', count(*)
 from public.claim_pal_event_outbox(1, 60);
 SQL
 BATCH_EXPIRED_B_PID=$!
-wait "$BATCH_EXPIRED_A_PID"
 wait "$BATCH_EXPIRED_B_PID"
+release_worker batch_expired
+wait "$BATCH_EXPIRED_A_PID"
 
 # Reproduce the PostgREST conditional UPDATE used by targeted immediate
 # delivery. PostgreSQL must recheck the predicates after the row lock clears,
@@ -182,7 +270,8 @@ update public.pal_event_outbox
 set status = 'pending', attempts = 0, next_attempt_at = clock_timestamp() - interval '1 minute'
 where id = '7a100000-0000-4000-8000-000000000013';
 SQL
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+docker exec -e PGAPPNAME=pal_targeted_pending_a -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 with claimed as (
   update public.pal_event_outbox
@@ -196,12 +285,20 @@ with claimed as (
 )
 insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'targeted_pending', 'a', count(*) from claimed;
-select pg_sleep(1);
+do $$
+begin
+  while not (select released from public.pal_outbox_concurrency_gate
+             where scenario = 'targeted_pending') loop
+    perform pg_sleep(0.05);
+  end loop;
+end;
+$$;
 commit;
 SQL
 TARGETED_PENDING_A_PID=$!
-sleep 0.2
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+wait_for_worker_lock pal_targeted_pending_a
+docker exec -e PGAPPNAME=pal_targeted_pending_b -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 with claimed as (
   update public.pal_event_outbox
   set status = 'processing', attempts = attempts + 1,
@@ -216,6 +313,8 @@ insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'targeted_pending', 'b', count(*) from claimed;
 SQL
 TARGETED_PENDING_B_PID=$!
+wait_for_worker_contention pal_targeted_pending_b
+release_worker targeted_pending
 wait "$TARGETED_PENDING_A_PID"
 wait "$TARGETED_PENDING_B_PID"
 
@@ -228,7 +327,8 @@ set status = 'processing', attempts = 1,
     lease_expires_at = clock_timestamp() - interval '1 minute'
 where id = '7a100000-0000-4000-8000-000000000014';
 SQL
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+docker exec -e PGAPPNAME=pal_targeted_expired_a -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 with claimed as (
   update public.pal_event_outbox
@@ -242,12 +342,20 @@ with claimed as (
 )
 insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'targeted_expired', 'a', count(*) from claimed;
-select pg_sleep(1);
+do $$
+begin
+  while not (select released from public.pal_outbox_concurrency_gate
+             where scenario = 'targeted_expired') loop
+    perform pg_sleep(0.05);
+  end loop;
+end;
+$$;
 commit;
 SQL
 TARGETED_EXPIRED_A_PID=$!
-sleep 0.2
-docker exec -i "$DB_CONTAINER" psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+wait_for_worker_lock pal_targeted_expired_a
+docker exec -e PGAPPNAME=pal_targeted_expired_b -i "$DB_CONTAINER" \
+  psql -U postgres -d "$TMP_DB" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 with claimed as (
   update public.pal_event_outbox
   set status = 'processing', attempts = attempts + 1,
@@ -262,6 +370,8 @@ insert into public.pal_outbox_concurrency_evidence (scenario, worker, claimed)
 select 'targeted_expired', 'b', count(*) from claimed;
 SQL
 TARGETED_EXPIRED_B_PID=$!
+wait_for_worker_contention pal_targeted_expired_b
+release_worker targeted_expired
 wait "$TARGETED_EXPIRED_A_PID"
 wait "$TARGETED_EXPIRED_B_PID"
 

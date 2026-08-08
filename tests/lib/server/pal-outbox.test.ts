@@ -522,4 +522,53 @@ describe('Pal outbox adapter', () => {
       duration_ms: expect.any(Number),
     })
   })
+
+  it('emits sanitized drain telemetry when claiming fails', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const rpc = vi.fn(async () => ({
+      data: null,
+      error: { message: 'database unavailable' },
+    }))
+
+    await expect(drainPalOutbox({ supabase: { rpc } })).rejects.toThrow(
+      'Failed to claim Pal outbox rows',
+    )
+
+    expect(info.mock.calls.at(-1)?.[0]).toBe('[pal-outbox-drain]')
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toEqual({
+      status: 'error',
+      error_category: 'claim',
+      duration_ms: expect.any(Number),
+    })
+  })
+
+  it('emits sanitized drain telemetry when Pal configuration is invalid', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    vi.stubEnv('PAL_INTEGRATION_SECRET', '')
+
+    await expect(drainPalOutbox()).rejects.toThrow('PAL_ENABLED requires')
+
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toEqual({
+      status: 'error',
+      error_category: 'configuration',
+      duration_ms: expect.any(Number),
+    })
+  })
+
+  it('emits sanitized drain telemetry when the final ready count fails', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const rpc = vi.fn(async (name: string) => name === 'claim_pal_event_outbox'
+      ? { data: [], error: null }
+      : { data: null, error: { message: 'count unavailable' } })
+
+    await expect(drainPalOutbox({ supabase: { rpc } })).rejects.toThrow(
+      'Failed to count ready Pal outbox rows',
+    )
+
+    expect(JSON.parse(String(info.mock.calls.at(-1)?.[1]))).toEqual({
+      status: 'error',
+      error_category: 'count',
+      duration_ms: expect.any(Number),
+    })
+  })
 })

@@ -19,6 +19,9 @@ describe('Pal outbox real-database concurrency contract', () => {
     expect(script).toContain("status = 'processing'")
     expect(script).toContain('lease_expires_at')
     expect(script).toContain('attempts')
+    expect(script).toContain('pg_stat_activity')
+    expect(script).toContain("wait_event = 'PgSleep'")
+    expect(script).not.toContain('sleep 0.2')
     expect(workflow).toContain('bash scripts/check-pal-outbox-concurrency.sh')
   })
 

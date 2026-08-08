@@ -1108,11 +1108,14 @@ concurrency, outage recovery, and production release evidence.
 - Added a loopback-only HTTP recovery smoke that persists a 503 retry, restores
   the peer, delivers the queued event once with the same idempotency key, and
   removes its synthetic fixture.
+- Closed independent-review gaps by emitting sanitized error-category drain
+  telemetry, reserving a 60-second cron execution budget, and replacing timing
+  assumptions with database-observed claim and lock contention gates.
 - Confirmed read-only that the current production adapter is enabled and has
   delivered events; no Pal code, Pal PR #50, migration, or production data was
   changed by the readiness implementation.
 
 **Validation:**
-- Full Vitest passed (475 files, 4,096 tests), plus TypeScript, lint,
+- Full Vitest passed (475 files, 4,100 tests), plus TypeScript, lint,
   architecture/design/UI policy checks, Pika audit, production build, both
   real-database/HTTP Pal harnesses, continuity validation, and diff checks.
