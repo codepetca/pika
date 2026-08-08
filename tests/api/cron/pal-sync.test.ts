@@ -12,7 +12,7 @@ vi.mock('@/lib/server/pal-weekly-config', () => ({
   syncPalWeeklyConfigurations: mockSyncPalWeeklyConfigurations,
 }))
 
-import { GET } from '@/app/api/cron/pal-sync/route'
+import { GET, maxDuration } from '@/app/api/cron/pal-sync/route'
 
 describe('GET /api/cron/pal-sync', () => {
   beforeEach(() => {
@@ -35,6 +35,10 @@ describe('GET /api/cron/pal-sync', () => {
       remainingReady: 0,
       stoppedReason: 'drained',
     })
+  })
+
+  it('reserves an explicit serverless duration for reconciliation and recovery', () => {
+    expect(maxDuration).toBe(60)
   })
 
   it('requires cron authentication', async () => {

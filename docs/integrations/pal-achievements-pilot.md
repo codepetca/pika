@@ -83,17 +83,43 @@ point forward, so a clean pilot comparison should start at a week boundary.
 Learner action
   -> Pika validates and commits its authoritative source record
   -> the same database transaction inserts a privacy-safe Pal event
-  -> daily sync drains bounded outbox batches with leases
-  -> POST <PAL_API_URL>/api/v1/events
-  -> 2xx marks delivered
-  -> network/408/429/5xx schedules bounded exponential retry
+  -> after commit, Pika claims that specific outbox row
+  -> Pika attempts POST <PAL_API_URL>/api/v1/events for at most two seconds
+  -> 2xx marks delivered and the browser refreshes the learner Pal snapshot
+  -> network/408/429/5xx keeps the event queued with exponential backoff
+  -> daily sync recovers queued, expired-lease, and backlog events
   -> other 4xx or contract-invalid payloads become non-retryable
   -> an operator inspects or explicitly requeues the retained row
 ```
 
 Pal being unavailable never rolls back a Pika learner action. The outbox
 stores its local source references for Pika reconciliation, but only `payload`
-is transmitted.
+is transmitted. Immediate delivery starts only after the source transaction
+commits and catches every adapter failure, so it can add bounded response
+latency but cannot turn a completed Pika action into an error.
+
+## Reusable SaaS integration pattern
+
+The pilot uses a provider-owned integration boundary that can be reused for
+future Pika services:
+
+- Pika owns academic source data and decides when a domain fact is true.
+- The provider owns its derived state, rules, database, and UI package.
+- Pika sends versioned, privacy-minimized facts with stable pseudonymous IDs;
+  it does not mirror the provider's database or embed provider rules.
+- Pika atomically records each outbound fact beside the source change, then
+  makes a bounded post-commit delivery attempt for responsive UX.
+- A durable asynchronous worker remains the correctness and outage-recovery
+  path. Both sides use the same idempotency key because delivery is at least
+  once, not exactly once.
+- The provider's browser client refreshes only after Pika confirms a new
+  delivery. Periodic polling remains a stale-state safety net.
+
+This is the same broad separation used by mature SaaS integrations: a narrow
+API/contract connects independently owned systems, while installation secrets,
+identity mapping, retries, observability, and lifecycle controls remain in the
+host adapter. The synchronous attempt is a latency optimization over the
+transactional outbox, not a replacement for it.
 
 ## Initial source facts
 
@@ -134,12 +160,24 @@ grace-day target and recurring Weekly Rhythm award.
 
 ## Delivery and reconciliation
 
-Vercel calls `GET /api/cron/pal-sync` daily with
-`Authorization: Bearer <CRON_SECRET>`. It reconciles weekly configurations
-before draining up to 10 batches of 20 events within an eight-second worker
-budget. The response reports batches, stop reason, and the number of rows still
-ready, so capacity exhaustion is visible rather than silently deferred for a
-day.
+Each user-triggered fact first gets one targeted post-commit delivery attempt.
+The adapter claims by idempotency key, uses a 60-second lease, and caps the
+attempt at two seconds. A competing worker can win the claim, in which case the
+request does not send a duplicate. Once a request receives a 2xx response and
+records the row as delivered, it tells the mounted widget provider to refresh;
+the existing 60-second widget poll remains fallback protection.
+
+Vercel separately calls `GET /api/cron/pal-sync` daily with `Authorization:
+Bearer <CRON_SECRET>`. The cron has two recovery responsibilities: reconcile
+weekly configurations that are not tied to a single learner request, then
+drain queued delivery failures and backlog. It processes up to 10 batches of
+20 events within an eight-second worker budget. The response reports batches,
+stop reason, and the number of rows still ready, so capacity exhaustion is
+visible rather than silently deferred for a day.
+
+The worker budget covers database claims, Pal requests, delivery-state
+transitions, and the final ready count. A hard caller deadline still returns a
+sanitized `deadline` telemetry outcome if an adapter ignores cancellation.
 
 Each batch uses at most 10 concurrent deliveries. Network attempts are bounded
 by the worker's remaining deadline, which stays well inside the 60-second row
@@ -148,14 +186,27 @@ lease so an overlapping worker cannot reclaim a slow in-flight batch.
 The same credential protects the focused outbox operations:
 
 - `GET /api/cron/pal-outbox` — counts plus up to 25 privacy-safe pending or
-  failed summaries; no payloads or learner/source IDs.
+  failed summaries; no payloads or learner/source IDs. Its `observability`
+  block reports the exact ready and retrying counts, expired leases, oldest
+  ready age measured from `next_attempt_at` or an expired `lease_expires_at`,
+  and p50/p95/max end-to-end delivery latency from up to the latest 500
+  deliveries in the previous 24 hours.
 - `POST /api/cron/pal-outbox` — deliver one bounded batch.
 - `PATCH /api/cron/pal-outbox` with `{ "outbox_id": "<uuid>" }` — explicitly
   requeue a retained non-retryable row after its cause is corrected.
 
-Delivery rows use leases and `FOR UPDATE SKIP LOCKED`, so overlapping workers
-cannot process the same attempt concurrently. Pal independently deduplicates
-by the integration-scoped idempotency key.
+Immediate attempts emit one privacy-safe structured `[pal-delivery]` log with
+delivery mode, event type, outcome, and duration. Daily recovery emits one
+`[pal-outbox-drain]` log with claimed, delivered, retrying, non-retryable,
+remaining-ready, stop-reason, and duration fields. These logs deliberately omit
+idempotency keys, learner IDs, source IDs, payloads, and error bodies. Use the
+protected status endpoint for current backlog and retained error-code detail;
+use the structured logs for latency and outcome trends in Vercel.
+
+Batch delivery rows use leases and `FOR UPDATE SKIP LOCKED`; targeted delivery
+uses a conditional pending-row update with the same lease fields. Overlapping
+requests or workers therefore cannot claim the same attempt concurrently. Pal
+independently deduplicates by the integration-scoped idempotency key.
 
 Delivery is at least once and may be delayed or out of order. Pal must retain
 qualified facts, apply weekly configuration revisions monotonically, and
@@ -217,13 +268,36 @@ pnpm exec vitest run \
 pnpm exec tsc --noEmit
 pnpm check:architecture
 pnpm check:ui-policy
+bash scripts/check-pal-outbox-concurrency.sh
+pnpm run smoke:pal-delivery-recovery
 ```
+
+The PostgreSQL harness creates and drops a disposable database, replays the
+current migrations, and proves that two concurrent workers produce exactly one
+winner for pending and expired batch claims as well as the conditional UPDATE
+used by targeted delivery. The recovery smoke command refuses non-loopback
+Supabase targets, creates one synthetic fixture, receives a real HTTP 503,
+proves durable retry evidence, restores the local HTTP peer, drains the queued
+event once with the same idempotency key, and removes the fixture.
 
 Then run a real pilot vertical slice only after Pal's prerequisites exist:
 
 1. Start one authenticated student session.
-2. Inspect a pending Pika outbox row without exposing its payload.
-3. Run the delivery worker.
-4. Confirm Pal records the fact once.
-5. Replay the same Pika delivery and confirm no extra Pal progress or reward.
-6. Open Achievements and confirm the token handshake and roadmap state.
+2. Complete one achievement-bearing learner action and confirm its response
+   reports `pal_delivery: "delivered"`.
+3. Confirm the mounted companion/roadmap refreshes without waiting for the
+   60-second poll and Pal records the fact once.
+4. Replay the same idempotent Pika action and confirm no extra progress,
+   reward, delivery, or browser refresh.
+5. Make Pal temporarily unavailable, repeat an action, and confirm Pika still
+   succeeds while the event remains queued.
+6. Restore Pal, run the delivery worker, and confirm the queued fact is applied
+   once.
+
+Do not deliberately interrupt the production Pal service to perform step 5.
+Use the guarded local recovery smoke for the outage path. In a deployed pilot,
+verify the success path with a dedicated or already-authorized learner account,
+then inspect the protected status endpoint and `[pal-delivery]` log for the same
+time window. Production verification must not create a testing backdoor, expose
+integration credentials to a preview, or reuse a real learner's identity as a
+fixture.

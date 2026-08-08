@@ -11,66 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-02 — Remediated managed-storage ownership review
-
-**Risk profile:** high — cleanup authority, embedded identity validation,
-concurrent activation, and Classroom/Blueprint ownership boundaries.
-
-**Completed:**
-- Preserved managed-object tombstones and made generic cleanup enforcement-only;
-  existing operational cleanup leases now mirror into the managed authority.
-- Made JSON evidence exact by UUID, bucket, path, resource, and subject; fenced
-  reference removal and host deletion with durable cleanup intents.
-- Blocked readiness on compatibility-era cleanup leases already in flight.
-- Copied registered legacy test documents at both Classroom/Blueprint boundaries
-  without sharing ownership, and refreshed generated database types.
-- Revoked the internal protocol-lock helper from API roles, made deterministic
-  legacy replays compare every subject/resource/integrity field, and preserved
-  per-reference document metadata when a source file is copied once.
-- Kept migration 117 unapplied and PR #963 unchanged.
-
-**Validation:**
-- Focused ownership, Blueprint, and startup suites pass (46 tests).
-- Full suite reached 3,973/3,974 under concurrent load; the unrelated schema
-  audit timeout passed immediately in isolation (2/2).
-- TypeScript, lint, architecture, lineage, production build, full SQL parse,
-  shell syntax, diff check, and Pika audit pass.
-- CI's isolated 115→117 migration replay succeeds; the first remediation run
-  stopped only on generated-type ordering, now matched exactly to its diff.
-- A later database fixture exposed polymorphic cleanup triggers reading absent
-  record fields; both now use JSON-safe optional-field access, with direct
-  compatibility inserts plus enforced worker coverage.
-
-**Remaining:**
-- Push the approved extra correction, require complete database fixture CI,
-  and run the final cumulative integration review.
-
-## 2026-08-02 — Closed compatibility cleanup authority gap
-
-**Risk profile:** high — rolling cleanup compatibility and exact-path Storage
-write/delete serialization.
-
-**Completed:**
-- Made legacy cleanup rows opportunistically bind exact registered managed
-  identities during compatibility rollout while leaving unmatched raw-only rows
-  on their migration-116 behavior.
-- Mirrored managed cleanup leases, retries, and terminal tombstones in both
-  protocol modes, and fenced all exact-path Storage updates while such a lease
-  is active.
-- Added a real compatibility-mode claim, overwrite rejection, delete,
-  completion, tombstone, and readiness fixture; corrected the fixture's
-  submission-requirement column to the deployed `label` schema.
-- Kept generic cleanup enforcement-only, migration 117 unapplied outside
-  disposable CI, permanent deletion unavailable, and PR #963 unchanged.
-
-**Validation:**
-- Pending focused checks, disposable CI replay/fixture, and final targeted
-  independent review.
-
-**Remaining:**
-- Publish the correction after local static checks, require green PR CI, and
-  complete the approved targeted review.
-
 ## 2026-08-03 — Preserved live references during cleanup cancellation
 
 **Risk profile:** high — migration-116 worker compatibility, cleanup lease
@@ -1130,3 +1070,56 @@ schema/Storage concurrency verification only.
   147 focused tests, both Blueprint database contracts, feature validation,
   TypeScript, lint, production build, and diff checks pass.
 - Fresh cumulative PR review and GitHub CI remain before merge.
+
+## 2026-08-08 — Add immediate Pal event delivery
+
+**Risk profile:** runtime-platform — transactional outbox delivery and learner
+state refresh behavior.
+
+**Completed:**
+- Added a targeted, two-second post-commit delivery attempt for authenticated
+  sessions, classroom joins, qualifying daily logs, first assignment views, and
+  assignment completions while preserving the existing durable outbox,
+  idempotency, leases, retry backoff, and daily recovery worker.
+- Refreshes the mounted Pal provider only after a newly confirmed delivery, so
+  achievements and companion reactions can update without waiting for the
+  60-second polling fallback.
+- Documented the reusable host/provider SaaS boundary and clarified that the
+  daily cron owns weekly configuration reconciliation plus delivery recovery,
+  not the primary user-action response path.
+- Independent review tightened the hard caller deadline across adapter I/O and
+  added atomic recovery of expired immediate-delivery leases.
+
+**Validation:**
+- Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
+  architecture/UI policy checks, production build, and diff checks.
+
+## 2026-08-08 — Harden Pal delivery release readiness
+
+**Risk profile:** runtime-platform — delivery telemetry, PostgreSQL claim
+concurrency, outage recovery, and production release evidence.
+
+**Completed:**
+- Added privacy-safe structured logs for immediate delivery and daily outbox
+  drains, plus protected ready/retry/expired-lease/backlog-age and recent
+  delivery-latency metrics.
+- Added an ephemeral PostgreSQL concurrency harness proving one claim winner
+  for pending and expired batch and targeted claims.
+- Added a loopback-only HTTP recovery smoke that persists a 503 retry, restores
+  the peer, delivers the queued event once with the same idempotency key, and
+  removes its synthetic fixture.
+- Closed independent-review gaps by emitting sanitized error-category drain
+  telemetry, reserving a 60-second cron execution budget, and replacing timing
+  assumptions with database-observed claim and lock contention gates.
+- Bounded the complete drain path across claims, delivery transitions, and the
+  final count, and made ready-backlog age use the actual retry/lease-ready time.
+- Classified both direct and PostgREST-wrapped abort/timeout failures as the
+  sanitized `deadline` drain outcome.
+- Confirmed read-only that the current production adapter is enabled and has
+  delivered events; no Pal code, Pal PR #50, migration, or production data was
+  changed by the readiness implementation.
+
+**Validation:**
+- Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
+  architecture/design/UI policy checks, Pika audit, production build, both
+  real-database/HTTP Pal harnesses, continuity validation, and diff checks.

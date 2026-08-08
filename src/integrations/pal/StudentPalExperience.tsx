@@ -19,6 +19,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext'
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
 import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
+import { PIKA_PAL_REFRESH_EVENT } from '@/lib/pal-browser-events'
 import { ModalLayer } from '@/ui'
 
 import { createPikaPalClient } from './pal-client'
@@ -115,6 +116,22 @@ function StudentPalHostLayers() {
   )
 }
 
+function StudentPalRefreshListener() {
+  const { refresh } = usePalWidget()
+
+  useEffect(() => {
+    const refreshAfterDelivery = () => {
+      void refresh()
+    }
+    window.addEventListener(PIKA_PAL_REFRESH_EVENT, refreshAfterDelivery)
+    return () => {
+      window.removeEventListener(PIKA_PAL_REFRESH_EVENT, refreshAfterDelivery)
+    }
+  }, [refresh])
+
+  return null
+}
+
 export function StudentPalExperience({
   apiBaseUrl,
   children,
@@ -147,6 +164,7 @@ export function StudentPalExperience({
       motion="system"
       refreshIntervalMs={PAL_REFRESH_INTERVAL_MS}
     >
+      <StudentPalRefreshListener />
       {children}
       {showAmbientSurfaces ? (
         <PalFailureBoundary fallback={null} resetKey={`${scopeKey}:ambient`}>

@@ -21,6 +21,7 @@ import {
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { isValidTiptapContent } from '@/lib/tiptap-content'
 import { fetchJSONWithCache } from '@/lib/request-cache'
+import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
 import {
   safeLocalGetJson,
   safeLocalRemove,
@@ -74,6 +75,7 @@ type AssignmentDocResponse = {
   github_identity?: UserGitHubIdentity | null
   wasFirstView?: boolean
   student_id?: string
+  pal_delivery?: string
 }
 
 type AssignmentDocHistoryResponse = {
@@ -381,6 +383,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       )
 
       setAssignment(data.assignment)
+      notifyImmediatePalDelivery(data.pal_delivery)
       setDoc(data.doc)
       setFeedbackEntries(data.feedback_entries || [])
       setSubmissionRequirements(data.submission_requirements || [])
@@ -1123,6 +1126,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         }
         throw new Error(data.error || 'Failed to submit')
       }
+
+      notifyImmediatePalDelivery(data.pal_delivery)
 
       applySubmittedDoc(
         data.doc,

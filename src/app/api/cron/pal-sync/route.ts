@@ -6,6 +6,7 @@ import { syncPalWeeklyConfigurations } from '@/lib/server/pal-weekly-config'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const maxDuration = 60
 
 export const GET = withErrorHandler('GetPalPilotSync', async (request: NextRequest) => {
   const cronSecret = process.env.CRON_SECRET

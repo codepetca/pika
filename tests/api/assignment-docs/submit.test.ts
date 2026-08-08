@@ -2,10 +2,14 @@
  * API tests for POST /api/assignment-docs/[id]/submit
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/assignment-docs/[id]/submit/route'
 import { NextRequest } from 'next/server'
 import { submitAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
+
+const { mockAttemptImmediatePalEventDelivery } = vi.hoisted(() => ({
+  mockAttemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
+}))
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })) }))
@@ -30,8 +34,15 @@ vi.mock('@/lib/authenticity', () => ({
 vi.mock('@/lib/server/assignment-doc-submissions', () => ({
   submitAssignmentDocAtomic: vi.fn(),
 }))
+vi.mock('@/lib/server/pal-outbox', () => ({
+  attemptImmediatePalEventDelivery: mockAttemptImmediatePalEventDelivery,
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
 
 describe('POST /api/assignment-docs/[id]/submit', () => {
   beforeEach(() => {
@@ -262,6 +273,10 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
   })
 
   it('submits work atomically and keeps private authenticity results out of the response', async () => {
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     const historyInsert = vi.fn(async () => ({ error: null }))
     const authenticityUpdate = vi.fn(async () => ({ error: null }))
     const savedRevision = '2026-04-20T14:00:00.000Z'
@@ -305,7 +320,13 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'assign-1', classroom_id: 'class-1', is_draft: false, released_at: null },
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  is_draft: false,
+                  released_at: null,
+                  due_at: null,
+                },
                 error: null,
               }),
             })),
@@ -405,12 +426,18 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       teacher_feedback_draft: null,
       ai_feedback_suggestion: null,
     }))
+    expect(data.pal_delivery).toBe('delivered')
     expect(submitAssignmentDocAtomic).toHaveBeenCalledWith(expect.objectContaining({
       assignmentId: 'assign-1',
       studentId: 'student-1',
       content: submittedContent,
       expectedUpdatedAt: savedRevision,
+      palEvent: expect.objectContaining({ event_type: 'learning_item.completed' }),
     }))
+    expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      event: expect.objectContaining({ event_type: 'learning_item.completed' }),
+      supabase: mockSupabaseClient,
+    })
     expect(historyInsert).not.toHaveBeenCalled()
     expect(submitUpdate).not.toHaveBeenCalled()
     expect(submitFilters).toEqual([])

@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { mockEnqueueStandalonePalEvent } = vi.hoisted(() => ({
+const { mockAttemptImmediatePalEventDelivery, mockEnqueueStandalonePalEvent } = vi.hoisted(() => ({
+  mockAttemptImmediatePalEventDelivery: vi.fn(),
   mockEnqueueStandalonePalEvent: vi.fn(),
 }))
 
 vi.mock('@/lib/server/pal-outbox', () => ({
+  attemptImmediatePalEventDelivery: mockAttemptImmediatePalEventDelivery,
   enqueueStandalonePalEvent: mockEnqueueStandalonePalEvent,
 }))
 
@@ -33,6 +35,7 @@ describe('Pal session signal', () => {
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
     vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-32-characters-long')
     mockEnqueueStandalonePalEvent.mockResolvedValue('enqueued')
+    mockAttemptImmediatePalEventDelivery.mockResolvedValue('delivered')
 
     await recordPalAuthenticatedSession({
       studentId: 'student-1',
@@ -50,6 +53,9 @@ describe('Pal session signal', () => {
         }),
       }),
     )
+    expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
+      event: expect.objectContaining({ event_type: 'platform.session.started' }),
+    })
   })
 
   it('never blocks login when the adapter cannot record the session', async () => {
