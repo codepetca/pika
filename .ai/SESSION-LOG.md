@@ -1123,3 +1123,50 @@ concurrency, outage recovery, and production release evidence.
 - Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
   architecture/design/UI policy checks, Pika audit, production build, both
   real-database/HTTP Pal harnesses, continuity validation, and diff checks.
+
+## 2026-08-08 — Install production Blueprint purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified the dedicated worktree at merged `main`, the hub-linked production
+  Pika project, migration history through 119, migration 120 static checks, and
+  the managed-storage lineage.
+- Confirmed the linked dry run contained only
+  `120_course_blueprint_purge_managed_ownership.sql`.
+- Applied migration 120 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Production migration history now records 120.
+- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
+  and Blueprint IDs are null, and no Blueprint purge operation exists.
+- No purge, managed-storage cleanup, rollout activation, or Storage deletion
+  ran. Enabling a canary remains a separate production decision.
+
+## 2026-08-08 — Complete managed deletion production rollout
+
+**Risk profile:** irreversible production deletion availability with fail-closed
+authorization, ownership, operation-conflict, and managed-storage gates.
+
+**Completed:**
+- Ran successful production canaries for managed Course Blueprint deletion and
+  hot archived Classroom deletion, preserving linked Classrooms, reusable
+  Classroom-owned files, and user accounts where required.
+- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
+  Blueprints and hot archived Classrooms. Cold archives and comprehensive
+  individual-student purging remain separate follow-up scopes.
+- Refreshed the protected synthetic verification credentials after invalidating
+  a diagnostic-output exposure; no real-user credentials were affected.
+
+**Validation:**
+- Production migration history matches local migrations 001–120, and managed
+  storage remains enforced at protocol version 2.
+- All three current hot archived Classrooms and both current Course Blueprints
+  report deletion available, with zero active purge operations or conflicts.
+- Managed Storage reconciles at 140 registered/140 stored objects with no
+  missing, unregistered, interrupted, or active-cleanup objects.
+- Desktop/mobile teacher and student boundaries passed; non-owner teacher
+  access returned 404 and student access returned 403. No purge was started by
+  either broad rollout action.
