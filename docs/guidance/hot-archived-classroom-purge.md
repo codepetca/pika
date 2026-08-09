@@ -33,6 +33,9 @@ are deliberately outside classroom ownership.
 The database fence remains after a partial failure. Browser retries and the
 authenticated cleanup cron resume the durable operation.
 
+The cleanup cron's aggregate, privacy-safe health checks and operator response
+are documented in `docs/guidance/managed-deletion-monitoring.md`.
+
 A transient object failure remains retryable but is not reclaimed before its
 `next_attempt_at`; an empty claim means “nothing is due,” not “all files are
 gone.” If Storage reports that a previously verified-deleted path exists again,

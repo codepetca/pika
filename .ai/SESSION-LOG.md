@@ -11,81 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
-
-**Risk profile:** high — exact-path ownership adoption and concurrent rolling
-deployment writers.
-
-**Completed:**
-- Made every embedded raw-path writer take the exact-path lifecycle fence even
-  when no managed row is committed yet, then re-read ownership after waiting.
-- Rejected explicit managed UUID/path mismatches before locking the
-  caller-supplied path, preserving the canonical object-row/path lock order.
-- Pre-locked all existing UUID and raw-path identities in one global managed
-  UUID order, including identities removed by an update; newly appearing
-  identities abort safely for retry rather than mixing path-first and
-  row-first locking.
-- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
-  source before expecting readiness, and added two-session coverage for a late
-  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
-  path/UUID ordering without deadlock. Added a separate replacement race that
-  proves previous identities are locked before a new absent raw path.
-- Kept all schema work consolidated in migration 117, left migrations 115/116
-  unchanged, applied no migration, and left PR #963 untouched.
-
-**Validation:**
-- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
-  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
-
-**Remaining:**
-- Push the correction, require exact-head disposable database CI, and obtain a
-  targeted independent concurrency review before the final integration gate.
-
-## 2026-08-03 — Closed managed-storage readiness and Blueprint retry blockers
-
-**Risk profile:** runtime-platform — migration 117 readiness liveness,
-provisional ownership, and idempotent Blueprint file copies.
-
-**Completed:**
-- Made serialized readiness transition expired, unreferenced reserved/verified
-  objects to `cleanup_pending` without deleting Storage bytes, and made expired
-  provisional-owner findings ignore settled cleanup/tombstone states.
-- Made Blueprint provisional-owner and target object identities deterministic
-  by operation, direction, and source managed identity; completed operations
-  are preflighted and incomplete retries reuse verified bytes.
-- Made capture and instantiation queue every exact provisional copy on any
-  downstream failure; referenced/adopted objects remain protected by the
-  managed cleanup authority check.
-- Added a narrowly scoped retry transition for queued, still-provisional
-  Blueprint copies, plus regressions for expiry, readiness, activation,
-  tombstone cleanup, failed atomic operations, and same-operation replay.
-- Corrected semantic Blueprint replays that succeed without adopting copies:
-  exact provisional copies are queued, while the database refuses cleanup for
-  any concurrently adopted/referenced winner.
-- Closed the compatibility cleanup race where a live reference could arrive
-  after a legacy worker claim but before Storage deletion: the protected delete
-  failure now restores the managed object to `ready` instead of re-queuing it.
-- Reconfirmed that migration 117 revokes all migration-115 purge entry points,
-  including `service_role`; no purge capability was added or exposed.
-- Kept migrations 115/116 unchanged, kept all corrections in unapplied
-  migration 117, applied no migration, enabled no worker, exposed no deletion,
-  and left PR #963 untouched.
-
-**Validation:**
-- Pika audit, lint, TypeScript, architecture/design/UI policy, lineage, shell
-  syntax, and diff checks pass.
-- Focused ownership/Blueprint tests pass (36 tests); the full suite passes
-  (459 files, 3,986 tests); the production build passes.
-- The semantic replay regression, TypeScript, shell syntax, and diff checks
-  pass after the final correction.
-- The extended database fixture was not executed locally because migration
-  application/replay still requires fresh authorization naming migration 117
-  and the local target; exact-head disposable CI remains required.
-
-**Remaining:**
-- Push the correction to PR #967, require exact-head CI including disposable
-  migration replay/database fixtures, and perform a final read-only review.
-
 ## 2026-08-04 — Hardened purge rollout visibility and verification gates
 
 **Risk profile:** runtime-platform — irreversible classroom purge rollout,
@@ -1086,3 +1011,63 @@ authorization, ownership, operation-conflict, and managed-storage gates.
 - Playwright visual verification passed for the student form in desktop/mobile,
   light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
   applicable.
+
+## 2026-08-08 — Audit remaining managed deletion scopes
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss,
+cross-Classroom student lineage, managed Storage, and durable purge recovery.
+
+**Audited:**
+- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
+  session-start workflow, and verified the local read-only schema is exactly at
+  migrations 001–120.
+- Traced cold tombstones, immutable archives, restore/compaction operations,
+  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
+  fences, and the complete Classroom resource graph.
+- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
+  student files, existing partial roster removal, account-level data, Pal
+  ledgers, and cross-Classroom preservation boundaries.
+
+**Recommendation:**
+- Add privacy-safe read-only deletion health monitoring first, then implement
+  cold-Classroom purge and Classroom-scoped individual-student purge as
+  separate migrations and PRs with independent rollout gates.
+- Keep generic orphan cleanup disabled; neither purge scope depends on it.
+- Require cold archives to be restored before individual-student purge; do not
+  rewrite immutable archive bundles or erase user accounts/other Classrooms.
+
+**Boundary:**
+- No implementation, migration application, local reset, rollout change,
+  production query, purge, or Storage deletion was performed. PR #963 remains
+  closed and untouched. Awaiting approval of the scope and sequencing package.
+
+## 2026-08-08 — Add managed deletion health monitoring baseline
+
+**Risk profile:** runtime-platform — read-only production health aggregation
+across irreversible purge ledgers and managed-storage ownership.
+
+**Completed:**
+- Added unapplied migration 121 with a service-role-only, aggregate RPC for hot
+  Classroom and Course Blueprint purge failures/stalls, fence/lease drift,
+  deleted-object reappearance, and managed-storage ownership/reference drift.
+- Added an exact Zod response boundary, code-first missing-schema compatibility,
+  privacy-safe structured counts, and sanitized probe failures.
+- Integrated the probe after successful work in the existing authenticated
+  daily cleanup cron. Critical findings return 503; warning-only findings remain
+  observable without granting cleanup authority.
+- Documented operator response and staged rollout. Generic orphan cleanup stays
+  disabled, and no additional cron schedule or deletion capability was added.
+
+**Validation:**
+- Full Vitest passed (478 files, 4,126 tests), plus focused monitoring/migration
+  tests, TypeScript, lint, architecture boundaries, managed-storage
+  lineage, hot-Classroom purge SQL lint, production build, and diff checks.
+- After separate exact authorization, the dry run previewed only migration 121
+  and it was applied once to the dedicated local Supabase database. Rollback-only
+  database fixtures proved read-only/service-role/privacy boundaries, warning
+  and critical findings, partial/lease/reappearance detection, eight concurrent
+  readers, and a 1,000-object runtime of 9–34 ms with 6,265 shared-buffer hits.
+- Generated types match local migrations 001–121. No reset, remote migration,
+  rollout change, production query, purge, or persistent Storage deletion was
+  performed; the temporary helper and all fixtures were removed. No UI changed,
+  so visual verification was not applicable.

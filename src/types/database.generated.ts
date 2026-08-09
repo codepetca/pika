@@ -6967,6 +6967,10 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
       }
+      get_managed_deletion_health_snapshot: {
+        Args: { p_stuck_after_seconds?: number }
+        Returns: Json
+      }
       get_managed_storage_object_presence: {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json

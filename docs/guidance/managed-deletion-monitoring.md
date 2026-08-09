@@ -1,0 +1,124 @@
+# Managed deletion monitoring
+
+This monitoring baseline is read-only. It observes the durable hot-Classroom
+and Course Blueprint purge protocols plus managed-storage ownership drift. It
+does not enable a deletion scope, claim work, retry an operation, delete a
+Storage object, change a rollout gate, or enable generic orphan cleanup.
+
+Migration 121 defines the service-role-only
+`get_managed_deletion_health_snapshot` RPC. The existing authenticated daily
+`/api/cron/cleanup-history` route calls it after its normal cleanup and purge
+safety-net work. No additional schedule is installed.
+
+## Privacy and response contract
+
+The snapshot contains only a version, timestamp, threshold, health state, and
+aggregate counts. It never returns user, teacher, Classroom, Blueprint,
+operation, managed-object, bucket/path, title, email, or content identities.
+The application validates the exact JSON shape and emits structured log fields
+containing only health/count values or a bounded application error code.
+
+The default stuck threshold is one hour. The RPC and server reader accept only
+300 through 604,800 seconds. The threshold is diagnostic; it does not expire a
+fence, authorize deletion, or change retry state.
+
+The cron behavior is:
+
+- Before migration 121 exists, missing-function/table schema codes are a
+  code-first compatibility state. Cleanup returns normally and logs
+  `schema unavailable` without provider details.
+- A healthy snapshot returns the existing successful cleanup response.
+- Warning-only findings return success and remain visible in the aggregate log.
+  They are expected to need trend/operational review, not an automatic mutation.
+- Any critical finding returns a sanitized `503` with critical and warning
+  totals after the normal cleanup work has run.
+- Query or contract validation failure returns a sanitized `503`; raw provider
+  errors are not returned or logged.
+
+## Findings
+
+Critical purge findings cover terminal non-retryable operations, operations or
+partially completed object inventories that have not advanced within the stuck
+threshold, expired object leases, missing/stale fences, and a provider object
+reappearing after the exact purge ledger recorded it deleted. Due retryable
+failed objects are warning counts until the enclosing operation becomes stale.
+
+Critical managed-storage findings cover:
+
+- Storage bytes in a managed bucket with no managed registry row;
+- verified/ready registry rows whose provider object is missing;
+- referenced objects that are not ready;
+- relational raw references with no managed UUID or with mismatched path/owner
+  evidence;
+- embedded managed-bucket references missing their relational registry, or
+  whose owner/data-subject evidence differs from the host;
+- managed Classroom objects with neither exactly one hot Classroom nor exactly
+  one cold tombstone owner;
+- objects left attached to a settled provisional owner; and
+- expired generic-cleanup leases.
+
+Warning managed-storage findings cover ready-but-unreferenced objects, expired
+upload reservations, expired provisional owners, and cleanup-pending objects
+older than the stuck threshold. These warnings are intentionally not deletion
+authority. Counts may overlap when one corrupt entity violates more than one
+contract, so totals represent findings rather than unique objects.
+
+## Operator response
+
+Treat a critical count or probe failure as an alert. First identify the finding
+category from the structured snapshot in a separately authorized,
+access-controlled diagnostic session. Do not add identifiers to the cron
+response or application logs. Do not clear a fence, mark a ledger complete,
+rewrite managed ownership, retry a purge, or remove a provider object merely to
+make the count zero. Each repair requires its own evidence-backed plan and fresh
+authorization naming the exact target and operation.
+
+Warning-only counts should be trended. In particular, a stable
+`ready_objects_unreferenced` or `stale_cleanup_pending` count is evidence for a
+possible separately gated cleanup rollout, not permission to enable it. Generic
+orphan cleanup remains disabled.
+
+## Staged rollout
+
+Migration 121 has been applied only to the dedicated local Supabase database
+under one-time authorization. It has not been applied to staging or production.
+
+1. Run static/unit/route tests and repository checks without a database reset or
+   migration application.
+2. With fresh authorization naming the disposable/local target and migration
+   121, replay the schema and validate SQL execution, query plans, empty/seeded
+   counts, privacy shape, degraded fixtures, and runtime below the cron budget.
+   After application, run `pnpm check:managed-deletion-health-db`; the harness
+   refuses an unexpected Docker project, keeps all synthetic findings inside
+   rollback-only transactions, removes its fixed Storage-owner test helper, and
+   exercises eight concurrent readers.
+3. Deploy the application code first. The missing-schema compatibility path
+   keeps the existing cron successful while emitting a bounded warning.
+4. With fresh authorization naming staging and migration 121, apply it and
+   observe at least two daily runs. Investigate every nonzero critical count and
+   establish a warning baseline before production.
+5. With separate fresh authorization naming production and migration 121,
+   apply the read-only RPC. Migration application is the production activation;
+   the aggregate query has no safe per-object canary. Observe the first
+   scheduled run and query/runtime telemetry before considering monitoring
+   broadly established. A manual production cron invocation is a separate
+   operation because it also advances existing cleanup/purge safety nets and
+   therefore requires explicit authorization.
+
+If the aggregate query cannot reliably finish within the existing 60-second
+route budget, keep migration 121 unapplied (or remove the cron call in a normal
+code rollback before application) and redesign the expensive finding category
+as a separately scheduled, read-only deep scan. Do not weaken the ownership
+contract or replace exact-object purge processing to make monitoring cheaper.
+
+## Local validation evidence
+
+The authorized migration preview contained only migration 121, and local
+history now records 001–121. The database harness proved read-only execution,
+service-role-only access, bounded thresholds, privacy-safe aggregate output,
+warning-only and critical classification, partial purge and expired lease
+detection, provider-side object reappearance, exact rollback cleanup, and eight
+concurrent readers. A 1,000-managed-object fixture completed in 9–34 ms during
+repeated runs; its `EXPLAIN (ANALYZE, BUFFERS)` execution used 6,265 shared-buffer
+hits and remained far below the five-second local guard and 60-second cron
+budget. Generated database types match the locally applied schema.
