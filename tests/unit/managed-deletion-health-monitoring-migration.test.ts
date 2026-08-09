@@ -70,6 +70,8 @@ describe('managed deletion health monitoring migration', () => {
     expect(deepFunctionBody).toContain('embedded_hosts_missing_registry')
     expect(deepFunctionBody).toContain('embedded_payload_identity_mismatches')
     expect(deepFunctionBody).toContain('embedded_evidence_mismatches')
+    expect(deepFunctionBody).toContain('with registered_hosts as')
+    expect(deepFunctionBody).toContain('from public.managed_storage_json_references reference')
     expect(sql).toContain(
       'grant execute on function public.get_managed_deletion_deep_health_snapshot()\n  to service_role',
     )

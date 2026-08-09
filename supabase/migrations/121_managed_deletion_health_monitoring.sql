@@ -509,8 +509,7 @@ begin
     ) raw_reference
   ), reconciled as (
     select parsed.*,
-      reference.managed_object_id registered_managed_object_id,
-      reference.evidence_sha256
+      reference.managed_object_id registered_managed_object_id
     from parsed
     left join public.managed_storage_json_references reference
       on reference.storage_bucket = parsed.storage_bucket
@@ -539,22 +538,64 @@ begin
       where payload_managed_object_id is not null
         and registered_managed_object_id is not null
         and payload_managed_object_id is distinct from registered_managed_object_id
-    ),
-    count(distinct (host_type, host_id)) filter (
-      where registered_managed_object_id is not null
-        and evidence_sha256 is distinct from encode(
-          extensions.digest(
-            convert_to(coalesce(payload, 'null'::jsonb)::text, 'UTF8'),
-            'sha256'
-          ),
-          'hex'
-        )
     )
   into
     v_embedded_hosts_missing_registry,
-    v_embedded_payload_identity_mismatches,
-    v_embedded_evidence_mismatches
+    v_embedded_payload_identity_mismatches
   from reconciled;
+
+  -- Evidence reconciliation starts from the registry, not parsed references,
+  -- so removing a host's final embedded path still leaves detectable drift.
+  with registered_hosts as (
+    select 'assignment_doc'::text host_type, document.id host_id,
+      document.content payload, reference.evidence_sha256
+    from public.managed_storage_json_references reference
+    join public.assignment_docs document on document.id = reference.assignment_doc_id
+    where reference.assignment_doc_id is not null
+    union all
+    select 'assignment_doc_history', history.id, coalesce(history.snapshot, history.patch),
+      reference.evidence_sha256
+    from public.managed_storage_json_references reference
+    join public.assignment_doc_history history
+      on history.id = reference.assignment_doc_history_id
+    where reference.assignment_doc_history_id is not null
+    union all
+    select 'test', test.id, test.documents, reference.evidence_sha256
+    from public.managed_storage_json_references reference
+    join public.tests test on test.id = reference.test_id
+    where reference.test_id is not null
+    union all
+    select 'course_blueprint_assessment', assessment.id, assessment.documents,
+      reference.evidence_sha256
+    from public.managed_storage_json_references reference
+    join public.course_blueprint_assessments assessment
+      on assessment.id = reference.course_blueprint_assessment_id
+    where reference.course_blueprint_assessment_id is not null
+    union all
+    select 'course_blueprint_version', version.id, version.snapshot_json,
+      reference.evidence_sha256
+    from public.managed_storage_json_references reference
+    join public.course_blueprint_versions version
+      on version.id = reference.course_blueprint_version_id
+    where reference.course_blueprint_version_id is not null
+    union all
+    select 'course_blueprint_change_proposal', proposal.id, proposal.operations_json,
+      reference.evidence_sha256
+    from public.managed_storage_json_references reference
+    join public.course_blueprint_change_proposals proposal
+      on proposal.id = reference.course_blueprint_change_proposal_id
+    where reference.course_blueprint_change_proposal_id is not null
+  )
+  select count(distinct (host_type, host_id))
+  into v_embedded_evidence_mismatches
+  from registered_hosts
+  where evidence_sha256 is distinct from encode(
+    extensions.digest(
+      convert_to(coalesce(payload, 'null'::jsonb)::text, 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  );
 
   v_critical_count :=
     v_embedded_hosts_missing_registry

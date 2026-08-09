@@ -25,6 +25,8 @@ describe('managed deletion health database harness', () => {
     expect(script).toContain('public.get_managed_deletion_deep_health_snapshot()')
     expect(script).toContain('embedded_payload_identity_mismatches')
     expect(script).toContain('disable trigger user')
+    expect(script).toContain("set documents = '[]'::jsonb")
+    expect(script).toContain('Removed-reference evidence drift was missed')
     expect(script).toContain("'monitor-fixture/reappeared.pdf'")
     expect(script).toContain('trap cleanup_storage_helper EXIT')
   })

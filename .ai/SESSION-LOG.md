@@ -1059,6 +1059,8 @@ across irreversible purge ledgers and managed-storage ownership.
   reconciliation out of the daily path into a separate unscheduled,
   service-role-only diagnostic; added payload UUID/digest mismatch detection and
   made every dependency error except the exact missing-RPC signal fail closed.
+  A targeted follow-up made evidence reconciliation registry-driven so removing
+  a payload's final managed reference cannot hide the stale registry row.
 - Documented operator response and staged rollout. Generic orphan cleanup stays
   disabled, and no additional cron schedule or deletion capability was added.
 

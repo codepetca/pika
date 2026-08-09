@@ -367,6 +367,24 @@ begin
   then raise exception 'Identity-bearing evidence escaped deep critical snapshot'; end if;
 end;
 $critical$;
+
+-- Removing the final raw reference must not hide a stale registry row.
+alter table public.tests disable trigger user;
+update public.tests
+set documents = '[]'::jsonb
+where id = 'c1210000-0000-4000-8000-000000000044';
+alter table public.tests enable trigger user;
+do $removed_reference$
+declare
+  v_deep_snapshot jsonb := public.get_managed_deletion_deep_health_snapshot();
+begin
+  if (v_deep_snapshot#>>'{findings,embedded_hosts_missing_registry}')::integer <> 0
+    or (v_deep_snapshot#>>'{findings,embedded_payload_identity_mismatches}')::integer <> 0
+    or (v_deep_snapshot#>>'{findings,embedded_evidence_mismatches}')::integer <> 1
+  then raise exception 'Removed-reference evidence drift was missed: %',
+    v_deep_snapshot->'findings'; end if;
+end;
+$removed_reference$;
 rollback;
 
 -- One thousand ready objects is deliberately above the current production

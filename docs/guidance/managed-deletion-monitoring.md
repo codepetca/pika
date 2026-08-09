@@ -75,9 +75,10 @@ contract, so totals represent findings rather than unique objects.
 The separately invoked deep diagnostic detects embedded managed-bucket payloads
 missing their relational registry, payload UUIDs that disagree with the
 registered UUID for the same host/path, and payload digests that no longer match
-the registry evidence. These recursive findings are intentionally excluded from
-the daily cron so growth in immutable assignment history cannot consume the
-cleanup route's 60-second platform budget.
+the registry evidence, including when a payload's final managed reference was
+removed while its registry row remained. These recursive findings are
+intentionally excluded from the daily cron so growth in immutable assignment
+history cannot consume the cleanup route's 60-second platform budget.
 
 ## Operator response
 
