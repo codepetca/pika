@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ManagedDeletionHealthError,
+  managedDeletionDeepHealthSnapshotSchema,
   readManagedDeletionHealth,
 } from '@/lib/server/managed-deletion-health'
 
@@ -21,7 +22,6 @@ const managedStorageHealth = {
   referenced_objects_not_ready: 0,
   raw_references_missing_identity: 0,
   relational_identity_mismatches: 0,
-  embedded_hosts_missing_registry: 0,
   embedded_ownership_mismatches: 0,
   objects_without_durable_owner: 0,
   settled_provisional_objects: 0,
@@ -69,22 +69,33 @@ describe('managed deletion health reader', () => {
     })
   })
 
-  it.each(['PGRST202', '42883', 'PGRST205', '42P01'])(
-    'treats missing monitoring schema code %s as code-first compatibility',
+  it('treats the exact missing-RPC signal as code-first compatibility', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'raw provider detail must not escape' },
+    })
+
+    await expect(readManagedDeletionHealth({ supabase: { rpc } as any })).resolves.toEqual({
+      schemaAvailable: false,
+    })
+    expect(console.warn).toHaveBeenCalledWith(
+      '[managed-deletion-health] schema unavailable',
+      { error_code: 'PGRST202' },
+    )
+  })
+
+  it.each(['42883', 'PGRST205', '42P01'])(
+    'fails closed when an installed RPC reports dependency error %s',
     async (code) => {
-      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       const rpc = vi.fn().mockResolvedValue({
         data: null,
         error: { code, message: 'raw provider detail must not escape' },
       })
 
-      await expect(readManagedDeletionHealth({ supabase: { rpc } as any })).resolves.toEqual({
-        schemaAvailable: false,
+      await expect(readManagedDeletionHealth({ supabase: { rpc } as any })).rejects.toMatchObject({
+        code: 'managed_deletion_health_query_failed',
       })
-      expect(console.warn).toHaveBeenCalledWith(
-        '[managed-deletion-health] schema unavailable',
-        { error_code: code },
-      )
     },
   )
 
@@ -116,5 +127,24 @@ describe('managed deletion health reader', () => {
       supabase: { rpc: vi.fn() } as any,
       stuckAfterSeconds: value,
     })).rejects.toMatchObject({ code: 'managed_deletion_health_threshold_invalid' })
+  })
+
+  it('strictly validates aggregate-only deep diagnostic results', () => {
+    const result = managedDeletionDeepHealthSnapshotSchema.safeParse({
+      version: 1,
+      generated_at: '2026-08-08T16:00:00.000Z',
+      healthy: false,
+      critical_count: 1,
+      findings: {
+        embedded_hosts_missing_registry: 0,
+        embedded_payload_identity_mismatches: 1,
+        embedded_evidence_mismatches: 0,
+      },
+    })
+    expect(result.success).toBe(true)
+    expect(managedDeletionDeepHealthSnapshotSchema.safeParse({
+      ...(result.success ? result.data : {}),
+      classroom_id: '00000000-0000-4000-8000-000000000001',
+    }).success).toBe(false)
   })
 })

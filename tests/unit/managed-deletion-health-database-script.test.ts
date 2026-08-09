@@ -22,6 +22,9 @@ describe('managed deletion health database harness', () => {
     expect(script).toContain(
       'storage.insert_managed_deletion_health_reappearance_fixture()',
     )
+    expect(script).toContain('public.get_managed_deletion_deep_health_snapshot()')
+    expect(script).toContain('embedded_payload_identity_mismatches')
+    expect(script).toContain('disable trigger user')
     expect(script).toContain("'monitor-fixture/reappeared.pdf'")
     expect(script).toContain('trap cleanup_storage_helper EXIT')
   })

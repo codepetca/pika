@@ -54,6 +54,8 @@ begin
     select 1 from supabase_migrations.schema_migrations where version = '121'
   ) or to_regprocedure(
     'public.get_managed_deletion_health_snapshot(integer)'
+  ) is null or to_regprocedure(
+    'public.get_managed_deletion_deep_health_snapshot()'
   ) is null
   then raise exception 'Migration 121 is not applied to the local database'; end if;
 end;
@@ -77,6 +79,16 @@ begin
       'public.get_managed_deletion_health_snapshot(integer)', 'execute'
     )
   then raise exception 'service_role monitor privilege is missing'; end if;
+  if has_function_privilege(
+      'anon', 'public.get_managed_deletion_deep_health_snapshot()', 'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.get_managed_deletion_deep_health_snapshot()', 'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.get_managed_deletion_deep_health_snapshot()', 'execute'
+    )
+  then raise exception 'Deep monitor privileges are unsafe'; end if;
 
   select provolatile, prosecdef into strict v_volatility, v_security_definer
   from pg_proc
@@ -107,16 +119,25 @@ $thresholds$;
 do $baseline$
 declare
   v_snapshot jsonb := public.get_managed_deletion_health_snapshot(3600);
+  v_deep_snapshot jsonb := public.get_managed_deletion_deep_health_snapshot();
 begin
   if not (v_snapshot->>'healthy')::boolean
     or (v_snapshot->>'critical_count')::integer <> 0
     or (v_snapshot->>'warning_count')::integer <> 0
   then raise exception 'Local baseline is not healthy: %', v_snapshot; end if;
+  if not (v_deep_snapshot->>'healthy')::boolean
+    or (v_deep_snapshot->>'critical_count')::integer <> 0
+  then raise exception 'Local deep baseline is not healthy: %', v_deep_snapshot; end if;
   if v_snapshot::text ~
     '"(teacher_id|student_id|user_id|classroom_id|course_blueprint_id|operation_id|managed_object_id|storage_path|email|title)"[[:space:]]*:'
     or v_snapshot::text ~
       '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
   then raise exception 'Identity-bearing evidence escaped the snapshot'; end if;
+  if v_deep_snapshot::text ~
+    '"(teacher_id|student_id|user_id|classroom_id|course_blueprint_id|operation_id|managed_object_id|storage_path|email|title)"[[:space:]]*:'
+    or v_deep_snapshot::text ~
+      '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  then raise exception 'Identity-bearing evidence escaped deep snapshot'; end if;
 end;
 $baseline$;
 commit;
@@ -194,6 +215,41 @@ insert into public.managed_storage_objects (
   'teacher_test_material', 'ready', clock_timestamp(), clock_timestamp(),
   'c1210000-0000-4000-8000-000000000001'
 );
+insert into public.managed_storage_objects (
+  id, storage_bucket, storage_path, classroom_id, purpose, status,
+  verified_at, ready_at, created_by_user_id
+) values
+  ('c1210000-0000-4000-8000-000000000042', 'test-documents',
+   'monitor-fixture/embedded.pdf', 'c1210000-0000-4000-8000-000000000011',
+   'teacher_test_material', 'ready', clock_timestamp(), clock_timestamp(),
+   'c1210000-0000-4000-8000-000000000001'),
+  ('c1210000-0000-4000-8000-000000000043', 'test-documents',
+   'monitor-fixture/wrong-embedded.pdf', 'c1210000-0000-4000-8000-000000000011',
+   'teacher_test_material', 'ready', clock_timestamp(), clock_timestamp(),
+   'c1210000-0000-4000-8000-000000000001');
+insert into storage.objects (bucket_id, name) values
+  ('test-documents', 'monitor-fixture/embedded.pdf'),
+  ('test-documents', 'monitor-fixture/wrong-embedded.pdf');
+insert into public.tests (id, classroom_id, title, created_by, documents) values (
+  'c1210000-0000-4000-8000-000000000044',
+  'c1210000-0000-4000-8000-000000000011', 'Monitor embedded identity',
+  'c1210000-0000-4000-8000-000000000001',
+  jsonb_build_array(jsonb_build_object(
+    'storage_bucket', 'test-documents',
+    'storage_path', 'monitor-fixture/embedded.pdf',
+    'managed_object_id', 'c1210000-0000-4000-8000-000000000042'
+  ))
+);
+-- Model out-of-band payload corruption without invoking any normal writer or
+-- cleanup trigger; the surrounding transaction rolls this state back.
+alter table public.tests disable trigger user;
+update public.tests
+set documents = jsonb_set(
+  documents, '{0,managed_object_id}',
+  '"c1210000-0000-4000-8000-000000000043"'::jsonb
+)
+where id = 'c1210000-0000-4000-8000-000000000044';
+alter table public.tests enable trigger user;
 insert into public.managed_storage_objects (
   id, storage_bucket, storage_path, classroom_id, purpose, status,
   reservation_expires_at, created_by_user_id
@@ -275,6 +331,7 @@ select storage.insert_managed_deletion_health_reappearance_fixture();
 do $critical$
 declare
   v_snapshot jsonb := public.get_managed_deletion_health_snapshot(3600);
+  v_deep_snapshot jsonb := public.get_managed_deletion_deep_health_snapshot();
 begin
   if (v_snapshot->>'healthy')::boolean then
     raise exception 'Critical fixture reported healthy';
@@ -293,11 +350,21 @@ begin
     or (v_snapshot#>>'{managed_storage,expired_reservations}')::integer <> 1
   then raise exception 'Managed-storage findings mismatch: %',
     v_snapshot->'managed_storage'; end if;
+  if (v_deep_snapshot#>>'{findings,embedded_hosts_missing_registry}')::integer <> 0
+    or (v_deep_snapshot#>>'{findings,embedded_payload_identity_mismatches}')::integer <> 1
+    or (v_deep_snapshot#>>'{findings,embedded_evidence_mismatches}')::integer <> 1
+  then raise exception 'Deep payload findings mismatch: %',
+    v_deep_snapshot->'findings'; end if;
   if v_snapshot::text ~
     '"(teacher_id|student_id|user_id|classroom_id|course_blueprint_id|operation_id|managed_object_id|storage_path|email|title)"[[:space:]]*:'
     or v_snapshot::text ~
       '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
   then raise exception 'Identity-bearing evidence escaped critical snapshot'; end if;
+  if v_deep_snapshot::text ~
+    '"(teacher_id|student_id|user_id|classroom_id|course_blueprint_id|operation_id|managed_object_id|storage_path|email|title)"[[:space:]]*:'
+    or v_deep_snapshot::text ~
+      '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  then raise exception 'Identity-bearing evidence escaped deep critical snapshot'; end if;
 end;
 $critical$;
 rollback;

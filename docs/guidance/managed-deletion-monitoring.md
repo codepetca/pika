@@ -8,7 +8,14 @@ Storage object, change a rollout gate, or enable generic orphan cleanup.
 Migration 121 defines the service-role-only
 `get_managed_deletion_health_snapshot` RPC. The existing authenticated daily
 `/api/cron/cleanup-history` route calls it after its normal cleanup and purge
-safety-net work. No additional schedule is installed.
+safety-net work. This lightweight snapshot uses relational/indexable evidence;
+it does not recursively parse unbounded JSON history. No additional schedule is
+installed.
+
+The same migration defines a separate service-role-only
+`get_managed_deletion_deep_health_snapshot` diagnostic for recursive embedded
+payload reconciliation. It is not called by the cron or any application route,
+has no scheduler, and requires a separately authorized operator query.
 
 ## Privacy and response contract
 
@@ -24,9 +31,11 @@ fence, authorize deletion, or change retry state.
 
 The cron behavior is:
 
-- Before migration 121 exists, missing-function/table schema codes are a
-  code-first compatibility state. Cleanup returns normally and logs
+- Before migration 121 exists, the exact PostgREST missing-RPC code `PGRST202`
+  is a code-first compatibility state. Cleanup returns normally and logs
   `schema unavailable` without provider details.
+- Missing dependency functions/tables and relation-cache errors are probe
+  failures, not rollout compatibility, and return the sanitized `503`.
 - A healthy snapshot returns the existing successful cleanup response.
 - Warning-only findings return success and remain visible in the aggregate log.
   They are expected to need trend/operational review, not an automatic mutation.
@@ -50,8 +59,8 @@ Critical managed-storage findings cover:
 - referenced objects that are not ready;
 - relational raw references with no managed UUID or with mismatched path/owner
   evidence;
-- embedded managed-bucket references missing their relational registry, or
-  whose owner/data-subject evidence differs from the host;
+- registered embedded references whose owner/data-subject evidence differs
+  from the host;
 - managed Classroom objects with neither exactly one hot Classroom nor exactly
   one cold tombstone owner;
 - objects left attached to a settled provisional owner; and
@@ -62,6 +71,13 @@ upload reservations, expired provisional owners, and cleanup-pending objects
 older than the stuck threshold. These warnings are intentionally not deletion
 authority. Counts may overlap when one corrupt entity violates more than one
 contract, so totals represent findings rather than unique objects.
+
+The separately invoked deep diagnostic detects embedded managed-bucket payloads
+missing their relational registry, payload UUIDs that disagree with the
+registered UUID for the same host/path, and payload digests that no longer match
+the registry evidence. These recursive findings are intentionally excluded from
+the daily cron so growth in immutable assignment history cannot consume the
+cleanup route's 60-second platform budget.
 
 ## Operator response
 
@@ -78,6 +94,12 @@ Warning-only counts should be trended. In particular, a stable
 possible separately gated cleanup rollout, not permission to enable it. Generic
 orphan cleanup remains disabled.
 
+Run the deep diagnostic only in an access-controlled, separately authorized
+session. Treat nonzero findings or query failure as evidence for investigation,
+not permission to rewrite a payload, registry row, or Storage object. Record its
+runtime and cancel/redesign the diagnostic if production-scale history cannot be
+scanned safely within the operator session's explicit query budget.
+
 ## Staged rollout
 
 Migration 121 has been applied only to the dedicated local Supabase database
@@ -87,7 +109,8 @@ under one-time authorization. It has not been applied to staging or production.
    migration application.
 2. With fresh authorization naming the disposable/local target and migration
    121, replay the schema and validate SQL execution, query plans, empty/seeded
-   counts, privacy shape, degraded fixtures, and runtime below the cron budget.
+   counts, privacy shape, degraded fixtures, embedded UUID/digest drift, and
+   lightweight snapshot runtime below the cron budget.
    After application, run `pnpm check:managed-deletion-health-db`; the harness
    refuses an unexpected Docker project, keeps all synthetic findings inside
    rollback-only transactions, removes its fixed Storage-owner test helper, and
@@ -105,20 +128,23 @@ under one-time authorization. It has not been applied to staging or production.
    operation because it also advances existing cleanup/purge safety nets and
    therefore requires explicit authorization.
 
-If the aggregate query cannot reliably finish within the existing 60-second
-route budget, keep migration 121 unapplied (or remove the cron call in a normal
-code rollback before application) and redesign the expensive finding category
-as a separately scheduled, read-only deep scan. Do not weaken the ownership
-contract or replace exact-object purge processing to make monitoring cheaper.
+If the lightweight aggregate cannot reliably finish within the existing
+60-second route budget, keep migration 121 unapplied (or remove the cron call in
+a normal code rollback before application). Do not add the recursive diagnostic
+to a cron, weaken the ownership contract, or replace exact-object purge
+processing to make monitoring cheaper.
 
 ## Local validation evidence
 
 The authorized migration preview contained only migration 121, and local
-history now records 001–121. The database harness proved read-only execution,
+history records 001–121. The pre-review database harness proved read-only execution,
 service-role-only access, bounded thresholds, privacy-safe aggregate output,
 warning-only and critical classification, partial purge and expired lease
 detection, provider-side object reappearance, exact rollback cleanup, and eight
 concurrent readers. A 1,000-managed-object fixture completed in 9–34 ms during
 repeated runs; its `EXPLAIN (ANALYZE, BUFFERS)` execution used 6,265 shared-buffer
 hits and remained far below the five-second local guard and 60-second cron
-budget. Generated database types match the locally applied schema.
+budget. Review then separated recursive payload work into the unscheduled deep
+diagnostic and tightened dependency failures; the one-time local application
+permission was not reused. The final migration and deep UUID/digest regression
+therefore require the PR's fresh ephemeral-database replay before merge.

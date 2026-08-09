@@ -1047,7 +1047,7 @@ cross-Classroom student lineage, managed Storage, and durable purge recovery.
 across irreversible purge ledgers and managed-storage ownership.
 
 **Completed:**
-- Added unapplied migration 121 with a service-role-only, aggregate RPC for hot
+- Added migration 121 with a service-role-only, aggregate RPC for hot
   Classroom and Course Blueprint purge failures/stalls, fence/lease drift,
   deleted-object reappearance, and managed-storage ownership/reference drift.
 - Added an exact Zod response boundary, code-first missing-schema compatibility,
@@ -1055,11 +1055,15 @@ across irreversible purge ledgers and managed-storage ownership.
 - Integrated the probe after successful work in the existing authenticated
   daily cleanup cron. Critical findings return 503; warning-only findings remain
   observable without granting cleanup authority.
+- After the initial independent review of PR #980, moved recursive JSON/history
+  reconciliation out of the daily path into a separate unscheduled,
+  service-role-only diagnostic; added payload UUID/digest mismatch detection and
+  made every dependency error except the exact missing-RPC signal fail closed.
 - Documented operator response and staged rollout. Generic orphan cleanup stays
   disabled, and no additional cron schedule or deletion capability was added.
 
 **Validation:**
-- Full Vitest passed (478 files, 4,126 tests), plus focused monitoring/migration
+- Full Vitest passed (478 files, 4,128 tests), plus focused monitoring/migration
   tests, TypeScript, lint, architecture boundaries, managed-storage
   lineage, hot-Classroom purge SQL lint, production build, and diff checks.
 - After separate exact authorization, the dry run previewed only migration 121
@@ -1067,7 +1071,9 @@ across irreversible purge ledgers and managed-storage ownership.
   database fixtures proved read-only/service-role/privacy boundaries, warning
   and critical findings, partial/lease/reappearance detection, eight concurrent
   readers, and a 1,000-object runtime of 9–34 ms with 6,265 shared-buffer hits.
-- Generated types match local migrations 001–121. No reset, remote migration,
+- The originally authorized local application predates the review correction;
+  that one-time permission was not reused. Final generated types and the revised
+  rollback fixture are gated on PR CI's fresh ephemeral migration replay. No reset, remote migration,
   rollout change, production query, purge, or persistent Storage deletion was
   performed; the temporary helper and all fixtures were removed. No UI changed,
   so visual verification was not applicable.

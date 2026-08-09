@@ -38,7 +38,6 @@ declare
   v_referenced_objects_not_ready bigint;
   v_raw_references_missing_identity bigint;
   v_relational_identity_mismatches bigint;
-  v_embedded_hosts_missing_registry bigint;
   v_embedded_ownership_mismatches bigint;
   v_objects_without_durable_owner bigint;
   v_settled_provisional_objects bigint;
@@ -274,106 +273,79 @@ begin
     or (reference.expected_classroom_id is not null
       and object.classroom_id is distinct from reference.expected_classroom_id);
 
-  select count(*) into v_embedded_hosts_missing_registry
-  from (
-    select 'assignment_doc'::text host_type, id host_id, content payload
-    from public.assignment_docs
-    union all
-    select 'assignment_doc_history', id, coalesce(snapshot, patch)
-    from public.assignment_doc_history
-    union all
-    select 'test', id, documents from public.tests
-    union all
-    select 'course_blueprint_assessment', id, documents
-    from public.course_blueprint_assessments
-    union all
-    select 'course_blueprint_version', id, snapshot_json
-    from public.course_blueprint_versions
-    union all
-    select 'course_blueprint_change_proposal', id, operations_json
-    from public.course_blueprint_change_proposals
-  ) host
-  where exists (
-    select 1
-    from (
-      select distinct storage_bucket, storage_path
-      from public.managed_storage_payload_raw_references(host.payload)
-    ) raw_reference
-    where not exists (
-      select 1 from public.managed_storage_json_references reference
-      where reference.storage_bucket = raw_reference.storage_bucket
-        and reference.storage_path = raw_reference.storage_path
-        and (
-          reference.assignment_doc_id = case
-            when host.host_type = 'assignment_doc' then host.host_id end
-          or reference.assignment_doc_history_id = case
-            when host.host_type = 'assignment_doc_history' then host.host_id end
-          or reference.test_id = case when host.host_type = 'test' then host.host_id end
-          or reference.course_blueprint_assessment_id = case
-            when host.host_type = 'course_blueprint_assessment' then host.host_id end
-          or reference.course_blueprint_version_id = case
-            when host.host_type = 'course_blueprint_version' then host.host_id end
-          or reference.course_blueprint_change_proposal_id = case
-            when host.host_type = 'course_blueprint_change_proposal' then host.host_id end
-        )
-    )
-  );
-
   select count(*) into v_embedded_ownership_mismatches
   from (
-    select distinct host.host_type, host.host_id
-    from (
-      select 'assignment_doc'::text host_type, document.id host_id,
-        assignment.classroom_id, null::uuid course_blueprint_id,
-        document.id assignment_doc_id, document.student_id data_subject_user_id
-      from public.assignment_docs document
-      join public.assignments assignment on assignment.id = document.assignment_id
-      union all
-      select 'assignment_doc_history', history.id, assignment.classroom_id, null::uuid,
-        document.id, document.student_id
-      from public.assignment_doc_history history
-      join public.assignment_docs document on document.id = history.assignment_doc_id
-      join public.assignments assignment on assignment.id = document.assignment_id
-      union all
-      select 'test', id, classroom_id, null::uuid, null::uuid, null::uuid
-      from public.tests
-      union all
-      select 'course_blueprint_assessment', id, null::uuid, course_blueprint_id,
-        null::uuid, null::uuid
-      from public.course_blueprint_assessments
-      union all
-      select 'course_blueprint_version', id, null::uuid, course_blueprint_id,
-        null::uuid, null::uuid
-      from public.course_blueprint_versions
-      union all
-      select 'course_blueprint_change_proposal', id, null::uuid, course_blueprint_id,
-        null::uuid, null::uuid
-      from public.course_blueprint_change_proposals
-    ) host
-    join public.managed_storage_json_references reference on (
-      reference.assignment_doc_id = case
-        when host.host_type = 'assignment_doc' then host.host_id end
-      or reference.assignment_doc_history_id = case
-        when host.host_type = 'assignment_doc_history' then host.host_id end
-      or reference.test_id = case when host.host_type = 'test' then host.host_id end
-      or reference.course_blueprint_assessment_id = case
-        when host.host_type = 'course_blueprint_assessment' then host.host_id end
-      or reference.course_blueprint_version_id = case
-        when host.host_type = 'course_blueprint_version' then host.host_id end
-      or reference.course_blueprint_change_proposal_id = case
-        when host.host_type = 'course_blueprint_change_proposal' then host.host_id end
-    )
+    select object.id, object.storage_bucket, object.classroom_id,
+      object.course_blueprint_id, object.resource_type, object.resource_id,
+      object.data_subject_user_id, assignment.classroom_id expected_classroom_id,
+      null::uuid expected_blueprint_id, document.id expected_assignment_doc_id,
+      document.student_id expected_data_subject_user_id
+    from public.managed_storage_json_references reference
+    join public.assignment_docs document on document.id = reference.assignment_doc_id
+    join public.assignments assignment on assignment.id = document.assignment_id
     join public.managed_storage_objects object on object.id = reference.managed_object_id
-    where (host.classroom_id is not null
-        and object.classroom_id is distinct from host.classroom_id)
-      or (host.course_blueprint_id is not null
-        and object.course_blueprint_id is distinct from host.course_blueprint_id)
-      or (object.storage_bucket = 'submission-images' and (
-        object.resource_type is distinct from 'assignment_doc'
-        or object.resource_id is distinct from host.assignment_doc_id
-        or object.data_subject_user_id is distinct from host.data_subject_user_id
-      ))
-  ) mismatch;
+    where reference.assignment_doc_id is not null
+    union all
+    select object.id, object.storage_bucket, object.classroom_id,
+      object.course_blueprint_id, object.resource_type, object.resource_id,
+      object.data_subject_user_id, assignment.classroom_id, null::uuid,
+      document.id, document.student_id
+    from public.managed_storage_json_references reference
+    join public.assignment_doc_history history
+      on history.id = reference.assignment_doc_history_id
+    join public.assignment_docs document on document.id = history.assignment_doc_id
+    join public.assignments assignment on assignment.id = document.assignment_id
+    join public.managed_storage_objects object on object.id = reference.managed_object_id
+    where reference.assignment_doc_history_id is not null
+    union all
+    select object.id, object.storage_bucket, object.classroom_id,
+      object.course_blueprint_id, object.resource_type, object.resource_id,
+      object.data_subject_user_id, test.classroom_id, null::uuid, null::uuid, null::uuid
+    from public.managed_storage_json_references reference
+    join public.tests test on test.id = reference.test_id
+    join public.managed_storage_objects object on object.id = reference.managed_object_id
+    where reference.test_id is not null
+    union all
+    select object.id, object.storage_bucket, object.classroom_id,
+      object.course_blueprint_id, object.resource_type, object.resource_id,
+      object.data_subject_user_id, null::uuid, assessment.course_blueprint_id,
+      null::uuid, null::uuid
+    from public.managed_storage_json_references reference
+    join public.course_blueprint_assessments assessment
+      on assessment.id = reference.course_blueprint_assessment_id
+    join public.managed_storage_objects object on object.id = reference.managed_object_id
+    where reference.course_blueprint_assessment_id is not null
+    union all
+    select object.id, object.storage_bucket, object.classroom_id,
+      object.course_blueprint_id, object.resource_type, object.resource_id,
+      object.data_subject_user_id, null::uuid, version.course_blueprint_id,
+      null::uuid, null::uuid
+    from public.managed_storage_json_references reference
+    join public.course_blueprint_versions version
+      on version.id = reference.course_blueprint_version_id
+    join public.managed_storage_objects object on object.id = reference.managed_object_id
+    where reference.course_blueprint_version_id is not null
+    union all
+    select object.id, object.storage_bucket, object.classroom_id,
+      object.course_blueprint_id, object.resource_type, object.resource_id,
+      object.data_subject_user_id, null::uuid, proposal.course_blueprint_id,
+      null::uuid, null::uuid
+    from public.managed_storage_json_references reference
+    join public.course_blueprint_change_proposals proposal
+      on proposal.id = reference.course_blueprint_change_proposal_id
+    join public.managed_storage_objects object on object.id = reference.managed_object_id
+    where reference.course_blueprint_change_proposal_id is not null
+  ) mismatch
+  where (mismatch.expected_classroom_id is not null
+      and mismatch.classroom_id is distinct from mismatch.expected_classroom_id)
+    or (mismatch.expected_blueprint_id is not null
+      and mismatch.course_blueprint_id is distinct from mismatch.expected_blueprint_id)
+    or (mismatch.storage_bucket = 'submission-images' and (
+      mismatch.resource_type is distinct from 'assignment_doc'
+      or mismatch.resource_id is distinct from mismatch.expected_assignment_doc_id
+      or mismatch.data_subject_user_id
+        is distinct from mismatch.expected_data_subject_user_id
+    ));
 
   select count(*) into v_objects_without_durable_owner
   from public.managed_storage_objects object
@@ -429,8 +401,8 @@ begin
     + v_blueprint_deleted_objects_reappeared
     + v_unregistered_storage_objects + v_registered_objects_missing_storage
     + v_referenced_objects_not_ready + v_raw_references_missing_identity
-    + v_relational_identity_mismatches + v_embedded_hosts_missing_registry
-    + v_embedded_ownership_mismatches + v_objects_without_durable_owner
+    + v_relational_identity_mismatches + v_embedded_ownership_mismatches
+    + v_objects_without_durable_owner
     + v_settled_provisional_objects + v_expired_cleanup_leases;
 
   v_warning_count :=
@@ -473,7 +445,6 @@ begin
       'referenced_objects_not_ready', v_referenced_objects_not_ready,
       'raw_references_missing_identity', v_raw_references_missing_identity,
       'relational_identity_mismatches', v_relational_identity_mismatches,
-      'embedded_hosts_missing_registry', v_embedded_hosts_missing_registry,
       'embedded_ownership_mismatches', v_embedded_ownership_mismatches,
       'objects_without_durable_owner', v_objects_without_durable_owner,
       'settled_provisional_objects', v_settled_provisional_objects,
@@ -493,3 +464,122 @@ grant execute on function public.get_managed_deletion_health_snapshot(integer) t
 
 comment on function public.get_managed_deletion_health_snapshot(integer) is
   'Read-only aggregate monitoring for purge liveness and managed-storage drift; returns no object identities.';
+
+-- Recursive payload reconciliation is deliberately separate from the daily
+-- cron snapshot. Assignment history is unbounded, so this diagnostic may run
+-- only as an explicitly authorized operator query with its own observation.
+create or replace function public.get_managed_deletion_deep_health_snapshot()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, storage
+as $deep_health$
+declare
+  v_generated_at timestamptz := statement_timestamp();
+  v_embedded_hosts_missing_registry bigint;
+  v_embedded_payload_identity_mismatches bigint;
+  v_embedded_evidence_mismatches bigint;
+  v_critical_count bigint;
+begin
+  with hosts as (
+    select 'assignment_doc'::text host_type, id host_id, content payload
+    from public.assignment_docs
+    union all
+    select 'assignment_doc_history', id, coalesce(snapshot, patch)
+    from public.assignment_doc_history
+    union all
+    select 'test', id, documents from public.tests
+    union all
+    select 'course_blueprint_assessment', id, documents
+    from public.course_blueprint_assessments
+    union all
+    select 'course_blueprint_version', id, snapshot_json
+    from public.course_blueprint_versions
+    union all
+    select 'course_blueprint_change_proposal', id, operations_json
+    from public.course_blueprint_change_proposals
+  ), parsed as (
+    select host.host_type, host.host_id, host.payload,
+      raw_reference.managed_object_id payload_managed_object_id,
+      raw_reference.storage_bucket, raw_reference.storage_path
+    from hosts host
+    cross join lateral public.managed_storage_payload_raw_references(
+      host.payload
+    ) raw_reference
+  ), reconciled as (
+    select parsed.*,
+      reference.managed_object_id registered_managed_object_id,
+      reference.evidence_sha256
+    from parsed
+    left join public.managed_storage_json_references reference
+      on reference.storage_bucket = parsed.storage_bucket
+      and reference.storage_path = parsed.storage_path
+      and (
+        reference.assignment_doc_id = case
+          when parsed.host_type = 'assignment_doc' then parsed.host_id end
+        or reference.assignment_doc_history_id = case
+          when parsed.host_type = 'assignment_doc_history' then parsed.host_id end
+        or reference.test_id = case
+          when parsed.host_type = 'test' then parsed.host_id end
+        or reference.course_blueprint_assessment_id = case
+          when parsed.host_type = 'course_blueprint_assessment' then parsed.host_id end
+        or reference.course_blueprint_version_id = case
+          when parsed.host_type = 'course_blueprint_version' then parsed.host_id end
+        or reference.course_blueprint_change_proposal_id = case
+          when parsed.host_type = 'course_blueprint_change_proposal'
+          then parsed.host_id end
+      )
+  )
+  select
+    count(distinct (host_type, host_id)) filter (
+      where registered_managed_object_id is null
+    ),
+    count(distinct (host_type, host_id, storage_bucket, storage_path)) filter (
+      where payload_managed_object_id is not null
+        and registered_managed_object_id is not null
+        and payload_managed_object_id is distinct from registered_managed_object_id
+    ),
+    count(distinct (host_type, host_id)) filter (
+      where registered_managed_object_id is not null
+        and evidence_sha256 is distinct from encode(
+          extensions.digest(
+            convert_to(coalesce(payload, 'null'::jsonb)::text, 'UTF8'),
+            'sha256'
+          ),
+          'hex'
+        )
+    )
+  into
+    v_embedded_hosts_missing_registry,
+    v_embedded_payload_identity_mismatches,
+    v_embedded_evidence_mismatches
+  from reconciled;
+
+  v_critical_count :=
+    v_embedded_hosts_missing_registry
+    + v_embedded_payload_identity_mismatches
+    + v_embedded_evidence_mismatches;
+
+  return jsonb_build_object(
+    'version', 1,
+    'generated_at', v_generated_at,
+    'healthy', v_critical_count = 0,
+    'critical_count', v_critical_count,
+    'findings', jsonb_build_object(
+      'embedded_hosts_missing_registry', v_embedded_hosts_missing_registry,
+      'embedded_payload_identity_mismatches',
+        v_embedded_payload_identity_mismatches,
+      'embedded_evidence_mismatches', v_embedded_evidence_mismatches
+    )
+  );
+end;
+$deep_health$;
+
+revoke all on function public.get_managed_deletion_deep_health_snapshot()
+  from public, anon, authenticated, service_role;
+grant execute on function public.get_managed_deletion_deep_health_snapshot()
+  to service_role;
+
+comment on function public.get_managed_deletion_deep_health_snapshot() is
+  'Explicit read-only recursive payload/registry reconciliation; unscheduled and returns no object identities.';

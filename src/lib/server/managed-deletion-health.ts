@@ -24,7 +24,6 @@ const managedStorageHealthSchema = z.object({
   referenced_objects_not_ready: countSchema,
   raw_references_missing_identity: countSchema,
   relational_identity_mismatches: countSchema,
-  embedded_hosts_missing_registry: countSchema,
   embedded_ownership_mismatches: countSchema,
   objects_without_durable_owner: countSchema,
   settled_provisional_objects: countSchema,
@@ -54,6 +53,22 @@ export type ManagedDeletionHealthSnapshot = z.infer<
   typeof managedDeletionHealthSnapshotSchema
 >
 
+export const managedDeletionDeepHealthSnapshotSchema = z.object({
+  version: z.literal(1),
+  generated_at: z.string().datetime({ offset: true }),
+  healthy: z.boolean(),
+  critical_count: countSchema,
+  findings: z.object({
+    embedded_hosts_missing_registry: countSchema,
+    embedded_payload_identity_mismatches: countSchema,
+    embedded_evidence_mismatches: countSchema,
+  }).strict(),
+}).strict()
+
+export type ManagedDeletionDeepHealthSnapshot = z.infer<
+  typeof managedDeletionDeepHealthSnapshotSchema
+>
+
 type RpcError = { code?: string; message?: string }
 type HealthClient = {
   rpc(name: string, args: Record<string, unknown>): PromiseLike<{
@@ -75,9 +90,6 @@ export class ManagedDeletionHealthError extends Error {
 
 function isMissingSchemaError(error: RpcError): boolean {
   return error.code === 'PGRST202'
-    || error.code === 'PGRST205'
-    || error.code === '42883'
-    || error.code === '42P01'
 }
 
 function healthClient(value: ReturnType<typeof getServiceRoleClient>): HealthClient {
