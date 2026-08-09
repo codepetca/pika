@@ -11,110 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-03 — Preserved live references during cleanup cancellation
-
-**Risk profile:** high — migration-116 worker compatibility, cleanup lease
-reclamation, and managed readiness.
-
-**Completed:**
-- Distinguished physical deletion from legacy worker cancellation: a live raw
-  or managed reference with present bytes now returns the leased object to
-  `ready`, while missing referenced bytes and unreferenced present bytes still
-  fail closed.
-- Counted expired processing-lease reclamation as a new managed attempt while
-  leaving same-token renewal neutral.
-- Extended the disposable database fixture across assignment and Test snapshot
-  cancellation, retry accounting, reconciliation, readiness, Storage overwrite
-  fencing, and the local Storage-API delete simulation contract.
-- Kept generic cleanup enforcement-only, migration 117 unapplied outside CI,
-  permanent deletion unavailable, and PR #963 unchanged.
-
-**Validation:**
-- Pending focused static checks, disposable CI replay/fixture, and the approved
-  targeted follow-up review.
-
-**Remaining:**
-- Publish after local verification, require green PR CI, and complete the final
-  targeted review without starting another automatic remediation loop.
-
-## 2026-08-03 — Serialized late references with cleanup deletion
-
-**Risk profile:** high — concurrent compatibility writers, Storage deletion,
-and cleanup completion.
-
-**Completed:**
-- Normalized managed lifecycle locking to protocol, managed-object row, then
-  exact path across reservation replay, compatibility references, Storage
-  writes/deletes, operational cleanup claims, and cleanup completion.
-- Made compatibility assignment and Test JSON writers adopt an exact managed
-  identity and safely cancel processing cleanup only while bytes remain;
-  deletion-first races now reject the late reference.
-- Made Storage deletion recheck relational, embedded, and raw live references
-  under the same lifecycle fence.
-- Added disposable two-session assignment/Test race fixtures for both ordering
-  outcomes and a referenced-but-absent completion fixture that fails closed.
-- Materialized the cleanup live-reference predicate before its conditional
-  after the first disposable replay exposed a PL/pgSQL parser ambiguity.
-- Corrected readiness revision capture to bind by the serialized generation;
-  the earlier digest predicate ran before the refresh stored that digest and
-  made first-time enforcement activation fail stale despite a ready inventory.
-- Replaced the Storage writer trigger's implicit `FOUND` check with an explicit
-  managed UUID check because the intervening exact-path lock overwrote
-  `FOUND`, allowing an unreserved write even after enforcement activated.
-- Preserved active readiness evidence while an enforced deployment runs a new
-  readiness scan, avoiding an invalid transient settings row without pausing
-  enforcement; only a ready scan replaces the active evidence.
-- Kept migration 117 unapplied outside disposable CI, permanent deletion
-  unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
-
-**Validation:**
-- Full suite passes (3,975 tests), along with TypeScript, lint, architecture,
-  lineage, production build, SQL parse, shell syntax, diff check, and Pika
-  audit.
-
-**Remaining:**
-- Push the remediation, require the disposable database replay and concurrency
-  fixtures to pass, then perform the one approved final targeted review.
-
-## 2026-08-03 — Completed managed-storage archive compatibility rehearsal
-
-**Risk profile:** high — rolling archive compatibility, cleanup authority, and
-recovery preservation across managed ownership activation.
-
-**Completed:**
-- Preserved archive export and compaction under reserve-first ownership while
-  limiting the rollback rehearsal bypass to simultaneous compaction and restore
-  maintenance scopes.
-- Made legacy archive restore derive deterministic managed ownership for
-  assignment artifacts, submission images, and Test documents; ambiguous or
-  mismatched legacy references fail closed.
-- Updated recovery teardown to use the existing disabled cleanup protocols and
-  accept current `classroom-v2.tar.gz` archive identities without introducing a
-  scheduler, purge path, or enabled production worker.
-- Added a service-role-only exact managed-object presence probe so cleanup can
-  verify local Storage API 400 responses without trusting bucket-level evidence.
-- Closed the final Blueprint rollout gap: identity-less Test uploads are
-  atomically registered to their exact existing owner in compatibility mode
-  before producing a distinct managed provisional copy; ambiguous, explicit,
-  owner-mismatched, unsettled, and post-enforcement sources fail closed.
-- Kept migrations 115/116 byte-identical to deployed production history, kept
-  all new schema work in migration 117, applied no migration outside disposable
-  CI, and left draft PR #963 unchanged.
-
-**Validation:**
-- CI run 30826141547 is fully green: migration replay and generated types,
-  ownership/enforcement and concurrency database fixtures, archive recovery and
-  teardown, Browser Experience Matrix, full tests, TypeScript, lint, and build.
-- Focused cleanup and migration tests, Pika audit, migration-lineage hashes,
-  diff checks, and branch/remote cleanliness pass at `06983ebd`.
-- Focused Blueprint compatibility and migration contracts pass after the final
-  review remediation, along with TypeScript, shell syntax, and changed-file audit.
-
-**Remaining:**
-- Require exact-head disposable CI and final read-only review, update draft PR
-  #967's validation summary, and keep deployment/application of migration 117
-  under fresh target-specific authorization.
-
 ## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
 
 **Risk profile:** high — exact-path ownership adoption and concurrent rolling
@@ -1170,3 +1066,23 @@ authorization, ownership, operation-conflict, and managed-storage gates.
 - Desktop/mobile teacher and student boundaries passed; non-owner teacher
   access returned 404 and student access returned 403. No purge was started by
   either broad rollout action.
+
+## 2026-08-08 — Add accessible student test flag toggles
+
+**Risk profile:** exam-mode — student test-taking interaction and lock behavior.
+
+**Completed:**
+- Exposed each `StudentTestForm` question flag heading as a named toggle with
+  `aria-pressed`, plus `aria-disabled` and removed tab stops while interaction
+  is locked.
+- Preserved the existing heading-sized target, visual treatment, localStorage
+  contract, and single-toggle Enter/Space behavior.
+- Added component coverage for pointer round trips, Enter, Space, accessible
+  naming, initial/updated pressed state, persistence, and locked behavior.
+
+**Validation:**
+- Focused `StudentTestForm` component tests, TypeScript, lint, architecture,
+  UI/design policy checks, Pika audit, and `git diff --check` passed.
+- Playwright visual verification passed for the student form in desktop/mobile,
+  light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
+  applicable.

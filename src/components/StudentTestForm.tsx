@@ -413,7 +413,9 @@ export function StudentTestForm({
   }
 
   function handleToggleFlagged(questionId: string) {
-    const newState = toggleFlaggedQuestion(testId, questionId)
+    if (isInteractionLocked) return
+
+    toggleFlaggedQuestion(testId, questionId)
     const updated = getFlaggedQuestions(testId)
     setFlaggedQuestions(updated)
   }
@@ -442,9 +444,19 @@ export function StudentTestForm({
                       onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
                       title={isFlagged ? 'Unflag question' : 'Flag for review'}
                       role="button"
-                      tabIndex={0}
+                      aria-label={`Flag question ${index + 1} for review`}
+                      aria-pressed={isFlagged}
+                      aria-disabled={isInteractionLocked}
+                      tabIndex={isInteractionLocked ? -1 : 0}
                       onKeyDown={(e) => {
-                        if ((e.key === 'Enter' || e.key === ' ') && !isInteractionLocked) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                        }
+                        if (
+                          (e.key === 'Enter' || e.key === ' ') &&
+                          !e.repeat &&
+                          !isInteractionLocked
+                        ) {
                           handleToggleFlagged(question.id)
                         }
                       }}
