@@ -17465,3 +17465,110 @@ recovery preservation across managed ownership activation.
 - Require exact-head disposable CI and final read-only review, update draft PR
   #967's validation summary, and keep deployment/application of migration 117
   under fresh target-specific authorization.
+
+<!-- pika-session-log-archive-batch:2a992c45cbd84f8810a96c8499a427624855000667cc90f44561c549e9b24681 -->
+## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
+
+**Risk profile:** high — exact-path ownership adoption and concurrent rolling
+deployment writers.
+
+**Completed:**
+- Made every embedded raw-path writer take the exact-path lifecycle fence even
+  when no managed row is committed yet, then re-read ownership after waiting.
+- Rejected explicit managed UUID/path mismatches before locking the
+  caller-supplied path, preserving the canonical object-row/path lock order.
+- Pre-locked all existing UUID and raw-path identities in one global managed
+  UUID order, including identities removed by an update; newly appearing
+  identities abort safely for retry rather than mixing path-first and
+  row-first locking.
+- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
+  source before expecting readiness, and added two-session coverage for a late
+  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
+  path/UUID ordering without deadlock. Added a separate replacement race that
+  proves previous identities are locked before a new absent raw path.
+- Kept all schema work consolidated in migration 117, left migrations 115/116
+  unchanged, applied no migration, and left PR #963 untouched.
+
+**Validation:**
+- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
+  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
+
+**Remaining:**
+- Push the correction, require exact-head disposable database CI, and obtain a
+  targeted independent concurrency review before the final integration gate.
+
+<!-- pika-session-log-archive-batch:6be5f94fa62dfc9ec15a57088967fab69ae32190d7db1da3d2a9971bf4c45f36 -->
+## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
+
+**Risk profile:** high — exact-path ownership adoption and concurrent rolling
+deployment writers.
+
+**Completed:**
+- Made every embedded raw-path writer take the exact-path lifecycle fence even
+  when no managed row is committed yet, then re-read ownership after waiting.
+- Rejected explicit managed UUID/path mismatches before locking the
+  caller-supplied path, preserving the canonical object-row/path lock order.
+- Pre-locked all existing UUID and raw-path identities in one global managed
+  UUID order, including identities removed by an update; newly appearing
+  identities abort safely for retry rather than mixing path-first and
+  row-first locking.
+- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
+  source before expecting readiness, and added two-session coverage for a late
+  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
+  path/UUID ordering without deadlock. Added a separate replacement race that
+  proves previous identities are locked before a new absent raw path.
+- Kept all schema work consolidated in migration 117, left migrations 115/116
+  unchanged, applied no migration, and left PR #963 untouched.
+
+**Validation:**
+- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
+  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
+
+**Remaining:**
+- Push the correction, require exact-head disposable database CI, and obtain a
+  targeted independent concurrency review before the final integration gate.
+
+## 2026-08-03 — Closed managed-storage readiness and Blueprint retry blockers
+
+**Risk profile:** runtime-platform — migration 117 readiness liveness,
+provisional ownership, and idempotent Blueprint file copies.
+
+**Completed:**
+- Made serialized readiness transition expired, unreferenced reserved/verified
+  objects to `cleanup_pending` without deleting Storage bytes, and made expired
+  provisional-owner findings ignore settled cleanup/tombstone states.
+- Made Blueprint provisional-owner and target object identities deterministic
+  by operation, direction, and source managed identity; completed operations
+  are preflighted and incomplete retries reuse verified bytes.
+- Made capture and instantiation queue every exact provisional copy on any
+  downstream failure; referenced/adopted objects remain protected by the
+  managed cleanup authority check.
+- Added a narrowly scoped retry transition for queued, still-provisional
+  Blueprint copies, plus regressions for expiry, readiness, activation,
+  tombstone cleanup, failed atomic operations, and same-operation replay.
+- Corrected semantic Blueprint replays that succeed without adopting copies:
+  exact provisional copies are queued, while the database refuses cleanup for
+  any concurrently adopted/referenced winner.
+- Closed the compatibility cleanup race where a live reference could arrive
+  after a legacy worker claim but before Storage deletion: the protected delete
+  failure now restores the managed object to `ready` instead of re-queuing it.
+- Reconfirmed that migration 117 revokes all migration-115 purge entry points,
+  including `service_role`; no purge capability was added or exposed.
+- Kept migrations 115/116 unchanged, kept all corrections in unapplied
+  migration 117, applied no migration, enabled no worker, exposed no deletion,
+  and left PR #963 untouched.
+
+**Validation:**
+- Pika audit, lint, TypeScript, architecture/design/UI policy, lineage, shell
+  syntax, and diff checks pass.
+- Focused ownership/Blueprint tests pass (36 tests); the full suite passes
+  (459 files, 3,986 tests); the production build passes.
+- The semantic replay regression, TypeScript, shell syntax, and diff checks
+  pass after the final correction.
+- The extended database fixture was not executed locally because migration
+  application/replay still requires fresh authorization naming migration 117
+  and the local target; exact-head disposable CI remains required.
+
+**Remaining:**
+- Push the correction to PR #967, require exact-head CI including disposable
+  migration replay/database fixtures, and perform a final read-only review.

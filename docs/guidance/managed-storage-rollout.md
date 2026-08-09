@@ -122,6 +122,10 @@ the exact migration and exact target under the schema rollout checklist.
    `MANAGED_STORAGE_CLEANUP_ENABLED=true` and
    `MANAGED STORAGE CLEANUP <target>`. No scheduler is installed here.
 
+The read-only operational baseline and alert/rollout contract are documented in
+`docs/guidance/managed-deletion-monitoring.md`. It does not alter the generic
+cleanup gate or create cleanup authority.
+
 The database fixture `scripts/check-managed-storage-database.sh` is run by CI
 after a fresh migration replay. Running it locally still counts as applying the
 migrations and requires separate authorization naming the local target and exact
