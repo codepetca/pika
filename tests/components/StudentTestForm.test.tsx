@@ -97,7 +97,7 @@ describe('StudentTestForm preview mode', () => {
     expect(submitButton).toBeEnabled()
   })
 
-  it('flags and unfags a question', async () => {
+  it('exposes a named flag toggle and persists pointer changes', () => {
     const onSubmitted = vi.fn()
 
     render(
@@ -117,26 +117,89 @@ describe('StudentTestForm preview mode', () => {
       />
     )
 
-    // Get the question title area
-    const starIcon = screen.getByText('Q1')
-    const titleArea = starIcon.closest('[data-question-title-id="q1"]')!
+    const flagToggle = screen.getByRole('button', { name: 'Flag question 1 for review' })
 
-    // Initially, the question should not be flagged
-    expect(titleArea).toBeInTheDocument()
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
 
-    // Click on the question title to flag it
-    fireEvent.click(titleArea)
+    fireEvent.click(flagToggle)
 
-    // Verify the flagged state persists by checking localStorage
     const flaggedQuestions = JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-id') || '[]')
-    expect(flaggedQuestions).toContain('q1')
+    expect(flaggedQuestions).toEqual(['q1'])
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'true')
 
-    // Click on the question title again to unflag it
-    fireEvent.click(titleArea)
+    fireEvent.click(flagToggle)
 
-    // Verify the unflagged state
     const updatedFlaggedQuestions = JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-id') || '[]')
     expect(updatedFlaggedQuestions).not.toContain('q1')
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('toggles flagged state exactly once for Enter and Space', () => {
+    render(
+      <StudentTestForm
+        testId="test-flag-keyboard-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const flagToggle = screen.getByRole('button', { name: 'Flag question 1 for review' })
+
+    fireEvent.keyDown(flagToggle, { key: 'Enter' })
+    fireEvent.keyUp(flagToggle, { key: 'Enter' })
+
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-keyboard-id') || '[]')).toEqual(['q1'])
+
+    fireEvent.keyDown(flagToggle, { key: ' ' })
+    fireEvent.keyUp(flagToggle, { key: ' ' })
+
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-keyboard-id') || '[]')).toEqual([])
+  })
+
+  it('exposes locked flag controls as disabled and does not toggle them', () => {
+    render(
+      <StudentTestForm
+        testId="test-flag-locked-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        previewMode
+        isInteractionLocked
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const flagToggle = screen.getByRole('button', { name: 'Flag question 1 for review' })
+
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(flagToggle).toHaveAttribute('aria-disabled', 'true')
+    expect(flagToggle).toHaveAttribute('tabindex', '-1')
+
+    fireEvent.click(flagToggle)
+    fireEvent.keyDown(flagToggle, { key: 'Enter' })
+    fireEvent.keyUp(flagToggle, { key: 'Enter' })
+    fireEvent.keyDown(flagToggle, { key: ' ' })
+    fireEvent.keyUp(flagToggle, { key: ' ' })
+
+    expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(localStorage.getItem('pika:flagged-questions:test-flag-locked-id')).toBeNull()
   })
 
   it('shows warning when submitting with flagged questions', async () => {

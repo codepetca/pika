@@ -72,6 +72,9 @@ jobs:
       - name: Verify managed-storage ownership and enforcement
         run: bash scripts/check-managed-storage-database.sh
 
+      - name: Verify managed deletion health monitoring
+        run: pnpm run check:managed-deletion-health-db
+
       - name: Lint hot archived classroom purge database functions
         run: pnpm run check:classroom-purge-db-lint
 

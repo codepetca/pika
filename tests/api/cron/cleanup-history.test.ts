@@ -10,6 +10,7 @@ const cleanupMocks = vi.hoisted(() => ({
 }))
 const purgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const blueprintPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
+const healthMocks = vi.hoisted(() => ({ read: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -27,6 +28,10 @@ vi.mock('@/lib/server/classroom-purge', () => ({
 
 vi.mock('@/lib/server/course-blueprint-purge', () => ({
   runCourseBlueprintPurgeSafetyNet: blueprintPurgeMocks.run,
+}))
+
+vi.mock('@/lib/server/managed-deletion-health', () => ({
+  readManagedDeletionHealth: healthMocks.read,
 }))
 
 type QueryLog = {
@@ -220,6 +225,7 @@ describe('cron cleanup-history route', () => {
     cleanupMocks.enabled.mockReturnValue(false)
     purgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     blueprintPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
+    healthMocks.read.mockResolvedValue({ schemaAvailable: false })
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
   })
 
@@ -283,6 +289,108 @@ describe('cron cleanup-history route', () => {
     })
     expect(purgeMocks.run).toHaveBeenCalledOnce()
     expect(blueprintPurgeMocks.run).toHaveBeenCalledOnce()
+  })
+
+  it('checks managed deletion health after the authenticated cleanup succeeds', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    healthMocks.read.mockResolvedValue({
+      schemaAvailable: true,
+      snapshot: {
+        healthy: true,
+        critical_count: 0,
+        warning_count: 0,
+      },
+    })
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(200)
+    expect(healthMocks.read).toHaveBeenCalledWith({ supabase: mockSupabaseClient })
+  })
+
+  it('returns 503 after cleanup when managed deletion health is degraded', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    healthMocks.read.mockResolvedValue({
+      schemaAvailable: true,
+      snapshot: {
+        healthy: false,
+        critical_count: 2,
+        warning_count: 1,
+      },
+    })
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Managed deletion health degraded',
+      managed_deletion_health: {
+        critical_count: 2,
+        warning_count: 1,
+      },
+    })
+    expect(mock.from).toHaveBeenCalled()
+  })
+
+  it('keeps warning-only managed deletion findings observable without failing cleanup', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    healthMocks.read.mockResolvedValue({
+      schemaAvailable: true,
+      snapshot: {
+        healthy: true,
+        critical_count: 0,
+        warning_count: 4,
+      },
+    })
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: 'ok', deleted: 0 })
+  })
+
+  it('returns 503 when the managed deletion health probe fails', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    healthMocks.read.mockRejectedValue(Object.assign(new Error('provider detail'), {
+      code: 'managed_deletion_health_query_failed',
+    }))
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Failed to verify managed deletion health',
+    })
+    expect(console.error).toHaveBeenCalledWith(
+      '[managed-deletion-health] probe failed',
+      { error_code: 'managed_deletion_health_query_failed' },
+    )
+  })
+
+  it('does not log an unexpected health-probe error code', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    healthMocks.read.mockRejectedValue(Object.assign(new Error('provider detail'), {
+      code: 'provider-sensitive-value',
+    }))
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    await GET(cronRequest())
+
+    expect(console.error).toHaveBeenCalledWith(
+      '[managed-deletion-health] probe failed',
+      { error_code: 'managed_deletion_health_unknown_failure' },
+    )
   })
 
   it('fails when assignment save operation retention cannot be recorded', async () => {

@@ -11,6 +11,7 @@ import {
 import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 import { runClassroomPurgeSafetyNet } from '@/lib/server/classroom-purge'
 import { runCourseBlueprintPurgeSafetyNet } from '@/lib/server/course-blueprint-purge'
+import { readManagedDeletionHealth } from '@/lib/server/managed-deletion-health'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,6 +23,48 @@ const CLEANUP_PAGE_SIZE = 1000
 const SAVE_OPERATION_RETENTION_DAYS = 35
 
 type IdRow = { id: string }
+
+function managedDeletionHealthErrorCode(error: unknown): string {
+  const code = error instanceof Error && 'code' in error ? String(error.code) : ''
+  if (
+    code === 'managed_deletion_health_query_failed'
+    || code === 'managed_deletion_health_contract_invalid'
+    || code === 'managed_deletion_health_threshold_invalid'
+  ) return code
+  return 'managed_deletion_health_unknown_failure'
+}
+
+async function respondWithManagedDeletionHealth(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  body: Record<string, unknown>,
+) {
+  try {
+    const result = await readManagedDeletionHealth({ supabase })
+    if (!result.schemaAvailable) return NextResponse.json(body)
+    if (!result.snapshot.healthy || result.snapshot.critical_count > 0) {
+      console.error('[managed-deletion-health] degraded', {
+        critical_count: result.snapshot.critical_count,
+        warning_count: result.snapshot.warning_count,
+      })
+      return NextResponse.json({
+        error: 'Managed deletion health degraded',
+        managed_deletion_health: {
+          critical_count: result.snapshot.critical_count,
+          warning_count: result.snapshot.warning_count,
+        },
+      }, { status: 503 })
+    }
+    return NextResponse.json(body)
+  } catch (error) {
+    console.error('[managed-deletion-health] probe failed', {
+      error_code: managedDeletionHealthErrorCode(error),
+    })
+    return NextResponse.json(
+      { error: 'Failed to verify managed deletion health' },
+      { status: 503 },
+    )
+  }
+}
 
 function isArchiveStagingCleanupEnabled(): boolean {
   return process.env.CLASSROOM_ARCHIVE_STAGING_CLEANUP_ENABLED
@@ -192,7 +235,7 @@ async function handle(request: NextRequest) {
   }
 
   if (classroomIds.length === 0) {
-    return NextResponse.json({
+    return respondWithManagedDeletionHealth(supabase, {
       status: 'ok',
       deleted: 0,
       ...(archiveStagingCleaned === undefined
@@ -307,7 +350,7 @@ async function handle(request: NextRequest) {
   }
   deleted += testHistoryDeleted
 
-  return NextResponse.json({
+  return respondWithManagedDeletionHealth(supabase, {
     status: 'ok',
     deleted,
     ...(archiveStagingCleaned === undefined

@@ -17360,3 +17360,215 @@ write/delete serialization.
 **Remaining:**
 - Publish the correction after local static checks, require green PR CI, and
   complete the approved targeted review.
+
+<!-- pika-session-log-archive-batch:9f9c9cb0e53e2cebd1f075bffcb5b63bd44bafa495ad5e491db9bd187c49244d -->
+## 2026-08-03 — Preserved live references during cleanup cancellation
+
+**Risk profile:** high — migration-116 worker compatibility, cleanup lease
+reclamation, and managed readiness.
+
+**Completed:**
+- Distinguished physical deletion from legacy worker cancellation: a live raw
+  or managed reference with present bytes now returns the leased object to
+  `ready`, while missing referenced bytes and unreferenced present bytes still
+  fail closed.
+- Counted expired processing-lease reclamation as a new managed attempt while
+  leaving same-token renewal neutral.
+- Extended the disposable database fixture across assignment and Test snapshot
+  cancellation, retry accounting, reconciliation, readiness, Storage overwrite
+  fencing, and the local Storage-API delete simulation contract.
+- Kept generic cleanup enforcement-only, migration 117 unapplied outside CI,
+  permanent deletion unavailable, and PR #963 unchanged.
+
+**Validation:**
+- Pending focused static checks, disposable CI replay/fixture, and the approved
+  targeted follow-up review.
+
+**Remaining:**
+- Publish after local verification, require green PR CI, and complete the final
+  targeted review without starting another automatic remediation loop.
+
+## 2026-08-03 — Serialized late references with cleanup deletion
+
+**Risk profile:** high — concurrent compatibility writers, Storage deletion,
+and cleanup completion.
+
+**Completed:**
+- Normalized managed lifecycle locking to protocol, managed-object row, then
+  exact path across reservation replay, compatibility references, Storage
+  writes/deletes, operational cleanup claims, and cleanup completion.
+- Made compatibility assignment and Test JSON writers adopt an exact managed
+  identity and safely cancel processing cleanup only while bytes remain;
+  deletion-first races now reject the late reference.
+- Made Storage deletion recheck relational, embedded, and raw live references
+  under the same lifecycle fence.
+- Added disposable two-session assignment/Test race fixtures for both ordering
+  outcomes and a referenced-but-absent completion fixture that fails closed.
+- Materialized the cleanup live-reference predicate before its conditional
+  after the first disposable replay exposed a PL/pgSQL parser ambiguity.
+- Corrected readiness revision capture to bind by the serialized generation;
+  the earlier digest predicate ran before the refresh stored that digest and
+  made first-time enforcement activation fail stale despite a ready inventory.
+- Replaced the Storage writer trigger's implicit `FOUND` check with an explicit
+  managed UUID check because the intervening exact-path lock overwrote
+  `FOUND`, allowing an unreserved write even after enforcement activated.
+- Preserved active readiness evidence while an enforced deployment runs a new
+  readiness scan, avoiding an invalid transient settings row without pausing
+  enforcement; only a ready scan replaces the active evidence.
+- Kept migration 117 unapplied outside disposable CI, permanent deletion
+  unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
+
+**Validation:**
+- Full suite passes (3,975 tests), along with TypeScript, lint, architecture,
+  lineage, production build, SQL parse, shell syntax, diff check, and Pika
+  audit.
+
+**Remaining:**
+- Push the remediation, require the disposable database replay and concurrency
+  fixtures to pass, then perform the one approved final targeted review.
+
+## 2026-08-03 — Completed managed-storage archive compatibility rehearsal
+
+**Risk profile:** high — rolling archive compatibility, cleanup authority, and
+recovery preservation across managed ownership activation.
+
+**Completed:**
+- Preserved archive export and compaction under reserve-first ownership while
+  limiting the rollback rehearsal bypass to simultaneous compaction and restore
+  maintenance scopes.
+- Made legacy archive restore derive deterministic managed ownership for
+  assignment artifacts, submission images, and Test documents; ambiguous or
+  mismatched legacy references fail closed.
+- Updated recovery teardown to use the existing disabled cleanup protocols and
+  accept current `classroom-v2.tar.gz` archive identities without introducing a
+  scheduler, purge path, or enabled production worker.
+- Added a service-role-only exact managed-object presence probe so cleanup can
+  verify local Storage API 400 responses without trusting bucket-level evidence.
+- Closed the final Blueprint rollout gap: identity-less Test uploads are
+  atomically registered to their exact existing owner in compatibility mode
+  before producing a distinct managed provisional copy; ambiguous, explicit,
+  owner-mismatched, unsettled, and post-enforcement sources fail closed.
+- Kept migrations 115/116 byte-identical to deployed production history, kept
+  all new schema work in migration 117, applied no migration outside disposable
+  CI, and left draft PR #963 unchanged.
+
+**Validation:**
+- CI run 30826141547 is fully green: migration replay and generated types,
+  ownership/enforcement and concurrency database fixtures, archive recovery and
+  teardown, Browser Experience Matrix, full tests, TypeScript, lint, and build.
+- Focused cleanup and migration tests, Pika audit, migration-lineage hashes,
+  diff checks, and branch/remote cleanliness pass at `06983ebd`.
+- Focused Blueprint compatibility and migration contracts pass after the final
+  review remediation, along with TypeScript, shell syntax, and changed-file audit.
+
+**Remaining:**
+- Require exact-head disposable CI and final read-only review, update draft PR
+  #967's validation summary, and keep deployment/application of migration 117
+  under fresh target-specific authorization.
+
+<!-- pika-session-log-archive-batch:2a992c45cbd84f8810a96c8499a427624855000667cc90f44561c549e9b24681 -->
+## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
+
+**Risk profile:** high — exact-path ownership adoption and concurrent rolling
+deployment writers.
+
+**Completed:**
+- Made every embedded raw-path writer take the exact-path lifecycle fence even
+  when no managed row is committed yet, then re-read ownership after waiting.
+- Rejected explicit managed UUID/path mismatches before locking the
+  caller-supplied path, preserving the canonical object-row/path lock order.
+- Pre-locked all existing UUID and raw-path identities in one global managed
+  UUID order, including identities removed by an update; newly appearing
+  identities abort safely for retry rather than mixing path-first and
+  row-first locking.
+- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
+  source before expecting readiness, and added two-session coverage for a late
+  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
+  path/UUID ordering without deadlock. Added a separate replacement race that
+  proves previous identities are locked before a new absent raw path.
+- Kept all schema work consolidated in migration 117, left migrations 115/116
+  unchanged, applied no migration, and left PR #963 untouched.
+
+**Validation:**
+- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
+  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
+
+**Remaining:**
+- Push the correction, require exact-head disposable database CI, and obtain a
+  targeted independent concurrency review before the final integration gate.
+
+<!-- pika-session-log-archive-batch:6be5f94fa62dfc9ec15a57088967fab69ae32190d7db1da3d2a9971bf4c45f36 -->
+## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
+
+**Risk profile:** high — exact-path ownership adoption and concurrent rolling
+deployment writers.
+
+**Completed:**
+- Made every embedded raw-path writer take the exact-path lifecycle fence even
+  when no managed row is committed yet, then re-read ownership after waiting.
+- Rejected explicit managed UUID/path mismatches before locking the
+  caller-supplied path, preserving the canonical object-row/path lock order.
+- Pre-locked all existing UUID and raw-path identities in one global managed
+  UUID order, including identities removed by an update; newly appearing
+  identities abort safely for retry rather than mixing path-first and
+  row-first locking.
+- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
+  source before expecting readiness, and added two-session coverage for a late
+  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
+  path/UUID ordering without deadlock. Added a separate replacement race that
+  proves previous identities are locked before a new absent raw path.
+- Kept all schema work consolidated in migration 117, left migrations 115/116
+  unchanged, applied no migration, and left PR #963 untouched.
+
+**Validation:**
+- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
+  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
+
+**Remaining:**
+- Push the correction, require exact-head disposable database CI, and obtain a
+  targeted independent concurrency review before the final integration gate.
+
+## 2026-08-03 — Closed managed-storage readiness and Blueprint retry blockers
+
+**Risk profile:** runtime-platform — migration 117 readiness liveness,
+provisional ownership, and idempotent Blueprint file copies.
+
+**Completed:**
+- Made serialized readiness transition expired, unreferenced reserved/verified
+  objects to `cleanup_pending` without deleting Storage bytes, and made expired
+  provisional-owner findings ignore settled cleanup/tombstone states.
+- Made Blueprint provisional-owner and target object identities deterministic
+  by operation, direction, and source managed identity; completed operations
+  are preflighted and incomplete retries reuse verified bytes.
+- Made capture and instantiation queue every exact provisional copy on any
+  downstream failure; referenced/adopted objects remain protected by the
+  managed cleanup authority check.
+- Added a narrowly scoped retry transition for queued, still-provisional
+  Blueprint copies, plus regressions for expiry, readiness, activation,
+  tombstone cleanup, failed atomic operations, and same-operation replay.
+- Corrected semantic Blueprint replays that succeed without adopting copies:
+  exact provisional copies are queued, while the database refuses cleanup for
+  any concurrently adopted/referenced winner.
+- Closed the compatibility cleanup race where a live reference could arrive
+  after a legacy worker claim but before Storage deletion: the protected delete
+  failure now restores the managed object to `ready` instead of re-queuing it.
+- Reconfirmed that migration 117 revokes all migration-115 purge entry points,
+  including `service_role`; no purge capability was added or exposed.
+- Kept migrations 115/116 unchanged, kept all corrections in unapplied
+  migration 117, applied no migration, enabled no worker, exposed no deletion,
+  and left PR #963 untouched.
+
+**Validation:**
+- Pika audit, lint, TypeScript, architecture/design/UI policy, lineage, shell
+  syntax, and diff checks pass.
+- Focused ownership/Blueprint tests pass (36 tests); the full suite passes
+  (459 files, 3,986 tests); the production build passes.
+- The semantic replay regression, TypeScript, shell syntax, and diff checks
+  pass after the final correction.
+- The extended database fixture was not executed locally because migration
+  application/replay still requires fresh authorization naming migration 117
+  and the local target; exact-head disposable CI remains required.
+
+**Remaining:**
+- Push the correction to PR #967, require exact-head CI including disposable
+  migration replay/database fixtures, and perform a final read-only review.

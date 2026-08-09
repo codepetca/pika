@@ -11,185 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-03 — Preserved live references during cleanup cancellation
-
-**Risk profile:** high — migration-116 worker compatibility, cleanup lease
-reclamation, and managed readiness.
-
-**Completed:**
-- Distinguished physical deletion from legacy worker cancellation: a live raw
-  or managed reference with present bytes now returns the leased object to
-  `ready`, while missing referenced bytes and unreferenced present bytes still
-  fail closed.
-- Counted expired processing-lease reclamation as a new managed attempt while
-  leaving same-token renewal neutral.
-- Extended the disposable database fixture across assignment and Test snapshot
-  cancellation, retry accounting, reconciliation, readiness, Storage overwrite
-  fencing, and the local Storage-API delete simulation contract.
-- Kept generic cleanup enforcement-only, migration 117 unapplied outside CI,
-  permanent deletion unavailable, and PR #963 unchanged.
-
-**Validation:**
-- Pending focused static checks, disposable CI replay/fixture, and the approved
-  targeted follow-up review.
-
-**Remaining:**
-- Publish after local verification, require green PR CI, and complete the final
-  targeted review without starting another automatic remediation loop.
-
-## 2026-08-03 — Serialized late references with cleanup deletion
-
-**Risk profile:** high — concurrent compatibility writers, Storage deletion,
-and cleanup completion.
-
-**Completed:**
-- Normalized managed lifecycle locking to protocol, managed-object row, then
-  exact path across reservation replay, compatibility references, Storage
-  writes/deletes, operational cleanup claims, and cleanup completion.
-- Made compatibility assignment and Test JSON writers adopt an exact managed
-  identity and safely cancel processing cleanup only while bytes remain;
-  deletion-first races now reject the late reference.
-- Made Storage deletion recheck relational, embedded, and raw live references
-  under the same lifecycle fence.
-- Added disposable two-session assignment/Test race fixtures for both ordering
-  outcomes and a referenced-but-absent completion fixture that fails closed.
-- Materialized the cleanup live-reference predicate before its conditional
-  after the first disposable replay exposed a PL/pgSQL parser ambiguity.
-- Corrected readiness revision capture to bind by the serialized generation;
-  the earlier digest predicate ran before the refresh stored that digest and
-  made first-time enforcement activation fail stale despite a ready inventory.
-- Replaced the Storage writer trigger's implicit `FOUND` check with an explicit
-  managed UUID check because the intervening exact-path lock overwrote
-  `FOUND`, allowing an unreserved write even after enforcement activated.
-- Preserved active readiness evidence while an enforced deployment runs a new
-  readiness scan, avoiding an invalid transient settings row without pausing
-  enforcement; only a ready scan replaces the active evidence.
-- Kept migration 117 unapplied outside disposable CI, permanent deletion
-  unavailable, deployed migrations 115/116 unchanged, and PR #963 untouched.
-
-**Validation:**
-- Full suite passes (3,975 tests), along with TypeScript, lint, architecture,
-  lineage, production build, SQL parse, shell syntax, diff check, and Pika
-  audit.
-
-**Remaining:**
-- Push the remediation, require the disposable database replay and concurrency
-  fixtures to pass, then perform the one approved final targeted review.
-
-## 2026-08-03 — Completed managed-storage archive compatibility rehearsal
-
-**Risk profile:** high — rolling archive compatibility, cleanup authority, and
-recovery preservation across managed ownership activation.
-
-**Completed:**
-- Preserved archive export and compaction under reserve-first ownership while
-  limiting the rollback rehearsal bypass to simultaneous compaction and restore
-  maintenance scopes.
-- Made legacy archive restore derive deterministic managed ownership for
-  assignment artifacts, submission images, and Test documents; ambiguous or
-  mismatched legacy references fail closed.
-- Updated recovery teardown to use the existing disabled cleanup protocols and
-  accept current `classroom-v2.tar.gz` archive identities without introducing a
-  scheduler, purge path, or enabled production worker.
-- Added a service-role-only exact managed-object presence probe so cleanup can
-  verify local Storage API 400 responses without trusting bucket-level evidence.
-- Closed the final Blueprint rollout gap: identity-less Test uploads are
-  atomically registered to their exact existing owner in compatibility mode
-  before producing a distinct managed provisional copy; ambiguous, explicit,
-  owner-mismatched, unsettled, and post-enforcement sources fail closed.
-- Kept migrations 115/116 byte-identical to deployed production history, kept
-  all new schema work in migration 117, applied no migration outside disposable
-  CI, and left draft PR #963 unchanged.
-
-**Validation:**
-- CI run 30826141547 is fully green: migration replay and generated types,
-  ownership/enforcement and concurrency database fixtures, archive recovery and
-  teardown, Browser Experience Matrix, full tests, TypeScript, lint, and build.
-- Focused cleanup and migration tests, Pika audit, migration-lineage hashes,
-  diff checks, and branch/remote cleanliness pass at `06983ebd`.
-- Focused Blueprint compatibility and migration contracts pass after the final
-  review remediation, along with TypeScript, shell syntax, and changed-file audit.
-
-**Remaining:**
-- Require exact-head disposable CI and final read-only review, update draft PR
-  #967's validation summary, and keep deployment/application of migration 117
-  under fresh target-specific authorization.
-
-## 2026-08-03 — Serialized Blueprint adoption with raw compatibility writers
-
-**Risk profile:** high — exact-path ownership adoption and concurrent rolling
-deployment writers.
-
-**Completed:**
-- Made every embedded raw-path writer take the exact-path lifecycle fence even
-  when no managed row is committed yet, then re-read ownership after waiting.
-- Rejected explicit managed UUID/path mismatches before locking the
-  caller-supplied path, preserving the canonical object-row/path lock order.
-- Pre-locked all existing UUID and raw-path identities in one global managed
-  UUID order, including identities removed by an update; newly appearing
-  identities abort safely for retry rather than mixing path-first and
-  row-first locking.
-- Corrected the disposable fixture to adopt its deliberate legacy Blueprint
-  source before expecting readiness, and added two-session coverage for a late
-  cross-Classroom raw writer, a held wrong-path mismatch lock, and inverse
-  path/UUID ordering without deadlock. Added a separate replacement race that
-  proves previous identities are locked before a new absent raw path.
-- Kept all schema work consolidated in migration 117, left migrations 115/116
-  unchanged, applied no migration, and left PR #963 untouched.
-
-**Validation:**
-- Focused Blueprint and migration contract tests, TypeScript, shellcheck, shell
-  syntax, SQL parse, migration lineage, diff checks, and Pika audit pass.
-
-**Remaining:**
-- Push the correction, require exact-head disposable database CI, and obtain a
-  targeted independent concurrency review before the final integration gate.
-
-## 2026-08-03 — Closed managed-storage readiness and Blueprint retry blockers
-
-**Risk profile:** runtime-platform — migration 117 readiness liveness,
-provisional ownership, and idempotent Blueprint file copies.
-
-**Completed:**
-- Made serialized readiness transition expired, unreferenced reserved/verified
-  objects to `cleanup_pending` without deleting Storage bytes, and made expired
-  provisional-owner findings ignore settled cleanup/tombstone states.
-- Made Blueprint provisional-owner and target object identities deterministic
-  by operation, direction, and source managed identity; completed operations
-  are preflighted and incomplete retries reuse verified bytes.
-- Made capture and instantiation queue every exact provisional copy on any
-  downstream failure; referenced/adopted objects remain protected by the
-  managed cleanup authority check.
-- Added a narrowly scoped retry transition for queued, still-provisional
-  Blueprint copies, plus regressions for expiry, readiness, activation,
-  tombstone cleanup, failed atomic operations, and same-operation replay.
-- Corrected semantic Blueprint replays that succeed without adopting copies:
-  exact provisional copies are queued, while the database refuses cleanup for
-  any concurrently adopted/referenced winner.
-- Closed the compatibility cleanup race where a live reference could arrive
-  after a legacy worker claim but before Storage deletion: the protected delete
-  failure now restores the managed object to `ready` instead of re-queuing it.
-- Reconfirmed that migration 117 revokes all migration-115 purge entry points,
-  including `service_role`; no purge capability was added or exposed.
-- Kept migrations 115/116 unchanged, kept all corrections in unapplied
-  migration 117, applied no migration, enabled no worker, exposed no deletion,
-  and left PR #963 untouched.
-
-**Validation:**
-- Pika audit, lint, TypeScript, architecture/design/UI policy, lineage, shell
-  syntax, and diff checks pass.
-- Focused ownership/Blueprint tests pass (36 tests); the full suite passes
-  (459 files, 3,986 tests); the production build passes.
-- The semantic replay regression, TypeScript, shell syntax, and diff checks
-  pass after the final correction.
-- The extended database fixture was not executed locally because migration
-  application/replay still requires fresh authorization naming migration 117
-  and the local target; exact-head disposable CI remains required.
-
-**Remaining:**
-- Push the correction to PR #967, require exact-head CI including disposable
-  migration replay/database fixtures, and perform a final read-only review.
-
 ## 2026-08-04 — Hardened purge rollout visibility and verification gates
 
 **Risk profile:** runtime-platform — irreversible classroom purge rollout,
@@ -1123,3 +944,138 @@ concurrency, outage recovery, and production release evidence.
 - Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
   architecture/design/UI policy checks, Pika audit, production build, both
   real-database/HTTP Pal harnesses, continuity validation, and diff checks.
+
+## 2026-08-08 — Install production Blueprint purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified the dedicated worktree at merged `main`, the hub-linked production
+  Pika project, migration history through 119, migration 120 static checks, and
+  the managed-storage lineage.
+- Confirmed the linked dry run contained only
+  `120_course_blueprint_purge_managed_ownership.sql`.
+- Applied migration 120 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Production migration history now records 120.
+- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
+  and Blueprint IDs are null, and no Blueprint purge operation exists.
+- No purge, managed-storage cleanup, rollout activation, or Storage deletion
+  ran. Enabling a canary remains a separate production decision.
+
+## 2026-08-08 — Complete managed deletion production rollout
+
+**Risk profile:** irreversible production deletion availability with fail-closed
+authorization, ownership, operation-conflict, and managed-storage gates.
+
+**Completed:**
+- Ran successful production canaries for managed Course Blueprint deletion and
+  hot archived Classroom deletion, preserving linked Classrooms, reusable
+  Classroom-owned files, and user accounts where required.
+- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
+  Blueprints and hot archived Classrooms. Cold archives and comprehensive
+  individual-student purging remain separate follow-up scopes.
+- Refreshed the protected synthetic verification credentials after invalidating
+  a diagnostic-output exposure; no real-user credentials were affected.
+
+**Validation:**
+- Production migration history matches local migrations 001–120, and managed
+  storage remains enforced at protocol version 2.
+- All three current hot archived Classrooms and both current Course Blueprints
+  report deletion available, with zero active purge operations or conflicts.
+- Managed Storage reconciles at 140 registered/140 stored objects with no
+  missing, unregistered, interrupted, or active-cleanup objects.
+- Desktop/mobile teacher and student boundaries passed; non-owner teacher
+  access returned 404 and student access returned 403. No purge was started by
+  either broad rollout action.
+
+## 2026-08-08 — Add accessible student test flag toggles
+
+**Risk profile:** exam-mode — student test-taking interaction and lock behavior.
+
+**Completed:**
+- Exposed each `StudentTestForm` question flag heading as a named toggle with
+  `aria-pressed`, plus `aria-disabled` and removed tab stops while interaction
+  is locked.
+- Preserved the existing heading-sized target, visual treatment, localStorage
+  contract, and single-toggle Enter/Space behavior.
+- Added component coverage for pointer round trips, Enter, Space, accessible
+  naming, initial/updated pressed state, persistence, and locked behavior.
+
+**Validation:**
+- Focused `StudentTestForm` component tests, TypeScript, lint, architecture,
+  UI/design policy checks, Pika audit, and `git diff --check` passed.
+- Playwright visual verification passed for the student form in desktop/mobile,
+  light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
+  applicable.
+
+## 2026-08-08 — Audit remaining managed deletion scopes
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss,
+cross-Classroom student lineage, managed Storage, and durable purge recovery.
+
+**Audited:**
+- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
+  session-start workflow, and verified the local read-only schema is exactly at
+  migrations 001–120.
+- Traced cold tombstones, immutable archives, restore/compaction operations,
+  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
+  fences, and the complete Classroom resource graph.
+- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
+  student files, existing partial roster removal, account-level data, Pal
+  ledgers, and cross-Classroom preservation boundaries.
+
+**Recommendation:**
+- Add privacy-safe read-only deletion health monitoring first, then implement
+  cold-Classroom purge and Classroom-scoped individual-student purge as
+  separate migrations and PRs with independent rollout gates.
+- Keep generic orphan cleanup disabled; neither purge scope depends on it.
+- Require cold archives to be restored before individual-student purge; do not
+  rewrite immutable archive bundles or erase user accounts/other Classrooms.
+
+**Boundary:**
+- No implementation, migration application, local reset, rollout change,
+  production query, purge, or Storage deletion was performed. PR #963 remains
+  closed and untouched. Awaiting approval of the scope and sequencing package.
+
+## 2026-08-08 — Add managed deletion health monitoring baseline
+
+**Risk profile:** runtime-platform — read-only production health aggregation
+across irreversible purge ledgers and managed-storage ownership.
+
+**Completed:**
+- Added migration 121 with a service-role-only, aggregate RPC for hot
+  Classroom and Course Blueprint purge failures/stalls, fence/lease drift,
+  deleted-object reappearance, and managed-storage ownership/reference drift.
+- Added an exact Zod response boundary, code-first missing-schema compatibility,
+  privacy-safe structured counts, and sanitized probe failures.
+- Integrated the probe after successful work in the existing authenticated
+  daily cleanup cron. Critical findings return 503; warning-only findings remain
+  observable without granting cleanup authority.
+- After the initial independent review of PR #980, moved recursive JSON/history
+  reconciliation out of the daily path into a separate unscheduled,
+  service-role-only diagnostic; added payload UUID/digest mismatch detection and
+  made every dependency error except the exact missing-RPC signal fail closed.
+  A targeted follow-up made evidence reconciliation registry-driven so removing
+  a payload's final managed reference cannot hide the stale registry row.
+- Documented operator response and staged rollout. Generic orphan cleanup stays
+  disabled, and no additional cron schedule or deletion capability was added.
+
+**Validation:**
+- Full Vitest passed (478 files, 4,128 tests), plus focused monitoring/migration
+  tests, TypeScript, lint, architecture boundaries, managed-storage
+  lineage, hot-Classroom purge SQL lint, production build, and diff checks.
+- After separate exact authorization, the dry run previewed only migration 121
+  and it was applied once to the dedicated local Supabase database. Rollback-only
+  database fixtures proved read-only/service-role/privacy boundaries, warning
+  and critical findings, partial/lease/reappearance detection, eight concurrent
+  readers, and a 1,000-object runtime of 9–34 ms with 6,265 shared-buffer hits.
+- The originally authorized local application predates the review correction;
+  that one-time permission was not reused. Final generated types and the revised
+  rollback fixture are gated on PR CI's fresh ephemeral migration replay. No reset, remote migration,
+  rollout change, production query, purge, or persistent Storage deletion was
+  performed; the temporary helper and all fixtures were removed. No UI changed,
+  so visual verification was not applicable.
