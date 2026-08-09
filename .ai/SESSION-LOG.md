@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-04 — Hardened purge rollout visibility and verification gates
-
-**Risk profile:** runtime-platform — irreversible classroom purge rollout,
-PostgreSQL function semantics, and conflicting background operations.
-
-**Completed:**
-- Added a fail-closed, server-authoritative archive-list field so permanent
-  deletion is visible only when managed ownership is enforced and the exact
-  teacher/classroom rollout gate is open; the purge RPC remains final authority.
-- Corrected the migration-118 conflict function volatility and added a scoped
-  database-lint gate that checks every function created or replaced by 118
-  without making unrelated historical warnings a new CI baseline.
-- Expanded the rollback-only destructive fixture to independently prove active
-  archive, restore, assignment grading, repository grading, test grading,
-  Blueprint operation, proposal, and editing-session conflicts.
-- Visually verified teacher archived list/dialog and the student boundary on
-  desktop/mobile in light/dark through Playwright interception, without changing
-  local rollout settings.
-
-**Validation:**
-- Pika audit, TypeScript, lint, architecture, design/UI policy, diff checks, and
-  production build pass; full Vitest passes (464 files, 4,010 tests).
-- The current old local migration body makes the new database lint and purge
-  fixture fail exactly at the known composite-row assignment; all newly added
-  conflict assertions pass before that expected boundary.
-
-**Remaining:**
-- Obtain fresh authorization to reset/reseed local Supabase, replay corrected
-  migration 118, regenerate types, and rerun the lint/readiness/destructive
-  fixtures. Keep staging/production untouched and rollout gates disabled.
-
 ## 2026-08-04 — Replayed and verified managed-ownership purge locally
 
 **Risk profile:** runtime-platform — authorized destructive local database reset
@@ -1079,3 +1048,25 @@ across irreversible purge ledgers and managed-storage ownership.
   rollout change, production query, purge, or persistent Storage deletion was
   performed; the temporary helper and all fixtures were removed. No UI changed,
   so visual verification was not applicable.
+
+## 2026-08-09 — Deploy managed deletion health monitoring
+
+**Risk profile:** runtime-platform — production schema activation, daily cron
+monitoring, and managed-storage health visibility.
+
+**Completed:**
+- Merged `main` into protected `production` through PR #981 after the full CI,
+  database-contract, build, and browser matrix passed; Vercel confirmed
+  production commit `64e8a22a` deployed.
+- Verified the linked production Supabase project had migrations 001–120 and
+  that the dry run contained only `121_managed_deletion_health_monitoring.sql`,
+  then applied migration 121 once under exact production authorization.
+- Kept generic orphan cleanup disabled and did not invoke a purge, retry,
+  cleanup route, rollout gate, Storage deletion, or the deep JSON diagnostic.
+
+**Validation:**
+- Production migration history now records 001–121.
+- The lightweight service-role aggregate RPC returned HTTP 200 with
+  `healthy: true`, zero critical findings, zero warnings, and zero managed
+  storage or purge-protocol drift; anonymous invocation was denied with 401.
+- The production worktree is clean and synchronized with `origin/production`.
