@@ -17572,3 +17572,35 @@ provisional ownership, and idempotent Blueprint file copies.
 **Remaining:**
 - Push the correction to PR #967, require exact-head CI including disposable
   migration replay/database fixtures, and perform a final read-only review.
+
+<!-- pika-session-log-archive-batch:ddc9b1f38043d79e7d5210951d61f8610d95e97873e74ea92c1333df59bdb080 -->
+## 2026-08-04 — Hardened purge rollout visibility and verification gates
+
+**Risk profile:** runtime-platform — irreversible classroom purge rollout,
+PostgreSQL function semantics, and conflicting background operations.
+
+**Completed:**
+- Added a fail-closed, server-authoritative archive-list field so permanent
+  deletion is visible only when managed ownership is enforced and the exact
+  teacher/classroom rollout gate is open; the purge RPC remains final authority.
+- Corrected the migration-118 conflict function volatility and added a scoped
+  database-lint gate that checks every function created or replaced by 118
+  without making unrelated historical warnings a new CI baseline.
+- Expanded the rollback-only destructive fixture to independently prove active
+  archive, restore, assignment grading, repository grading, test grading,
+  Blueprint operation, proposal, and editing-session conflicts.
+- Visually verified teacher archived list/dialog and the student boundary on
+  desktop/mobile in light/dark through Playwright interception, without changing
+  local rollout settings.
+
+**Validation:**
+- Pika audit, TypeScript, lint, architecture, design/UI policy, diff checks, and
+  production build pass; full Vitest passes (464 files, 4,010 tests).
+- The current old local migration body makes the new database lint and purge
+  fixture fail exactly at the known composite-row assignment; all newly added
+  conflict assertions pass before that expected boundary.
+
+**Remaining:**
+- Obtain fresh authorization to reset/reseed local Supabase, replay corrected
+  migration 118, regenerate types, and rerun the lint/readiness/destructive
+  fixtures. Keep staging/production untouched and rollout gates disabled.
