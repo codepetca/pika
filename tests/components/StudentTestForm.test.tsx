@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { createMockTestQuestion } from '../helpers/mocks'
 
-describe('StudentTestForm preview mode', () => {
+describe('StudentTestForm', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
     localStorage.clear()
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     localStorage.clear()
@@ -118,20 +119,56 @@ describe('StudentTestForm preview mode', () => {
     )
 
     const flagToggle = screen.getByRole('button', { name: 'Flag question 1 for review' })
+    const flagStatus = screen.getByTestId('student-test-flag-status')
 
     expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(flagStatus).toHaveTextContent('')
+    expect(flagStatus).toHaveAttribute('role', 'status')
+    expect(flagStatus).toHaveAttribute('aria-live', 'polite')
+    expect(flagStatus).toHaveAttribute('aria-atomic', 'true')
 
     fireEvent.click(flagToggle)
 
     const flaggedQuestions = JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-id') || '[]')
     expect(flaggedQuestions).toEqual(['q1'])
     expect(flagToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(flagStatus).toHaveTextContent('Question 1 flagged for review.')
+    expect(screen.getAllByText('Question 1 flagged for review.')).toHaveLength(1)
 
     fireEvent.click(flagToggle)
 
     const updatedFlaggedQuestions = JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-id') || '[]')
     expect(updatedFlaggedQuestions).not.toContain('q1')
     expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(flagStatus).toHaveTextContent('Question 1 removed from review.')
+    expect(screen.getAllByText('Question 1 removed from review.')).toHaveLength(1)
+  })
+
+  it('does not announce flags loaded from local storage', () => {
+    localStorage.setItem('pika:flagged-questions:test-existing-flag-id', JSON.stringify(['q1']))
+
+    render(
+      <StudentTestForm
+        testId="test-existing-flag-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Flag question 1 for review' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByTestId('student-test-flag-status')).toHaveTextContent('')
   })
 
   it('toggles flagged state exactly once for Enter and Space', () => {
@@ -153,18 +190,159 @@ describe('StudentTestForm preview mode', () => {
     )
 
     const flagToggle = screen.getByRole('button', { name: 'Flag question 1 for review' })
+    const flagStatus = screen.getByTestId('student-test-flag-status')
 
     fireEvent.keyDown(flagToggle, { key: 'Enter' })
     fireEvent.keyUp(flagToggle, { key: 'Enter' })
 
     expect(flagToggle).toHaveAttribute('aria-pressed', 'true')
     expect(JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-keyboard-id') || '[]')).toEqual(['q1'])
+    expect(flagStatus).toHaveTextContent('Question 1 flagged for review.')
+    expect(screen.getAllByText('Question 1 flagged for review.')).toHaveLength(1)
 
     fireEvent.keyDown(flagToggle, { key: ' ' })
     fireEvent.keyUp(flagToggle, { key: ' ' })
 
     expect(flagToggle).toHaveAttribute('aria-pressed', 'false')
     expect(JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-keyboard-id') || '[]')).toEqual([])
+    expect(flagStatus).toHaveTextContent('Question 1 removed from review.')
+    expect(screen.getAllByText('Question 1 removed from review.')).toHaveLength(1)
+  })
+
+  it('announces actual autosave transitions with controlled timers and promises', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T12:00:00Z'))
+
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    let resolveSave!: (value: { ok: boolean; json: () => Promise<Record<string, never>> }) => void
+    const saveResponse = new Promise<{ ok: boolean; json: () => Promise<Record<string, never>> }>(
+      (resolve) => {
+        resolveSave = resolve
+      }
+    )
+    fetchMock.mockReturnValueOnce(saveResponse)
+
+    render(
+      <StudentTestForm
+        testId="test-autosave-status-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Explain your reasoning.',
+            options: [],
+            question_type: 'open_response',
+            position: 0,
+          }),
+        ]}
+        enableDraftAutosave
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+    const autosaveStatus = screen.getByTestId('student-test-autosave-status')
+
+    expect(screen.getByText('Saved')).toBeInTheDocument()
+    expect(autosaveStatus).toHaveTextContent('')
+    expect(autosaveStatus).toHaveAttribute('role', 'status')
+    expect(autosaveStatus).toHaveAttribute('aria-live', 'polite')
+    expect(autosaveStatus).toHaveAttribute('aria-atomic', 'true')
+
+    fireEvent.change(textbox, { target: { value: 'A retained response.' } })
+
+    expect(screen.getByText('Unsaved changes', { selector: '.text-xs' })).toBeInTheDocument()
+    expect(autosaveStatus).toHaveTextContent('Unsaved changes')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Saving...')).toBeInTheDocument()
+    expect(autosaveStatus).toHaveTextContent('Saving')
+
+    await act(async () => {
+      resolveSave({ ok: true, json: async () => ({}) })
+      await saveResponse
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Saved', { selector: '.text-xs' })).toBeInTheDocument()
+    expect(autosaveStatus).toHaveTextContent('Saved')
+  })
+
+  it('exposes failed autosaves as alerts and preserves the student response', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T12:00:00Z'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Failed to save draft' }),
+    })
+
+    render(
+      <StudentTestForm
+        testId="test-autosave-error-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Explain your reasoning.',
+            options: [],
+            question_type: 'open_response',
+            position: 0,
+          }),
+        ]}
+        enableDraftAutosave
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+    fireEvent.change(textbox, { target: { value: 'Keep this response.' } })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Failed to save draft')
+    expect(alert).toHaveAttribute('aria-live', 'assertive')
+    expect(alert).toHaveAttribute('aria-atomic', 'true')
+    expect(textbox).toHaveValue('Keep this response.')
+    expect(screen.getByTestId('student-test-autosave-status')).toHaveTextContent(
+      'Unsaved changes'
+    )
+  })
+
+  it('does not render autosave status in preview mode', () => {
+    render(
+      <StudentTestForm
+        testId="test-preview-autosave-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Explain your reasoning.',
+            options: [],
+            question_type: 'open_response',
+            position: 0,
+          }),
+        ]}
+        enableDraftAutosave
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Response for question 1' }), {
+      target: { value: 'Preview response.' },
+    })
+
+    expect(screen.queryByTestId('student-test-autosave-status')).not.toBeInTheDocument()
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 
   it('exposes locked flag controls as disabled and does not toggle them', () => {
@@ -376,6 +554,6 @@ describe('StudentTestForm preview mode', () => {
     })
 
     expect(onSubmitted).not.toHaveBeenCalled()
-    expect(screen.getByText('Test is not active')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Test is not active')
   })
 })

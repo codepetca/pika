@@ -68,8 +68,10 @@ export function StudentTestForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [autosaveAnnouncement, setAutosaveAnnouncement] = useState('')
   const [previewSubmitMessage, setPreviewSubmitMessage] = useState('')
   const [flaggedQuestions, setFlaggedQuestions] = useState<string[]>([])
+  const [flagAnnouncement, setFlagAnnouncement] = useState('')
   const [showFlaggedWarning, setShowFlaggedWarning] = useState(false)
   const shouldAutosave = enableDraftAutosave && !previewMode
 
@@ -93,7 +95,18 @@ export function StudentTestForm({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           {shouldAutosave && (
-            <p className="text-xs text-text-muted">{saveStatusLabel}</p>
+            <>
+              <p className="text-xs text-text-muted">{saveStatusLabel}</p>
+              <p
+                data-testid="student-test-autosave-status"
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {autosaveAnnouncement}
+              </p>
+            </>
           )}
           {!allAnswered && (
             <p className="text-sm text-text-muted">Answer all questions to submit</p>
@@ -122,10 +135,13 @@ export function StudentTestForm({
     pendingResponsesRef.current = normalized
     lastSavedResponsesRef.current = JSON.stringify(normalized)
     setSaveStatus('saved')
+    setAutosaveAnnouncement('')
   }, [initialResponses, testId])
 
   // Load and monitor flagged questions from localStorage
   useEffect(() => {
+    setFlagAnnouncement('')
+
     const loadFlaggedQuestions = () => {
       const flagged = getFlaggedQuestions(testId)
       setFlaggedQuestions(flagged)
@@ -152,10 +168,13 @@ export function StudentTestForm({
     const serialized = JSON.stringify(next)
     if (!options?.force && serialized === lastSavedResponsesRef.current) {
       setSaveStatus('saved')
+      setAutosaveAnnouncement('')
       return
     }
 
+    setError('')
     setSaveStatus('saving')
+    setAutosaveAnnouncement('Saving')
     lastSaveAttemptAtRef.current = Date.now()
 
     try {
@@ -173,13 +192,16 @@ export function StudentTestForm({
       }
       lastSavedResponsesRef.current = serialized
       setSaveStatus('saved')
+      setAutosaveAnnouncement('Saved')
     } catch (saveError) {
       console.error('Error saving test draft:', saveError)
       const message = saveError instanceof Error ? saveError.message : 'Failed to save draft'
       if (isAssessmentAvailabilityError(message)) {
         onAvailabilityLoss?.()
       }
+      setError(message)
       setSaveStatus('unsaved')
+      setAutosaveAnnouncement('Unsaved changes')
     }
   }, [apiBasePath, onAvailabilityLoss, testId, shouldAutosave])
 
@@ -234,6 +256,7 @@ export function StudentTestForm({
       })
       if (shouldAutosave) {
         setSaveStatus('unsaved')
+        setAutosaveAnnouncement('Unsaved changes')
         pendingResponsesRef.current = next
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current)
@@ -259,6 +282,7 @@ export function StudentTestForm({
       })
       if (shouldAutosave) {
         setSaveStatus('unsaved')
+        setAutosaveAnnouncement('Unsaved changes')
         pendingResponsesRef.current = next
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current)
@@ -412,16 +436,31 @@ export function StudentTestForm({
     }
   }
 
-  function handleToggleFlagged(questionId: string) {
+  function handleToggleFlagged(questionId: string, questionNumber: number) {
     if (isInteractionLocked) return
 
+    const wasFlagged = isQuestionFlagged(testId, questionId)
     toggleFlaggedQuestion(testId, questionId)
     const updated = getFlaggedQuestions(testId)
     setFlaggedQuestions(updated)
+    setFlagAnnouncement(
+      wasFlagged
+        ? `Question ${questionNumber} removed from review.`
+        : `Question ${questionNumber} flagged for review.`
+    )
   }
 
   return (
     <>
+      <p
+        data-testid="student-test-flag-status"
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {flagAnnouncement}
+      </p>
       <div className="mt-4 flex min-h-full flex-col gap-6">
         <div className="space-y-6">
           {questions.map((question, index) => (
@@ -441,7 +480,9 @@ export function StudentTestForm({
                       className={`group relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
                         isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
                       } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
-                      onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
+                      onClick={() =>
+                        !isInteractionLocked && handleToggleFlagged(question.id, index + 1)
+                      }
                       title={isFlagged ? 'Unflag question' : 'Flag for review'}
                       role="button"
                       aria-label={`Flag question ${index + 1} for review`}
@@ -457,7 +498,7 @@ export function StudentTestForm({
                           !e.repeat &&
                           !isInteractionLocked
                         ) {
-                          handleToggleFlagged(question.id)
+                          handleToggleFlagged(question.id, index + 1)
                         }
                       }}
                     >
@@ -561,7 +602,14 @@ export function StudentTestForm({
           ))}
 
           {error && (
-            <div className="rounded-lg bg-danger-bg p-3 text-sm text-danger">{error}</div>
+            <div
+              className="rounded-lg bg-danger-bg p-3 text-sm text-danger"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+            >
+              {error}
+            </div>
           )}
 
           {previewSubmitMessage && (
