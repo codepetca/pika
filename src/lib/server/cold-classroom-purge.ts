@@ -411,8 +411,10 @@ export async function runColdClassroomPurgeSafetyNet(maxTicks = 25) {
   ) as {
     eq(column: string, value: string): {
       in(column: string, values: string[]): {
-        order(column: string, options: { ascending: boolean }): {
-          limit(count: number): PromiseLike<{ data: unknown; error: RpcError | null }>
+        or(filters: string): {
+          order(column: string, options: { ascending: boolean }): {
+            limit(count: number): PromiseLike<{ data: unknown; error: RpcError | null }>
+          }
         }
       }
     }
@@ -420,6 +422,7 @@ export async function runColdClassroomPurgeSafetyNet(maxTicks = 25) {
   const response = await query
     .eq('purge_scope', 'cold_classroom')
     .in('status', ['deleting_objects', 'finalizing', 'failed'])
+    .or('status.neq.failed,retryable.eq.true,retryable.is.null')
     .order('updated_at', { ascending: true })
     .limit(maxTicks)
   if (response.error) {

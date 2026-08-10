@@ -7200,6 +7200,7 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
       }
+      get_managed_deletion_deep_health_snapshot: { Args: never; Returns: Json }
       get_managed_deletion_health_snapshot: {
         Args: { p_stuck_after_seconds?: number }
         Returns: Json

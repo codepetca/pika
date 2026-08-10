@@ -672,27 +672,36 @@ export async function runClassroomPurgeSafetyNet(maxTicks = 25) {
   }
 
   type OperationListResponse = { data: unknown; error: RpcError | null }
-  const readPending = async (columns: string): Promise<OperationListResponse> => {
-    const query = db.from('classroom_purge_operations').select(columns) as {
-      in(column: string, values: string[]): {
-        order(column: string, options: { ascending: boolean }): {
-          limit(count: number): PromiseLike<OperationListResponse>
-        }
-      }
+  type OperationListQuery = {
+    eq(column: string, value: string): OperationListQuery
+    in(column: string, values: string[]): OperationListQuery
+    or(filters: string): OperationListQuery
+    order(column: string, options: { ascending: boolean }): OperationListQuery
+    limit(count: number): PromiseLike<OperationListResponse>
+  }
+  const readPending = async (
+    columns: string,
+    scopeColumnAvailable: boolean,
+  ): Promise<OperationListResponse> => {
+    let query = db.from('classroom_purge_operations').select(columns) as unknown as
+      OperationListQuery
+    if (scopeColumnAvailable) {
+      query = query.eq('purge_scope', 'hot_classroom')
     }
     return query
       .in('status', ['deleting_objects', 'finalizing', 'failed'])
+      .or('status.neq.failed,retryable.eq.true,retryable.is.null')
       .order('updated_at', { ascending: true })
       .limit(maxTicks)
   }
   const legacyColumns = 'id,teacher_id,status,retryable'
-  let response = await readPending(`${legacyColumns},purge_scope`)
+  let response = await readPending(`${legacyColumns},purge_scope`, true)
   if (
     response.error
     && (response.error.code === 'PGRST204' || response.error.code === '42703')
     && response.error.message?.includes('purge_scope')
   ) {
-    const legacy = await readPending(legacyColumns)
+    const legacy = await readPending(legacyColumns, false)
     response = legacy.data
       ? {
         ...legacy,

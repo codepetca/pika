@@ -1060,6 +1060,11 @@ authorization, exact managed Storage ownership, concurrency, and resumability.
 - Added fail-closed teacher APIs, conflict/readiness checks, resumable cron
   ticking without a new schedule, audit-safe resource hashes, and irreversible
   confirmation UX. Generic orphan cleanup remains disabled.
+- Independent high-risk review caught and fixed two cross-scope regressions:
+  migration 122 now preserves Blueprint purge Storage-lease authority, and the
+  hot/cold safety nets filter scope and terminal failures before limiting work.
+  Regression coverage exercises both worker-starvation cases, while fresh CI
+  replay runs the existing Blueprint purge fixture and the new cold purge fixture.
 - Documented contracts, recovery-loss consequences, rollout gates, operations,
   and tests. Added desktop/mobile teacher and student-boundary visual coverage.
 
@@ -1071,7 +1076,7 @@ authorization, exact managed Storage ownership, concurrency, and resumability.
 - The rollback-only database harness passed authorization, restore-conflict,
   tombstone fence, live-lease, retry, exact-object ordering, cleanup, audit, and
   preservation checks, then rolled back all fixtures.
-- Full Vitest passed (483 files, 4,157 tests), plus TypeScript, lint, generated
+- Full Vitest passed (483 files, 4,159 tests), plus TypeScript, lint, generated
   type parity, production build, architecture/design/storage checks, Pika audit,
   diff checks, and Playwright visual verification across desktop/mobile and
   light/dark teacher states plus the student boundary.

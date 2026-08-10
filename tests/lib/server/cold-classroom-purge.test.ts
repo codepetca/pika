@@ -58,6 +58,36 @@ const operation = {
   completed_at: null,
 }
 
+function operationListQuery(
+  sourceRows: Array<Record<string, unknown>>,
+  columns: string,
+) {
+  let rows = [...sourceRows]
+  const selected = columns.split(',')
+  const query = {
+    eq: vi.fn((column: string, value: string) => {
+      rows = rows.filter((row) => row[column] === value)
+      return query
+    }),
+    in: vi.fn((column: string, values: string[]) => {
+      rows = rows.filter((row) => values.includes(String(row[column])))
+      return query
+    }),
+    or: vi.fn(() => {
+      rows = rows.filter((row) => row.status !== 'failed' || row.retryable !== false)
+      return query
+    }),
+    order: vi.fn(() => query),
+    limit: vi.fn(async (count: number) => ({
+      data: rows.slice(0, count).map((row) => Object.fromEntries(
+        selected.map((column) => [column, row[column]]),
+      )),
+      error: null,
+    })),
+  }
+  return query
+}
+
 describe('cold classroom purge worker', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -183,5 +213,58 @@ describe('cold classroom purge worker', () => {
     })
     expect(serviceClient.from).toHaveBeenCalledTimes(1)
     expect(serviceClient.rpc).not.toHaveBeenCalled()
+  })
+
+  it('filters terminal failures before limiting resumable cold safety-net work', async () => {
+    serviceClient.from.mockReset()
+    serviceClient.rpc.mockReset()
+    const terminalRows = Array.from({ length: 25 }, (_, index) => ({
+      id: `60000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      teacher_id: TEACHER_ID,
+      status: 'failed',
+      retryable: false,
+      purge_scope: 'cold_classroom',
+    }))
+    const retryableRow = {
+      id: OPERATION_ID,
+      teacher_id: TEACHER_ID,
+      status: 'failed',
+      retryable: true,
+      purge_scope: 'cold_classroom',
+    }
+    const listSelect = vi.fn((columns: string) => operationListQuery(
+      [...terminalRows, retryableRow],
+      columns,
+    ))
+    serviceClient.from.mockImplementation((table: string) => {
+      if (table === 'cold_classroom_purge_settings') {
+        return { select: vi.fn().mockResolvedValue({ data: [{ singleton: true }], error: null }) }
+      }
+      if (table === 'classroom_purge_operations') return { select: listSelect }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    serviceClient.rpc.mockResolvedValue({
+      data: null,
+      error: { code: 'fixture_stop_after_claim', message: 'fixture' },
+    })
+
+    await expect(runColdClassroomPurgeSafetyNet(25)).resolves.toEqual({
+      processed: 1,
+      completed: 0,
+      failed: 1,
+    })
+    expect(serviceClient.rpc).toHaveBeenCalledWith(
+      'claim_cold_classroom_purge_object',
+      expect.objectContaining({
+        p_operation_id: retryableRow.id,
+        p_teacher_id: TEACHER_ID,
+      }),
+    )
+    for (const terminal of terminalRows) {
+      expect(serviceClient.rpc).not.toHaveBeenCalledWith(
+        'claim_cold_classroom_purge_object',
+        expect.objectContaining({ p_operation_id: terminal.id }),
+      )
+    }
   })
 })

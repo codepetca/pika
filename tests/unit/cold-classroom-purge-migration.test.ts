@@ -36,6 +36,8 @@ describe('cold archived Classroom purge migration', () => {
     expect(migration).toContain('claim_classroom_purge_object_v118')
     expect(migration).toContain("operation.purge_scope = 'hot_classroom'")
     expect(migration).toContain('finalize_hot_archived_classroom_purge_v118')
+    expect(migration).toContain('from public.course_blueprint_purge_objects purge_object')
+    expect(migration).toContain('join public.course_blueprint_purge_fences fence')
   })
 
   it('explicitly reconciles every cold operational family without deleting users or Blueprints', () => {

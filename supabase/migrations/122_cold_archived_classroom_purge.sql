@@ -1289,28 +1289,42 @@ begin
   where object.storage_bucket = old.bucket_id and object.storage_path = old.name
   for update;
   perform public.managed_storage_exact_lock(old.bucket_id, old.name);
-  if v_object.id is not null and exists (
-    select 1 from public.classroom_purge_objects purge_object
-    join public.classroom_purge_operations operation
-      on operation.id = purge_object.operation_id
-    where purge_object.managed_storage_object_id = v_object.id
-      and purge_object.status = 'processing'
-      and purge_object.lease_expires_at > clock_timestamp()
-      and operation.status in ('deleting_objects', 'failed')
-      and (
-        exists (
-          select 1 from public.classroom_purge_fences fence
-          where fence.operation_id = operation.id
-            and fence.classroom_id = operation.classroom_id
-            and operation.purge_scope = 'hot_classroom'
+  if v_object.id is not null and (
+    exists (
+      select 1 from public.classroom_purge_objects purge_object
+      join public.classroom_purge_operations operation
+        on operation.id = purge_object.operation_id
+      where purge_object.managed_storage_object_id = v_object.id
+        and purge_object.status = 'processing'
+        and purge_object.lease_expires_at > clock_timestamp()
+        and operation.status in ('deleting_objects', 'failed')
+        and (
+          exists (
+            select 1 from public.classroom_purge_fences fence
+            where fence.operation_id = operation.id
+              and fence.classroom_id = operation.classroom_id
+              and operation.purge_scope = 'hot_classroom'
+          )
+          or exists (
+            select 1 from public.cold_classroom_purge_fences fence
+            where fence.operation_id = operation.id
+              and fence.classroom_id = operation.classroom_id
+              and operation.purge_scope = 'cold_classroom'
+          )
         )
-        or exists (
-          select 1 from public.cold_classroom_purge_fences fence
-          where fence.operation_id = operation.id
-            and fence.classroom_id = operation.classroom_id
-            and operation.purge_scope = 'cold_classroom'
-        )
-      )
+    ) or exists (
+      select 1 from public.course_blueprint_purge_objects purge_object
+      join public.course_blueprint_purge_operations operation
+        on operation.id = purge_object.operation_id
+      join public.course_blueprint_purge_fences fence
+        on fence.operation_id = operation.id
+       and fence.course_blueprint_id = operation.course_blueprint_id
+      where purge_object.managed_storage_object_id = v_object.id
+        and purge_object.status = 'processing'
+        and purge_object.lease_expires_at > clock_timestamp()
+        and (operation.status = 'deleting_objects'
+          or (operation.status = 'failed' and operation.retryable is true))
+    )
   ) then return old; end if;
   if v_object.id is null then
     if not v_enforced then return old; end if;
