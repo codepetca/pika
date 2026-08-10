@@ -16284,3 +16284,35 @@ future persistence shape without enabling unapproved schema behavior.
 - Require targeted security review, final integration review, exact-head CI, and protected merge.
 - Apply migration 105 to each deployment target before deploying the updated sync route.
 - Continue Tests with student flag pressed semantics and save/flag announcements; keep mobile and Gradex deferred.
+
+<!-- pika-session-log-archive-batch:98c8c8da8f486704a81ee8153788e6d6b705ec5a1943729e82f5e1c22136b1ea -->
+## 2026-07-24 — Remediated test-preview review findings
+
+**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
+
+**Completed:**
+- Rebased PR 920 onto current `main` and retained collision-free migrations 109
+  and 110 without changing the shared local or hosted databases.
+- Closed snapshot cleanup races by requiring pending provisional evidence under
+  a row lock before attachment and by making the database concurrency harness
+  use a deterministic lock barrier.
+- Defined durable snapshot ownership across live tests, cold archives, and
+  defensive legacy blueprint rows. Reusable blueprint capture, persistence,
+  export, and instantiation now strip classroom-specific snapshot metadata.
+- Applied one absolute deadline across DNS, redirects, and response transport,
+  and discard redirect bodies without buffering them.
+- Rebound an open teacher-preview document to refreshed same-ID data and close
+  the viewer when the document disappears.
+
+**Validation:**
+- Focused remediation suite: 12 files and 142 tests.
+- Full Vitest suite: 421 files and 3,767 tests.
+- TypeScript, ESLint, architecture boundaries, production build, shell syntax,
+  `git diff --check`, and Pika changed-file audit pass.
+- Teacher preview verified visually at desktop and mobile; student access to
+  the teacher-only route correctly renders the unavailable state.
+- No migration was applied to the shared local database or a hosted target.
+
+**Remaining:**
+- Push the rebased exact head, run the disposable migration/database checks in
+  CI, and resolve any exact-head failures before merge.

@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useRouter, usePathname } from 'next/navigation'
-import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
+import { Archive, CircleDot, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
@@ -373,13 +373,13 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     ? pendingAction.mode === 'archive'
       ? `Archive ${pendingAction.classroom.title}?`
       : pendingAction.mode === 'restore-hot'
-        ? `Restore ${pendingAction.classroom.title}?`
+        ? `Unarchive ${pendingAction.classroom.title}?`
         : `Restore ${pendingAction.archive.title}?`
     : ''
 
   const dialogDescription = pendingAction
     ? pendingAction.mode === 'archive'
-      ? 'Students will lose access until the classroom is restored.'
+      ? 'Students will lose access until the classroom is unarchived.'
       : pendingAction.mode === 'restore-hot'
         ? 'Students will regain access to this classroom.'
         : 'The classroom will return to Archived with its submissions and files available.'
@@ -388,7 +388,9 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogConfirmLabel = pendingAction
     ? pendingAction.mode === 'archive'
       ? 'Archive'
-      : 'Restore'
+      : pendingAction.mode === 'restore-hot'
+        ? 'Unarchive'
+        : 'Restore'
     : 'Confirm'
 
   const showCreateClassroomButton = view === 'active' && (activeClassrooms.length === 0 || isEditingClassrooms)
@@ -435,7 +437,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-sm font-medium text-text-default">No archived classrooms</p>
               <p className="mt-1 text-sm text-text-muted">
-                Archived classrooms will appear here so you can restore them later.
+                Archived classrooms will appear here so you can unarchive them later.
               </p>
               {showCreateClassroomButton ? (
                 <Button
@@ -534,7 +536,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                             || (reusingClassroomId !== null && reusingClassroomId !== c.id)
                           }
                         >
-                          {reusingClassroomId === c.id ? 'Preparing' : 'Use again'}
+                          {reusingClassroomId === c.id ? 'Preparing' : 'Reuse'}
                         </Button>
                         <Button
                           type="button"
@@ -543,17 +545,19 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
                           disabled={openingClassroomId !== null || reusingClassroomId !== null}
                         >
-                          Restore
+                          Unarchive
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
                           size="xs"
                           className="text-danger hover:text-danger"
+                          aria-label="Delete permanently"
+                          title="Delete permanently"
                           onClick={() => setPurgeClassroom(c)}
                           disabled={openingClassroomId !== null || reusingClassroomId !== null}
                         >
-                          Delete permanently
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>

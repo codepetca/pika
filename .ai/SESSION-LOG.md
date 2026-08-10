@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-24 — Remediated test-preview review findings
-
-**Risk profile:** workspace-state/exam-mode/runtime-platform/schema-mismatch
-
-**Completed:**
-- Rebased PR 920 onto current `main` and retained collision-free migrations 109
-  and 110 without changing the shared local or hosted databases.
-- Closed snapshot cleanup races by requiring pending provisional evidence under
-  a row lock before attachment and by making the database concurrency harness
-  use a deterministic lock barrier.
-- Defined durable snapshot ownership across live tests, cold archives, and
-  defensive legacy blueprint rows. Reusable blueprint capture, persistence,
-  export, and instantiation now strip classroom-specific snapshot metadata.
-- Applied one absolute deadline across DNS, redirects, and response transport,
-  and discard redirect bodies without buffering them.
-- Rebound an open teacher-preview document to refreshed same-ID data and close
-  the viewer when the document disappears.
-
-**Validation:**
-- Focused remediation suite: 12 files and 142 tests.
-- Full Vitest suite: 421 files and 3,767 tests.
-- TypeScript, ESLint, architecture boundaries, production build, shell syntax,
-  `git diff --check`, and Pika changed-file audit pass.
-- Teacher preview verified visually at desktop and mobile; student access to
-  the teacher-only route correctly renders the unavailable state.
-- No migration was applied to the shared local database or a hosted target.
-
-**Remaining:**
-- Push the rebased exact head, run the disposable migration/database checks in
-  CI, and resolve any exact-head failures before merge.
-
 ## 2026-07-24 — Promoted the pika teacher CLI and made it global
 
 **Completed:**
@@ -1551,3 +1520,24 @@ zero-downtime rollout
 - Push this single remediation batch to draft PR #963 and require clean exact-head ephemeral
   migration replay plus destructive database fixture before considering rollout.
 - Do not apply migration 117 or enable deletion without separate fresh authorization.
+
+## 2026-08-10 — Refined archived classroom action language
+
+**Risk profile:** none
+
+**Completed:**
+- Renamed the hot archived classroom actions from `Use again` to `Reuse` and from `Restore` to
+  `Unarchive`, including the unarchive confirmation copy.
+- Replaced the visible `Delete permanently` archive-row label with an icon-only trash control while
+  preserving its accessible name and tooltip; the irreversible confirmation keeps its explicit
+  destructive label.
+- Kept `Restore` for cold stored archives because that operation returns a stored snapshot to the
+  archive rather than unarchiving it.
+- Extended the purge experience matrix to assert and capture the revised action row.
+
+**Validation:**
+- Focused component suite: 2 files / 23 tests passes.
+- Playwright archive/purge experience matrix: 10/10 across teacher/student, desktop/mobile, and
+  light/dark; screenshots reviewed for the action row and permanent-deletion dialog.
+- ESLint, UI policy, and design policy checks pass.
+- No migration, database, rollout gate, or deployment state changed.

@@ -145,10 +145,18 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
-    expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Use again' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument()
+    const unarchiveButton = await screen.findByRole('button', { name: 'Unarchive' })
+    expect(screen.getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
+    const purgeButton = screen.getByRole('button', { name: 'Delete permanently' })
+    expect(purgeButton).toHaveAttribute('title', 'Delete permanently')
+    expect(purgeButton).toHaveTextContent('')
+    expect(purgeButton.querySelector('svg')).toHaveClass('lucide-trash-2')
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+
+    fireEvent.click(unarchiveButton)
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Unarchive Archived?')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
   })
 
   it('shows the full impact and requires the classroom name or DELETE', async () => {
@@ -377,7 +385,7 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex([])
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Use again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/classrooms/archived-1/use-again',
@@ -418,7 +426,7 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex([])
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Use again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
 
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(

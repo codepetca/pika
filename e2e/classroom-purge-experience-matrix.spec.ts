@@ -103,8 +103,19 @@ test.describe('classroom purge teacher experience matrix', () => {
     await page.getByRole('button', { name: 'Organize classrooms' }).click()
     await expect(page.getByRole('button', { name: 'Archived' })).toBeVisible()
     await page.getByRole('button', { name: 'Archived' }).click()
-    await expect(page.getByRole('button', { name: 'Delete permanently' })).toBeVisible()
-    await page.getByRole('button', { name: 'Delete permanently' }).click()
+    await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Unarchive' })).toBeVisible()
+    const purgeOpener = page.getByRole('button', { name: 'Delete permanently' })
+    await expect(purgeOpener).toBeVisible()
+    await expect(purgeOpener.locator('svg.lucide-trash-2')).toBeVisible()
+
+    const { theme, viewport } = metadata(testInfo)
+    await page.screenshot({
+      path: `/tmp/pika-archive-actions-teacher-${theme}-${viewport}.png`,
+      animations: 'disabled',
+    })
+
+    await purgeOpener.click()
 
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
@@ -117,7 +128,6 @@ test.describe('classroom purge teacher experience matrix', () => {
     await expect(deleteButton).toBeEnabled()
     await expectNoHorizontalOverflow(page)
 
-    const { theme, viewport } = metadata(testInfo)
     await page.screenshot({
       path: `/tmp/pika-purge-teacher-${theme}-${viewport}.png`,
       animations: 'disabled',
