@@ -17631,3 +17631,34 @@ and verification of irreversible purge infrastructure.
 **Remaining:**
 - Complete final read-only change-set review, then commit and publish the draft
   replacement PR only when authorized.
+
+<!-- pika-session-log-archive-batch:ef4ceb5951808467b246af51b3bf7870d8c03bda3977f1945735dbc9cf3ce25c -->
+## 2026-08-04 — Stopped at purge review circuit breaker
+
+**Risk profile:** runtime-platform — irreversible deletion, managed Storage,
+authorization, concurrency, and migration compatibility.
+
+**Completed:**
+- Ran the high-risk independent review topology: security/concurrency and
+  architecture initial reviewers, one targeted security re-review, and one
+  final cumulative integration review.
+- Used two consolidated remediation batches to close retry/backoff and live-
+  lease state, durable Storage resurrection evidence, migration-115 upgrade
+  refusal, RPC-only ledger writes, operational impact/digest/fences, code-first
+  compatibility handling, and browser no-progress request storms.
+- Kept migration 118 draft and rollout-disabled; changed no local/hosted database
+  after the earlier authorized replay, and left PR #963 unchanged.
+
+**Validation:**
+- TypeScript, focused tests (47), startup tests (38), production build, lint,
+  architecture/design/UI policy, lineage, generated-type compatibility, Pika
+  audit, shell syntax, and diff checks pass.
+- The full suite before remediation batch 2 had 4,012 passing tests and only the
+  subsequently fixed startup-document budget failures.
+
+**Remaining:**
+- Two final P1s require an owner-approved third remediation batch: probe the
+  migration-118-only settings authority before cron reads legacy purge rows,
+  and pass the operational digest in the primary destructive fixture.
+- After those narrow fixes, run exact-head ephemeral DB CI and one final targeted
+  review before committing/publishing the replacement draft PR.
