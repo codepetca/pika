@@ -1,4 +1,4 @@
-Prod 001–121. Student Tests live-status accessibility is open in PR #986;
-focused/static/audit and Playwright teacher/student verification pass. Initial
-independent review's stale-autosave P1 is remediated with controlled coverage.
-Do not merge without explicit approval. Deletion rollouts stay unchanged.
+Prod 001–121. PR #986: Student Tests live status; gates, visuals, reviews pass.
+WT: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`. Env:
+`$HOME/Repos/.env/pika/.env.local` or collaborator `.env.example`. Draft; do not
+merge without explicit approval. Deletion unchanged.
