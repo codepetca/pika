@@ -534,7 +534,9 @@ describe('TeacherAttendanceTab', () => {
 
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', {
+      name: 'Log 1 complete, 1 incomplete',
+    })).toHaveAttribute('aria-sort', 'none')
     expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('cell', { name: 'Student1', exact: true }))

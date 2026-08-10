@@ -640,11 +640,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   onClick={() => handleSort('log')}
                   density="tight"
                   align={showLogColumn ? 'left' : 'center'}
-                  className={showLogColumn ? 'min-w-0' : 'w-20'}
-                  trailing={isClassDay && rows.length > 0 && showLogColumn ? (
+                  className={showLogColumn ? 'min-w-0' : ''}
+                  trailing={isClassDay && rows.length > 0 ? (
                     <span
                       aria-label={`${completeCount} complete, ${incompleteCount} incomplete`}
-                      className="ml-auto flex items-center gap-2"
+                      className={[
+                        'ml-auto flex items-center',
+                        showLogColumn ? 'gap-2' : 'gap-1',
+                      ].join(' ')}
                     >
                       <CountBadge
                         count={completeCount}

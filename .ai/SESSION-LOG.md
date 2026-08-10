@@ -1089,6 +1089,9 @@ autosave error feedback while preserving the mounted attempt and exam owner.
   Complete/Incomplete counts, and sortable behavior into the Log column.
 - Added accessible completion labels and preserved Log sorting in both the
   full-width table and selected-student workspace.
+- Independent PR review caught that the Complete/Incomplete count badges were
+  hidden after selecting a student; restored them in the selected workspace
+  and added a regression assertion for the accessible count label.
 - Removed the stale arbitrary-spacing exception for the deleted status-column
   width.
 
@@ -1100,3 +1103,5 @@ autosave error feedback while preserving the mounted attempt and exam owner.
 - Playwright experience matrix passes (18 tests) across teacher/student,
   desktop/mobile, and light/dark; screenshots of the teacher default and sorted
   states show no page overflow or broken layout.
+- The selected-student remediation was visually rechecked in teacher
+  desktop/mobile and light/dark states with no horizontal page overflow.
