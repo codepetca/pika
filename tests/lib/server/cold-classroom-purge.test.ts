@@ -232,10 +232,11 @@ describe('cold classroom purge worker', () => {
       retryable: true,
       purge_scope: 'cold_classroom',
     }
-    const listSelect = vi.fn((columns: string) => operationListQuery(
+    const listQuery = operationListQuery(
       [...terminalRows, retryableRow],
-      columns,
-    ))
+      'id,teacher_id,status,retryable',
+    )
+    const listSelect = vi.fn(() => listQuery)
     serviceClient.from.mockImplementation((table: string) => {
       if (table === 'cold_classroom_purge_settings') {
         return { select: vi.fn().mockResolvedValue({ data: [{ singleton: true }], error: null }) }
@@ -253,6 +254,9 @@ describe('cold classroom purge worker', () => {
       completed: 0,
       failed: 1,
     })
+    expect(listQuery.or).toHaveBeenCalledWith(
+      'status.neq.failed,retryable.eq.true,retryable.is.null',
+    )
     expect(serviceClient.rpc).toHaveBeenCalledWith(
       'claim_cold_classroom_purge_object',
       expect.objectContaining({

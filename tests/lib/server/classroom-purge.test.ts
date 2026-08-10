@@ -287,9 +287,73 @@ describe('classroom purge helpers', () => {
       retryable: true,
       purge_scope: 'hot_classroom',
     }
-    const listSelect = vi.fn((columns: string) => operationListQuery(
+    const listQuery = operationListQuery(
       [...coldRows, ...terminalHotRows, retryableHot],
-      columns,
+      'id,teacher_id,status,retryable,purge_scope',
+    )
+    const listSelect = vi.fn(() => listQuery)
+    serviceClient.from.mockImplementation((table: string) => {
+      if (table === 'classroom_purge_settings') {
+        return { select: vi.fn().mockResolvedValue({ data: [{ singleton: true }], error: null }) }
+      }
+      if (table === 'classroom_purge_operations') return { select: listSelect }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    serviceClient.rpc.mockResolvedValue({
+      data: null,
+      error: { code: 'fixture_stop_after_claim', message: 'fixture' },
+    })
+
+    await expect(runClassroomPurgeSafetyNet(25)).resolves.toEqual({
+      processed: 1,
+      completed: 0,
+      failed: 1,
+    })
+    expect(listQuery.or).toHaveBeenCalledWith(
+      'status.neq.failed,retryable.eq.true,retryable.is.null',
+    )
+    expect(serviceClient.rpc).toHaveBeenCalledWith(
+      'claim_classroom_purge_object',
+      expect.objectContaining({
+        p_operation_id: retryableHot.id,
+        p_teacher_id: teacherId,
+      }),
+    )
+    for (const cold of coldRows) {
+      expect(serviceClient.rpc).not.toHaveBeenCalledWith(
+        'claim_classroom_purge_object',
+        expect.objectContaining({ p_operation_id: cold.id }),
+      )
+    }
+  })
+
+  it('filters terminal failures before limiting the pre-122 safety-net fallback', async () => {
+    serviceClient.from.mockReset()
+    serviceClient.rpc.mockReset()
+    const teacherId = 'b1800000-0000-4000-8000-000000000001'
+    const terminalRows = Array.from({ length: 25 }, (_, index) => ({
+      id: `e1800000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      teacher_id: teacherId,
+      status: 'failed',
+      retryable: false,
+    }))
+    const retryableRow = {
+      id: operation.operation_id,
+      teacher_id: teacherId,
+      status: 'failed',
+      retryable: true,
+    }
+    const scopedQuery = operationListQuery([], 'id,teacher_id,status,retryable,purge_scope')
+    scopedQuery.limit.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST204', message: 'purge_scope column not found' },
+    })
+    const legacyQuery = operationListQuery(
+      [...terminalRows, retryableRow],
+      'id,teacher_id,status,retryable',
+    )
+    const listSelect = vi.fn((columns: string) => (
+      columns.includes('purge_scope') ? scopedQuery : legacyQuery
     ))
     serviceClient.from.mockImplementation((table: string) => {
       if (table === 'classroom_purge_settings') {
@@ -308,18 +372,15 @@ describe('classroom purge helpers', () => {
       completed: 0,
       failed: 1,
     })
+    expect(listSelect).toHaveBeenCalledTimes(2)
+    expect(scopedQuery.eq).toHaveBeenCalledWith('purge_scope', 'hot_classroom')
+    expect(legacyQuery.eq).not.toHaveBeenCalled()
+    expect(legacyQuery.or).toHaveBeenCalledWith(
+      'status.neq.failed,retryable.eq.true,retryable.is.null',
+    )
     expect(serviceClient.rpc).toHaveBeenCalledWith(
       'claim_classroom_purge_object',
-      expect.objectContaining({
-        p_operation_id: retryableHot.id,
-        p_teacher_id: teacherId,
-      }),
+      expect.objectContaining({ p_operation_id: retryableRow.id }),
     )
-    for (const cold of coldRows) {
-      expect(serviceClient.rpc).not.toHaveBeenCalledWith(
-        'claim_classroom_purge_object',
-        expect.objectContaining({ p_operation_id: cold.id }),
-      )
-    }
   })
 })
