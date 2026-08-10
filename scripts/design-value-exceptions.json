@@ -436,12 +436,6 @@
           "count": 1,
           "fingerprint": "0e9d29b47a05a496",
           "reason": "legacy-visual-value"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 1,
-          "fingerprint": "418e44ad4f9ebdab",
-          "reason": "special-layer"
         }
       ]
     },

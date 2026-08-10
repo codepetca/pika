@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherAttendanceTab'
 import type { Classroom, Entry } from '@/types'
@@ -204,8 +204,14 @@ describe('TeacherAttendanceTab', () => {
     const logHeader = screen.getByRole('columnheader', {
       name: 'Log 1 complete, 1 incomplete',
     })
+    const logSortButton = within(logHeader).getByRole('button', {
+      name: 'Log 1 complete, 1 incomplete',
+    })
+    const logLabel = within(logSortButton).getByText('Log')
+    const logCounts = within(logSortButton).getByLabelText('1 complete, 1 incomplete')
 
     expect(logHeader).toHaveAttribute('aria-sort', 'none')
+    expect(logLabel.nextElementSibling).toBe(logCounts)
     expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveAttribute(
       'aria-keyshortcuts',
@@ -221,6 +227,20 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize class log summary' })).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+
+    const firstColumnResize = screen.getByRole('separator', { name: 'Resize First column' })
+    expect(firstColumnResize).toHaveAttribute('aria-valuemin', '60')
+    expect(firstColumnResize).toHaveAttribute('aria-valuemax', '160')
+    expect(firstColumnResize).toHaveAttribute('aria-valuenow', '72')
+    expect(firstColumnResize).toHaveClass('min-h-control', 'min-w-control')
+    fireEvent.keyDown(firstColumnResize, { key: 'Home' })
+    expect(firstColumnResize).toHaveAttribute('aria-valuenow', '60')
+    fireEvent.keyDown(firstColumnResize, { key: 'ArrowRight' })
+    expect(firstColumnResize).toHaveAttribute('aria-valuenow', '68')
+    fireEvent.keyDown(firstColumnResize, { key: 'End' })
+    expect(firstColumnResize).toHaveAttribute('aria-valuenow', '160')
+    expect(screen.getByRole('separator', { name: 'Resize Last column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize ID column' })).toBeInTheDocument()
 
     const tableRegion = screen.getByRole('region', { name: 'Attendance students' })
     tableRegion.focus()
@@ -284,6 +304,29 @@ describe('TeacherAttendanceTab', () => {
       'descending',
     )
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('Alpha')
+  })
+
+  it('resizes Daily identity columns by pointer and clamps them to their minimum width', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const firstColumnResize = await screen.findByRole('separator', {
+      name: 'Resize First column',
+    })
+
+    const pointerDown = new Event('pointerdown', { bubbles: true })
+    Object.defineProperty(pointerDown, 'clientX', { value: 100 })
+    fireEvent(firstColumnResize, pointerDown)
+    const pointerMove = new Event('pointermove', { bubbles: true })
+    Object.defineProperty(pointerMove, 'clientX', { value: 70 })
+    window.dispatchEvent(pointerMove)
+    window.dispatchEvent(new Event('pointerup', { bubbles: true }))
+
+    await waitFor(() => {
+      expect(firstColumnResize).toHaveAttribute('aria-valuenow', '60')
+    })
+    expect(document.body.style.cursor).toBe('')
   })
 
   it('shows a retryable error instead of prior-date or empty-roster data after a failed read', async () => {
@@ -533,6 +576,7 @@ describe('TeacherAttendanceTab', () => {
     fireEvent.click(studentCell)
 
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    expect(within(screen.getByRole('cell', { name: 'Student1', exact: true })).getByText('Student1')).toHaveClass('truncate')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', {
       name: 'Log 1 complete, 1 incomplete',

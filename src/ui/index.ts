@@ -25,12 +25,14 @@ export {
   DataTableCell,
   DataTableHead,
   DataTableHeaderCell,
+  ResizableHeaderCell,
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
   SortableHeaderCell,
   TableCard,
   type DataTableDensity,
+  type ColumnResizeConfig,
   type SortDirection,
 } from './DataTable'
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs'

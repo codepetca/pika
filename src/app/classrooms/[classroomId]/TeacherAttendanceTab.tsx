@@ -41,13 +41,26 @@ import {
 } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
+import { CountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 
 type SortColumn = 'first_name' | 'last_name' | 'id' | 'log'
+type ResizableColumn = 'first' | 'last' | 'id'
+
+const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number; max: number }> = {
+  first: { defaultWidth: 72, min: 60, max: 160 },
+  last: { defaultWidth: 72, min: 60, max: 160 },
+  id: { defaultWidth: 80, min: 56, max: 180 },
+}
+
+const DEFAULT_COLUMN_WIDTHS: Record<ResizableColumn, number> = {
+  first: COLUMN_LIMITS.first.defaultWidth,
+  last: COLUMN_LIMITS.last.defaultWidth,
+  id: COLUMN_LIMITS.id.defaultWidth,
+}
 
 const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
 const SUMMARY_PANEL_COLLAPSED_HEIGHT = 40
@@ -122,6 +135,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
+  const [columnWidths, setColumnWidths] = useState(DEFAULT_COLUMN_WIDTHS)
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [today, setToday] = useState(() => getTodayInToronto())
   const refreshToday = useCallback(() => {
@@ -324,6 +338,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   function handleSort(column: SortColumn) {
     setSortState((prev) => toggleSort(prev, column))
+  }
+
+  function handleColumnResize(column: ResizableColumn, width: number) {
+    setColumnWidths((current) => ({
+      ...current,
+      [column]: width,
+    }))
   }
 
   function goToLastClass() {
@@ -601,7 +622,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           {refreshing && (
             <RefreshingIndicator />
           )}
-          <DataTable className={showLogColumn ? 'table-fixed' : ''}>
+          <DataTable className="table-fixed">
+            <colgroup>
+              <col style={{ width: `${columnWidths.first}px` }} />
+              <col style={{ width: `${columnWidths.last}px` }} />
+              <col
+                className={showLogColumn ? 'hidden md:table-column' : undefined}
+                style={{ width: `${columnWidths.id}px` }}
+              />
+              <col />
+            </colgroup>
             <DataTableHead>
               <DataTableRow>
                 <SortableHeaderCell
@@ -610,12 +640,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
                   density="tight"
-                  className={showLogColumn ? 'w-20 sm:w-28' : ''}
-                  trailing={isClassDay && rows.length > 0 ? (
-                    <span className={showLogColumn ? 'hidden sm:inline-flex' : 'inline-flex'}>
-                      <StudentCountBadge count={rows.length} variant="neutral" />
-                    </span>
-                  ) : undefined}
+                  buttonClassName="!pl-2 !pr-5"
+                  resize={{
+                    value: columnWidths.first,
+                    min: COLUMN_LIMITS.first.min,
+                    max: COLUMN_LIMITS.first.max,
+                    onChange: (width) => handleColumnResize('first', width),
+                  }}
                 />
                 <SortableHeaderCell
                   label="Last"
@@ -623,7 +654,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   direction={sortDirection}
                   onClick={() => handleSort('last_name')}
                   density="tight"
-                  className={showLogColumn ? 'w-20 sm:w-28' : ''}
+                  buttonClassName="!pl-2 !pr-5"
+                  resize={{
+                    value: columnWidths.last,
+                    min: COLUMN_LIMITS.last.min,
+                    max: COLUMN_LIMITS.last.max,
+                    onChange: (width) => handleColumnResize('last', width),
+                  }}
                 />
                 <SortableHeaderCell
                   label="ID"
@@ -631,7 +668,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   direction={sortDirection}
                   onClick={() => handleSort('id')}
                   density="tight"
-                  className={showLogColumn ? 'hidden w-24 md:table-cell' : ''}
+                  buttonClassName="!pl-2 !pr-5"
+                  className={[
+                    showLogColumn ? 'hidden md:table-cell' : '',
+                  ].join(' ')}
+                  resize={{
+                    value: columnWidths.id,
+                    min: COLUMN_LIMITS.id.min,
+                    max: COLUMN_LIMITS.id.max,
+                    onChange: (width) => handleColumnResize('id', width),
+                  }}
                 />
                 <SortableHeaderCell
                   label="Log"
@@ -641,13 +687,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   density="tight"
                   align={showLogColumn ? 'left' : 'center'}
                   className={showLogColumn ? 'min-w-0' : ''}
+                  trailingPlacement="after-label"
                   trailing={isClassDay && rows.length > 0 ? (
                     <span
                       aria-label={`${completeCount} complete, ${incompleteCount} incomplete`}
-                      className={[
-                        'ml-auto flex items-center',
-                        showLogColumn ? 'gap-2' : 'gap-1',
-                      ].join(' ')}
+                      className="flex shrink-0 items-center gap-1"
                     >
                       <CountBadge
                         count={completeCount}
@@ -684,13 +728,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
-                    <DataTableCell density="tight" className={showLogColumn ? 'min-w-0' : ''}>
-                      <span className={showLogColumn ? 'block truncate' : ''}>
+                    <DataTableCell density="tight" className="min-w-0">
+                      <span className="block truncate" title={row.student_first_name || undefined}>
                         {row.student_first_name || '—'}
                       </span>
                     </DataTableCell>
-                    <DataTableCell density="tight" className={showLogColumn ? 'min-w-0' : ''}>
-                      <span className={showLogColumn ? 'block truncate' : ''}>
+                    <DataTableCell density="tight" className="min-w-0">
+                      <span className="block truncate" title={row.student_last_name || undefined}>
                         {row.student_last_name || '—'}
                       </span>
                     </DataTableCell>
@@ -702,8 +746,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                       ].join(' ')}
                     >
                       <span
-                        className={showLogColumn ? 'block truncate' : ''}
-                        title={showLogColumn ? row.email_username : undefined}
+                        className="block truncate"
+                        title={row.email_username}
                       >
                         {row.email_username}
                       </span>

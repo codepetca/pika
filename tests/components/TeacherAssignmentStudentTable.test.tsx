@@ -81,7 +81,7 @@ describe('TeacherAssignmentStudentTable', () => {
     expect(firstResize).toHaveAttribute('aria-valuemin', '58')
     expect(firstResize).toHaveAttribute('aria-valuemax', '160')
     expect(firstResize).toHaveAttribute('aria-valuenow', '72')
-    expect(firstResize).toHaveClass('min-h-11', 'w-11')
+    expect(firstResize).toHaveClass('min-h-control', 'min-w-control')
     fireEvent.keyDown(firstResize, { key: 'End' })
     expect(firstResize).toHaveAttribute('aria-valuenow', '160')
     expect(screen.getByRole('separator', { name: 'Resize Last column' })).toBeInTheDocument()

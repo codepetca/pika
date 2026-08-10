@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from 'react'
+import { useState, type CSSProperties, type ReactNode, type Ref } from 'react'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import {
   AssessmentStatusIndicator,
@@ -16,11 +16,12 @@ import {
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
+  ResizableHeaderCell,
+  SortableHeaderCell,
   TableCard,
   Tooltip,
 } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   hasDraftSavedGrade,
 } from '@/lib/assignments'
@@ -105,149 +106,6 @@ function clampColumnWidth(column: ResizableColumnKey, width: number): number {
 
 function getColumnStyle(width: number): CSSProperties {
   return { width: `${width}px`, maxWidth: `${width}px` }
-}
-
-function ResizeHandle({
-  column,
-  label,
-  width,
-  onResize,
-}: {
-  column: ResizableColumnKey
-  label: string
-  width: number
-  onResize: (column: ResizableColumnKey, width: number) => void
-}) {
-  function handlePointerDown(event: PointerEvent<HTMLSpanElement>) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    const startX = event.clientX
-    const startWidth = width
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-
-    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-      onResize(column, startWidth + moveEvent.clientX - startX)
-    }
-
-    const handlePointerUp = () => {
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-    event.preventDefault()
-    event.stopPropagation()
-
-    if (event.key === 'Home') {
-      onResize(column, COLUMN_LIMITS[column].min)
-      return
-    }
-    if (event.key === 'End') {
-      onResize(column, COLUMN_LIMITS[column].max)
-      return
-    }
-
-    onResize(column, width + (event.key === 'ArrowRight' ? 8 : -8))
-  }
-
-  return (
-    <span
-      role="separator"
-      aria-label={`Resize ${label} column`}
-      aria-orientation="vertical"
-      aria-valuemin={COLUMN_LIMITS[column].min}
-      aria-valuemax={COLUMN_LIMITS[column].max}
-      aria-valuenow={width}
-      aria-keyshortcuts="ArrowLeft ArrowRight Home End"
-      tabIndex={0}
-      onPointerDown={handlePointerDown}
-      onKeyDown={handleKeyDown}
-      className="absolute inset-y-0 right-0 z-10 flex min-h-11 w-11 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
-    >
-      <span
-        aria-hidden="true"
-        className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-      />
-    </span>
-  )
-}
-
-function ResizableSortableHeaderCell({
-  column,
-  label,
-  isActive,
-  direction,
-  onSort,
-  width,
-  onResize,
-}: {
-  column: ResizableColumnKey
-  label: string
-  isActive: boolean
-  direction: SortDirection
-  onSort: () => void
-  width: number
-  onResize: (column: ResizableColumnKey, width: number) => void
-}) {
-  const Icon = direction === 'asc' ? ChevronUp : ChevronDown
-  const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
-
-  return (
-    <DataTableHeaderCell
-      className="group relative !p-0"
-      style={getColumnStyle(width)}
-      aria-sort={ariaSort}
-    >
-      <button
-        type="button"
-        onClick={onSort}
-        className="relative flex w-full items-center py-2 pl-1.5 pr-4 text-left transition-colors hover:bg-surface-hover"
-      >
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <Icon
-          className={[
-            'pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 shrink-0 text-text-muted',
-            isActive ? '' : 'opacity-0',
-          ].join(' ')}
-          aria-hidden="true"
-        />
-      </button>
-      <ResizeHandle column={column} label={label} width={width} onResize={onResize} />
-    </DataTableHeaderCell>
-  )
-}
-
-function ResizableHeaderCell({
-  column,
-  label,
-  width,
-  onResize,
-}: {
-  column: ResizableColumnKey
-  label: string
-  width: number
-  onResize: (column: ResizableColumnKey, width: number) => void
-}) {
-  return (
-    <DataTableHeaderCell
-      className="group relative !py-2 !pl-1.5 !pr-3"
-      style={getColumnStyle(width)}
-    >
-      <span className="block truncate">{label}</span>
-      <ResizeHandle column={column} label={label} width={width} onResize={onResize} />
-    </DataTableHeaderCell>
-  )
 }
 
 function StatusIcon({ display }: { display: AssessmentWorkStatusDisplay }) {
@@ -344,38 +202,59 @@ export function TeacherAssignmentStudentTable({
                         aria-label="Select all students"
                       />
                     </DataTableHeaderCell>
-                    <ResizableSortableHeaderCell
-                      column="first"
+                    <SortableHeaderCell
                       label="First"
                       isActive={sortColumn === 'first'}
                       direction={sortDirection}
-                      onSort={() => onToggleSort('first')}
-                      width={columnWidths.first}
-                      onResize={handleColumnResize}
+                      onClick={() => onToggleSort('first')}
+                      density={density}
+                      buttonClassName="!py-2 !pl-1.5 !pr-4"
+                      resize={{
+                        value: columnWidths.first,
+                        min: COLUMN_LIMITS.first.min,
+                        max: COLUMN_LIMITS.first.max,
+                        onChange: (width) => handleColumnResize('first', width),
+                      }}
                     />
-                    <ResizableSortableHeaderCell
-                      column="last"
+                    <SortableHeaderCell
                       label="Last"
                       isActive={sortColumn === 'last'}
                       direction={sortDirection}
-                      onSort={() => onToggleSort('last')}
-                      width={columnWidths.last}
-                      onResize={handleColumnResize}
+                      onClick={() => onToggleSort('last')}
+                      density={density}
+                      buttonClassName="!py-2 !pl-1.5 !pr-4"
+                      resize={{
+                        value: columnWidths.last,
+                        min: COLUMN_LIMITS.last.min,
+                        max: COLUMN_LIMITS.last.max,
+                        onChange: (width) => handleColumnResize('last', width),
+                      }}
                     />
-                    <ResizableSortableHeaderCell
-                      column="status"
+                    <SortableHeaderCell
                       label="Status"
                       isActive={sortColumn === 'status'}
                       direction={sortDirection}
-                      onSort={() => onToggleSort('status')}
-                      width={columnWidths.status}
-                      onResize={handleColumnResize}
+                      onClick={() => onToggleSort('status')}
+                      density={density}
+                      align="center"
+                      buttonClassName="!py-2 !pl-1.5 !pr-4"
+                      resize={{
+                        value: columnWidths.status,
+                        min: COLUMN_LIMITS.status.min,
+                        max: COLUMN_LIMITS.status.max,
+                        onChange: (width) => handleColumnResize('status', width),
+                      }}
                     />
                     <ResizableHeaderCell
-                      column="grade"
                       label="Grade"
-                      width={columnWidths.grade}
-                      onResize={handleColumnResize}
+                      align="center"
+                      className="!py-2 !pl-1.5 !pr-3"
+                      resize={{
+                        value: columnWidths.grade,
+                        min: COLUMN_LIMITS.grade.min,
+                        max: COLUMN_LIMITS.grade.max,
+                        onChange: (width) => handleColumnResize('grade', width),
+                      }}
                     />
                     <DataTableHeaderCell className="whitespace-nowrap !px-1.5 !py-2">
                       <span className="block truncate">Artifacts</span>

@@ -190,6 +190,10 @@ base controls and shell styling follow the `@/ui` contracts.
 - Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
   from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
   row IDs so keyboard selection can move focus to the active row.
+- Pass a `resize` configuration to `SortableHeaderCell`, or use `ResizableHeaderCell` for a
+  non-sortable column, when a table exposes adjustable widths. The shared resize handle owns the
+  vertical separator semantics, min/max/current values, pointer drag behavior, and
+  Arrow/Home/End keyboard controls; feature tables continue to own their column limits and cells.
 - Menu and split-pane ownership, semantics, and verification requirements live in
   [`composite-control-conventions.md`](/docs/guidance/ui/composite-control-conventions.md).
 
