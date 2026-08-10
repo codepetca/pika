@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-04 — Cleared final purge review blockers
-
-**Risk profile:** runtime-platform — code-first migration compatibility and
-exact-head destructive purge verification.
-
-**Completed:**
-- Added a migration-118-only readiness probe before the cleanup cron can read or
-  advance legacy migration-115 purge operations; pre-118 targets now fail closed
-  without RPC or Storage access.
-- Updated the primary destructive fixture to pass the complete server inventory,
-  including the operational inventory digest required by migration 118.
-- Used the owner-authorized final remediation batch and fifth targeted reviewer;
-  no P0/P1 or merge-blocking findings remain in the bounded fixes.
-
-**Validation:**
-- Focused purge/cron/migration coverage passes (3 files, 35 tests), including the
-  pre-118 no-op regression.
-- TypeScript, destructive-fixture shell syntax, migration-118 function lint,
-  continuity validation, and diff checks pass.
-
-**Remaining:**
-- Publish the draft replacement PR while leaving #963 unchanged.
-- Run exact-head database CI before enabling or deploying deletion. Migration
-  118 still requires fresh authorization for every database target.
-
 ## 2026-08-04 — Verified draft hot-archive purge replacement
 
 **Risk profile:** runtime-platform — irreversible classroom deletion,
@@ -1074,3 +1049,32 @@ and focused regression coverage; no lifecycle behavior or rollout gates changed.
 - Screenshots were visually reviewed for all teacher matrices and the student
   boundary. No database, migration, API behavior, feature gate, or destructive
   operation changed.
+
+## 2026-08-10 — Add Student Tests live-status accessibility
+
+**Risk profile:** exam-mode, workspace-state — student test announcements and
+autosave error feedback while preserving the mounted attempt and exam owner.
+
+**Completed:**
+- Added action-only polite flag/unflag announcements without announcing loaded
+  localStorage state or duplicating pointer/keyboard toggles.
+- Added polite autosave transition announcements for unsaved, saving, and saved
+  states while keeping the visible status layout and teacher preview unchanged.
+- Exposed save and submission errors as assertive alerts without changing API,
+  draft, retry, availability, locking, or submission behavior.
+- Added controlled timer/promise coverage for announcements, save failure draft
+  preservation, preview isolation, and existing pressed/locking/storage rules.
+
+**Validation:**
+- Focused StudentTestForm tests pass (17 tests), including controlled stale
+  success/failure races so an older save cannot overwrite newer live state.
+- TypeScript, lint,
+  architecture, UI policy, Pika audit, and diff checks.
+- Playwright verified real student flagged/unflagged, saving/error, response
+  preservation, and keyboard-focus states plus teacher preview at desktop/mobile
+  and light/dark; no layout regression or overflow was found.
+- The temporary local test fixture was deleted after capture; no API, database,
+  migration, Gradex, exam-mode ownership, or dependency changes were made.
+- Independent review identified one P1 stale-autosave completion race; the
+  accepted remediation guards UI completion by the latest pending draft and
+  monotonic successful-save sequence without changing persistence requests.

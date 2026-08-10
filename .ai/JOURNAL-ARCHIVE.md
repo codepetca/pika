@@ -17662,3 +17662,29 @@ authorization, concurrency, and migration compatibility.
   and pass the operational digest in the primary destructive fixture.
 - After those narrow fixes, run exact-head ephemeral DB CI and one final targeted
   review before committing/publishing the replacement draft PR.
+
+<!-- pika-session-log-archive-batch:b74b6b4c0807fda8a3e42581a8231bb3928ad9a43d7c50d3b3ebc075df641ce6 -->
+## 2026-08-04 — Cleared final purge review blockers
+
+**Risk profile:** runtime-platform — code-first migration compatibility and
+exact-head destructive purge verification.
+
+**Completed:**
+- Added a migration-118-only readiness probe before the cleanup cron can read or
+  advance legacy migration-115 purge operations; pre-118 targets now fail closed
+  without RPC or Storage access.
+- Updated the primary destructive fixture to pass the complete server inventory,
+  including the operational inventory digest required by migration 118.
+- Used the owner-authorized final remediation batch and fifth targeted reviewer;
+  no P0/P1 or merge-blocking findings remain in the bounded fixes.
+
+**Validation:**
+- Focused purge/cron/migration coverage passes (3 files, 35 tests), including the
+  pre-118 no-op regression.
+- TypeScript, destructive-fixture shell syntax, migration-118 function lint,
+  continuity validation, and diff checks pass.
+
+**Remaining:**
+- Publish the draft replacement PR while leaving #963 unchanged.
+- Run exact-head database CI before enabling or deploying deletion. Migration
+  118 still requires fresh authorization for every database target.
