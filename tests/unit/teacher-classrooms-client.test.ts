@@ -79,6 +79,7 @@ describe('teacher classrooms client', () => {
         hot_classroom_purge_enabled_ids: [
           '00000000-0000-4000-8000-000000000003',
         ],
+        cold_classroom_purge_enabled_ids: [coldArchive.classroom_id],
       }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -89,6 +90,7 @@ describe('teacher classrooms client', () => {
       hotClassroomPurgeEnabledIds: [
         '00000000-0000-4000-8000-000000000003',
       ],
+      coldClassroomPurgeEnabledIds: [coldArchive.classroom_id],
     })
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/classrooms?archived=true')
   })

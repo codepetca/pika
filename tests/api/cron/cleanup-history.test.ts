@@ -9,6 +9,7 @@ const cleanupMocks = vi.hoisted(() => ({
   run: vi.fn(),
 }))
 const purgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
+const coldPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const blueprintPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const healthMocks = vi.hoisted(() => ({ read: vi.fn() }))
 
@@ -24,6 +25,10 @@ vi.mock('@/lib/server/classroom-archive-object-cleanup', () => ({
 
 vi.mock('@/lib/server/classroom-purge', () => ({
   runClassroomPurgeSafetyNet: purgeMocks.run,
+}))
+
+vi.mock('@/lib/server/cold-classroom-purge', () => ({
+  runColdClassroomPurgeSafetyNet: coldPurgeMocks.run,
 }))
 
 vi.mock('@/lib/server/course-blueprint-purge', () => ({
@@ -224,6 +229,7 @@ describe('cron cleanup-history route', () => {
     vi.unstubAllEnvs()
     cleanupMocks.enabled.mockReturnValue(false)
     purgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
+    coldPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     blueprintPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     healthMocks.read.mockResolvedValue({ schemaAvailable: false })
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
@@ -271,9 +277,10 @@ describe('cron cleanup-history route', () => {
     )
   })
 
-  it('advances durable classroom and Blueprint purges through the authenticated safety net', async () => {
+  it('advances durable hot, cold, and Blueprint purges through the authenticated safety net', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     purgeMocks.run.mockResolvedValue({ processed: 2, completed: 1, failed: 0 })
+    coldPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 0, failed: 0 })
     blueprintPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 1, failed: 0 })
     const mock = createCleanupMock({ classrooms: [] })
     ;(mockSupabaseClient.from as any) = mock.from
@@ -285,9 +292,11 @@ describe('cron cleanup-history route', () => {
       status: 'ok',
       deleted: 0,
       classroom_purge: { processed: 2, completed: 1, failed: 0 },
+      cold_classroom_purge: { processed: 1, completed: 0, failed: 0 },
       course_blueprint_purge: { processed: 1, completed: 1, failed: 0 },
     })
     expect(purgeMocks.run).toHaveBeenCalledOnce()
+    expect(coldPurgeMocks.run).toHaveBeenCalledWith(10)
     expect(blueprintPurgeMocks.run).toHaveBeenCalledOnce()
   })
 

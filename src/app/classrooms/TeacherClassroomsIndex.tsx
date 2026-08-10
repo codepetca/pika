@@ -22,6 +22,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
+import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
@@ -68,6 +69,9 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [hotClassroomPurgeEnabledIds, setHotClassroomPurgeEnabledIds] = useState<Set<string>>(
     () => new Set(),
   )
+  const [coldClassroomPurgeEnabledIds, setColdClassroomPurgeEnabledIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const [view, setView] = useState<ViewMode>('active')
   const [showCreate, setShowCreate] = useState(false)
   const [reuseBlueprintId, setReuseBlueprintId] = useState<string | null>(null)
@@ -76,6 +80,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [isEditingClassrooms, setIsEditingClassrooms] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [purgeClassroom, setPurgeClassroom] = useState<Classroom | null>(null)
+  const [coldPurgeArchive, setColdPurgeArchive] = useState<ClassroomColdArchiveSummary | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingArchived, setIsLoadingArchived] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
@@ -117,6 +122,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setColdArchives(state.coldArchives)
       setColdArchiveRestoreEnabled(state.coldArchiveRestoreEnabled)
       setHotClassroomPurgeEnabledIds(new Set(state.hotClassroomPurgeEnabledIds ?? []))
+      setColdClassroomPurgeEnabledIds(new Set(state.coldClassroomPurgeEnabledIds ?? []))
       return true
     } catch (err: any) {
       setError(err.message || 'Failed to load archived classrooms')
@@ -570,8 +576,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     key={archive.archive_id}
                     archive={archive}
                     restoreEnabled={coldArchiveRestoreEnabled}
-                    disabled={isProcessing || openingClassroomId !== null}
+                    purgeEnabled={coldClassroomPurgeEnabledIds.has(archive.classroom_id)}
+                    disabled={
+                      isProcessing
+                      || openingClassroomId !== null
+                      || coldPurgeArchive !== null
+                    }
                     onRestore={() => openColdRestore(archive)}
+                    onDelete={() => setColdPurgeArchive(archive)}
                   />
                 ))}
               </>
@@ -694,6 +706,23 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               previous.filter((classroom) => classroom.id !== purgeClassroom.id),
             )
             setPurgeClassroom(null)
+          }}
+        />
+      ) : null}
+
+      {coldPurgeArchive ? (
+        <ColdClassroomPurgeDialog
+          classroomId={coldPurgeArchive.classroom_id}
+          archiveId={coldPurgeArchive.archive_id}
+          classroomTitle={coldPurgeArchive.title}
+          isOpen
+          onClose={() => setColdPurgeArchive(null)}
+          onCompleted={() => {
+            invalidateTeacherClassrooms()
+            setColdArchives((previous) => previous.filter(
+              (archive) => archive.classroom_id !== coldPurgeArchive.classroom_id,
+            ))
+            setColdPurgeArchive(null)
           }}
         />
       ) : null}

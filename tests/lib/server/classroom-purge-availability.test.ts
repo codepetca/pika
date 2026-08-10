@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { listHotClassroomPurgeEnabledIds } from '@/lib/server/classroom-purge-availability'
+import {
+  listColdClassroomPurgeEnabledIds,
+  listHotClassroomPurgeEnabledIds,
+} from '@/lib/server/classroom-purge-availability'
 
 const TEACHER_ID = '00000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
@@ -8,6 +11,7 @@ const OTHER_CLASSROOM_ID = '00000000-0000-4000-8000-000000000003'
 function settingsClient(args: {
   managed?: { data: unknown; error: { code?: string } | null }
   purge?: { data: unknown; error: { code?: string } | null }
+  coldPurge?: { data: unknown; error: { code?: string } | null }
 }) {
   const from = vi.fn((table: string) => ({
     select: vi.fn(() => ({
@@ -15,6 +19,15 @@ function settingsClient(args: {
         maybeSingle: vi.fn().mockResolvedValue(
           table === 'managed_storage_settings'
             ? args.managed ?? { data: { mode: 'enforced' }, error: null }
+            : table === 'cold_classroom_purge_settings'
+              ? args.coldPurge ?? {
+                data: {
+                  rollout_mode: 'disabled',
+                  canary_teacher_id: null,
+                  canary_classroom_id: null,
+                },
+                error: null,
+              }
             : args.purge ?? {
               data: {
                 rollout_mode: 'disabled',
@@ -138,6 +151,93 @@ describe('hot classroom purge rollout visibility', () => {
       supabase: unenforced.client,
       teacherId: TEACHER_ID,
       hotClassroomIds: [CLASSROOM_ID],
+    })).resolves.toEqual([])
+  })
+})
+
+describe('cold classroom purge rollout visibility', () => {
+  it('uses a separate fail-closed gate from hot classroom deletion', async () => {
+    const mock = settingsClient({
+      purge: {
+        data: {
+          rollout_mode: 'enabled',
+          canary_teacher_id: null,
+          canary_classroom_id: null,
+        },
+        error: null,
+      },
+    })
+
+    await expect(listColdClassroomPurgeEnabledIds({
+      supabase: mock.client,
+      teacherId: TEACHER_ID,
+      coldClassroomIds: [CLASSROOM_ID],
+    })).resolves.toEqual([])
+  })
+
+  it('shows only the exact cold classroom canary for its teacher', async () => {
+    const mock = settingsClient({
+      coldPurge: {
+        data: {
+          rollout_mode: 'canary',
+          canary_teacher_id: TEACHER_ID,
+          canary_classroom_id: CLASSROOM_ID,
+        },
+        error: null,
+      },
+    })
+
+    await expect(listColdClassroomPurgeEnabledIds({
+      supabase: mock.client,
+      teacherId: TEACHER_ID,
+      coldClassroomIds: [CLASSROOM_ID, OTHER_CLASSROOM_ID],
+    })).resolves.toEqual([CLASSROOM_ID])
+  })
+
+  it('shows every owner-scoped cold classroom only when independently enabled', async () => {
+    const mock = settingsClient({
+      coldPurge: {
+        data: {
+          rollout_mode: 'enabled',
+          canary_teacher_id: null,
+          canary_classroom_id: null,
+        },
+        error: null,
+      },
+    })
+
+    await expect(listColdClassroomPurgeEnabledIds({
+      supabase: mock.client,
+      teacherId: TEACHER_ID,
+      coldClassroomIds: [CLASSROOM_ID, OTHER_CLASSROOM_ID],
+    })).resolves.toEqual([CLASSROOM_ID, OTHER_CLASSROOM_ID])
+  })
+
+  it('hides cold deletion when its migration is absent or ownership is not enforced', async () => {
+    const missingMigration = settingsClient({
+      coldPurge: { data: null, error: { code: 'PGRST205' } },
+    })
+    const unenforced = settingsClient({
+      managed: { data: { mode: 'audit' }, error: null },
+      coldPurge: {
+        data: {
+          rollout_mode: 'enabled',
+          canary_teacher_id: null,
+          canary_classroom_id: null,
+        },
+        error: null,
+      },
+    })
+
+    await expect(listColdClassroomPurgeEnabledIds({
+      supabase: missingMigration.client,
+      teacherId: TEACHER_ID,
+      coldClassroomIds: [CLASSROOM_ID],
+    })).resolves.toEqual([])
+    await expect(listColdClassroomPurgeEnabledIds({
+      supabase: unenforced.client,
+      teacherId: TEACHER_ID,
+      coldClassroomIds: [CLASSROOM_ID],
     })).resolves.toEqual([])
   })
 })

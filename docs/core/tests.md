@@ -145,6 +145,13 @@ Test password-based flows:
   closed, tombstone changes around the hot query trigger a bounded stable-read retry, restore remains
   disabled without all server gates, and the UI retains one idempotency key across request or refresh
   retries until the restored state is confirmed.
+- Cold-Classroom purge tests prove independent disabled/canary/enabled rollout visibility,
+  teacher/Classroom/archive/operation scope binding, student rejection, exact managed inventory and
+  privacy-safe cold-resource digests, hot/cold worker isolation, tombstone fencing, restore conflict,
+  live-lease exclusion, durable Storage retry, authoritative archive-last ordering, explicit cold
+  operational reconciliation, retained aggregate audit evidence, and preservation of users, Course
+  Blueprints, their files, and other Classrooms. The rollback-only database fixture runs only after
+  separately authorized local application of migration 122.
 - Cold-compaction coordinator tests prove disabled-by-default teacher/archive canary gates, immutable
   artifact and manifest verification, exact database-to-archive inventory equality, bounded and
   idempotent cleanup staging, atomic-finalization ordering, completed replay, and fail-closed handling

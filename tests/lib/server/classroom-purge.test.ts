@@ -4,6 +4,7 @@ import {
   deleteClassroomPurgeStorageObject,
   isMissingClassroomPurgeSchemaError,
   mergeClassroomPurgeResourceCounts,
+  getClassroomPurgeStatus,
   runClassroomPurgeSafetyNet,
   shouldRequeueClassroomPurgeSafetyNet,
 } from '@/lib/server/classroom-purge'
@@ -145,5 +146,89 @@ describe('classroom purge helpers', () => {
     expect(serviceClient.from).toHaveBeenCalledWith('classroom_purge_settings')
     expect(serviceClient.rpc).not.toHaveBeenCalled()
     expect(serviceClient.storage.from).not.toHaveBeenCalled()
+  })
+
+  it('rejects a cold operation at the shared hot status boundary', async () => {
+    serviceClient.from.mockReset()
+    serviceClient.from.mockImplementation((table: string) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: table === 'classroom_purge_operations' ? {
+                id: operation.operation_id,
+                classroom_id: operation.classroom_id,
+                teacher_id: 'b1800000-0000-4000-8000-000000000001',
+                status: operation.status,
+                retryable: null,
+                error_code: null,
+                resource_counts: {},
+                attempt_count: 1,
+                completed_at: null,
+                purge_scope: 'cold_classroom',
+              } : null,
+              error: null,
+            }),
+          })),
+        })),
+      })),
+    }))
+
+    await expect(getClassroomPurgeStatus(
+      'b1800000-0000-4000-8000-000000000001',
+      operation.operation_id,
+    )).rejects.toMatchObject({ status: 404, code: 'purge_not_found' })
+  })
+
+  it('keeps pre-migration hot status reads compatible when purge_scope is absent', async () => {
+    serviceClient.from.mockReset()
+    const operationSelect = vi.fn((columns: string) => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue(
+            columns.includes('purge_scope')
+              ? {
+                data: null,
+                error: { code: 'PGRST204', message: 'purge_scope column not found' },
+              }
+              : {
+                data: {
+                  id: operation.operation_id,
+                  classroom_id: operation.classroom_id,
+                  teacher_id: 'b1800000-0000-4000-8000-000000000001',
+                  status: operation.status,
+                  retryable: null,
+                  error_code: null,
+                  resource_counts: {},
+                  attempt_count: 1,
+                  completed_at: null,
+                },
+                error: null,
+              },
+          ),
+        })),
+      })),
+    }))
+    serviceClient.from.mockImplementation((table: string) => {
+      if (table === 'classroom_purge_operations') return { select: operationSelect }
+      if (table === 'classroom_purge_objects') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [{ status: 'pending' }], error: null }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    await expect(getClassroomPurgeStatus(
+      'b1800000-0000-4000-8000-000000000001',
+      operation.operation_id,
+    )).resolves.toMatchObject({
+      operation_id: operation.operation_id,
+      status: 'deleting_objects',
+      storage_object_counts: { pending: 1 },
+    })
+    expect(operationSelect).toHaveBeenCalledTimes(2)
   })
 })
