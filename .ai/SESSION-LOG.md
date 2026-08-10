@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-04 — Stopped at purge review circuit breaker
-
-**Risk profile:** runtime-platform — irreversible deletion, managed Storage,
-authorization, concurrency, and migration compatibility.
-
-**Completed:**
-- Ran the high-risk independent review topology: security/concurrency and
-  architecture initial reviewers, one targeted security re-review, and one
-  final cumulative integration review.
-- Used two consolidated remediation batches to close retry/backoff and live-
-  lease state, durable Storage resurrection evidence, migration-115 upgrade
-  refusal, RPC-only ledger writes, operational impact/digest/fences, code-first
-  compatibility handling, and browser no-progress request storms.
-- Kept migration 118 draft and rollout-disabled; changed no local/hosted database
-  after the earlier authorized replay, and left PR #963 unchanged.
-
-**Validation:**
-- TypeScript, focused tests (47), startup tests (38), production build, lint,
-  architecture/design/UI policy, lineage, generated-type compatibility, Pika
-  audit, shell syntax, and diff checks pass.
-- The full suite before remediation batch 2 had 4,012 passing tests and only the
-  subsequently fixed startup-document budget failures.
-
-**Remaining:**
-- Two final P1s require an owner-approved third remediation batch: probe the
-  migration-118-only settings authority before cron reads legacy purge rows,
-  and pass the operational digest in the primary destructive fixture.
-- After those narrow fixes, run exact-head ephemeral DB CI and one final targeted
-  review before committing/publishing the replacement draft PR.
-
 ## 2026-08-04 — Cleared final purge review blockers
 
 **Risk profile:** runtime-platform — code-first migration compatibility and
@@ -1083,3 +1053,24 @@ authorization, exact managed Storage ownership, concurrency, and resumability.
 - No staging/production migration, rollout, purge, object deletion, or generic
   cleanup was performed. Migration 122 and its rollout still require separate,
   exact production authorization after merge.
+
+## 2026-08-10 — Refine archived Classroom action terminology
+
+**Risk profile:** low — presentation-only labels, accessible icon treatment,
+and focused regression coverage; no lifecycle behavior or rollout gates changed.
+
+**Completed:**
+- Renamed the hot-archive actions from “Use again” to “Reuse” and from
+  “Restore” to “Unarchive,” including the confirmation dialog and supporting
+  copy. Cold-archive recovery remains “Restore.”
+- Replaced the permanent-delete text action with the standard trash icon while
+  retaining the accessible “Delete permanently” name and tooltip.
+- Added component assertions and a focused teacher/student visual matrix for
+  desktop/mobile and light/dark modes.
+
+**Validation:**
+- Focused Vitest passed (2 files, 23 tests), lint passed, and the isolated
+  Playwright matrix passed (3 tests, including auth setup).
+- Screenshots were visually reviewed for all teacher matrices and the student
+  boundary. No database, migration, API behavior, feature gate, or destructive
+  operation changed.
