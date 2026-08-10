@@ -80,6 +80,8 @@ export function StudentTestForm({
   const pendingResponsesRef = useRef<TestResponses | null>(null)
   const lastSavedResponsesRef = useRef('')
   const lastSaveAttemptAtRef = useRef(0)
+  const saveRequestIdRef = useRef(0)
+  const latestSuccessfulSaveRequestIdRef = useRef(0)
 
   const allAnswered = questions.every((question) =>
     isCompleteTestResponseForQuestion(question, responses[question.id])
@@ -176,6 +178,11 @@ export function StudentTestForm({
     setSaveStatus('saving')
     setAutosaveAnnouncement('Saving')
     lastSaveAttemptAtRef.current = Date.now()
+    const requestId = ++saveRequestIdRef.current
+
+    const isLatestPendingDraft = () =>
+      pendingResponsesRef.current === null ||
+      serialized === JSON.stringify(pendingResponsesRef.current)
 
     try {
       const res = await fetch(`${apiBasePath}/${testId}/attempt`, {
@@ -190,7 +197,11 @@ export function StudentTestForm({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to save draft')
       }
-      lastSavedResponsesRef.current = serialized
+      if (requestId > latestSuccessfulSaveRequestIdRef.current) {
+        latestSuccessfulSaveRequestIdRef.current = requestId
+        lastSavedResponsesRef.current = serialized
+      }
+      if (!isLatestPendingDraft()) return
       setSaveStatus('saved')
       setAutosaveAnnouncement('Saved')
     } catch (saveError) {
@@ -199,6 +210,7 @@ export function StudentTestForm({
       if (isAssessmentAvailabilityError(message)) {
         onAvailabilityLoss?.()
       }
+      if (!isLatestPendingDraft()) return
       setError(message)
       setSaveStatus('unsaved')
       setAutosaveAnnouncement('Unsaved changes')

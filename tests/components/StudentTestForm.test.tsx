@@ -271,6 +271,92 @@ describe('StudentTestForm', () => {
     expect(autosaveStatus).toHaveTextContent('Saved')
   })
 
+  it.each([
+    ['succeeds', { ok: true, json: async () => ({}) }],
+    ['fails', { ok: false, json: async () => ({ error: 'Stale save failed' }) }],
+  ])(
+    'keeps newer changes unsaved when an older autosave %s',
+    async (_outcome, firstSaveResult) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-08-10T12:00:00Z'))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      let resolveFirstSave!: (value: typeof firstSaveResult) => void
+      let resolveSecondSave!: (value: { ok: boolean; json: () => Promise<Record<string, never>> }) => void
+      const firstSaveResponse = new Promise<typeof firstSaveResult>((resolve) => {
+        resolveFirstSave = resolve
+      })
+      const secondSaveResponse = new Promise<{
+        ok: boolean
+        json: () => Promise<Record<string, never>>
+      }>((resolve) => {
+        resolveSecondSave = resolve
+      })
+      fetchMock
+        .mockReturnValueOnce(firstSaveResponse)
+        .mockReturnValueOnce(secondSaveResponse)
+
+      render(
+        <StudentTestForm
+          testId="test-stale-autosave-id"
+          questions={[
+            createMockTestQuestion({
+              id: 'q1',
+              question_text: 'Explain your reasoning.',
+              options: [],
+              question_type: 'open_response',
+              position: 0,
+            }),
+          ]}
+          enableDraftAutosave
+          onSubmitted={vi.fn()}
+        />
+      )
+
+      const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+      const autosaveStatus = screen.getByTestId('student-test-autosave-status')
+
+      fireEvent.change(textbox, { target: { value: 'First response.' } })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(autosaveStatus).toHaveTextContent('Saving')
+
+      fireEvent.change(textbox, { target: { value: 'Newer response.' } })
+      expect(autosaveStatus).toHaveTextContent('Unsaved changes')
+
+      await act(async () => {
+        resolveFirstSave(firstSaveResult)
+        await firstSaveResponse
+        await Promise.resolve()
+      })
+
+      expect(textbox).toHaveValue('Newer response.')
+      expect(screen.getByText('Unsaved changes', { selector: '.text-xs' })).toBeInTheDocument()
+      expect(autosaveStatus).toHaveTextContent('Unsaved changes')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15000)
+      })
+
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(autosaveStatus).toHaveTextContent('Saving')
+
+      await act(async () => {
+        resolveSecondSave({ ok: true, json: async () => ({}) })
+        await secondSaveResponse
+        await Promise.resolve()
+      })
+
+      expect(screen.getByText('Saved', { selector: '.text-xs' })).toBeInTheDocument()
+      expect(autosaveStatus).toHaveTextContent('Saved')
+    }
+  )
+
   it('exposes failed autosaves as alerts and preserves the student response', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-10T12:00:00Z'))
