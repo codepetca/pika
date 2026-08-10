@@ -22,7 +22,7 @@ import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
-import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import { entryHasContent } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import {
   Button,
@@ -30,7 +30,6 @@ import {
   DataTableBody,
   DataTableCell,
   DataTableHead,
-  DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
@@ -42,14 +41,13 @@ import {
 } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import type { AttendanceStatus } from '@/types'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 
-type SortColumn = 'first_name' | 'last_name' | 'id' | 'status'
+type SortColumn = 'first_name' | 'last_name' | 'id' | 'log'
 
 const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
 const SUMMARY_PANEL_COLLAPSED_HEIGHT = 40
@@ -272,11 +270,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
-      if (sortColumn === 'status') {
+      if (sortColumn === 'log') {
         const rankOf = (row: LogRow) => {
-          if (row.entry && entryHasContent(row.entry)) return 0 // present
-          if (selectedDate >= today) return 1 // pending
-          return 2 // absent
+          return row.entry && entryHasContent(row.entry) ? 0 : 1
         }
         const cmp = rankOf(a) - rankOf(b)
         if (cmp !== 0) return applyDirection(cmp, sortDirection)
@@ -297,21 +293,20 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         sortDirection
       )
     })
-  }, [logs, sortColumn, sortDirection, selectedDate, today])
+  }, [logs, sortColumn, sortDirection])
 
-  const { presentCount, absentCount } = useMemo(() => {
-    let present = 0
-    let absent = 0
+  const { completeCount, incompleteCount } = useMemo(() => {
+    let complete = 0
+    let incomplete = 0
     for (const row of rows) {
       if (row.entry && entryHasContent(row.entry)) {
-        present++
-      } else if (selectedDate < today) {
-        absent++
+        complete++
+      } else {
+        incomplete++
       }
-      // pending (selectedDate >= today && no entry) - not counted
     }
-    return { presentCount: present, absentCount: absent }
-  }, [rows, selectedDate, today])
+    return { completeCount: complete, incompleteCount: incomplete }
+  }, [rows])
 
   const {
     scrollRef: studentTableScrollRef,
@@ -590,7 +585,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   )
 
   function renderStudentTable(showLogColumn: boolean) {
-    const visibleColumnCount = showLogColumn ? 5 : 4
+    const visibleColumnCount = 4
 
     return (
       <KeyboardNavigableTable
@@ -615,7 +610,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
                   density="tight"
-                  className={showLogColumn ? 'w-24 sm:w-36' : ''}
+                  className={showLogColumn ? 'w-20 sm:w-28' : ''}
                   trailing={isClassDay && rows.length > 0 ? (
                     <span className={showLogColumn ? 'hidden sm:inline-flex' : 'inline-flex'}>
                       <StudentCountBadge count={rows.length} variant="neutral" />
@@ -628,7 +623,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   direction={sortDirection}
                   onClick={() => handleSort('last_name')}
                   density="tight"
-                  className={showLogColumn ? 'w-20 sm:w-36' : ''}
+                  className={showLogColumn ? 'w-20 sm:w-28' : ''}
                 />
                 <SortableHeaderCell
                   label="ID"
@@ -636,26 +631,32 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   direction={sortDirection}
                   onClick={() => handleSort('id')}
                   density="tight"
-                  className={showLogColumn ? 'hidden w-32 md:table-cell' : ''}
+                  className={showLogColumn ? 'hidden w-24 md:table-cell' : ''}
                 />
-                {showLogColumn && (
-                  <DataTableHeaderCell density="tight" className="min-w-0">
-                    Log
-                  </DataTableHeaderCell>
-                )}
                 <SortableHeaderCell
-                  label={isClassDay ? '' : 'Status'}
-                  isActive={sortColumn === 'status'}
+                  label="Log"
+                  isActive={sortColumn === 'log'}
                   direction={sortDirection}
-                  onClick={() => handleSort('status')}
+                  onClick={() => handleSort('log')}
                   density="tight"
-                  align="center"
-                  className={showLogColumn ? 'w-[5.5rem]' : ''}
-                  trailing={isClassDay ? (
-                    <div className="flex items-center gap-2">
-                      <CountBadge count={presentCount} tooltip="Present" variant="success" />
-                      <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
-                    </div>
+                  align={showLogColumn ? 'left' : 'center'}
+                  className={showLogColumn ? 'min-w-0' : 'w-20'}
+                  trailing={isClassDay && rows.length > 0 && showLogColumn ? (
+                    <span
+                      aria-label={`${completeCount} complete, ${incompleteCount} incomplete`}
+                      className="ml-auto flex items-center gap-2"
+                    >
+                      <CountBadge
+                        count={completeCount}
+                        tooltip={`${completeCount} complete`}
+                        variant="success"
+                      />
+                      <CountBadge
+                        count={incompleteCount}
+                        tooltip={`${incompleteCount} incomplete`}
+                        variant="danger"
+                      />
+                    </span>
                   ) : undefined}
                 />
               </DataTableRow>
@@ -665,11 +666,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 const isSelected = selectedStudentId === row.student_id
                 const hasLog = Boolean(row.entry && entryHasContent(row.entry))
                 const logText = hasLog ? row.entry?.text || '' : ''
-                const status: AttendanceStatus = hasLog
-                  ? 'present'
-                  : selectedDate >= today
-                    ? 'pending'
-                    : 'absent'
+                const completionLabel = hasLog ? 'Complete' : 'Incomplete'
                 return (
                   <DataTableRow
                     key={row.student_id}
@@ -701,29 +698,43 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                         showLogColumn ? 'hidden md:table-cell' : '',
                       ].join(' ')}
                     >
-                      {row.email_username}
+                      <span
+                        className={showLogColumn ? 'block truncate' : ''}
+                        title={showLogColumn ? row.email_username : undefined}
+                      >
+                        {row.email_username}
+                      </span>
                     </DataTableCell>
-                    {showLogColumn && (
-                      <DataTableCell density="tight" className="min-w-0 text-text-muted">
-                        {hasLog ? (
-                          <span className="block truncate" title={logText}>
-                            {logText}
-                          </span>
-                        ) : (
-                          <span aria-label="No log for this date">—</span>
-                        )}
-                      </DataTableCell>
-                    )}
-                    <DataTableCell density="tight" align="center">
-                      {isClassDay ? (
-                        <Tooltip content={getAttendanceLabel(status)}>
+                    <DataTableCell
+                      density="tight"
+                      align={showLogColumn ? 'left' : 'center'}
+                      className={showLogColumn ? 'min-w-0 text-text-muted' : ''}
+                    >
+                      <div
+                        className={[
+                          'flex min-w-0 items-center gap-2',
+                          showLogColumn ? '' : 'justify-center',
+                        ].join(' ')}
+                      >
+                        <Tooltip content={completionLabel}>
                           <span
-                            className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
+                            aria-label={completionLabel}
+                            className={[
+                              'inline-block h-3 w-3 shrink-0 rounded-full',
+                              hasLog ? 'bg-success-solid' : 'bg-danger-solid',
+                            ].join(' ')}
                           />
                         </Tooltip>
-                      ) : (
-                        <span className="text-text-muted">—</span>
-                      )}
+                        {showLogColumn && (
+                          hasLog ? (
+                            <span className="block truncate" title={logText}>
+                              {logText}
+                            </span>
+                          ) : (
+                            <span aria-label="No log for this date">—</span>
+                          )
+                        )}
+                      </div>
                     </DataTableCell>
                   </DataTableRow>
                 )

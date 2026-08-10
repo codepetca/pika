@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { TeacherAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherAttendanceTab'
 import type { Classroom, Entry } from '@/types'
 
@@ -200,14 +201,20 @@ describe('TeacherAttendanceTab', () => {
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const logText = await screen.findByText(longLogText)
+    const logHeader = screen.getByRole('columnheader', {
+      name: 'Log 1 complete, 1 incomplete',
+    })
 
-    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(logHeader).toHaveAttribute('aria-sort', 'none')
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveAttribute(
       'aria-keyshortcuts',
       'ArrowUp ArrowDown Home End Escape',
     )
     expect(logText).toHaveClass('truncate')
     expect(logText).toHaveAttribute('title', longLogText)
+    expect(screen.getByLabelText('Complete')).toBeInTheDocument()
+    expect(screen.getByLabelText('Incomplete')).toBeInTheDocument()
     expect(screen.getByText('Class Log Summary')).toBeInTheDocument()
     expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Hide class log summary' })).not.toBeInTheDocument()
@@ -224,6 +231,59 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(selectedRow).toHaveFocus()
     })
+  })
+
+  it('sorts the combined Log column by complete and incomplete status', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/logs?')) {
+        return mockJson({
+          logs: [
+            {
+              student_id: 'student-incomplete',
+              student_email: 'incomplete@example.com',
+              student_first_name: 'Alex',
+              student_last_name: 'Alpha',
+              entry: null,
+              history_preview: [],
+            },
+            {
+              student_id: 'student-complete',
+              student_email: 'complete@example.com',
+              student_first_name: 'Zoe',
+              student_last_name: 'Zulu',
+              entry: entry({ id: 'entry-complete', student_id: 'student-complete' }),
+              history_preview: [],
+            },
+          ],
+        })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const logSortButton = await screen.findByRole('button', {
+      name: 'Log 1 complete, 1 incomplete',
+    })
+
+    logSortButton.focus()
+    expect(logSortButton).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('columnheader', { name: 'Log 1 complete, 1 incomplete' })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Zulu')
+
+    await user.keyboard(' ')
+    expect(screen.getByRole('columnheader', { name: 'Log 1 complete, 1 incomplete' })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Alpha')
   })
 
   it('shows a retryable error instead of prior-date or empty-roster data after a failed read', async () => {
@@ -323,7 +383,7 @@ describe('TeacherAttendanceTab', () => {
 
     render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
 
-    await screen.findByRole('columnheader', { name: 'Log' })
+    await screen.findByRole('columnheader', { name: /^Log/ })
 
     const lastClassButton = screen.getByRole('button', { name: 'Go to last class' })
     const todayButton = screen.getByRole('button', { name: 'Go to today' })
@@ -353,7 +413,7 @@ describe('TeacherAttendanceTab', () => {
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
-    await screen.findByRole('columnheader', { name: 'Log' })
+    await screen.findByRole('columnheader', { name: /^Log/ })
 
     expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
     expect(screen.queryByRole('button', { name: 'Previous day' })).not.toBeInTheDocument()
@@ -376,7 +436,7 @@ describe('TeacherAttendanceTab', () => {
 
     render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
 
-    await screen.findByRole('columnheader', { name: 'Log' })
+    await screen.findByRole('columnheader', { name: /^Log/ })
     expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
 
     todayMock.today = '2026-05-07'
@@ -474,7 +534,7 @@ describe('TeacherAttendanceTab', () => {
 
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
-    expect(screen.queryByRole('columnheader', { name: 'Log' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
     expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('cell', { name: 'Student1', exact: true }))
@@ -482,7 +542,7 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
     })
-    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
     expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
   })
 
@@ -531,7 +591,7 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
     })
-    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveFocus()
   })
 
@@ -553,7 +613,7 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
     })
-    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
   })
 
   it('uses entry animations when switching between the full table and selected workspace', async () => {
@@ -561,7 +621,7 @@ describe('TeacherAttendanceTab', () => {
 
     const { container } = render(<TeacherAttendanceTab classroom={classroom} />)
 
-    await screen.findByRole('columnheader', { name: 'Log' })
+    await screen.findByRole('columnheader', { name: /^Log/ })
     expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
 
     fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
@@ -575,7 +635,7 @@ describe('TeacherAttendanceTab', () => {
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
     })
-    expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
     expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
   })
 

@@ -1078,3 +1078,25 @@ autosave error feedback while preserving the mounted attempt and exam owner.
 - Independent review identified one P1 stale-autosave completion race; the
   accepted remediation guards UI completion by the latest pending draft and
   monotonic successful-save sequence without changing persistence requests.
+## 2026-08-10 — Compact teacher Daily log table
+
+**Risk profile:** none — presentation and client-side table ordering only.
+
+**Completed:**
+- Reduced the First, Last, and ID column widths in the teacher Daily table so
+  the log preview receives more horizontal space.
+- Removed the standalone attendance-status column and combined its row marker,
+  Complete/Incomplete counts, and sortable behavior into the Log column.
+- Added accessible completion labels and preserved Log sorting in both the
+  full-width table and selected-student workspace.
+- Removed the stale arbitrary-spacing exception for the deleted status-column
+  width.
+
+**Validation:**
+- Focused component coverage passes (17 tests), including Enter/Space
+  activation, ascending and descending Complete/Incomplete sorting, focus, and
+  sortable-header semantics.
+- Lint, architecture, design policy, UI policy, and diff checks pass.
+- Playwright experience matrix passes (18 tests) across teacher/student,
+  desktop/mobile, and light/dark; screenshots of the teacher default and sorted
+  states show no page overflow or broken layout.
