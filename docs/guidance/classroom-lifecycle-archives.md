@@ -317,12 +317,14 @@ semantics:
   normal classroom creation. It never copies students, submissions, grades, attendance, or other
   runtime history. Blueprint capture/linking and classroom-only promotion are classroom-locked
   transactions that recheck `archived_at`, ownership, lineage, and structural revision.
-  Permanent removal is not available through the classroom route or teacher UI; future hot-data
-  removal must run only through the verified compaction state machine.
+  Permanent removal is available only through the separately fenced hot-Classroom purge state
+  machine; it is not part of archive compaction.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
   **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
   classroom routes until the archive is restored to `archived_hot`; **Use again** is therefore
-  unavailable while the classroom remains cold.
+  unavailable while the classroom remains cold. Migration 122 adds an independently gated permanent
+  deletion flow that removes the recovery archive last and preserves users, Course Blueprints, and
+  other Classrooms. See `docs/guidance/cold-archived-classroom-purge.md`.
 
 `GET /api/teacher/classrooms?archived=true` returns both lists. The cold list is validated against
 the shared classroom-lifecycle Zod contract. During a backward-compatible rollout, a missing
@@ -341,6 +343,10 @@ archive restore attempt and retains it after a failed request or failed list ref
 key only after the restore succeeds and the refreshed archive state is confirmed. Listing a stored
 archive never downloads its object, expands archive contents, compacts another classroom, or purges
 data.
+
+Stored deletion and restore have independent presentation gates, but a live operation is a database
+conflict for the other. Once stored deletion begins, its cold fence prevents restore and tombstone
+mutation until the purge completes or an authorized operator resolves terminal drift.
 
 ## Cold Compaction
 

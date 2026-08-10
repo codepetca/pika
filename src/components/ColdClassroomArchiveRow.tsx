@@ -6,15 +6,19 @@ import type { ClassroomColdArchiveSummary } from '@/lib/contracts/classroom-life
 interface Props {
   archive: ClassroomColdArchiveSummary
   restoreEnabled: boolean
+  purgeEnabled?: boolean
   disabled?: boolean
   onRestore: () => void
+  onDelete?: () => void
 }
 
 export function ColdClassroomArchiveRow({
   archive,
   restoreEnabled,
+  purgeEnabled = false,
   disabled = false,
   onRestore,
+  onDelete,
 }: Props) {
   const archivedDate = formatInTimeZone(
     new Date(archive.archived_at),
@@ -38,7 +42,7 @@ export function ColdClassroomArchiveRow({
           <span>Archived {archivedDate}</span>
         </div>
       </div>
-      <div className="flex items-center lg:justify-end">
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
         <Button
           type="button"
           variant="surface"
@@ -50,6 +54,18 @@ export function ColdClassroomArchiveRow({
           <ArchiveRestore className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Restore</span>
         </Button>
+        {purgeEnabled ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="text-danger hover:text-danger"
+            onClick={onDelete}
+            disabled={disabled}
+          >
+            Delete permanently
+          </Button>
+        ) : null}
       </div>
     </div>
   )

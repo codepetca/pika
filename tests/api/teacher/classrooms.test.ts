@@ -6,7 +6,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
-import { listHotClassroomPurgeEnabledIds } from '@/lib/server/classroom-purge-availability'
+import {
+  listColdClassroomPurgeEnabledIds,
+  listHotClassroomPurgeEnabledIds,
+} from '@/lib/server/classroom-purge-availability'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({
@@ -29,6 +32,7 @@ vi.mock('@/lib/server/classroom-archive-recovery-list', () => ({
   listTeacherArchivedClassrooms: vi.fn(),
 }))
 vi.mock('@/lib/server/classroom-purge-availability', () => ({
+  listColdClassroomPurgeEnabledIds: vi.fn(),
   listHotClassroomPurgeEnabledIds: vi.fn(),
 }))
 
@@ -48,6 +52,7 @@ describe('GET /api/teacher/classrooms', () => {
       cold_archive_restore_enabled: false,
     })
     vi.mocked(listHotClassroomPurgeEnabledIds).mockResolvedValue([])
+    vi.mocked(listColdClassroomPurgeEnabledIds).mockResolvedValue([])
   })
 
   it('should return list of active teacher classrooms', async () => {
@@ -75,6 +80,9 @@ describe('GET /api/teacher/classrooms', () => {
       cold_archive_restore_enabled: true,
     })
     vi.mocked(listHotClassroomPurgeEnabledIds).mockResolvedValueOnce(['classroom-archived'])
+    vi.mocked(listColdClassroomPurgeEnabledIds).mockResolvedValueOnce([
+      '00000000-0000-4000-8000-000000000001',
+    ])
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms?archived=true')
     const response = await GET(request)
@@ -85,6 +93,9 @@ describe('GET /api/teacher/classrooms', () => {
     expect(data.cold_archives).toHaveLength(1)
     expect(data.cold_archive_restore_enabled).toBe(true)
     expect(data.hot_classroom_purge_enabled_ids).toEqual(['classroom-archived'])
+    expect(data.cold_classroom_purge_enabled_ids).toEqual([
+      '00000000-0000-4000-8000-000000000001',
+    ])
     expect(listTeacherArchivedClassrooms).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
       teacherId: 'teacher-1',
@@ -93,6 +104,11 @@ describe('GET /api/teacher/classrooms', () => {
       supabase: mockSupabaseClient,
       teacherId: 'teacher-1',
       hotClassroomIds: ['classroom-archived'],
+    })
+    expect(listColdClassroomPurgeEnabledIds).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      teacherId: 'teacher-1',
+      coldClassroomIds: ['00000000-0000-4000-8000-000000000001'],
     })
   })
 

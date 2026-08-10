@@ -17604,3 +17604,30 @@ PostgreSQL function semantics, and conflicting background operations.
 - Obtain fresh authorization to reset/reseed local Supabase, replay corrected
   migration 118, regenerate types, and rerun the lint/readiness/destructive
   fixtures. Keep staging/production untouched and rollout gates disabled.
+
+<!-- pika-session-log-archive-batch:1dd5557a597be55aa97bde846e4a17c9a372e65b36d44d670fec7aa3067dc44b -->
+## 2026-08-04 — Replayed and verified managed-ownership purge locally
+
+**Risk profile:** runtime-platform — authorized destructive local database reset
+and verification of irreversible purge infrastructure.
+
+**Completed:**
+- Used the one-time authorization to reset local Supabase, replay migrations
+  001–118 once, regenerate database types, and reseed the development fixtures.
+- Passed migration-118 PostgreSQL lint, the managed-storage readiness and
+  concurrency fixture, and the rollback-only destructive purge fixture covering
+  conflict blocking, authorization, retries, partial failure, storage cleanup,
+  preservation, and operation locks.
+- Reconfirmed post-fixture safe defaults: classroom purge remains `disabled`
+  and managed storage remains in `compatibility` mode.
+- Applied nothing to staging or production and left PR #963 untouched.
+
+**Validation:**
+- Generated Supabase types match the replayed schema; TypeScript passes.
+- Focused purge/API/UI/migration coverage passes (7 files, 50 tests).
+- Teacher/student desktop/mobile light/dark verification already passed without
+  enabling the rollout gates.
+
+**Remaining:**
+- Complete final read-only change-set review, then commit and publish the draft
+  replacement PR only when authorized.

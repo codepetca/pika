@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-04 — Replayed and verified managed-ownership purge locally
-
-**Risk profile:** runtime-platform — authorized destructive local database reset
-and verification of irreversible purge infrastructure.
-
-**Completed:**
-- Used the one-time authorization to reset local Supabase, replay migrations
-  001–118 once, regenerate database types, and reseed the development fixtures.
-- Passed migration-118 PostgreSQL lint, the managed-storage readiness and
-  concurrency fixture, and the rollback-only destructive purge fixture covering
-  conflict blocking, authorization, retries, partial failure, storage cleanup,
-  preservation, and operation locks.
-- Reconfirmed post-fixture safe defaults: classroom purge remains `disabled`
-  and managed storage remains in `compatibility` mode.
-- Applied nothing to staging or production and left PR #963 untouched.
-
-**Validation:**
-- Generated Supabase types match the replayed schema; TypeScript passes.
-- Focused purge/API/UI/migration coverage passes (7 files, 50 tests).
-- Teacher/student desktop/mobile light/dark verification already passed without
-  enabling the rollout gates.
-
-**Remaining:**
-- Complete final read-only change-set review, then commit and publish the draft
-  replacement PR only when authorized.
-
 ## 2026-08-04 — Stopped at purge review circuit breaker
 
 **Risk profile:** runtime-platform — irreversible deletion, managed Storage,
@@ -1070,3 +1044,42 @@ monitoring, and managed-storage health visibility.
   `healthy: true`, zero critical findings, zero warnings, and zero managed
   storage or purge-protocol drift; anonymous invocation was denied with 401.
 - The production worktree is clean and synchronized with `origin/production`.
+
+## 2026-08-09 — Implement cold-archived Classroom permanent deletion
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss, teacher
+authorization, exact managed Storage ownership, concurrency, and resumability.
+
+**Completed:**
+- Added independent, disabled-by-default cold-Classroom deletion using the
+  existing managed-deletion operation ledger, fences, leases, retries, and
+  monitoring; hot-Classroom and Blueprint purge behavior remains separate.
+- Bound every operation to one teacher-owned cold archive, prioritizing the
+  authoritative recovery bundle last, and preserved user accounts, reusable
+  Blueprints, other Classrooms/archives, and their managed files.
+- Added fail-closed teacher APIs, conflict/readiness checks, resumable cron
+  ticking without a new schedule, audit-safe resource hashes, and irreversible
+  confirmation UX. Generic orphan cleanup remains disabled.
+- Independent high-risk review caught and fixed two cross-scope regressions:
+  migration 122 now preserves Blueprint purge Storage-lease authority, and the
+  hot/cold safety nets filter scope and terminal failures before limiting work.
+  Regression coverage exercises both worker-starvation cases, while fresh CI
+  replay runs the existing Blueprint purge fixture and the new cold purge fixture.
+- Documented contracts, recovery-loss consequences, rollout gates, operations,
+  and tests. Added desktop/mobile teacher and student-boundary visual coverage.
+
+**Validation:**
+- Under exact local-only authorization, previewed migration history 001–121,
+  applied only `122_cold_archived_classroom_purge.sql` to the dedicated local
+  Supabase database, regenerated types, and confirmed the gate remains
+  `disabled`.
+- The rollback-only database harness passed authorization, restore-conflict,
+  tombstone fence, live-lease, retry, exact-object ordering, cleanup, audit, and
+  preservation checks, then rolled back all fixtures.
+- Full Vitest passed (483 files, 4,159 tests), plus TypeScript, lint, generated
+  type parity, production build, architecture/design/storage checks, Pika audit,
+  diff checks, and Playwright visual verification across desktop/mobile and
+  light/dark teacher states plus the student boundary.
+- No staging/production migration, rollout, purge, object deletion, or generic
+  cleanup was performed. Migration 122 and its rollout still require separate,
+  exact production authorization after merge.

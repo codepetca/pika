@@ -395,6 +395,55 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
   })
 
+  it('offers stored classroom deletion only behind the independent cold gate', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [],
+      coldArchives: [coldArchive],
+      coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
+      coldClassroomPurgeEnabledIds: [coldArchive.classroom_id],
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        impact: {
+          classroom_id: coldArchive.classroom_id,
+          archive_id: coldArchive.archive_id,
+          classroom_title: coldArchive.title,
+          source_revision: 1,
+          storage_inventory_sha256: 'a'.repeat(64),
+          cold_resource_inventory_sha256: 'b'.repeat(64),
+          cold_resource_count: 1,
+          student_count: 0,
+          managed_file_count: 1,
+          managed_file_bytes: 1,
+          missing_file_count: 0,
+          non_ready_file_count: 0,
+          unmanaged_reference_count: 0,
+          archive_count: 1,
+          gradex_extract_count: 0,
+          storage_counts: { 'classroom-archives': 1 },
+          resource_counts: { classroom_cold_tombstones: 1 },
+          retention: { mode: 'teacher_managed', delete_after: null },
+          conflicting_operation: null,
+          deletion_available: true,
+          unavailable_reason: null,
+        },
+        operation: null,
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByRole('dialog', {
+      name: 'Delete stored classroom permanently?',
+    })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
   it('restores a stored classroom with an idempotency key and refreshes the archived list', async () => {
     const operationId = '00000000-0000-4000-8000-000000000003'
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(operationId)
