@@ -1,4 +1,4 @@
-Prod 001–121. PR #986: Student Tests live status; gates, visuals, reviews pass.
-WT: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`. Env:
-`$HOME/Repos/.env/pika/.env.local` or collaborator `.env.example`. Draft; do not
-merge without explicit approval. Deletion unchanged.
+Prod 001–122; release PR #988 deployed. Cold-Classroom purge gate is disabled,
+with zero active cold operations and managed-deletion health at 0 critical / 0
+warnings. Next: separately authorize one exact production cold purge canary.
+Individual-student purge remains separate; generic orphan cleanup remains off.
