@@ -11,211 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-04 — Hardened purge rollout visibility and verification gates
-
-**Risk profile:** runtime-platform — irreversible classroom purge rollout,
-PostgreSQL function semantics, and conflicting background operations.
-
-**Completed:**
-- Added a fail-closed, server-authoritative archive-list field so permanent
-  deletion is visible only when managed ownership is enforced and the exact
-  teacher/classroom rollout gate is open; the purge RPC remains final authority.
-- Corrected the migration-118 conflict function volatility and added a scoped
-  database-lint gate that checks every function created or replaced by 118
-  without making unrelated historical warnings a new CI baseline.
-- Expanded the rollback-only destructive fixture to independently prove active
-  archive, restore, assignment grading, repository grading, test grading,
-  Blueprint operation, proposal, and editing-session conflicts.
-- Visually verified teacher archived list/dialog and the student boundary on
-  desktop/mobile in light/dark through Playwright interception, without changing
-  local rollout settings.
-
-**Validation:**
-- Pika audit, TypeScript, lint, architecture, design/UI policy, diff checks, and
-  production build pass; full Vitest passes (464 files, 4,010 tests).
-- The current old local migration body makes the new database lint and purge
-  fixture fail exactly at the known composite-row assignment; all newly added
-  conflict assertions pass before that expected boundary.
-
-**Remaining:**
-- Obtain fresh authorization to reset/reseed local Supabase, replay corrected
-  migration 118, regenerate types, and rerun the lint/readiness/destructive
-  fixtures. Keep staging/production untouched and rollout gates disabled.
-
-## 2026-08-04 — Replayed and verified managed-ownership purge locally
-
-**Risk profile:** runtime-platform — authorized destructive local database reset
-and verification of irreversible purge infrastructure.
-
-**Completed:**
-- Used the one-time authorization to reset local Supabase, replay migrations
-  001–118 once, regenerate database types, and reseed the development fixtures.
-- Passed migration-118 PostgreSQL lint, the managed-storage readiness and
-  concurrency fixture, and the rollback-only destructive purge fixture covering
-  conflict blocking, authorization, retries, partial failure, storage cleanup,
-  preservation, and operation locks.
-- Reconfirmed post-fixture safe defaults: classroom purge remains `disabled`
-  and managed storage remains in `compatibility` mode.
-- Applied nothing to staging or production and left PR #963 untouched.
-
-**Validation:**
-- Generated Supabase types match the replayed schema; TypeScript passes.
-- Focused purge/API/UI/migration coverage passes (7 files, 50 tests).
-- Teacher/student desktop/mobile light/dark verification already passed without
-  enabling the rollout gates.
-
-**Remaining:**
-- Complete final read-only change-set review, then commit and publish the draft
-  replacement PR only when authorized.
-
-## 2026-08-04 — Stopped at purge review circuit breaker
-
-**Risk profile:** runtime-platform — irreversible deletion, managed Storage,
-authorization, concurrency, and migration compatibility.
-
-**Completed:**
-- Ran the high-risk independent review topology: security/concurrency and
-  architecture initial reviewers, one targeted security re-review, and one
-  final cumulative integration review.
-- Used two consolidated remediation batches to close retry/backoff and live-
-  lease state, durable Storage resurrection evidence, migration-115 upgrade
-  refusal, RPC-only ledger writes, operational impact/digest/fences, code-first
-  compatibility handling, and browser no-progress request storms.
-- Kept migration 118 draft and rollout-disabled; changed no local/hosted database
-  after the earlier authorized replay, and left PR #963 unchanged.
-
-**Validation:**
-- TypeScript, focused tests (47), startup tests (38), production build, lint,
-  architecture/design/UI policy, lineage, generated-type compatibility, Pika
-  audit, shell syntax, and diff checks pass.
-- The full suite before remediation batch 2 had 4,012 passing tests and only the
-  subsequently fixed startup-document budget failures.
-
-**Remaining:**
-- Two final P1s require an owner-approved third remediation batch: probe the
-  migration-118-only settings authority before cron reads legacy purge rows,
-  and pass the operational digest in the primary destructive fixture.
-- After those narrow fixes, run exact-head ephemeral DB CI and one final targeted
-  review before committing/publishing the replacement draft PR.
-
-## 2026-08-04 — Cleared final purge review blockers
-
-**Risk profile:** runtime-platform — code-first migration compatibility and
-exact-head destructive purge verification.
-
-**Completed:**
-- Added a migration-118-only readiness probe before the cleanup cron can read or
-  advance legacy migration-115 purge operations; pre-118 targets now fail closed
-  without RPC or Storage access.
-- Updated the primary destructive fixture to pass the complete server inventory,
-  including the operational inventory digest required by migration 118.
-- Used the owner-authorized final remediation batch and fifth targeted reviewer;
-  no P0/P1 or merge-blocking findings remain in the bounded fixes.
-
-**Validation:**
-- Focused purge/cron/migration coverage passes (3 files, 35 tests), including the
-  pre-118 no-op regression.
-- TypeScript, destructive-fixture shell syntax, migration-118 function lint,
-  continuity validation, and diff checks pass.
-
-**Remaining:**
-- Publish the draft replacement PR while leaving #963 unchanged.
-- Run exact-head database CI before enabling or deploying deletion. Migration
-  118 still requires fresh authorization for every database target.
-
-## 2026-08-04 — Verified draft hot-archive purge replacement
-
-**Risk profile:** runtime-platform — irreversible classroom deletion,
-concurrency, managed Storage ownership, and migration safety.
-
-**Completed:**
-- Reconciled existing managed-cleanup and archive-compaction concurrency
-  fixtures with migration 118's fail-fast lifecycle lock and retry contract.
-- Hardened the rollback-only purge fixture to simulate provider-side object
-  resurrection without weakening Supabase Storage ownership or app-role access.
-- Kept PR #968 draft, PR #963 unchanged, rollout gates disabled, and migration
-  118 unapplied by this remediation.
-
-**Validation:**
-- Exact-head CI run 30952362597 passed Architecture Database Contracts, Test &
-  Build, Browser Experience Matrix, and Vercel at `ab4ce5f6`.
-- Pika audit, shell syntax, diff checks, and 27 focused tests pass.
-- Targeted security/concurrency and final cumulative integration reviews found
-  no P0/P1 or merge-blocking findings.
-
-**Remaining:**
-- Keep migration 118 and deletion disabled until separately authorized rollout
-  and canary verification. Cold archives and individual-student purge remain
-  follow-up scopes.
-
-## 2026-08-04 — Complete native Pal shell integration
-
-**Risk profile:** runtime-platform — authenticated learner scope, external
-widget runtime, and persistent classroom shell behavior.
-
-**Completed:**
-- Moved the single student-only `PalProvider` into the persistent authenticated
-  classroom layout so the roadmap, companion, and reward surfaces share one
-  learner snapshot across classroom and tab navigation.
-- Kept teachers and invalid/disabled Pal configurations outside the provider;
-  optional widget failures remain contained without taking down academic pages.
-- Rotated the Pal client and its token cache whenever the opaque authenticated
-  scope changes, and cached learner read tokens only until their server-issued
-  expiry enters the safe refresh window.
-- Added bounded server-side per-learner token reuse, in-flight coalescing, and
-  module-shared mint-start backoff so a browser-cache bypass cannot fan out
-  privileged Pal mint calls, including failure and short-token paths.
-- Kept the native achievement roadmap in Pika's Achievements tab and suppressed
-  the ambient companion and reward modal while the student Tests surface is
-  active, including Pika's History API tab transitions.
-- Published and registry-verified `@codepet/pal-widget@0.1.0-alpha.2`, then
-  replaced the temporary package tarball with the exact immutable npm version
-  and its integrity-pinned lockfile entry.
-
-**Validation:**
-- Full Vitest suite: 467 files / 4,044 tests.
-- TypeScript, architecture policy, UI policy, production build, and diff checks
-  pass against the registry-installed `0.1.0-alpha.2` package.
-- Live local Pika-to-Pal flow returned a same-origin learner read token, fetched
-  the cross-origin learner snapshot, and rendered the canonical cat-on-grass
-  companion with no iframe.
-- Playwright inspection passed for the authenticated student surface at
-  desktop/mobile and light/dark viewports. Component coverage verifies the
-  native roadmap, host-owned reward modal, retry containment, scope rotation,
-  and Tests-tab ambient suppression.
-
-**Remaining:**
-- Push the token-burst review remediation to PR #966, then require exact-head
-  CI and final independent confirmation before merge.
-
-## 2026-08-04 — Add managed archive binding compatibility
-
-**Risk profile:** runtime-platform — production archive metadata compatibility,
-managed Storage reconciliation, and irreversible deletion migration lineage.
-
-**Completed:**
-- Added migration 118's narrow compatibility exception so legacy verified
-  classroom archives can receive one deterministic managed-object identity
-  without permitting any other archive metadata change.
-- Required an exact archive operation, classroom owner, bucket/path, purpose,
-  checksum, byte size, and compatibility-mode match under the managed-storage
-  protocol lock, using canonical operation-before-object lock ordering.
-- Resequenced the unapplied hot-archive deletion migration from 118 to 119 and
-  updated its tests, fixtures, documentation, lint, and lineage checks.
-- Kept production and the shared local Supabase database unchanged.
-
-**Validation:**
-- An isolated local 001–119 replay, database lint, generated-type check,
-  managed-storage readiness/concurrency fixture, and destructive purge fixture
-  all pass.
-- Focused migration tests pass (2 files / 9 tests); migration lineage,
-  migration-119 function lint, shell syntax, and diff checks pass.
-
-**Remaining:**
-- Review and merge the compatibility change before requesting fresh,
-  exact-migration authorization for any production application. Migration 119
-  and all deletion rollout gates remain unapplied and disabled.
-
 ## 2026-08-05 — Apply archive binding compatibility to production
 
 **Risk profile:** runtime-platform — production trigger compatibility for
@@ -1079,3 +874,200 @@ across irreversible purge ledgers and managed-storage ownership.
   rollout change, production query, purge, or persistent Storage deletion was
   performed; the temporary helper and all fixtures were removed. No UI changed,
   so visual verification was not applicable.
+
+## 2026-08-09 — Deploy managed deletion health monitoring
+
+**Risk profile:** runtime-platform — production schema activation, daily cron
+monitoring, and managed-storage health visibility.
+
+**Completed:**
+- Merged `main` into protected `production` through PR #981 after the full CI,
+  database-contract, build, and browser matrix passed; Vercel confirmed
+  production commit `64e8a22a` deployed.
+- Verified the linked production Supabase project had migrations 001–120 and
+  that the dry run contained only `121_managed_deletion_health_monitoring.sql`,
+  then applied migration 121 once under exact production authorization.
+- Kept generic orphan cleanup disabled and did not invoke a purge, retry,
+  cleanup route, rollout gate, Storage deletion, or the deep JSON diagnostic.
+
+**Validation:**
+- Production migration history now records 001–121.
+- The lightweight service-role aggregate RPC returned HTTP 200 with
+  `healthy: true`, zero critical findings, zero warnings, and zero managed
+  storage or purge-protocol drift; anonymous invocation was denied with 401.
+- The production worktree is clean and synchronized with `origin/production`.
+
+## 2026-08-09 — Implement cold-archived Classroom permanent deletion
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss, teacher
+authorization, exact managed Storage ownership, concurrency, and resumability.
+
+**Completed:**
+- Added independent, disabled-by-default cold-Classroom deletion using the
+  existing managed-deletion operation ledger, fences, leases, retries, and
+  monitoring; hot-Classroom and Blueprint purge behavior remains separate.
+- Bound every operation to one teacher-owned cold archive, prioritizing the
+  authoritative recovery bundle last, and preserved user accounts, reusable
+  Blueprints, other Classrooms/archives, and their managed files.
+- Added fail-closed teacher APIs, conflict/readiness checks, resumable cron
+  ticking without a new schedule, audit-safe resource hashes, and irreversible
+  confirmation UX. Generic orphan cleanup remains disabled.
+- Independent high-risk review caught and fixed two cross-scope regressions:
+  migration 122 now preserves Blueprint purge Storage-lease authority, and the
+  hot/cold safety nets filter scope and terminal failures before limiting work.
+  Regression coverage exercises both worker-starvation cases, while fresh CI
+  replay runs the existing Blueprint purge fixture and the new cold purge fixture.
+- Documented contracts, recovery-loss consequences, rollout gates, operations,
+  and tests. Added desktop/mobile teacher and student-boundary visual coverage.
+
+**Validation:**
+- Under exact local-only authorization, previewed migration history 001–121,
+  applied only `122_cold_archived_classroom_purge.sql` to the dedicated local
+  Supabase database, regenerated types, and confirmed the gate remains
+  `disabled`.
+- The rollback-only database harness passed authorization, restore-conflict,
+  tombstone fence, live-lease, retry, exact-object ordering, cleanup, audit, and
+  preservation checks, then rolled back all fixtures.
+- Full Vitest passed (483 files, 4,159 tests), plus TypeScript, lint, generated
+  type parity, production build, architecture/design/storage checks, Pika audit,
+  diff checks, and Playwright visual verification across desktop/mobile and
+  light/dark teacher states plus the student boundary.
+- No staging/production migration, rollout, purge, object deletion, or generic
+  cleanup was performed. Migration 122 and its rollout still require separate,
+  exact production authorization after merge.
+
+## 2026-08-10 — Refine archived Classroom action terminology
+
+**Risk profile:** low — presentation-only labels, accessible icon treatment,
+and focused regression coverage; no lifecycle behavior or rollout gates changed.
+
+**Completed:**
+- Renamed the hot-archive actions from “Use again” to “Reuse” and from
+  “Restore” to “Unarchive,” including the confirmation dialog and supporting
+  copy. Cold-archive recovery remains “Restore.”
+- Replaced the permanent-delete text action with the standard trash icon while
+  retaining the accessible “Delete permanently” name and tooltip.
+- Added component assertions and a focused teacher/student visual matrix for
+  desktop/mobile and light/dark modes.
+
+**Validation:**
+- Focused Vitest passed (2 files, 23 tests), lint passed, and the isolated
+  Playwright matrix passed (3 tests, including auth setup).
+- Screenshots were visually reviewed for all teacher matrices and the student
+  boundary. No database, migration, API behavior, feature gate, or destructive
+  operation changed.
+
+## 2026-08-10 — Add Student Tests live-status accessibility
+
+**Risk profile:** exam-mode, workspace-state — student test announcements and
+autosave error feedback while preserving the mounted attempt and exam owner.
+
+**Completed:**
+- Added action-only polite flag/unflag announcements without announcing loaded
+  localStorage state or duplicating pointer/keyboard toggles.
+- Added polite autosave transition announcements for unsaved, saving, and saved
+  states while keeping the visible status layout and teacher preview unchanged.
+- Exposed save and submission errors as assertive alerts without changing API,
+  draft, retry, availability, locking, or submission behavior.
+- Added controlled timer/promise coverage for announcements, save failure draft
+  preservation, preview isolation, and existing pressed/locking/storage rules.
+
+**Validation:**
+- Focused StudentTestForm tests pass (17 tests), including controlled stale
+  success/failure races so an older save cannot overwrite newer live state.
+- TypeScript, lint,
+  architecture, UI policy, Pika audit, and diff checks.
+- Playwright verified real student flagged/unflagged, saving/error, response
+  preservation, and keyboard-focus states plus teacher preview at desktop/mobile
+  and light/dark; no layout regression or overflow was found.
+- The temporary local test fixture was deleted after capture; no API, database,
+  migration, Gradex, exam-mode ownership, or dependency changes were made.
+- Independent review identified one P1 stale-autosave completion race; the
+  accepted remediation guards UI completion by the latest pending draft and
+  monotonic successful-save sequence without changing persistence requests.
+
+## 2026-08-10 — Compact teacher Daily log table
+
+**Risk profile:** none — presentation and client-side table ordering only.
+
+**Completed:**
+- Reduced the First, Last, and ID column widths in the teacher Daily table so
+  the log preview receives more horizontal space.
+- Removed the standalone attendance-status column and combined its row marker,
+  Complete/Incomplete counts, and sortable behavior into the Log column.
+- Added accessible completion labels and preserved Log sorting in both the
+  full-width table and selected-student workspace.
+- Independent PR review caught that the Complete/Incomplete count badges were
+  hidden after selecting a student; restored them in the selected workspace
+  and added a regression assertion for the accessible count label.
+- Removed the stale arbitrary-spacing exception for the deleted status-column
+  width.
+
+**Validation:**
+- Focused component coverage passes (17 tests), including Enter/Space
+  activation, ascending and descending Complete/Incomplete sorting, focus, and
+  sortable-header semantics.
+- Lint, architecture, design policy, UI policy, and diff checks pass.
+- Playwright experience matrix passes (18 tests) across teacher/student,
+  desktop/mobile, and light/dark; screenshots of the teacher default and sorted
+  states show no page overflow or broken layout.
+- The selected-student remediation was visually rechecked in teacher
+  desktop/mobile and light/dark states with no horizontal page overflow.
+
+## 2026-08-10 — Standardize resizable Daily columns
+
+**Risk profile:** none — shared client-side table layout behavior only.
+
+**Completed:**
+- Moved the Complete/Incomplete count chips immediately beside the Daily Log
+  label while preserving its sortable semantics.
+- Added adjustable First, Last, and ID widths to Daily; Log absorbs the
+  remaining space. Narrow values truncate instead of wrapping in the selected
+  workspace.
+- Extracted the assignment table's accessible pointer/keyboard resize behavior
+  into shared `@/ui` table primitives and migrated assignments to the shared
+  owner without sharing domain-specific cells.
+- Removed stale native-control and raw-layer registry entries from the former
+  assignment-local implementation.
+
+**Validation:**
+- Focused DataTable, Daily, and assignment coverage passes (29 tests), including
+  separator semantics, Arrow/Home/End resizing, pointer clamping, sorting, and
+  selected-row truncation.
+- Lint, architecture, UI policy, design policy, and Pika audit pass.
+- Playwright captures were reviewed for teacher desktop/mobile, light/dark,
+  default, sorted, selected, minimum-width resize, and the assignment reference
+  table; the student attendance boundary was also checked.
+- Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
+  state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Standardize production table capabilities
+
+**Risk profile:** workspace-state — shared client-side table selection,
+keyboard navigation, sorting, and persisted layout preferences; no API or data
+model changes.
+
+**Completed:**
+- Added generic `useTableSelection`, optional local width persistence, shared
+  mixed-state selection cells, and a reusable left/right resize handle.
+- Migrated the seven production table surfaces to canonical `@/ui` primitives:
+  Assignment students, Daily attendance, Roster, Test grading, Gradebook,
+  dashboard attendance, and Add Students preview.
+- Added sorting/resizing where operationally useful, retained checkbox
+  selection only where real batch actions exist, and kept the Add Students
+  preview intentionally static.
+- Removed the legacy table re-export and student-specific selection hook, and
+  documented the composable table ownership boundary.
+
+**Validation:**
+- Focused table coverage passes (127 tests), TeacherClassroomView passes (50
+  tests), TypeScript and lint pass, and the Pika audit reports no violations.
+- The full 4,181-test run had one unrelated transient ColdClassroomPurgeDialog
+  timing failure while its inventory was still loading; its isolated suite
+  passed immediately afterward (3/3).
+- Playwright verified teacher desktop/mobile, light/dark, default, sorted,
+  mixed-selection, focused-resize, selected-row/inspector, Test grading,
+  Assignment students, Dashboard, and Add Students preview states; the student
+  mobile boundary was also checked. No overflow or visual regression remained.
+- Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
+  state covered by tests: yes; remaining manual follow-up: none.

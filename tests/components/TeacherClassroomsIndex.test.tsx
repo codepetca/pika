@@ -148,10 +148,18 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
-    expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Use again' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeInTheDocument()
+    const unarchiveButton = await screen.findByRole('button', { name: 'Unarchive' })
+    expect(screen.getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
+    const purgeButton = screen.getByRole('button', { name: 'Delete permanently' })
+    expect(purgeButton).toHaveAttribute('title', 'Delete permanently')
+    expect(purgeButton).toHaveTextContent('')
+    expect(purgeButton.querySelector('svg')).toHaveClass('lucide-trash-2')
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+
+    fireEvent.click(unarchiveButton)
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Unarchive Archived?')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
   })
 
   it('prepares an archived classroom and opens creation with its Blueprint selected', async () => {
@@ -181,7 +189,7 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex([])
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Use again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/classrooms/archived-1/use-again',
@@ -222,7 +230,7 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex([])
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Use again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Reuse' }))
 
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(
@@ -393,6 +401,55 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.getByText('Stored archive')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Restore' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Delete permanently' })).not.toBeInTheDocument()
+  })
+
+  it('offers stored classroom deletion only behind the independent cold gate', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [],
+      coldArchives: [coldArchive],
+      coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
+      coldClassroomPurgeEnabledIds: [coldArchive.classroom_id],
+    })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        impact: {
+          classroom_id: coldArchive.classroom_id,
+          archive_id: coldArchive.archive_id,
+          classroom_title: coldArchive.title,
+          source_revision: 1,
+          storage_inventory_sha256: 'a'.repeat(64),
+          cold_resource_inventory_sha256: 'b'.repeat(64),
+          cold_resource_count: 1,
+          student_count: 0,
+          managed_file_count: 1,
+          managed_file_bytes: 1,
+          missing_file_count: 0,
+          non_ready_file_count: 0,
+          unmanaged_reference_count: 0,
+          archive_count: 1,
+          gradex_extract_count: 0,
+          storage_counts: { 'classroom-archives': 1 },
+          resource_counts: { classroom_cold_tombstones: 1 },
+          retention: { mode: 'teacher_managed', delete_after: null },
+          conflicting_operation: null,
+          deletion_available: true,
+          unavailable_reason: null,
+        },
+        operation: null,
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByRole('dialog', {
+      name: 'Delete stored classroom permanently?',
+    })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
   })
 
   it('restores a stored classroom with an idempotency key and refreshes the archived list', async () => {

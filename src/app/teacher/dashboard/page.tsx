@@ -1,8 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertDialog, Button, PageState } from '@/ui'
+import {
+  AlertDialog,
+  Button,
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  PageState,
+  SortableHeaderCell,
+  TableCard,
+} from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
@@ -16,6 +28,14 @@ import {
   invalidateTeacherDashboardAttendance,
 } from '@/lib/teacher-dashboard-client'
 import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import { applyDirection, toggleSort } from '@/lib/table-sort'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
+
+type AttendanceSortColumn = 'student' | 'present' | 'absent'
+
+const DASHBOARD_ATTENDANCE_COLUMN_LIMITS = {
+  student: { defaultWidth: 220, min: 140, max: 360 },
+}
 
 export default function TeacherDashboardPage() {
   const router = useRouter()
@@ -33,6 +53,14 @@ export default function TeacherDashboardPage() {
   const [loadingEntry, setLoadingEntry] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [{ column: attendanceSortColumn, direction: attendanceSortDirection }, setAttendanceSort] = useState<{
+    column: AttendanceSortColumn
+    direction: 'asc' | 'desc'
+  }>({ column: 'student', direction: 'asc' })
+  const { columnWidths: attendanceColumnWidths, setColumnWidth: setAttendanceColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-dashboard-attendance:v1',
+    columns: DASHBOARD_ATTENDANCE_COLUMN_LIMITS,
+  })
   const attendanceRequestIdRef = useRef(0)
   const entryRequestIdRef = useRef(0)
   const pageRegionRef = useRef<HTMLDivElement>(null)
@@ -40,6 +68,25 @@ export default function TeacherDashboardPage() {
   selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
   const { alertState, showSuccess, closeAlert } = useAlertDialog()
+
+  const sortedAttendance = useMemo(() => {
+    const rows = [...attendance]
+    rows.sort((left, right) => {
+      let comparison = 0
+      if (attendanceSortColumn === 'student') {
+        comparison = left.student_email.localeCompare(right.student_email)
+      } else {
+        comparison = left.summary[attendanceSortColumn] - right.summary[attendanceSortColumn]
+      }
+      if (comparison !== 0) return applyDirection(comparison, attendanceSortDirection)
+      return left.student_email.localeCompare(right.student_email)
+    })
+    return rows
+  }, [attendance, attendanceSortColumn, attendanceSortDirection])
+
+  function handleAttendanceSort(column: AttendanceSortColumn) {
+    setAttendanceSort((current) => toggleSort(current, column))
+  }
 
   const loadClassrooms = useCallback(async () => {
     setLoading(true)
@@ -393,65 +440,102 @@ export default function TeacherDashboardPage() {
                   No students enrolled yet
                 </div>
               ) : (
-                <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-border">
-                      <thead className="bg-surface-2">
-                        <tr>
-                          <th className="sticky left-0 z-10 bg-surface-2 px-6 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
-                            Student
-                          </th>
-                          <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider">
-                            Present
-                          </th>
-                          <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider">
-                            Absent
-                          </th>
+                <div className="shadow-sm">
+                  <TableCard overflowX>
+                    <DataTable className="min-w-max">
+                      <DataTableHead>
+                        <DataTableRow>
+                          <SortableHeaderCell
+                            label="Student"
+                            isActive={attendanceSortColumn === 'student'}
+                            direction={attendanceSortDirection}
+                            onClick={() => handleAttendanceSort('student')}
+                            className="sticky left-0 z-10 bg-surface-2"
+                            resize={{
+                              value: attendanceColumnWidths.student,
+                              min: DASHBOARD_ATTENDANCE_COLUMN_LIMITS.student.min,
+                              max: DASHBOARD_ATTENDANCE_COLUMN_LIMITS.student.max,
+                              onChange: (width) => setAttendanceColumnWidth('student', width),
+                            }}
+                          />
+                          <SortableHeaderCell
+                            label="Present"
+                            isActive={attendanceSortColumn === 'present'}
+                            direction={attendanceSortDirection}
+                            onClick={() => handleAttendanceSort('present')}
+                            align="center"
+                          />
+                          <SortableHeaderCell
+                            label="Absent"
+                            isActive={attendanceSortColumn === 'absent'}
+                            direction={attendanceSortDirection}
+                            onClick={() => handleAttendanceSort('absent')}
+                            align="center"
+                          />
                           {dates.map(date => (
-                            <th
+                            <DataTableHeaderCell
                               key={date}
-                              className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider"
+                              align="center"
+                              className="whitespace-nowrap text-xs uppercase tracking-wider"
                             >
                               {date.slice(5)}
-                            </th>
+                            </DataTableHeaderCell>
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-surface divide-y divide-border">
-                        {attendance.map(record => (
-                          <tr key={record.student_id} className="hover:bg-surface-hover">
-                            <td className="sticky left-0 z-10 bg-surface px-6 py-4 whitespace-nowrap text-sm font-medium text-text-default">
-                              {record.student_email}
-                            </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text-default">
+                        </DataTableRow>
+                      </DataTableHead>
+                      <DataTableBody>
+                        {sortedAttendance.map(record => (
+                          <DataTableRow key={record.student_id} className="group hover:bg-surface-hover">
+                            <DataTableCell
+                              className="sticky left-0 z-10 whitespace-nowrap bg-surface font-medium group-hover:bg-surface-hover"
+                              style={{
+                                width: `${attendanceColumnWidths.student}px`,
+                                minWidth: `${attendanceColumnWidths.student}px`,
+                                maxWidth: `${attendanceColumnWidths.student}px`,
+                              }}
+                            >
+                              <span className="block truncate" title={record.student_email}>{record.student_email}</span>
+                            </DataTableCell>
+                            <DataTableCell align="center" className="whitespace-nowrap">
                               {record.summary.present}
-                            </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text-default">
+                            </DataTableCell>
+                            <DataTableCell align="center" className="whitespace-nowrap">
                               {record.summary.absent}
-                            </td>
+                            </DataTableCell>
                             {dates.map(date => {
                               const status = record.dates[date]
                               const hasEntry = status === 'present'
 
                               return (
-                                <td
+                                <DataTableCell
                                   key={date}
-                                  className={`px-3 py-4 whitespace-nowrap text-center text-xl ${
-                                    hasEntry ? 'cursor-pointer hover:bg-info-bg' : ''
-                                  }`}
-                                  onClick={() =>
-                                    hasEntry && handleCellClick(record.student_id, record.student_email, date)
-                                  }
+                                  align="center"
+                                  className="whitespace-nowrap text-xl"
                                 >
-                                  {status && getAttendanceIcon(status)}
-                                </td>
+                                  {hasEntry ? (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xl"
+                                      aria-label={`Open ${record.student_email} log for ${date}`}
+                                      onClick={() => handleCellClick(record.student_id, record.student_email, date)}
+                                    >
+                                      <span aria-hidden="true">{getAttendanceIcon(status)}</span>
+                                    </Button>
+                                  ) : status ? (
+                                    <span aria-label={`${record.student_email} ${status} on ${date}`}>
+                                      {getAttendanceIcon(status)}
+                                    </span>
+                                  ) : null}
+                                </DataTableCell>
                               )
                             })}
-                          </tr>
+                          </DataTableRow>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </DataTableBody>
+                    </DataTable>
+                  </TableCard>
                 </div>
               )}
 

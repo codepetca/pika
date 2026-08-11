@@ -10,6 +10,7 @@ import {
 } from '@/lib/server/classroom-archive-object-cleanup'
 import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 import { runClassroomPurgeSafetyNet } from '@/lib/server/classroom-purge'
+import { runColdClassroomPurgeSafetyNet } from '@/lib/server/cold-classroom-purge'
 import { runCourseBlueprintPurgeSafetyNet } from '@/lib/server/course-blueprint-purge'
 import { readManagedDeletionHealth } from '@/lib/server/managed-deletion-health'
 
@@ -161,6 +162,7 @@ async function handle(request: NextRequest) {
 
   const supabase = getServiceRoleClient()
   const classroomPurge = await runClassroomPurgeSafetyNet()
+  const coldClassroomPurge = await runColdClassroomPurgeSafetyNet(10)
   const courseBlueprintPurge = await runCourseBlueprintPurgeSafetyNet()
   const objectCleanupEnabled = isClassroomArchiveObjectCleanupEnabled()
   let archiveStagingCleaned: number | undefined
@@ -246,6 +248,9 @@ async function handle(request: NextRequest) {
         : { archive_object_cleanup: archiveObjectCleanup }),
       ...(classroomPurge.processed > 0
         ? { classroom_purge: classroomPurge }
+        : {}),
+      ...(coldClassroomPurge.processed > 0
+        ? { cold_classroom_purge: coldClassroomPurge }
         : {}),
       ...(courseBlueprintPurge.processed > 0
         ? { course_blueprint_purge: courseBlueprintPurge }
@@ -361,6 +366,9 @@ async function handle(request: NextRequest) {
       : { archive_object_cleanup: archiveObjectCleanup }),
     ...(classroomPurge.processed > 0
       ? { classroom_purge: classroomPurge }
+      : {}),
+    ...(coldClassroomPurge.processed > 0
+      ? { cold_classroom_purge: coldClassroomPurge }
       : {}),
     ...(courseBlueprintPurge.processed > 0
       ? { course_blueprint_purge: courseBlueprintPurge }

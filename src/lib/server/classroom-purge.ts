@@ -63,6 +63,7 @@ const operationRowSchema = z.object({
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
   attempt_count: z.number().int().positive(),
   completed_at: z.string().datetime({ offset: true }).nullable(),
+  purge_scope: z.enum(['hot_classroom', 'cold_classroom']),
 }).strict()
 
 const purgeObjectSchema = z.object({
@@ -470,24 +471,42 @@ export async function startClassroomPurge(args: {
 export async function getClassroomPurgeStatus(
   teacherId: string,
   operationId: string,
+  expectedScope: 'hot_classroom' | 'cold_classroom' = 'hot_classroom',
 ): Promise<ClassroomPurgeStatus> {
   uuidSchema.parse(operationId)
   const db = untyped(getServiceRoleClient())
-  const query = db.from('classroom_purge_operations').select(
-    'id,classroom_id,teacher_id,status,retryable,error_code,resource_counts,attempt_count,completed_at',
-  ) as {
-    eq(column: string, value: string): {
+  type OperationResponse = { data: unknown; error: RpcError | null }
+  const readOperation = async (columns: string): Promise<OperationResponse> => {
+    const query = db.from('classroom_purge_operations').select(columns) as {
       eq(column: string, value: string): {
-        maybeSingle(): PromiseLike<{ data: unknown; error: RpcError | null }>
+        eq(column: string, value: string): {
+          maybeSingle(): PromiseLike<OperationResponse>
+        }
       }
     }
+    return query.eq('id', operationId).eq('teacher_id', teacherId).maybeSingle()
   }
-  const response = await query.eq('id', operationId).eq('teacher_id', teacherId).maybeSingle()
+  const columns =
+    'id,classroom_id,teacher_id,status,retryable,error_code,resource_counts,attempt_count,completed_at'
+  let response = await readOperation(`${columns},purge_scope`)
+  if (
+    response.error
+    && (response.error.code === 'PGRST204' || response.error.code === '42703')
+    && response.error.message?.includes('purge_scope')
+  ) {
+    const legacy = await readOperation(columns)
+    response = legacy.data
+      ? { ...legacy, data: { ...(legacy.data as object), purge_scope: 'hot_classroom' } }
+      : legacy
+  }
   if (response.error) {
     throw new ClassroomPurgeError(response.error.code || 'purge_read_failed', 'Could not read deletion', 500, true)
   }
   if (!response.data) throw new ClassroomPurgeError('purge_not_found', 'Permanent deletion not found', 404)
   const operation = operationRowSchema.parse(response.data)
+  if (operation.purge_scope !== expectedScope) {
+    throw new ClassroomPurgeError('purge_not_found', 'Permanent deletion not found', 404)
+  }
   const objectQuery = db.from('classroom_purge_objects').select('status') as {
     eq(column: string, value: string): PromiseLike<{ data: unknown; error: RpcError | null }>
   }
@@ -652,17 +671,45 @@ export async function runClassroomPurgeSafetyNet(maxTicks = 25) {
     return { processed: 0, completed: 0, failed: 0 }
   }
 
-  const query = db.from('classroom_purge_operations').select('id,teacher_id,status,retryable') as {
-    in(column: string, values: string[]): {
-      order(column: string, options: { ascending: boolean }): {
-        limit(count: number): PromiseLike<{ data: unknown; error: RpcError | null }>
-      }
-    }
+  type OperationListResponse = { data: unknown; error: RpcError | null }
+  type OperationListQuery = {
+    eq(column: string, value: string): OperationListQuery
+    in(column: string, values: string[]): OperationListQuery
+    or(filters: string): OperationListQuery
+    order(column: string, options: { ascending: boolean }): OperationListQuery
+    limit(count: number): PromiseLike<OperationListResponse>
   }
-  const response = await query
-    .in('status', ['deleting_objects', 'finalizing', 'failed'])
-    .order('updated_at', { ascending: true })
-    .limit(maxTicks)
+  const readPending = async (
+    columns: string,
+    scopeColumnAvailable: boolean,
+  ): Promise<OperationListResponse> => {
+    let query = db.from('classroom_purge_operations').select(columns) as unknown as
+      OperationListQuery
+    if (scopeColumnAvailable) {
+      query = query.eq('purge_scope', 'hot_classroom')
+    }
+    return query
+      .in('status', ['deleting_objects', 'finalizing', 'failed'])
+      .or('status.neq.failed,retryable.eq.true,retryable.is.null')
+      .order('updated_at', { ascending: true })
+      .limit(maxTicks)
+  }
+  const legacyColumns = 'id,teacher_id,status,retryable'
+  let response = await readPending(`${legacyColumns},purge_scope`, true)
+  if (
+    response.error
+    && (response.error.code === 'PGRST204' || response.error.code === '42703')
+    && response.error.message?.includes('purge_scope')
+  ) {
+    const legacy = await readPending(legacyColumns, false)
+    response = legacy.data
+      ? {
+        ...legacy,
+        data: z.array(z.record(z.string(), z.unknown())).parse(legacy.data)
+          .map((row) => ({ ...row, purge_scope: 'hot_classroom' })),
+      }
+      : legacy
+  }
   if (response.error) {
     if (isMissingClassroomPurgeSchemaError(response.error)) {
       return { processed: 0, completed: 0, failed: 0 }
@@ -679,8 +726,12 @@ export async function runClassroomPurgeSafetyNet(maxTicks = 25) {
     teacher_id: z.string().uuid(),
     status: z.enum(['deleting_objects', 'finalizing', 'failed']),
     retryable: z.boolean().nullable(),
+    purge_scope: z.enum(['hot_classroom', 'cold_classroom']),
   }).strict()).parse(response.data || [])
-  const pending = rows.filter((row) => row.status !== 'failed' || row.retryable !== false)
+  const pending = rows.filter((row) =>
+    row.purge_scope === 'hot_classroom'
+    && (row.status !== 'failed' || row.retryable !== false),
+  )
   let processed = 0
   let completed = 0
   let failed = 0

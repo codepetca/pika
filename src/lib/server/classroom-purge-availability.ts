@@ -59,3 +59,46 @@ export async function listHotClassroomPurgeEnabledIds(args: {
   }
   return []
 }
+
+/**
+ * Returns only visible cold tombstones whose independent rollout gate is open.
+ * Restore availability is intentionally unrelated to deletion availability.
+ */
+export async function listColdClassroomPurgeEnabledIds(args: {
+  supabase: ServiceClient
+  teacherId: string
+  coldClassroomIds: string[]
+}): Promise<string[]> {
+  const teacherId = z.string().uuid().parse(args.teacherId)
+  const coldClassroomIds = classroomIdsSchema.parse(args.coldClassroomIds)
+  if (coldClassroomIds.length === 0) return []
+
+  const [managedResponse, purgeResponse] = await Promise.all([
+    args.supabase
+      .from('managed_storage_settings')
+      .select('mode')
+      .eq('singleton', true)
+      .maybeSingle(),
+    args.supabase
+      .from('cold_classroom_purge_settings' as never)
+      .select('rollout_mode,canary_teacher_id,canary_classroom_id')
+      .eq('singleton', true)
+      .maybeSingle(),
+  ])
+
+  if (managedResponse.error || purgeResponse.error) return []
+  const managed = managedSettingsSchema.safeParse(managedResponse.data)
+  const purge = purgeSettingsSchema.safeParse(purgeResponse.data)
+  if (!managed.success || !purge.success || managed.data.mode !== 'enforced') return []
+
+  if (purge.data.rollout_mode === 'enabled') return coldClassroomIds
+  if (
+    purge.data.rollout_mode === 'canary'
+    && purge.data.canary_teacher_id === teacherId
+    && purge.data.canary_classroom_id
+    && coldClassroomIds.includes(purge.data.canary_classroom_id)
+  ) {
+    return [purge.data.canary_classroom_id]
+  }
+  return []
+}

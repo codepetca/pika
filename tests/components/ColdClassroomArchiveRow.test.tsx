@@ -44,4 +44,33 @@ describe('ColdClassroomArchiveRow', () => {
 
     expect(onRestore).toHaveBeenCalledOnce()
   })
+
+  it('shows permanent deletion only behind its independent gate', () => {
+    const onDelete = vi.fn()
+    const { rerender } = render(
+      <ColdClassroomArchiveRow
+        archive={archive}
+        restoreEnabled
+        purgeEnabled={false}
+        onRestore={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Delete permanently' }))
+      .not.toBeInTheDocument()
+
+    rerender(
+      <ColdClassroomArchiveRow
+        archive={archive}
+        restoreEnabled
+        purgeEnabled
+        onRestore={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(onDelete).toHaveBeenCalledOnce()
+  })
 })

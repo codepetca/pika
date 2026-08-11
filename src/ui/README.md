@@ -190,6 +190,19 @@ base controls and shell styling follow the `@/ui` contracts.
 - Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
   from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
   row IDs so keyboard selection can move focus to the active row.
+- Pass a `resize` configuration to `SortableHeaderCell`, or use `ResizableHeaderCell` for a
+  non-sortable column, when a table exposes adjustable widths. The shared resize handle owns the
+  vertical separator semantics, min/max/current values, pointer drag behavior, and
+  Arrow/Home/End keyboard controls; feature tables continue to own their column limits and cells.
+- Use `useTableColumnWidths` for controlled column widths. Operational tables may provide a
+  feature-owned storage key so width preferences persist locally; static previews should keep
+  natural widths and avoid resize controls.
+- Use `useTableSelection` with `TableSelectionHeaderCell` and `TableSelectionCell` when selected
+  rows feed a real batch action. The shared header checkbox exposes the native indeterminate state.
+  Do not add checkboxes to read-only previews or tables where row selection only opens an inspector.
+- Keep domain behavior in feature code. The shared table layer owns structure, sorting controls,
+  resizing, selection controls, and keyboard navigation; it is intentionally not a universal
+  data-grid component.
 - Menu and split-pane ownership, semantics, and verification requirements live in
   [`composite-control-conventions.md`](/docs/guidance/ui/composite-control-conventions.md).
 

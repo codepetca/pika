@@ -1,7 +1,7 @@
 # Managed deletion monitoring
 
-This monitoring baseline is read-only. It observes the durable hot-Classroom
-and Course Blueprint purge protocols plus managed-storage ownership drift. It
+This monitoring baseline is read-only. It observes the durable hot-Classroom,
+cold-Classroom, and Course Blueprint purge protocols plus managed-storage ownership drift. It
 does not enable a deletion scope, claim work, retry an operation, delete a
 Storage object, change a rollout gate, or enable generic orphan cleanup.
 
@@ -11,6 +11,12 @@ Migration 121 defines the service-role-only
 safety-net work. This lightweight snapshot uses relational/indexable evidence;
 it does not recursively parse unbounded JSON history. No additional schedule is
 installed.
+
+Migration 122 preserves the version-1 aggregate response and extends the
+Classroom fence reconciliation so a valid cold fence satisfies its cold purge
+operation while an orphan cold fence remains critical. Cold operations use the
+same aggregate failure, stuck-operation, lease, partial-progress, and object-
+reappearance findings. The migration does not change the schedule.
 
 The same migration defines a separate service-role-only
 `get_managed_deletion_deep_health_snapshot` diagnostic for recursive embedded
@@ -103,8 +109,9 @@ scanned safely within the operator session's explicit query budget.
 
 ## Staged rollout
 
-Migration 121 has been applied only to the dedicated local Supabase database
-under one-time authorization. It has not been applied to staging or production.
+Migration 121 is applied in production and the monitoring code is deployed.
+Migration 122's cold-fence extension remains unapplied until its own staged
+authorization and rollout.
 
 1. Run static/unit/route tests and repository checks without a database reset or
    migration application.
@@ -117,7 +124,10 @@ under one-time authorization. It has not been applied to staging or production.
    rollback-only transactions, removes its fixed Storage-owner test helper, and
    exercises eight concurrent readers.
 3. Deploy the application code first. The missing-schema compatibility path
-   keeps the existing cron successful while emitting a bounded warning.
+   keeps the existing cron successful while emitting a bounded warning. For
+   migration 122, the cold safety net is a no-op until its table exists and the
+   hot status/safety-net readers treat pre-122 rows as hot while rejecting
+   cross-scope operations after the column exists.
 4. With fresh authorization naming staging and migration 121, apply it and
    observe at least two daily runs. Investigate every nonzero critical count and
    establish a warning baseline before production.

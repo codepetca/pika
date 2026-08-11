@@ -17572,3 +17572,238 @@ provisional ownership, and idempotent Blueprint file copies.
 **Remaining:**
 - Push the correction to PR #967, require exact-head CI including disposable
   migration replay/database fixtures, and perform a final read-only review.
+
+<!-- pika-session-log-archive-batch:ddc9b1f38043d79e7d5210951d61f8610d95e97873e74ea92c1333df59bdb080 -->
+## 2026-08-04 — Hardened purge rollout visibility and verification gates
+
+**Risk profile:** runtime-platform — irreversible classroom purge rollout,
+PostgreSQL function semantics, and conflicting background operations.
+
+**Completed:**
+- Added a fail-closed, server-authoritative archive-list field so permanent
+  deletion is visible only when managed ownership is enforced and the exact
+  teacher/classroom rollout gate is open; the purge RPC remains final authority.
+- Corrected the migration-118 conflict function volatility and added a scoped
+  database-lint gate that checks every function created or replaced by 118
+  without making unrelated historical warnings a new CI baseline.
+- Expanded the rollback-only destructive fixture to independently prove active
+  archive, restore, assignment grading, repository grading, test grading,
+  Blueprint operation, proposal, and editing-session conflicts.
+- Visually verified teacher archived list/dialog and the student boundary on
+  desktop/mobile in light/dark through Playwright interception, without changing
+  local rollout settings.
+
+**Validation:**
+- Pika audit, TypeScript, lint, architecture, design/UI policy, diff checks, and
+  production build pass; full Vitest passes (464 files, 4,010 tests).
+- The current old local migration body makes the new database lint and purge
+  fixture fail exactly at the known composite-row assignment; all newly added
+  conflict assertions pass before that expected boundary.
+
+**Remaining:**
+- Obtain fresh authorization to reset/reseed local Supabase, replay corrected
+  migration 118, regenerate types, and rerun the lint/readiness/destructive
+  fixtures. Keep staging/production untouched and rollout gates disabled.
+
+<!-- pika-session-log-archive-batch:1dd5557a597be55aa97bde846e4a17c9a372e65b36d44d670fec7aa3067dc44b -->
+## 2026-08-04 — Replayed and verified managed-ownership purge locally
+
+**Risk profile:** runtime-platform — authorized destructive local database reset
+and verification of irreversible purge infrastructure.
+
+**Completed:**
+- Used the one-time authorization to reset local Supabase, replay migrations
+  001–118 once, regenerate database types, and reseed the development fixtures.
+- Passed migration-118 PostgreSQL lint, the managed-storage readiness and
+  concurrency fixture, and the rollback-only destructive purge fixture covering
+  conflict blocking, authorization, retries, partial failure, storage cleanup,
+  preservation, and operation locks.
+- Reconfirmed post-fixture safe defaults: classroom purge remains `disabled`
+  and managed storage remains in `compatibility` mode.
+- Applied nothing to staging or production and left PR #963 untouched.
+
+**Validation:**
+- Generated Supabase types match the replayed schema; TypeScript passes.
+- Focused purge/API/UI/migration coverage passes (7 files, 50 tests).
+- Teacher/student desktop/mobile light/dark verification already passed without
+  enabling the rollout gates.
+
+**Remaining:**
+- Complete final read-only change-set review, then commit and publish the draft
+  replacement PR only when authorized.
+
+<!-- pika-session-log-archive-batch:ef4ceb5951808467b246af51b3bf7870d8c03bda3977f1945735dbc9cf3ce25c -->
+## 2026-08-04 — Stopped at purge review circuit breaker
+
+**Risk profile:** runtime-platform — irreversible deletion, managed Storage,
+authorization, concurrency, and migration compatibility.
+
+**Completed:**
+- Ran the high-risk independent review topology: security/concurrency and
+  architecture initial reviewers, one targeted security re-review, and one
+  final cumulative integration review.
+- Used two consolidated remediation batches to close retry/backoff and live-
+  lease state, durable Storage resurrection evidence, migration-115 upgrade
+  refusal, RPC-only ledger writes, operational impact/digest/fences, code-first
+  compatibility handling, and browser no-progress request storms.
+- Kept migration 118 draft and rollout-disabled; changed no local/hosted database
+  after the earlier authorized replay, and left PR #963 unchanged.
+
+**Validation:**
+- TypeScript, focused tests (47), startup tests (38), production build, lint,
+  architecture/design/UI policy, lineage, generated-type compatibility, Pika
+  audit, shell syntax, and diff checks pass.
+- The full suite before remediation batch 2 had 4,012 passing tests and only the
+  subsequently fixed startup-document budget failures.
+
+**Remaining:**
+- Two final P1s require an owner-approved third remediation batch: probe the
+  migration-118-only settings authority before cron reads legacy purge rows,
+  and pass the operational digest in the primary destructive fixture.
+- After those narrow fixes, run exact-head ephemeral DB CI and one final targeted
+  review before committing/publishing the replacement draft PR.
+
+<!-- pika-session-log-archive-batch:b74b6b4c0807fda8a3e42581a8231bb3928ad9a43d7c50d3b3ebc075df641ce6 -->
+## 2026-08-04 — Cleared final purge review blockers
+
+**Risk profile:** runtime-platform — code-first migration compatibility and
+exact-head destructive purge verification.
+
+**Completed:**
+- Added a migration-118-only readiness probe before the cleanup cron can read or
+  advance legacy migration-115 purge operations; pre-118 targets now fail closed
+  without RPC or Storage access.
+- Updated the primary destructive fixture to pass the complete server inventory,
+  including the operational inventory digest required by migration 118.
+- Used the owner-authorized final remediation batch and fifth targeted reviewer;
+  no P0/P1 or merge-blocking findings remain in the bounded fixes.
+
+**Validation:**
+- Focused purge/cron/migration coverage passes (3 files, 35 tests), including the
+  pre-118 no-op regression.
+- TypeScript, destructive-fixture shell syntax, migration-118 function lint,
+  continuity validation, and diff checks pass.
+
+**Remaining:**
+- Publish the draft replacement PR while leaving #963 unchanged.
+- Run exact-head database CI before enabling or deploying deletion. Migration
+  118 still requires fresh authorization for every database target.
+<!-- pika-session-log-archive-batch:bd702d3cbf62f24015fd89d7fa41034dd2a7b08312c2c2ffdebada63be0ecc33 -->
+## 2026-08-04 — Verified draft hot-archive purge replacement
+
+**Risk profile:** runtime-platform — irreversible classroom deletion,
+concurrency, managed Storage ownership, and migration safety.
+
+**Completed:**
+- Reconciled existing managed-cleanup and archive-compaction concurrency
+  fixtures with migration 118's fail-fast lifecycle lock and retry contract.
+- Hardened the rollback-only purge fixture to simulate provider-side object
+  resurrection without weakening Supabase Storage ownership or app-role access.
+- Kept PR #968 draft, PR #963 unchanged, rollout gates disabled, and migration
+  118 unapplied by this remediation.
+
+**Validation:**
+- Exact-head CI run 30952362597 passed Architecture Database Contracts, Test &
+  Build, Browser Experience Matrix, and Vercel at `ab4ce5f6`.
+- Pika audit, shell syntax, diff checks, and 27 focused tests pass.
+- Targeted security/concurrency and final cumulative integration reviews found
+  no P0/P1 or merge-blocking findings.
+
+**Remaining:**
+- Keep migration 118 and deletion disabled until separately authorized rollout
+  and canary verification. Cold archives and individual-student purge remain
+  follow-up scopes.
+
+<!-- pika-session-log-archive-batch:ff7a7ccf58cbd4a7748dd9c75a91d29cd5185fc21c60697cd998b1cdb484489b -->
+## 2026-08-04 — Verified draft hot-archive purge replacement
+
+**Risk profile:** runtime-platform — irreversible classroom deletion,
+concurrency, managed Storage ownership, and migration safety.
+
+**Completed:**
+- Reconciled existing managed-cleanup and archive-compaction concurrency
+  fixtures with migration 118's fail-fast lifecycle lock and retry contract.
+- Hardened the rollback-only purge fixture to simulate provider-side object
+  resurrection without weakening Supabase Storage ownership or app-role access.
+- Kept PR #968 draft, PR #963 unchanged, rollout gates disabled, and migration
+  118 unapplied by this remediation.
+
+**Validation:**
+- Exact-head CI run 30952362597 passed Architecture Database Contracts, Test &
+  Build, Browser Experience Matrix, and Vercel at `ab4ce5f6`.
+- Pika audit, shell syntax, diff checks, and 27 focused tests pass.
+- Targeted security/concurrency and final cumulative integration reviews found
+  no P0/P1 or merge-blocking findings.
+
+**Remaining:**
+- Keep migration 118 and deletion disabled until separately authorized rollout
+  and canary verification. Cold archives and individual-student purge remain
+  follow-up scopes.
+
+## 2026-08-04 — Complete native Pal shell integration
+
+**Risk profile:** runtime-platform — authenticated learner scope, external
+widget runtime, and persistent classroom shell behavior.
+
+**Completed:**
+- Moved the single student-only `PalProvider` into the persistent authenticated
+  classroom layout so the roadmap, companion, and reward surfaces share one
+  learner snapshot across classroom and tab navigation.
+- Kept teachers and invalid/disabled Pal configurations outside the provider;
+  optional widget failures remain contained without taking down academic pages.
+- Rotated the Pal client and its token cache whenever the opaque authenticated
+  scope changes, and cached learner read tokens only until their server-issued
+  expiry enters the safe refresh window.
+- Added bounded server-side per-learner token reuse, in-flight coalescing, and
+  module-shared mint-start backoff so a browser-cache bypass cannot fan out
+  privileged Pal mint calls, including failure and short-token paths.
+- Kept the native achievement roadmap in Pika's Achievements tab and suppressed
+  the ambient companion and reward modal while the student Tests surface is
+  active, including Pika's History API tab transitions.
+- Published and registry-verified `@codepet/pal-widget@0.1.0-alpha.2`, then
+  replaced the temporary package tarball with the exact immutable npm version
+  and its integrity-pinned lockfile entry.
+
+**Validation:**
+- Full Vitest suite: 467 files / 4,044 tests.
+- TypeScript, architecture policy, UI policy, production build, and diff checks
+  pass against the registry-installed `0.1.0-alpha.2` package.
+- Live local Pika-to-Pal flow returned a same-origin learner read token, fetched
+  the cross-origin learner snapshot, and rendered the canonical cat-on-grass
+  companion with no iframe.
+- Playwright inspection passed for the authenticated student surface at
+  desktop/mobile and light/dark viewports. Component coverage verifies the
+  native roadmap, host-owned reward modal, retry containment, scope rotation,
+  and Tests-tab ambient suppression.
+
+**Remaining:**
+- Push the token-burst review remediation to PR #966, then require exact-head
+  CI and final independent confirmation before merge.
+
+## 2026-08-04 — Add managed archive binding compatibility
+
+**Risk profile:** runtime-platform — production archive metadata compatibility,
+managed Storage reconciliation, and irreversible deletion migration lineage.
+
+**Completed:**
+- Added migration 118's narrow compatibility exception so legacy verified
+  classroom archives can receive one deterministic managed-object identity
+  without permitting any other archive metadata change.
+- Required an exact archive operation, classroom owner, bucket/path, purpose,
+  checksum, byte size, and compatibility-mode match under the managed-storage
+  protocol lock, using canonical operation-before-object lock ordering.
+- Resequenced the unapplied hot-archive deletion migration from 118 to 119 and
+  updated its tests, fixtures, documentation, lint, and lineage checks.
+- Kept production and the shared local Supabase database unchanged.
+
+**Validation:**
+- An isolated local 001–119 replay, database lint, generated-type check,
+  managed-storage readiness/concurrency fixture, and destructive purge fixture
+  all pass.
+- Focused migration tests pass (2 files / 9 tests); migration lineage,
+  migration-119 function lint, shell syntax, and diff checks pass.
+
+**Remaining:**
+- Review and merge the compatibility change before requesting fresh,
+  exact-migration authorization for any production application. Migration 119
+  and all deletion rollout gates remain unapplied and disabled.
