@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Apply archive binding compatibility to production
-
-**Risk profile:** runtime-platform — production trigger compatibility for
-managed archive ownership reconciliation.
-
-**Completed:**
-- Verified the dedicated worktree was linked to the active production Pika
-  Supabase project and that remote migration history matched locally through
-  migration 117.
-- Temporarily excluded migration 119, dry-ran an exact migration-118-only push,
-  and applied `118_managed_storage_archive_binding_compatibility.sql` once under
-  fresh target-specific authorization.
-- Restored migration 119 to the worktree without applying it.
-
-**Validation:**
-- Production migration history now matches locally through 118 and reports 119
-  as local-only.
-- Managed storage remains in `compatibility` mode. No reconciliation, cleanup,
-  enforcement activation, purge rollout, or classroom deletion was performed.
-
-**Remaining:**
-- Obtain separate authorization before any production reconciliation or other
-  write. Migration 119 and classroom deletion remain unapplied and disabled.
-
 ## 2026-08-05 — Preflight production managed Storage ownership
 
 **Risk profile:** read-only production inventory — managed Storage ownership
@@ -1040,6 +1016,28 @@ autosave error feedback while preserving the mounted attempt and exam owner.
   table; the student attendance boundary was also checked.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Deploy cold-archived Classroom deletion foundation
+
+**Risk profile:** production rollout — compatible application deployment plus
+an additive, disabled-by-default irreversible-deletion capability.
+
+**Completed:**
+- Merged release PR #988 from `main` to `production` after the architecture
+  database contracts, full test/build, browser matrix, and Vercel checks passed.
+- Verified Vercel deployed production commit `7108345c` before changing schema.
+- Verified production migration history was exactly 001–121 and the linked dry
+  run contained only `122_cold_archived_classroom_purge.sql`, then used the
+  one authorized production application attempt.
+- Kept `cold_classroom_purge_settings` in `disabled` mode with no canary IDs.
+  No purge, rollout enablement, Storage deletion, or generic cleanup ran.
+
+**Validation:**
+- Production migration history records 001–122.
+- The linked production project has zero active cold purge operations.
+- The read-only managed-deletion health snapshot is version 1 and healthy with
+  zero critical findings and zero warnings at the one-hour stuck threshold.
+- An exact production cold purge canary remains a separate authorization.
 
 ## 2026-08-11 — Standardize production table capabilities
 

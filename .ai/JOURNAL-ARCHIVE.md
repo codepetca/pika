@@ -17807,3 +17807,28 @@ managed Storage reconciliation, and irreversible deletion migration lineage.
 - Review and merge the compatibility change before requesting fresh,
   exact-migration authorization for any production application. Migration 119
   and all deletion rollout gates remain unapplied and disabled.
+
+<!-- pika-session-log-archive-batch:b59620ace17b15cb5a1ebd84e829d7329695e21a000218b8dd32b693316c5277 -->
+## 2026-08-05 — Apply archive binding compatibility to production
+
+**Risk profile:** runtime-platform — production trigger compatibility for
+managed archive ownership reconciliation.
+
+**Completed:**
+- Verified the dedicated worktree was linked to the active production Pika
+  Supabase project and that remote migration history matched locally through
+  migration 117.
+- Temporarily excluded migration 119, dry-ran an exact migration-118-only push,
+  and applied `118_managed_storage_archive_binding_compatibility.sql` once under
+  fresh target-specific authorization.
+- Restored migration 119 to the worktree without applying it.
+
+**Validation:**
+- Production migration history now matches locally through 118 and reports 119
+  as local-only.
+- Managed storage remains in `compatibility` mode. No reconciliation, cleanup,
+  enforcement activation, purge rollout, or classroom deletion was performed.
+
+**Remaining:**
+- Obtain separate authorization before any production reconciliation or other
+  write. Migration 119 and classroom deletion remain unapplied and disabled.
