@@ -1,4 +1,4 @@
-Prod 001–122; release PR #988 deployed. Cold-Classroom purge gate is disabled,
-with zero active cold operations and managed-deletion health at 0 critical / 0
-warnings. Next: separately authorize one exact production cold purge canary.
-Individual-student purge remains separate; generic orphan cleanup remains off.
+Prod 001–122 via PR #988. Cold purge off; active=0; health=0/0. Next: exact
+canary auth. Student purge separate; generic cleanup off.
+WT: `$HOME/.codex/worktrees/pika/` or `$HOME/.codex/worktrees/<id>/pika`.
+Env: `$HOME/Repos/.env/pika/.env.local` or collaborator `.env.example`.
