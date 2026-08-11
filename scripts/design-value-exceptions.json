@@ -181,8 +181,8 @@
         },
         {
           "kind": "raw-z-index",
-          "count": 26,
-          "fingerprint": "298d1d5e0addb03d",
+          "count": 24,
+          "fingerprint": "3150cf1feac4d768",
           "reason": "special-layer"
         }
       ]
@@ -205,8 +205,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 3,
-          "fingerprint": "5aeb452565160656",
+          "count": 5,
+          "fingerprint": "5f5b3e714d1af4e3",
           "reason": "layout-geometry"
         },
         {
@@ -235,8 +235,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "4c9fcf2aead93eeb",
+          "count": 4,
+          "fingerprint": "aa605fd0e48f14fe",
           "reason": "layout-geometry"
         }
       ]

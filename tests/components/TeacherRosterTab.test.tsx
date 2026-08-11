@@ -131,6 +131,7 @@ function getRequestBody(call: unknown[]) {
 describe('TeacherRosterTab', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     invalidateCachedJSONMatching('teacher-roster:')
     invalidateCachedJSONMatching('auth-me:')
     vi.unstubAllGlobals()
@@ -242,6 +243,45 @@ describe('TeacherRosterTab', () => {
     expect(selectedRow).toHaveAttribute('tabindex', '-1')
     expect(screen.queryByText('Roster Summary')).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Roster panes' })).not.toBeInTheDocument()
+  })
+
+  it('uses shared sorting, selection, and resizable column behavior', async () => {
+    const user = userEvent.setup()
+    mockRosterFetch()
+
+    renderRoster()
+
+    await screen.findByText('Ada')
+
+    expect(screen.getByRole('separator', { name: 'Resize First column' })).toHaveAttribute(
+      'aria-valuenow',
+      '96',
+    )
+    expect(screen.getByRole('separator', { name: 'Resize Email column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Counselor column' })).toBeInTheDocument()
+
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize First column' }), { key: 'Home' })
+    expect(screen.getByRole('separator', { name: 'Resize First column' })).toHaveAttribute(
+      'aria-valuenow',
+      '64',
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toHaveAttribute(
+      'aria-checked',
+      'mixed',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Email' }))
+    expect(screen.getByRole('columnheader', { name: 'Email' })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+    await user.click(screen.getByRole('button', { name: 'Email' }))
+    expect(screen.getByRole('columnheader', { name: 'Email' })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
   })
 
   it('opens single-student removal from the roster actions menu with confirmation', async () => {

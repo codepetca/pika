@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   TeacherAssignmentStudentTable,
   type TeacherAssignmentStudentRow,
@@ -39,6 +39,10 @@ const row: TeacherAssignmentStudentRow = {
 }
 
 describe('TeacherAssignmentStudentTable', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
   it('renders assignment student rows with selection, sort, grade, and artifact cells', () => {
     render(
       <TeacherAssignmentStudentTable
@@ -50,6 +54,7 @@ describe('TeacherAssignmentStudentTable', () => {
         onToggleSelect={vi.fn()}
         onToggleSelectAll={vi.fn()}
         allSelected
+        someSelected={false}
         sortColumn="last"
         sortDirection="asc"
         onToggleSort={vi.fn()}
@@ -105,6 +110,7 @@ describe('TeacherAssignmentStudentTable', () => {
         onToggleSelect={onToggleSelect}
         onToggleSelectAll={vi.fn()}
         allSelected={false}
+        someSelected
         sortColumn="last"
         sortDirection="asc"
         onToggleSort={vi.fn()}
@@ -123,6 +129,7 @@ describe('TeacherAssignmentStudentTable', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     expect(onToggleSelect).toHaveBeenCalledWith('student-1')
     expect(onSelectStudent).not.toHaveBeenCalled()
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toHaveAttribute('aria-checked', 'mixed')
   })
 
   it('shows a distinct resubmitted status chip even when the row still has a grade', () => {
@@ -145,6 +152,7 @@ describe('TeacherAssignmentStudentTable', () => {
         onToggleSelect={vi.fn()}
         onToggleSelectAll={vi.fn()}
         allSelected={false}
+        someSelected={false}
         sortColumn="last"
         sortDirection="asc"
         onToggleSort={vi.fn()}

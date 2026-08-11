@@ -2,6 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  TableCard,
+} from '@/ui'
 
 interface AddStudentsModalProps {
   isOpen: boolean
@@ -161,44 +170,44 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
               {preview.students.length > 0 && (
                 <div className="mb-3">
                   <h4 className="text-xs font-medium text-text-muted mb-2">Valid Students</h4>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-surface-2">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                  <TableCard overflowX chrome="flush">
+                    <DataTable density="compact" className="min-w-full">
+                      <DataTableHead>
+                        <DataTableRow>
+                          <DataTableHeaderCell className="text-xs">
                             First Name
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                          </DataTableHeaderCell>
+                          <DataTableHeaderCell className="text-xs">
                             Last Name
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                          </DataTableHeaderCell>
+                          <DataTableHeaderCell className="text-xs">
                             Email
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                          </DataTableHeaderCell>
+                          <DataTableHeaderCell className="text-xs">
                             Student #
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
+                          </DataTableHeaderCell>
+                          <DataTableHeaderCell className="text-xs">
                             Counselor
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-surface divide-y divide-border">
+                          </DataTableHeaderCell>
+                        </DataTableRow>
+                      </DataTableHead>
+                      <DataTableBody>
                         {preview.students.map((student, idx) => (
-                          <tr key={idx}>
-                            <td className="px-3 py-2 text-text-default">{student.firstName}</td>
-                            <td className="px-3 py-2 text-text-default">{student.lastName}</td>
-                            <td className="px-3 py-2 text-text-muted">{student.email}</td>
-                            <td className="px-3 py-2 text-text-muted">
+                          <DataTableRow key={idx}>
+                            <DataTableCell>{student.firstName}</DataTableCell>
+                            <DataTableCell>{student.lastName}</DataTableCell>
+                            <DataTableCell className="text-text-muted">{student.email}</DataTableCell>
+                            <DataTableCell className="text-text-muted">
                               {student.studentNumber || '—'}
-                            </td>
-                            <td className="px-3 py-2 text-text-muted">
+                            </DataTableCell>
+                            <DataTableCell className="text-text-muted">
                               {student.counselorEmail || '—'}
-                            </td>
-                          </tr>
+                            </DataTableCell>
+                          </DataTableRow>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </DataTableBody>
+                    </DataTable>
+                  </TableCard>
                 </div>
               )}
 

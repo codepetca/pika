@@ -25,15 +25,20 @@ export {
   DataTableCell,
   DataTableHead,
   DataTableHeaderCell,
+  ColumnResizeHandle,
   ResizableHeaderCell,
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
   SortableHeaderCell,
   TableCard,
+  TableSelectionCell,
+  TableSelectionCheckbox,
+  TableSelectionHeaderCell,
   type DataTableDensity,
   type ColumnResizeConfig,
   type SortDirection,
+  type TableSelectionCheckboxProps,
 } from './DataTable'
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs'
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'

@@ -2,10 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  ColumnResizeHandle,
   DataTable,
   DataTableHead,
   KeyboardNavigableTable,
   SortableHeaderCell,
+  TableSelectionCheckbox,
   TableCard,
 } from '@/ui'
 
@@ -97,6 +99,60 @@ describe('TableCard', () => {
     fireEvent.keyDown(separator, { key: 'End' })
     expect(separator).toHaveAttribute('aria-valuenow', '160')
     expect(onSort).not.toHaveBeenCalled()
+  })
+
+  it('supports left-edge pointer resizing and accelerated keyboard resizing', () => {
+    function LeftEdgeResize() {
+      const [width, setWidth] = useState(96)
+      return (
+        <div className="group relative">
+          <ColumnResizeHandle
+            label="Final"
+            value={width}
+            min={80}
+            max={220}
+            step={8}
+            edge="left"
+            onChange={setWidth}
+          />
+        </div>
+      )
+    }
+
+    render(<LeftEdgeResize />)
+
+    const separator = screen.getByRole('separator', { name: 'Resize Final column' })
+    fireEvent(separator, new MouseEvent('pointerdown', { bubbles: true, clientX: 100 }))
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 80 }))
+    expect(separator).toHaveAttribute('aria-valuenow', '116')
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true }))
+
+    fireEvent.keyDown(separator, { key: 'ArrowRight', shiftKey: true })
+    expect(separator).toHaveAttribute('aria-valuenow', '140')
+  })
+
+  it('provides an indeterminate table checkbox without triggering row activation', () => {
+    const onChange = vi.fn()
+    const onRowClick = vi.fn()
+
+    render(
+      <div onClick={onRowClick}>
+        <TableSelectionCheckbox
+          checked={false}
+          indeterminate
+          onChange={onChange}
+          ariaLabel="Select all visible students"
+        />
+      </div>,
+    )
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Select all visible students' })
+    expect(checkbox).toHaveProperty('indeterminate', true)
+    expect(checkbox).toHaveAttribute('aria-checked', 'mixed')
+
+    fireEvent.click(checkbox)
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onRowClick).not.toHaveBeenCalled()
   })
 
   it('keeps keyboard table navigation focus visible', async () => {

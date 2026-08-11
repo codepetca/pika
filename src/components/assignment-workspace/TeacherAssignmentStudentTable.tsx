@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties, type ReactNode, type Ref } from 'react'
+import { type CSSProperties, type ReactNode, type Ref } from 'react'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import {
   AssessmentStatusIndicator,
@@ -19,8 +19,11 @@ import {
   ResizableHeaderCell,
   SortableHeaderCell,
   TableCard,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
   Tooltip,
 } from '@/ui'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { Spinner } from '@/components/Spinner'
 import {
   hasDraftSavedGrade,
@@ -61,6 +64,7 @@ interface TeacherAssignmentStudentTableProps {
   onToggleSelect: (studentId: string) => void
   onToggleSelectAll: () => void
   allSelected: boolean
+  someSelected: boolean
   sortColumn: 'first' | 'last' | 'status'
   sortDirection: SortDirection
   onToggleSort: (column: 'first' | 'last' | 'status') => void
@@ -74,20 +78,11 @@ interface TeacherAssignmentStudentTableProps {
 
 type ResizableColumnKey = 'first' | 'last' | 'status' | 'grade'
 
-type ColumnWidths = Record<ResizableColumnKey, number>
-
 const COLUMN_LIMITS: Record<ResizableColumnKey, { defaultWidth: number; min: number; max: number }> = {
   first: { defaultWidth: 72, min: 58, max: 160 },
   last: { defaultWidth: 72, min: 58, max: 160 },
   status: { defaultWidth: 78, min: 70, max: 110 },
   grade: { defaultWidth: 62, min: 56, max: 88 },
-}
-
-const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
-  first: COLUMN_LIMITS.first.defaultWidth,
-  last: COLUMN_LIMITS.last.defaultWidth,
-  status: COLUMN_LIMITS.status.defaultWidth,
-  grade: COLUMN_LIMITS.grade.defaultWidth,
 }
 
 const getAssignmentStudentRowId = (studentId: string) => `assignment-student-row-${studentId}`
@@ -97,11 +92,6 @@ function getRowClassName(isSelected: boolean): string {
     return 'cursor-pointer border-l-2 border-l-primary bg-surface-selected shadow-sm'
   }
   return 'cursor-pointer hover:bg-surface-hover'
-}
-
-function clampColumnWidth(column: ResizableColumnKey, width: number): number {
-  const limits = COLUMN_LIMITS[column]
-  return Math.min(limits.max, Math.max(limits.min, Math.round(width)))
 }
 
 function getColumnStyle(width: number): CSSProperties {
@@ -139,6 +129,7 @@ export function TeacherAssignmentStudentTable({
   onToggleSelect,
   onToggleSelectAll,
   allSelected,
+  someSelected,
   sortColumn,
   sortDirection,
   onToggleSort,
@@ -149,14 +140,10 @@ export function TeacherAssignmentStudentTable({
   emptyMessage = 'No students enrolled',
   busyOverlay,
 }: TeacherAssignmentStudentTableProps) {
-  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_COLUMN_WIDTHS)
-
-  function handleColumnResize(column: ResizableColumnKey, width: number) {
-    setColumnWidths((current) => ({
-      ...current,
-      [column]: clampColumnWidth(column, width),
-    }))
-  }
+  const { columnWidths, setColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-assignment-students:v1',
+    columns: COLUMN_LIMITS,
+  })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -192,16 +179,12 @@ export function TeacherAssignmentStudentTable({
                 </colgroup>
                 <DataTableHead>
                   <DataTableRow>
-                    <DataTableHeaderCell className="w-10 !px-2">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={onToggleSelectAll}
-                        onClick={(event) => event.stopPropagation()}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label="Select all students"
-                      />
-                    </DataTableHeaderCell>
+                    <TableSelectionHeaderCell
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onChange={onToggleSelectAll}
+                      ariaLabel="Select all students"
+                    />
                     <SortableHeaderCell
                       label="First"
                       isActive={sortColumn === 'first'}
@@ -213,7 +196,7 @@ export function TeacherAssignmentStudentTable({
                         value: columnWidths.first,
                         min: COLUMN_LIMITS.first.min,
                         max: COLUMN_LIMITS.first.max,
-                        onChange: (width) => handleColumnResize('first', width),
+                        onChange: (width) => setColumnWidth('first', width),
                       }}
                     />
                     <SortableHeaderCell
@@ -227,7 +210,7 @@ export function TeacherAssignmentStudentTable({
                         value: columnWidths.last,
                         min: COLUMN_LIMITS.last.min,
                         max: COLUMN_LIMITS.last.max,
-                        onChange: (width) => handleColumnResize('last', width),
+                        onChange: (width) => setColumnWidth('last', width),
                       }}
                     />
                     <SortableHeaderCell
@@ -242,7 +225,7 @@ export function TeacherAssignmentStudentTable({
                         value: columnWidths.status,
                         min: COLUMN_LIMITS.status.min,
                         max: COLUMN_LIMITS.status.max,
-                        onChange: (width) => handleColumnResize('status', width),
+                        onChange: (width) => setColumnWidth('status', width),
                       }}
                     />
                     <ResizableHeaderCell
@@ -253,7 +236,7 @@ export function TeacherAssignmentStudentTable({
                         value: columnWidths.grade,
                         min: COLUMN_LIMITS.grade.min,
                         max: COLUMN_LIMITS.grade.max,
-                        onChange: (width) => handleColumnResize('grade', width),
+                        onChange: (width) => setColumnWidth('grade', width),
                       }}
                     />
                     <DataTableHeaderCell className="whitespace-nowrap !px-1.5 !py-2">
@@ -296,16 +279,11 @@ export function TeacherAssignmentStudentTable({
                         className={getRowClassName(isSelected)}
                         onClick={() => onSelectStudent(student.student_id)}
                       >
-                        <DataTableCell className="!px-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(student.student_id)}
-                            onChange={() => onToggleSelect(student.student_id)}
-                            onClick={(event) => event.stopPropagation()}
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
-                          />
-                        </DataTableCell>
+                        <TableSelectionCell
+                          checked={selectedIds.has(student.student_id)}
+                          onChange={() => onToggleSelect(student.student_id)}
+                          ariaLabel={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
+                        />
                         <DataTableCell className="truncate !px-1.5" style={getColumnStyle(columnWidths.first)}>
                           {student.student_first_name ? (
                             <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>

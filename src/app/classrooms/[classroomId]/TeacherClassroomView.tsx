@@ -39,7 +39,7 @@ import {
   Unlock,
 } from 'lucide-react'
 import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
-import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
@@ -1462,10 +1462,11 @@ export function TeacherClassroomView({
     toggleSelect: batchToggleSelect,
     toggleSelectAll: batchToggleSelectAll,
     allSelected: batchAllSelected,
+    someSelected: batchSomeSelected,
     clearSelection: batchClearSelection,
     setSelection: batchSetSelection,
     selectedCount: batchSelectedCount,
-  } = useStudentSelection(studentRowIds)
+  } = useTableSelection(studentRowIds)
   const handleGradeTemplateChange = useCallback((template: TeacherAssignmentGradeTemplate | null) => {
     setGradeSelectedTemplate(template)
   }, [])
@@ -2211,6 +2212,7 @@ export function TeacherClassroomView({
       onToggleSelect={batchToggleSelect}
       onToggleSelectAll={batchToggleSelectAll}
       allSelected={batchAllSelected}
+      someSelected={batchSomeSelected}
       sortColumn={sortColumn}
       sortDirection={sortDirection}
       onToggleSort={toggleSort}

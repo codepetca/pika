@@ -186,6 +186,7 @@ function mockManyLogsFetch(count = 30) {
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     todayMock.today = '2026-05-06'
     classDaysMock.classDays = [...classDaysMock.defaultClassDays]
     classDaysMock.error = null

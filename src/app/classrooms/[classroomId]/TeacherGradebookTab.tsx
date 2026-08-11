@@ -6,8 +6,6 @@ import {
   useMemo,
   useState,
   type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
 import { ChevronDown, ChevronUp, Copy, ListFilter, Mail, Settings, X } from 'lucide-react'
@@ -19,6 +17,7 @@ import type {
 } from '@/types'
 import {
   Button,
+  ColumnResizeHandle,
   DataTable,
   DataTableBody,
   DataTableCell,
@@ -27,6 +26,8 @@ import {
   DataTableRow,
   EmptyStateRow,
   Input,
+  KeyboardNavigableTable,
+  TableSelectionCheckbox,
   Tooltip,
   useAppMessage,
 } from '@/ui'
@@ -48,7 +49,8 @@ import {
   invalidateCachedJSONMatching,
 } from '@/lib/request-cache'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
-import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
+import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 
 type GradebookSection = 'grades' | 'settings'
@@ -86,11 +88,7 @@ const SELECT_COLUMN_WIDTH_CLASS = 'w-10 min-w-10 max-w-10'
 const EDIT_LABEL_COLUMN_WIDTH_CLASS = 'w-20 min-w-20 max-w-20'
 const SELECT_COLUMN_WIDTH_PX = 40
 const EDIT_LABEL_COLUMN_WIDTH_PX = 80
-const IDENTITY_COLUMN_RESIZE_STEP = 8
 const FINAL_COLUMN_SEPARATOR_CLASS = 'border-l border-border-strong'
-const FINAL_COLUMN_DEFAULT_WIDTH = 96
-const FINAL_COLUMN_MIN_WIDTH = 80
-const FINAL_COLUMN_MAX_WIDTH = 220
 
 const IDENTITY_COLUMN_DEFS: Array<{
   key: GradebookIdentityColumn
@@ -104,13 +102,18 @@ const IDENTITY_COLUMN_DEFS: Array<{
   { key: 'id', label: 'ID', defaultWidth: 80, minWidth: 64, maxWidth: 180 },
 ]
 
-const DEFAULT_IDENTITY_COLUMN_WIDTHS = IDENTITY_COLUMN_DEFS.reduce(
-  (widths, column) => ({
-    ...widths,
-    [column.key]: column.defaultWidth,
-  }),
-  {} as Record<GradebookIdentityColumn, number>,
-)
+const GRADEBOOK_COLUMN_LIMITS: Record<GradebookFixedColumn, {
+  defaultWidth: number
+  min: number
+  max: number
+}> = {
+  first_name: { defaultWidth: 96, min: 72, max: 220 },
+  last_name: { defaultWidth: 96, min: 72, max: 220 },
+  id: { defaultWidth: 80, min: 64, max: 180 },
+  final: { defaultWidth: 96, min: 80, max: 220 },
+}
+
+const getGradebookStudentRowId = (studentId: string) => `gradebook-student-row-${studentId}`
 
 function formatPercent(value: number | null): string {
   if (value == null) return '—'
@@ -186,19 +189,6 @@ function getLeadingColumnWidthClass(editMode: boolean): string {
 
 function getLeadingColumnWidthPx(editMode: boolean): number {
   return editMode ? EDIT_LABEL_COLUMN_WIDTH_PX : SELECT_COLUMN_WIDTH_PX
-}
-
-function getIdentityColumnDef(columnKey: GradebookIdentityColumn) {
-  return IDENTITY_COLUMN_DEFS.find((column) => column.key === columnKey) || IDENTITY_COLUMN_DEFS[0]
-}
-
-function clampIdentityColumnWidth(columnKey: GradebookIdentityColumn, width: number): number {
-  const column = getIdentityColumnDef(columnKey)
-  return Math.min(column.maxWidth, Math.max(column.minWidth, Math.round(width)))
-}
-
-function clampFinalColumnWidth(width: number): number {
-  return Math.min(FINAL_COLUMN_MAX_WIDTH, Math.max(FINAL_COLUMN_MIN_WIDTH, Math.round(width)))
 }
 
 function getIdentityStickyLeftPx(
@@ -537,71 +527,10 @@ function ResizableIdentityHeaderCell({
   onColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
 }) {
   const columnWidth = columnWidths[column.key]
-  const columnBounds = getIdentityColumnDef(column.key)
+  const columnBounds = GRADEBOOK_COLUMN_LIMITS[column.key]
   const isActive = sortColumn === column.key
   const ariaSort = isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
   const Icon = sortDirection === 'asc' ? ChevronUp : ChevronDown
-
-  function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    const startX = event.clientX
-    const startWidth = columnWidth
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-
-    const target = event.currentTarget
-    if (target.setPointerCapture) {
-      try {
-        target.setPointerCapture(event.pointerId)
-      } catch {
-        // Pointer capture can fail in test environments; window listeners still handle the drag.
-      }
-    }
-
-    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-      if (!Number.isFinite(moveEvent.clientX) || !Number.isFinite(startX)) return
-      const nextWidth = clampIdentityColumnWidth(column.key, startWidth + moveEvent.clientX - startX)
-      onColumnWidthChange(column.key, nextWidth)
-    }
-
-    const handleResizeEnd = () => {
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handleResizeEnd)
-      window.removeEventListener('pointercancel', handleResizeEnd)
-      window.removeEventListener('blur', handleResizeEnd)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handleResizeEnd)
-    window.addEventListener('pointercancel', handleResizeEnd)
-    window.addEventListener('blur', handleResizeEnd)
-  }
-
-  function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    const step = event.shiftKey ? IDENTITY_COLUMN_RESIZE_STEP * 3 : IDENTITY_COLUMN_RESIZE_STEP
-    let nextWidth: number | null = null
-
-    if (event.key === 'ArrowLeft') {
-      nextWidth = columnWidth - step
-    } else if (event.key === 'ArrowRight') {
-      nextWidth = columnWidth + step
-    } else if (event.key === 'Home') {
-      nextWidth = columnBounds.minWidth
-    } else if (event.key === 'End') {
-      nextWidth = columnBounds.maxWidth
-    }
-
-    if (nextWidth == null) return
-    event.preventDefault()
-    event.stopPropagation()
-    onColumnWidthChange(column.key, clampIdentityColumnWidth(column.key, nextWidth))
-  }
 
   return (
     <DataTableHeaderCell
@@ -629,23 +558,13 @@ function ResizableIdentityHeaderCell({
           aria-hidden="true"
         />
       </button>
-      <div
-        role="separator"
-        tabIndex={0}
-        aria-orientation="vertical"
-        aria-label={`Resize ${column.label} column`}
-        aria-valuemin={columnBounds.minWidth}
-        aria-valuemax={columnBounds.maxWidth}
-        aria-valuenow={columnWidth}
-        className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        onPointerDown={handleResizeStart}
-        onKeyDown={handleResizeKeyDown}
-      >
-        <span
-          aria-hidden="true"
-          className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-        />
-      </div>
+      <ColumnResizeHandle
+        label={column.label}
+        value={columnWidth}
+        min={columnBounds.min}
+        max={columnBounds.max}
+        onChange={(width) => onColumnWidthChange(column.key, width)}
+      />
     </DataTableHeaderCell>
   )
 }
@@ -661,67 +580,6 @@ function ResizableFinalHeaderCell({
   finalColumnWidth: number
   onFinalColumnWidthChange: (width: number) => void
 }) {
-  function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    const startX = event.clientX
-    const startWidth = finalColumnWidth
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-
-    const target = event.currentTarget
-    if (target.setPointerCapture) {
-      try {
-        target.setPointerCapture(event.pointerId)
-      } catch {
-        // Pointer capture can fail in test environments; window listeners still handle the drag.
-      }
-    }
-
-    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-      if (!Number.isFinite(moveEvent.clientX) || !Number.isFinite(startX)) return
-      const nextWidth = clampFinalColumnWidth(startWidth - (moveEvent.clientX - startX))
-      onFinalColumnWidthChange(nextWidth)
-    }
-
-    const handleResizeEnd = () => {
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handleResizeEnd)
-      window.removeEventListener('pointercancel', handleResizeEnd)
-      window.removeEventListener('blur', handleResizeEnd)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handleResizeEnd)
-    window.addEventListener('pointercancel', handleResizeEnd)
-    window.addEventListener('blur', handleResizeEnd)
-  }
-
-  function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    const step = event.shiftKey ? IDENTITY_COLUMN_RESIZE_STEP * 3 : IDENTITY_COLUMN_RESIZE_STEP
-    let nextWidth: number | null = null
-
-    if (event.key === 'ArrowLeft') {
-      nextWidth = finalColumnWidth - step
-    } else if (event.key === 'ArrowRight') {
-      nextWidth = finalColumnWidth + step
-    } else if (event.key === 'Home') {
-      nextWidth = FINAL_COLUMN_MIN_WIDTH
-    } else if (event.key === 'End') {
-      nextWidth = FINAL_COLUMN_MAX_WIDTH
-    }
-
-    if (nextWidth == null) return
-    event.preventDefault()
-    event.stopPropagation()
-    onFinalColumnWidthChange(clampFinalColumnWidth(nextWidth))
-  }
-
   return (
     <DataTableHeaderCell
       aria-label="Final"
@@ -735,23 +593,14 @@ function ResizableFinalHeaderCell({
       ].join(' ')}
     >
       Final
-      <div
-        role="separator"
-        tabIndex={0}
-        aria-orientation="vertical"
-        aria-label="Resize Final column"
-        aria-valuemin={FINAL_COLUMN_MIN_WIDTH}
-        aria-valuemax={FINAL_COLUMN_MAX_WIDTH}
-        aria-valuenow={finalColumnWidth}
-        className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        onPointerDown={handleResizeStart}
-        onKeyDown={handleResizeKeyDown}
-      >
-        <span
-          aria-hidden="true"
-          className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-        />
-      </div>
+      <ColumnResizeHandle
+        label="Final"
+        value={finalColumnWidth}
+        min={GRADEBOOK_COLUMN_LIMITS.final.min}
+        max={GRADEBOOK_COLUMN_LIMITS.final.max}
+        edge="left"
+        onChange={onFinalColumnWidthChange}
+      />
     </DataTableHeaderCell>
   )
 }
@@ -778,10 +627,12 @@ function AssessmentMatrixTable({
   onAssessmentWeightCommit,
   selectedIds,
   allSelected,
+  someSelected,
   toggleSelect,
   toggleSelectAll,
   selectedStudentId,
   onStudentSelect,
+  onStudentDeselect,
   sortColumn,
   sortDirection,
   handleSort,
@@ -809,10 +660,12 @@ function AssessmentMatrixTable({
   onAssessmentWeightCommit: (column: GradebookAssessmentColumn) => void
   selectedIds: Set<string>
   allSelected: boolean
+  someSelected: boolean
   toggleSelect: (id: string) => void
   toggleSelectAll: () => void
   selectedStudentId: string | null
   onStudentSelect: (student: GradebookStudentSummary) => void
+  onStudentDeselect: () => void
   sortColumn: GradebookSortColumn
   sortDirection: 'asc' | 'desc'
   handleSort: (column: GradebookSortColumn) => void
@@ -844,8 +697,17 @@ function AssessmentMatrixTable({
   const renderMedianRow = editMode || visibleSummaryRows.median
 
   return (
-    <div
+    <KeyboardNavigableTable
       ref={scrollContainerRef}
+      ariaLabel="Gradebook students"
+      rowKeys={editMode ? [] : students.map((student) => student.student_id)}
+      selectedKey={editMode ? null : selectedStudentId}
+      onSelectKey={(studentId) => {
+        const student = students.find((candidate) => candidate.student_id === studentId)
+        if (student) onStudentSelect(student)
+      }}
+      onDeselect={onStudentDeselect}
+      getRowId={getGradebookStudentRowId}
       className="h-full min-h-0 min-w-0 overflow-auto"
       data-testid="gradebook-student-scroll-pane"
       onScroll={onScrollContainerScroll}
@@ -1009,12 +871,11 @@ function AssessmentMatrixTable({
             <DataTableRow>
               <DataTableHeaderCell className={['sticky left-0 z-30 border-r border-border bg-surface-2', headerTopClass, leadingColumnWidthClass].join(' ')}>
                 {editMode ? null : (
-                  <input
-                    type="checkbox"
+                  <TableSelectionCheckbox
                     checked={allSelected}
+                    indeterminate={someSelected}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                    aria-label="Select all students"
+                    ariaLabel="Select all students"
                   />
                 )}
               </DataTableHeaderCell>
@@ -1091,7 +952,8 @@ function AssessmentMatrixTable({
               return (
                 <DataTableRow
                   key={student.student_id}
-                  tabIndex={isSelectable ? 0 : undefined}
+                  id={getGradebookStudentRowId(student.student_id)}
+                  tabIndex={isSelectable ? -1 : undefined}
                   aria-selected={isSelectable ? isSelected : undefined}
                   className={[
                     'group transition-colors',
@@ -1105,13 +967,6 @@ function AssessmentMatrixTable({
                     if ((event.target as HTMLElement).closest('button,input,a,label,select,textarea')) return
                     onStudentSelect(student)
                   }}
-                  onKeyDown={(event) => {
-                    if (!isSelectable) return
-                    if (event.key !== 'Enter' && event.key !== ' ') return
-                    if ((event.target as HTMLElement).closest('button,input,a,label,select,textarea')) return
-                    event.preventDefault()
-                    onStudentSelect(student)
-                  }}
                 >
                   <DataTableCell
                     className={[
@@ -1121,12 +976,10 @@ function AssessmentMatrixTable({
                     ].join(' ')}
                   >
                     {editMode ? null : (
-                      <input
-                        type="checkbox"
+                      <TableSelectionCheckbox
                         checked={selectedIds.has(student.student_id)}
                         onChange={() => toggleSelect(student.student_id)}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label={`Select ${getStudentName(student)}`}
+                        ariaLabel={`Select ${getStudentName(student)}`}
                       />
                     )}
                   </DataTableCell>
@@ -1350,7 +1203,7 @@ function AssessmentMatrixTable({
             )}
           </DataTableBody>
       </DataTable>
-    </div>
+    </KeyboardNavigableTable>
   )
 }
 
@@ -1368,9 +1221,16 @@ export function TeacherGradebookTab({
   const [columnEditorOpen, setColumnEditorOpen] = useState(section === 'settings')
   const [visibleColumns, setVisibleColumns] =
     useState<Record<GradebookFixedColumn, boolean>>(DEFAULT_VISIBLE_COLUMNS)
-  const [identityColumnWidths, setIdentityColumnWidths] =
-    useState<Record<GradebookIdentityColumn, number>>(DEFAULT_IDENTITY_COLUMN_WIDTHS)
-  const [finalColumnWidth, setFinalColumnWidth] = useState(FINAL_COLUMN_DEFAULT_WIDTH)
+  const { columnWidths, setColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-gradebook:v1',
+    columns: GRADEBOOK_COLUMN_LIMITS,
+  })
+  const identityColumnWidths: Record<GradebookIdentityColumn, number> = {
+    first_name: columnWidths.first_name,
+    last_name: columnWidths.last_name,
+    id: columnWidths.id,
+  }
+  const finalColumnWidth = columnWidths.final
   const [visibleSummaryRows, setVisibleSummaryRows] =
     useState<Record<GradebookSummaryRow, boolean>>(DEFAULT_VISIBLE_SUMMARY_ROWS)
   const [hiddenAssessmentColumnKeys, setHiddenAssessmentColumnKeys] = useState<Set<string>>(() => new Set())
@@ -1414,7 +1274,14 @@ export function TeacherGradebookTab({
     [selectedStudentId, students],
   )
   const rowKeys = useMemo(() => sortedStudents.map((student) => student.student_id), [sortedStudents])
-  const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rowKeys)
+  const {
+    selectedIds,
+    toggleSelect,
+    toggleSelectAll,
+    allSelected,
+    someSelected,
+    clearSelection,
+  } = useTableSelection(rowKeys)
   const selectedStudents = useMemo(
     () => sortedStudents.filter((student) => selectedIds.has(student.student_id)),
     [selectedIds, sortedStudents],
@@ -1577,14 +1444,11 @@ export function TeacherGradebookTab({
   }
 
   function handleIdentityColumnWidthChange(column: GradebookIdentityColumn, width: number) {
-    setIdentityColumnWidths((previous) => ({
-      ...previous,
-      [column]: clampIdentityColumnWidth(column, width),
-    }))
+    setColumnWidth(column, width)
   }
 
   function handleFinalColumnWidthChange(width: number) {
-    setFinalColumnWidth(clampFinalColumnWidth(width))
+    setColumnWidth('final', width)
   }
 
   function handleAssessmentColumnVisibleChange(column: GradebookAssessmentColumn, visible: boolean) {
@@ -1790,10 +1654,12 @@ export function TeacherGradebookTab({
         onAssessmentWeightCommit={handleAssessmentWeightCommit}
         selectedIds={selectedIds}
         allSelected={allSelected}
+        someSelected={someSelected}
         toggleSelect={toggleSelect}
         toggleSelectAll={toggleSelectAll}
         selectedStudentId={columnEditorOpen ? null : selectedStudentId}
         onStudentSelect={handleStudentSelect}
+        onStudentDeselect={() => setSelectedStudentId(null)}
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         handleSort={handleSort}
