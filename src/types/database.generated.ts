@@ -2149,6 +2149,7 @@ export type Database = {
         Row: {
           attempt_count: number
           created_at: string
+          delete_priority: number
           deleted_at: string | null
           disposition: string
           id: string
@@ -2167,6 +2168,7 @@ export type Database = {
         Insert: {
           attempt_count?: number
           created_at?: string
+          delete_priority?: number
           deleted_at?: string | null
           disposition: string
           id?: string
@@ -2185,6 +2187,7 @@ export type Database = {
         Update: {
           attempt_count?: number
           created_at?: string
+          delete_priority?: number
           deleted_at?: string | null
           disposition?: string
           id?: string
@@ -2222,11 +2225,13 @@ export type Database = {
           attempt_count: number
           classroom_id: string
           classroom_title: string | null
+          cold_archive_id: string | null
           completed_at: string | null
           error_code: string | null
           id: string
           impact_summary: Json
           inventory_completed_at: string | null
+          purge_scope: string
           request_sha256: string
           resource_counts: Json
           retryable: boolean | null
@@ -2241,11 +2246,13 @@ export type Database = {
           attempt_count?: number
           classroom_id: string
           classroom_title?: string | null
+          cold_archive_id?: string | null
           completed_at?: string | null
           error_code?: string | null
           id: string
           impact_summary: Json
           inventory_completed_at?: string | null
+          purge_scope?: string
           request_sha256: string
           resource_counts?: Json
           retryable?: boolean | null
@@ -2260,11 +2267,13 @@ export type Database = {
           attempt_count?: number
           classroom_id?: string
           classroom_title?: string | null
+          cold_archive_id?: string | null
           completed_at?: string | null
           error_code?: string | null
           id?: string
           impact_summary?: Json
           inventory_completed_at?: string | null
+          purge_scope?: string
           request_sha256?: string
           resource_counts?: Json
           retryable?: boolean | null
@@ -2719,6 +2728,120 @@ export type Database = {
             columns: ["source_blueprint_version_id"]
             isOneToOne: false
             referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cold_classroom_purge_fences: {
+        Row: {
+          archive_id: string
+          classroom_id: string
+          created_at: string
+          operation_id: string
+          teacher_id: string
+        }
+        Insert: {
+          archive_id: string
+          classroom_id: string
+          created_at?: string
+          operation_id: string
+          teacher_id: string
+        }
+        Update: {
+          archive_id?: string
+          classroom_id?: string
+          created_at?: string
+          operation_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cold_classroom_purge_fences_archive_id_fkey"
+            columns: ["archive_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_archives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cold_classroom_purge_fences_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classroom_cold_tombstones"
+            referencedColumns: ["classroom_id"]
+          },
+          {
+            foreignKeyName: "cold_classroom_purge_fences_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: true
+            referencedRelation: "classroom_purge_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cold_classroom_purge_fences_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cold_classroom_purge_resources: {
+        Row: {
+          identity_sha256: string
+          operation_id: string
+          resource_id: string | null
+          resource_type: string
+        }
+        Insert: {
+          identity_sha256: string
+          operation_id: string
+          resource_id?: string | null
+          resource_type: string
+        }
+        Update: {
+          identity_sha256?: string
+          operation_id?: string
+          resource_id?: string | null
+          resource_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cold_classroom_purge_resources_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_purge_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cold_classroom_purge_settings: {
+        Row: {
+          canary_classroom_id: string | null
+          canary_teacher_id: string | null
+          rollout_mode: string
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          canary_classroom_id?: string | null
+          canary_teacher_id?: string | null
+          rollout_mode?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          canary_classroom_id?: string | null
+          canary_teacher_id?: string | null
+          rollout_mode?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cold_classroom_purge_settings_canary_teacher_id_fkey"
+            columns: ["canary_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -5766,6 +5889,17 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_cold_archived_classroom_purge: {
+        Args: {
+          p_archive_id: string
+          p_classroom_id: string
+          p_impact_summary: Json
+          p_operation_id: string
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       begin_course_blueprint_purge: {
         Args: {
           p_course_blueprint_id: string
@@ -5976,6 +6110,73 @@ export type Database = {
         Returns: {
           attempt_count: number
           created_at: string
+          delete_priority: number
+          deleted_at: string | null
+          disposition: string
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          managed_storage_object_id: string | null
+          next_attempt_at: string
+          operation_id: string
+          status: string
+          storage_bucket: string
+          storage_path: string | null
+          storage_path_sha256: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "classroom_purge_objects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_classroom_purge_object_v118: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          delete_priority: number
+          deleted_at: string | null
+          disposition: string
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          managed_storage_object_id: string | null
+          next_attempt_at: string
+          operation_id: string
+          status: string
+          storage_bucket: string
+          storage_path: string | null
+          storage_path_sha256: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "classroom_purge_objects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_cold_classroom_purge_object: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          delete_priority: number
           deleted_at: string | null
           disposition: string
           id: string
@@ -6306,6 +6507,22 @@ export type Database = {
       close_test_for_grading_atomic: {
         Args: { p_closed_by: string; p_test_id: string }
         Returns: Json
+      }
+      cold_classroom_purge_resource_inventory: {
+        Args: { p_classroom_id: string }
+        Returns: {
+          identity_sha256: string
+          resource_id: string
+          resource_type: string
+        }[]
+      }
+      cold_classroom_purge_resource_inventory_sha256: {
+        Args: { p_classroom_id: string }
+        Returns: string
+      }
+      cold_classroom_purge_rollout_allows: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: boolean
       }
       complete_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
@@ -6908,11 +7125,19 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_cold_archived_classroom_purge: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       finalize_course_blueprint_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
       finalize_hot_archived_classroom_purge: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      finalize_hot_archived_classroom_purge_v118: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
@@ -6959,6 +7184,14 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_cold_archived_classroom_purge_inventory: {
+        Args: {
+          p_archive_id: string
+          p_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       get_course_blueprint_purge_inventory: {
         Args: { p_blueprint_id: string; p_teacher_id: string }
         Returns: Json
@@ -6969,6 +7202,10 @@ export type Database = {
       }
       get_managed_deletion_deep_health_snapshot: { Args: never; Returns: Json }
       get_managed_deletion_health_snapshot: {
+        Args: { p_stuck_after_seconds?: number }
+        Returns: Json
+      }
+      get_managed_deletion_health_snapshot_v121: {
         Args: { p_stuck_after_seconds?: number }
         Returns: Json
       }

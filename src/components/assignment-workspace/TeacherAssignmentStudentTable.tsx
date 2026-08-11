@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from 'react'
+import { type CSSProperties, type ReactNode, type Ref } from 'react'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import {
   AssessmentStatusIndicator,
@@ -16,11 +16,15 @@ import {
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
+  ResizableHeaderCell,
+  SortableHeaderCell,
   TableCard,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
   Tooltip,
 } from '@/ui'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { Spinner } from '@/components/Spinner'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   hasDraftSavedGrade,
 } from '@/lib/assignments'
@@ -60,6 +64,7 @@ interface TeacherAssignmentStudentTableProps {
   onToggleSelect: (studentId: string) => void
   onToggleSelectAll: () => void
   allSelected: boolean
+  someSelected: boolean
   sortColumn: 'first' | 'last' | 'status'
   sortDirection: SortDirection
   onToggleSort: (column: 'first' | 'last' | 'status') => void
@@ -73,20 +78,11 @@ interface TeacherAssignmentStudentTableProps {
 
 type ResizableColumnKey = 'first' | 'last' | 'status' | 'grade'
 
-type ColumnWidths = Record<ResizableColumnKey, number>
-
 const COLUMN_LIMITS: Record<ResizableColumnKey, { defaultWidth: number; min: number; max: number }> = {
   first: { defaultWidth: 72, min: 58, max: 160 },
   last: { defaultWidth: 72, min: 58, max: 160 },
   status: { defaultWidth: 78, min: 70, max: 110 },
   grade: { defaultWidth: 62, min: 56, max: 88 },
-}
-
-const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
-  first: COLUMN_LIMITS.first.defaultWidth,
-  last: COLUMN_LIMITS.last.defaultWidth,
-  status: COLUMN_LIMITS.status.defaultWidth,
-  grade: COLUMN_LIMITS.grade.defaultWidth,
 }
 
 const getAssignmentStudentRowId = (studentId: string) => `assignment-student-row-${studentId}`
@@ -98,156 +94,8 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer hover:bg-surface-hover'
 }
 
-function clampColumnWidth(column: ResizableColumnKey, width: number): number {
-  const limits = COLUMN_LIMITS[column]
-  return Math.min(limits.max, Math.max(limits.min, Math.round(width)))
-}
-
 function getColumnStyle(width: number): CSSProperties {
   return { width: `${width}px`, maxWidth: `${width}px` }
-}
-
-function ResizeHandle({
-  column,
-  label,
-  width,
-  onResize,
-}: {
-  column: ResizableColumnKey
-  label: string
-  width: number
-  onResize: (column: ResizableColumnKey, width: number) => void
-}) {
-  function handlePointerDown(event: PointerEvent<HTMLSpanElement>) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    const startX = event.clientX
-    const startWidth = width
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-
-    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-      onResize(column, startWidth + moveEvent.clientX - startX)
-    }
-
-    const handlePointerUp = () => {
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-    event.preventDefault()
-    event.stopPropagation()
-
-    if (event.key === 'Home') {
-      onResize(column, COLUMN_LIMITS[column].min)
-      return
-    }
-    if (event.key === 'End') {
-      onResize(column, COLUMN_LIMITS[column].max)
-      return
-    }
-
-    onResize(column, width + (event.key === 'ArrowRight' ? 8 : -8))
-  }
-
-  return (
-    <span
-      role="separator"
-      aria-label={`Resize ${label} column`}
-      aria-orientation="vertical"
-      aria-valuemin={COLUMN_LIMITS[column].min}
-      aria-valuemax={COLUMN_LIMITS[column].max}
-      aria-valuenow={width}
-      aria-keyshortcuts="ArrowLeft ArrowRight Home End"
-      tabIndex={0}
-      onPointerDown={handlePointerDown}
-      onKeyDown={handleKeyDown}
-      className="absolute inset-y-0 right-0 z-10 flex min-h-11 w-11 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
-    >
-      <span
-        aria-hidden="true"
-        className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-      />
-    </span>
-  )
-}
-
-function ResizableSortableHeaderCell({
-  column,
-  label,
-  isActive,
-  direction,
-  onSort,
-  width,
-  onResize,
-}: {
-  column: ResizableColumnKey
-  label: string
-  isActive: boolean
-  direction: SortDirection
-  onSort: () => void
-  width: number
-  onResize: (column: ResizableColumnKey, width: number) => void
-}) {
-  const Icon = direction === 'asc' ? ChevronUp : ChevronDown
-  const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
-
-  return (
-    <DataTableHeaderCell
-      className="group relative !p-0"
-      style={getColumnStyle(width)}
-      aria-sort={ariaSort}
-    >
-      <button
-        type="button"
-        onClick={onSort}
-        className="relative flex w-full items-center py-2 pl-1.5 pr-4 text-left transition-colors hover:bg-surface-hover"
-      >
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <Icon
-          className={[
-            'pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 shrink-0 text-text-muted',
-            isActive ? '' : 'opacity-0',
-          ].join(' ')}
-          aria-hidden="true"
-        />
-      </button>
-      <ResizeHandle column={column} label={label} width={width} onResize={onResize} />
-    </DataTableHeaderCell>
-  )
-}
-
-function ResizableHeaderCell({
-  column,
-  label,
-  width,
-  onResize,
-}: {
-  column: ResizableColumnKey
-  label: string
-  width: number
-  onResize: (column: ResizableColumnKey, width: number) => void
-}) {
-  return (
-    <DataTableHeaderCell
-      className="group relative !py-2 !pl-1.5 !pr-3"
-      style={getColumnStyle(width)}
-    >
-      <span className="block truncate">{label}</span>
-      <ResizeHandle column={column} label={label} width={width} onResize={onResize} />
-    </DataTableHeaderCell>
-  )
 }
 
 function StatusIcon({ display }: { display: AssessmentWorkStatusDisplay }) {
@@ -281,6 +129,7 @@ export function TeacherAssignmentStudentTable({
   onToggleSelect,
   onToggleSelectAll,
   allSelected,
+  someSelected,
   sortColumn,
   sortDirection,
   onToggleSort,
@@ -291,14 +140,10 @@ export function TeacherAssignmentStudentTable({
   emptyMessage = 'No students enrolled',
   busyOverlay,
 }: TeacherAssignmentStudentTableProps) {
-  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_COLUMN_WIDTHS)
-
-  function handleColumnResize(column: ResizableColumnKey, width: number) {
-    setColumnWidths((current) => ({
-      ...current,
-      [column]: clampColumnWidth(column, width),
-    }))
-  }
+  const { columnWidths, setColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-assignment-students:v1',
+    columns: COLUMN_LIMITS,
+  })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -334,48 +179,65 @@ export function TeacherAssignmentStudentTable({
                 </colgroup>
                 <DataTableHead>
                   <DataTableRow>
-                    <DataTableHeaderCell className="w-10 !px-2">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={onToggleSelectAll}
-                        onClick={(event) => event.stopPropagation()}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label="Select all students"
-                      />
-                    </DataTableHeaderCell>
-                    <ResizableSortableHeaderCell
-                      column="first"
+                    <TableSelectionHeaderCell
+                      checked={allSelected}
+                      indeterminate={someSelected}
+                      onChange={onToggleSelectAll}
+                      ariaLabel="Select all students"
+                    />
+                    <SortableHeaderCell
                       label="First"
                       isActive={sortColumn === 'first'}
                       direction={sortDirection}
-                      onSort={() => onToggleSort('first')}
-                      width={columnWidths.first}
-                      onResize={handleColumnResize}
+                      onClick={() => onToggleSort('first')}
+                      density={density}
+                      buttonClassName="!py-2 !pl-1.5 !pr-4"
+                      resize={{
+                        value: columnWidths.first,
+                        min: COLUMN_LIMITS.first.min,
+                        max: COLUMN_LIMITS.first.max,
+                        onChange: (width) => setColumnWidth('first', width),
+                      }}
                     />
-                    <ResizableSortableHeaderCell
-                      column="last"
+                    <SortableHeaderCell
                       label="Last"
                       isActive={sortColumn === 'last'}
                       direction={sortDirection}
-                      onSort={() => onToggleSort('last')}
-                      width={columnWidths.last}
-                      onResize={handleColumnResize}
+                      onClick={() => onToggleSort('last')}
+                      density={density}
+                      buttonClassName="!py-2 !pl-1.5 !pr-4"
+                      resize={{
+                        value: columnWidths.last,
+                        min: COLUMN_LIMITS.last.min,
+                        max: COLUMN_LIMITS.last.max,
+                        onChange: (width) => setColumnWidth('last', width),
+                      }}
                     />
-                    <ResizableSortableHeaderCell
-                      column="status"
+                    <SortableHeaderCell
                       label="Status"
                       isActive={sortColumn === 'status'}
                       direction={sortDirection}
-                      onSort={() => onToggleSort('status')}
-                      width={columnWidths.status}
-                      onResize={handleColumnResize}
+                      onClick={() => onToggleSort('status')}
+                      density={density}
+                      align="center"
+                      buttonClassName="!py-2 !pl-1.5 !pr-4"
+                      resize={{
+                        value: columnWidths.status,
+                        min: COLUMN_LIMITS.status.min,
+                        max: COLUMN_LIMITS.status.max,
+                        onChange: (width) => setColumnWidth('status', width),
+                      }}
                     />
                     <ResizableHeaderCell
-                      column="grade"
                       label="Grade"
-                      width={columnWidths.grade}
-                      onResize={handleColumnResize}
+                      align="center"
+                      className="!py-2 !pl-1.5 !pr-3"
+                      resize={{
+                        value: columnWidths.grade,
+                        min: COLUMN_LIMITS.grade.min,
+                        max: COLUMN_LIMITS.grade.max,
+                        onChange: (width) => setColumnWidth('grade', width),
+                      }}
                     />
                     <DataTableHeaderCell className="whitespace-nowrap !px-1.5 !py-2">
                       <span className="block truncate">Artifacts</span>
@@ -417,16 +279,11 @@ export function TeacherAssignmentStudentTable({
                         className={getRowClassName(isSelected)}
                         onClick={() => onSelectStudent(student.student_id)}
                       >
-                        <DataTableCell className="!px-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(student.student_id)}
-                            onChange={() => onToggleSelect(student.student_id)}
-                            onClick={(event) => event.stopPropagation()}
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
-                          />
-                        </DataTableCell>
+                        <TableSelectionCell
+                          checked={selectedIds.has(student.student_id)}
+                          onChange={() => onToggleSelect(student.student_id)}
+                          ariaLabel={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
+                        />
                         <DataTableCell className="truncate !px-1.5" style={getColumnStyle(columnWidths.first)}>
                           {student.student_first_name ? (
                             <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>

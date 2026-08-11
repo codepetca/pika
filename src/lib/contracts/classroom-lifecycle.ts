@@ -20,6 +20,7 @@ export const teacherArchivedClassroomRecoverySchema = z.object({
   cold_archives: z.array(classroomColdArchiveSummarySchema),
   cold_archive_restore_enabled: z.boolean(),
   hot_classroom_purge_enabled_ids: z.array(z.string().uuid()).default([]),
+  cold_classroom_purge_enabled_ids: z.array(z.string().uuid()).default([]),
 }).strict()
 
 export type ClassroomColdArchiveSummary = z.infer<typeof classroomColdArchiveSummarySchema>

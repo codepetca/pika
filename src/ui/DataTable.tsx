@@ -1,10 +1,20 @@
 'use client'
 
-import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, type HTMLAttributes, type KeyboardEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
+import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, type CSSProperties, type HTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 export type DataTableDensity = 'tight' | 'compact' | 'normal'
 export type SortDirection = 'asc' | 'desc'
+
+export interface ColumnResizeConfig {
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
+  step?: number
+  label?: string
+  edge?: 'left' | 'right'
+}
 
 const DensityContext = createContext<DataTableDensity>('compact')
 
@@ -118,7 +128,10 @@ export function SortableHeaderCell({
   density: densityProp,
   align = 'left',
   className = '',
+  buttonClassName = '',
   trailing,
+  trailingPlacement = 'after-sort',
+  resize,
 }: {
   label: string
   isActive: boolean
@@ -127,7 +140,10 @@ export function SortableHeaderCell({
   density?: DataTableDensity
   align?: 'left' | 'center' | 'right'
   className?: string
+  buttonClassName?: string
   trailing?: React.ReactNode
+  trailingPlacement?: 'after-label' | 'after-sort'
+  resize?: ColumnResizeConfig
 }) {
   const density = useDensity(densityProp)
   const alignClass =
@@ -136,7 +152,14 @@ export function SortableHeaderCell({
   const Icon = direction === 'asc' ? ChevronUp : ChevronDown
 
   return (
-    <DataTableHeaderCell density={density} align={align} className={['!p-0', className].join(' ')} aria-sort={ariaSort}>
+    <DataTableHeaderCell
+      density={density}
+      align={align}
+      className={['!p-0', resize ? 'group relative' : '', className].join(' ')}
+      aria-sort={ariaSort}
+      aria-label={resize ? label : undefined}
+      style={resize ? { width: `${resize.value}px`, maxWidth: `${resize.value}px` } : undefined}
+    >
       <button
         type="button"
         onClick={onClick}
@@ -145,18 +168,170 @@ export function SortableHeaderCell({
           'flex min-h-control w-full items-center gap-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
           alignClass,
           'hover:bg-surface-hover transition-colors',
+          resize ? 'relative' : '',
+          buttonClassName,
         ].join(' ')}
       >
         <span className="truncate">{label}</span>
+        {trailingPlacement === 'after-label' ? trailing : null}
         <Icon
           className={[
-            'h-4 w-4 flex-shrink-0',
+            resize
+              ? 'pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2'
+              : 'h-4 w-4 flex-shrink-0',
             isActive ? 'text-text-muted' : 'opacity-0',
           ].join(' ')}
           aria-hidden="true"
         />
-        {trailing}
+        {trailingPlacement === 'after-sort' ? trailing : null}
       </button>
+      {resize ? (
+        <ColumnResizeHandle
+          label={resize.label ?? label}
+          value={resize.value}
+          min={resize.min}
+          max={resize.max}
+          step={resize.step}
+          edge={resize.edge}
+          onChange={resize.onChange}
+        />
+      ) : null}
+    </DataTableHeaderCell>
+  )
+}
+
+export function ColumnResizeHandle({
+  label,
+  value,
+  min,
+  max,
+  step = 8,
+  edge = 'right',
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  edge?: 'left' | 'right'
+  onChange: (value: number) => void
+}) {
+  const updateValue = (nextValue: number) => {
+    onChange(Math.min(max, Math.max(min, Math.round(nextValue))))
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLSpanElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const startX = event.clientX
+    const startWidth = value
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const pointerDelta = moveEvent.clientX - startX
+      updateValue(startWidth + (edge === 'right' ? pointerDelta : -pointerDelta))
+    }
+
+    const handlePointerUp = () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+      window.removeEventListener('blur', handlePointerUp)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+    window.addEventListener('blur', handlePointerUp)
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (event.key === 'Home') {
+      updateValue(min)
+      return
+    }
+    if (event.key === 'End') {
+      updateValue(max)
+      return
+    }
+
+    const keyboardStep = event.shiftKey ? step * 3 : step
+    updateValue(value + (event.key === 'ArrowRight' ? keyboardStep : -keyboardStep))
+  }
+
+  return (
+    <span
+      role="separator"
+      aria-label={`Resize ${label} column`}
+      aria-orientation="vertical"
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+      tabIndex={0}
+      onPointerDown={handlePointerDown}
+      onKeyDown={handleKeyDown}
+      className={[
+        'absolute inset-y-0 z-local-menu flex min-h-control min-w-control cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
+        edge === 'right' ? 'right-0 translate-x-1/2' : 'left-0 -translate-x-1/2',
+      ].join(' ')}
+    >
+      <span
+        aria-hidden="true"
+        className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      />
+    </span>
+  )
+}
+
+export function ResizableHeaderCell({
+  label,
+  resize,
+  density,
+  align = 'left',
+  className = '',
+  contentClassName = '',
+}: {
+  label: string
+  resize: ColumnResizeConfig
+  density?: DataTableDensity
+  align?: 'left' | 'center' | 'right'
+  className?: string
+  contentClassName?: string
+}) {
+  const style: CSSProperties = {
+    width: `${resize.value}px`,
+    maxWidth: `${resize.value}px`,
+  }
+
+  return (
+    <DataTableHeaderCell
+      density={density}
+      align={align}
+      className={['group relative', className].join(' ')}
+      style={style}
+    >
+      <span className={['block truncate', contentClassName].join(' ')}>{label}</span>
+      <ColumnResizeHandle
+        label={resize.label ?? label}
+        value={resize.value}
+        min={resize.min}
+        max={resize.max}
+        step={resize.step}
+        edge={resize.edge}
+        onChange={resize.onChange}
+      />
     </DataTableHeaderCell>
   )
 }
@@ -188,6 +363,100 @@ export function DataTableCell({
     >
       {children}
     </td>
+  )
+}
+
+export interface TableSelectionCheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'checked' | 'defaultChecked' | 'onChange' | 'aria-label'
+> {
+  checked: boolean
+  indeterminate?: boolean
+  onChange: (checked: boolean) => void
+  ariaLabel: string
+}
+
+export function TableSelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  ariaLabel,
+  className = '',
+  onClick,
+  ...props
+}: TableSelectionCheckboxProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate
+  }, [indeterminate])
+
+  return (
+    <input
+      {...props}
+      ref={inputRef}
+      type="checkbox"
+      checked={checked}
+      aria-checked={indeterminate ? 'mixed' : checked}
+      aria-label={ariaLabel}
+      onChange={(event) => onChange(event.currentTarget.checked)}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick?.(event)
+      }}
+      className={[
+        'h-4 w-4 rounded border-border bg-surface text-primary focus:ring-primary',
+        className,
+      ].filter(Boolean).join(' ')}
+    />
+  )
+}
+
+export function TableSelectionHeaderCell({
+  checked,
+  indeterminate,
+  onChange,
+  ariaLabel,
+  disabled,
+  density,
+  className = '',
+}: TableSelectionCheckboxProps & {
+  density?: DataTableDensity
+  className?: string
+}) {
+  return (
+    <DataTableHeaderCell density={density} className={['w-10 !px-2', className].join(' ')}>
+      <TableSelectionCheckbox
+        checked={checked}
+        indeterminate={indeterminate}
+        onChange={onChange}
+        ariaLabel={ariaLabel}
+        disabled={disabled}
+      />
+    </DataTableHeaderCell>
+  )
+}
+
+export function TableSelectionCell({
+  checked,
+  onChange,
+  ariaLabel,
+  disabled,
+  density,
+  className = '',
+}: Omit<TableSelectionCheckboxProps, 'indeterminate'> & {
+  density?: DataTableDensity
+  className?: string
+}) {
+  return (
+    <DataTableCell density={density} className={['!px-2', className].join(' ')}>
+      <TableSelectionCheckbox
+        checked={checked}
+        onChange={onChange}
+        ariaLabel={ariaLabel}
+        disabled={disabled}
+      />
+    </DataTableCell>
   )
 }
 

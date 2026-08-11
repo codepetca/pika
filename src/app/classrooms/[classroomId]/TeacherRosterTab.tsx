@@ -9,12 +9,13 @@ import {
   DataTableBody,
   DataTableCell,
   DataTableHead,
-  DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
   SortableHeaderCell,
   TableCard,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
   useAppMessage,
 } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
@@ -29,12 +30,22 @@ import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/Teach
 import type { Classroom, RosterJoinSource } from '@/types'
 import { Check, Copy, Mail, Pencil, Plus, Settings, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
-import { compareByNameFields, toggleSort } from '@/lib/table-sort'
-import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { applyDirection, compareByNameFields, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+import { useTableSelection } from '@/hooks/useTableSelection'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 type Role = 'student' | 'teacher'
+type RosterSortColumn = 'first_name' | 'last_name' | 'email' | 'counselor_email' | 'joined'
+type RosterResizableColumn = 'first' | 'last' | 'email' | 'counselor'
+
+const ROSTER_COLUMN_LIMITS = {
+  first: { defaultWidth: 96, min: 64, max: 200 },
+  last: { defaultWidth: 96, min: 64, max: 200 },
+  email: { defaultWidth: 240, min: 160, max: 360 },
+  counselor: { defaultWidth: 180, min: 140, max: 300 },
+} satisfies Record<RosterResizableColumn, { defaultWidth: number; min: number; max: number }>
 
 const getRosterStudentRowId = (rosterId: string) => `roster-student-row-${rosterId}`
 
@@ -102,7 +113,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
   const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
-    column: 'first_name' | 'last_name'
+    column: RosterSortColumn
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
   const [pendingRemoval, setPendingRemoval] = useState<{
@@ -131,23 +142,46 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   const sortedRoster = useMemo(() => {
     const rows = [...currentRoster]
-    rows.sort((a, b) =>
-      compareByNameFields(
+    rows.sort((a, b) => {
+      if (sortColumn === 'first_name' || sortColumn === 'last_name') {
+        return compareByNameFields(
         { firstName: a.first_name, lastName: a.last_name, id: a.email },
         { firstName: b.first_name, lastName: b.last_name, id: b.email },
         sortColumn,
         sortDirection
-      )
-    )
+        )
+      }
+      if (sortColumn === 'email') {
+        return applyDirection(a.email.localeCompare(b.email), sortDirection)
+      }
+      if (sortColumn === 'counselor_email') {
+        return applyDirection(
+          compareNullableStrings(a.counselor_email, b.counselor_email),
+          sortDirection,
+        )
+      }
+      return applyDirection(Number(a.joined) - Number(b.joined), sortDirection)
+    })
     return rows
   }, [currentRoster, sortColumn, sortDirection])
 
   const rosterIds = useMemo(() => sortedRoster.map((r) => r.id), [sortedRoster])
   const joinedCount = useMemo(() => sortedRoster.filter((r) => r.joined).length, [sortedRoster])
-  const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rosterIds)
+  const {
+    selectedIds,
+    toggleSelect,
+    toggleSelectAll,
+    allSelected,
+    someSelected: selectionIndeterminate,
+    clearSelection,
+  } = useTableSelection(rosterIds)
+  const { columnWidths, setColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-roster:v1',
+    columns: ROSTER_COLUMN_LIMITS,
+  })
   const isRosterLoading = loading || !hasCurrentRoster
 
-  function onSort(column: 'first_name' | 'last_name') {
+  function onSort(column: RosterSortColumn) {
     setSortState((prev) => toggleSort(prev, column))
   }
 
@@ -568,39 +602,87 @@ export function TeacherRosterTab({ classroom }: Props) {
           onDeselect={() => selectRosterId(null)}
           getRowId={getRosterStudentRowId}
         >
-          <DataTable density="tight">
+          <DataTable density="tight" className="table-fixed">
+            <colgroup>
+              <col style={{ width: '40px' }} />
+              <col style={{ width: `${columnWidths.first}px` }} />
+              <col style={{ width: `${columnWidths.last}px` }} />
+              <col className="hidden md:table-column" style={{ width: `${columnWidths.email}px` }} />
+              <col className="hidden lg:table-column" style={{ width: `${columnWidths.counselor}px` }} />
+              <col style={{ width: '88px' }} />
+            </colgroup>
             <DataTableHead>
               <DataTableRow>
-                <DataTableHeaderCell className="w-10">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                    aria-label="Select all students"
-                  />
-                </DataTableHeaderCell>
+                <TableSelectionHeaderCell
+                  checked={allSelected}
+                  indeterminate={selectionIndeterminate}
+                  onChange={toggleSelectAll}
+                  ariaLabel="Select all students"
+                />
                 <SortableHeaderCell
                   label="First"
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => onSort('first_name')}
                   trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} variant="neutral" /> : undefined}
+                  buttonClassName="!pr-5"
+                  resize={{
+                    value: columnWidths.first,
+                    min: ROSTER_COLUMN_LIMITS.first.min,
+                    max: ROSTER_COLUMN_LIMITS.first.max,
+                    onChange: (width) => setColumnWidth('first', width),
+                  }}
                 />
                 <SortableHeaderCell
                   label="Last"
                   isActive={sortColumn === 'last_name'}
                   direction={sortDirection}
                   onClick={() => onSort('last_name')}
+                  buttonClassName="!pr-5"
+                  resize={{
+                    value: columnWidths.last,
+                    min: ROSTER_COLUMN_LIMITS.last.min,
+                    max: ROSTER_COLUMN_LIMITS.last.max,
+                    onChange: (width) => setColumnWidth('last', width),
+                  }}
                 />
-                <DataTableHeaderCell className="hidden md:table-cell">Email</DataTableHeaderCell>
-                <DataTableHeaderCell className="hidden lg:table-cell">Counselor</DataTableHeaderCell>
-                <DataTableHeaderCell align="center">
-                  <span className="flex items-center justify-center gap-2">
-                    Joined
-                    <CountBadge count={joinedCount} tooltip={`${joinedCount} ${joinedCount === 1 ? 'student' : 'students'} joined`} variant="success" />
-                  </span>
-                </DataTableHeaderCell>
+                <SortableHeaderCell
+                  label="Email"
+                  isActive={sortColumn === 'email'}
+                  direction={sortDirection}
+                  onClick={() => onSort('email')}
+                  className="hidden md:table-cell"
+                  buttonClassName="!pr-5"
+                  resize={{
+                    value: columnWidths.email,
+                    min: ROSTER_COLUMN_LIMITS.email.min,
+                    max: ROSTER_COLUMN_LIMITS.email.max,
+                    onChange: (width) => setColumnWidth('email', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Counselor"
+                  isActive={sortColumn === 'counselor_email'}
+                  direction={sortDirection}
+                  onClick={() => onSort('counselor_email')}
+                  className="hidden lg:table-cell"
+                  buttonClassName="!pr-5"
+                  resize={{
+                    value: columnWidths.counselor,
+                    min: ROSTER_COLUMN_LIMITS.counselor.min,
+                    max: ROSTER_COLUMN_LIMITS.counselor.max,
+                    onChange: (width) => setColumnWidth('counselor', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Joined"
+                  isActive={sortColumn === 'joined'}
+                  direction={sortDirection}
+                  onClick={() => onSort('joined')}
+                  align="center"
+                  trailing={<CountBadge count={joinedCount} tooltip={`${joinedCount} ${joinedCount === 1 ? 'student' : 'students'} joined`} variant="success" />}
+                  trailingPlacement="after-label"
+                />
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
@@ -621,20 +703,16 @@ export function TeacherRosterTab({ classroom }: Props) {
                       selectRosterId(isSelected ? null : row.id)
                     }}
                   >
-                    <DataTableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(row.id)}
-                        onChange={() => toggleSelect(row.id)}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
-                      />
-                    </DataTableCell>
-                    <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
-                    <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
+                    <TableSelectionCell
+                      checked={selectedIds.has(row.id)}
+                      onChange={() => toggleSelect(row.id)}
+                      ariaLabel={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
+                    />
+                    <DataTableCell className="truncate" title={row.first_name ?? undefined}>{row.first_name ?? '—'}</DataTableCell>
+                    <DataTableCell className="truncate" title={row.last_name ?? undefined}>{row.last_name ?? '—'}</DataTableCell>
                     <DataTableCell className="hidden text-text-muted md:table-cell">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate">{row.email}</span>
+                        <span className="truncate" title={row.email}>{row.email}</span>
                         <JoinSourceBadge source={row.join_source} />
                       </div>
                     </DataTableCell>

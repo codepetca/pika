@@ -50,8 +50,9 @@ import {
   type TeacherTestResultsPayload,
 } from '@/lib/test-api-contract'
 import { applyTestSummaryPatchToTest } from '@/lib/test-summary-patch'
-import { compareByNameFields } from '@/lib/table-sort'
-import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
+import { useTableSelection } from '@/hooks/useTableSelection'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { useTeacherTestList } from '@/hooks/useTeacherTestList'
 import {
@@ -75,7 +76,10 @@ import {
   PageState,
   RefreshingIndicator,
   Select,
+  SortableHeaderCell,
   SplitButton,
+  TableSelectionCell,
+  TableSelectionHeaderCell,
   Tooltip,
   useAppMessage,
   useOverlayMessage,
@@ -111,7 +115,24 @@ interface Props {
   onRequestDelete?: () => void
 }
 
-type TestGradingSortColumn = 'first_name' | 'last_name'
+type TestGradingSortColumn =
+  | 'first_name'
+  | 'last_name'
+  | 'status'
+  | 'access'
+  | 'score'
+  | 'last_activity'
+  | 'exits'
+  | 'away'
+type TestGradingResizableColumn = 'student' | 'status' | 'access' | 'score' | 'last_activity'
+
+const TEST_GRADING_COLUMN_LIMITS = {
+  student: { defaultWidth: 184, min: 120, max: 320 },
+  status: { defaultWidth: 72, min: 56, max: 112 },
+  access: { defaultWidth: 72, min: 56, max: 112 },
+  score: { defaultWidth: 80, min: 64, max: 120 },
+  last_activity: { defaultWidth: 104, min: 80, max: 160 },
+} satisfies Record<TestGradingResizableColumn, { defaultWidth: number; min: number; max: number }>
 
 const GRADING_POLL_INTERVAL_MS = 15_000
 
@@ -317,7 +338,10 @@ export function TeacherTestsTab({
   const [gradingLoading, setGradingLoading] = useState(false)
   const [gradingRefreshing, setGradingRefreshing] = useState(false)
   const [gradingError, setGradingError] = useState('')
-  const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
+  const [gradingSortState, setGradingSortState] = useState<{
+    column: TestGradingSortColumn
+    direction: 'asc' | 'desc'
+  }>({ column: 'last_name', direction: 'asc' })
   const [gradingInspectorWidth, setGradingInspectorWidth] = useState(50)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
@@ -437,24 +461,51 @@ export function TeacherTestsTab({
   const sortedGradingStudents = useMemo(
     () =>
       [...gradingStudents].sort((a, b) => {
+        const { column, direction } = gradingSortState
         const aNameParts = getSortableNameParts(a)
         const bNameParts = getSortableNameParts(b)
-        return compareByNameFields(
-          {
-            firstName: aNameParts.firstName,
-            lastName: aNameParts.lastName,
-            id: a.email || a.student_id,
-          },
-          {
-            firstName: bNameParts.firstName,
-            lastName: bNameParts.lastName,
-            id: b.email || b.student_id,
-          },
-          gradingSortColumn,
-          'asc'
-        )
+        if (column === 'first_name' || column === 'last_name') {
+          return compareByNameFields(
+            {
+              firstName: aNameParts.firstName,
+              lastName: aNameParts.lastName,
+              id: a.email || a.student_id,
+            },
+            {
+              firstName: bNameParts.firstName,
+              lastName: bNameParts.lastName,
+              id: b.email || b.student_id,
+            },
+            column,
+            direction,
+          )
+        }
+        if (column === 'status') {
+          return applyDirection(a.status.localeCompare(b.status), direction)
+        }
+        if (column === 'access') {
+          const aAccess = getEffectiveTestAccess(a, selectedTestWorkspace?.status)
+          const bAccess = getEffectiveTestAccess(b, selectedTestWorkspace?.status)
+          return applyDirection(aAccess.localeCompare(bAccess), direction)
+        }
+        if (column === 'score') {
+          const aScore = a.points_possible > 0 ? a.points_earned / a.points_possible : -1
+          const bScore = b.points_possible > 0 ? b.points_earned / b.points_possible : -1
+          return applyDirection(aScore - bScore, direction)
+        }
+        if (column === 'last_activity') {
+          const aActivity = a.last_activity_at ? new Date(a.last_activity_at).getTime() : 0
+          const bActivity = b.last_activity_at ? new Date(b.last_activity_at).getTime() : 0
+          return applyDirection(aActivity - bActivity, direction)
+        }
+        if (column === 'exits') {
+          return applyDirection(getTestGradingExitCount(a) - getTestGradingExitCount(b), direction)
+        }
+        const aAway = a.focus_summary?.away_total_seconds ?? 0
+        const bAway = b.focus_summary?.away_total_seconds ?? 0
+        return applyDirection(aAway - bAway, direction)
       }),
-    [gradingSortColumn, gradingStudents]
+    [gradingSortState, gradingStudents, selectedTestWorkspace?.status]
   )
 
   const gradingRowIds = useMemo(
@@ -466,9 +517,18 @@ export function TeacherTestsTab({
     toggleSelect: toggleBatchSelect,
     toggleSelectAll: toggleBatchSelectAll,
     allSelected: batchAllSelected,
+    someSelected: batchSelectionIndeterminate,
     clearSelection: clearBatchSelection,
     selectedCount: batchSelectedCount,
-  } = useStudentSelection(gradingRowIds)
+  } = useTableSelection(gradingRowIds)
+  const { columnWidths: gradingColumnWidths, setColumnWidth: setGradingColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-test-grading:v1',
+    columns: TEST_GRADING_COLUMN_LIMITS,
+  })
+
+  const handleGradingSort = useCallback((column: TestGradingSortColumn) => {
+    setGradingSortState((previous) => toggleSort(previous, column))
+  }, [])
 
   const batchSelectedStudents = useMemo(
     () => sortedGradingStudents.filter((student) => batchSelectedIds.has(student.student_id)),
@@ -1951,68 +2011,109 @@ export function TeacherTestsTab({
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}
         >
-          <DataTable density="tight" className="table-fixed text-sm lg:table-auto">
+          <DataTable density="tight" className="table-fixed text-sm">
+            <colgroup>
+              <col style={{ width: '40px' }} />
+              <col style={{ width: `${gradingColumnWidths.student}px` }} />
+              <col style={{ width: `${gradingColumnWidths.status}px` }} />
+              <col style={{ width: `${gradingColumnWidths.access}px` }} />
+              <col style={{ width: `${gradingColumnWidths.score}px` }} />
+              <col className="hidden lg:table-column" style={{ width: `${gradingColumnWidths.last_activity}px` }} />
+              <col className="hidden lg:table-column" style={{ width: '64px' }} />
+              <col className="hidden lg:table-column" style={{ width: '64px' }} />
+            </colgroup>
             <DataTableHead>
               <DataTableRow>
-                <DataTableHeaderCell className="w-9 px-2 py-2 sm:w-10 sm:px-3">
-                  <input
-                    type="checkbox"
-                    checked={batchAllSelected}
-                    onChange={toggleBatchSelectAll}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                    aria-label="Select all students"
-                  />
-                </DataTableHeaderCell>
-                <DataTableHeaderCell className="min-w-0 px-2 py-2 sm:px-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGradingSortColumn((prev) => (prev === 'last_name' ? 'first_name' : 'last_name'))
-                    }}
-                    className="inline-flex w-full min-w-0 items-center gap-1 text-left text-text-muted hover:text-text-default sm:gap-2"
-                    aria-label={
-                      gradingSortColumn === 'last_name'
-                        ? 'Sort students by first name'
-                        : 'Sort students by last name'
-                    }
-                  >
-                    <span className="truncate">Student</span>
-                    <span className="hidden text-xs font-medium text-text-muted sm:inline">
-                      {gradingSortColumn === 'last_name' ? 'Last' : 'First'}
-                    </span>
-                  </button>
-                </DataTableHeaderCell>
-                <DataTableHeaderCell className="w-14 whitespace-nowrap px-1.5 py-2 text-xs sm:w-20 sm:px-3 sm:text-sm">Status</DataTableHeaderCell>
-                <DataTableHeaderCell className="w-14 whitespace-nowrap px-1.5 py-2 text-xs sm:w-20 sm:px-3 sm:text-sm">Access</DataTableHeaderCell>
-                <DataTableHeaderCell className="w-16 whitespace-nowrap px-1.5 py-2 text-xs sm:w-20 sm:px-3 sm:text-sm">Score</DataTableHeaderCell>
-                <DataTableHeaderCell className="hidden px-3 py-2 lg:table-cell">
-                  <Tooltip content="Most recent recorded in-test activity time (Toronto).">
-                    <span className="cursor-help">Last</span>
-                  </Tooltip>
-                </DataTableHeaderCell>
-                <DataTableHeaderCell className="hidden px-3 py-2 lg:table-cell">
-                  <Tooltip
-                    content={
-                      <div className="space-y-0.5">
-                        <p className="font-medium">Exits = combined count</p>
-                        <p>Away/focus events</p>
-                        <p>In-app exits</p>
-                        <p>Window/full-screen exits</p>
-                      </div>
-                    }
-                  >
-                    <span className="inline-flex cursor-help items-center" aria-label="Exits column">
-                      <LogOut className="h-4 w-4" />
-                    </span>
-                  </Tooltip>
-                </DataTableHeaderCell>
-                <DataTableHeaderCell className="hidden px-3 py-2 lg:table-cell">
-                  <Tooltip content="Total time this student was away from the test route.">
-                    <span className="inline-flex cursor-help items-center" aria-label="Away column">
-                      <ClockAlert className="h-4 w-4" />
-                    </span>
-                  </Tooltip>
-                </DataTableHeaderCell>
+                <TableSelectionHeaderCell
+                  checked={batchAllSelected}
+                  indeterminate={batchSelectionIndeterminate}
+                  onChange={toggleBatchSelectAll}
+                  ariaLabel="Select all students"
+                />
+                <SortableHeaderCell
+                  label="Student"
+                  isActive={gradingSortState.column === 'last_name'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('last_name')}
+                  buttonClassName="!px-2 !pr-5 sm:!px-3 sm:!pr-5"
+                  resize={{
+                    value: gradingColumnWidths.student,
+                    min: TEST_GRADING_COLUMN_LIMITS.student.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.student.max,
+                    onChange: (width) => setGradingColumnWidth('student', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Status"
+                  isActive={gradingSortState.column === 'status'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('status')}
+                  buttonClassName="!px-1.5 !pr-4 sm:!px-3 sm:!pr-4"
+                  resize={{
+                    value: gradingColumnWidths.status,
+                    min: TEST_GRADING_COLUMN_LIMITS.status.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.status.max,
+                    onChange: (width) => setGradingColumnWidth('status', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Access"
+                  isActive={gradingSortState.column === 'access'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('access')}
+                  buttonClassName="!px-1.5 !pr-4 sm:!px-3 sm:!pr-4"
+                  resize={{
+                    value: gradingColumnWidths.access,
+                    min: TEST_GRADING_COLUMN_LIMITS.access.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.access.max,
+                    onChange: (width) => setGradingColumnWidth('access', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Score"
+                  isActive={gradingSortState.column === 'score'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('score')}
+                  buttonClassName="!px-1.5 !pr-4 sm:!px-3 sm:!pr-4"
+                  resize={{
+                    value: gradingColumnWidths.score,
+                    min: TEST_GRADING_COLUMN_LIMITS.score.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.score.max,
+                    onChange: (width) => setGradingColumnWidth('score', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Last"
+                  isActive={gradingSortState.column === 'last_activity'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('last_activity')}
+                  className="hidden lg:table-cell"
+                  buttonClassName="!pr-5"
+                  resize={{
+                    value: gradingColumnWidths.last_activity,
+                    min: TEST_GRADING_COLUMN_LIMITS.last_activity.min,
+                    max: TEST_GRADING_COLUMN_LIMITS.last_activity.max,
+                    onChange: (width) => setGradingColumnWidth('last_activity', width),
+                  }}
+                />
+                <SortableHeaderCell
+                  label="Exits"
+                  isActive={gradingSortState.column === 'exits'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('exits')}
+                  align="center"
+                  className="hidden lg:table-cell"
+                  buttonClassName="!px-1"
+                />
+                <SortableHeaderCell
+                  label="Away"
+                  isActive={gradingSortState.column === 'away'}
+                  direction={gradingSortState.direction}
+                  onClick={() => handleGradingSort('away')}
+                  align="center"
+                  className="hidden lg:table-cell"
+                  buttonClassName="!px-1"
+                />
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
@@ -2094,16 +2195,12 @@ export function TeacherTestsTab({
                     }
                     onClick={() => handleGradingStudentSelect(student.student_id)}
                   >
-                    <DataTableCell className="px-2 py-2 sm:px-3">
-                      <input
-                        type="checkbox"
-                        checked={batchSelectedIds.has(student.student_id)}
-                        onChange={() => toggleBatchSelect(student.student_id)}
-                        onClick={(event) => event.stopPropagation()}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label={`Select ${student.name || 'student'}`}
-                      />
-                    </DataTableCell>
+                    <TableSelectionCell
+                      checked={batchSelectedIds.has(student.student_id)}
+                      onChange={() => toggleBatchSelect(student.student_id)}
+                      ariaLabel={`Select ${student.name || 'student'}`}
+                      className="py-2 sm:!px-3"
+                    />
                     <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
                       <div className="truncate font-medium text-text-default">{student.name || 'Student'}</div>
                     </DataTableCell>

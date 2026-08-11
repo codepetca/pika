@@ -1,10 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  ColumnResizeHandle,
   DataTable,
   DataTableHead,
   KeyboardNavigableTable,
   SortableHeaderCell,
+  TableSelectionCheckbox,
   TableCard,
 } from '@/ui'
 
@@ -56,6 +59,100 @@ describe('TableCard', () => {
       'focus-visible:ring-inset',
     )
     expect(screen.getByRole('columnheader')).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  it('provides shared separator semantics and keyboard resizing for sortable columns', () => {
+    const onSort = vi.fn()
+
+    function ResizableTable() {
+      const [width, setWidth] = useState(72)
+      return (
+        <DataTable className="table-fixed">
+          <DataTableHead>
+            <tr>
+              <SortableHeaderCell
+                label="First"
+                isActive={false}
+                direction="asc"
+                onClick={onSort}
+                resize={{ value: width, min: 60, max: 160, onChange: setWidth }}
+              />
+            </tr>
+          </DataTableHead>
+        </DataTable>
+      )
+    }
+
+    render(<ResizableTable />)
+
+    const separator = screen.getByRole('separator', { name: 'Resize First column' })
+    expect(separator).toHaveAttribute('aria-orientation', 'vertical')
+    expect(separator).toHaveAttribute('aria-valuemin', '60')
+    expect(separator).toHaveAttribute('aria-valuemax', '160')
+    expect(separator).toHaveAttribute('aria-valuenow', '72')
+    expect(separator).toHaveAttribute('aria-keyshortcuts', 'ArrowLeft ArrowRight Home End')
+
+    fireEvent.keyDown(separator, { key: 'Home' })
+    expect(separator).toHaveAttribute('aria-valuenow', '60')
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    expect(separator).toHaveAttribute('aria-valuenow', '68')
+    fireEvent.keyDown(separator, { key: 'End' })
+    expect(separator).toHaveAttribute('aria-valuenow', '160')
+    expect(onSort).not.toHaveBeenCalled()
+  })
+
+  it('supports left-edge pointer resizing and accelerated keyboard resizing', () => {
+    function LeftEdgeResize() {
+      const [width, setWidth] = useState(96)
+      return (
+        <div className="group relative">
+          <ColumnResizeHandle
+            label="Final"
+            value={width}
+            min={80}
+            max={220}
+            step={8}
+            edge="left"
+            onChange={setWidth}
+          />
+        </div>
+      )
+    }
+
+    render(<LeftEdgeResize />)
+
+    const separator = screen.getByRole('separator', { name: 'Resize Final column' })
+    fireEvent(separator, new MouseEvent('pointerdown', { bubbles: true, clientX: 100 }))
+    fireEvent(window, new MouseEvent('pointermove', { bubbles: true, clientX: 80 }))
+    expect(separator).toHaveAttribute('aria-valuenow', '116')
+    fireEvent(window, new MouseEvent('pointerup', { bubbles: true }))
+
+    fireEvent.keyDown(separator, { key: 'ArrowRight', shiftKey: true })
+    expect(separator).toHaveAttribute('aria-valuenow', '140')
+  })
+
+  it('provides an indeterminate table checkbox without triggering row activation', () => {
+    const onChange = vi.fn()
+    const onRowClick = vi.fn()
+
+    render(
+      <div onClick={onRowClick}>
+        <TableSelectionCheckbox
+          checked={false}
+          indeterminate
+          onChange={onChange}
+          ariaLabel="Select all visible students"
+        />
+      </div>,
+    )
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Select all visible students' })
+    expect(checkbox).toHaveProperty('indeterminate', true)
+    expect(checkbox).toHaveAttribute('aria-checked', 'mixed')
+
+    fireEvent.click(checkbox)
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onRowClick).not.toHaveBeenCalled()
   })
 
   it('keeps keyboard table navigation focus visible', async () => {
