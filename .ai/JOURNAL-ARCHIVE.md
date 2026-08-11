@@ -17688,3 +17688,28 @@ exact-head destructive purge verification.
 - Publish the draft replacement PR while leaving #963 unchanged.
 - Run exact-head database CI before enabling or deploying deletion. Migration
   118 still requires fresh authorization for every database target.
+<!-- pika-session-log-archive-batch:bd702d3cbf62f24015fd89d7fa41034dd2a7b08312c2c2ffdebada63be0ecc33 -->
+## 2026-08-04 — Verified draft hot-archive purge replacement
+
+**Risk profile:** runtime-platform — irreversible classroom deletion,
+concurrency, managed Storage ownership, and migration safety.
+
+**Completed:**
+- Reconciled existing managed-cleanup and archive-compaction concurrency
+  fixtures with migration 118's fail-fast lifecycle lock and retry contract.
+- Hardened the rollback-only purge fixture to simulate provider-side object
+  resurrection without weakening Supabase Storage ownership or app-role access.
+- Kept PR #968 draft, PR #963 unchanged, rollout gates disabled, and migration
+  118 unapplied by this remediation.
+
+**Validation:**
+- Exact-head CI run 30952362597 passed Architecture Database Contracts, Test &
+  Build, Browser Experience Matrix, and Vercel at `ab4ce5f6`.
+- Pika audit, shell syntax, diff checks, and 27 focused tests pass.
+- Targeted security/concurrency and final cumulative integration reviews found
+  no P0/P1 or merge-blocking findings.
+
+**Remaining:**
+- Keep migration 118 and deletion disabled until separately authorized rollout
+  and canary verification. Cold archives and individual-student purge remain
+  follow-up scopes.

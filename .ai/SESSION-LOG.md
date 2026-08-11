@@ -1078,3 +1078,57 @@ autosave error feedback while preserving the mounted attempt and exam owner.
 - Independent review identified one P1 stale-autosave completion race; the
   accepted remediation guards UI completion by the latest pending draft and
   monotonic successful-save sequence without changing persistence requests.
+## 2026-08-10 — Compact teacher Daily log table
+
+**Risk profile:** none — presentation and client-side table ordering only.
+
+**Completed:**
+- Reduced the First, Last, and ID column widths in the teacher Daily table so
+  the log preview receives more horizontal space.
+- Removed the standalone attendance-status column and combined its row marker,
+  Complete/Incomplete counts, and sortable behavior into the Log column.
+- Added accessible completion labels and preserved Log sorting in both the
+  full-width table and selected-student workspace.
+- Independent PR review caught that the Complete/Incomplete count badges were
+  hidden after selecting a student; restored them in the selected workspace
+  and added a regression assertion for the accessible count label.
+- Removed the stale arbitrary-spacing exception for the deleted status-column
+  width.
+
+**Validation:**
+- Focused component coverage passes (17 tests), including Enter/Space
+  activation, ascending and descending Complete/Incomplete sorting, focus, and
+  sortable-header semantics.
+- Lint, architecture, design policy, UI policy, and diff checks pass.
+- Playwright experience matrix passes (18 tests) across teacher/student,
+  desktop/mobile, and light/dark; screenshots of the teacher default and sorted
+  states show no page overflow or broken layout.
+- The selected-student remediation was visually rechecked in teacher
+  desktop/mobile and light/dark states with no horizontal page overflow.
+
+## 2026-08-10 — Standardize resizable Daily columns
+
+**Risk profile:** none — shared client-side table layout behavior only.
+
+**Completed:**
+- Moved the Complete/Incomplete count chips immediately beside the Daily Log
+  label while preserving its sortable semantics.
+- Added adjustable First, Last, and ID widths to Daily; Log absorbs the
+  remaining space. Narrow values truncate instead of wrapping in the selected
+  workspace.
+- Extracted the assignment table's accessible pointer/keyboard resize behavior
+  into shared `@/ui` table primitives and migrated assignments to the shared
+  owner without sharing domain-specific cells.
+- Removed stale native-control and raw-layer registry entries from the former
+  assignment-local implementation.
+
+**Validation:**
+- Focused DataTable, Daily, and assignment coverage passes (29 tests), including
+  separator semantics, Arrow/Home/End resizing, pointer clamping, sorting, and
+  selected-row truncation.
+- Lint, architecture, UI policy, design policy, and Pika audit pass.
+- Playwright captures were reviewed for teacher desktop/mobile, light/dark,
+  default, sorted, selected, minimum-width resize, and the assignment reference
+  table; the student attendance boundary was also checked.
+- Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
+  state covered by tests: yes; remaining manual follow-up: none.

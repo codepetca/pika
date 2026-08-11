@@ -427,11 +427,6 @@
       "reviewBy": "phase-3-assignments",
       "controls": [
         {
-          "kind": "button",
-          "count": 1,
-          "reason": "composite-widget"
-        },
-        {
           "kind": "input:checkbox",
           "count": 2,
           "reason": "native-input-capability"
