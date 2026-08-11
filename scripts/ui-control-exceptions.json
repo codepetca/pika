@@ -180,7 +180,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 5,
+          "count": 4,
           "reason": "legacy-form-control"
         }
       ]
