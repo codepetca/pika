@@ -278,6 +278,7 @@ describe('TeacherTestsTab', () => {
   })
 
   afterEach(() => {
+    window.localStorage.clear()
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     vi.useRealTimers()
@@ -1514,16 +1515,68 @@ describe('TeacherTestsTab', () => {
     )
     const table = within(studentScrollPane).getByRole('table')
     expect(table).toHaveClass('table-fixed')
-    expect(table).toHaveClass('lg:table-auto')
+    expect(table).not.toHaveClass('lg:table-auto')
 
     const row = screen.getByTestId('test-grading-student-row-student-1')
     expect(within(row).getByText('Alice Zephyr').closest('td')).toHaveClass('max-w-0')
     expect(within(row).getByLabelText(/Exits \d+\./).closest('td')).toHaveClass('hidden')
     expect(within(row).getByLabelText(/Away time/).closest('td')).toHaveClass('hidden')
 
-    expect(screen.getByText('Last', { selector: 'span.cursor-help' }).closest('th')).toHaveClass('hidden')
-    expect(screen.getByLabelText('Exits column').closest('th')).toHaveClass('lg:table-cell')
-    expect(screen.getByLabelText('Away column').closest('th')).toHaveClass('lg:table-cell')
+    expect(screen.getByRole('columnheader', { name: 'Last' })).toHaveClass('hidden')
+    expect(screen.getByRole('columnheader', { name: 'Exits' })).toHaveClass('lg:table-cell')
+    expect(screen.getByRole('columnheader', { name: 'Away' })).toHaveClass('lg:table-cell')
+  })
+
+  it('uses shared sorting, selection, and resizable grading columns', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          makeGradingStudent(),
+          makeGradingStudent({
+            student_id: 'student-2',
+            name: 'Bob Zulu',
+            first_name: 'Bob',
+            last_name: 'Zulu',
+            email: 'bob@example.com',
+            points_earned: 4,
+            percent: 80,
+          }),
+        ],
+      }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const studentResize = await screen.findByRole('separator', { name: 'Resize Student column' })
+    expect(studentResize).toHaveAttribute('aria-valuenow', '184')
+    expect(screen.getByRole('separator', { name: 'Resize Status column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Access column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Score column' })).toBeInTheDocument()
+
+    fireEvent.keyDown(studentResize, { key: 'Home' })
+    expect(studentResize).toHaveAttribute('aria-valuenow', '120')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toHaveAttribute(
+      'aria-checked',
+      'mixed',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Score' }))
+    expect(screen.getByRole('columnheader', { name: 'Score' })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Score' }))
+    expect(screen.getByRole('columnheader', { name: 'Score' })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
   })
 
   it('clears the selected grading row with Escape', async () => {

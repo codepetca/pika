@@ -121,6 +121,7 @@ describe('TeacherGradebookTab', () => {
   let clipboardWriteText: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    window.localStorage.clear()
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => gradebookResponse(),
@@ -184,7 +185,7 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('border-l', 'border-border-strong')
     const finalResize = screen.getByRole('separator', { name: 'Resize Final column' })
     expect(finalResize).toHaveAttribute('aria-valuenow', '96')
-    expect(finalResize).toHaveClass('h-11', 'w-11')
+    expect(finalResize).toHaveClass('min-h-control', 'min-w-control')
     fireEvent.keyDown(finalResize, { key: 'ArrowRight' })
     expect(finalResize).toHaveAttribute('aria-valuenow', '104')
     expect(screen.getByRole('row', { name: /Ada Lovelace.*80% 90% 85\.0%/ })).toBeInTheDocument()
@@ -192,7 +193,7 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('row', { name: /Med.*70% 85% 77\.5%/ })).toBeInTheDocument()
     const firstResize = screen.getByRole('separator', { name: 'Resize First column' })
     expect(firstResize).toHaveAttribute('aria-valuenow', '96')
-    expect(firstResize).toHaveClass('h-11', 'w-11')
+    expect(firstResize).toHaveClass('min-h-control', 'min-w-control')
     fireEvent.keyDown(firstResize, { key: 'ArrowRight' })
     expect(firstResize).toHaveAttribute('aria-valuenow', '104')
     expect(screen.queryByRole('button', { name: 'Email (0)' })).not.toBeInTheDocument()
@@ -225,6 +226,7 @@ describe('TeacherGradebookTab', () => {
 
     const adaSelect = screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })
     fireEvent.click(adaSelect)
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toHaveAttribute('aria-checked', 'mixed')
     expect(screen.getByRole('button', { name: 'Email (1)' })).toBeInTheDocument()
     gradebookMenu = openGradebookActions()
     expect(within(gradebookMenu).queryByRole('menuitemradio', { name: 'Show %' })).toBeInTheDocument()
@@ -339,6 +341,23 @@ describe('TeacherGradebookTab', () => {
       expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/gradebook?classroom_id=${classroom.id}`)
     })
   }, 10_000)
+
+  it('supports shared keyboard row navigation and dismissal', async () => {
+    renderGradebook('grades')
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    const tableRegion = screen.getByRole('region', { name: 'Gradebook students' })
+    expect(tableRegion).toHaveAttribute('aria-keyshortcuts', 'ArrowUp ArrowDown Home End Escape')
+
+    fireEvent.keyDown(tableRegion, { key: 'End' })
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Ada Lovelace assessment details' })).toBeInTheDocument()
+    })
+    expect(screen.getByRole('row', { name: /Ada Lovelace.*80% 90% 85\.0%/ })).toHaveFocus()
+
+    fireEvent.keyDown(screen.getByRole('row', { name: /Ada Lovelace.*80% 90% 85\.0%/ }), { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Ada Lovelace assessment details' })).not.toBeInTheDocument()
+  })
 
   it('color codes grade text by percentage band', async () => {
     const response = gradebookResponse()

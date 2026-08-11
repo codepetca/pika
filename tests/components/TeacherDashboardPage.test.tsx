@@ -207,6 +207,7 @@ function installFetchMock(options?: {
 
 describe('Teacher dashboard page', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     push.mockReset()
     vi.mocked(fetchJSONWithCache).mockImplementation((_key, load) => load())
     vi.mocked(invalidateCachedJSON).mockClear()
@@ -233,6 +234,44 @@ describe('Teacher dashboard page', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('sorts and resizes the shared attendance table and exposes log cells as buttons', async () => {
+    installFetchMock({
+      attendanceByClassroom: {
+        c1: [
+          attendanceRecord({
+            studentId: 's2',
+            email: 'zara@example.com',
+            date: '2026-06-01',
+            present: 4,
+            absent: 1,
+          }),
+          attendanceRecord({
+            studentId: 's1',
+            email: 'ada@example.com',
+            date: '2026-06-01',
+            present: 1,
+            absent: 4,
+          }),
+        ],
+      },
+    })
+
+    renderDashboard()
+
+    expect(await screen.findByText('ada@example.com')).toBeInTheDocument()
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('ada@example.com')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Present' }))
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('ada@example.com')
+    fireEvent.click(screen.getByRole('button', { name: 'Present' }))
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('zara@example.com')
+
+    const studentResize = screen.getByRole('separator', { name: 'Resize Student column' })
+    fireEvent.keyDown(studentResize, { key: 'End' })
+    expect(studentResize).toHaveAttribute('aria-valuenow', '360')
+    expect(screen.getByRole('button', { name: 'Open ada@example.com log for 2026-06-01' })).toBeInTheDocument()
   })
 
   it('separates classroom load failures from empty state and retries', async () => {

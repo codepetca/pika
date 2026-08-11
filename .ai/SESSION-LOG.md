@@ -11,99 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-04 — Verified draft hot-archive purge replacement
-
-**Risk profile:** runtime-platform — irreversible classroom deletion,
-concurrency, managed Storage ownership, and migration safety.
-
-**Completed:**
-- Reconciled existing managed-cleanup and archive-compaction concurrency
-  fixtures with migration 118's fail-fast lifecycle lock and retry contract.
-- Hardened the rollback-only purge fixture to simulate provider-side object
-  resurrection without weakening Supabase Storage ownership or app-role access.
-- Kept PR #968 draft, PR #963 unchanged, rollout gates disabled, and migration
-  118 unapplied by this remediation.
-
-**Validation:**
-- Exact-head CI run 30952362597 passed Architecture Database Contracts, Test &
-  Build, Browser Experience Matrix, and Vercel at `ab4ce5f6`.
-- Pika audit, shell syntax, diff checks, and 27 focused tests pass.
-- Targeted security/concurrency and final cumulative integration reviews found
-  no P0/P1 or merge-blocking findings.
-
-**Remaining:**
-- Keep migration 118 and deletion disabled until separately authorized rollout
-  and canary verification. Cold archives and individual-student purge remain
-  follow-up scopes.
-
-## 2026-08-04 — Complete native Pal shell integration
-
-**Risk profile:** runtime-platform — authenticated learner scope, external
-widget runtime, and persistent classroom shell behavior.
-
-**Completed:**
-- Moved the single student-only `PalProvider` into the persistent authenticated
-  classroom layout so the roadmap, companion, and reward surfaces share one
-  learner snapshot across classroom and tab navigation.
-- Kept teachers and invalid/disabled Pal configurations outside the provider;
-  optional widget failures remain contained without taking down academic pages.
-- Rotated the Pal client and its token cache whenever the opaque authenticated
-  scope changes, and cached learner read tokens only until their server-issued
-  expiry enters the safe refresh window.
-- Added bounded server-side per-learner token reuse, in-flight coalescing, and
-  module-shared mint-start backoff so a browser-cache bypass cannot fan out
-  privileged Pal mint calls, including failure and short-token paths.
-- Kept the native achievement roadmap in Pika's Achievements tab and suppressed
-  the ambient companion and reward modal while the student Tests surface is
-  active, including Pika's History API tab transitions.
-- Published and registry-verified `@codepet/pal-widget@0.1.0-alpha.2`, then
-  replaced the temporary package tarball with the exact immutable npm version
-  and its integrity-pinned lockfile entry.
-
-**Validation:**
-- Full Vitest suite: 467 files / 4,044 tests.
-- TypeScript, architecture policy, UI policy, production build, and diff checks
-  pass against the registry-installed `0.1.0-alpha.2` package.
-- Live local Pika-to-Pal flow returned a same-origin learner read token, fetched
-  the cross-origin learner snapshot, and rendered the canonical cat-on-grass
-  companion with no iframe.
-- Playwright inspection passed for the authenticated student surface at
-  desktop/mobile and light/dark viewports. Component coverage verifies the
-  native roadmap, host-owned reward modal, retry containment, scope rotation,
-  and Tests-tab ambient suppression.
-
-**Remaining:**
-- Push the token-burst review remediation to PR #966, then require exact-head
-  CI and final independent confirmation before merge.
-
-## 2026-08-04 — Add managed archive binding compatibility
-
-**Risk profile:** runtime-platform — production archive metadata compatibility,
-managed Storage reconciliation, and irreversible deletion migration lineage.
-
-**Completed:**
-- Added migration 118's narrow compatibility exception so legacy verified
-  classroom archives can receive one deterministic managed-object identity
-  without permitting any other archive metadata change.
-- Required an exact archive operation, classroom owner, bucket/path, purpose,
-  checksum, byte size, and compatibility-mode match under the managed-storage
-  protocol lock, using canonical operation-before-object lock ordering.
-- Resequenced the unapplied hot-archive deletion migration from 118 to 119 and
-  updated its tests, fixtures, documentation, lint, and lineage checks.
-- Kept production and the shared local Supabase database unchanged.
-
-**Validation:**
-- An isolated local 001–119 replay, database lint, generated-type check,
-  managed-storage readiness/concurrency fixture, and destructive purge fixture
-  all pass.
-- Focused migration tests pass (2 files / 9 tests); migration lineage,
-  migration-119 function lint, shell syntax, and diff checks pass.
-
-**Remaining:**
-- Review and merge the compatibility change before requesting fresh,
-  exact-migration authorization for any production application. Migration 119
-  and all deletion rollout gates remain unapplied and disabled.
-
 ## 2026-08-05 — Apply archive binding compatibility to production
 
 **Risk profile:** runtime-platform — production trigger compatibility for
@@ -1078,6 +985,7 @@ autosave error feedback while preserving the mounted attempt and exam owner.
 - Independent review identified one P1 stale-autosave completion race; the
   accepted remediation guards UI completion by the latest pending draft and
   monotonic successful-save sequence without changing persistence requests.
+
 ## 2026-08-10 — Compact teacher Daily log table
 
 **Risk profile:** none — presentation and client-side table ordering only.
@@ -1130,5 +1038,36 @@ autosave error feedback while preserving the mounted attempt and exam owner.
 - Playwright captures were reviewed for teacher desktop/mobile, light/dark,
   default, sorted, selected, minimum-width resize, and the assignment reference
   table; the student attendance boundary was also checked.
+- Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
+  state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Standardize production table capabilities
+
+**Risk profile:** workspace-state — shared client-side table selection,
+keyboard navigation, sorting, and persisted layout preferences; no API or data
+model changes.
+
+**Completed:**
+- Added generic `useTableSelection`, optional local width persistence, shared
+  mixed-state selection cells, and a reusable left/right resize handle.
+- Migrated the seven production table surfaces to canonical `@/ui` primitives:
+  Assignment students, Daily attendance, Roster, Test grading, Gradebook,
+  dashboard attendance, and Add Students preview.
+- Added sorting/resizing where operationally useful, retained checkbox
+  selection only where real batch actions exist, and kept the Add Students
+  preview intentionally static.
+- Removed the legacy table re-export and student-specific selection hook, and
+  documented the composable table ownership boundary.
+
+**Validation:**
+- Focused table coverage passes (127 tests), TeacherClassroomView passes (50
+  tests), TypeScript and lint pass, and the Pika audit reports no violations.
+- The full 4,181-test run had one unrelated transient ColdClassroomPurgeDialog
+  timing failure while its inventory was still loading; its isolated suite
+  passed immediately afterward (3/3).
+- Playwright verified teacher desktop/mobile, light/dark, default, sorted,
+  mixed-selection, focused-resize, selected-row/inspector, Test grading,
+  Assignment students, Dashboard, and Add Students preview states; the student
+  mobile boundary was also checked. No overflow or visual regression remained.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.

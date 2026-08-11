@@ -177,12 +177,13 @@ vi.mock('@/hooks/useDelayedBusy', () => ({
   useDelayedBusy: (value: boolean) => value,
 }))
 
-vi.mock('@/hooks/useStudentSelection', () => ({
-  useStudentSelection: () => ({
+vi.mock('@/hooks/useTableSelection', () => ({
+  useTableSelection: () => ({
     selectedIds: mockStudentSelectionState.selectedIds,
     toggleSelect: mockToggleSelect,
     toggleSelectAll: mockToggleSelectAll,
     allSelected: mockStudentSelectionState.allSelected,
+    someSelected: mockStudentSelectionState.selectedCount > 0 && !mockStudentSelectionState.allSelected,
     clearSelection: mockClearSelection,
     setSelection: mockSetSelection,
     selectedCount: mockStudentSelectionState.selectedCount,
@@ -409,24 +410,6 @@ vi.mock('@/hooks/use-assignment-grading-layout', () => ({
 
 vi.mock('@/lib/scheduling', () => ({
   isVisibleAtNow: (...args: any[]) => mockIsVisibleAtNow(...args),
-}))
-
-vi.mock('@/components/DataTable', () => ({
-  DataTable: ({ children }: any) => <table><tbody>{children}</tbody></table>,
-  DataTableBody: ({ children }: any) => <>{children}</>,
-  DataTableCell: ({ children }: any) => <td>{children}</td>,
-  DataTableHead: ({ children }: any) => <>{children}</>,
-  DataTableHeaderCell: ({ children }: any) => <th>{children}</th>,
-  DataTableRow: ({ children, ...props }: any) => <tr {...props}>{children}</tr>,
-  EmptyStateRow: ({ message }: any) => <tr><td>{message}</td></tr>,
-  KeyboardNavigableTable: forwardRef<HTMLDivElement, any>(function KeyboardNavigableTableMock(
-    { children },
-    ref,
-  ) {
-    return <div ref={ref}>{children}</div>
-  }),
-  SortableHeaderCell: ({ label, onClick }: any) => <button type="button" onClick={onClick}>{label}</button>,
-  TableCard: ({ children }: any) => <div>{children}</div>,
 }))
 
 vi.mock('@/lib/request-cache', () => ({

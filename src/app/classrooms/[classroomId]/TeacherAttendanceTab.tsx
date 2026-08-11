@@ -41,6 +41,7 @@ import {
 } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { CountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { fetchCachedJSON } from '@/lib/request-cache'
@@ -54,12 +55,6 @@ const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number
   first: { defaultWidth: 72, min: 60, max: 160 },
   last: { defaultWidth: 72, min: 60, max: 160 },
   id: { defaultWidth: 80, min: 56, max: 180 },
-}
-
-const DEFAULT_COLUMN_WIDTHS: Record<ResizableColumn, number> = {
-  first: COLUMN_LIMITS.first.defaultWidth,
-  last: COLUMN_LIMITS.last.defaultWidth,
-  id: COLUMN_LIMITS.id.defaultWidth,
 }
 
 const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
@@ -135,7 +130,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
-  const [columnWidths, setColumnWidths] = useState(DEFAULT_COLUMN_WIDTHS)
+  const { columnWidths, setColumnWidth } = useTableColumnWidths({
+    storageKey: 'teacher-daily:v1',
+    columns: COLUMN_LIMITS,
+  })
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [today, setToday] = useState(() => getTodayInToronto())
   const refreshToday = useCallback(() => {
@@ -338,13 +336,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   function handleSort(column: SortColumn) {
     setSortState((prev) => toggleSort(prev, column))
-  }
-
-  function handleColumnResize(column: ResizableColumn, width: number) {
-    setColumnWidths((current) => ({
-      ...current,
-      [column]: width,
-    }))
   }
 
   function goToLastClass() {
@@ -645,7 +636,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     value: columnWidths.first,
                     min: COLUMN_LIMITS.first.min,
                     max: COLUMN_LIMITS.first.max,
-                    onChange: (width) => handleColumnResize('first', width),
+                    onChange: (width) => setColumnWidth('first', width),
                   }}
                 />
                 <SortableHeaderCell
@@ -659,7 +650,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     value: columnWidths.last,
                     min: COLUMN_LIMITS.last.min,
                     max: COLUMN_LIMITS.last.max,
-                    onChange: (width) => handleColumnResize('last', width),
+                    onChange: (width) => setColumnWidth('last', width),
                   }}
                 />
                 <SortableHeaderCell
@@ -676,7 +667,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                     value: columnWidths.id,
                     min: COLUMN_LIMITS.id.min,
                     max: COLUMN_LIMITS.id.max,
-                    onChange: (width) => handleColumnResize('id', width),
+                    onChange: (width) => setColumnWidth('id', width),
                   }}
                 />
                 <SortableHeaderCell

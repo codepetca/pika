@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
+import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, type CSSProperties, type HTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 export type DataTableDensity = 'tight' | 'compact' | 'normal'
@@ -13,6 +13,7 @@ export interface ColumnResizeConfig {
   onChange: (value: number) => void
   step?: number
   label?: string
+  edge?: 'left' | 'right'
 }
 
 const DensityContext = createContext<DataTableDensity>('compact')
@@ -156,6 +157,7 @@ export function SortableHeaderCell({
       align={align}
       className={['!p-0', resize ? 'group relative' : '', className].join(' ')}
       aria-sort={ariaSort}
+      aria-label={resize ? label : undefined}
       style={resize ? { width: `${resize.value}px`, maxWidth: `${resize.value}px` } : undefined}
     >
       <button
@@ -190,6 +192,7 @@ export function SortableHeaderCell({
           min={resize.min}
           max={resize.max}
           step={resize.step}
+          edge={resize.edge}
           onChange={resize.onChange}
         />
       ) : null}
@@ -203,6 +206,7 @@ export function ColumnResizeHandle({
   min,
   max,
   step = 8,
+  edge = 'right',
   onChange,
 }: {
   label: string
@@ -210,6 +214,7 @@ export function ColumnResizeHandle({
   min: number
   max: number
   step?: number
+  edge?: 'left' | 'right'
   onChange: (value: number) => void
 }) {
   const updateValue = (nextValue: number) => {
@@ -228,7 +233,8 @@ export function ColumnResizeHandle({
     document.body.style.userSelect = 'none'
 
     const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-      updateValue(startWidth + moveEvent.clientX - startX)
+      const pointerDelta = moveEvent.clientX - startX
+      updateValue(startWidth + (edge === 'right' ? pointerDelta : -pointerDelta))
     }
 
     const handlePointerUp = () => {
@@ -260,7 +266,8 @@ export function ColumnResizeHandle({
       return
     }
 
-    updateValue(value + (event.key === 'ArrowRight' ? step : -step))
+    const keyboardStep = event.shiftKey ? step * 3 : step
+    updateValue(value + (event.key === 'ArrowRight' ? keyboardStep : -keyboardStep))
   }
 
   return (
@@ -275,7 +282,10 @@ export function ColumnResizeHandle({
       tabIndex={0}
       onPointerDown={handlePointerDown}
       onKeyDown={handleKeyDown}
-      className="absolute inset-y-0 right-0 z-local-menu flex min-h-control min-w-control translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset"
+      className={[
+        'absolute inset-y-0 z-local-menu flex min-h-control min-w-control cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
+        edge === 'right' ? 'right-0 translate-x-1/2' : 'left-0 -translate-x-1/2',
+      ].join(' ')}
     >
       <span
         aria-hidden="true"
@@ -319,6 +329,7 @@ export function ResizableHeaderCell({
         min={resize.min}
         max={resize.max}
         step={resize.step}
+        edge={resize.edge}
         onChange={resize.onChange}
       />
     </DataTableHeaderCell>
@@ -352,6 +363,100 @@ export function DataTableCell({
     >
       {children}
     </td>
+  )
+}
+
+export interface TableSelectionCheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'checked' | 'defaultChecked' | 'onChange' | 'aria-label'
+> {
+  checked: boolean
+  indeterminate?: boolean
+  onChange: (checked: boolean) => void
+  ariaLabel: string
+}
+
+export function TableSelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  ariaLabel,
+  className = '',
+  onClick,
+  ...props
+}: TableSelectionCheckboxProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate
+  }, [indeterminate])
+
+  return (
+    <input
+      {...props}
+      ref={inputRef}
+      type="checkbox"
+      checked={checked}
+      aria-checked={indeterminate ? 'mixed' : checked}
+      aria-label={ariaLabel}
+      onChange={(event) => onChange(event.currentTarget.checked)}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick?.(event)
+      }}
+      className={[
+        'h-4 w-4 rounded border-border bg-surface text-primary focus:ring-primary',
+        className,
+      ].filter(Boolean).join(' ')}
+    />
+  )
+}
+
+export function TableSelectionHeaderCell({
+  checked,
+  indeterminate,
+  onChange,
+  ariaLabel,
+  disabled,
+  density,
+  className = '',
+}: TableSelectionCheckboxProps & {
+  density?: DataTableDensity
+  className?: string
+}) {
+  return (
+    <DataTableHeaderCell density={density} className={['w-10 !px-2', className].join(' ')}>
+      <TableSelectionCheckbox
+        checked={checked}
+        indeterminate={indeterminate}
+        onChange={onChange}
+        ariaLabel={ariaLabel}
+        disabled={disabled}
+      />
+    </DataTableHeaderCell>
+  )
+}
+
+export function TableSelectionCell({
+  checked,
+  onChange,
+  ariaLabel,
+  disabled,
+  density,
+  className = '',
+}: Omit<TableSelectionCheckboxProps, 'indeterminate'> & {
+  density?: DataTableDensity
+  className?: string
+}) {
+  return (
+    <DataTableCell density={density} className={['!px-2', className].join(' ')}>
+      <TableSelectionCheckbox
+        checked={checked}
+        onChange={onChange}
+        ariaLabel={ariaLabel}
+        disabled={disabled}
+      />
+    </DataTableCell>
   )
 }
 
