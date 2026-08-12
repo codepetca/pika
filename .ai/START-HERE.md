@@ -1,34 +1,26 @@
-# Pika — AI Agent Starting Ritual
+# Pika session start
 
-**CRITICAL:** Follow this at the start of **every** AI session.
-
-**Automated:** `/session-start` or `.codex/prompts/session-start.md`.
-
----
+Follow this at every AI session start. Automate with `/session-start` or
+`.codex/prompts/session-start.md`.
 
 ## Quick Checklist
 
 ```
-[ ] Resolve repo root: git rev-parse --show-toplevel
-[ ] Verify repo root is a feature worktree, not $HOME/Repos/pika for branch work
-[ ] Ensure .env.local exists (shared setups symlink to $HOME/Repos/.env/pika/.env.local; collaborators: cp .env.example .env.local)
-[ ] Run: bash scripts/verify-env.sh
-[ ] Check status: git status --short --branch
-[ ] Read: .ai/CURRENT.md
-[ ] Read: docs/ai-instructions.md
-[ ] Check features: node scripts/features.mjs next
-[ ] Load task-specific docs routed by docs/ai-instructions.md
-[ ] Plan before coding: task, model, approach, approval
+Resolve repo root: git rev-parse --show-toplevel
+Verify feature worktree; do not branch in $HOME/Repos/pika
+Ensure .env.local exists (shared: $HOME/Repos/.env/pika/.env.local; collaborator: cp .env.example .env.local)
+Run: bash scripts/verify-env.sh
+Check: git status --short --branch
+Read: .ai/CURRENT.md and docs/ai-instructions.md
+Check: node scripts/features.mjs next
+Load task docs routed by docs/ai-instructions.md
+Plan: task, model, approach, approval
 ```
 
-Do not code if verification fails. Use `.ai/SESSION-LOG.md` only for recent handoff; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Do not code if verification fails. Session log is for recent handoff; journal archive is historical only.
 For docs-only or review work, use `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`.
 
----
-
 ## Worktree Rules (MANDATORY)
-
-All agents operate from exactly one current repo checkout/worktree.
 
 - Resolve the repo root with `git rev-parse --show-toplevel` before acting.
 - Use that resolved root consistently for git commands and file paths.
@@ -37,13 +29,11 @@ All agents operate from exactly one current repo checkout/worktree.
 - Worktree creation, cleanup, and shared `.env.local` setup live in `docs/dev-workflow.md`.
 - Hub-level git commands for adding/removing worktrees must use `git -C "$HOME/Repos/pika" ...`.
 
----
-
 ## End of Session (MANDATORY)
 
-1. Append a concise session entry to `.ai/SESSION-LOG.md` with a valid ISO-date heading (`## YYYY-MM-DD ...`).
+1. Append to `.ai/SESSION-LOG.md` with a valid ISO-date heading (`## YYYY-MM-DD ...`).
 2. Immediately run `node scripts/trim-session-log.mjs` in the same change. CI caps the log at 60; default trim keeps 40. Use `node scripts/trim-session-log.mjs --check` for empty entries, heading dates, order, and the cap.
-3. Update `.ai/features.json` if anything changed:
+3. Update `.ai/features.json` when needed:
    ```bash
    node scripts/features.mjs pass <feature-id>
    node scripts/features.mjs fail <feature-id>
@@ -60,12 +50,9 @@ All agents operate from exactly one current repo checkout/worktree.
    git -C "$HUB" branch -D "$BRANCH"
    ```
 
----
+## Document Hierarchy
 
-## Document Hierarchy (When Conflicts Arise)
-
-Trust in order: `.ai/features.json`, `.ai/CURRENT.md`,
+Trust: `.ai/features.json`, `.ai/CURRENT.md`,
 `docs/core/architecture.md`, `docs/core/tests.md`, root `DESIGN.md`, then
 `docs/core/project-context.md`, `docs/core/roadmap.md`,
-`docs/core/decision-log.md`, `.ai/SESSION-LOG.md` on demand, then
-`.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+`docs/core/decision-log.md`, session log, then journal archive.

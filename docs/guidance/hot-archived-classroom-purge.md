@@ -10,8 +10,9 @@ provisional operation targeting it. User accounts, Course Blueprints, immutable
 Blueprint versions, and Blueprint-owned files are preserved.
 
 Cold archived Classroom deletion is a separate state machine documented in
-`docs/guidance/cold-archived-classroom-purge.md`. Comprehensive
-individual-student purging remains a follow-up scope. Neither is an atomic
+`docs/guidance/cold-archived-classroom-purge.md`. Individual-student purging is
+a separate disabled-by-default state machine documented in
+`docs/guidance/individual-student-purge.md`. Neither is an atomic
 dependency of hot deletion because cold archives have a separate
 tombstone/recovery authority and users are deliberately outside Classroom
 ownership.
@@ -118,6 +119,6 @@ that already applied `main` can upgrade safely.
 - Before deleting the preserved production canary Blueprint, create and verify
   a Classroom from it to prove that classroom purge preserved a reusable course
   package, including its managed test material.
-- Comprehensive individual-student purging remains a separate follow-up scope.
+- Individual-student purging remains independently gated under migration 123.
 - Cold archived Classroom deletion remains independently gated under migration
   122 and never shares a migration or rollout with student purging.

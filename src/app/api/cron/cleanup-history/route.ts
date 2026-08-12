@@ -12,6 +12,7 @@ import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-
 import { runClassroomPurgeSafetyNet } from '@/lib/server/classroom-purge'
 import { runColdClassroomPurgeSafetyNet } from '@/lib/server/cold-classroom-purge'
 import { runCourseBlueprintPurgeSafetyNet } from '@/lib/server/course-blueprint-purge'
+import { readStudentPurgeHealth, runStudentPurgeSafetyNet } from '@/lib/server/student-purge'
 import { readManagedDeletionHealth } from '@/lib/server/managed-deletion-health'
 
 export const dynamic = 'force-dynamic'
@@ -164,6 +165,21 @@ async function handle(request: NextRequest) {
   const classroomPurge = await runClassroomPurgeSafetyNet()
   const coldClassroomPurge = await runColdClassroomPurgeSafetyNet(10)
   const courseBlueprintPurge = await runCourseBlueprintPurgeSafetyNet()
+  const studentPurge = await runStudentPurgeSafetyNet()
+  const studentPurgeHealth = await readStudentPurgeHealth()
+  if (studentPurgeHealth.schemaAvailable) {
+    const snapshot = studentPurgeHealth.snapshot
+    if (
+      studentPurge.failed > 0
+      || snapshot.stuck_count > 0
+      || snapshot.failed_count > 0
+      || snapshot.orphan_fence_count > 0
+      || snapshot.processing_lease_drift_count > 0
+    ) {
+      console.error('[student-purge-health] degraded', snapshot)
+      return NextResponse.json({ error: 'Student purge health degraded' }, { status: 503 })
+    }
+  }
   const objectCleanupEnabled = isClassroomArchiveObjectCleanupEnabled()
   let archiveStagingCleaned: number | undefined
   if (isArchiveStagingCleanupEnabled() || objectCleanupEnabled) {
@@ -254,6 +270,9 @@ async function handle(request: NextRequest) {
         : {}),
       ...(courseBlueprintPurge.processed > 0
         ? { course_blueprint_purge: courseBlueprintPurge }
+        : {}),
+      ...(studentPurge.processed > 0
+        ? { student_purge: studentPurge }
         : {}),
     })
   }
@@ -372,6 +391,9 @@ async function handle(request: NextRequest) {
       : {}),
     ...(courseBlueprintPurge.processed > 0
       ? { course_blueprint_purge: courseBlueprintPurge }
+      : {}),
+    ...(studentPurge.processed > 0
+      ? { student_purge: studentPurge }
       : {}),
   })
 }

@@ -95,6 +95,21 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     child_columns: ['classroom_id'],
   },
   {
+    child_table: 'classroom_roster_student_bindings',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'classroom_roster_student_bindings',
+    parent_table: 'classroom_roster',
+    child_columns: ['roster_id'],
+  },
+  {
+    child_table: 'student_purge_fences',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
     child_table: 'managed_storage_json_references',
     parent_table: 'assignment_docs',
     child_columns: ['assignment_doc_id'],

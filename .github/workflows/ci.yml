@@ -84,6 +84,9 @@ jobs:
       - name: Verify cold archived classroom purge durability and preservation
         run: pnpm run check:cold-classroom-purge-db
 
+      - name: Verify individual-student purge isolation and durability
+        run: pnpm run check:student-purge-db
+
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
 
@@ -271,8 +274,11 @@ jobs:
       - name: Run teacher and student browser matrix
         run: pnpm e2e:matrix
 
+      - name: Run individual-student purge browser matrix
+        run: pnpm e2e:student-purge
+
       - name: Upload browser diagnostics
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: browser-experience-matrix
