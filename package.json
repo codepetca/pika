@@ -26,6 +26,7 @@
     "check:managed-storage-lineage": "node scripts/check-managed-storage-migration-lineage.mjs",
     "check:classroom-purge-db-lint": "node scripts/check-hot-archived-classroom-purge-lint.mjs",
     "check:cold-classroom-purge-db": "bash scripts/check-cold-archived-classroom-purge-database.sh",
+    "check:student-purge-db": "bash scripts/check-individual-student-purge-database.sh",
     "check:managed-deletion-health-db": "bash scripts/check-managed-deletion-health-database.sh",
     "managed-storage:readiness": "tsx scripts/run-managed-storage-readiness.ts",
     "managed-storage:cleanup": "tsx scripts/run-managed-storage-cleanup.ts",

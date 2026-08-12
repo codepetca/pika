@@ -11,6 +11,7 @@ const cleanupMocks = vi.hoisted(() => ({
 const purgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const coldPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const blueprintPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
+const studentPurgeMocks = vi.hoisted(() => ({ run: vi.fn(), health: vi.fn() }))
 const healthMocks = vi.hoisted(() => ({ read: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -33,6 +34,11 @@ vi.mock('@/lib/server/cold-classroom-purge', () => ({
 
 vi.mock('@/lib/server/course-blueprint-purge', () => ({
   runCourseBlueprintPurgeSafetyNet: blueprintPurgeMocks.run,
+}))
+
+vi.mock('@/lib/server/student-purge', () => ({
+  runStudentPurgeSafetyNet: studentPurgeMocks.run,
+  readStudentPurgeHealth: studentPurgeMocks.health,
 }))
 
 vi.mock('@/lib/server/managed-deletion-health', () => ({
@@ -231,6 +237,8 @@ describe('cron cleanup-history route', () => {
     purgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     coldPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     blueprintPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
+    studentPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
+    studentPurgeMocks.health.mockResolvedValue({ schemaAvailable: false, snapshot: null })
     healthMocks.read.mockResolvedValue({ schemaAvailable: false })
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
   })
@@ -277,11 +285,12 @@ describe('cron cleanup-history route', () => {
     )
   })
 
-  it('advances durable hot, cold, and Blueprint purges through the authenticated safety net', async () => {
+  it('advances durable hot, cold, Blueprint, and student purges through the authenticated safety net', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     purgeMocks.run.mockResolvedValue({ processed: 2, completed: 1, failed: 0 })
     coldPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 0, failed: 0 })
     blueprintPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 1, failed: 0 })
+    studentPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 0, failed: 0 })
     const mock = createCleanupMock({ classrooms: [] })
     ;(mockSupabaseClient.from as any) = mock.from
 
@@ -294,10 +303,51 @@ describe('cron cleanup-history route', () => {
       classroom_purge: { processed: 2, completed: 1, failed: 0 },
       cold_classroom_purge: { processed: 1, completed: 0, failed: 0 },
       course_blueprint_purge: { processed: 1, completed: 1, failed: 0 },
+      student_purge: { processed: 1, completed: 0, failed: 0 },
     })
     expect(purgeMocks.run).toHaveBeenCalledOnce()
     expect(coldPurgeMocks.run).toHaveBeenCalledWith(10)
     expect(blueprintPurgeMocks.run).toHaveBeenCalledOnce()
+    expect(studentPurgeMocks.run).toHaveBeenCalledOnce()
+  })
+
+  it('fails observably when student purge work is stuck or partially failed', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    studentPurgeMocks.health.mockResolvedValue({
+      schemaAvailable: true,
+      snapshot: {
+        captured_at: '2026-08-11T12:00:00.000Z',
+        active_count: 1,
+        stuck_count: 1,
+        failed_count: 0,
+        orphan_fence_count: 0,
+        processing_lease_drift_count: 0,
+      },
+    })
+    const response = await GET(cronRequest())
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'Student purge health degraded' })
+  })
+
+  it('fails observably when the current student purge retry fails', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    studentPurgeMocks.run.mockResolvedValue({ processed: 1, completed: 0, failed: 1 })
+    studentPurgeMocks.health.mockResolvedValue({
+      schemaAvailable: true,
+      snapshot: {
+        captured_at: '2026-08-11T12:00:00.000Z',
+        active_count: 0,
+        stuck_count: 0,
+        failed_count: 0,
+        orphan_fence_count: 0,
+        processing_lease_drift_count: 0,
+      },
+    })
+    const response = await GET(cronRequest())
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'Student purge health degraded' })
   })
 
   it('checks managed deletion health after the authenticated cleanup succeeds', async () => {

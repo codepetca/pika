@@ -6,6 +6,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET } from '@/app/api/teacher/classrooms/[id]/roster/route'
 import { NextRequest } from 'next/server'
 
+const purgeAvailability = vi.hoisted(() => vi.fn())
+
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
 vi.mock('@/lib/server/classrooms', () => ({
@@ -14,6 +16,9 @@ vi.mock('@/lib/server/classrooms', () => ({
     classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
   })),
 }))
+vi.mock('@/lib/server/student-purge', () => ({
+  getStudentPurgeEnabledStudentIds: (...args: unknown[]) => purgeAvailability(...args),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -21,6 +26,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.from = vi.fn()
+    purgeAvailability.mockResolvedValue([])
   })
 
   it('should return 403 when not classroom owner', async () => {
@@ -115,5 +121,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
         joined_at: null,
       }),
     ])
+    expect(data.student_purge_enabled_ids).toEqual([])
+    expect(purgeAvailability).toHaveBeenCalledWith('teacher-1', 'c-1', ['student-1'])
   })
 })

@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { getStudentPurgeEnabledStudentIds } from '@/lib/server/student-purge'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,10 +23,22 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
     )
   }
 
-  const { data: rosterRows, error: rosterError } = await supabase
+  let rosterResponse = await supabase
     .from('classroom_roster')
-    .select('id, email, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at')
+    .select('id, email, student_id, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at')
     .eq('classroom_id', classroomId)
+
+  if (
+    rosterResponse.error
+    && ['PGRST204', '42703'].includes(rosterResponse.error.code || '')
+    && rosterResponse.error.message?.includes('student_id')
+  ) {
+    rosterResponse = await supabase
+      .from('classroom_roster')
+      .select('id, email, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at')
+      .eq('classroom_id', classroomId) as typeof rosterResponse
+  }
+  const { data: rosterRows, error: rosterError } = rosterResponse
 
   if (rosterError) {
     console.error('Error fetching roster:', rosterError)
@@ -53,18 +66,23 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
   }
 
   const joinedByEmail = new Map<string, { student_id: string; created_at: string }>()
+  const joinedByStudentId = new Map<string, { student_id: string; created_at: string }>()
   for (const e of enrollments || []) {
     const email = (e as any)?.users?.email
     if (!email) continue
-    joinedByEmail.set(String(email).toLowerCase().trim(), {
+    const joined = {
       student_id: (e as any).student_id,
       created_at: (e as any).created_at,
-    })
+    }
+    joinedByEmail.set(String(email).toLowerCase().trim(), joined)
+    joinedByStudentId.set(joined.student_id, joined)
   }
 
   const roster = (rosterRows || []).map((r: any) => {
     const email = String(r.email || '').toLowerCase().trim()
-    const joined = joinedByEmail.get(email)
+    const joined = r.student_id
+      ? joinedByStudentId.get(String(r.student_id))
+      : joinedByEmail.get(email)
     return {
       id: r.id,
       email: r.email,
@@ -81,5 +99,11 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
     }
   })
 
-  return NextResponse.json({ roster })
+  const studentPurgeEnabledIds = await getStudentPurgeEnabledStudentIds(
+    user.id,
+    classroomId,
+    roster.flatMap((row) => row.student_id ? [row.student_id] : []),
+  )
+
+  return NextResponse.json({ roster, student_purge_enabled_ids: studentPurgeEnabledIds })
 })

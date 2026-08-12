@@ -2519,6 +2519,7 @@ export type Database = {
           id: string
           join_source: string
           last_name: string | null
+          student_id: string | null
           student_number: string | null
           updated_at: string
         }
@@ -2531,6 +2532,7 @@ export type Database = {
           id?: string
           join_source?: string
           last_name?: string | null
+          student_id?: string | null
           student_number?: string | null
           updated_at?: string
         }
@@ -2543,6 +2545,7 @@ export type Database = {
           id?: string
           join_source?: string
           last_name?: string | null
+          student_id?: string | null
           student_number?: string | null
           updated_at?: string
         }
@@ -2552,6 +2555,13 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_roster_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -4594,6 +4604,277 @@ export type Database = {
           },
         ]
       }
+      student_purge_fences: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          operation_id: string
+          student_id: string
+          teacher_id: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          operation_id: string
+          student_id: string
+          teacher_id: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          operation_id?: string
+          student_id?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_purge_fences_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_purge_fences_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: true
+            referencedRelation: "student_purge_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_purge_fences_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_purge_fences_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_purge_objects: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          deleted_at: string | null
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          managed_storage_object_id: string | null
+          next_attempt_at: string
+          operation_id: string
+          status: string
+          storage_bucket: string
+          storage_path: string | null
+          storage_path_sha256: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          managed_storage_object_id?: string | null
+          next_attempt_at?: string
+          operation_id: string
+          status?: string
+          storage_bucket: string
+          storage_path?: string | null
+          storage_path_sha256: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          managed_storage_object_id?: string | null
+          next_attempt_at?: string
+          operation_id?: string
+          status?: string
+          storage_bucket?: string
+          storage_path?: string | null
+          storage_path_sha256?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_purge_objects_managed_storage_object_id_fkey"
+            columns: ["managed_storage_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_purge_objects_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "student_purge_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_purge_operations: {
+        Row: {
+          attempt_count: number
+          classroom_id: string
+          completed_at: string | null
+          error_code: string | null
+          id: string
+          impact_summary: Json
+          inventory_completed_at: string | null
+          request_sha256: string
+          resource_counts: Json
+          retryable: boolean | null
+          source_revision: number
+          started_at: string
+          status: string
+          storage_object_counts: Json
+          student_email: string | null
+          student_id: string | null
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          classroom_id: string
+          completed_at?: string | null
+          error_code?: string | null
+          id: string
+          impact_summary?: Json
+          inventory_completed_at?: string | null
+          request_sha256: string
+          resource_counts?: Json
+          retryable?: boolean | null
+          source_revision: number
+          started_at?: string
+          status?: string
+          storage_object_counts?: Json
+          student_email?: string | null
+          student_id?: string | null
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          classroom_id?: string
+          completed_at?: string | null
+          error_code?: string | null
+          id?: string
+          impact_summary?: Json
+          inventory_completed_at?: string | null
+          request_sha256?: string
+          resource_counts?: Json
+          retryable?: boolean | null
+          source_revision?: number
+          started_at?: string
+          status?: string
+          storage_object_counts?: Json
+          student_email?: string | null
+          student_id?: string | null
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_purge_operations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_purge_operations_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_purge_resources: {
+        Row: {
+          disposition: string
+          operation_id: string
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          disposition: string
+          operation_id: string
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          disposition?: string
+          operation_id?: string
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_purge_resources_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "student_purge_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_purge_settings: {
+        Row: {
+          canary_classroom_id: string | null
+          canary_student_id: string | null
+          canary_teacher_id: string | null
+          rollout_mode: string
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          canary_classroom_id?: string | null
+          canary_student_id?: string | null
+          canary_teacher_id?: string | null
+          rollout_mode?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          canary_classroom_id?: string | null
+          canary_student_id?: string | null
+          canary_teacher_id?: string | null
+          rollout_mode?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_purge_settings_canary_student_id_fkey"
+            columns: ["canary_student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_purge_settings_canary_teacher_id_fkey"
+            columns: ["canary_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           created_at: string
@@ -5992,6 +6273,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      begin_student_purge: {
+        Args: {
+          p_classroom_id: string
+          p_confirmation: string
+          p_expected_relational_inventory_sha256: string
+          p_expected_source_revision: number
+          p_expected_storage_inventory_sha256: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string
@@ -6364,6 +6658,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_student_purge_object: {
+        Args: {
+          p_lease_seconds?: number
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       claim_test_ai_grading_run: {
         Args: {
           p_lease_seconds?: number
@@ -6666,6 +6968,15 @@ export type Database = {
       complete_pal_event_outbox: {
         Args: { p_lease_token: string; p_outbox_id: string }
         Returns: boolean
+      }
+      complete_student_purge_object: {
+        Args: {
+          p_lease_token: string
+          p_object_id: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
       }
       complete_test_document_snapshot_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
@@ -7080,6 +7391,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      fail_student_purge_object: {
+        Args: {
+          p_error_code: string
+          p_lease_token: string
+          p_object_id: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       fail_test_document_snapshot_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
@@ -7138,6 +7459,10 @@ export type Database = {
         Returns: Json
       }
       finalize_hot_archived_classroom_purge_v118: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      finalize_student_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
@@ -7211,6 +7536,18 @@ export type Database = {
       }
       get_managed_storage_object_presence: {
         Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: Json
+      }
+      get_student_purge_health_snapshot: {
+        Args: { p_failed_minutes?: number; p_stuck_minutes?: number }
+        Returns: Json
+      }
+      get_student_purge_inventory: {
+        Args: {
+          p_classroom_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
         Returns: Json
       }
       get_teacher_log_history_preview: {
@@ -7915,6 +8252,30 @@ export type Database = {
       stage_classroom_purge_objects: {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
+      }
+      student_purge_conflict: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: string
+      }
+      student_purge_inventory_resources: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: {
+          disposition: string
+          row_id: string
+          table_name: string
+        }[]
+      }
+      student_purge_lock: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: undefined
+      }
+      student_purge_rollout_allows: {
+        Args: {
+          p_classroom_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
       }
       submit_assignment_doc_atomic: {
         Args: {

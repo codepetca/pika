@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Reconcile production live managed Storage
-
-**Risk profile:** production write — managed ownership registration and exact
-relational/embedded reference binding.
-
-**Completed:**
-- Under revised exact authorization, atomically registered the 139 live
-  Classroom-owned objects across two Classrooms: 120 submission images, 18 test
-  documents, and one verified Classroom archive.
-- Bound 24 relational/operational rows and rebuilt 274 embedded JSON reference
-  rows. Migration 118 permitted the archive operation and immutable archive row
-  to receive the same deterministic managed identity.
-- Left all 20 cleanup-only and 60 unreferenced Storage objects unregistered and
-  untouched.
-
-**Validation:**
-- Read-only post-commit verification found 139 managed objects, all `ready` and
-  all live-referenced; 274 JSON references; one exact archive binding; and 80
-  Storage objects without registry entries.
-- The 20 remaining raw relational paths are the intentionally untouched
-  cleanup-only set. Production remains in compatibility mode at readiness
-  generation 0.
-- Migration 119 remains unapplied and `classroom_purge_settings` is absent, so
-  deletion is not enabled.
-- A linked read-only breakdown identified the cleanup-only set as two PNG
-  submission images and 18 HTML test snapshots from one completed Classroom
-  archive compaction. All 20 remain pending in the archive source-cleanup
-  ledger. The unreferenced set is 41 JPEG/PNG submission images and 19 HTML
-  test snapshots with no current relational, JSON, Blueprint, or operational
-  reference. Together the non-live set uses about 7.27 MB.
-
-**Remaining:**
-- Decide how to dispose of the 20 cleanup-only and 60 unreferenced beta files
-  under separate deletion authorization, then refresh readiness separately.
-
 ## 2026-08-05 — Remove authorized non-live production Storage objects
 
 **Risk profile:** irreversible production write — exact-object Storage deletion
@@ -954,6 +919,37 @@ autosave error feedback while preserving the mounted attempt and exam owner.
   table; the student attendance boundary was also checked.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Implement hot-Classroom individual-student purge
+
+**Risk profile:** runtime-platform and irreversible-deletion design; local code
+only. Migration 123 was not applied and no purge or rollout ran.
+
+**Completed:**
+- Added disabled/canary/enabled exact-triple rollout settings, stable roster
+  student lineage, durable operation/resource/object ledgers, pair and
+  whole-Classroom fences, exact Storage leases, retries, and explicit
+  finalization for one student in one hot Classroom.
+- Preserved the user and other Classrooms; staged the target's exact managed
+  objects and all retained Classroom archive/Gradex copies. Pal-backed,
+  remote-Gradex, cold, retired-assessment, and conflicting-operation targets
+  fail closed.
+- Added teacher-only impact/start/status/tick routes, cleanup-cron recovery and
+  health signals, Roster action/dialog, route/component/server/migration tests,
+  generated types, and a rollback-only CI database fixture.
+
+**Validation:**
+- Full suite passes (4,210 tests/492 files); focused purge/cron slice, build,
+  TypeScript, lint, architecture/design/UI policy, Pika audit, and diff checks pass.
+- Pika UI verification passed for teacher desktop/mobile light/dark dialog and
+  progress states plus student desktop/mobile light/dark absence boundaries.
+- Rollback-only CI fixture now covers managed-file lease authority, byte absence,
+  update ownership fences, relational deletion, and cross-Class preservation.
+
+**Remaining:**
+- Publish for independent PR review and fresh-database CI replay.
+- Local database replay awaits separate migration authorization.
+- Production migration, rollout, and purge remain separately prohibited.
 
 ## 2026-08-11 — Complete production cold-Classroom purge canary
 

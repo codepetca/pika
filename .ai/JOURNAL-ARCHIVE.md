@@ -17896,3 +17896,39 @@ reference binding, protected by atomic fail-safe verification.
 - Obtain fresh authorization for a 139-live-object registration/reconciliation.
   Handle the 80 non-live beta objects only under a separate cleanup/deletion
   authorization. Do not apply migration 119 or enable deletion.
+
+<!-- pika-session-log-archive-batch:bbcfdbed5ea5ea18e3cde3b7d45e502bee2a4cd2dc853e3461f641f572ef19ff -->
+## 2026-08-05 — Reconcile production live managed Storage
+
+**Risk profile:** production write — managed ownership registration and exact
+relational/embedded reference binding.
+
+**Completed:**
+- Under revised exact authorization, atomically registered the 139 live
+  Classroom-owned objects across two Classrooms: 120 submission images, 18 test
+  documents, and one verified Classroom archive.
+- Bound 24 relational/operational rows and rebuilt 274 embedded JSON reference
+  rows. Migration 118 permitted the archive operation and immutable archive row
+  to receive the same deterministic managed identity.
+- Left all 20 cleanup-only and 60 unreferenced Storage objects unregistered and
+  untouched.
+
+**Validation:**
+- Read-only post-commit verification found 139 managed objects, all `ready` and
+  all live-referenced; 274 JSON references; one exact archive binding; and 80
+  Storage objects without registry entries.
+- The 20 remaining raw relational paths are the intentionally untouched
+  cleanup-only set. Production remains in compatibility mode at readiness
+  generation 0.
+- Migration 119 remains unapplied and `classroom_purge_settings` is absent, so
+  deletion is not enabled.
+- A linked read-only breakdown identified the cleanup-only set as two PNG
+  submission images and 18 HTML test snapshots from one completed Classroom
+  archive compaction. All 20 remain pending in the archive source-cleanup
+  ledger. The unreferenced set is 41 JPEG/PNG submission images and 19 HTML
+  test snapshots with no current relational, JSON, Blueprint, or operational
+  reference. Together the non-live set uses about 7.27 MB.
+
+**Remaining:**
+- Decide how to dispose of the 20 cleanup-only and 60 unreferenced beta files
+  under separate deletion authorization, then refresh readiness separately.
