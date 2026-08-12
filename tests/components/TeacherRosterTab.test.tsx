@@ -314,6 +314,65 @@ describe('TeacherRosterTab', () => {
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
+  it('shows comprehensive purge only for one rollout-enabled joined student', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        return mockJson({
+          roster: [rosterRow, secondRosterRow],
+          student_purge_enabled_ids: [rosterRow.student_id],
+        })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/students/${rosterRow.student_id}/purge`) {
+        return mockJson({
+          impact: {
+            classroom_id: '10000000-0000-4000-8000-000000000001',
+            classroom_title: classroom.title,
+            student_id: '20000000-0000-4000-8000-000000000001',
+            student_email: rosterRow.email,
+            source_revision: 1,
+            storage_inventory_sha256: 'a'.repeat(64),
+            relational_inventory_sha256: 'b'.repeat(64),
+            relational_row_count: 2,
+            managed_file_count: 0,
+            managed_file_bytes: 0,
+            archive_count: 0,
+            gradex_extract_count: 0,
+            resource_counts: {}, storage_counts: {}, conflicting_operation: null,
+            deletion_available: true, unavailable_reason: null,
+          },
+          operation: null,
+        })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    }))
+    renderRoster()
+    await user.click(await screen.findByText('Ada'))
+    await user.click(screen.getByRole('button', { name: 'Roster actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Purge classroom data' }))
+    expect(await screen.findByRole('dialog', { name: 'Purge this student’s classroom data?' }))
+      .toHaveTextContent(/data in other classrooms are kept/i)
+  })
+
+  it('keeps purge available for a hot-archived Classroom while ordinary roster edits stay disabled', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster`) {
+        return mockJson({ roster: [rosterRow], student_purge_enabled_ids: [rosterRow.student_id] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    }))
+    renderRoster({ ...classroom, archived_at: '2026-08-01T00:00:00.000Z' })
+    await user.click(await screen.findByText('Ada'))
+    expect(screen.getByRole('button', { name: 'Add students' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Roster actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Remove student' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Purge classroom data' })).toBeEnabled()
+  })
+
   it('shows and confirms removal for multiple checked students from the roster actions menu', async () => {
     const user = userEvent.setup()
     const fetchMock = mockRosterFetch()

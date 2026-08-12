@@ -20,6 +20,7 @@ import {
 } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
+import { StudentPurgeDialog } from '@/components/StudentPurgeDialog'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import {
   TeacherWorkSurfaceActionCluster,
@@ -109,6 +110,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   const isReadOnly = !!classroom.archived_at
   const [loading, setLoading] = useState(true)
   const [roster, setRoster] = useState<RosterRow[]>([])
+  const [studentPurgeEnabledIds, setStudentPurgeEnabledIds] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
   const [isAddModalOpen, setAddModalOpen] = useState(false)
@@ -120,6 +122,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     rows: RemovalTarget[]
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [pendingPurge, setPendingPurge] = useState<RosterRow | null>(null)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
@@ -224,11 +227,13 @@ export function TeacherRosterTab({ classroom }: Props) {
       )
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setRoster(normalizeRosterRows(data.roster || []))
+      setStudentPurgeEnabledIds(new Set(data.student_purge_enabled_ids || []))
       setLoadedClassroomId(classroomId)
       clearSelection()
     } catch (err: any) {
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setRoster([])
+      setStudentPurgeEnabledIds(new Set())
       setLoadedClassroomId(classroomId)
       setError(err.message || 'Failed to load roster')
     } finally {
@@ -241,6 +246,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   useEffect(() => {
     loadRequestIdRef.current += 1
     setRoster([])
+    setStudentPurgeEnabledIds(new Set())
     setLoadedClassroomId(null)
     setError('')
     setPendingRemoval(null)
@@ -248,6 +254,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     setUploadModalOpen(false)
     setAddModalOpen(false)
     setIsRemoving(false)
+    setPendingPurge(null)
     setEditingCounselorId(null)
     setEditingCounselorValue('')
     setIsSavingCounselor(false)
@@ -438,7 +445,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       const row = rows[0]
       return `${formatRemovalTargetName(row)}\n${row.email}\n\n${
         row.joined
-          ? 'They are currently joined. This will delete their classroom data (logs and assignment docs).'
+          ? 'They are currently joined. This removes roster membership, logs, and assignment documents. Use the separate purge action for comprehensive permanent deletion.'
           : 'They are not joined yet.'
       }`
     }
@@ -450,7 +457,7 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     return `${preview}${remaining}\n\n${
       joinedCount > 0
-        ? `${joinedCount} ${joinedCount === 1 ? 'student is' : 'students are'} currently joined. This will delete their classroom data (logs and assignment docs).`
+        ? `${joinedCount} ${joinedCount === 1 ? 'student is' : 'students are'} currently joined. This removes roster membership, logs, and assignment documents; it is not a comprehensive purge.`
         : 'These students are not joined yet.'
     }`
   }
@@ -470,6 +477,23 @@ export function TeacherRosterTab({ classroom }: Props) {
       label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
       onSelect: () => openRemoveStudentDialog(removalTargetRows),
       disabled: isReadOnly || isRosterLoading || isRemoving || removalTargetRows.length === 0,
+      destructive: true,
+    })
+  }
+
+  const purgeTarget = removalTargetRows.length === 1
+    && removalTargetRows[0].joined
+    && removalTargetRows[0].student_id
+    && studentPurgeEnabledIds.has(removalTargetRows[0].student_id)
+    ? removalTargetRows[0]
+    : null
+
+  if (purgeTarget) {
+    rosterActionOptions.push({
+      id: 'purge-student',
+      label: <span className="text-danger">Purge classroom data</span>,
+      onSelect: () => setPendingPurge(purgeTarget),
+      disabled: isRosterLoading,
       destructive: true,
     })
   }
@@ -563,7 +587,7 @@ export function TeacherRosterTab({ classroom }: Props) {
             tooltip="Roster actions"
             icon={<Settings className="h-4 w-4" aria-hidden="true" />}
             items={combinedRosterActionOptions}
-            disabled={isReadOnly || isRosterLoading}
+            disabled={isRosterLoading || combinedRosterActionOptions.every((option) => option.disabled)}
             menuPlacement="down"
             menuAlign="center"
             menuClassName="w-64"
@@ -826,6 +850,22 @@ export function TeacherRosterTab({ classroom }: Props) {
         onCancel={() => (isRemoving ? null : setPendingRemoval(null))}
         onConfirm={confirmRemoveStudent}
       />
+
+      {pendingPurge?.student_id ? (
+        <StudentPurgeDialog
+          classroomId={classroom.id}
+          classroomTitle={classroom.title}
+          studentId={pendingPurge.student_id}
+          studentEmail={pendingPurge.email}
+          studentName={[pendingPurge.first_name, pendingPurge.last_name].filter(Boolean).join(' ') || 'Unnamed student'}
+          isOpen
+          onClose={() => setPendingPurge(null)}
+          onCompleted={() => {
+            setPendingPurge(null)
+            refreshRosterAfterMutation()
+          }}
+        />
+      ) : null}
     </>
   )
 }

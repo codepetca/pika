@@ -65,8 +65,10 @@ cron.
   lifecycle, tombstone/archive, and managed-object order. Object deletion
   requires the exact live lease in the database and Storage trigger.
 - Cold deletion is not atomic with hot-Classroom deletion. A Classroom has one
-  authoritative representation at a time. It is also not atomic with
-  individual-student purging, which remains a separate future scope.
+  authoritative representation at a time. It is also not atomic with the
+  independently gated individual-student purge. A cold Classroom must be
+  restored to hot state before an individual purge can be considered; see
+  `docs/guidance/individual-student-purge.md`.
 
 ## Teacher UX
 
