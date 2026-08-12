@@ -36,6 +36,7 @@ vi.mock('@/lib/server/classroom-purge', async () => {
 
 import {
   advanceColdClassroomPurge,
+  getColdClassroomPurgeImpact,
   isMissingColdClassroomPurgeSchemaError,
   runColdClassroomPurgeSafetyNet,
 } from '@/lib/server/cold-classroom-purge'
@@ -92,6 +93,48 @@ describe('cold classroom purge worker', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     shared.getStatus.mockResolvedValue(operation)
+  })
+
+  it('accepts the success envelope returned by the production inventory RPC', async () => {
+    const impact = {
+      classroom_id: CLASSROOM_ID,
+      archive_id: OBJECT_ID,
+      classroom_title: 'Cold Deletion Canary',
+      source_revision: 2,
+      storage_inventory_sha256: 'a'.repeat(64),
+      cold_resource_inventory_sha256: 'b'.repeat(64),
+      cold_resource_count: 6,
+      student_count: 0,
+      managed_file_count: 1,
+      managed_file_bytes: 2106,
+      missing_file_count: 0,
+      non_ready_file_count: 0,
+      unmanaged_reference_count: 0,
+      archive_count: 1,
+      gradex_extract_count: 0,
+      storage_counts: { 'classroom-archives': 1 },
+      resource_counts: {
+        archive: 1,
+        cold_actor: 1,
+        cold_tombstone: 1,
+        archive_operation: 2,
+        managed_storage_object: 1,
+      },
+      retention: { mode: 'teacher_managed', delete_after: null },
+      conflicting_operation: null,
+      deletion_available: false,
+      unavailable_reason: 'Stored classroom deletion is not enabled.',
+    }
+    serviceClient.rpc.mockResolvedValueOnce({
+      data: { ok: true, status: 200, ...impact },
+      error: null,
+    })
+
+    await expect(getColdClassroomPurgeImpact(
+      TEACHER_ID,
+      CLASSROOM_ID,
+      OBJECT_ID,
+    )).resolves.toEqual(impact)
   })
 
   it('claims and deletes one exact managed object before recording its lease completion', async () => {
