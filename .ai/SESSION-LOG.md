@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Preflight production managed Storage ownership
-
-**Risk profile:** read-only production inventory — managed Storage ownership
-classification and reconciliation readiness.
-
-**Completed:**
-- Ran a linked-project SQL preflight inside an explicit read-only transaction;
-  no registration, reference reconciliation, readiness refresh, cleanup,
-  enforcement activation, migration 119 application, or deletion occurred.
-- Classified all 219 objects in managed buckets using exact relational,
-  operational, and embedded JSON evidence without reporting raw paths or IDs.
-
-**Validation:**
-- 159 objects map to two Classrooms through either live data or operational
-  cleanup evidence: 122 submission images, 36 test documents, and one archive.
-- Subsequent fail-safe reconciliation separated those into 139 live objects
-  and 20 cleanup-ledger-only objects; cleanup evidence is ownership evidence
-  but deliberately is not a live reference under migration 117.
-- 60 objects are unreferenced: 41 submission images and 19 test documents.
-- No object maps to a Blueprint, multiple owners, or an unknown operational
-  owner; no referenced object is missing from Storage.
-- No conflicting archive, cleanup, grading, or Blueprint operation is active.
-- Production remains in compatibility mode at readiness generation 0 with no
-  readiness run. The earlier generation-1 observation came from the shared
-  local URL and is superseded by this linked-project result.
-
-**Remaining:**
-- Under separate authorization, register and bind the 139 live Classroom
-  objects. Separately resolve or delete the 20 cleanup-only and 60 unreferenced
-  beta objects before readiness can pass. Keep migration 119 and deletion
-  rollout disabled.
-
 ## 2026-08-05 — Roll back overbroad production reconciliation
 
 **Risk profile:** production write — managed ownership registration and exact
@@ -1016,6 +984,31 @@ autosave error feedback while preserving the mounted attempt and exam owner.
   table; the student attendance boundary was also checked.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Prepare cold-deletion canary and repair impact parsing
+
+**Risk profile:** runtime-platform — production cold-archive preparation plus a
+server boundary fix; cold deletion remained disabled.
+
+**Completed:**
+- Created, hot-archived, exported, and cold-compacted the synthetic production
+  Classroom `58f90ce4-ac21-4e68-bbf4-f1db3ae77f74`; immutable archive
+  `c748ec90-4952-4ec1-8ee7-99be3354b71a` remains ready and recoverable.
+- Verified the hot row is absent, the cold tombstone and completed export /
+  compaction operations are present, the archive bytes still match their
+  checksum, the teacher and unrelated Classroom remain, and managed-deletion
+  health is healthy at 0 critical / 0 warnings.
+- Production-shaped verification found that the cold purge inventory RPC's
+  `ok` / `status` envelope was rejected by the strict impact schema. Normalize
+  those two transport fields before strict domain validation, matching the
+  established Blueprint purge boundary.
+
+**Validation:**
+- Focused cold purge, route, dialog, availability, and migration coverage passes
+  (8 files, 65 tests), including the production-shaped RPC regression.
+- TypeScript, lint, architecture, diff checks, and the Pika audit pass.
+- No cold purge, rollout enablement, generic cleanup, or production deployment
+  of the parsing fix ran; each remains separately authorized.
 
 ## 2026-08-11 — Deploy cold-archived Classroom deletion foundation
 

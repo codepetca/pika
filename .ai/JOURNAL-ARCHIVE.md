@@ -17832,3 +17832,36 @@ managed archive ownership reconciliation.
 **Remaining:**
 - Obtain separate authorization before any production reconciliation or other
   write. Migration 119 and classroom deletion remain unapplied and disabled.
+
+<!-- pika-session-log-archive-batch:a32ac396cdea74f53c368bef736763fcb93f010b6deff38e95c29e6b550d113c -->
+## 2026-08-05 — Preflight production managed Storage ownership
+
+**Risk profile:** read-only production inventory — managed Storage ownership
+classification and reconciliation readiness.
+
+**Completed:**
+- Ran a linked-project SQL preflight inside an explicit read-only transaction;
+  no registration, reference reconciliation, readiness refresh, cleanup,
+  enforcement activation, migration 119 application, or deletion occurred.
+- Classified all 219 objects in managed buckets using exact relational,
+  operational, and embedded JSON evidence without reporting raw paths or IDs.
+
+**Validation:**
+- 159 objects map to two Classrooms through either live data or operational
+  cleanup evidence: 122 submission images, 36 test documents, and one archive.
+- Subsequent fail-safe reconciliation separated those into 139 live objects
+  and 20 cleanup-ledger-only objects; cleanup evidence is ownership evidence
+  but deliberately is not a live reference under migration 117.
+- 60 objects are unreferenced: 41 submission images and 19 test documents.
+- No object maps to a Blueprint, multiple owners, or an unknown operational
+  owner; no referenced object is missing from Storage.
+- No conflicting archive, cleanup, grading, or Blueprint operation is active.
+- Production remains in compatibility mode at readiness generation 0 with no
+  readiness run. The earlier generation-1 observation came from the shared
+  local URL and is superseded by this linked-project result.
+
+**Remaining:**
+- Under separate authorization, register and bind the 139 live Classroom
+  objects. Separately resolve or delete the 20 cleanup-only and 60 unreferenced
+  beta objects before readiness can pass. Keep migration 119 and deletion
+  rollout disabled.
