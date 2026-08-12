@@ -39,6 +39,12 @@ describe('migration 123 individual-student purge contract', () => {
     expect(sql).toContain('else array[to_jsonb(old), to_jsonb(new)] end')
   })
 
+  it('closes the finalization writer bypass before returning to the caller', () => {
+    expect(sql).toMatch(
+      /delete from public\.student_purge_fences[\s\S]*perform set_config\('pika\.student_purge_finalize', 'off', true\);[\s\S]*return jsonb_build_object/,
+    )
+  })
+
   it('preserves the user and fails closed for unimplemented provider erasure', () => {
     expect(sql).not.toMatch(/delete\s+from\s+public\.users/)
     expect(sql).not.toMatch(/delete\s+from\s+public\.student_profiles/)

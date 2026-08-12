@@ -782,6 +782,9 @@ begin
     where id = p_operation_id;
     delete from public.student_purge_resources where operation_id = p_operation_id;
     delete from public.student_purge_fences where operation_id = p_operation_id;
+    -- Do not leak the trigger bypass to later statements when a service caller
+    -- invokes finalization inside a larger transaction.
+    perform set_config('pika.student_purge_finalize', 'off', true);
     return jsonb_build_object('ok', true, 'status', 200, 'operation_id', p_operation_id,
       'operation_status', 'completed');
   exception when others then
