@@ -3,8 +3,11 @@
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
-const migrationPath = 'supabase/migrations/118_hot_archived_classroom_purge_managed_ownership.sql'
-const migration = readFileSync(migrationPath, 'utf8')
+const migrationPaths = [
+  'supabase/migrations/118_hot_archived_classroom_purge_managed_ownership.sql',
+  'supabase/migrations/123_hot_classroom_individual_student_purge.sql',
+]
+const migration = migrationPaths.map((path) => readFileSync(path, 'utf8')).join('\n')
 const migrationFunctions = new Set(
   Array.from(
     migration.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi),
@@ -13,7 +16,7 @@ const migrationFunctions = new Set(
 )
 
 if (migrationFunctions.size === 0) {
-  console.error(`No PostgreSQL functions found in ${migrationPath}.`)
+  console.error(`No PostgreSQL functions found in ${migrationPaths.join(', ')}.`)
   process.exit(2)
 }
 
@@ -52,7 +55,7 @@ const findings = (report.results || []).filter(
 )
 
 if (findings.length > 0) {
-  console.error('Migration 118 PostgreSQL function lint failed:')
+  console.error('Managed purge PostgreSQL function lint failed:')
   for (const finding of findings) {
     for (const issue of finding.issues) {
       const line = issue.statement?.lineNumber ? ` line ${issue.statement.lineNumber}` : ''
@@ -62,4 +65,4 @@ if (findings.length > 0) {
   process.exit(1)
 }
 
-console.log(`Migration 118 PostgreSQL function lint passed (${migrationFunctions.size} functions).`)
+console.log(`Managed purge PostgreSQL function lint passed (${migrationFunctions.size} functions).`)

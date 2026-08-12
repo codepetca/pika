@@ -11,103 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Roll back overbroad production reconciliation
-
-**Risk profile:** production write — managed ownership registration and exact
-reference binding, protected by atomic fail-safe verification.
-
-**Completed:**
-- Attempted the authorized 159-object atomic reconciliation with protocol
-  locking, exact inventory assertions, deterministic identities, and final
-  reference verification.
-- The first pass rejected two operational submission images that had no live
-  Assignment Doc; the corrected pass reached final verification but rejected
-  20 objects that were attributable only through cleanup ledgers.
-- Confirmed migration 117 intentionally excludes cleanup ledgers from live
-  reference authority. Registering those objects as `ready` would create
-  ownerless managed objects and prevent readiness.
-
-**Validation:**
-- Every attempted write transaction rolled back. A linked-project read-only
-  check confirms production still has zero managed objects and zero managed
-  JSON references, remains in compatibility mode, and remains at readiness
-  generation 0.
-- The corrected live set is 139 objects: 120 submission images, 18 test
-  documents, and one Classroom archive. The non-live set is 20 cleanup-only
-  objects plus 60 completely unreferenced objects.
-
-**Remaining:**
-- Obtain fresh authorization for a 139-live-object registration/reconciliation.
-  Handle the 80 non-live beta objects only under a separate cleanup/deletion
-  authorization. Do not apply migration 119 or enable deletion.
-
-## 2026-08-05 — Reconcile production live managed Storage
-
-**Risk profile:** production write — managed ownership registration and exact
-relational/embedded reference binding.
-
-**Completed:**
-- Under revised exact authorization, atomically registered the 139 live
-  Classroom-owned objects across two Classrooms: 120 submission images, 18 test
-  documents, and one verified Classroom archive.
-- Bound 24 relational/operational rows and rebuilt 274 embedded JSON reference
-  rows. Migration 118 permitted the archive operation and immutable archive row
-  to receive the same deterministic managed identity.
-- Left all 20 cleanup-only and 60 unreferenced Storage objects unregistered and
-  untouched.
-
-**Validation:**
-- Read-only post-commit verification found 139 managed objects, all `ready` and
-  all live-referenced; 274 JSON references; one exact archive binding; and 80
-  Storage objects without registry entries.
-- The 20 remaining raw relational paths are the intentionally untouched
-  cleanup-only set. Production remains in compatibility mode at readiness
-  generation 0.
-- Migration 119 remains unapplied and `classroom_purge_settings` is absent, so
-  deletion is not enabled.
-- A linked read-only breakdown identified the cleanup-only set as two PNG
-  submission images and 18 HTML test snapshots from one completed Classroom
-  archive compaction. All 20 remain pending in the archive source-cleanup
-  ledger. The unreferenced set is 41 JPEG/PNG submission images and 19 HTML
-  test snapshots with no current relational, JSON, Blueprint, or operational
-  reference. Together the non-live set uses about 7.27 MB.
-
-**Remaining:**
-- Decide how to dispose of the 20 cleanup-only and 60 unreferenced beta files
-  under separate deletion authorization, then refresh readiness separately.
-
-## 2026-08-05 — Remove authorized non-live production Storage objects
-
-**Risk profile:** irreversible production write — exact-object Storage deletion
-and terminal cleanup-ledger reconciliation.
-
-**Completed:**
-- Froze and revalidated the previously approved 20 cleanup-only and 60 fully
-  unreferenced beta objects. Both aggregate identity digests matched the prior
-  read-only inventory before any deletion began.
-- Ran a validation-only pass across all 80 objects, then removed each object
-  individually through the Storage API after a fresh exact reference check.
-- Verified the 20 cleanup-only objects against their recorded size and SHA-256
-  before removal and reconciled every matching source-cleanup ledger to terminal
-  `deleted` state.
-- Exercised the persisted-manifest retry path after two fail-closed pauses; the
-  pauses were caused by single-statement CTE visibility in the operator's success
-  check, not by reference or ownership drift.
-
-**Validation:**
-- Independent linked-project verification reports 139 Storage objects and 139
-  managed objects, all `ready`, with zero ownerless objects and zero registered
-  objects missing Storage.
-- The 274 managed JSON references remain intact. All 20 source-cleanup ledgers
-  are terminal and none are nonterminal.
-- Production remains in compatibility mode at readiness generation 0. Migrations
-  117 and 118 are applied; migration 119 is unapplied and
-  `classroom_purge_settings` remains absent.
-
-**Remaining:**
-- Refresh readiness only under separate production authorization. Do not apply
-  migration 119 or enable classroom deletion without fresh exact authorization.
-
 ## 2026-08-05 — Refresh production managed Storage readiness
 
 **Risk profile:** production write — serialized readiness evidence refresh only.
@@ -985,6 +888,68 @@ autosave error feedback while preserving the mounted attempt and exam owner.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
 
+## 2026-08-11 — Implement hot-Classroom individual-student purge
+
+**Risk profile:** runtime-platform and irreversible-deletion design; local code
+only. Migration 123 was not applied and no purge or rollout ran.
+
+**Completed:**
+- Added disabled/canary/enabled exact-triple rollout settings, stable roster
+  student lineage, durable operation/resource/object ledgers, pair and
+  whole-Classroom fences, exact Storage leases, retries, and explicit
+  finalization for one student in one hot Classroom.
+- Preserved the user and other Classrooms; staged the target's exact managed
+  objects and all retained Classroom archive/Gradex copies. Pal-backed,
+  remote-Gradex, cold, retired-assessment, and conflicting-operation targets
+  fail closed.
+- Added teacher-only impact/start/status/tick routes, cleanup-cron recovery and
+  health signals, Roster action/dialog, route/component/server/migration tests,
+  generated types, and a rollback-only CI database fixture.
+
+**Validation:**
+- Full suite passes (4,210 tests/492 files); focused purge/cron slice, build,
+  TypeScript, lint, architecture/design/UI policy, Pika audit, and diff checks pass.
+- Pika UI verification passed for teacher desktop/mobile light/dark dialog and
+  progress states plus student desktop/mobile light/dark absence boundaries.
+- Rollback-only CI fixture now covers managed-file lease authority, byte absence,
+  update ownership fences, relational deletion, and cross-Class preservation.
+
+**Remaining:**
+- Publish for independent PR review and fresh-database CI replay.
+- Local database replay awaits separate migration authorization.
+- Production migration, rollout, and purge remain separately prohibited.
+
+## 2026-08-11 — Complete production cold-Classroom purge canary
+
+**Risk profile:** runtime-platform — one exact authorized irreversible production
+canary with a disabled-by-default rollout gate.
+
+**Completed:**
+- Merged release PR #991 with the reviewed impact-envelope fix and verified
+  Vercel deployed production commit `47316895`.
+- Activated canary mode only for teacher
+  `34bd4439-e552-483b-b8aa-e3a8f86009af` and synthetic Classroom
+  `58f90ce4-ac21-4e68-bbf4-f1db3ae77f74`, then ran durable purge operation
+  `3a88d39d-5bc4-40f3-8c21-8aa2fa1e6151` for archive
+  `c748ec90-4952-4ec1-8ee7-99be3354b71a`.
+- Deleted the one verified 2,106-byte recovery archive before atomically
+  finalizing six cold resources; restored the rollout gate to disabled.
+
+**Validation:**
+- The completed audit retains aggregate counts for one archive, two archive
+  operations, one cold actor, one tombstone, and one managed Storage object.
+- Exact Storage download now proves the archive absent; the hot Classroom,
+  tombstone, archive, source operations, cold actors, managed registry row,
+  Gradex extracts, and active fence are absent.
+- The teacher account and unrelated active Classroom remain unchanged.
+- Aggregate and deep managed-deletion health are healthy with zero critical
+  findings and zero warnings. Generic cleanup did not run.
+
+**Next:**
+- Keep cold deletion disabled and observe two scheduled healthy monitoring runs
+  before requesting broad rollout authorization. Keep individual-student purge
+  and generic orphan cleanup as separate scopes.
+
 ## 2026-08-11 — Prepare cold-deletion canary and repair impact parsing
 
 **Risk profile:** runtime-platform — production cold-archive preparation plus a
@@ -1062,3 +1027,33 @@ model changes.
   mobile boundary was also checked. No overflow or visual regression remained.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-12 — Harden individual-student purge after independent review
+
+**Risk profile:** runtime-platform — destructive deletion protocol remains
+disabled and unapplied; this pass changes only reviewed code, migration source,
+tests, and documentation.
+
+**Completed:**
+- Replaced the archive-contract-breaking roster user column with a derived,
+  non-archive roster/student binding that is rebuilt from enrollment lineage.
+- Added authoritative account-email confirmation, operation-scoped completed
+  replay binding, stable client idempotency across lost start responses,
+  permanent purged-path reservations, and non-student-derived grading-run
+  selection hashes.
+- Expanded the rollback-only database fixture across assignment, test, survey,
+  report-card, announcement, archive, Gradex, target/classmate, replay, fence,
+  exact-object, and delayed-write cases.
+- Added a focused runbook, corrected hot/cold scope docs, and made the visual
+  teacher/student matrix a named CI gate with retained failure artifacts.
+
+**Validation:**
+- Full suite passes: 4,216 tests across 492 files. Focused remediation tests,
+  TypeScript, architecture, lint, production build, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright passed teacher default/progress and student-boundary verification
+  across desktop/mobile and light/dark on an isolated local port; screenshots
+  were visually inspected with no overflow or contrast regression.
+- Migration 123 was not applied locally or remotely, no rollout setting changed,
+  no purge ran, and no Storage object was deleted. Ephemeral CI replay remains
+  the next database validation gate.
