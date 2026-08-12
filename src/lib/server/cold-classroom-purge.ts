@@ -159,7 +159,8 @@ export async function getColdClassroomPurgeImpact(
   )
   const result = rpcResultSchema.parse(value)
   if (!result.ok) parseResult(result)
-  return coldClassroomPurgeImpactSchema.parse(value)
+  const { ok: _ok, status: _status, ...impact } = result
+  return coldClassroomPurgeImpactSchema.parse(impact)
 }
 
 export async function getColdClassroomPurgeStatus(
