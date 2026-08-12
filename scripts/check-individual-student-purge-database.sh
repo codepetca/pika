@@ -124,7 +124,7 @@ insert into public.assignment_doc_history (
 ) values (
   'd1230000-0000-4000-8000-000000000043',
   'd1230000-0000-4000-8000-000000000041', '{"type":"doc","content":[]}'::jsonb,
-  'manual_save', 0, 0
+  'autosave', 0, 0
 );
 insert into public.assignment_doc_save_operations (
   id, assignment_doc_id, save_session_id, save_sequence, metric_session_id,

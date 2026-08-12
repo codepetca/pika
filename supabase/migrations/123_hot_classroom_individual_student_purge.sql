@@ -875,14 +875,6 @@ begin
   if current_setting('pika.student_purge_finalize', true) = 'on' then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
-  if tg_table_name = 'managed_storage_objects' and tg_op <> 'DELETE'
-    and new.storage_path is not null and exists (
-      select 1 from public.student_purge_objects purge_object
-      where purge_object.storage_bucket = new.storage_bucket
-        and purge_object.storage_path_sha256 =
-          public.managed_storage_identity_sha256(new.storage_bucket, new.storage_path)
-    )
-  then raise exception using errcode = '55000', message = 'student_purge_path_reserved'; end if;
   foreach v_row in array v_rows loop
     v_classroom_id := null;
     v_student_id := nullif(coalesce(v_row->>'student_id', v_row->>'user_id'), '')::uuid;
@@ -903,6 +895,12 @@ begin
         order by enrollment.created_at, enrollment.id limit 1;
       end if;
     elsif tg_table_name = 'managed_storage_objects' then
+      if tg_op <> 'DELETE' and nullif(v_row->>'storage_path', '') is not null and exists (
+        select 1 from public.student_purge_objects purge_object
+        where purge_object.storage_bucket = v_row->>'storage_bucket'
+          and purge_object.storage_path_sha256 = public.managed_storage_identity_sha256(
+            v_row->>'storage_bucket', v_row->>'storage_path')
+      ) then raise exception using errcode = '55000', message = 'student_purge_path_reserved'; end if;
       v_classroom_id := nullif(v_row->>'classroom_id', '')::uuid;
       if v_classroom_id is null then
         select target_classroom_id into v_classroom_id from public.managed_storage_provisional_owners
