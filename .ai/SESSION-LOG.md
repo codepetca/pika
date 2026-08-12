@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Remove authorized non-live production Storage objects
-
-**Risk profile:** irreversible production write — exact-object Storage deletion
-and terminal cleanup-ledger reconciliation.
-
-**Completed:**
-- Froze and revalidated the previously approved 20 cleanup-only and 60 fully
-  unreferenced beta objects. Both aggregate identity digests matched the prior
-  read-only inventory before any deletion began.
-- Ran a validation-only pass across all 80 objects, then removed each object
-  individually through the Storage API after a fresh exact reference check.
-- Verified the 20 cleanup-only objects against their recorded size and SHA-256
-  before removal and reconciled every matching source-cleanup ledger to terminal
-  `deleted` state.
-- Exercised the persisted-manifest retry path after two fail-closed pauses; the
-  pauses were caused by single-statement CTE visibility in the operator's success
-  check, not by reference or ownership drift.
-
-**Validation:**
-- Independent linked-project verification reports 139 Storage objects and 139
-  managed objects, all `ready`, with zero ownerless objects and zero registered
-  objects missing Storage.
-- The 274 managed JSON references remain intact. All 20 source-cleanup ledgers
-  are terminal and none are nonterminal.
-- Production remains in compatibility mode at readiness generation 0. Migrations
-  117 and 118 are applied; migration 119 is unapplied and
-  `classroom_purge_settings` remains absent.
-
-**Remaining:**
-- Refresh readiness only under separate production authorization. Do not apply
-  migration 119 or enable classroom deletion without fresh exact authorization.
-
 ## 2026-08-05 — Refresh production managed Storage readiness
 
 **Risk profile:** production write — serialized readiness evidence refresh only.
@@ -1059,3 +1027,33 @@ model changes.
   mobile boundary was also checked. No overflow or visual regression remained.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-12 — Harden individual-student purge after independent review
+
+**Risk profile:** runtime-platform — destructive deletion protocol remains
+disabled and unapplied; this pass changes only reviewed code, migration source,
+tests, and documentation.
+
+**Completed:**
+- Replaced the archive-contract-breaking roster user column with a derived,
+  non-archive roster/student binding that is rebuilt from enrollment lineage.
+- Added authoritative account-email confirmation, operation-scoped completed
+  replay binding, stable client idempotency across lost start responses,
+  permanent purged-path reservations, and non-student-derived grading-run
+  selection hashes.
+- Expanded the rollback-only database fixture across assignment, test, survey,
+  report-card, announcement, archive, Gradex, target/classmate, replay, fence,
+  exact-object, and delayed-write cases.
+- Added a focused runbook, corrected hot/cold scope docs, and made the visual
+  teacher/student matrix a named CI gate with retained failure artifacts.
+
+**Validation:**
+- Full suite passes: 4,216 tests across 492 files. Focused remediation tests,
+  TypeScript, architecture, lint, production build, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright passed teacher default/progress and student-boundary verification
+  across desktop/mobile and light/dark on an isolated local port; screenshots
+  were visually inspected with no overflow or contrast regression.
+- Migration 123 was not applied locally or remotely, no rollout setting changed,
+  no purge ran, and no Storage object was deleted. Ephemeral CI replay remains
+  the next database validation gate.

@@ -2,20 +2,27 @@
 -- Classroom. This scope deliberately preserves the user and every other
 -- Classroom. Rollout starts disabled. Pal/remote-Gradex targets fail closed.
 
-alter table public.classroom_roster
-  add column student_id uuid references public.users (id) on delete set null;
+-- Stable joined-student lineage is operational derived state, not part of the
+-- immutable Classroom archive format. Keeping it outside classroom_roster
+-- avoids silently changing the v2 archive/restore row contract.
+create table public.classroom_roster_student_bindings (
+  roster_id uuid primary key references public.classroom_roster (id) on delete cascade,
+  classroom_id uuid not null references public.classrooms (id) on delete cascade,
+  student_id uuid not null references public.users (id) on delete cascade,
+  created_at timestamptz not null default clock_timestamp(),
+  unique (roster_id, classroom_id, student_id)
+);
 
-update public.classroom_roster roster
-set student_id = enrollment.student_id
-from public.classroom_enrollments enrollment
+create index classroom_roster_student_bindings_classroom_student
+  on public.classroom_roster_student_bindings (classroom_id, student_id);
+
+insert into public.classroom_roster_student_bindings (roster_id, classroom_id, student_id)
+select roster.id, roster.classroom_id, enrollment.student_id
+from public.classroom_roster roster
+join public.classroom_enrollments enrollment on enrollment.classroom_id = roster.classroom_id
 join public.users student on student.id = enrollment.student_id and student.role = 'student'
-where enrollment.classroom_id = roster.classroom_id
-  and lower(btrim(student.email)) = lower(btrim(roster.email))
-  and roster.student_id is null;
-
-create unique index classroom_roster_classroom_student
-  on public.classroom_roster (classroom_id, student_id)
-  where student_id is not null;
+where lower(btrim(student.email)) = lower(btrim(roster.email))
+on conflict (roster_id) do nothing;
 
 create table public.student_purge_settings (
   singleton boolean primary key default true check (singleton),
@@ -41,6 +48,7 @@ create table public.student_purge_operations (
   classroom_id uuid not null,
   student_id uuid references public.users (id) on delete set null,
   student_email text,
+  student_binding_sha256 text not null check (student_binding_sha256 ~ '^[a-f0-9]{64}$'),
   request_sha256 text not null check (request_sha256 ~ '^[a-f0-9]{64}$'),
   status text not null default 'inventorying'
     check (status in ('inventorying', 'deleting_objects', 'finalizing', 'completed', 'failed')),
@@ -112,6 +120,8 @@ create table public.student_purge_objects (
 
 create index student_purge_objects_due on public.student_purge_objects
   (next_attempt_at, created_at) where status in ('pending', 'processing', 'failed');
+create index student_purge_objects_path_reservation on public.student_purge_objects
+  (storage_bucket, storage_path_sha256);
 
 create table public.student_purge_fences (
   classroom_id uuid not null references public.classrooms (id) on delete cascade,
@@ -122,17 +132,20 @@ create table public.student_purge_fences (
   primary key (classroom_id, student_id)
 );
 
+alter table public.classroom_roster_student_bindings enable row level security;
 alter table public.student_purge_settings enable row level security;
 alter table public.student_purge_operations enable row level security;
 alter table public.student_purge_resources enable row level security;
 alter table public.student_purge_objects enable row level security;
 alter table public.student_purge_fences enable row level security;
 
+revoke all on table public.classroom_roster_student_bindings from public, anon, authenticated, service_role;
 revoke all on table public.student_purge_settings from public, anon, authenticated, service_role;
 revoke all on table public.student_purge_operations from public, anon, authenticated, service_role;
 revoke all on table public.student_purge_resources from public, anon, authenticated, service_role;
 revoke all on table public.student_purge_objects from public, anon, authenticated, service_role;
 revoke all on table public.student_purge_fences from public, anon, authenticated, service_role;
+grant select on table public.classroom_roster_student_bindings to service_role;
 grant select on table public.student_purge_settings to service_role;
 grant select on table public.student_purge_operations to service_role;
 grant select on table public.student_purge_resources to service_role;
@@ -216,7 +229,8 @@ language sql stable set search_path = public as $$
   where enrollment.classroom_id = p_classroom_id and enrollment.student_id = p_student_id
   union all select 'classroom_roster', roster.id, 'delete'
   from public.classroom_roster roster
-  where roster.classroom_id = p_classroom_id and roster.student_id = p_student_id
+  join public.classroom_roster_student_bindings binding on binding.roster_id = roster.id
+  where binding.classroom_id = p_classroom_id and binding.student_id = p_student_id
   union all select 'entries', entry.id, 'delete'
   from public.entries entry where entry.classroom_id = p_classroom_id and entry.student_id = p_student_id
   union all select 'report_card_rows', row.id, 'delete'
@@ -427,16 +441,21 @@ declare
   v_existing public.student_purge_operations;
   v_inventory jsonb;
   v_request_sha text;
+  v_student_binding_sha text;
   v_resource record;
 begin
   perform public.student_purge_lock(p_classroom_id, p_student_id);
+  v_student_binding_sha := encode(extensions.digest(convert_to(
+    p_operation_id::text || ':' || p_student_id::text, 'UTF8'), 'sha256'), 'hex');
   v_request_sha := encode(extensions.digest(convert_to(concat_ws(':', p_teacher_id, p_classroom_id, p_student_id,
     p_expected_source_revision, p_expected_storage_inventory_sha256,
     p_expected_relational_inventory_sha256), 'UTF8'), 'sha256'), 'hex');
   select * into v_existing from public.student_purge_operations where id = p_operation_id for update;
   if found then
     if v_existing.teacher_id <> p_teacher_id or v_existing.classroom_id <> p_classroom_id
-      or v_existing.student_id is distinct from p_student_id or v_existing.request_sha256 <> v_request_sha
+      or v_existing.student_binding_sha256 <> v_student_binding_sha
+      or (v_existing.student_id is not null and v_existing.student_id <> p_student_id)
+      or v_existing.request_sha256 <> v_request_sha
     then return jsonb_build_object('ok', false, 'status', 409, 'error_code', 'idempotency_conflict',
       'error', 'Idempotency key was already used for a different deletion'); end if;
     return jsonb_build_object('ok', true, 'status', case when v_existing.status = 'completed' then 200 else 202 end,
@@ -459,11 +478,11 @@ begin
     'error', 'Student data changed; review the updated impact before trying again', 'retryable', true); end if;
 
   insert into public.student_purge_operations (
-    id, teacher_id, classroom_id, student_id, student_email, request_sha256,
+    id, teacher_id, classroom_id, student_id, student_email, student_binding_sha256, request_sha256,
     source_revision, impact_summary, resource_counts
   ) values (
     p_operation_id, p_teacher_id, p_classroom_id, p_student_id, v_inventory->>'student_email',
-    v_request_sha, p_expected_source_revision, v_inventory, v_inventory->'resource_counts'
+    v_student_binding_sha, v_request_sha, p_expected_source_revision, v_inventory, v_inventory->'resource_counts'
   );
   insert into public.student_purge_fences (classroom_id, student_id, operation_id, teacher_id)
   values (p_classroom_id, p_student_id, p_operation_id, p_teacher_id);
@@ -477,7 +496,7 @@ begin
     storage_path_sha256, status, deleted_at
   )
   select p_operation_id, object.id, object.storage_bucket, object.storage_path,
-    encode(extensions.digest(convert_to(object.storage_path, 'UTF8'), 'sha256'), 'hex'),
+    public.managed_storage_identity_sha256(object.storage_bucket, object.storage_path),
     case when object.status = 'deleted' then 'deleted' else 'pending' end,
     case when object.status = 'deleted' then clock_timestamp() else null end
   from public.managed_storage_objects object
@@ -679,6 +698,8 @@ begin
         where value #>> '{}' <> v_operation.student_id::text), '[]'::jsonb),
       error_samples_json = replace(coalesce(run.error_samples_json, '[]'::jsonb)::text,
         v_operation.student_id::text, '[purged-student]')::jsonb,
+      selection_hash = encode(extensions.digest(convert_to(
+        'student-purge:' || p_operation_id::text || ':' || run.id::text, 'UTF8'), 'sha256'), 'hex'),
       requested_count = (select count(*) from jsonb_array_elements(run.requested_student_ids_json)
         where value #>> '{}' <> v_operation.student_id::text),
       gradable_count = (select count(*) from public.assignment_ai_grading_run_items item where item.run_id = run.id),
@@ -700,6 +721,8 @@ begin
         where value #>> '{}' <> v_operation.student_id::text), '[]'::jsonb),
       error_samples_json = replace(coalesce(run.error_samples_json, '[]'::jsonb)::text,
         v_operation.student_id::text, '[purged-student]')::jsonb,
+      selection_hash = encode(extensions.digest(convert_to(
+        'student-purge:' || p_operation_id::text || ':' || run.id::text, 'UTF8'), 'sha256'), 'hex'),
       requested_count = (select count(*) from jsonb_array_elements(run.requested_student_ids_json)
         where value #>> '{}' <> v_operation.student_id::text),
       eligible_student_count = (select count(distinct item.student_id) from public.test_ai_grading_run_items item where item.run_id = run.id),
@@ -774,36 +797,40 @@ begin
 end;
 $$;
 
--- Keep roster identity stable once a student joins. Enrollment is the authority;
--- emails remain display data and are never used by finalization.
-create or replace function public.bind_classroom_roster_student_id()
+-- Enrollment is authoritative. Once a roster row is bound, later display-email
+-- edits cannot retarget its joined-student identity.
+create or replace function public.bind_classroom_roster_student()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if tg_op = 'UPDATE' and old.student_id is not null
-    and new.student_id is distinct from old.student_id
-    and coalesce(current_setting('pika.student_purge_finalize', true), '') <> 'on'
-  then raise exception using errcode = '55000', message = 'roster_student_identity_immutable'; end if;
-  if new.student_id is null then
-    select enrollment.student_id into new.student_id
-    from public.classroom_enrollments enrollment
-    join public.users student on student.id = enrollment.student_id and student.role = 'student'
-    where enrollment.classroom_id = new.classroom_id
-      and lower(btrim(student.email)) = lower(btrim(new.email));
-  end if;
+  if tg_op = 'UPDATE' and new.classroom_id is distinct from old.classroom_id
+    and exists (select 1 from public.classroom_roster_student_bindings where roster_id = old.id)
+  then raise exception using errcode = '55000', message = 'roster_student_binding_classroom_immutable'; end if;
+  insert into public.classroom_roster_student_bindings (roster_id, classroom_id, student_id)
+  select new.id, new.classroom_id, enrollment.student_id
+  from public.classroom_enrollments enrollment
+  join public.users student on student.id = enrollment.student_id and student.role = 'student'
+  where enrollment.classroom_id = new.classroom_id
+    and lower(btrim(student.email)) = lower(btrim(new.email))
+  order by enrollment.created_at, enrollment.id
+  limit 1
+  on conflict (roster_id) do nothing;
   return new;
 end;
 $$;
-create trigger bind_classroom_roster_student_id
-  before insert or update of classroom_id, email, student_id on public.classroom_roster
-  for each row execute function public.bind_classroom_roster_student_id();
+create trigger bind_classroom_roster_student
+  after insert or update of classroom_id, email on public.classroom_roster
+  for each row execute function public.bind_classroom_roster_student();
 
 create or replace function public.bind_roster_after_enrollment()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  update public.classroom_roster roster set student_id = new.student_id
-  from public.users student where student.id = new.student_id and student.role = 'student'
-    and roster.classroom_id = new.classroom_id and lower(btrim(roster.email)) = lower(btrim(student.email))
-    and roster.student_id is null;
+  insert into public.classroom_roster_student_bindings (roster_id, classroom_id, student_id)
+  select roster.id, new.classroom_id, new.student_id
+  from public.classroom_roster roster
+  join public.users student on student.id = new.student_id and student.role = 'student'
+  where roster.classroom_id = new.classroom_id
+    and lower(btrim(roster.email)) = lower(btrim(student.email))
+  on conflict (roster_id) do nothing;
   return new;
 end;
 $$;
@@ -848,12 +875,33 @@ begin
   if current_setting('pika.student_purge_finalize', true) = 'on' then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
+  if tg_table_name = 'managed_storage_objects' and tg_op <> 'DELETE'
+    and new.storage_path is not null and exists (
+      select 1 from public.student_purge_objects purge_object
+      where purge_object.storage_bucket = new.storage_bucket
+        and purge_object.storage_path_sha256 =
+          public.managed_storage_identity_sha256(new.storage_bucket, new.storage_path)
+    )
+  then raise exception using errcode = '55000', message = 'student_purge_path_reserved'; end if;
   foreach v_row in array v_rows loop
     v_classroom_id := null;
     v_student_id := nullif(coalesce(v_row->>'student_id', v_row->>'user_id'), '')::uuid;
     v_parent_id := null;
-    if tg_table_name in ('entries', 'classroom_enrollments', 'classroom_roster') then
+    if tg_table_name in ('entries', 'classroom_enrollments') then
       v_classroom_id := nullif(v_row->>'classroom_id', '')::uuid;
+    elsif tg_table_name = 'classroom_roster' then
+      v_classroom_id := nullif(v_row->>'classroom_id', '')::uuid;
+      select binding.student_id into v_student_id
+      from public.classroom_roster_student_bindings binding
+      where binding.roster_id = nullif(v_row->>'id', '')::uuid;
+      if v_student_id is null then
+        select enrollment.student_id into v_student_id
+        from public.classroom_enrollments enrollment
+        join public.users student on student.id = enrollment.student_id and student.role = 'student'
+        where enrollment.classroom_id = v_classroom_id
+          and lower(btrim(student.email)) = lower(btrim(v_row->>'email'))
+        order by enrollment.created_at, enrollment.id limit 1;
+      end if;
     elsif tg_table_name = 'managed_storage_objects' then
       v_classroom_id := nullif(v_row->>'classroom_id', '')::uuid;
       if v_classroom_id is null then
@@ -941,6 +989,27 @@ $$;
 create trigger classroom_archive_operation_student_purge_guard
   before insert or update or delete on public.classroom_archive_operations
   for each row execute function public.reject_archive_operation_during_student_purge();
+
+-- Retain every purged bucket/path digest permanently. This closes the delayed
+-- upload race after the managed row and active fence have been removed.
+create or replace function public.reject_student_purged_storage_write()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.bucket_id in ('assignment-artifacts','submission-images','test-documents',
+      'classroom-archives','gradex-analytics-extracts') and exists (
+    select 1 from public.student_purge_objects purge_object
+    where purge_object.storage_bucket = new.bucket_id
+      and purge_object.storage_path_sha256 =
+        public.managed_storage_identity_sha256(new.bucket_id, new.name)
+  ) then
+    raise exception using errcode = '55000', message = 'student_purge_path_reserved';
+  end if;
+  return new;
+end;
+$$;
+create trigger storage_student_purge_path_reservation
+  before insert or update on storage.objects
+  for each row execute function public.reject_student_purged_storage_write();
 
 create or replace function public.reject_student_indirect_change_during_purge()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -1095,11 +1164,12 @@ revoke all on function public.complete_student_purge_object(uuid,uuid,uuid,uuid)
 revoke all on function public.fail_student_purge_object(uuid,uuid,uuid,uuid,text) from public, anon, authenticated;
 revoke all on function public.finalize_student_purge(uuid,uuid) from public, anon, authenticated;
 revoke all on function public.get_student_purge_health_snapshot(integer,integer) from public, anon, authenticated;
-revoke all on function public.bind_classroom_roster_student_id() from public, anon, authenticated, service_role;
+revoke all on function public.bind_classroom_roster_student() from public, anon, authenticated, service_role;
 revoke all on function public.bind_roster_after_enrollment() from public, anon, authenticated, service_role;
 revoke all on function public.reject_conflicting_purge_fence() from public, anon, authenticated, service_role;
 revoke all on function public.reject_student_resource_change_during_purge() from public, anon, authenticated, service_role;
 revoke all on function public.reject_archive_operation_during_student_purge() from public, anon, authenticated, service_role;
+revoke all on function public.reject_student_purged_storage_write() from public, anon, authenticated, service_role;
 revoke all on function public.reject_student_indirect_change_during_purge() from public, anon, authenticated, service_role;
 grant execute on function public.get_student_purge_inventory(uuid,uuid,uuid) to service_role;
 grant execute on function public.begin_student_purge(uuid,uuid,uuid,uuid,text,bigint,text,text) to service_role;

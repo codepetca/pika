@@ -95,6 +95,14 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
         }
       }
 
+      if (table === 'classroom_roster_student_bindings') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST205', message: 'missing' } }),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -123,5 +131,38 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
     ])
     expect(data.student_purge_enabled_ids).toEqual([])
     expect(purgeAvailability).toHaveBeenCalledWith('teacher-1', 'c-1', ['student-1'])
+  })
+
+  it('prefers stable joined-student bindings over edited roster email', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockResolvedValue(table === 'classroom_roster'
+          ? { data: [{
+              id: 'r-1', email: 'edited@example.com', student_number: null,
+              first_name: 'Ada', last_name: 'Lovelace', counselor_email: null,
+              join_source: 'manual', created_at: '2026-04-01T12:00:00.000Z',
+              updated_at: '2026-04-02T12:00:00.000Z',
+            }], error: null }
+          : table === 'classroom_enrollments'
+            ? { data: [{
+                student_id: 'student-1', created_at: '2026-04-05T12:00:00.000Z',
+                users: { email: 'original@example.com' },
+              }], error: null }
+            : { data: [{ roster_id: 'r-1', student_id: 'student-1' }], error: null }),
+      })),
+    }))
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster'),
+      { params: { id: 'c-1' } },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.roster[0]).toEqual(expect.objectContaining({
+      email: 'edited@example.com',
+      joined: true,
+      student_id: 'student-1',
+    }))
   })
 })

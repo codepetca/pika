@@ -89,4 +89,59 @@ describe('StudentPurgeDialog', () => {
     expect(await screen.findByText('student_purge_external_erasure_required')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Purge classroom data' })).toBeDisabled()
   })
+
+  it('uses the authoritative account email when the roster casing differs', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ operation: null, impact: impact({ student_email: 'Joined@example.com' }) }),
+    })))
+    render(<StudentPurgeDialog
+      classroomId={CLASSROOM_ID}
+      classroomTitle="Biology"
+      studentId={STUDENT_ID}
+      studentEmail="joined@example.com"
+      studentName="Ada Lovelace"
+      isOpen
+      onClose={vi.fn()}
+      onCompleted={vi.fn()}
+    />)
+    const dialog = await screen.findByRole('dialog')
+    const input = within(dialog).getByRole('textbox', {
+      name: /Type “Joined@example\.com” to confirm/,
+    })
+    const purge = within(dialog).getByRole('button', { name: 'Purge classroom data' })
+    fireEvent.change(input, { target: { value: 'joined@example.com' } })
+    expect(purge).toBeDisabled()
+    fireEvent.change(input, { target: { value: 'Joined@example.com' } })
+    expect(purge).toBeEnabled()
+  })
+
+  it('reuses the same operation id when the initial start response is lost', async () => {
+    const operationId = '30000000-0000-4000-8000-000000000001'
+    vi.stubGlobal('crypto', { randomUUID: vi.fn(() => operationId) })
+    const bodies: Array<{ operation_id: string }> = []
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method) return { ok: true, json: async () => ({ operation: null, impact: impact() }) }
+      bodies.push(JSON.parse(String(init.body)))
+      return { ok: false, json: async () => ({ error: 'Response lost after request' }) }
+    }))
+    render(<StudentPurgeDialog
+      classroomId={CLASSROOM_ID}
+      classroomTitle="Biology"
+      studentId={STUDENT_ID}
+      studentEmail={EMAIL}
+      studentName="Ada Lovelace"
+      isOpen
+      onClose={vi.fn()}
+      onCompleted={vi.fn()}
+    />)
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: EMAIL } })
+    const purge = within(dialog).getByRole('button', { name: 'Purge classroom data' })
+    fireEvent.click(purge)
+    await within(dialog).findByRole('alert')
+    fireEvent.click(purge)
+    await waitFor(() => expect(bodies).toHaveLength(2))
+    expect(bodies.map((body) => body.operation_id)).toEqual([operationId, operationId])
+  })
 })

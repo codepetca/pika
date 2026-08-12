@@ -2519,7 +2519,6 @@ export type Database = {
           id: string
           join_source: string
           last_name: string | null
-          student_id: string | null
           student_number: string | null
           updated_at: string
         }
@@ -2532,7 +2531,6 @@ export type Database = {
           id?: string
           join_source?: string
           last_name?: string | null
-          student_id?: string | null
           student_number?: string | null
           updated_at?: string
         }
@@ -2545,7 +2543,6 @@ export type Database = {
           id?: string
           join_source?: string
           last_name?: string | null
-          student_id?: string | null
           student_number?: string | null
           updated_at?: string
         }
@@ -2557,8 +2554,44 @@ export type Database = {
             referencedRelation: "classrooms"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      classroom_roster_student_bindings: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          roster_id: string
+          student_id: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          roster_id: string
+          student_id: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          roster_id?: string
+          student_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "classroom_roster_student_id_fkey"
+            foreignKeyName: "classroom_roster_student_bindings_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_roster_student_bindings_roster_id_fkey"
+            columns: ["roster_id"]
+            isOneToOne: true
+            referencedRelation: "classroom_roster"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_roster_student_bindings_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -4604,6 +4637,41 @@ export type Database = {
           },
         ]
       }
+      student_profiles: {
+        Row: {
+          created_at: string
+          first_name: string
+          id: string
+          last_name: string
+          student_number: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_name: string
+          id?: string
+          last_name: string
+          student_number?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          student_number?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_purge_fences: {
         Row: {
           classroom_id: string
@@ -4742,6 +4810,7 @@ export type Database = {
           started_at: string
           status: string
           storage_object_counts: Json
+          student_binding_sha256: string
           student_email: string | null
           student_id: string | null
           teacher_id: string
@@ -4762,6 +4831,7 @@ export type Database = {
           started_at?: string
           status?: string
           storage_object_counts?: Json
+          student_binding_sha256: string
           student_email?: string | null
           student_id?: string | null
           teacher_id: string
@@ -4782,6 +4852,7 @@ export type Database = {
           started_at?: string
           status?: string
           storage_object_counts?: Json
+          student_binding_sha256?: string
           student_email?: string | null
           student_id?: string | null
           teacher_id?: string
@@ -4870,41 +4941,6 @@ export type Database = {
             foreignKeyName: "student_purge_settings_canary_teacher_id_fkey"
             columns: ["canary_teacher_id"]
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      student_profiles: {
-        Row: {
-          created_at: string
-          first_name: string
-          id: string
-          last_name: string
-          student_number: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          first_name: string
-          id?: string
-          last_name: string
-          student_number?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          first_name?: string
-          id?: string
-          last_name?: string
-          student_number?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
@@ -46,6 +47,7 @@ const operationRowSchema = z.object({
   classroom_id: z.string().uuid(),
   teacher_id: z.string().uuid(),
   student_id: z.string().uuid().nullable(),
+  student_binding_sha256: z.string().regex(/^[a-f0-9]{64}$/),
   status: z.enum(['inventorying', 'deleting_objects', 'finalizing', 'completed', 'failed']),
   retryable: z.boolean().nullable(),
   error_code: z.string().nullable(),
@@ -182,7 +184,7 @@ async function readOperation(teacherId: string, operationId: string): Promise<z.
     maybeSingle(): PromiseLike<QueryResponse>
   }
   const query = db().from('student_purge_operations').select(
-    'id,classroom_id,teacher_id,student_id,status,retryable,error_code,resource_counts,attempt_count,completed_at',
+    'id,classroom_id,teacher_id,student_id,student_binding_sha256,status,retryable,error_code,resource_counts,attempt_count,completed_at',
   ) as unknown as Query
   const response = await query.eq('id', operationId).eq('teacher_id', teacherId).maybeSingle()
   if (response.error) {
@@ -236,7 +238,12 @@ export async function assertStudentPurgeOperationTarget(
   studentId: string,
 ): Promise<void> {
   const row = await readOperation(teacherId, operationId)
-  if (row.classroom_id !== classroomId || row.student_id !== studentId) {
+  const expectedBinding = createHash('sha256').update(`${operationId}:${studentId}`).digest('hex')
+  if (
+    row.classroom_id !== classroomId
+    || row.student_binding_sha256 !== expectedBinding
+    || (row.student_id !== null && row.student_id !== studentId)
+  ) {
     throw new StudentPurgeError('student_purge_not_found', 'Student data deletion not found', 404)
   }
 }

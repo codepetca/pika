@@ -16,6 +16,8 @@ describe('migration 123 individual-student purge contract', () => {
   })
 
   it('uses durable exact relational and managed-object ledgers', () => {
+    expect(sql).toContain('create table public.classroom_roster_student_bindings')
+    expect(sql).not.toContain('alter table public.classroom_roster\n  add column student_id')
     expect(sql).toContain('create table public.student_purge_resources')
     expect(sql).toContain('create table public.student_purge_objects')
     expect(sql).toContain('managed_storage_object_id uuid')
@@ -23,6 +25,8 @@ describe('migration 123 individual-student purge contract', () => {
     expect(sql).toContain('student_purge_storage_object_still_present')
     expect(sql).toContain('student_purge_membership_drift_')
     expect(sql).toContain('student_purge_storage_owner_drift')
+    expect(sql).toContain('student_purge_path_reserved')
+    expect(sql).toContain('storage_student_purge_path_reservation')
   })
 
   it('uses fences, leases, retry backoff, and mutually excludes whole-classroom purge', () => {
@@ -42,6 +46,13 @@ describe('migration 123 individual-student purge contract', () => {
     expect(sql).toContain('student_purge_gradex_erasure_required')
     expect(sql).toContain('student_purge_retired_assessment_unsupported')
     expect(sql).toContain('student_purge_storage_subject_ownership_incomplete')
+  })
+
+  it('retains replay-safe target binding and removes grading selection identity', () => {
+    expect(sql).toContain('student_binding_sha256')
+    expect(sql).toContain("p_operation_id::text || ':' || p_student_id::text")
+    expect(sql).toContain("'student-purge:' || p_operation_id::text || ':' || run.id::text")
+    expect(sql).toContain('selection_hash = encode')
   })
 
   it('removes immutable class archive copies but not other classrooms or blueprints', () => {

@@ -41,6 +41,7 @@ export function StudentPurgeDialog({
   onCompleted,
 }: Props) {
   const mountedRef = useRef(true)
+  const operationIdRef = useRef<string | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [impact, setImpact] = useState<StudentPurgeImpact | null>(null)
   const [operation, setOperation] = useState<StudentPurgeStatus | null>(null)
@@ -56,6 +57,7 @@ export function StudentPurgeDialog({
     [impact, operation],
   )
   const finishedFiles = operation?.storage_object_counts.deleted || 0
+  const confirmationEmail = impact?.student_email || studentEmail
 
   useEffect(() => {
     mountedRef.current = true
@@ -95,6 +97,7 @@ export function StudentPurgeDialog({
     setOperation(current)
     for (let tick = 0; tick < 10_000 && mountedRef.current; tick += 1) {
       if (current.status === 'completed') {
+        operationIdRef.current = null
         onCompleted()
         return
       }
@@ -124,11 +127,13 @@ export function StudentPurgeDialog({
     try {
       let current = operation
       if (!current) {
+        const operationId = operationIdRef.current || crypto.randomUUID()
+        operationIdRef.current = operationId
         const response = await fetch(basePath, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            operation_id: crypto.randomUUID(),
+            operation_id: operationId,
             confirmation,
             expected_source_revision: impact?.source_revision,
             expected_storage_inventory_sha256: impact?.storage_inventory_sha256,
@@ -223,7 +228,7 @@ export function StudentPurgeDialog({
               <p className="mt-1 text-xs text-text-muted">Progress is saved. Failed requests can be retried safely.</p>
             </div>
           ) : (
-            <FormField label={`Type “${studentEmail}” to confirm`} hint="The email address is case-sensitive.">
+            <FormField label={`Type “${confirmationEmail}” to confirm`} hint="The email address is case-sensitive.">
               <Input value={confirmation} autoComplete="off" onChange={(event) => setConfirmation(event.target.value)} disabled={isWorking} />
             </FormField>
           )}
@@ -251,7 +256,7 @@ export function StudentPurgeDialog({
                 isLoading
                 || impact?.deletion_available === false
                 || Boolean(impact?.conflicting_operation)
-                || (!operation && confirmation !== studentEmail)
+                || (!operation && confirmation !== confirmationEmail)
                 || operation?.status === 'completed'
               }
             >

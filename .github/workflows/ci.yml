@@ -274,6 +274,9 @@ jobs:
       - name: Run teacher and student browser matrix
         run: pnpm e2e:matrix
 
+      - name: Run individual-student purge browser matrix
+        run: pnpm e2e:student-purge
+
       - name: Upload browser diagnostics
         if: failure()
         uses: actions/upload-artifact@v7

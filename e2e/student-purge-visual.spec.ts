@@ -108,7 +108,7 @@ async function expectNoHorizontalOverflow(page: Page) {
   )).toBe(false)
 }
 
-test('captures individual-student purge and student boundary matrix', async ({ browser }) => {
+test('captures individual-student purge and student boundary matrix', async ({ browser }, testInfo) => {
   const discoveryContext = await browser.newContext({ storageState: '.auth/teacher.json' })
   const discoveryPage = await discoveryContext.newPage()
   await discoveryPage.goto('/classrooms')
@@ -135,7 +135,7 @@ test('captures individual-student purge and student boundary matrix', async ({ b
     await expect(dialog).toContainText('user account and data in other classrooms are kept')
     await expectNoHorizontalOverflow(page)
     await page.screenshot({
-      path: `/tmp/pika-student-purge-dialog-${entry.name}.png`,
+      path: testInfo.outputPath(`dialog-${entry.name}.png`),
       fullPage: true,
       animations: 'disabled',
     })
@@ -145,7 +145,7 @@ test('captures individual-student purge and student boundary matrix', async ({ b
     await expect(dialog.getByRole('alert')).toContainText('waiting safely')
     await expect(dialog).toContainText('Deleting files 2 of 6')
     await page.screenshot({
-      path: `/tmp/pika-student-purge-progress-${entry.name}.png`,
+      path: testInfo.outputPath(`progress-${entry.name}.png`),
       fullPage: true,
       animations: 'disabled',
     })
@@ -168,7 +168,7 @@ test('captures individual-student purge and student boundary matrix', async ({ b
     expect(studentPurgeRequestCount).toBe(0)
     await expectNoHorizontalOverflow(page)
     await page.screenshot({
-      path: `/tmp/pika-student-purge-student-boundary-${entry.name}.png`,
+      path: testInfo.outputPath(`student-boundary-${entry.name}.png`),
       fullPage: true,
       animations: 'disabled',
     })

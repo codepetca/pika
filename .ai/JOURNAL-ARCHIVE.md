@@ -17932,3 +17932,36 @@ relational/embedded reference binding.
 **Remaining:**
 - Decide how to dispose of the 20 cleanup-only and 60 unreferenced beta files
   under separate deletion authorization, then refresh readiness separately.
+
+<!-- pika-session-log-archive-batch:ed8db04166835ade4397395ca66420bbd582712fb09399ce67e4be7265ed9e52 -->
+## 2026-08-05 — Remove authorized non-live production Storage objects
+
+**Risk profile:** irreversible production write — exact-object Storage deletion
+and terminal cleanup-ledger reconciliation.
+
+**Completed:**
+- Froze and revalidated the previously approved 20 cleanup-only and 60 fully
+  unreferenced beta objects. Both aggregate identity digests matched the prior
+  read-only inventory before any deletion began.
+- Ran a validation-only pass across all 80 objects, then removed each object
+  individually through the Storage API after a fresh exact reference check.
+- Verified the 20 cleanup-only objects against their recorded size and SHA-256
+  before removal and reconciled every matching source-cleanup ledger to terminal
+  `deleted` state.
+- Exercised the persisted-manifest retry path after two fail-closed pauses; the
+  pauses were caused by single-statement CTE visibility in the operator's success
+  check, not by reference or ownership drift.
+
+**Validation:**
+- Independent linked-project verification reports 139 Storage objects and 139
+  managed objects, all `ready`, with zero ownerless objects and zero registered
+  objects missing Storage.
+- The 274 managed JSON references remain intact. All 20 source-cleanup ledgers
+  are terminal and none are nonterminal.
+- Production remains in compatibility mode at readiness generation 0. Migrations
+  117 and 118 are applied; migration 119 is unapplied and
+  `classroom_purge_settings` remains absent.
+
+**Remaining:**
+- Refresh readiness only under separate production authorization. Do not apply
+  migration 119 or enable classroom deletion without fresh exact authorization.

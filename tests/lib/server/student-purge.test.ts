@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  assertStudentPurgeOperationTarget,
   deleteStudentPurgeStorageObject,
   getStudentPurgeEnabledStudentIds,
   isMissingStudentPurgeSchemaError,
@@ -67,6 +68,36 @@ describe('student purge server boundaries', () => {
       'classroom/student/image.png',
     )).resolves.toBeUndefined()
     expect(remove).toHaveBeenCalledWith(['classroom/student/image.png'])
+  })
+
+  it('authorizes a completed operation through its retained target binding', async () => {
+    serviceClient.from.mockReturnValue({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                id: '10000000-0000-4000-8000-000000000001',
+                classroom_id: '20000000-0000-4000-8000-000000000001',
+                teacher_id: '40000000-0000-4000-8000-000000000001',
+                student_id: null,
+                student_binding_sha256: 'aa2ef9bbd3f18edd16cfb5ed18f70bacde1e55210357b136233644bbd8d72c64',
+                status: 'completed', retryable: false, error_code: null,
+                resource_counts: {}, attempt_count: 2, completed_at: '2026-08-12T12:00:00.000Z',
+              },
+              error: null,
+            }),
+          })),
+        })),
+      })),
+    })
+
+    await expect(assertStudentPurgeOperationTarget(
+      '40000000-0000-4000-8000-000000000001',
+      '10000000-0000-4000-8000-000000000001',
+      '20000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+    )).resolves.toBeUndefined()
   })
 
   it('does not hot-loop failed or unadvanced operations', () => {
