@@ -140,7 +140,7 @@ insert into public.assignment_feedback_entries (
 ) values (
   'd1230000-0000-4000-8000-000000000047',
   'd1230000-0000-4000-8000-000000000040',
-  'd1230000-0000-4000-8000-000000000002', 'teacher', 'comment', 'target feedback',
+  'd1230000-0000-4000-8000-000000000002', 'teacher', 'teacher_feedback', 'target feedback',
   'd1230000-0000-4000-8000-000000000001'
 );
 insert into public.assignment_ai_grading_runs (
@@ -164,9 +164,9 @@ insert into public.tests (id, classroom_id, title, status, created_by) values (
   'd1230000-0000-4000-8000-000000000010', 'Shared test', 'closed',
   'd1230000-0000-4000-8000-000000000001'
 );
-insert into public.test_questions (id, test_id, question_text) values (
+insert into public.test_questions (id, test_id, question_type, question_text) values (
   'd1230000-0000-4000-8000-000000000051',
-  'd1230000-0000-4000-8000-000000000050', 'Explain'
+  'd1230000-0000-4000-8000-000000000050', 'open_response', 'Explain'
 );
 insert into public.test_attempts (id, test_id, student_id, responses, is_submitted, submitted_at) values
   ('d1230000-0000-4000-8000-000000000052', 'd1230000-0000-4000-8000-000000000050', 'd1230000-0000-4000-8000-000000000002', '{}', true, clock_timestamp()),
@@ -184,7 +184,7 @@ insert into public.test_focus_events (id, test_id, student_id, session_id, event
   'd1230000-0000-4000-8000-000000000057',
   'd1230000-0000-4000-8000-000000000050',
   'd1230000-0000-4000-8000-000000000002',
-  'd1230000-0000-4000-8000-000000000058', 'blur'
+  'd1230000-0000-4000-8000-000000000058', 'away_start'
 );
 insert into public.test_student_availability (id, test_id, student_id, state, updated_by) values (
   'd1230000-0000-4000-8000-000000000059',
@@ -214,16 +214,16 @@ insert into public.surveys (id, classroom_id, title, position, created_by) value
   'd1230000-0000-4000-8000-000000000010', 'Shared survey', 0,
   'd1230000-0000-4000-8000-000000000001'
 );
-insert into public.survey_questions (id, survey_id, question_text) values (
+insert into public.survey_questions (id, survey_id, question_type, question_text) values (
   'd1230000-0000-4000-8000-000000000061',
-  'd1230000-0000-4000-8000-000000000060', 'Reflection'
+  'd1230000-0000-4000-8000-000000000060', 'short_text', 'Reflection'
 );
 insert into public.survey_responses (id, survey_id, question_id, student_id, response_text) values
   ('d1230000-0000-4000-8000-000000000062', 'd1230000-0000-4000-8000-000000000060', 'd1230000-0000-4000-8000-000000000061', 'd1230000-0000-4000-8000-000000000002', 'target survey'),
   ('d1230000-0000-4000-8000-000000000063', 'd1230000-0000-4000-8000-000000000060', 'd1230000-0000-4000-8000-000000000061', 'd1230000-0000-4000-8000-000000000003', 'classmate survey');
 insert into public.report_cards (id, classroom_id, term, created_by) values (
   'd1230000-0000-4000-8000-000000000070',
-  'd1230000-0000-4000-8000-000000000010', 'Fixture',
+  'd1230000-0000-4000-8000-000000000010', 'final',
   'd1230000-0000-4000-8000-000000000001'
 );
 insert into public.report_card_rows (id, report_card_id, student_id, final_percent) values
@@ -300,7 +300,9 @@ insert into public.classroom_archive_operations (
   'd1230000-0000-4000-8000-000000000082',
   'd1230000-0000-4000-8000-000000000001',
   'd1230000-0000-4000-8000-000000000010', 'gradex_extract', repeat('f', 64), 'completed',
-  1, '123_fixture', 'fixture', '{"mode":"scheduled","delete_after":"2099-01-01T00:00:00Z"}'::jsonb,
+  1, '123_fixture', 'fixture', jsonb_build_object(
+    'mode', 'scheduled', 'delete_after', clock_timestamp() + interval '30 days'
+  ),
   'd1230000-0000-4000-8000-000000000083', 'gradex-analytics-extracts',
   'student-purge-fixture/gradex.tar.gz', repeat('c', 64), repeat('a', 64), 1, 1,
   '{}', clock_timestamp() - interval '2 minutes', clock_timestamp() - interval '1 minute',
@@ -316,14 +318,16 @@ insert into public.classroom_gradex_extracts (
   'd1230000-0000-4000-8000-000000000082',
   'd1230000-0000-4000-8000-000000000081',
   'd1230000-0000-4000-8000-000000000010',
-  'd1230000-0000-4000-8000-000000000001', 'pika.classroom-gradex', 1,
+  'd1230000-0000-4000-8000-000000000001', 'pika.gradex-classroom-extract', 2,
   repeat('b', 64), 'gradex-analytics-extracts', 'student-purge-fixture/gradex.tar.gz',
   repeat('c', 64), repeat('a', 64), 1, 1, '{}', '{}', clock_timestamp(),
-  clock_timestamp(), '2099-01-01T00:00:00Z', 'd1230000-0000-4000-8000-000000000022'
+  clock_timestamp(), clock_timestamp() + interval '30 days',
+  'd1230000-0000-4000-8000-000000000022'
 );
 
 do $storage_authority$
 begin
+  perform set_config('storage.allow_delete_query', 'true', true);
   begin
     delete from storage.objects where bucket_id = 'submission-images'
       and name = 'student-purge-fixture/target.png';
