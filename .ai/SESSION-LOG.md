@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Roll back overbroad production reconciliation
-
-**Risk profile:** production write — managed ownership registration and exact
-reference binding, protected by atomic fail-safe verification.
-
-**Completed:**
-- Attempted the authorized 159-object atomic reconciliation with protocol
-  locking, exact inventory assertions, deterministic identities, and final
-  reference verification.
-- The first pass rejected two operational submission images that had no live
-  Assignment Doc; the corrected pass reached final verification but rejected
-  20 objects that were attributable only through cleanup ledgers.
-- Confirmed migration 117 intentionally excludes cleanup ledgers from live
-  reference authority. Registering those objects as `ready` would create
-  ownerless managed objects and prevent readiness.
-
-**Validation:**
-- Every attempted write transaction rolled back. A linked-project read-only
-  check confirms production still has zero managed objects and zero managed
-  JSON references, remains in compatibility mode, and remains at readiness
-  generation 0.
-- The corrected live set is 139 objects: 120 submission images, 18 test
-  documents, and one Classroom archive. The non-live set is 20 cleanup-only
-  objects plus 60 completely unreferenced objects.
-
-**Remaining:**
-- Obtain fresh authorization for a 139-live-object registration/reconciliation.
-  Handle the 80 non-live beta objects only under a separate cleanup/deletion
-  authorization. Do not apply migration 119 or enable deletion.
-
 ## 2026-08-05 — Reconcile production live managed Storage
 
 **Risk profile:** production write — managed ownership registration and exact
@@ -984,6 +954,37 @@ autosave error feedback while preserving the mounted attempt and exam owner.
   table; the student attendance boundary was also checked.
 - Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
   state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Complete production cold-Classroom purge canary
+
+**Risk profile:** runtime-platform — one exact authorized irreversible production
+canary with a disabled-by-default rollout gate.
+
+**Completed:**
+- Merged release PR #991 with the reviewed impact-envelope fix and verified
+  Vercel deployed production commit `47316895`.
+- Activated canary mode only for teacher
+  `34bd4439-e552-483b-b8aa-e3a8f86009af` and synthetic Classroom
+  `58f90ce4-ac21-4e68-bbf4-f1db3ae77f74`, then ran durable purge operation
+  `3a88d39d-5bc4-40f3-8c21-8aa2fa1e6151` for archive
+  `c748ec90-4952-4ec1-8ee7-99be3354b71a`.
+- Deleted the one verified 2,106-byte recovery archive before atomically
+  finalizing six cold resources; restored the rollout gate to disabled.
+
+**Validation:**
+- The completed audit retains aggregate counts for one archive, two archive
+  operations, one cold actor, one tombstone, and one managed Storage object.
+- Exact Storage download now proves the archive absent; the hot Classroom,
+  tombstone, archive, source operations, cold actors, managed registry row,
+  Gradex extracts, and active fence are absent.
+- The teacher account and unrelated active Classroom remain unchanged.
+- Aggregate and deep managed-deletion health are healthy with zero critical
+  findings and zero warnings. Generic cleanup did not run.
+
+**Next:**
+- Keep cold deletion disabled and observe two scheduled healthy monitoring runs
+  before requesting broad rollout authorization. Keep individual-student purge
+  and generic orphan cleanup as separate scopes.
 
 ## 2026-08-11 — Prepare cold-deletion canary and repair impact parsing
 
