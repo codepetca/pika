@@ -17865,3 +17865,34 @@ classification and reconciliation readiness.
   objects. Separately resolve or delete the 20 cleanup-only and 60 unreferenced
   beta objects before readiness can pass. Keep migration 119 and deletion
   rollout disabled.
+
+<!-- pika-session-log-archive-batch:2edd2ef5bcfb76b8df8743a32369ed9d96226d14138460898ed4fca9a3600fca -->
+## 2026-08-05 — Roll back overbroad production reconciliation
+
+**Risk profile:** production write — managed ownership registration and exact
+reference binding, protected by atomic fail-safe verification.
+
+**Completed:**
+- Attempted the authorized 159-object atomic reconciliation with protocol
+  locking, exact inventory assertions, deterministic identities, and final
+  reference verification.
+- The first pass rejected two operational submission images that had no live
+  Assignment Doc; the corrected pass reached final verification but rejected
+  20 objects that were attributable only through cleanup ledgers.
+- Confirmed migration 117 intentionally excludes cleanup ledgers from live
+  reference authority. Registering those objects as `ready` would create
+  ownerless managed objects and prevent readiness.
+
+**Validation:**
+- Every attempted write transaction rolled back. A linked-project read-only
+  check confirms production still has zero managed objects and zero managed
+  JSON references, remains in compatibility mode, and remains at readiness
+  generation 0.
+- The corrected live set is 139 objects: 120 submission images, 18 test
+  documents, and one Classroom archive. The non-live set is 20 cleanup-only
+  objects plus 60 completely unreferenced objects.
+
+**Remaining:**
+- Obtain fresh authorization for a 139-live-object registration/reconciliation.
+  Handle the 80 non-live beta objects only under a separate cleanup/deletion
+  authorization. Do not apply migration 119 or enable deletion.
