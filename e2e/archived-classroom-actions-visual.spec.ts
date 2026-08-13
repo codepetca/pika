@@ -10,8 +10,8 @@ const archivedClassroom = {
   theme_color: 'teal',
   term_label: 'Winter 2026',
   allow_enrollment: false,
-  start_date: null,
-  end_date: null,
+  start_date: '2025-09-02',
+  end_date: '2026-01-30',
   lesson_plan_visibility: 'current_week',
   archived_at: '2026-06-30T12:00:00.000Z',
   created_at: '2026-01-01T12:00:00.000Z',
@@ -74,6 +74,8 @@ test('captures archived Classroom actions and student boundaries', async ({ brow
     await page.getByRole('button', { name: 'Archived' }).click()
 
     await expect(page.getByRole('button', { name: 'Reuse' })).toBeVisible()
+    await expect(page.getByText('Sept 2025 - Jan 2026')).toBeVisible()
+    await expect(page.getByText(archivedClassroom.class_code)).toHaveCount(0)
     const unarchiveButton = page.getByRole('button', { name: 'Unarchive' })
     await expect(unarchiveButton).toBeVisible()
     const deleteButton = page.getByRole('button', { name: 'Delete permanently' })

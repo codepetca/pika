@@ -37,6 +37,7 @@ import {
   invalidateTeacherClassrooms,
 } from '@/lib/teacher-classrooms-client'
 import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
+import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 
 interface Props {
@@ -500,6 +501,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <>
                 {sortedArchived.map((c) => {
                   const theme = getClassroomThemeDefinition(c.theme_color)
+                  const dateRange = formatClassroomDateRange(c.start_date, c.end_date)
                   return (
                     <div
                       key={c.id}
@@ -525,7 +527,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           )}
                         </div>
                         <div className="mt-1 text-sm text-text-muted">
-                          Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
+                          {dateRange ?? 'Semester dates not set'}
                         </div>
                         {openingClassroomId === c.id && (
                           <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">

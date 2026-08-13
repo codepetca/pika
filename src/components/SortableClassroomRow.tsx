@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Archive, GripVertical, LoaderCircle } from 'lucide-react'
+import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
 
@@ -37,6 +38,7 @@ function ClassroomRowFrame({
   className = '',
 }: ClassroomRowFrameProps) {
   const isOpenDisabled = isDisabled || isOpening
+  const dateRange = formatClassroomDateRange(classroom.start_date, classroom.end_date)
 
   return (
     <div
@@ -66,7 +68,7 @@ function ClassroomRowFrame({
           )}
         </div>
         <div className="mt-1 text-sm text-text-muted">
-          Code: <span className="font-mono tracking-[0.18em]">{classroom.class_code}</span>
+          {dateRange ?? 'Semester dates not set'}
         </div>
         {isOpening && (
           <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">

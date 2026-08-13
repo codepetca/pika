@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Refresh production managed Storage readiness
-
-**Risk profile:** production write — serialized readiness evidence refresh only.
-
-**Completed:**
-- Verified the production boundary before mutation: 139 managed/Storage objects,
-  all ready; 274 JSON references; zero ownerless or missing objects; zero raw
-  identity gaps; and no active archive or cleanup operation.
-- Ran the guarded production readiness refresh exactly once with the required
-  target-specific acknowledgement.
-
-**Validation:**
-- Generation 1 completed `ready` with zero findings, 139 objects, 274 references,
-  and inventory digest
-  `33ce478050e9220414d3192e2aa4843b9f32c2cfe7d3838bd5be0f7c5f16f775`.
-- Independent persisted-state verification found writer revision 842 on both the
-  readiness run and singleton settings, with matching digest evidence.
-- Production remains in compatibility mode and is not activated. Migration 119
-  remains unapplied and `classroom_purge_settings` remains absent.
-
-**Remaining:**
-- Decide separately whether to activate managed Storage enforcement. Activation,
-  migration 119, generic cleanup, and classroom deletion each remain separately
-  gated production changes.
-
 ## 2026-08-05 — Activate production managed Storage enforcement
 
 **Risk profile:** production write — managed Storage protocol activation only.
@@ -1057,3 +1032,27 @@ tests, and documentation.
 - Migration 123 was not applied locally or remotely, no rollout setting changed,
   no purge ran, and no Storage object was deleted. Ephemeral CI replay remains
   the next database validation gate.
+
+## 2026-08-13 — Show semester ranges on Classroom cards
+
+**Risk profile:** none — presentation and classroom-list read fields only.
+
+**Completed:**
+- Replaced join codes on teacher active, teacher archived, and student Classroom
+  cards with Toronto-safe abbreviated semester ranges such as
+  `Sept 2025 - Jan 2026`.
+- Added the required `start_date` and `end_date` fields to narrow teacher and
+  student Classroom list reads, with a non-sensitive fallback when dates are
+  unavailable.
+- Added shared formatter and direct component/API regression coverage, and
+  updated the archived-Classroom Playwright fixture to assert the date range is
+  visible while the join code is absent.
+
+**Validation:**
+- Focused unit, component, and API coverage passes: 46 tests across 6 files.
+- Lint, architecture, design policy, production build, diff checks, and the Pika
+  audit pass.
+- Playwright and visual inspection pass for teacher active/archived and student
+  active cards across desktop/mobile and light/dark, with no overflow or layout
+  regression. Composite-widget checklist is not applicable because interaction
+  semantics and keyboard behavior were unchanged.
