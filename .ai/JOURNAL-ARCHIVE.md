@@ -17965,3 +17965,29 @@ and terminal cleanup-ledger reconciliation.
 **Remaining:**
 - Refresh readiness only under separate production authorization. Do not apply
   migration 119 or enable classroom deletion without fresh exact authorization.
+
+<!-- pika-session-log-archive-batch:cc240ccd52ea837c0965abd1e10c68a42bf8138937628c55763230d766235e9d -->
+## 2026-08-05 — Refresh production managed Storage readiness
+
+**Risk profile:** production write — serialized readiness evidence refresh only.
+
+**Completed:**
+- Verified the production boundary before mutation: 139 managed/Storage objects,
+  all ready; 274 JSON references; zero ownerless or missing objects; zero raw
+  identity gaps; and no active archive or cleanup operation.
+- Ran the guarded production readiness refresh exactly once with the required
+  target-specific acknowledgement.
+
+**Validation:**
+- Generation 1 completed `ready` with zero findings, 139 objects, 274 references,
+  and inventory digest
+  `33ce478050e9220414d3192e2aa4843b9f32c2cfe7d3838bd5be0f7c5f16f775`.
+- Independent persisted-state verification found writer revision 842 on both the
+  readiness run and singleton settings, with matching digest evidence.
+- Production remains in compatibility mode and is not activated. Migration 119
+  remains unapplied and `classroom_purge_settings` remains absent.
+
+**Remaining:**
+- Decide separately whether to activate managed Storage enforcement. Activation,
+  migration 119, generic cleanup, and classroom deletion each remain separately
+  gated production changes.

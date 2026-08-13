@@ -113,6 +113,46 @@ describe('TeacherClassroomsIndex', () => {
     expect(card).not.toHaveClass('border-l-4')
   })
 
+  it('shows the semester date range instead of the join code for active classrooms', () => {
+    renderTeacherClassroomsIndex([
+      createMockClassroom({
+        id: 'c1',
+        title: 'Math 101',
+        class_code: 'MATH01',
+        start_date: '2025-09-02',
+        end_date: '2026-01-30',
+      }),
+    ])
+
+    expect(screen.getByText('Sept 2025 - Jan 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/MATH01/)).not.toBeInTheDocument()
+  })
+
+  it('shows the semester date range instead of the join code for archived classrooms', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [
+        createMockClassroom({
+          id: 'archived-1',
+          title: 'Archived',
+          class_code: 'OLD101',
+          start_date: '2025-09-02',
+          end_date: '2026-01-30',
+          archived_at: '2026-04-01T12:00:00Z',
+        }),
+      ],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByText('Sept 2025 - Jan 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/OLD101/)).not.toBeInTheDocument()
+  })
+
   it('never shows the create button in archived view', async () => {
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
       classrooms: [

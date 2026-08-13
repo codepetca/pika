@@ -16,6 +16,8 @@ const STUDENT_CLASSROOM_SELECT_WITH_THEME = `
     class_code,
     theme_color,
     term_label,
+    start_date,
+    end_date,
     updated_at
   )
 `
@@ -28,6 +30,8 @@ const STUDENT_CLASSROOM_SELECT_LEGACY = `
     title,
     class_code,
     term_label,
+    start_date,
+    end_date,
     updated_at
   )
 `
@@ -96,6 +100,8 @@ export const GET = withErrorHandler('GetStudentClassrooms', async (request, cont
       class_code: classroom.class_code,
       theme_color: classroom.theme_color,
       term_label: classroom.term_label,
+      start_date: classroom.start_date,
+      end_date: classroom.end_date,
       updated_at: classroom.updated_at,
       enrollmentId: e.id,
       enrolledAt: e.created_at,
