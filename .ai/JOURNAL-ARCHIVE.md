@@ -17991,3 +17991,28 @@ and terminal cleanup-ledger reconciliation.
 - Decide separately whether to activate managed Storage enforcement. Activation,
   migration 119, generic cleanup, and classroom deletion each remain separately
   gated production changes.
+
+<!-- pika-session-log-archive-batch:3d2e827aa3d7f9f43fc5ca2922bc223d2d75ad78188e529ddfbe1a4b4b587eb9 -->
+## 2026-08-05 — Activate production managed Storage enforcement
+
+**Risk profile:** production write — managed Storage protocol activation only.
+
+**Completed:**
+- Revalidated generation 1 immediately before activation: readiness/run/settings
+  digest matched, the persisted and current writer revisions were all 842, no
+  archive or cleanup operation was active, and migration 119 was absent.
+- Ran the guarded production activation command exactly once using the authorized
+  generation and inventory digest.
+
+**Validation:**
+- Production settings now persist mode `enforced`, generation 1, the verified
+  digest, writer revision 842, and a non-null activation timestamp.
+- All 139 managed objects remain `ready`; all 139 Storage objects and 274 JSON
+  references remain intact, with zero ownerless or missing objects.
+- Migration 119 remains unapplied and `classroom_purge_settings` remains absent.
+  Generic cleanup and classroom deletion were not enabled.
+
+**Remaining:**
+- Verify representative production writers under enforcement before considering
+  migration 119. Applying migration 119, generic cleanup, and classroom deletion
+  remain separately gated changes.

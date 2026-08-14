@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Activate production managed Storage enforcement
-
-**Risk profile:** production write — managed Storage protocol activation only.
-
-**Completed:**
-- Revalidated generation 1 immediately before activation: readiness/run/settings
-  digest matched, the persisted and current writer revisions were all 842, no
-  archive or cleanup operation was active, and migration 119 was absent.
-- Ran the guarded production activation command exactly once using the authorized
-  generation and inventory digest.
-
-**Validation:**
-- Production settings now persist mode `enforced`, generation 1, the verified
-  digest, writer revision 842, and a non-null activation timestamp.
-- All 139 managed objects remain `ready`; all 139 Storage objects and 274 JSON
-  references remain intact, with zero ownerless or missing objects.
-- Migration 119 remains unapplied and `classroom_purge_settings` remains absent.
-  Generic cleanup and classroom deletion were not enabled.
-
-**Remaining:**
-- Verify representative production writers under enforcement before considering
-  migration 119. Applying migration 119, generic cleanup, and classroom deletion
-  remain separately gated changes.
-
 ## 2026-08-05 — Verify production managed Storage writers under enforcement
 
 **Risk profile:** bounded production smoke writes using synthetic teacher/student
@@ -1056,3 +1032,31 @@ tests, and documentation.
   active cards across desktop/mobile and light/dark, with no overflow or layout
   regression. Composite-widget checklist is not applicable because interaction
   semantics and keyboard behavior were unchanged.
+
+## 2026-08-14 — Add durable cleanup-history cron evidence
+
+**Risk profile:** runtime-platform — additive service-only observability and
+overlap serialization around the existing cleanup-history safety-net route.
+
+**Completed:**
+- Added migration 124 with a privacy-safe run ledger, scheduled/manual source
+  attribution, exact aggregate metric allowlist, overlap records, stale-run
+  supersession, one-way finalization, and an identity-free health snapshot.
+- Integrated the cron route with pre-124 compatibility and fail-closed ledger
+  errors, plus focused tests, a rollback-only database fixture, CI coverage,
+  generated types, operator guidance, and rollout instructions.
+- With explicit local authorization, applied migrations 123–124, then reset the
+  disposable database without seeds and replayed migrations 001–124 to remove
+  stale migration-121 schema state.
+
+**Validation:**
+- Full suite passes: 4,239 tests across 494 files; focused ledger coverage passes
+  43 tests. TypeScript, lint, production build, Pika audit, shell syntax, and
+  diff checks pass.
+- Fresh migration replay, migration-123 and migration-124 rollback-only
+  fixtures, generated-type drift check, and preservation of the migration-121
+  deep-health RPC all pass.
+- Database lint identified an inherited ambiguous `attempt_count` reference in
+  migration 123's storage-failure retry function. Keep that correction separate
+  from migration 124. No production migration, deploy, cron run, rollout change,
+  purge, or Storage deletion occurred.

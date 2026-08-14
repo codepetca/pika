@@ -13,6 +13,11 @@ const coldPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const blueprintPurgeMocks = vi.hoisted(() => ({ run: vi.fn() }))
 const studentPurgeMocks = vi.hoisted(() => ({ run: vi.fn(), health: vi.fn() }))
 const healthMocks = vi.hoisted(() => ({ read: vi.fn() }))
+const ledgerMocks = vi.hoisted(() => ({
+  begin: vi.fn(),
+  finish: vi.fn(),
+  resolve: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -43,6 +48,17 @@ vi.mock('@/lib/server/student-purge', () => ({
 
 vi.mock('@/lib/server/managed-deletion-health', () => ({
   readManagedDeletionHealth: healthMocks.read,
+}))
+
+vi.mock('@/lib/server/cron-run-ledger', () => ({
+  CronRunLedgerError: class CronRunLedgerError extends Error {
+    constructor(public readonly code: string) {
+      super('Cron run ledger could not be updated')
+    }
+  },
+  beginCleanupHistoryCronRun: ledgerMocks.begin,
+  finishCleanupHistoryCronRun: ledgerMocks.finish,
+  resolveCleanupHistoryInvocation: ledgerMocks.resolve,
 }))
 
 type QueryLog = {
@@ -240,6 +256,13 @@ describe('cron cleanup-history route', () => {
     studentPurgeMocks.run.mockResolvedValue({ processed: 0, completed: 0, failed: 0 })
     studentPurgeMocks.health.mockResolvedValue({ schemaAvailable: false, snapshot: null })
     healthMocks.read.mockResolvedValue({ schemaAvailable: false })
+    ledgerMocks.resolve.mockReturnValue({
+      invocationSource: 'manual',
+      schedule: null,
+      deploymentId: null,
+    })
+    ledgerMocks.begin.mockResolvedValue({ schemaAvailable: false })
+    ledgerMocks.finish.mockResolvedValue(undefined)
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
   })
 
@@ -265,6 +288,94 @@ describe('cron cleanup-history route', () => {
 
     expect(response.status).toBe(401)
     await expect(response.json()).resolves.toEqual({ error: 'Unauthorized' })
+    expect(ledgerMocks.begin).not.toHaveBeenCalled()
+  })
+
+  it('records an authenticated Vercel invocation and its aggregate success metrics', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ledgerMocks.resolve.mockReturnValue({
+      invocationSource: 'vercel_cron',
+      schedule: '0 7 * * *',
+      deploymentId: 'deployment-1',
+    })
+    ledgerMocks.begin.mockResolvedValue({
+      schemaAvailable: true,
+      runId: '00000000-0000-4000-8000-000000000111',
+      started: true,
+    })
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/cron/cleanup-history',
+      { headers: {
+        authorization: 'Bearer secret',
+        'x-vercel-cron-schedule': '0 7 * * *',
+      } },
+    ))
+
+    expect(response.status).toBe(200)
+    expect(ledgerMocks.resolve).toHaveBeenCalledWith(expect.any(Headers))
+    expect(ledgerMocks.begin).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      invocation: {
+        invocationSource: 'vercel_cron',
+        schedule: '0 7 * * *',
+        deploymentId: 'deployment-1',
+      },
+    })
+    expect(ledgerMocks.finish).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      run: {
+        schemaAvailable: true,
+        runId: '00000000-0000-4000-8000-000000000111',
+        started: true,
+      },
+      status: 'succeeded',
+      httpStatus: 200,
+      errorCode: null,
+      metrics: expect.objectContaining({
+        classroom_purge_processed: 0,
+        cold_classroom_purge_processed: 0,
+        course_blueprint_purge_processed: 0,
+        student_purge_processed: 0,
+        save_operations_deleted: 0,
+        expired_classrooms_scanned: 0,
+        history_rows_deleted: 0,
+      }),
+    })
+  })
+
+  it('records an overlap without running cleanup work', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ledgerMocks.begin.mockResolvedValue({
+      schemaAvailable: true,
+      runId: '00000000-0000-4000-8000-000000000222',
+      started: false,
+    })
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({ error: 'Cleanup already running' })
+    expect(purgeMocks.run).not.toHaveBeenCalled()
+    expect(ledgerMocks.finish).not.toHaveBeenCalled()
+  })
+
+  it('fails before cleanup when the durable start record cannot be written', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    const error = Object.assign(new Error('sanitized'), { code: 'cron_run_begin_failed' })
+    ledgerMocks.begin.mockRejectedValue(error)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to record cleanup run' })
+    expect(console.error).toHaveBeenCalledWith('[cron-run-ledger] begin failed', {
+      error_code: 'cron_run_ledger_unknown_failure',
+    })
+    expect(purgeMocks.run).not.toHaveBeenCalled()
   })
 
   it('returns deleted=0 when no expired classrooms are found', async () => {
@@ -314,6 +425,11 @@ describe('cron cleanup-history route', () => {
   it('fails observably when student purge work is stuck or partially failed', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    ledgerMocks.begin.mockResolvedValue({
+      schemaAvailable: true,
+      runId: '00000000-0000-4000-8000-000000000333',
+      started: true,
+    })
     studentPurgeMocks.health.mockResolvedValue({
       schemaAvailable: true,
       snapshot: {
@@ -328,6 +444,56 @@ describe('cron cleanup-history route', () => {
     const response = await GET(cronRequest())
     expect(response.status).toBe(503)
     await expect(response.json()).resolves.toEqual({ error: 'Student purge health degraded' })
+    expect(ledgerMocks.finish).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'failed',
+      httpStatus: 503,
+      errorCode: 'student_purge_health_degraded',
+      metrics: expect.objectContaining({
+        student_health_active: 1,
+        student_health_stuck: 1,
+      }),
+    }))
+  })
+
+  it('records an unhandled worker failure before standardized error handling', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ledgerMocks.begin.mockResolvedValue({
+      schemaAvailable: true,
+      runId: '00000000-0000-4000-8000-000000000444',
+      started: true,
+    })
+    purgeMocks.run.mockRejectedValue(new Error('worker failed'))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Internal server error' })
+    expect(ledgerMocks.finish).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'failed',
+      httpStatus: 500,
+      errorCode: 'unhandled_error',
+    }))
+  })
+
+  it('returns 503 when final ledger persistence fails after cleanup', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ledgerMocks.begin.mockResolvedValue({
+      schemaAvailable: true,
+      runId: '00000000-0000-4000-8000-000000000555',
+      started: true,
+    })
+    ledgerMocks.finish.mockRejectedValue(Object.assign(new Error('sanitized'), {
+      code: 'cron_run_finish_failed',
+    }))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to record cleanup run' })
   })
 
   it('fails observably when the current student purge retry fails', async () => {
