@@ -82,6 +82,12 @@ orphan-fence, and processing-lease-drift counts without student identifiers.
 A degraded snapshot returns an unhealthy response and emits the structured
 `[student-purge-health]` log entry.
 
+After migration 124, each authenticated cleanup invocation also has durable
+start/completion evidence and aggregate student-purge counters in the
+service-only cleanup-history ledger. It contains no student, teacher,
+Classroom, operation, or Storage identity and grants no retry or purge
+authority.
+
 For a degraded result, inspect the exact operation through service-only records,
 verify fence and lease state, and confirm authoritative Storage presence before
 retrying. Do not clear fences, mutate audit rows, enable generic cleanup, or

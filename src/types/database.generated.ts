@@ -2775,6 +2775,48 @@ export type Database = {
           },
         ]
       }
+      cleanup_history_cron_runs: {
+        Row: {
+          completed_at: string | null
+          deployment_id: string | null
+          error_code: string | null
+          http_status: number | null
+          id: string
+          invocation_source: string
+          job_name: string
+          metrics: Json
+          schedule: string | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          deployment_id?: string | null
+          error_code?: string | null
+          http_status?: number | null
+          id?: string
+          invocation_source: string
+          job_name?: string
+          metrics?: Json
+          schedule?: string | null
+          started_at?: string
+          status: string
+        }
+        Update: {
+          completed_at?: string | null
+          deployment_id?: string | null
+          error_code?: string | null
+          http_status?: number | null
+          id?: string
+          invocation_source?: string
+          job_name?: string
+          metrics?: Json
+          schedule?: string | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       cold_classroom_purge_fences: {
         Row: {
           archive_id: string
@@ -6206,6 +6248,14 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_cleanup_history_cron_run: {
+        Args: {
+          p_deployment_id?: string
+          p_invocation_source: string
+          p_schedule?: string
+        }
+        Returns: Json
+      }
       begin_cold_archived_classroom_purge: {
         Args: {
           p_archive_id: string
@@ -6831,6 +6881,10 @@ export type Database = {
       cleanup_expired_classroom_archive_snapshots: {
         Args: never
         Returns: number
+      }
+      cleanup_history_cron_metrics_valid: {
+        Args: { p_metrics: Json }
+        Returns: boolean
       }
       clear_test_open_response_grades_atomic: {
         Args: {
@@ -7541,8 +7595,22 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_cleanup_history_cron_run: {
+        Args: {
+          p_error_code: string
+          p_http_status: number
+          p_metrics?: Json
+          p_run_id: string
+          p_status: string
+        }
+        Returns: boolean
+      }
       get_classroom_archive_source_object_presence: {
         Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: Json
+      }
+      get_cleanup_history_cron_health_snapshot: {
+        Args: { p_scheduled_max_age_minutes?: number; p_stale_minutes?: number }
         Returns: Json
       }
       get_cold_archived_classroom_purge_inventory: {
