@@ -484,7 +484,7 @@ async function handle(request: NextRequest) {
   try {
     run = await beginCleanupHistoryCronRun({
       supabase,
-      invocation: resolveCleanupHistoryInvocation(request.headers),
+      invocation: resolveCleanupHistoryInvocation(request),
     })
   } catch (error) {
     console.error('[cron-run-ledger] begin failed', {

@@ -242,7 +242,8 @@ end;
 $$;
 
 create function public.get_cleanup_history_cron_health_snapshot(
-  p_stale_minutes integer default 120
+  p_stale_minutes integer default 120,
+  p_scheduled_max_age_minutes integer default 1560
 )
 returns jsonb
 language plpgsql
@@ -256,11 +257,18 @@ declare
   v_stale_running bigint;
   v_failed_7d bigint;
   v_overlap_7d bigint;
+  v_scheduled_run_healthy boolean;
 begin
   if p_stale_minutes < 5 or p_stale_minutes > 10080 then
     raise exception using
       errcode = '22023',
       message = 'cleanup_history_cron_stale_threshold_invalid';
+  end if;
+  if p_scheduled_max_age_minutes < 60
+    or p_scheduled_max_age_minutes > 10080 then
+    raise exception using
+      errcode = '22023',
+      message = 'cleanup_history_cron_scheduled_age_threshold_invalid';
   end if;
 
   select * into v_latest
@@ -290,11 +298,20 @@ begin
   where status = 'skipped_overlap'
     and started_at >= clock_timestamp() - interval '7 days';
 
+  v_scheduled_run_healthy := v_latest_vercel.id is not null
+    and v_latest_vercel.schedule = '0 7 * * *'
+    and v_latest_vercel.status = 'succeeded'
+    and v_latest_vercel.completed_at is not null
+    and v_latest_vercel.started_at >= clock_timestamp()
+      - make_interval(mins => p_scheduled_max_age_minutes);
+
   return jsonb_build_object(
     'version', 1,
     'captured_at', clock_timestamp(),
-    'healthy', v_stale_running = 0
-      and coalesce(v_latest.status = 'succeeded', true),
+    'healthy', v_stale_running = 0 and v_scheduled_run_healthy,
+    'scheduled_run_healthy', v_scheduled_run_healthy,
+    'expected_schedule', '0 7 * * *',
+    'scheduled_evidence_max_age_minutes', p_scheduled_max_age_minutes,
     'stale_running_count', v_stale_running,
     'failed_count_7d', v_failed_7d,
     'overlap_count_7d', v_overlap_7d,
@@ -323,11 +340,11 @@ $$;
 
 revoke all on function public.begin_cleanup_history_cron_run(text, text, text),
   public.finish_cleanup_history_cron_run(uuid, text, integer, text, jsonb),
-  public.get_cleanup_history_cron_health_snapshot(integer)
+  public.get_cleanup_history_cron_health_snapshot(integer, integer)
   from public, anon, authenticated;
 grant execute on function public.begin_cleanup_history_cron_run(text, text, text),
   public.finish_cleanup_history_cron_run(uuid, text, integer, text, jsonb),
-  public.get_cleanup_history_cron_health_snapshot(integer)
+  public.get_cleanup_history_cron_health_snapshot(integer, integer)
   to service_role;
 
 comment on table public.cleanup_history_cron_runs is
@@ -336,5 +353,5 @@ comment on function public.begin_cleanup_history_cron_run(text, text, text) is
   'Serializes cleanup-history runs, records overlap attempts, and supersedes only runs stale beyond two hours.';
 comment on function public.finish_cleanup_history_cron_run(uuid, text, integer, text, jsonb) is
   'Finalizes one running cleanup-history ledger row with allowlisted aggregate metrics.';
-comment on function public.get_cleanup_history_cron_health_snapshot(integer) is
-  'Returns privacy-safe latest-run and failure aggregates for operator verification.';
+comment on function public.get_cleanup_history_cron_health_snapshot(integer, integer) is
+  'Returns privacy-safe latest-run aggregates and requires fresh successful scheduled evidence for health.';

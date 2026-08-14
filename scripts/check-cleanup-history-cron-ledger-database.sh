@@ -25,7 +25,7 @@ begin
   ) is null or to_regprocedure(
     'public.finish_cleanup_history_cron_run(uuid,text,integer,text,jsonb)'
   ) is null or to_regprocedure(
-    'public.get_cleanup_history_cron_health_snapshot(integer)'
+    'public.get_cleanup_history_cron_health_snapshot(integer,integer)'
   ) is null then
     raise exception 'Migration 124 is not applied to the local database';
   end if;
@@ -53,10 +53,10 @@ begin
       'public.begin_cleanup_history_cron_run(text,text,text)', 'execute'
     ) or has_function_privilege(
       'anon',
-      'public.get_cleanup_history_cron_health_snapshot(integer)', 'execute'
+      'public.get_cleanup_history_cron_health_snapshot(integer,integer)', 'execute'
     ) or not has_function_privilege(
       'service_role',
-      'public.get_cleanup_history_cron_health_snapshot(integer)', 'execute'
+      'public.get_cleanup_history_cron_health_snapshot(integer,integer)', 'execute'
     )
   then raise exception 'Cron ledger RPC privileges are unsafe'; end if;
 end;
@@ -90,6 +90,12 @@ declare
   v_run_id uuid;
   v_status text;
 begin
+  v_snapshot := public.get_cleanup_history_cron_health_snapshot(120, 1560);
+  if (v_snapshot->>'healthy')::boolean
+    or (v_snapshot->>'scheduled_run_healthy')::boolean
+    or v_snapshot->'latest_vercel_run' <> 'null'::jsonb
+  then raise exception 'Empty cron ledger reported healthy: %', v_snapshot; end if;
+
   v_first := public.begin_cleanup_history_cron_run(
     'vercel_cron', '0 7 * * *', 'deployment_fixture'
   );
@@ -159,18 +165,84 @@ begin
     '{"student_health_stuck":0,"managed_health_healthy":true}'::jsonb
   );
 
-  v_snapshot := public.get_cleanup_history_cron_health_snapshot(120);
+  v_snapshot := public.get_cleanup_history_cron_health_snapshot(120, 1560);
   if not (v_snapshot->>'healthy')::boolean
     or (v_snapshot->>'stale_running_count')::integer <> 0
     or v_snapshot#>>'{latest_vercel_run,schedule}' <> '0 7 * * *'
     or v_snapshot#>>'{latest_vercel_run,status}' <> 'succeeded'
     or (v_snapshot#>>'{latest_vercel_run,http_status}')::integer <> 200
+    or not (v_snapshot->>'scheduled_run_healthy')::boolean
+    or v_snapshot->>'expected_schedule' <> '0 7 * * *'
+    or (v_snapshot->>'scheduled_evidence_max_age_minutes')::integer <> 1560
   then raise exception 'Cron health snapshot mismatch: %', v_snapshot; end if;
   if v_snapshot::text ~
       '"(teacher_id|student_id|user_id|classroom_id|operation_id|storage_path|email|title)"[[:space:]]*:'
     or v_snapshot::text ~
       '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
   then raise exception 'Identity-bearing evidence escaped cron health'; end if;
+
+  v_first := public.begin_cleanup_history_cron_run(
+    'vercel_cron', '0 7 * * *', 'deployment_fixture_failed'
+  );
+  perform public.finish_cleanup_history_cron_run(
+    (v_first->>'run_id')::uuid,
+    'failed',
+    503,
+    'managed_deletion_health_degraded',
+    '{"managed_health_healthy":false,"managed_health_critical":1}'::jsonb
+  );
+  v_next := public.begin_cleanup_history_cron_run('manual', null, null);
+  perform public.finish_cleanup_history_cron_run(
+    (v_next->>'run_id')::uuid,
+    'succeeded',
+    200,
+    null,
+    '{"managed_health_healthy":true}'::jsonb
+  );
+  v_snapshot := public.get_cleanup_history_cron_health_snapshot(120, 1560);
+  if (v_snapshot->>'healthy')::boolean
+    or (v_snapshot->>'scheduled_run_healthy')::boolean
+    or v_snapshot#>>'{latest_run,invocation_source}' <> 'manual'
+    or v_snapshot#>>'{latest_vercel_run,status}' <> 'failed'
+  then raise exception 'Manual success masked scheduled failure: %', v_snapshot; end if;
+
+  v_first := public.begin_cleanup_history_cron_run(
+    'vercel_cron', '0 7 * * *', 'deployment_fixture_expired'
+  );
+  perform public.finish_cleanup_history_cron_run(
+    (v_first->>'run_id')::uuid,
+    'succeeded',
+    200,
+    null,
+    '{"managed_health_healthy":true}'::jsonb
+  );
+  update public.cleanup_history_cron_runs
+  set started_at = clock_timestamp() - interval '3 days',
+      completed_at = clock_timestamp() - interval '3 days' + interval '1 second'
+  where invocation_source = 'vercel_cron';
+  update public.cleanup_history_cron_runs
+  set started_at = clock_timestamp() - interval '2 days',
+      completed_at = clock_timestamp() - interval '2 days' + interval '1 second'
+  where id = (v_first->>'run_id')::uuid;
+  v_snapshot := public.get_cleanup_history_cron_health_snapshot(120, 1560);
+  if (v_snapshot->>'healthy')::boolean
+    or (v_snapshot->>'scheduled_run_healthy')::boolean
+  then raise exception 'Expired scheduled evidence reported healthy: %', v_snapshot; end if;
+
+  v_first := public.begin_cleanup_history_cron_run(
+    'vercel_cron', '0 7 * * *', 'deployment_fixture_fresh'
+  );
+  perform public.finish_cleanup_history_cron_run(
+    (v_first->>'run_id')::uuid,
+    'succeeded',
+    200,
+    null,
+    '{"managed_health_healthy":true}'::jsonb
+  );
+  v_snapshot := public.get_cleanup_history_cron_health_snapshot(120, 1560);
+  if not (v_snapshot->>'healthy')::boolean
+    or not (v_snapshot->>'scheduled_run_healthy')::boolean
+  then raise exception 'Fresh scheduled success was not healthy: %', v_snapshot; end if;
 end;
 $lifecycle$;
 
@@ -187,6 +259,18 @@ begin
     raise exception 'High stale threshold was accepted';
   exception when sqlstate '22023' then
     if sqlerrm <> 'cleanup_history_cron_stale_threshold_invalid' then raise; end if;
+  end;
+  begin
+    perform public.get_cleanup_history_cron_health_snapshot(120, 59);
+    raise exception 'Low scheduled evidence age was accepted';
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'cleanup_history_cron_scheduled_age_threshold_invalid' then raise; end if;
+  end;
+  begin
+    perform public.get_cleanup_history_cron_health_snapshot(120, 10081);
+    raise exception 'High scheduled evidence age was accepted';
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'cleanup_history_cron_scheduled_age_threshold_invalid' then raise; end if;
   end;
 end;
 $threshold$;

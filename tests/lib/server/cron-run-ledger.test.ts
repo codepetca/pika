@@ -15,18 +15,44 @@ function rpcClient(results: Array<{ data: unknown; error: unknown }>) {
 
 describe('cleanup-history cron run ledger', () => {
   it('distinguishes a Vercel scheduled invocation from a manual invocation', () => {
-    expect(resolveCleanupHistoryInvocation(new Headers({
-      'x-vercel-cron-schedule': '0 7 * * *',
+    expect(resolveCleanupHistoryInvocation(new Request('https://example.test/cron', {
+      method: 'GET',
+      headers: {
+        'user-agent': 'vercel-cron/1.0',
+        'x-vercel-cron-schedule': '0 7 * * *',
+      },
     }), 'deployment-1')).toEqual({
       invocationSource: 'vercel_cron',
       schedule: '0 7 * * *',
       deploymentId: 'deployment-1',
     })
-    expect(resolveCleanupHistoryInvocation(new Headers(), undefined)).toEqual({
+    expect(resolveCleanupHistoryInvocation(new Request('https://example.test/cron'), undefined)).toEqual({
       invocationSource: 'manual',
       schedule: null,
       deploymentId: null,
     })
+  })
+
+  it('keeps POST manual and rejects incomplete scheduled metadata', () => {
+    const forgedPost = new Request('https://example.test/cron', {
+      method: 'POST',
+      headers: {
+        'user-agent': 'vercel-cron/1.0',
+        'x-vercel-cron-schedule': '0 7 * * *',
+      },
+    })
+    expect(resolveCleanupHistoryInvocation(forgedPost, undefined)).toEqual({
+      invocationSource: 'manual',
+      schedule: null,
+      deploymentId: null,
+    })
+
+    const incompleteGet = new Request('https://example.test/cron', {
+      headers: { 'user-agent': 'vercel-cron/1.0' },
+    })
+    expect(() => resolveCleanupHistoryInvocation(incompleteGet, undefined)).toThrowError(
+      expect.objectContaining({ code: 'cron_run_invocation_invalid' }),
+    )
   })
 
   it('starts a durable run through the service-only RPC', async () => {
@@ -214,6 +240,9 @@ describe('cleanup-history cron run ledger', () => {
         version: 1,
         captured_at: '2026-08-14T12:00:00.000Z',
         healthy: true,
+        scheduled_run_healthy: true,
+        expected_schedule: '0 7 * * *',
+        scheduled_evidence_max_age_minutes: 1560,
         stale_running_count: 0,
         failed_count_7d: 0,
         overlap_count_7d: 0,
@@ -251,7 +280,10 @@ describe('cleanup-history cron run ledger', () => {
     })
     expect(supabase.rpc).toHaveBeenCalledWith(
       'get_cleanup_history_cron_health_snapshot',
-      { p_stale_minutes: 120 },
+      {
+        p_stale_minutes: 120,
+        p_scheduled_max_age_minutes: 1560,
+      },
     )
   })
 
@@ -264,5 +296,9 @@ describe('cleanup-history cron run ledger', () => {
       supabase: malformed as never,
       staleMinutes: 4,
     })).rejects.toMatchObject({ code: 'cron_run_health_threshold_invalid' })
+    await expect(readCleanupHistoryCronHealth({
+      supabase: malformed as never,
+      scheduledEvidenceMaxAgeMinutes: 59,
+    })).rejects.toMatchObject({ code: 'cron_run_scheduled_age_threshold_invalid' })
   })
 })

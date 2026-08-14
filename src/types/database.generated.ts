@@ -7610,7 +7610,7 @@ export type Database = {
         Returns: Json
       }
       get_cleanup_history_cron_health_snapshot: {
-        Args: { p_stale_minutes?: number }
+        Args: { p_scheduled_max_age_minutes?: number; p_stale_minutes?: number }
         Returns: Json
       }
       get_cold_archived_classroom_purge_inventory: {

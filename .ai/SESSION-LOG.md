@@ -1060,3 +1060,8 @@ overlap serialization around the existing cleanup-history safety-net route.
   migration 123's storage-failure retry function. Keep that correction separate
   from migration 124. No production migration, deploy, cron run, rollout change,
   purge, or Storage deletion occurred.
+- Initial PR review found a false-green scheduled-health path. Remediation now
+  requires exact Vercel GET metadata, keeps POST manual, and requires a fresh
+  successful scheduled run within 26 hours; empty, expired, or failed scheduled
+  evidence stays unhealthy even after manual success. The revised fresh replay,
+  database fixture, generated types, and 44 focused tests pass.

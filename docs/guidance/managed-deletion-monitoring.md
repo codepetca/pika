@@ -21,10 +21,12 @@ reappearance findings. The migration does not change the schedule.
 Migration 124 adds durable invocation evidence for the same existing
 `/api/cron/cleanup-history` route. It installs no schedule. Authenticated runs
 write one service-only ledger row at start and finalize it with the HTTP result
-and allowlisted aggregate counters. The documented Vercel
-`x-vercel-cron-schedule` header distinguishes a Vercel cron invocation from a
-manual request, so a successful no-op run remains observable after short-lived
-platform logs expire.
+and allowlisted aggregate counters. A GET with both documented Vercel signals,
+`User-Agent: vercel-cron/1.0` and the exact
+`x-vercel-cron-schedule: 0 7 * * *`, is recorded as scheduled. POST is always
+manual even if it supplies those headers. A successful no-op run therefore
+remains observable after short-lived platform logs expire without treating an
+operator POST as scheduler evidence.
 
 The same migration defines a separate service-role-only
 `get_managed_deletion_deep_health_snapshot` diagnostic for recursive embedded
@@ -61,14 +63,19 @@ failure.
 Operators can read the latest durable evidence without scanning the table:
 
 ```sql
-select public.get_cleanup_history_cron_health_snapshot(120);
+select public.get_cleanup_history_cron_health_snapshot(120, 1560);
 ```
 
-Verify `latest_vercel_run.schedule = '0 7 * * *'`, a start time within Vercel's
-daily execution window, `status = 'succeeded'`, `http_status = 200`, zero stale
-runs, and expected aggregate counters. This proves scheduler invocation and job
-outcome; the student-purge and managed-deletion snapshots remain authoritative
-for current safety state.
+The first threshold marks a running invocation stale after two hours. The
+second requires scheduled evidence within 1,560 minutes (26 hours), allowing a
+bounded execution-window cushion for the daily job. `healthy` remains false
+until a fresh scheduled run succeeds with the exact configured schedule and no
+stale run; an empty ledger, expired success, scheduled failure, or later manual
+success cannot make it green. Verify `latest_vercel_run.status = 'succeeded'`,
+`http_status = 200`, zero stale runs, and expected aggregate counters. This is
+durable operational evidence, not cryptographic provider attestation; the
+student-purge and managed-deletion snapshots remain authoritative for current
+safety state.
 
 The cron behavior is:
 
@@ -207,5 +214,6 @@ therefore require the PR's fresh ephemeral-database replay before merge.
 Migration 124 adds `pnpm run check:cleanup-history-cron-db`. Its rollback-only
 fixture proves service-only privileges, metric-key privacy enforcement,
 single-run serialization, durable overlap evidence, one-way finalization,
-stale-run supersession, scheduled-versus-manual attribution, bounded health
-thresholds, and identity-free operator snapshots.
+stale-run supersession, GET/POST scheduled-versus-manual attribution, fresh
+scheduled-evidence health, bounded thresholds, and identity-free operator
+snapshots.

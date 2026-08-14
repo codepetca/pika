@@ -310,12 +310,15 @@ describe('cron cleanup-history route', () => {
       'http://localhost:3000/api/cron/cleanup-history',
       { headers: {
         authorization: 'Bearer secret',
+        'user-agent': 'vercel-cron/1.0',
         'x-vercel-cron-schedule': '0 7 * * *',
       } },
     ))
 
     expect(response.status).toBe(200)
-    expect(ledgerMocks.resolve).toHaveBeenCalledWith(expect.any(Headers))
+    expect(ledgerMocks.resolve).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'GET',
+    }))
     expect(ledgerMocks.begin).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
       invocation: {

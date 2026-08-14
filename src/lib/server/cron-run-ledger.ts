@@ -4,6 +4,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 const countSchema = z.number().int().nonnegative().safe()
 const errorCodeSchema = z.string().regex(/^[a-z0-9_]{1,64}$/)
 
+export const CLEANUP_HISTORY_CRON_SCHEDULE = '0 7 * * *'
+const VERCEL_CRON_USER_AGENT = 'vercel-cron/1.0'
+
 export const cleanupHistoryCronMetricsSchema = z.object({
   classroom_purge_processed: countSchema.optional(),
   classroom_purge_completed: countSchema.optional(),
@@ -77,6 +80,9 @@ export const cleanupHistoryCronHealthSchema = z.object({
   version: z.literal(1),
   captured_at: z.string().datetime({ offset: true }),
   healthy: z.boolean(),
+  scheduled_run_healthy: z.boolean(),
+  expected_schedule: z.literal(CLEANUP_HISTORY_CRON_SCHEDULE),
+  scheduled_evidence_max_age_minutes: countSchema,
   stale_running_count: countSchema,
   failed_count_7d: countSchema,
   overlap_count_7d: countSchema,
@@ -119,13 +125,25 @@ function optionalTrimmed(value: string | null | undefined): string | null {
 }
 
 export function resolveCleanupHistoryInvocation(
-  headers: Headers,
+  request: Pick<Request, 'headers' | 'method'>,
   deploymentId: string | undefined = process.env.VERCEL_DEPLOYMENT_ID,
 ): CleanupHistoryInvocation {
-  const schedule = optionalTrimmed(headers.get('x-vercel-cron-schedule'))
+  const scheduleHeader = optionalTrimmed(request.headers.get('x-vercel-cron-schedule'))
+  const userAgent = optionalTrimmed(request.headers.get('user-agent'))
+  const isPost = request.method.toUpperCase() === 'POST'
+  const hasCronMetadata = scheduleHeader !== null || userAgent === VERCEL_CRON_USER_AGENT
+  if (!isPost && hasCronMetadata && (
+    scheduleHeader !== CLEANUP_HISTORY_CRON_SCHEDULE
+    || userAgent !== VERCEL_CRON_USER_AGENT
+  )) {
+    throw new CronRunLedgerError('cron_run_invocation_invalid')
+  }
+  const isVercelCron = !isPost
+    && scheduleHeader === CLEANUP_HISTORY_CRON_SCHEDULE
+    && userAgent === VERCEL_CRON_USER_AGENT
   const parsed = invocationSchema.safeParse({
-    invocationSource: schedule === null ? 'manual' : 'vercel_cron',
-    schedule,
+    invocationSource: isVercelCron ? 'vercel_cron' : 'manual',
+    schedule: isVercelCron ? CLEANUP_HISTORY_CRON_SCHEDULE : null,
     deploymentId: optionalTrimmed(deploymentId),
   })
   if (!parsed.success) throw new CronRunLedgerError('cron_run_invocation_invalid')
@@ -212,19 +230,31 @@ export async function finishCleanupHistoryCronRun(input: {
 export async function readCleanupHistoryCronHealth(input: {
   supabase?: ReturnType<typeof getServiceRoleClient>
   staleMinutes?: number
+  scheduledEvidenceMaxAgeMinutes?: number
 } = {}): Promise<
   | { schemaAvailable: false }
   | { schemaAvailable: true; snapshot: CleanupHistoryCronHealth }
 > {
   const staleMinutes = input.staleMinutes ?? 120
+  const scheduledEvidenceMaxAgeMinutes = input.scheduledEvidenceMaxAgeMinutes ?? 1560
   if (!Number.isSafeInteger(staleMinutes) || staleMinutes < 5 || staleMinutes > 10_080) {
     throw new CronRunLedgerError('cron_run_health_threshold_invalid')
+  }
+  if (
+    !Number.isSafeInteger(scheduledEvidenceMaxAgeMinutes)
+    || scheduledEvidenceMaxAgeMinutes < 60
+    || scheduledEvidenceMaxAgeMinutes > 10_080
+  ) {
+    throw new CronRunLedgerError('cron_run_scheduled_age_threshold_invalid')
   }
 
   const supabase = input.supabase ?? getServiceRoleClient()
   const { data, error } = await ledgerClient(supabase).rpc(
     'get_cleanup_history_cron_health_snapshot',
-    { p_stale_minutes: staleMinutes },
+    {
+      p_stale_minutes: staleMinutes,
+      p_scheduled_max_age_minutes: scheduledEvidenceMaxAgeMinutes,
+    },
   )
   if (error) {
     if (isMissingSchemaError(error)) return { schemaAvailable: false }
