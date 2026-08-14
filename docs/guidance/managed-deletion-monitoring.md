@@ -18,6 +18,16 @@ operation while an orphan cold fence remains critical. Cold operations use the
 same aggregate failure, stuck-operation, lease, partial-progress, and object-
 reappearance findings. The migration does not change the schedule.
 
+Migration 124 adds durable invocation evidence for the same existing
+`/api/cron/cleanup-history` route. It installs no schedule. Authenticated runs
+write one service-only ledger row at start and finalize it with the HTTP result
+and allowlisted aggregate counters. A GET with both documented Vercel signals,
+`User-Agent: vercel-cron/1.0` and the exact
+`x-vercel-cron-schedule: 0 7 * * *`, is recorded as scheduled. POST is always
+manual even if it supplies those headers. A successful no-op run therefore
+remains observable after short-lived platform logs expire without treating an
+operator POST as scheduler evidence.
+
 The same migration defines a separate service-role-only
 `get_managed_deletion_deep_health_snapshot` diagnostic for recursive embedded
 payload reconciliation. It is not called by the cron or any application route,
@@ -34,6 +44,38 @@ containing only health/count values or a bounded application error code.
 The default stuck threshold is one hour. The RPC and server reader accept only
 300 through 604,800 seconds. The threshold is diagnostic; it does not expire a
 fence, authorize deletion, or change retry state.
+
+The migration-124 ledger stores no user, teacher, Classroom, Blueprint,
+operation, managed-object, bucket/path, title, email, or content identity. Its
+database validator accepts only named nonnegative counters plus the
+managed-health boolean. Direct writes are denied even to `service_role`;
+security-definer begin/finish functions own the row lifecycle, and a separate
+service-only health RPC omits run UUIDs and deployment identity.
+
+The begin function serializes the daily job. A concurrent invocation is
+recorded as `skipped_overlap` and does no cleanup work. A `running` row is
+superseded only after two hours, well beyond the route's 60-second budget. The
+finish function permits exactly one transition to `succeeded` or `failed`.
+Before migration 124 exists, only the exact missing-RPC compatibility code lets
+the route continue without a ledger; other ledger failures return a sanitized
+failure.
+
+Operators can read the latest durable evidence without scanning the table:
+
+```sql
+select public.get_cleanup_history_cron_health_snapshot(120, 1560);
+```
+
+The first threshold marks a running invocation stale after two hours. The
+second requires scheduled evidence within 1,560 minutes (26 hours), allowing a
+bounded execution-window cushion for the daily job. `healthy` remains false
+until a fresh scheduled run succeeds with the exact configured schedule and no
+stale run; an empty ledger, expired success, scheduled failure, or later manual
+success cannot make it green. Verify `latest_vercel_run.status = 'succeeded'`,
+`http_status = 200`, zero stale runs, and expected aggregate counters. This is
+durable operational evidence, not cryptographic provider attestation; the
+student-purge and managed-deletion snapshots remain authoritative for current
+safety state.
 
 The cron behavior is:
 
@@ -109,9 +151,11 @@ scanned safely within the operator session's explicit query budget.
 
 ## Staged rollout
 
-Migration 121 is applied in production and the monitoring code is deployed.
-Migration 122's cold-fence extension remains unapplied until its own staged
-authorization and rollout.
+Production migrations 121–123 are applied. Cold-Classroom deletion remains
+disabled, individual-student purge is enabled, and generic cleanup remains off.
+Migration 124 and its compatible application code require normal review and
+rollout; applying migration 124 does not invoke the cron or change a deletion
+rollout.
 
 1. Run static/unit/route tests and repository checks without a database reset or
    migration application.
@@ -139,6 +183,13 @@ authorization and rollout.
    operation because it also advances existing cleanup/purge safety nets and
    therefore requires explicit authorization.
 
+For migration 124, deploy compatible code first: the exact missing-RPC path
+continues the existing job while emitting a bounded warning. Then apply
+migration 124 only with fresh target-specific authorization and inspect the
+first Vercel-scheduled ledger row through the health RPC. A manual route
+invocation remains a separate cleanup/purge operation requiring explicit
+authorization and is recorded as `manual`.
+
 If the lightweight aggregate cannot reliably finish within the existing
 60-second route budget, keep migration 121 unapplied (or remove the cron call in
 a normal code rollback before application). Do not add the recursive diagnostic
@@ -159,3 +210,10 @@ budget. Review then separated recursive payload work into the unscheduled deep
 diagnostic and tightened dependency failures; the one-time local application
 permission was not reused. The final migration and deep UUID/digest regression
 therefore require the PR's fresh ephemeral-database replay before merge.
+
+Migration 124 adds `pnpm run check:cleanup-history-cron-db`. Its rollback-only
+fixture proves service-only privileges, metric-key privacy enforcement,
+single-run serialization, durable overlap evidence, one-way finalization,
+stale-run supersession, GET/POST scheduled-versus-manual attribution, fresh
+scheduled-evidence health, bounded thresholds, and identity-free operator
+snapshots.

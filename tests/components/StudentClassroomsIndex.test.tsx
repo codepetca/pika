@@ -39,6 +39,20 @@ describe('StudentClassroomsIndex', () => {
     expect(openButton).not.toHaveClass('border-l-4')
   })
 
+  it('shows the semester date range instead of the join code', () => {
+    const classrooms = [createMockClassroom({
+      id: 'c1',
+      title: 'Math 101',
+      class_code: 'MATH01',
+      start_date: '2025-09-02',
+      end_date: '2026-01-30',
+    })]
+    render(<StudentClassroomsIndex initialClassrooms={classrooms} />)
+
+    expect(screen.getByText('Sept 2025 - Jan 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/MATH01/)).not.toBeInTheDocument()
+  })
+
   it('uses the governed page heading and keyboard-ready mobile actions menu', async () => {
     render(<StudentClassroomsIndex initialClassrooms={[]} />)
 

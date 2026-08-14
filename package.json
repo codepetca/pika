@@ -28,6 +28,7 @@
     "check:cold-classroom-purge-db": "bash scripts/check-cold-archived-classroom-purge-database.sh",
     "check:student-purge-db": "bash scripts/check-individual-student-purge-database.sh",
     "check:managed-deletion-health-db": "bash scripts/check-managed-deletion-health-database.sh",
+    "check:cleanup-history-cron-db": "bash scripts/check-cleanup-history-cron-ledger-database.sh",
     "managed-storage:readiness": "tsx scripts/run-managed-storage-readiness.ts",
     "managed-storage:cleanup": "tsx scripts/run-managed-storage-cleanup.ts",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",

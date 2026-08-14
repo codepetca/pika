@@ -11,55 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Refresh production managed Storage readiness
-
-**Risk profile:** production write — serialized readiness evidence refresh only.
-
-**Completed:**
-- Verified the production boundary before mutation: 139 managed/Storage objects,
-  all ready; 274 JSON references; zero ownerless or missing objects; zero raw
-  identity gaps; and no active archive or cleanup operation.
-- Ran the guarded production readiness refresh exactly once with the required
-  target-specific acknowledgement.
-
-**Validation:**
-- Generation 1 completed `ready` with zero findings, 139 objects, 274 references,
-  and inventory digest
-  `33ce478050e9220414d3192e2aa4843b9f32c2cfe7d3838bd5be0f7c5f16f775`.
-- Independent persisted-state verification found writer revision 842 on both the
-  readiness run and singleton settings, with matching digest evidence.
-- Production remains in compatibility mode and is not activated. Migration 119
-  remains unapplied and `classroom_purge_settings` remains absent.
-
-**Remaining:**
-- Decide separately whether to activate managed Storage enforcement. Activation,
-  migration 119, generic cleanup, and classroom deletion each remain separately
-  gated production changes.
-
-## 2026-08-05 — Activate production managed Storage enforcement
-
-**Risk profile:** production write — managed Storage protocol activation only.
-
-**Completed:**
-- Revalidated generation 1 immediately before activation: readiness/run/settings
-  digest matched, the persisted and current writer revisions were all 842, no
-  archive or cleanup operation was active, and migration 119 was absent.
-- Ran the guarded production activation command exactly once using the authorized
-  generation and inventory digest.
-
-**Validation:**
-- Production settings now persist mode `enforced`, generation 1, the verified
-  digest, writer revision 842, and a non-null activation timestamp.
-- All 139 managed objects remain `ready`; all 139 Storage objects and 274 JSON
-  references remain intact, with zero ownerless or missing objects.
-- Migration 119 remains unapplied and `classroom_purge_settings` remains absent.
-  Generic cleanup and classroom deletion were not enabled.
-
-**Remaining:**
-- Verify representative production writers under enforcement before considering
-  migration 119. Applying migration 119, generic cleanup, and classroom deletion
-  remain separately gated changes.
-
 ## 2026-08-05 — Verify production managed Storage writers under enforcement
 
 **Risk profile:** bounded production smoke writes using synthetic teacher/student
@@ -1057,3 +1008,64 @@ tests, and documentation.
 - Migration 123 was not applied locally or remotely, no rollout setting changed,
   no purge ran, and no Storage object was deleted. Ephemeral CI replay remains
   the next database validation gate.
+
+## 2026-08-13 — Show semester ranges on Classroom cards
+
+**Risk profile:** none — presentation and classroom-list read fields only.
+
+**Completed:**
+- Replaced join codes on teacher active, teacher archived, and student Classroom
+  cards with Toronto-safe abbreviated semester ranges such as
+  `Sept 2025 - Jan 2026`.
+- Added the required `start_date` and `end_date` fields to narrow teacher and
+  student Classroom list reads, with a non-sensitive fallback when dates are
+  unavailable.
+- Added shared formatter and direct component/API regression coverage, and
+  updated the archived-Classroom Playwright fixture to assert the date range is
+  visible while the join code is absent.
+
+**Validation:**
+- Focused unit, component, and API coverage passes: 46 tests across 6 files.
+- Lint, architecture, design policy, production build, diff checks, and the Pika
+  audit pass.
+- Playwright and visual inspection pass for teacher active/archived and student
+  active cards across desktop/mobile and light/dark, with no overflow or layout
+  regression. Composite-widget checklist is not applicable because interaction
+  semantics and keyboard behavior were unchanged.
+
+## 2026-08-14 — Add durable cleanup-history cron evidence
+
+**Risk profile:** runtime-platform — additive service-only observability and
+overlap serialization around the existing cleanup-history safety-net route.
+
+**Completed:**
+- Added migration 124 with a privacy-safe run ledger, scheduled/manual source
+  attribution, exact aggregate metric allowlist, overlap records, stale-run
+  supersession, one-way finalization, and an identity-free health snapshot.
+- Integrated the cron route with pre-124 compatibility and fail-closed ledger
+  errors, plus focused tests, a rollback-only database fixture, CI coverage,
+  generated types, operator guidance, and rollout instructions.
+- With explicit local authorization, applied migrations 123–124, then reset the
+  disposable database without seeds and replayed migrations 001–124 to remove
+  stale migration-121 schema state.
+
+**Validation:**
+- Full suite passes: 4,239 tests across 494 files; focused ledger coverage passes
+  43 tests. TypeScript, lint, production build, Pika audit, shell syntax, and
+  diff checks pass.
+- Fresh migration replay, migration-123 and migration-124 rollback-only
+  fixtures, generated-type drift check, and preservation of the migration-121
+  deep-health RPC all pass.
+- Database lint identified an inherited ambiguous `attempt_count` reference in
+  migration 123's storage-failure retry function. Keep that correction separate
+  from migration 124. No production migration, deploy, cron run, rollout change,
+  purge, or Storage deletion occurred.
+- Initial PR review found a false-green scheduled-health path. Remediation now
+  requires exact Vercel GET metadata, keeps POST manual, and requires a fresh
+  successful scheduled run within 26 hours; empty, expired, or failed scheduled
+  evidence stays unhealthy even after manual success. The revised fresh replay,
+  database fixture, generated types, and 44 focused tests pass.
+- Final integration review caught an over-budget `.ai/CURRENT.md` that omitted
+  canonical app-managed worktree and collaborator env forms. The compressed
+  handoff restores both contracts; startup-doc coverage and the full 4,240-test
+  suite pass.

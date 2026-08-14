@@ -41,7 +41,7 @@ describe('server classroom-order helpers', () => {
 
     expect(query.eq).toHaveBeenCalledWith('teacher_id', 'teacher-1')
     expect(query.is).toHaveBeenCalledWith('archived_at', null)
-    expect(query.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,updated_at,archived_at,position')
+    expect(query.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,start_date,end_date,updated_at,archived_at,position')
     expect(query.order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
     expect(query.order).toHaveBeenNthCalledWith(2, 'updated_at', { ascending: false })
   })
@@ -80,8 +80,8 @@ describe('server classroom-order helpers', () => {
     await expect(listActiveTeacherClassrooms(supabase as never, 'teacher-2')).resolves.toBe(fallbackResult)
 
     expect(supabase.from).toHaveBeenCalledTimes(2)
-    expect(firstQuery.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,updated_at,archived_at,position')
-    expect(fallbackQuery.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,updated_at,archived_at,position')
+    expect(firstQuery.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,start_date,end_date,updated_at,archived_at,position')
+    expect(fallbackQuery.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,start_date,end_date,updated_at,archived_at,position')
     expect(firstQuery.order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
     expect(firstQuery.order).toHaveBeenNthCalledWith(2, 'updated_at', { ascending: false })
     expect(fallbackQuery.eq).toHaveBeenCalledWith('teacher_id', 'teacher-2')
@@ -139,7 +139,7 @@ describe('server classroom-order helpers', () => {
     await expect(listActiveTeacherClassrooms(supabase as never, 'teacher-3')).resolves.toBe(fallbackResult)
 
     expect(supabase.from).toHaveBeenCalledTimes(3)
-    expect(legacyQuery.select).toHaveBeenCalledWith('id,title,class_code,term_label,updated_at,archived_at,position')
+    expect(legacyQuery.select).toHaveBeenCalledWith('id,title,class_code,term_label,start_date,end_date,updated_at,archived_at,position')
   })
 
   it('returns null next position when first classroom lookup fails', async () => {

@@ -14,6 +14,7 @@ import {
   type ActionBarItem,
 } from '@/ui'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
+import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -60,6 +61,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
           <Card tone="panel" padding="none" className="overflow-hidden">
             {sorted.map((c) => {
               const theme = getClassroomThemeDefinition(c.theme_color)
+              const dateRange = formatClassroomDateRange(c.start_date, c.end_date)
               return (
                 <button
                   key={c.id}
@@ -81,7 +83,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
                     )}
                   </div>
                   <div className="mt-1 text-sm leading-6 text-text-muted">
-                    Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
+                    {dateRange ?? 'Semester dates not set'}
                   </div>
                   {openingClassroomId === c.id && (
                     <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">

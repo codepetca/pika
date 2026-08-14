@@ -52,4 +52,19 @@ describe('SortableClassroomRow', () => {
     expect(ghost).toHaveClass('border')
     expect(ghost).not.toHaveClass('border-l-4')
   })
+
+  it('shows the semester date range instead of the join code', () => {
+    render(
+      <ClassroomRowGhost
+        classroom={createMockClassroom({
+          class_code: 'MATH01',
+          start_date: '2025-09-02',
+          end_date: '2026-01-30',
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Sept 2025 - Jan 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/MATH01/)).not.toBeInTheDocument()
+  })
 })
