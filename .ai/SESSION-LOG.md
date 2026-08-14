@@ -1065,3 +1065,7 @@ overlap serialization around the existing cleanup-history safety-net route.
   successful scheduled run within 26 hours; empty, expired, or failed scheduled
   evidence stays unhealthy even after manual success. The revised fresh replay,
   database fixture, generated types, and 44 focused tests pass.
+- Final integration review caught an over-budget `.ai/CURRENT.md` that omitted
+  canonical app-managed worktree and collaborator env forms. The compressed
+  handoff restores both contracts; startup-doc coverage and the full 4,240-test
+  suite pass.

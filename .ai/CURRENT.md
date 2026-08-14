@@ -1,8 +1,3 @@
-Prod 001–123. Individual-student purge enabled; cold Classroom deletion and
-generic cleanup off. Migration 124 local-only on `codex/cron-run-ledger`: a
-service-only durable ledger for `/api/cron/cleanup-history`; no new schedule or
-purge authority. Fresh local 001–124 replay, fixtures, types, 4,239 tests, build,
-lint, and audit pass. Next: PR/review, compatible deploy, then separately
-authorize prod 124. Follow up migration-123 ambiguous retry count separately.
-WT: `$HOME/.codex/worktrees/pika/cron-run-ledger`.
-Env: `$HOME/Repos/.env/pika/.env.local`.
+Prod 001–123. Student purge on; cold/generic deletion off. codex/cron-run-ledger: local-only 124 adds durable cron evidence; no new authority. Replay/fixtures/types and 4,239 tests/build/audit pass. Next: PR/deploy, separate prod-124 auth. Migration-123 retry lint stays separate.
+WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
+Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.
