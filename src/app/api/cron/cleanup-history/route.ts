@@ -14,6 +14,13 @@ import { runColdClassroomPurgeSafetyNet } from '@/lib/server/cold-classroom-purg
 import { runCourseBlueprintPurgeSafetyNet } from '@/lib/server/course-blueprint-purge'
 import { readStudentPurgeHealth, runStudentPurgeSafetyNet } from '@/lib/server/student-purge'
 import { readManagedDeletionHealth } from '@/lib/server/managed-deletion-health'
+import {
+  beginCleanupHistoryCronRun,
+  CronRunLedgerError,
+  finishCleanupHistoryCronRun,
+  resolveCleanupHistoryInvocation,
+  type CleanupHistoryCronMetrics,
+} from '@/lib/server/cron-run-ledger'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,6 +32,39 @@ const CLEANUP_PAGE_SIZE = 1000
 const SAVE_OPERATION_RETENTION_DAYS = 35
 
 type IdRow = { id: string }
+
+const CRON_RESPONSE_ERROR_CODES: Record<string, string> = {
+  'Student purge health degraded': 'student_purge_health_degraded',
+  'Failed to clean classroom archive staging': 'archive_staging_cleanup_failed',
+  'Failed to clean classroom archive objects': 'archive_object_cleanup_failed',
+  'Failed to clean assignment save operations': 'save_operation_cleanup_failed',
+  'Failed to fetch classrooms': 'classroom_inventory_failed',
+  'Failed to fetch assignments': 'assignment_inventory_failed',
+  'Failed to fetch assignment docs': 'assignment_doc_inventory_failed',
+  'Failed to fetch tests': 'test_inventory_failed',
+  'Failed to fetch test attempts': 'test_attempt_inventory_failed',
+  'Failed to delete history': 'history_cleanup_failed',
+  'Managed deletion health degraded': 'managed_deletion_health_degraded',
+  'Failed to verify managed deletion health': 'managed_deletion_health_probe_failed',
+}
+
+function cronRunLedgerErrorCode(error: unknown): string {
+  return error instanceof CronRunLedgerError
+    ? error.code
+    : 'cron_run_ledger_unknown_failure'
+}
+
+async function responseErrorCode(response: NextResponse): Promise<string | null> {
+  if (response.status < 400) return null
+  try {
+    const body = await response.clone().json() as { error?: unknown }
+    return typeof body.error === 'string'
+      ? CRON_RESPONSE_ERROR_CODES[body.error] ?? 'cleanup_history_failed'
+      : 'cleanup_history_failed'
+  } catch {
+    return 'cleanup_history_failed'
+  }
+}
 
 function managedDeletionHealthErrorCode(error: unknown): string {
   const code = error instanceof Error && 'code' in error ? String(error.code) : ''
@@ -39,10 +79,14 @@ function managedDeletionHealthErrorCode(error: unknown): string {
 async function respondWithManagedDeletionHealth(
   supabase: ReturnType<typeof getServiceRoleClient>,
   body: Record<string, unknown>,
+  metrics: CleanupHistoryCronMetrics,
 ) {
   try {
     const result = await readManagedDeletionHealth({ supabase })
     if (!result.schemaAvailable) return NextResponse.json(body)
+    metrics.managed_health_healthy = result.snapshot.healthy
+    metrics.managed_health_critical = result.snapshot.critical_count
+    metrics.managed_health_warning = result.snapshot.warning_count
     if (!result.snapshot.healthy || result.snapshot.critical_count > 0) {
       console.error('[managed-deletion-health] degraded', {
         critical_count: result.snapshot.critical_count,
@@ -140,35 +184,44 @@ async function deleteHistoryByParentIds(
   return { deleted, error: null }
 }
 
-async function handle(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    console.error('CRON_SECRET is not set')
-    return NextResponse.json(
-      { error: 'CRON_SECRET not configured' },
-      { status: 500 }
-    )
-  }
-
-  const authHeader = getCronAuthHeader(request)
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+async function runCleanupHistory(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  metrics: CleanupHistoryCronMetrics,
+) {
   const cutoffDate = formatInTimeZone(
     subDays(new Date(), 30),
     TIMEZONE,
     'yyyy-MM-dd'
   )
 
-  const supabase = getServiceRoleClient()
   const classroomPurge = await runClassroomPurgeSafetyNet()
   const coldClassroomPurge = await runColdClassroomPurgeSafetyNet(10)
   const courseBlueprintPurge = await runCourseBlueprintPurgeSafetyNet()
   const studentPurge = await runStudentPurgeSafetyNet()
+  Object.assign(metrics, {
+    classroom_purge_processed: classroomPurge.processed,
+    classroom_purge_completed: classroomPurge.completed,
+    classroom_purge_failed: classroomPurge.failed,
+    cold_classroom_purge_processed: coldClassroomPurge.processed,
+    cold_classroom_purge_completed: coldClassroomPurge.completed,
+    cold_classroom_purge_failed: coldClassroomPurge.failed,
+    course_blueprint_purge_processed: courseBlueprintPurge.processed,
+    course_blueprint_purge_completed: courseBlueprintPurge.completed,
+    course_blueprint_purge_failed: courseBlueprintPurge.failed,
+    student_purge_processed: studentPurge.processed,
+    student_purge_completed: studentPurge.completed,
+    student_purge_failed: studentPurge.failed,
+  })
   const studentPurgeHealth = await readStudentPurgeHealth()
   if (studentPurgeHealth.schemaAvailable) {
     const snapshot = studentPurgeHealth.snapshot
+    Object.assign(metrics, {
+      student_health_active: snapshot.active_count,
+      student_health_stuck: snapshot.stuck_count,
+      student_health_failed: snapshot.failed_count,
+      student_health_orphan_fences: snapshot.orphan_fence_count,
+      student_health_processing_lease_drift: snapshot.processing_lease_drift_count,
+    })
     if (
       studentPurge.failed > 0
       || snapshot.stuck_count > 0
@@ -196,6 +249,7 @@ async function handle(request: NextRequest) {
       )
     }
     archiveStagingCleaned = response.data
+    metrics.archive_staging_cleaned = archiveStagingCleaned
   }
   let archiveObjectCleanup: { claimed: number; deleted: number; failed: number } | undefined
   if (objectCleanupEnabled) {
@@ -218,8 +272,12 @@ async function handle(request: NextRequest) {
       deleted: result.deleted,
       failed: result.failed,
     }
+    Object.assign(metrics, {
+      archive_objects_claimed: result.claimed,
+      archive_objects_deleted: result.deleted,
+      archive_objects_failed: result.failed,
+    })
   }
-
   const saveOperationCutoff = subDays(new Date(), SAVE_OPERATION_RETENTION_DAYS).toISOString()
   const saveOperationCleanup = await supabase.rpc(
     'cleanup_assignment_doc_save_operations',
@@ -238,6 +296,7 @@ async function handle(request: NextRequest) {
       { status: 500 }
     )
   }
+  metrics.save_operations_deleted = saveOperationCleanupCount
 
   const { ids: classroomIds, error: classroomsError } = await loadExpiredClassroomIds(
     supabase,
@@ -251,8 +310,12 @@ async function handle(request: NextRequest) {
       { status: 500 }
     )
   }
+  metrics.expired_classrooms_scanned = classroomIds.length
 
   if (classroomIds.length === 0) {
+    metrics.assignment_history_deleted = 0
+    metrics.test_history_deleted = 0
+    metrics.history_rows_deleted = 0
     return respondWithManagedDeletionHealth(supabase, {
       status: 'ok',
       deleted: 0,
@@ -274,7 +337,7 @@ async function handle(request: NextRequest) {
       ...(studentPurge.processed > 0
         ? { student_purge: studentPurge }
         : {}),
-    })
+    }, metrics)
   }
 
   let deleted = 0
@@ -326,6 +389,7 @@ async function handle(request: NextRequest) {
     )
   }
   deleted += assignmentHistoryDeleted
+  metrics.assignment_history_deleted = assignmentHistoryDeleted
 
   const { ids: testIds, error: testsError } = await loadIdsByParentIds(
     supabase,
@@ -373,6 +437,8 @@ async function handle(request: NextRequest) {
     )
   }
   deleted += testHistoryDeleted
+  metrics.test_history_deleted = testHistoryDeleted
+  metrics.history_rows_deleted = deleted
 
   return respondWithManagedDeletionHealth(supabase, {
     status: 'ok',
@@ -395,7 +461,81 @@ async function handle(request: NextRequest) {
     ...(studentPurge.processed > 0
       ? { student_purge: studentPurge }
       : {}),
-  })
+  }, metrics)
+}
+
+async function handle(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    console.error('CRON_SECRET is not set')
+    return NextResponse.json(
+      { error: 'CRON_SECRET not configured' },
+      { status: 500 }
+    )
+  }
+
+  const authHeader = getCronAuthHeader(request)
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const supabase = getServiceRoleClient()
+  let run
+  try {
+    run = await beginCleanupHistoryCronRun({
+      supabase,
+      invocation: resolveCleanupHistoryInvocation(request),
+    })
+  } catch (error) {
+    console.error('[cron-run-ledger] begin failed', {
+      error_code: cronRunLedgerErrorCode(error),
+    })
+    return NextResponse.json({ error: 'Failed to record cleanup run' }, { status: 503 })
+  }
+
+  if (run.schemaAvailable && !run.started) {
+    return NextResponse.json({ error: 'Cleanup already running' }, { status: 409 })
+  }
+
+  const metrics: CleanupHistoryCronMetrics = {}
+  let response: NextResponse
+  try {
+    response = await runCleanupHistory(supabase, metrics)
+  } catch (error) {
+    try {
+      await finishCleanupHistoryCronRun({
+        supabase,
+        run,
+        status: 'failed',
+        httpStatus: 500,
+        errorCode: 'unhandled_error',
+        metrics,
+      })
+    } catch (ledgerError) {
+      console.error('[cron-run-ledger] finish failed', {
+        error_code: cronRunLedgerErrorCode(ledgerError),
+      })
+    }
+    throw error
+  }
+
+  const errorCode = await responseErrorCode(response)
+  try {
+    await finishCleanupHistoryCronRun({
+      supabase,
+      run,
+      status: errorCode === null ? 'succeeded' : 'failed',
+      httpStatus: response.status,
+      errorCode,
+      metrics,
+    })
+  } catch (error) {
+    console.error('[cron-run-ledger] finish failed', {
+      error_code: cronRunLedgerErrorCode(error),
+    })
+    return NextResponse.json({ error: 'Failed to record cleanup run' }, { status: 503 })
+  }
+  return response
 }
 
 export const GET = withErrorHandler('GetCronCleanupHistory', async (request: NextRequest) => {
