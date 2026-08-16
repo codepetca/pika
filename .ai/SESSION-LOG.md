@@ -1089,7 +1089,7 @@ redesign change.
   selection, sorting, resizing, roster, and export workflows.
 
 **Validation:**
-- Focused Dashboard and modal suites pass: 19 tests. The full suite passes:
+- Focused Dashboard and modal suites pass: 20 tests. The full suite passes:
   4,323 tests across 498 files. TypeScript, lint, production build, Pika audit,
   and diff checks pass.
 - Composite-widget checklist reviewed: keyboard behavior covered, semantic
@@ -1097,3 +1097,6 @@ redesign change.
 - Playwright verification passes for teacher ready/loading/error states at
   desktop and mobile widths, ready state in dark mode, and the student-role
   redirect. Captures have no horizontal viewport overflow.
+- Independent review found one non-blocking test gap. Added regressions proving
+  Retry preserves the exact classroom/student/date scope and a pending entry
+  cannot repaint after the selected classroom changes.

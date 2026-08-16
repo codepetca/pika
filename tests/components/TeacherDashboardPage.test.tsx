@@ -395,7 +395,7 @@ describe('Teacher dashboard page', () => {
   })
 
   it('shows a retryable entry failure and reloads the same scope', async () => {
-    installFetchMock({
+    const fetchMock = installFetchMock({
       entryFailuresByScope: {
         'c1:s1:2026-06-01': 1,
       },
@@ -412,6 +412,8 @@ describe('Teacher dashboard page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByText('Focused entry text')).toBeInTheDocument()
+    const entryUrl = '/api/teacher/student-history?classroom_id=c1&student_id=s1&date=2026-06-01&limit=1'
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === entryUrl)).toHaveLength(2)
   })
 
   it('ignores a pending entry after the dialog closes and restores focus', async () => {
@@ -500,6 +502,48 @@ describe('Teacher dashboard page', () => {
 
     expect(screen.getByText('Second student entry')).toBeInTheDocument()
     expect(screen.queryByText('Stale first student entry')).not.toBeInTheDocument()
+  })
+
+  it('ignores a pending entry after switching classrooms', async () => {
+    const pendingEntry = deferred<Entry[]>()
+    const firstClassroom = createMockClassroom({ id: 'c1', title: 'First Class', class_code: 'FIRST' })
+    const secondClassroom = createMockClassroom({ id: 'c2', title: 'Second Class', class_code: 'SECOND' })
+    installFetchMock({
+      classrooms: [firstClassroom, secondClassroom],
+      attendanceByClassroom: {
+        c2: [attendanceRecord({ studentId: 's2', email: 'second@example.com', date: '2026-06-01' })],
+      },
+      entriesByScope: {
+        'c1:s1:2026-06-01': pendingEntry.promise,
+      },
+    })
+
+    renderDashboard()
+
+    const secondClassroomButton = await screen.findByRole('button', { name: /Second Class/ })
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Open student@example.com log for 2026-06-01',
+    }))
+    expect(screen.getByRole('dialog', { name: 'student@example.com' })).toBeInTheDocument()
+
+    fireEvent.click(secondClassroomButton)
+
+    expect(await screen.findByText('second@example.com')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await act(async () => {
+      pendingEntry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Stale first-class entry',
+        }),
+      ])
+    })
+
+    expect(screen.queryByText('Stale first-class entry')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('invalidates and reloads attendance after roster upload', async () => {
