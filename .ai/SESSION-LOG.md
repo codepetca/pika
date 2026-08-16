@@ -1100,3 +1100,6 @@ redesign change.
 - Independent review found one non-blocking test gap. Added regressions proving
   Retry preserves the exact classroom/student/date scope and a pending entry
   cannot repaint after the selected classroom changes.
+- Post-push UI policy caught the intentionally removed native close button in
+  the exact control registry. The Dashboard debt count is updated from three to
+  two; no exception or policy rule was weakened.
