@@ -1090,8 +1090,8 @@ migration, production, Gradex, or mobile redesign change.
   modal error semantics, and focus behavior.
 
 **Validation:**
-- Focused roster, table, and dialog suites pass: 63 tests. The full suite
-  passes: 4,331 tests across 498 files. TypeScript, lint, production build, UI
+- Focused roster, table, and dialog suites pass: 67 tests. The full suite
+  passes: 4,335 tests across 498 files. TypeScript, lint, production build, UI
   policy, design policy, architecture checks, Pika audit, and diff checks pass.
 - Composite-widget checklist reviewed: direct keyboard behavior and semantic
   state are covered by tests, with no manual accessibility follow-up remaining.

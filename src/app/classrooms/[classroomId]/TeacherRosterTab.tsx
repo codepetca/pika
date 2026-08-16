@@ -10,6 +10,7 @@ import {
   DataTableHead,
   DataTableRow,
   EmptyStateRow,
+  FormField,
   KeyboardNavigableTable,
   Input,
   PageState,
@@ -130,6 +131,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
+  const rosterMutationVersionRef = useRef(0)
   const classroomEpochRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
   currentClassroomIdRef.current = classroom.id
@@ -149,6 +151,10 @@ export function TeacherRosterTab({ classroom }: Props) {
     message: string
   } | null>(null)
   const counselorEditEpochRef = useRef(0)
+  const pendingCounselorRosterIdsRef = useRef<Set<string>>(new Set())
+  const [pendingCounselorRosterIds, setPendingCounselorRosterIds] = useState<Set<string>>(new Set())
+  const rosterRegionRef = useRef<HTMLDivElement>(null)
+  const retryFocusIntentRef = useRef(false)
 
   const hasCurrentRoster = loadedClassroomId === classroom.id
   const currentRoster = useMemo(
@@ -211,6 +217,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   } = {}) {
     const classroomId = classroom.id
     const requestId = loadRequestIdRef.current + 1
+    const mutationVersion = rosterMutationVersionRef.current
     loadRequestIdRef.current = requestId
     setLoading(true)
     setIsRetryingRoster(isRetry)
@@ -246,14 +253,22 @@ export function TeacherRosterTab({ classroom }: Props) {
         },
         20_000,
       )
-      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      if (
+        loadRequestIdRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+        || rosterMutationVersionRef.current !== mutationVersion
+      ) return
       setRoster(normalizeRosterRows(data.roster || []))
       setStudentPurgeEnabledIds(new Set(data.student_purge_enabled_ids || []))
       setLoadedClassroomId(classroomId)
       setLoadError('')
       clearSelection()
     } catch (err: any) {
-      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      if (
+        loadRequestIdRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+        || rosterMutationVersionRef.current !== mutationVersion
+      ) return
       if (!preserveRoster) {
         setRoster([])
         setStudentPurgeEnabledIds(new Set())
@@ -270,6 +285,7 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   useEffect(() => {
     classroomEpochRef.current += 1
+    rosterMutationVersionRef.current += 1
     counselorEditEpochRef.current += 1
     loadRequestIdRef.current += 1
     setRoster([])
@@ -287,7 +303,10 @@ export function TeacherRosterTab({ classroom }: Props) {
     setEditingCounselorId(null)
     setEditingCounselorValue('')
     setSavingCounselor(null)
+    pendingCounselorRosterIdsRef.current = new Set()
+    setPendingCounselorRosterIds(new Set())
     setCounselorError(null)
+    retryFocusIntentRef.current = false
     loadRoster()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
@@ -317,6 +336,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         currentClassroomIdRef.current !== classroomId
         || classroomEpochRef.current !== classroomEpoch
       ) return
+      rosterMutationVersionRef.current += 1
       setPendingRemoval(null)
       setRemovalError('')
       setRoster((current) => current.filter((row) => !removalRosterIds.includes(row.id)))
@@ -414,7 +434,7 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   // Counselor email editing
   function startEditingCounselor(row: RosterRow) {
-    if (isReadOnly) return
+    if (isReadOnly || pendingCounselorRosterIdsRef.current.has(row.id)) return
     counselorEditEpochRef.current += 1
     setEditingCounselorId(row.id)
     setEditingCounselorValue(row.counselor_email || '')
@@ -441,6 +461,8 @@ export function TeacherRosterTab({ classroom }: Props) {
     const classroomEpoch = classroomEpochRef.current
     const editEpoch = counselorEditEpochRef.current
     const counselorEmail = editingCounselorValue.trim() || null
+    pendingCounselorRosterIdsRef.current = new Set(pendingCounselorRosterIdsRef.current).add(rosterId)
+    setPendingCounselorRosterIds(new Set(pendingCounselorRosterIdsRef.current))
     setSavingCounselor({ rosterId, editEpoch })
     setCounselorError(null)
 
@@ -459,6 +481,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         currentClassroomIdRef.current !== classroomId
         || classroomEpochRef.current !== classroomEpoch
       ) return
+      rosterMutationVersionRef.current += 1
       setRoster((prev) =>
         prev.map((r) =>
           r.id === rosterId ? { ...r, counselor_email: counselorEmail } : r
@@ -481,6 +504,15 @@ export function TeacherRosterTab({ classroom }: Props) {
         message: err.message || 'Failed to update counselor email',
       })
     } finally {
+      if (
+        currentClassroomIdRef.current === classroomId
+        && classroomEpochRef.current === classroomEpoch
+      ) {
+        const nextPendingIds = new Set(pendingCounselorRosterIdsRef.current)
+        nextPendingIds.delete(rosterId)
+        pendingCounselorRosterIdsRef.current = nextPendingIds
+        setPendingCounselorRosterIds(nextPendingIds)
+      }
       setSavingCounselor((current) => (
         current?.rosterId === rosterId && current.editEpoch === editEpoch ? null : current
       ))
@@ -504,15 +536,24 @@ export function TeacherRosterTab({ classroom }: Props) {
   }
 
   function refreshRosterAfterMutation() {
+    rosterMutationVersionRef.current += 1
     invalidateCachedJSON(`teacher-roster:${classroom.id}`)
     void loadRoster({ preserveRoster: hasCurrentRoster })
   }
 
   function retryRosterLoad() {
     if (loading) return
+    retryFocusIntentRef.current = isRosterUnavailable
     invalidateCachedJSON(`teacher-roster:${classroom.id}`)
     void loadRoster({ preserveRoster: hasCurrentRoster, isRetry: true })
   }
+
+  useEffect(() => {
+    if (!loading && hasCurrentRoster && retryFocusIntentRef.current) {
+      retryFocusIntentRef.current = false
+      rosterRegionRef.current?.focus()
+    }
+  }, [hasCurrentRoster, loading])
 
   function getRemovalMenuLabel(rowCount: number) {
     return rowCount > 1 ? 'Remove students' : 'Remove student'
@@ -740,6 +781,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         ) : null}
 
         <KeyboardNavigableTable
+          ref={rosterRegionRef}
           ariaLabel="Classroom roster"
           rowKeys={rosterIds}
           selectedKey={selectedRosterId}
@@ -841,6 +883,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                 const currentCounselorError = counselorError?.rosterId === row.id
                   ? counselorError.message
                   : null
+                const isCounselorSavePending = pendingCounselorRosterIds.has(row.id)
                 return (
                   <DataTableRow
                     key={row.id}
@@ -872,6 +915,11 @@ export function TeacherRosterTab({ classroom }: Props) {
                     <DataTableCell className="hidden text-text-muted lg:table-cell">
                       {editingCounselorId === row.id ? (
                         <div className="flex items-center gap-1">
+                          <FormField
+                            label={`Counselor email for ${rowName}`}
+                            hideLabel
+                            className="w-32 [&>div:first-child]:sr-only"
+                          >
                             <Input
                               type="email"
                               value={editingCounselorValue}
@@ -889,14 +937,14 @@ export function TeacherRosterTab({ classroom }: Props) {
                                   cancelEditingCounselor(row.id)
                                 }
                               }}
-                              className="min-h-8 w-32 px-2 py-1 text-sm"
+                              className="px-2 py-1 text-sm"
                               placeholder="counselor@..."
-                              aria-label={`Counselor email for ${rowName}`}
                               aria-describedby={currentCounselorError ? counselorErrorId : undefined}
                               aria-invalid={!!currentCounselorError}
                               readOnly={isSavingCurrentCounselor}
                               autoFocus
                             />
+                          </FormField>
                             <Button
                               type="button"
                               variant="ghost"
@@ -931,10 +979,12 @@ export function TeacherRosterTab({ classroom }: Props) {
                           variant="ghost"
                           size="sm"
                           onClick={() => startEditingCounselor(row)}
-                          disabled={isReadOnly}
+                          disabled={isReadOnly || isCounselorSavePending}
                           aria-label={`Edit counselor email for ${rowName}`}
                           className={`h-auto min-h-8 max-w-full justify-start gap-1 px-1 py-1 text-left ${
-                            isReadOnly ? 'cursor-not-allowed opacity-50' : 'hover:text-text-default'
+                            isReadOnly || isCounselorSavePending
+                              ? 'cursor-not-allowed opacity-50'
+                              : 'hover:text-text-default'
                           }`}
                         >
                           {row.counselor_email ? (
