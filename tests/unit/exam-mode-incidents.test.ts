@@ -243,4 +243,26 @@ describe('exam mode exit incidents', () => {
     expect(windowLoss.effects[0]).toMatchObject({ incidentId: 'incident-1' })
     expect(hidden.effects[0]).toMatchObject({ incidentId: 'incident-1' })
   })
+
+  it('keeps lifecycle cleanup correlated with a route exit during unmount', () => {
+    const routeExit = transition(createExamIncidentState(), {
+      type: 'route_exit',
+      atMs: 1_000,
+      incidentId: 'incident-1',
+      source: 'in_app_navigation',
+    })
+    const cleanup = transition(routeExit.state, {
+      type: 'reset',
+      atMs: 1_050,
+    })
+    const unmount = transition(cleanup.state, {
+      type: 'lifecycle_exit',
+      atMs: 1_060,
+      incidentId: 'incident-2',
+      source: 'component_unmount',
+    })
+
+    expect(cleanup.effects).toEqual([])
+    expect(unmount.effects[0]).toMatchObject({ incidentId: 'incident-1' })
+  })
 })

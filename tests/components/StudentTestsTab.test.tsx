@@ -1568,7 +1568,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies).toEqual([])
   })
 
-  it('suppresses blur and visibility exits after text doc interaction', async () => {
+  it('suppresses document blur noise but records an immediate hidden-page exit', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let visibilityState: DocumentVisibilityState = 'visible'
 
@@ -1691,10 +1691,17 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(window, new Event('blur'))
     visibilityState = 'hidden'
     fireEvent(document, new Event('visibilitychange'))
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    visibilityState = 'visible'
+    fireEvent(document, new Event('visibilitychange'))
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
-    expect(focusBodies).toEqual([])
+    await waitFor(() => {
+      expect(focusBodies).toHaveLength(2)
+    })
+    expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusBodies[0].incident_id).toMatch(/^incident_/)
+    expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
+    expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
   })
 
   it('does not log exit telemetry when returning from an open doc to the docs list', async () => {
@@ -2375,15 +2382,10 @@ describe('StudentTestsTab exam mode', () => {
   it('does not log exit telemetry for Cmd+F interruption bursts', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
-    let visibilityState: DocumentVisibilityState = 'visible'
 
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
       get: () => fullscreenElement,
-    })
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => visibilityState,
     })
     Object.defineProperty(document.documentElement, 'requestFullscreen', {
       configurable: true,
@@ -2478,15 +2480,16 @@ describe('StudentTestsTab exam mode', () => {
       expect(fullscreenElement).toBe(document.documentElement)
     })
 
+    vi.useFakeTimers()
     fireEvent.keyDown(window, { key: 'f', metaKey: true })
     fireEvent(window, new Event('blur'))
-    visibilityState = 'hidden'
-    fireEvent(document, new Event('visibilitychange'))
     fullscreenElement = null
     fireEvent(document, new Event('fullscreenchange'))
     fireEvent(window, new Event('resize'))
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
 
     expect(focusBodies).toEqual([])
   })
@@ -2807,7 +2810,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} />)
+    const { unmount } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2833,9 +2836,12 @@ describe('StudentTestsTab exam mode', () => {
       })
     )
     fireEvent(window, new Event('pagehide'))
+    unmount()
 
     await waitFor(() => {
-      expect(focusBodies.filter((body) => body.event_type === 'route_exit_attempt')).toHaveLength(2)
+      const routeExits = focusBodies.filter((body) => body.event_type === 'route_exit_attempt')
+      expect(routeExits).toHaveLength(3)
+      expect(new Set(routeExits.map((body) => body.incident_id)).size).toBe(1)
     })
   })
 

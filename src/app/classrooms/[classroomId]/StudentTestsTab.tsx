@@ -699,7 +699,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
     if (now <= findIntentUntilRef.current) {
       findIntentUntilRef.current = 0
-      findSuppressionUntilRef.current = now + 500
+      findSuppressionUntilRef.current = now + TEST_EXIT_BURST_WINDOW_MS
       return true
     }
     return false
@@ -1183,14 +1183,14 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   useEffect(() => {
     if (!focusEnabled) return
 
-    const shouldSuppressFocusLoss = () => {
+    const shouldSuppressBlur = () => {
       if (shouldSuppressForBrowserFind()) return true
       if (shouldSuppressForDocInteraction()) return true
       return false
     }
 
     const handleBlur = () => {
-      if (shouldSuppressFocusLoss()) return
+      if (shouldSuppressBlur()) return
       clearPendingBlurTimeout()
       applyExamIncidentEvent({ type: 'blur', atMs: Date.now() })
       pendingBlurTimeoutRef.current = window.setTimeout(() => {
@@ -1211,7 +1211,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         clearPendingBlurTimeout()
-        if (shouldSuppressFocusLoss()) return
         applyExamIncidentEvent({
           type: 'visibility_hidden',
           atMs: Date.now(),

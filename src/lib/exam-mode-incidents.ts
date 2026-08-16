@@ -322,5 +322,11 @@ export function reduceExamIncident(
   }
 
   const ended = endAwayIncident(state, event.atMs, 'cleanup')
-  return { state: createExamIncidentState(), effects: ended.effects }
+  return {
+    state: {
+      ...createExamIncidentState(),
+      recentIncident: ended.state.recentIncident,
+    },
+    effects: ended.effects,
+  }
 }

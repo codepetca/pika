@@ -1047,3 +1047,21 @@ state; no API, schema, migration, production, or Gradex change.
   coverage proves retained-result failure and successful retry replacement.
 - Composite-widget checklist is not applicable because no composite control or
   keyboard model changed; alert/status semantics and Retry are role-tested.
+- Full Vitest suite passes: 4,257 tests across 495 files. The 200 focused unit,
+  API, and component tests pass; lint, TypeScript, production build, diff checks,
+  and the Pika audit pass.
+- Playwright exam-mode suite passes all 8 setup/journey tests. Visual inspection
+  passes for teacher and student active states on desktop and mobile, including
+  `Exits: 1`, away `0:00`, and preserved responsive layout. Pika has no separate
+  dark variant for this surface.
+- Composite-widget checklist reviewed: keyboard behavior and semantic widget
+  state were unchanged; existing semantic/component coverage passes and no
+  manual follow-up remains.
+- Independent PR review found that allowed-document interaction also suppressed
+  real hidden-page switches. Remediation limits that exception to blur noise,
+  verifies a 150 ms hidden-page switch is still captured, and keeps Cmd+F noise
+  suppressed through the 750 ms window-compliance check.
+- Added cleanup-order coverage so navigation, pagehide, and component unmount
+  remain separate raw signals on one incident instead of inflating the teacher
+  exit aggregate. The remediated 103-test focused suite, full suite, build,
+  TypeScript, lint, diff checks, and Pika audit all pass.
