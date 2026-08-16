@@ -913,6 +913,16 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     confirmNonCompliantWindow,
   ])
 
+  const scheduleInitialWindowComplianceCheck = useCallback(() => {
+    clearPendingNonCompliantTimeout()
+    pendingNonCompliantTimeoutRef.current = window.setTimeout(() => {
+      pendingNonCompliantTimeoutRef.current = null
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      setIsWindowCompliantStable(snapshot.isCompliant)
+    }, EXAM_WINDOW_COMPLIANCE_GRACE_MS)
+  }, [applyWindowComplianceSnapshot, clearPendingNonCompliantTimeout])
+
   const requestExamFullscreen = useCallback(async (_source: string) => {
     const fullscreenElement = document.documentElement as FullscreenCapableElement
     if (!fullscreenElement?.requestFullscreen) {
@@ -1138,7 +1148,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       void requestExamFullscreen('exam_mode_start')
     }
     if (!initialSnapshot.isCompliant) {
-      updateWindowCompliance('window_resize')
+      scheduleInitialWindowComplianceCheck()
     }
 
     const handleFullscreenChange = () => {
@@ -1161,6 +1171,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     clearPendingNonCompliantTimeout,
     focusEnabled,
     requestExamFullscreen,
+    scheduleInitialWindowComplianceCheck,
     updateWindowCompliance,
   ])
 

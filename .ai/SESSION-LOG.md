@@ -1049,6 +1049,7 @@ state; no API, schema, migration, production, or Gradex change.
   keyboard model changed; alert/status semantics and Retry are role-tested.
 - Full Vitest suite passes: 4,257 tests across 495 files. The 200 focused unit,
 - Full Vitest suite passes: 4,258 tests across 495 files. The 201 focused unit,
+- Full Vitest suite passes: 4,259 tests across 495 files. The 202 focused unit,
   API, and component tests pass; lint, TypeScript, production build, diff checks,
   and the Pika audit pass.
 - Playwright exam-mode suite passes all 8 setup/journey tests. Visual inspection
@@ -1065,5 +1066,10 @@ state; no API, schema, migration, production, or Gradex change.
 - Added cleanup-order coverage so navigation, pagehide, and component unmount
   remain separate raw signals on one incident instead of inflating the teacher
   exit aggregate, including direct server aggregation coverage. The remediated
-  104-test focused suite, full suite, build,
+  105-test focused suite, full suite, build,
   TypeScript, lint, diff checks, and Pika audit all pass.
+- Final integration review found that an initially undersized window could log
+  a resize infraction when fullscreen permission was rejected. Initial
+  compliance enforcement is now non-punitive unless a real resize or
+  fullscreen-change signal occurs; rejected requests still lock an undersized
+  exam window after the grace period without posting telemetry.

@@ -586,6 +586,64 @@ describe('StudentTestsTab exam mode', () => {
     )).toBe(false)
   })
 
+  it('locks an initially undersized window without counting a rejected fullscreen request', async () => {
+    queueTestList()
+    queueTestDetail()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, focus_summary: makeFocusSummary() }),
+    })
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => null,
+    })
+    const requestFullscreen = vi.fn().mockRejectedValue(new DOMException(
+      'Fullscreen requires a user gesture',
+      'NotAllowedError'
+    ))
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+
+    render(<StudentTestsTab classroom={classroom} />)
+
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    await screen.findByText('Start this test?')
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByText('Start test'))
+
+    await act(async () => {
+      await Promise.resolve()
+      vi.advanceTimersByTime(800)
+    })
+
+    expect(requestFullscreen).toHaveBeenCalled()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(
+      ([url]: [string]) => url.includes('/focus-events')
+    )).toBe(false)
+  })
+
   it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {
     let listReads = 0
     const setIntervalSpy = vi.spyOn(window, 'setInterval')
