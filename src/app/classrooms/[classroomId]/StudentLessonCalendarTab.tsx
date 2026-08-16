@@ -88,6 +88,7 @@ export function StudentLessonCalendarTab({
     setAssignments([])
     setAnnouncements([])
     setMaxDate(null)
+    retryingSourcesRef.current.clear()
     setSourceStatus(initialSourceStatus())
   }, [classroom.id])
 

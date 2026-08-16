@@ -213,6 +213,7 @@ describe('TeacherLessonCalendarTab', () => {
 
   it('keeps local lesson edits while a retained snapshot refresh is in flight', async () => {
     const refreshedLessonPlans = deferred<any>()
+    const autosave = deferred<any>()
     let lessonPlanReads = 0
     let latestSidebarState: CalendarSidebarState | null = null
 
@@ -221,7 +222,7 @@ describe('TeacherLessonCalendarTab', () => {
         return Promise.resolve({ ok: true, json: async () => ({}) })
       }
       if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') {
-        return Promise.resolve({ ok: true, json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }) })
+        return autosave.promise
       }
       if (url.includes('lesson-plans')) {
         lessonPlanReads += 1
@@ -247,10 +248,6 @@ describe('TeacherLessonCalendarTab', () => {
     )
 
     await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Original lesson'))
-    act(() => latestSidebarState?.onMarkdownChange('## 2025-01-06\nSidebar lesson'))
-    await act(async () => latestSidebarState?.onSave())
-    await waitFor(() => expect(lessonPlanReads).toBe(2))
-
     vi.useFakeTimers()
     fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
     expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
@@ -263,10 +260,67 @@ describe('TeacherLessonCalendarTab', () => {
     expect(fetchMock.mock.calls.some(([url, init]) => String(url).includes('/lesson-plans/2025-01-06') && init?.method === 'PUT')).toBe(true)
     vi.useRealTimers()
 
+    act(() => latestSidebarState?.onMarkdownChange('## 2025-01-06\nUpdated lesson'))
+    await act(async () => latestSidebarState?.onSave())
+    await waitFor(() => expect(lessonPlanReads).toBe(2))
+
+    autosave.resolve({
+      ok: true,
+      json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }),
+    })
+    await act(async () => autosave.promise)
+
     refreshedLessonPlans.resolve({ ok: true, json: async () => ({ lesson_plans: [lessonPlan()] }) })
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
     })
+  })
+
+  it('does not carry retry focus intent into another classroom', async () => {
+    const secondClassroom = createMockClassroom({
+      id: 'classroom-2',
+      start_date: '2025-01-01',
+      end_date: '2025-06-30',
+    })
+    const firstClassroomRetry = deferred<any>()
+    let firstClassroomAssignmentReads = 0
+
+    invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        firstClassroomAssignmentReads += 1
+        if (firstClassroomAssignmentReads === 1) {
+          return Promise.resolve({ ok: false, json: async () => ({ error: 'Failed' }) })
+        }
+        return firstClassroomRetry.promise
+      }
+      if (url.includes('lesson-plans')) {
+        const classroomId = url.includes(secondClassroom.id) ? secondClassroom.id : classroom.id
+        return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [lessonPlan({ classroom_id: classroomId })] }) })
+      }
+      if (url.includes('assignments')) {
+        return Promise.resolve({ ok: true, json: async () => ({ assignments: [{ id: 'assignment-2', classroom_id: secondClassroom.id }] }) })
+      }
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+    expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
+
+    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', secondClassroom.id)
+    })
+    expect(document.activeElement).not.toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
+
+    firstClassroomRetry.resolve({ ok: true, json: async () => ({ assignments: [] }) })
   })
 
   it('shows a retryable cold error when no calendar source loads', async () => {

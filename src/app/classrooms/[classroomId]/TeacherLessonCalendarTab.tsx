@@ -97,7 +97,7 @@ export function TeacherLessonCalendarTab({
   const lessonPlansRef = useRef(visibleLessonPlans)
   lessonPlansRef.current = visibleLessonPlans
   const lessonEditGenerationRef = useRef(0)
-  const lessonEditsRef = useRef<Map<string, { content: string; generation: number }>>(new Map())
+  const lessonEditsRef = useRef<Map<string, { acknowledged: boolean; content: string; generation: number }>>(new Map())
   const {
     classDays,
     error: classDaysError,
@@ -143,6 +143,7 @@ export function TeacherLessonCalendarTab({
     sourceRequestIdsRef.current.announcements += 1
     lessonEditGenerationRef.current = 0
     lessonEditsRef.current.clear()
+    retryingSourcesRef.current.clear()
     setSourceStatus(initialSourceStatus())
   }, [classroom.id])
 
@@ -207,7 +208,10 @@ export function TeacherLessonCalendarTab({
     const requestedClassroomId = classroom.id
 
     async function loadLessonPlans() {
-      const editGenerationAtRequestStart = lessonEditGenerationRef.current
+      const acknowledgedEditsAtRequestStart = new Map<string, number>()
+      for (const [date, edit] of lessonEditsRef.current) {
+        if (edit.acknowledged) acknowledgedEditsAtRequestStart.set(date, edit.generation)
+      }
       const requestId = sourceRequestIdsRef.current.lessonPlans + 1
       sourceRequestIdsRef.current.lessonPlans = requestId
       const isCurrentLoad = () => (
@@ -229,11 +233,13 @@ export function TeacherLessonCalendarTab({
         const plans = await fetchTeacherLessonPlansForRange(requestedClassroomId, fetchRange.start, fetchRange.end)
         if (!isCurrentLoad()) return
         const plansWithPending = applyPendingLessonPlanChanges(plans, pendingChangesRef.current, requestedClassroomId)
-        const editsSinceRequest = new Map<string, string>()
+        const editsToPreserve = new Map<string, string>()
         for (const [date, edit] of lessonEditsRef.current) {
-          if (edit.generation > editGenerationAtRequestStart) editsSinceRequest.set(date, edit.content)
+          if (acknowledgedEditsAtRequestStart.get(date) !== edit.generation) {
+            editsToPreserve.set(date, edit.content)
+          }
         }
-        const plansWithCurrentEdits = applyPendingLessonPlanChanges(plansWithPending, editsSinceRequest, requestedClassroomId)
+        const plansWithCurrentEdits = applyPendingLessonPlanChanges(plansWithPending, editsToPreserve, requestedClassroomId)
         // Seed last-seen content so Tiptap normalization doesn't trigger saves.
         // Local edits remain authoritative while a background refresh settles.
         lastSeenContentRef.current.clear()
@@ -242,6 +248,12 @@ export function TeacherLessonCalendarTab({
         }
         setLessonPlansClassroomId(requestedClassroomId)
         setLessonPlans(plansWithCurrentEdits)
+        for (const [date, generation] of acknowledgedEditsAtRequestStart) {
+          const currentEdit = lessonEditsRef.current.get(date)
+          if (currentEdit?.generation === generation && currentEdit.acknowledged) {
+            lessonEditsRef.current.delete(date)
+          }
+        }
         setSourceStatus((current) => ({
           ...current,
           lessonPlans: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
@@ -380,7 +392,7 @@ export function TeacherLessonCalendarTab({
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
-    async (date: string, contentMarkdown: string) => {
+    async (date: string, contentMarkdown: string, editGeneration?: number) => {
       const requestedClassroomId = classroom.id
       try {
         const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/lesson-plans/${date}`, {
@@ -393,6 +405,11 @@ export function TeacherLessonCalendarTab({
           invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
           needsRefreshRef.current = true
           if (currentClassroomIdRef.current !== requestedClassroomId) return
+          const currentEdit = lessonEditsRef.current.get(date)
+          if (editGeneration !== undefined) {
+            if (currentEdit?.generation !== editGeneration || currentEdit.content !== contentMarkdown) return
+            currentEdit.acknowledged = true
+          }
           setLessonPlansClassroomId(requestedClassroomId)
           setLessonPlans((prev) => {
             if (!data.lesson_plan) {
@@ -420,10 +437,14 @@ export function TeacherLessonCalendarTab({
     if (pendingChangesRef.current.size === 0) return
 
     setSaving(true)
-    const entries = Array.from(pendingChangesRef.current.entries())
+    const entries = Array.from(pendingChangesRef.current.entries()).map(([date, content]) => ({
+      content,
+      date,
+      editGeneration: lessonEditsRef.current.get(date)?.generation,
+    }))
     pendingChangesRef.current.clear()
 
-    await Promise.all(entries.map(([date, content]) => saveLessonPlan(date, content)))
+    await Promise.all(entries.map(({ content, date, editGeneration }) => saveLessonPlan(date, content, editGeneration)))
     lastSaveAtRef.current = Date.now()
     setSaving(false)
   }, [saveLessonPlan])
@@ -454,6 +475,7 @@ export function TeacherLessonCalendarTab({
       lastSeenContentRef.current.set(date, contentStr)
       lessonEditGenerationRef.current += 1
       lessonEditsRef.current.set(date, {
+        acknowledged: false,
         content: contentMarkdown,
         generation: lessonEditGenerationRef.current,
       })

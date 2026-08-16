@@ -266,6 +266,47 @@ describe('StudentLessonCalendarTab', () => {
     expect(classDaysState.refresh).toHaveBeenCalledTimes(1)
   })
 
+  it('does not carry retry focus intent into another classroom', async () => {
+    let resolveFirstClassroomRetry!: (value: any) => void
+    const firstClassroomRetry = new Promise<any>((resolve) => {
+      resolveFirstClassroomRetry = resolve
+    })
+    let firstClassroomAssignmentReads = 0
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        firstClassroomAssignmentReads += 1
+        if (firstClassroomAssignmentReads === 1) {
+          return Promise.resolve({ ok: false, json: async () => ({ error: 'Failed' }) })
+        }
+        return firstClassroomRetry
+      }
+      if (url.includes('lesson-plans')) {
+        const lessonId = url.includes(secondClassroom.id) ? 'classroom-2-lesson' : 'classroom-1-lesson'
+        return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [{ id: lessonId }] }) })
+      }
+      if (url.includes('assignments')) {
+        return Promise.resolve({ ok: true, json: async () => ({ assignments: [{ id: 'classroom-2-assignment' }] }) })
+      }
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    const view = render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+    expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
+
+    view.rerender(<StudentLessonCalendarTab classroom={secondClassroom} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-ids', 'classroom-2-lesson')
+    })
+    expect(document.activeElement).not.toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
+
+    resolveFirstClassroomRetry({ ok: true, json: async () => ({ assignments: [] }) })
+  })
+
   it('ignores late calendar responses after switching classrooms', async () => {
     type PendingFetch = {
       url: string

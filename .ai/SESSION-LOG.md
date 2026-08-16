@@ -1026,13 +1026,16 @@ Gradex change.
   Toronto-based.
 
 **Validation:**
-- Full suite passes: 4,286 tests across 495 files. Production build, lint,
+- Full suite passes: 4,288 tests across 495 files. Production build, lint,
   TypeScript, architecture, design/UI policy, Pika audit, and diff checks pass.
 - Independent review found that background lesson refreshes could discard
   edits and successful Retry actions could strand keyboard focus. Pending
   edits now remain authoritative during refreshes, Retry controls stay mounted
   while requests run, and successful recovery focuses the named Calendar
-  workspace; focused teacher/student regressions cover both corrections.
+  workspace. Targeted re-review additionally caught a GET/autosave ordering
+  gap and retry intent crossing classroom boundaries; per-edit acknowledgments
+  and classroom-scoped retry state now fence both cases, with focused
+  teacher/student regressions covering the corrections.
 - Playwright verification passes for teacher/student desktop loaded and partial
   error states in light mode, loaded states in dark mode, and the existing
   mobile layout. Retry controls retain valid lesson data with no overflow.
