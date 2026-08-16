@@ -284,6 +284,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
   const selectedTestIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
+  const focusEventQueueRef = useRef<{
+    sessionId: string | null
+    tail: Promise<void>
+  }>({ sessionId: null, tail: Promise.resolve() })
   const examIncidentStateRef = useRef<ExamIncidentState>(createExamIncidentState())
   const pendingBlurTimeoutRef = useRef<number | null>(null)
   const focusEnabledRef = useRef(false)
@@ -643,13 +647,44 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       if (options?.updateSummary === false) return
 
       const data = await res.json().catch(() => ({}))
-      if (res.ok && data?.focus_summary) {
+      if (
+        res.ok &&
+        data?.focus_summary &&
+        selectedTestIdRef.current === testId &&
+        focusSessionIdRef.current === sessionId
+      ) {
         setFocusSummary(data.focus_summary as TestFocusSummary)
       }
     } catch (err) {
       console.error('Error posting test focus event:', err)
     }
   }, [apiBasePath])
+
+  const enqueueFocusEvent = useCallback((
+    eventType: 'away_start' | 'away_end' | 'route_exit_attempt' | 'window_unmaximize_attempt',
+    metadata?: Record<string, unknown>,
+    options?: {
+      testId?: string | null
+      sessionId?: string | null
+      updateSummary?: boolean
+      incidentId?: string
+      occurredAtMs?: number
+    }
+  ) => {
+    const testId = options?.testId ?? selectedTestIdRef.current
+    const sessionId = options?.sessionId ?? focusSessionIdRef.current
+    if (!testId || !sessionId) return
+
+    if (focusEventQueueRef.current.sessionId !== sessionId) {
+      focusEventQueueRef.current = { sessionId, tail: Promise.resolve() }
+    }
+
+    const queue = focusEventQueueRef.current
+    queue.tail = queue.tail.then(
+      () => postFocusEvent(eventType, metadata, { ...options, testId, sessionId }),
+      () => postFocusEvent(eventType, metadata, { ...options, testId, sessionId })
+    )
+  }, [postFocusEvent])
 
   const applyExamIncidentEvent = useCallback((
     event: ExamIncidentEvent,
@@ -669,21 +704,21 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       }
 
       if (effect.type === 'away_start') {
-        void postFocusEvent('away_start', { source: effect.source }, commonOptions)
+        enqueueFocusEvent('away_start', { source: effect.source }, commonOptions)
       } else if (effect.type === 'away_end') {
-        void postFocusEvent(
+        enqueueFocusEvent(
           'away_end',
           { source: effect.source, duration_ms: effect.durationMs },
           commonOptions
         )
       } else if (effect.type === 'window_exit') {
-        void postFocusEvent(
+        enqueueFocusEvent(
           'window_unmaximize_attempt',
           { source: effect.source, ...(options?.metadata || {}) },
           commonOptions
         )
       } else {
-        void postFocusEvent(
+        enqueueFocusEvent(
           'route_exit_attempt',
           { source: effect.source, ...(options?.metadata || {}) },
           commonOptions
@@ -692,7 +727,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
 
     return transition.effects
-  }, [postFocusEvent])
+  }, [enqueueFocusEvent])
 
   const shouldSuppressForBrowserFind = useCallback(() => {
     const now = Date.now()

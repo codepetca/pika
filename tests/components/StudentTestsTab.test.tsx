@@ -2605,6 +2605,7 @@ describe('StudentTestsTab exam mode', () => {
 
   it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {
     const focusBodies: Array<Record<string, any>> = []
+    const firstFocusResponse = createDeferred<void>()
     let fullscreenElement: Element | null = null
 
     Object.defineProperty(document, 'fullscreenElement', {
@@ -2679,17 +2680,22 @@ describe('StudentTestsTab exam mode', () => {
         const routeAttempts = focusBodies.filter(
           (body) => body.event_type === 'route_exit_attempt'
         ).length
+        const focusSummaryAtRequest = makeFocusSummary({
+          exit_count: Math.max(awayStarts, windowAttempts + routeAttempts),
+          away_count: awayStarts,
+          away_total_seconds: awayEnds > 0 ? 1 : 0,
+          route_exit_attempts: routeAttempts,
+          window_unmaximize_attempts: windowAttempts,
+          last_away_ended_at: awayEnds > 0 ? '2026-02-24T12:00:01.000Z' : null,
+        })
+        if (parsedBody.event_type === 'away_start') {
+          await firstFocusResponse.promise
+        }
         return {
           ok: true,
           json: async () => ({
             success: true,
-            focus_summary: makeFocusSummary({
-              exit_count: Math.max(awayStarts, windowAttempts + routeAttempts),
-              away_count: awayStarts,
-              route_exit_attempts: routeAttempts,
-              window_unmaximize_attempts: windowAttempts,
-              last_away_ended_at: awayEnds > 0 ? '2026-02-24T12:00:01.000Z' : null,
-            }),
+            focus_summary: focusSummaryAtRequest,
           }),
         }
       }
@@ -2739,6 +2745,15 @@ describe('StudentTestsTab exam mode', () => {
       await Promise.resolve()
     })
 
+    expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start'])
+    firstFocusResponse.resolve(undefined)
+    await act(async () => {
+      await firstFocusResponse.promise
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
     expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start', 'away_end'])
     expect(focusBodies[0].incident_id).toMatch(/^incident_/)
     expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
@@ -2747,6 +2762,7 @@ describe('StudentTestsTab exam mode', () => {
       await Promise.resolve()
     })
     expect(screen.getByLabelText(/Exits 1\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 1s.')).toBeInTheDocument()
   })
 
   it('tracks swipe-away visibility changes as one exit', async () => {
