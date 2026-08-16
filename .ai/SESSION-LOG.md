@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Record managed Blueprint lifecycle follow-up
-
-- Added a separate failing feature for durable Blueprint deletion with managed
-  files; no Blueprint deletion implementation was added to the Classroom purge
-  reconciliation patch.
-- The acceptance sequence first creates and verifies a Classroom from preserved
-  canary Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, then exercises the
-  future Blueprint purge so preservation and deletion are independently proven.
-
 ## 2026-08-05 — Validate production-reconciliation patch
 
 - Full Vitest passed: 468 files and 4,047 tests. Production build, lint,
@@ -1034,3 +1025,30 @@ mobile redesign, or Gradex change.
   retry focus through failure and recovery.
 - Playwright verification passes for teacher/student desktop/mobile and
   light/dark Calendar views plus the retained `Retrying class days` state.
+
+## 2026-08-16 — Make Calendar mutations durable across unload and classroom switches
+
+**Risk profile:** schema-and-workspace-state — teacher lesson-plan ordering,
+bulk draft ownership, and visible save recovery; migration 125 was applied to
+the shared local database only. Production was not modified.
+
+**Completed:**
+- Added a durable per-browser-session ordering head and atomic lesson-plan
+  mutation function so reversed save/delete completion cannot overwrite newer
+  teacher intent, including direct keepalive requests during unload.
+- Fenced bulk-save completion by classroom epoch, retained failed classroom
+  drafts, and prevented delayed responses from closing or clearing newer work.
+- Added bounded inline retries with an explicit manual Retry action after
+  exhaustion, preserving the exact unsaved lesson content.
+- Migrated the date and bulk request bodies to feature-owned Zod schemas and
+  removed both routes from the API validation debt baseline.
+
+**Validation:**
+- Full suite passes: 4,309 tests across 498 files. Production build, lint,
+  TypeScript, generated Supabase type drift, Pika audit, and diff checks pass.
+- Local PostgreSQL rollback tests prove newer-save/stale-save,
+  newer-delete/stale-save, and newer-save/stale-delete ordering. RPC execution
+  is denied to `anon` and `authenticated` and granted only to `service_role`.
+- Playwright verification passes for the exhausted-save Retry alert in teacher
+  light/dark views; the student Calendar remains visually unchanged. Mobile
+  redesign remains explicitly deferred.

@@ -3,12 +3,14 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
+import type { TableRow } from '@/types/database'
+import type { Json } from '@/types/database.generated'
 import {
   buildLessonPlanContentFields,
   getLessonPlanMarkdown,
   normalizeLessonPlanMarkdown,
 } from '@/lib/lesson-plan-content'
+import { lessonPlanMutationBodySchema } from '@/lib/validations/lesson-plan-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,8 +19,9 @@ export const revalidate = 0
 export const PUT = withErrorHandler('PutUpsertLessonPlan', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: classroomId, date } = await context.params
-  const body = await request.json()
-  const { content_markdown, content } = body as { content_markdown?: string; content?: TiptapContent }
+  const { content_markdown, content, mutation: mutationVersion } = lessonPlanMutationBodySchema.parse(
+    await request.json(),
+  )
 
   // Validate date format (YYYY-MM-DD)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -36,10 +39,7 @@ export const PUT = withErrorHandler('PutUpsertLessonPlan', async (request, conte
         : null
 
   if (markdown === null) {
-    return NextResponse.json(
-      { error: 'Invalid content format' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Invalid content format' }, { status: 400 })
   }
 
   const contentFields = buildLessonPlanContentFields(markdown)
@@ -53,6 +53,36 @@ export const PUT = withErrorHandler('PutUpsertLessonPlan', async (request, conte
   }
 
   const supabase = getServiceRoleClient()
+
+  if (mutationVersion) {
+    const shouldDelete = normalizeLessonPlanMarkdown(markdown).trim().length === 0
+    const { data, error } = await supabase.rpc('apply_ordered_lesson_plan_mutation', {
+      p_classroom_id: classroomId,
+      p_client_id: mutationVersion.client_id,
+      p_content: contentFields.content as unknown as Json,
+      p_content_markdown: contentFields.content_markdown,
+      p_date: date,
+      p_delete: shouldDelete,
+      p_sequence: mutationVersion.sequence,
+    })
+
+    if (error || !data || typeof data !== 'object' || Array.isArray(data)) {
+      console.error('Error applying ordered lesson plan mutation:', error)
+      return NextResponse.json({ error: 'Failed to save lesson plan' }, { status: 500 })
+    }
+
+    const result = data as { applied?: boolean; lesson_plan?: TableRow<'lesson_plans'> | null }
+    const lessonPlan = result.lesson_plan
+    return NextResponse.json({
+      applied: result.applied === true,
+      lesson_plan: lessonPlan
+        ? {
+            ...lessonPlan,
+            content_markdown: getLessonPlanMarkdown(lessonPlan).markdown,
+          }
+        : null,
+    })
+  }
 
   if (normalizeLessonPlanMarkdown(markdown).trim().length === 0) {
     const { error } = await supabase

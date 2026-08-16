@@ -14,8 +14,6 @@
   "src/app/api/teacher/classrooms/[id]/announcements/[announcementId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/announcements/route.ts",
   "src/app/api/teacher/classrooms/[id]/classwork/reorder/route.ts",
-  "src/app/api/teacher/classrooms/[id]/lesson-plans/[date]/route.ts",
-  "src/app/api/teacher/classrooms/[id]/lesson-plans/bulk/route.ts",
   "src/app/api/teacher/classrooms/[id]/lesson-plans/copy/route.ts",
   "src/app/api/teacher/classrooms/[id]/materials/[materialId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/materials/route.ts",

@@ -12,11 +12,59 @@ vi.mock('@/lib/server/classrooms', () => ({
   assertTeacherCanMutateClassroom: vi.fn(async () => ({ ok: true })),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('routes every versioned bulk date through the atomic ordering function', async () => {
+    mockSupabaseClient.rpc
+      .mockResolvedValueOnce({
+        data: {
+          applied: true,
+          lesson_plan: {
+            id: 'lp-1',
+            classroom_id: 'c-1',
+            date: '2025-01-06',
+            content: { type: 'doc', content: [] },
+            content_markdown: 'Plan',
+          },
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { applied: true, lesson_plan: null }, error: null })
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/bulk',
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          plans: [{ date: '2025-01-06', content_markdown: 'Plan' }],
+          cleared_dates: ['2025-01-07'],
+          mutation: {
+            client_id: '10000000-0000-4000-8000-000000000001',
+            sequence: 7,
+          },
+        }),
+      },
+    )
+    const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(200)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(2)
+    expect(mockSupabaseClient.rpc).toHaveBeenNthCalledWith(1, 'apply_ordered_lesson_plan_mutation', expect.objectContaining({
+      p_date: '2025-01-06',
+      p_delete: false,
+      p_sequence: 7,
+    }))
+    expect(mockSupabaseClient.rpc).toHaveBeenNthCalledWith(2, 'apply_ordered_lesson_plan_mutation', expect.objectContaining({
+      p_date: '2025-01-07',
+      p_delete: true,
+      p_sequence: 7,
+    }))
+    expect(await response.json()).toMatchObject({ updated: 1, cleared: 1 })
   })
 
   it('should return 400 when plans array is missing', async () => {
@@ -81,7 +129,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.errors).toContain('Invalid date format: invalid-date')
+    expect(data.error).toContain('Invalid date format: invalid-date')
   })
 
   it('should return 400 for duplicate dates in plans', async () => {
@@ -100,7 +148,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.errors).toContain('Duplicate date: 2025-01-06')
+    expect(data.error).toContain('Duplicate date: 2025-01-06')
   })
 
   it('should return 400 for invalid content in plans', async () => {
@@ -118,7 +166,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.errors).toContain('Invalid content for date 2025-01-06')
+    expect(data.error).toContain('Invalid content format')
   })
 
   it('should return 403 when teacher cannot mutate classroom', async () => {

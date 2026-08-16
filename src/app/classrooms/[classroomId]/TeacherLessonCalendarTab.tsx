@@ -21,7 +21,11 @@ import {
   fetchTeacherLessonPlansForRange,
   invalidateTeacherLessonPlansForClassroom,
 } from '@/lib/teacher-lesson-plans-client'
-import { enqueueTeacherLessonPlanMutation } from '@/lib/teacher-lesson-plan-mutation-queue'
+import {
+  allocateTeacherLessonPlanMutationVersion,
+  enqueueTeacherLessonPlanMutation,
+  type TeacherLessonPlanMutationVersion,
+} from '@/lib/teacher-lesson-plan-mutation-queue'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 /**
@@ -52,6 +56,13 @@ type PendingLessonSave = {
   editGeneration?: number
   retries: number
   saveEpoch: number
+  mutation: TeacherLessonPlanMutationVersion
+}
+
+type PendingBulkLessonSave = {
+  body: string
+  classroomId: string
+  mutation: TeacherLessonPlanMutationVersion
 }
 
 function pendingLessonSaveKey(classroomId: string, date: string): string {
@@ -147,6 +158,7 @@ export function TeacherLessonCalendarTab({
   const visibleMarkdownContent = markdownContentClassroomId === classroom.id ? markdownContent : ''
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
+  const [failedSaveClassroomIds, setFailedSaveClassroomIds] = useState<Set<string>>(() => new Set())
   const [refreshKey, setRefreshKey] = useState(0)
   const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0)
   const [announcementsRefreshKey, setAnnouncementsRefreshKey] = useState(0)
@@ -172,17 +184,21 @@ export function TeacherLessonCalendarTab({
     lessonEditGenerationRef.current = 0
     lessonEditsRef.current.clear()
     retryingSourcesRef.current.clear()
+    setBulkSaving(false)
     setSourceStatus(initialSourceStatus())
   }, [classroom.id])
 
   // Auto-save tracking
   const pendingSavesRef = useRef<Map<string, PendingLessonSave>>(new Map())
+  const pendingBulkSavesRef = useRef<Map<string, PendingBulkLessonSave>>(new Map())
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const flushInFlightRef = useRef<Promise<void> | null>(null)
   const lastSaveAtRef = useRef<number>(0)
   const prevSidebarOpenRef = useRef(false)
   const needsRefreshRef = useRef(true) // Force refresh on first open or after save
   const markdownContentRef = useRef('') // Ref to avoid stale closure in save handler
+  const markdownDraftsRef = useRef<Map<string, string>>(new Map())
+  const markdownErrorsRef = useRef<Map<string, string>>(new Map())
   const markdownSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const applyLocalLessonPlanChange = useCallback((date: string, contentMarkdown: string) => {
@@ -431,14 +447,16 @@ export function TeacherLessonCalendarTab({
       contentMarkdown: string,
       saveEpoch: number,
       editGeneration?: number,
-      options?: { keepalive?: boolean; updateView?: boolean },
+      mutation?: TeacherLessonPlanMutationVersion,
+      options?: { updateView?: boolean },
     ) => {
+      const mutationVersion = mutation ?? allocateTeacherLessonPlanMutationVersion()
       return enqueueTeacherLessonPlanMutation(requestedClassroomId, async () => {
         const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/lesson-plans/${date}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content_markdown: contentMarkdown }),
-          keepalive: options?.keepalive,
+          body: JSON.stringify({ content_markdown: contentMarkdown, mutation: mutationVersion }),
+          keepalive: true,
         })
         if (!res.ok) {
           throw new Error(`Failed to save lesson plan (${res.status})`)
@@ -483,10 +501,11 @@ export function TeacherLessonCalendarTab({
       const entries = Array.from(pendingSavesRef.current.entries())
       for (const [key] of entries) pendingSavesRef.current.delete(key)
 
+      const touchedClassroomIds = new Set(entries.map(([, entry]) => entry.classroomId))
       await Promise.all(entries.map(async ([key, entry]) => {
-        const { classroomId, content, date, editGeneration, retries, saveEpoch } = entry
+        const { classroomId, content, date, editGeneration, mutation, retries, saveEpoch } = entry
         try {
-          await saveLessonPlan(classroomId, date, content, saveEpoch, editGeneration)
+          await saveLessonPlan(classroomId, date, content, saveEpoch, editGeneration, mutation)
         } catch (err) {
           console.error('Error saving lesson plan:', err)
           if (!pendingSavesRef.current.has(key)) {
@@ -494,6 +513,17 @@ export function TeacherLessonCalendarTab({
           }
         }
       }))
+      setFailedSaveClassroomIds((current) => {
+        const next = new Set(current)
+        for (const classroomId of touchedClassroomIds) {
+          const exhausted = Array.from(pendingSavesRef.current.values()).some((save) => (
+            save.classroomId === classroomId && save.retries > AUTOSAVE_MAX_RETRIES
+          ))
+          if (exhausted) next.add(classroomId)
+          else next.delete(classroomId)
+        }
+        return next
+      })
       lastSaveAtRef.current = Date.now()
       setSaving(false)
     }
@@ -551,6 +581,7 @@ export function TeacherLessonCalendarTab({
         editGeneration: lessonEditGenerationRef.current,
         retries: 0,
         saveEpoch: classroomEpochRef.current,
+        mutation: allocateTeacherLessonPlanMutationVersion(),
       })
       scheduleSave()
     },
@@ -562,15 +593,27 @@ export function TeacherLessonCalendarTab({
     const handleBeforeUnload = () => {
       if (pendingSavesRef.current.size > 0) {
         const entries = Array.from(pendingSavesRef.current.entries())
-        for (const [key, { classroomId, content, date, editGeneration, saveEpoch }] of entries) {
-          void saveLessonPlan(classroomId, date, content, saveEpoch, editGeneration, {
+        for (const [key, { classroomId, content, date, mutation }] of entries) {
+          void fetch(`/api/teacher/classrooms/${classroomId}/lesson-plans/${date}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content_markdown: content, mutation }),
             keepalive: true,
-            updateView: false,
           }).catch((err) => {
             console.error('Error saving lesson plan during page unload:', err)
           })
           pendingSavesRef.current.delete(key)
         }
+      }
+      for (const { body, classroomId } of pendingBulkSavesRef.current.values()) {
+        void fetch(`/api/teacher/classrooms/${classroomId}/lesson-plans/bulk`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        }).catch((err) => {
+          console.error('Error saving bulk lesson plans during page unload:', err)
+        })
       }
     }
 
@@ -632,12 +675,14 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     if (previousMarkdownClassroomIdRef.current === classroom.id) return
     previousMarkdownClassroomIdRef.current = classroom.id
-    markdownContentRef.current = ''
-    setMarkdownContent('')
-    setMarkdownContentClassroomId('')
-    setMarkdownError(null)
+    const retainedDraft = markdownDraftsRef.current.get(classroom.id)
+    const retainedError = markdownErrorsRef.current.get(classroom.id) ?? null
+    markdownContentRef.current = retainedDraft ?? ''
+    setMarkdownContent(retainedDraft ?? '')
+    setMarkdownContentClassroomId(retainedDraft === undefined ? '' : classroom.id)
+    setMarkdownError(retainedError)
     needsRefreshRef.current = true
-    if (showMarkdown && isSidebarOpen) {
+    if (retainedDraft === undefined && showMarkdown && isSidebarOpen) {
       loadMarkdownContent()
     }
   }, [classroom.id, isSidebarOpen, loadMarkdownContent, showMarkdown])
@@ -652,6 +697,8 @@ export function TeacherLessonCalendarTab({
   const handleMarkdownChange = useCallback((content: string) => {
     // Always update ref immediately so save has latest content
     markdownContentRef.current = content
+    markdownDraftsRef.current.set(classroom.id, content)
+    markdownErrorsRef.current.delete(classroom.id)
     setMarkdownContentClassroomId(classroom.id)
 
     // Debounce state update to reduce parent re-renders
@@ -681,62 +728,116 @@ export function TeacherLessonCalendarTab({
 
   // Handle markdown save
   const handleMarkdownSave = useCallback(async () => {
+    const requestedClassroomId = classroom.id
+    const requestedClassroomEpoch = classroomEpochRef.current
+    const markdownPayload = markdownContentRef.current
+    const mutation = allocateTeacherLessonPlanMutationVersion()
+    const bulkMutationKey = `${mutation.client_id}:${mutation.sequence}`
+    const isCurrentOperation = () => (
+      currentClassroomIdRef.current === requestedClassroomId &&
+      classroomEpochRef.current === requestedClassroomEpoch
+    )
     setMarkdownError(null)
+    markdownErrorsRef.current.delete(requestedClassroomId)
     if (markdownContentClassroomId !== classroom.id) {
       setMarkdownError('Lesson plans are still loading')
       return
     }
+    markdownDraftsRef.current.set(requestedClassroomId, markdownPayload)
     setBulkSaving(true)
 
     try {
-      const result = markdownToLessonPlans(markdownContentRef.current, classroom)
+      const result = markdownToLessonPlans(markdownPayload, classroom)
 
       if (result.errors.length > 0) {
-        setMarkdownError(result.errors.join('\n'))
+        const error = result.errors.join('\n')
+        if (markdownDraftsRef.current.get(requestedClassroomId) === markdownPayload) {
+          markdownErrorsRef.current.set(requestedClassroomId, error)
+          if (isCurrentOperation()) setMarkdownError(error)
+        }
         setBulkSaving(false)
         return
       }
 
       if (result.plans.length === 0 && result.clearedDates.length === 0) {
-        invalidateTeacherLessonPlansForClassroom(classroom.id)
+        markdownDraftsRef.current.delete(requestedClassroomId)
+        markdownErrorsRef.current.delete(requestedClassroomId)
+        invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+        if (!isCurrentOperation()) return
         needsRefreshRef.current = true
         setSidebarOpen(false)
         setRefreshKey((k) => k + 1)
         return
       }
 
+      const bulkBody = JSON.stringify({
+        plans: result.plans,
+        cleared_dates: result.clearedDates,
+        mutation,
+      })
+      pendingBulkSavesRef.current.set(bulkMutationKey, {
+        body: bulkBody,
+        classroomId: requestedClassroomId,
+        mutation,
+      })
+
       await flushPendingSaves()
       const hasPendingInlineSave = Array.from(pendingSavesRef.current.values())
         .some((save) => save.classroomId === classroom.id)
       if (hasPendingInlineSave) {
-        setMarkdownError('Pending calendar edits could not be saved. Try again.')
+        const error = 'Pending calendar edits could not be saved. Try again.'
+        if (markdownDraftsRef.current.get(requestedClassroomId) === markdownPayload) {
+          markdownErrorsRef.current.set(requestedClassroomId, error)
+          if (isCurrentOperation()) setMarkdownError(error)
+        }
         return
       }
       const res = await enqueueTeacherLessonPlanMutation(classroom.id, () => (
         fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plans: result.plans, cleared_dates: result.clearedDates }),
+          body: bulkBody,
+          keepalive: true,
         })
       ))
 
       if (!res.ok) {
         const data = await res.json()
-        setMarkdownError(data.error || 'Failed to save')
-        setBulkSaving(false)
+        const error = data.error || 'Failed to save'
+        if (markdownDraftsRef.current.get(requestedClassroomId) === markdownPayload) {
+          markdownErrorsRef.current.set(requestedClassroomId, error)
+          if (isCurrentOperation()) setMarkdownError(error)
+        }
         return
       }
 
-      // Success - close panel and refresh calendar
-      invalidateTeacherLessonPlansForClassroom(classroom.id)
+      if (markdownDraftsRef.current.get(requestedClassroomId) === markdownPayload) {
+        markdownDraftsRef.current.delete(requestedClassroomId)
+        markdownErrorsRef.current.delete(requestedClassroomId)
+      }
+      for (const [key, pending] of pendingBulkSavesRef.current) {
+        if (
+          pending.classroomId === requestedClassroomId &&
+          pending.mutation.client_id === mutation.client_id &&
+          pending.mutation.sequence <= mutation.sequence
+        ) {
+          pendingBulkSavesRef.current.delete(key)
+        }
+      }
+      invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+      if (!isCurrentOperation()) return
       needsRefreshRef.current = true // Force refresh on next sidebar open
       setSidebarOpen(false)
       setRefreshKey((k) => k + 1)
     } catch (err) {
       console.error('Error saving markdown:', err)
-      setMarkdownError('Failed to save lesson plans')
+      const error = 'Failed to save lesson plans'
+      if (markdownDraftsRef.current.get(requestedClassroomId) === markdownPayload) {
+        markdownErrorsRef.current.set(requestedClassroomId, error)
+        if (isCurrentOperation()) setMarkdownError(error)
+      }
     } finally {
-      setBulkSaving(false)
+      if (isCurrentOperation()) setBulkSaving(false)
     }
   }, [classroom, flushPendingSaves, markdownContentClassroomId, setSidebarOpen])
 
@@ -822,6 +923,20 @@ export function TeacherLessonCalendarTab({
     void refreshClassDays()
   }, [refreshClassDays])
 
+  const retryFailedSaves = useCallback(() => {
+    for (const [key, save] of pendingSavesRef.current) {
+      if (save.classroomId === classroom.id) {
+        pendingSavesRef.current.set(key, { ...save, retries: 0 })
+      }
+    }
+    setFailedSaveClassroomIds((current) => {
+      const next = new Set(current)
+      next.delete(classroom.id)
+      return next
+    })
+    void flushPendingSaves()
+  }, [classroom.id, flushPendingSaves])
+
   const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus]
   const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot
@@ -849,6 +964,9 @@ export function TeacherLessonCalendarTab({
   }, [announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
 
   const failures: CalendarSourceFailure[] = []
+  const saveFailures: CalendarSourceFailure[] = failedSaveClassroomIds.has(classroom.id)
+    ? [{ id: 'lesson-plan-saves', label: 'lesson plan changes', isRetrying: saving, onRetry: retryFailedSaves }]
+    : []
   if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
     failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: retryLessonPlans })
   }
@@ -928,6 +1046,10 @@ export function TeacherLessonCalendarTab({
         <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />
+          <CalendarSourceErrors
+            failures={saveFailures}
+            message="Some lesson plan changes could not be saved."
+          />
           <div className="overflow-hidden rounded-lg border border-border bg-surface">
             <LessonCalendar
               classroom={classroom}

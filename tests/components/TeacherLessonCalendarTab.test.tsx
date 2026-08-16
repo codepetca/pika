@@ -694,6 +694,121 @@ describe('TeacherLessonCalendarTab', () => {
     })
   })
 
+  it('retains a failed bulk draft for its originating classroom only', async () => {
+    const secondClassroom = createMockClassroom({
+      id: 'classroom-2',
+      start_date: '2025-01-01',
+      end_date: '2025-06-30',
+    })
+    const bulkSave = deferred<any>()
+    let latestSidebarState: CalendarSidebarState | null = null
+
+    invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/bulk') && init?.method === 'PUT') return bulkSave.promise
+      if (url.includes('lesson-plans')) {
+        const isSecond = url.includes(secondClassroom.id)
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            lesson_plans: [lessonPlan({
+              classroom_id: isSecond ? secondClassroom.id : classroom.id,
+              content_markdown: isSecond ? 'Second classroom lesson' : 'Original lesson',
+            })],
+          }),
+        })
+      }
+      if (url.includes('assignments')) return Promise.resolve({ ok: true, json: async () => ({ assignments: [] }) })
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    sidebarState.isOpen = true
+    const renderTab = (activeClassroom = classroom) => (
+      <TeacherLessonCalendarTab
+        classroom={activeClassroom}
+        onSidebarStateChange={(state) => { latestSidebarState = state }}
+      />
+    )
+    const view = render(renderTab(), { wrapper: Wrapper })
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Original lesson'))
+
+    act(() => latestSidebarState?.onMarkdownChange('## 2025-01-06\nExact failed draft'))
+    let savePromise!: Promise<void>
+    act(() => { savePromise = latestSidebarState!.onSave() })
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/lesson-plans/bulk'))).toBe(true))
+
+    view.rerender(renderTab(secondClassroom))
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Second classroom lesson'))
+
+    bulkSave.resolve({ ok: false, json: async () => ({ error: 'Bulk A failed' }) })
+    await act(async () => savePromise)
+    expect(latestSidebarState?.markdownError).not.toBe('Bulk A failed')
+
+    view.rerender(renderTab())
+    await waitFor(() => {
+      expect(latestSidebarState?.markdownContent).toBe('## 2025-01-06\nExact failed draft')
+      expect(latestSidebarState?.markdownError).toBe('Bulk A failed')
+    })
+  })
+
+  it('does not let an earlier visit bulk success close a later visit sidebar', async () => {
+    const secondClassroom = createMockClassroom({
+      id: 'classroom-2',
+      start_date: '2025-01-01',
+      end_date: '2025-06-30',
+    })
+    const bulkSave = deferred<any>()
+    let latestSidebarState: CalendarSidebarState | null = null
+
+    invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/bulk') && init?.method === 'PUT') return bulkSave.promise
+      if (url.includes('lesson-plans')) {
+        const classroomId = url.includes(secondClassroom.id) ? secondClassroom.id : classroom.id
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ lesson_plans: [lessonPlan({ classroom_id: classroomId })] }),
+        })
+      }
+      if (url.includes('assignments')) return Promise.resolve({ ok: true, json: async () => ({ assignments: [] }) })
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    sidebarState.isOpen = true
+    const renderTab = (activeClassroom = classroom) => (
+      <TeacherLessonCalendarTab
+        classroom={activeClassroom}
+        onSidebarStateChange={(state) => { latestSidebarState = state }}
+      />
+    )
+    const view = render(renderTab(), { wrapper: Wrapper })
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Original lesson'))
+    act(() => latestSidebarState?.onMarkdownChange('## 2025-01-06\nSaved draft'))
+    let savePromise!: Promise<void>
+    act(() => { savePromise = latestSidebarState!.onSave() })
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/lesson-plans/bulk'))).toBe(true))
+
+    view.rerender(renderTab(secondClassroom))
+    await waitFor(() => expect(latestSidebarState?.markdownContent).not.toBe(''))
+    view.rerender(renderTab())
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toBe('## 2025-01-06\nSaved draft'))
+    sidebarState.setOpen.mockClear()
+
+    bulkSave.resolve({ ok: true, json: async () => ({ lesson_plans: [] }) })
+    await act(async () => savePromise)
+
+    expect(sidebarState.setOpen).not.toHaveBeenCalledWith(false)
+    expect(latestSidebarState?.markdownError).toBeNull()
+  })
+
   it('ignores late autosave responses after the classroom changes', async () => {
     const secondClassroom = createMockClassroom({
       id: 'classroom-2',
@@ -890,7 +1005,10 @@ describe('TeacherLessonCalendarTab', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(saveBodies).toEqual([JSON.stringify({ content_markdown: 'Updated lesson' })])
+    expect(JSON.parse(saveBodies[0])).toMatchObject({
+      content_markdown: 'Updated lesson',
+      mutation: { sequence: 1 },
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit lesson again' }))
     await act(async () => {
@@ -909,10 +1027,129 @@ describe('TeacherLessonCalendarTab', () => {
       await vi.runAllTimersAsync()
     })
 
-    expect(saveBodies).toEqual([
-      JSON.stringify({ content_markdown: 'Updated lesson' }),
-      JSON.stringify({ content_markdown: 'Newest lesson' }),
+    expect(saveBodies.map((body) => JSON.parse(body))).toEqual([
+      expect.objectContaining({ content_markdown: 'Updated lesson', mutation: expect.objectContaining({ sequence: 1 }) }),
+      expect.objectContaining({ content_markdown: 'Newest lesson', mutation: expect.objectContaining({ sequence: 2 }) }),
     ])
+    vi.useRealTimers()
+  })
+
+  it('sends a newer pending edit directly on unload while an older save is in flight', async () => {
+    const firstSave = deferred<any>()
+    const secondSave = deferred<any>()
+    const saveBodies: Array<{ content_markdown: string; mutation: { client_id: string; sequence: number } }> = []
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') {
+        saveBodies.push(JSON.parse(String(init.body)))
+        return saveBodies.length === 1 ? firstSave.promise : secondSave.promise
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => {
+          if (url.includes('lesson-plans')) return { lesson_plans: [lessonPlan()] }
+          if (url.includes('assignments')) return { assignments: [] }
+          if (url.includes('announcements')) return { announcements: [] }
+          return {}
+        },
+      })
+    })
+
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    await act(async () => {
+      vi.advanceTimersByTime(10_000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson again' }))
+
+    await act(async () => {
+      window.dispatchEvent(new Event('beforeunload'))
+      await Promise.resolve()
+    })
+
+    expect(saveBodies).toHaveLength(2)
+    expect(saveBodies[0]).toMatchObject({ content_markdown: 'Updated lesson', mutation: { sequence: 1 } })
+    expect(saveBodies[1]).toMatchObject({ content_markdown: 'Newest lesson', mutation: { sequence: 2 } })
+    expect(saveBodies[1].mutation.client_id).toBe(saveBodies[0].mutation.client_id)
+
+    secondSave.resolve({
+      ok: true,
+      json: async () => ({ applied: true, lesson_plan: lessonPlan({ content_markdown: 'Newest lesson' }) }),
+    })
+    firstSave.resolve({
+      ok: true,
+      json: async () => ({ applied: false, lesson_plan: lessonPlan({ content_markdown: 'Newest lesson' }) }),
+    })
+    await act(async () => {
+      await Promise.all([firstSave.promise, secondSave.promise])
+    })
+
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Newest lesson')
+    vi.useRealTimers()
+  })
+
+  it('starts a queued bulk save with keepalive during unload', async () => {
+    const inlineSave = deferred<any>()
+    let latestSidebarState: CalendarSidebarState | null = null
+    const bulkBodies: Array<{ mutation: { sequence: number }; plans: unknown[] }> = []
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') return inlineSave.promise
+      if (url.includes('/lesson-plans/bulk') && init?.method === 'PUT') {
+        bulkBodies.push(JSON.parse(String(init.body)))
+        return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [] }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => {
+          if (url.includes('lesson-plans')) return { lesson_plans: [lessonPlan()] }
+          if (url.includes('assignments')) return { assignments: [] }
+          if (url.includes('announcements')) return { announcements: [] }
+          return {}
+        },
+      })
+    })
+
+    sidebarState.isOpen = true
+    render(
+      <TeacherLessonCalendarTab
+        classroom={classroom}
+        onSidebarStateChange={(state) => { latestSidebarState = state }}
+      />,
+      { wrapper: Wrapper },
+    )
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Original lesson'))
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    await act(async () => {
+      vi.advanceTimersByTime(10_000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    act(() => latestSidebarState?.onMarkdownChange('## 2025-01-06\nBulk lesson'))
+    let bulkSave!: Promise<void>
+    act(() => { bulkSave = latestSidebarState!.onSave() })
+
+    await act(async () => {
+      window.dispatchEvent(new Event('beforeunload'))
+      await Promise.resolve()
+    })
+    expect(bulkBodies).toHaveLength(1)
+    expect(bulkBodies[0]).toMatchObject({ mutation: { sequence: 2 } })
+
+    inlineSave.resolve({
+      ok: true,
+      json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }),
+    })
+    await act(async () => bulkSave)
+    expect(bulkBodies).toHaveLength(2)
+    expect(bulkBodies[1].mutation).toEqual(bulkBodies[0].mutation)
     vi.useRealTimers()
   })
 
@@ -964,6 +1201,56 @@ describe('TeacherLessonCalendarTab', () => {
     vi.useRealTimers()
   })
 
+  it('shows an explicit retry after automatic inline retries are exhausted', async () => {
+    let saves = 0
+    const saveBodies: Array<{ content_markdown: string }> = []
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') {
+        saves += 1
+        saveBodies.push(JSON.parse(String(init.body)))
+        if (saves <= 4) {
+          return Promise.resolve({ ok: false, status: 500, json: async () => ({ error: 'Failed' }) })
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => {
+          if (url.includes('lesson-plans')) return { lesson_plans: [lessonPlan()] }
+          if (url.includes('assignments')) return { assignments: [] }
+          if (url.includes('announcements')) return { announcements: [] }
+          return {}
+        },
+      })
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(saves).toBe(4)
+    expect(screen.getByRole('alert')).toHaveTextContent('Some lesson plan changes could not be saved.')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry lesson plan changes' }))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(saves).toBe(5)
+    expect(saveBodies.at(-1)).toMatchObject({ content_markdown: 'Updated lesson' })
+    expect(screen.queryByRole('button', { name: 'Retry lesson plan changes' })).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
   it('uses an explicit keepalive PUT for pending changes during unload', async () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') {
@@ -993,14 +1280,17 @@ describe('TeacherLessonCalendarTab', () => {
       await Promise.resolve()
     })
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      `/api/teacher/classrooms/${classroom.id}/lesson-plans/2025-01-06`,
-      expect.objectContaining({
-        body: JSON.stringify({ content_markdown: 'Updated lesson' }),
-        keepalive: true,
-        method: 'PUT',
-      }),
-    )
+    const unloadCall = fetchMock.mock.calls.find(([url, init]) => (
+      String(url).endsWith('/lesson-plans/2025-01-06') && init?.keepalive === true
+    ))
+    expect(unloadCall?.[1]).toEqual(expect.objectContaining({
+      keepalive: true,
+      method: 'PUT',
+    }))
+    expect(JSON.parse(String(unloadCall?.[1]?.body))).toMatchObject({
+      content_markdown: 'Updated lesson',
+      mutation: { sequence: 1 },
+    })
   })
 
   it('invalidates cached teacher lesson plans after an autosaved edit', async () => {

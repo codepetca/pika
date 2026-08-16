@@ -18186,3 +18186,13 @@ hot-archived Classroom with a student, assignment artifact, and test material.
 **Remaining:**
 - The exact canary row points to the now-deleted Classroom and therefore enables
   no remaining Classroom. Broader rollout and generic cleanup remain disabled.
+
+<!-- pika-session-log-archive-batch:c28c32203e3e49bc279bb47cb2b292ca1376eb7e7491f4a9822672d3454425e9 -->
+## 2026-08-05 — Record managed Blueprint lifecycle follow-up
+
+- Added a separate failing feature for durable Blueprint deletion with managed
+  files; no Blueprint deletion implementation was added to the Classroom purge
+  reconciliation patch.
+- The acceptance sequence first creates and verifies a Classroom from preserved
+  canary Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, then exercises the
+  future Blueprint purge so preservation and deletion are independently proven.
