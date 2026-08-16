@@ -1031,10 +1031,16 @@ production, Calendar, mobile redesign, or Gradex change.
   prematurely clearing notification state.
 - Centralized Announcement timestamps in `America/Toronto` for teacher and
   student display and scheduling labels.
+- Fenced teacher create/edit/delete and student read completions by committed
+  classroom generation, including abandoned concurrent renders.
 
 **Validation:**
-- Full suite passes: 4,250 tests across 494 files. Focused component/domain
+- Full suite passes: 4,258 tests across 494 files. Focused component/domain
   tests, lint, TypeScript, Pika audit, and diff checks pass.
+- Independent review findings for provider-driven automatic read retry,
+  cross-classroom mutation repainting, and render-phase ownership leakage were
+  remediated with provider-settlement, committed-switch, and suspended-transition
+  regression coverage.
 - Visual verification passes for teacher/student desktop/mobile and light/dark
   loaded/error states, plus the student read-error state. No composite keyboard
   behavior changed; semantic alert/status and Retry coverage passes.

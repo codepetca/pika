@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react'
 import { Trash2, Plus, Clock, Calendar, Settings } from 'lucide-react'
 import { Button, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
@@ -112,7 +112,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const saveRequestIdRef = useRef(0)
   const deleteRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
 
   const isReadOnly = !!classroom.archived_at
 
@@ -145,7 +144,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     loadAnnouncements()
   }, [loadAnnouncements])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    currentClassroomIdRef.current = classroom.id
+    loadRequestIdRef.current += 1
     saveRequestIdRef.current += 1
     deleteRequestIdRef.current += 1
     setShowAll(false)

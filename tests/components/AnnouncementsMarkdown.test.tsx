@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Suspense, startTransition, useState } from 'react'
 import { TeacherAnnouncementsSection } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsSection'
 import { StudentAnnouncementsSection } from '@/app/classrooms/[classroomId]/StudentAnnouncementsSection'
 import {
@@ -101,6 +102,51 @@ function teacherAnnouncementsElement(sectionClassroom: Classroom) {
 function UnreadAnnouncementCount() {
   const notifications = useStudentNotifications()
   return <div>Unread announcements: {notifications?.unreadAnnouncementsCount ?? 0}</div>
+}
+
+const suspendedClassroomRender = new Promise<never>(() => undefined)
+
+function SuspendSecondClassroom({ classroomId }: { classroomId: string }) {
+  if (classroomId === secondClassroom.id) throw suspendedClassroomRender
+  return null
+}
+
+function TeacherTransitionHarness() {
+  const [activeClassroom, setActiveClassroom] = useState(classroom)
+
+  return (
+    <TooltipProvider>
+      <button
+        type="button"
+        onClick={() => startTransition(() => setActiveClassroom(secondClassroom))}
+      >
+        Attempt classroom switch
+      </button>
+      <Suspense fallback={<div>Switching classroom</div>}>
+        <TeacherAnnouncementsSection classroom={activeClassroom} />
+        <SuspendSecondClassroom classroomId={activeClassroom.id} />
+      </Suspense>
+    </TooltipProvider>
+  )
+}
+
+function StudentTransitionHarness() {
+  const [activeClassroom, setActiveClassroom] = useState(classroom)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => startTransition(() => setActiveClassroom(secondClassroom))}
+      >
+        Attempt student classroom switch
+      </button>
+      <Suspense fallback={<div>Switching student classroom</div>}>
+        <StudentAnnouncementsSection classroom={activeClassroom} />
+        <SuspendSecondClassroom classroomId={activeClassroom.id} />
+      </Suspense>
+    </>
+  )
 }
 
 describe('announcement markdown rendering', () => {
@@ -394,6 +440,46 @@ describe('announcement markdown rendering', () => {
     consoleError.mockRestore()
   })
 
+  it('finishes a student read acknowledgement when a classroom switch is suspended', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const readResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'POST') return readResponse.promise
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    render(<StudentTransitionHarness />)
+    await screen.findByText('Unit update')
+    await waitFor(() => {
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        `/api/student/classrooms/${classroom.id}/announcements`,
+        { method: 'POST' },
+      )
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Attempt student classroom switch' }))
+
+    await act(async () => {
+      readResponse.resolve(
+        new Response(JSON.stringify({ error: 'Unavailable' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Announcements are visible, but Pika could not mark them as read.',
+    )
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
+    consoleError.mockRestore()
+  })
+
   it('does not keep stale teacher announcements visible while loading another classroom', async () => {
     let resolveSecondRead: ((response: Response) => void) | null = null
     vi.stubGlobal(
@@ -466,7 +552,8 @@ describe('announcement markdown rendering', () => {
     consoleError.mockRestore()
   })
 
-  it('ignores a completed teacher create after switching classrooms', async () => {
+  it('ignores a failed teacher create after switching classrooms', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const createResponse = deferred<Response>()
     vi.stubGlobal(
       'fetch',
@@ -493,17 +580,13 @@ describe('announcement markdown rendering', () => {
     expect(await screen.findByText('Pending Classroom A update', { selector: 'p' })).toBeInTheDocument()
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
 
     await act(async () => {
       createResponse.resolve(
-        new Response(JSON.stringify({
-          announcement: {
-            ...markdownAnnouncement,
-            id: 'created-announcement',
-            content: 'Pending Classroom A update',
-          },
-        }), {
-          status: 200,
+        new Response(JSON.stringify({ error: 'Unavailable' }), {
+          status: 500,
           headers: { 'Content-Type': 'application/json' },
         }),
       )
@@ -511,9 +594,13 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Pending Classroom A update')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
+    consoleError.mockRestore()
   })
 
-  it('ignores a completed teacher edit after switching classrooms', async () => {
+  it('ignores a failed teacher edit after switching classrooms', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const editResponse = deferred<Response>()
     vi.stubGlobal(
       'fetch',
@@ -539,16 +626,13 @@ describe('announcement markdown rendering', () => {
 
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
 
     await act(async () => {
       editResponse.resolve(
-        new Response(JSON.stringify({
-          announcement: {
-            ...markdownAnnouncement,
-            content: 'Edited Classroom A update',
-          },
-        }), {
-          status: 200,
+        new Response(JSON.stringify({ error: 'Unavailable' }), {
+          status: 500,
           headers: { 'Content-Type': 'application/json' },
         }),
       )
@@ -556,10 +640,12 @@ describe('announcement markdown rendering', () => {
 
     expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Edited Classroom A update')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
+    consoleError.mockRestore()
   })
 
-  it('does not restore a failed teacher delete after switching classrooms', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  it('ignores a successful teacher delete after switching classrooms', async () => {
     const deleteResponse = deferred<Response>()
     vi.stubGlobal(
       'fetch',
@@ -582,6 +668,124 @@ describe('announcement markdown rendering', () => {
 
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
+
+    await act(async () => {
+      deleteResponse.resolve(
+        new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByText('Second classroom update')).toBeInTheDocument()
+    expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
+  })
+
+  it('finishes a teacher create when a suspended classroom switch is abandoned', async () => {
+    const createResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'POST') return createResponse.promise
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    render(<TeacherTransitionHarness />)
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), {
+      target: { value: 'Created while switch is suspended' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByText('Attempt classroom switch'))
+
+    await act(async () => {
+      createResponse.resolve(
+        new Response(JSON.stringify({
+          announcement: {
+            ...markdownAnnouncement,
+            id: 'created-during-suspense',
+            content: 'Created while switch is suspended',
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByText('Created while switch is suspended', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+  })
+
+  it('finishes a teacher edit when a suspended classroom switch is abandoned', async () => {
+    const editResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH') return editResponse.promise
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    render(<TeacherTransitionHarness />)
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByText('bring notes'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), {
+      target: { value: 'Edited while switch is suspended' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Attempt classroom switch' }))
+
+    await act(async () => {
+      editResponse.resolve(
+        new Response(JSON.stringify({
+          announcement: {
+            ...markdownAnnouncement,
+            content: 'Edited while switch is suspended',
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByText('Edited while switch is suspended', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeEnabled()
+  })
+
+  it('rolls back a teacher delete when a suspended classroom switch is abandoned', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const deleteResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'DELETE') return deleteResponse.promise
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    render(<TeacherTransitionHarness />)
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete announcement' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByText('Attempt classroom switch'))
 
     await act(async () => {
       deleteResponse.resolve(
@@ -592,8 +796,8 @@ describe('announcement markdown rendering', () => {
       )
     })
 
-    expect(screen.getByText('Second classroom update')).toBeInTheDocument()
-    expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
+    expect(screen.getByText('Unit update')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete announcement' })).toBeEnabled()
     consoleError.mockRestore()
   })
 

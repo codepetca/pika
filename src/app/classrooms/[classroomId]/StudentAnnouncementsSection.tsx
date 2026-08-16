@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
@@ -33,7 +33,6 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
   const loadRequestIdRef = useRef(0)
   const markReadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
   const notifications = useStudentNotifications()
   const markAnnouncementsRead = notifications?.markAnnouncementsRead
 
@@ -62,7 +61,9 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     }
   }, [classroom.id])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    currentClassroomIdRef.current = classroom.id
+    loadRequestIdRef.current += 1
     hasMarkedRead.current = false
     markReadInFlightRef.current = false
     markReadRequestIdRef.current += 1
