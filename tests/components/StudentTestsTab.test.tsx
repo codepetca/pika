@@ -2603,7 +2603,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies).toEqual([])
   })
 
-  it('ignores transient blur and fullscreen signal noise', async () => {
+  it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2728,6 +2728,25 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(0)
     expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
     expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(0)
+
+    vi.useFakeTimers()
+    const blurredAtMs = Date.now()
+    fireEvent(window, new Event('blur'))
+    vi.setSystemTime(blurredAtMs + 1_000)
+    fireEvent(window, new Event('focus'))
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusBodies[0].incident_id).toMatch(/^incident_/)
+    expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
+    expect(focusBodies[1].metadata?.duration_ms).toBe(1_000)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByLabelText(/Exits 1\./)).toBeInTheDocument()
   })
 
   it('tracks swipe-away visibility changes as one exit', async () => {

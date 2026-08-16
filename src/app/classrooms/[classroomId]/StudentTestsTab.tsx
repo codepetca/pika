@@ -1225,7 +1225,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
     const handleFocus = () => {
       clearPendingBlurTimeout()
-      applyExamIncidentEvent({ type: 'focus', atMs: Date.now() })
+      applyExamIncidentEvent({
+        type: 'focus',
+        atMs: Date.now(),
+        incidentId: createExamTelemetryId('incident'),
+      })
     }
 
     const handleVisibilityChange = () => {

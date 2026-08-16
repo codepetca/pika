@@ -54,6 +54,7 @@ describe('exam mode exit incidents', () => {
     const focused = transition(blurred.state, {
       type: 'focus',
       atMs: 1_200,
+      incidentId: 'unused-incident',
     })
 
     expect(blurred.effects).toEqual([])
@@ -84,6 +85,7 @@ describe('exam mode exit incidents', () => {
     const focused = transition(confirmed.state, {
       type: 'focus',
       atMs: 1_900,
+      incidentId: 'unused-incident',
     })
     expect(focused.effects).toEqual([
       {
@@ -92,6 +94,34 @@ describe('exam mode exit incidents', () => {
         source: 'focus',
         occurredAtMs: 1_900,
         durationMs: 900,
+      },
+    ])
+  })
+
+  it('captures sustained focus loss when the blur timer is throttled until focus returns', () => {
+    const blurred = transition(createExamIncidentState(), {
+      type: 'blur',
+      atMs: 1_000,
+    })
+    const focused = transition(blurred.state, {
+      type: 'focus',
+      atMs: 2_000,
+      incidentId: 'incident-1',
+    })
+
+    expect(focused.effects).toEqual([
+      {
+        type: 'away_start',
+        incidentId: 'incident-1',
+        source: 'blur',
+        occurredAtMs: 1_000,
+      },
+      {
+        type: 'away_end',
+        incidentId: 'incident-1',
+        source: 'focus',
+        occurredAtMs: 2_000,
+        durationMs: 1_000,
       },
     ])
   })
@@ -117,6 +147,7 @@ describe('exam mode exit incidents', () => {
     const focusedWhileHidden = transition(hidden.state, {
       type: 'focus',
       atMs: 1_100,
+      incidentId: 'unused-incident',
     })
     expect(focusedWhileHidden.effects).toEqual([])
 

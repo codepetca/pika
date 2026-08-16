@@ -21,7 +21,7 @@ export type ExamIncidentState = {
 
 export type ExamIncidentEvent =
   | { type: 'blur'; atMs: number }
-  | { type: 'focus'; atMs: number }
+  | { type: 'focus'; atMs: number; incidentId: string }
   | { type: 'blur_timeout'; atMs: number; incidentId: string }
   | { type: 'visibility_hidden'; atMs: number; incidentId: string }
   | { type: 'visibility_visible'; atMs: number }
@@ -203,6 +203,32 @@ export function reduceExamIncident(
   if (event.type === 'focus') {
     if (!state.documentVisible) {
       return { state: { ...state, pendingBlurAtMs: null }, effects: [] }
+    }
+    if (
+      !state.activeIncident &&
+      state.pendingBlurAtMs !== null &&
+      event.atMs - state.pendingBlurAtMs >= EXAM_FOCUS_LOSS_GRACE_MS
+    ) {
+      const startedAtMs = state.pendingBlurAtMs
+      const started = startAwayIncident(state, {
+        atMs: startedAtMs,
+        proposedIncidentId: event.incidentId,
+        source: 'blur',
+        signal: 'blur',
+      })
+      const ended = endAwayIncident(started.state, event.atMs, 'focus')
+      return {
+        state: ended.state,
+        effects: [
+          {
+            type: 'away_start',
+            incidentId: started.incident.id,
+            source: 'blur',
+            occurredAtMs: startedAtMs,
+          },
+          ...ended.effects,
+        ],
+      }
     }
     return endAwayIncident(state, event.atMs, 'focus')
   }
