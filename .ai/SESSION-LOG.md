@@ -1058,9 +1058,9 @@ the shared local database only. Production was not modified.
 
 ## 2026-08-16 — Complete Tests save-status accessibility
 
-**Risk profile:** accessibility-only — teacher test authoring and grading save
-announcements; no visual styling, mobile redesign, API, schema, migration,
-production data, or Gradex change.
+**Risk profile:** workspace-state — teacher test authoring and grading save
+announcements plus cross-student grading draft retention; no visual styling,
+mobile redesign, API, schema, migration, production data, or Gradex change.
 
 **Completed:**
 - Added one persistent polite atomic live region to teacher test authoring and
@@ -1072,14 +1072,17 @@ production data, or Gradex change.
   already complete, and Tests now has only deferred mobile navigation work.
 
 **Validation:**
-- Focused remediation coverage passes: 122 tests across `TestDetailPanel`,
+- Focused remediation coverage passes: 123 tests across `TestDetailPanel`,
   `TeacherTestsTab`, and `TestStudentGradingPanel`; TypeScript passes.
-- The full suite passes: 4,317 tests across 498 files, and the production build,
+- The full suite passes: 4,318 tests across 498 files, and the production build,
   lint, Pika audit, and diff checks pass.
 - Playwright verification passes for teacher grading, teacher authoring, and
   student Tests in desktop/mobile and light/dark. The change is visually neutral.
 - Independent review found that an in-flight save could outlive a student
   selection change and publish its status under the newly selected student.
-  Grading panels and save state are now keyed and gated by classroom, test, and
-  student scope; a deferred cross-student regression proves stale completion is
-  not announced. The post-fix grading-switch visual matrix also passes.
+  The grading panel now emits operation-owned test/student scope while the
+  parent gates announcements by classroom, test, and selected student. The
+  shared grading draft map remains mounted across selection changes, and
+  regressions prove stale completion is not announced while an A → B → A draft
+  remains intact and autosaves. The post-fix grading-switch visual matrix also
+  passes.

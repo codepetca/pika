@@ -286,6 +286,81 @@ describe('TestStudentGradingPanel save-all grading', () => {
     })
   })
 
+  it('preserves and autosaves a student draft across grading selection changes', async () => {
+    const payload = makeResultsPayload(null, null)
+    const studentTwo: typeof payload.students[number] = {
+      ...payload.students[0],
+      student_id: 'student-2',
+      name: 'Student Two',
+      email: 'student2@example.com',
+      answers: {
+        'q-open-1': {
+          ...payload.students[0].answers['q-open-1'],
+          response_id: 'response-2',
+          response_text: 'Student two response.',
+        },
+      },
+    }
+    payload.students.push(studentTwo)
+    const patchCalls: Array<{ url: string; body: Record<string, unknown> }> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/teacher/tests/test-1/results')) {
+          return Promise.resolve({ ok: true, json: async () => payload })
+        }
+        if (
+          url.endsWith('/api/teacher/tests/test-1/students/student-1/grades')
+          && init?.method === 'PATCH'
+        ) {
+          patchCalls.push({
+            url,
+            body: JSON.parse(String(init.body || '{}')) as Record<string, unknown>,
+          })
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              saved_count: 1,
+              responses: [{ id: 'response-1', revision: 2 }],
+            }),
+          })
+        }
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: `Unhandled fetch: ${url}` }),
+        })
+      }
+    )
+
+    const view = render(
+      <TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />
+    )
+    await screen.findByText('Water moves to balance concentration.')
+
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
+    view.rerender(
+      <TestStudentGradingPanel testId="test-1" selectedStudentId="student-2" />
+    )
+    expect(await screen.findByText('Student two response.')).toBeInTheDocument()
+
+    view.rerender(
+      <TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />
+    )
+    expect(await screen.findByText('Water moves to balance concentration.')).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton')).toHaveValue(4)
+
+    await waitFor(() => {
+      expect(patchCalls).toHaveLength(1)
+    }, { timeout: 2_000 })
+    expect(patchCalls[0]).toMatchObject({
+      url: '/api/teacher/tests/test-1/students/student-1/grades',
+      body: {
+        grades: [expect.objectContaining({ response_id: 'response-1', score: 4 })],
+      },
+    })
+  })
+
   it('renders score inputs for MC and open questions and saves MC overrides', async () => {
     let persistedMcScore = 2
     let persistedOpenScore: number | null = 3

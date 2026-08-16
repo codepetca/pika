@@ -378,9 +378,19 @@ export function TeacherTestsTab({
     canSave: boolean
     isSaving: boolean
     status: 'idle' | 'unsaved' | 'saving' | 'saved'
+    testId: string
+    studentId: string | null
   }) => {
-    setTestGradingSaveState({ ...state, scopeKey: activeTestGradingSaveScopeKey })
-  }, [activeTestGradingSaveScopeKey])
+    const scopeKey = state.studentId
+      ? `${classroom.id}:${state.testId}:${state.studentId}`
+      : null
+    setTestGradingSaveState({
+      canSave: state.canSave,
+      isSaving: state.isSaving,
+      status: state.status,
+      scopeKey,
+    })
+  }, [classroom.id])
   currentClassroomIdRef.current = classroom.id
   const {
     tests,
@@ -2682,7 +2692,6 @@ export function TeacherTestsTab({
 
   const gradingInspector = selectedTest && selectedStudentId ? (
     <TestStudentGradingPanel
-      key={activeTestGradingSaveScopeKey}
       testId={selectedTest.id}
       selectedStudentId={selectedStudentId}
       apiBasePath={apiBasePath}

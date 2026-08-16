@@ -15,6 +15,8 @@ const { setOpenMock, gradingSaveCallbacks } = vi.hoisted(() => ({
     canSave: boolean
     isSaving: boolean
     status: 'idle' | 'unsaved' | 'saving' | 'saved'
+    testId: string
+    studentId: string | null
   }) => void)>(),
 }))
 const mockInvalidateGradebookForClassroom = vi.hoisted(() => vi.fn())
@@ -159,12 +161,20 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
       canSave: boolean
       isSaving: boolean
       status: 'idle' | 'unsaved' | 'saving' | 'saved'
+      testId: string
+      studentId: string | null
     }) => void
   }) => {
     useEffect(() => {
       if (!selectedStudentId || !onSaveStateChange) return
       gradingSaveCallbacks.set(selectedStudentId, onSaveStateChange)
-      onSaveStateChange({ canSave: false, isSaving: false, status: 'idle' })
+      onSaveStateChange({
+        canSave: false,
+        isSaving: false,
+        status: 'idle',
+        testId,
+        studentId: selectedStudentId,
+      })
       return () => {
         if (gradingSaveCallbacks.get(selectedStudentId) === onSaveStateChange) {
           gradingSaveCallbacks.delete(selectedStudentId)
@@ -177,19 +187,37 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
         Grading panel for {testId}:{selectedStudentId || 'none'}
         <button
           type="button"
-          onClick={() => onSaveStateChange?.({ canSave: true, isSaving: false, status: 'unsaved' })}
+          onClick={() => onSaveStateChange?.({
+            canSave: true,
+            isSaving: false,
+            status: 'unsaved',
+            testId,
+            studentId: selectedStudentId,
+          })}
         >
           Mark grades unsaved
         </button>
         <button
           type="button"
-          onClick={() => onSaveStateChange?.({ canSave: false, isSaving: true, status: 'saving' })}
+          onClick={() => onSaveStateChange?.({
+            canSave: false,
+            isSaving: true,
+            status: 'saving',
+            testId,
+            studentId: selectedStudentId,
+          })}
         >
           Mark grades saving
         </button>
         <button
           type="button"
-          onClick={() => onSaveStateChange?.({ canSave: false, isSaving: false, status: 'saved' })}
+          onClick={() => onSaveStateChange?.({
+            canSave: false,
+            isSaving: false,
+            status: 'saved',
+            testId,
+            studentId: selectedStudentId,
+          })}
         >
           Mark grades saved
         </button>
@@ -767,7 +795,13 @@ describe('TeacherTestsTab', () => {
     expect(aliceSaveState).toBeTruthy()
 
     act(() => {
-      aliceSaveState?.({ canSave: false, isSaving: true, status: 'saving' })
+      aliceSaveState?.({
+        canSave: false,
+        isSaving: true,
+        status: 'saving',
+        testId: 'test-1',
+        studentId: 'student-1',
+      })
     })
     const saveStatus = screen.getByTestId('teacher-test-grading-save-status')
     expect(saveStatus).toHaveTextContent('Saving grades')
@@ -779,7 +813,13 @@ describe('TeacherTestsTab', () => {
     })
 
     act(() => {
-      aliceSaveState?.({ canSave: false, isSaving: false, status: 'saved' })
+      aliceSaveState?.({
+        canSave: false,
+        isSaving: false,
+        status: 'saved',
+        testId: 'test-1',
+        studentId: 'student-1',
+      })
     })
     expect(saveStatus).toBeEmptyDOMElement()
   })
