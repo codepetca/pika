@@ -19,6 +19,10 @@ function jsonResponse(body: unknown): Response {
   return { ok: true, json: async () => body } as Response
 }
 
+function jsonErrorResponse(body: unknown, status = 500): Response {
+  return { ok: false, status, json: async () => body } as Response
+}
+
 function surveyDetailPayload(surveyId: string, title: string, questionText: string) {
   return {
     survey: {
@@ -190,6 +194,51 @@ describe('StudentSurveyPanel', () => {
     expect(screen.getByRole('button', { name: 'View results' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Share your project link response' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'What did you build? response' })).toBeInTheDocument()
+  })
+
+  it('exposes multiple-choice answers as a named radio group', async () => {
+    render(<StudentSurveyPanel surveyId="survey-1" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Respond' }))
+
+    const answerGroup = screen.getByRole('radiogroup', { name: 'Pick one' })
+    const firstOption = screen.getByRole('radio', { name: 'A' })
+    const secondOption = screen.getByRole('radio', { name: 'B' })
+
+    expect(answerGroup).toContainElement(firstOption)
+    expect(firstOption).not.toBeChecked()
+    fireEvent.click(secondOption)
+    expect(secondOption).toBeChecked()
+    expect(firstOption).not.toBeChecked()
+  })
+
+  it('announces a results failure and retries the request', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    let resultsAttempts = 0
+    fetchMock.mockImplementation((url: string | URL) => {
+      const href = String(url)
+      if (href.endsWith('/results')) {
+        resultsAttempts += 1
+        return Promise.resolve(
+          resultsAttempts === 1
+            ? jsonErrorResponse({ error: 'Results are temporarily unavailable' })
+            : jsonResponse(surveyResultsPayload('question-1', 'Pick one'))
+        )
+      }
+      return Promise.resolve(jsonResponse(surveyDetailPayload('survey-1', 'Quick Poll', 'Pick one')))
+    })
+
+    render(<StudentSurveyPanel surveyId="survey-1" />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Results are temporarily unavailable')
+    expect(screen.queryByRole('status', { name: 'Loading class results' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('100%')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('ignores stale detail responses after selected survey changes', async () => {

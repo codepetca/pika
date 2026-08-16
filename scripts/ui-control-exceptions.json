@@ -687,9 +687,9 @@
       "reviewBy": "phase-3-surveys",
       "controls": [
         {
-          "kind": "button",
+          "kind": "input:radio",
           "count": 1,
-          "reason": "legacy-form-control"
+          "reason": "native-input-capability"
         },
         {
           "kind": "textarea",
