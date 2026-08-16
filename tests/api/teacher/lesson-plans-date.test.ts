@@ -82,6 +82,24 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/[date]', () => {
     expect(data.error).toContain('Invalid date format')
   })
 
+  it('should return 400 for an impossible calendar date', async () => {
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/2026-02-31',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content_markdown: 'Plan' }),
+      },
+    )
+    const response = await PUT(request, {
+      params: Promise.resolve({ id: 'c-1', date: '2026-02-31' }),
+    })
+
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toContain('Invalid date format')
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
   it('should return 400 for missing content', async () => {
     const request = new NextRequest(
       'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/2025-01-06',

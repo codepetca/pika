@@ -10,7 +10,10 @@ import {
   getLessonPlanMarkdown,
   normalizeLessonPlanMarkdown,
 } from '@/lib/lesson-plan-content'
-import { lessonPlanMutationBodySchema } from '@/lib/validations/lesson-plan-mutations'
+import {
+  lessonPlanDateSchema,
+  lessonPlanMutationBodySchema,
+} from '@/lib/validations/lesson-plan-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,7 +27,7 @@ export const PUT = withErrorHandler('PutUpsertLessonPlan', async (request, conte
   )
 
   // Validate date format (YYYY-MM-DD)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!lessonPlanDateSchema.safeParse(date).success) {
     return NextResponse.json(
       { error: 'Invalid date format. Expected YYYY-MM-DD' },
       { status: 400 }

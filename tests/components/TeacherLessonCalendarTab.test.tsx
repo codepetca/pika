@@ -69,6 +69,9 @@ vi.mock('@/components/LessonCalendar', () => ({
       <button type="button" onClick={() => onContentChange?.('2025-01-06', 'Newest lesson')}>
         Edit lesson again
       </button>
+      <button type="button" onClick={() => onContentChange?.('2025-01-07', 'Second date lesson')}>
+        Edit second date
+      </button>
     </div>
   ),
   CalendarViewMode: {},
@@ -809,6 +812,90 @@ describe('TeacherLessonCalendarTab', () => {
     expect(latestSidebarState?.markdownError).toBeNull()
   })
 
+  it('keeps an identical later draft when an earlier bulk save succeeds', async () => {
+    const secondClassroom = createMockClassroom({
+      id: 'classroom-2',
+      start_date: '2025-01-01',
+      end_date: '2025-06-30',
+    })
+    const firstBulkSave = deferred<any>()
+    let bulkSaveCount = 0
+    let latestSidebarState: CalendarSidebarState | null = null
+
+    invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/bulk') && init?.method === 'PUT') {
+        bulkSaveCount += 1
+        if (bulkSaveCount === 1) return firstBulkSave.promise
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: 'Later identical save failed' }),
+        })
+      }
+      if (/\/lesson-plans\/2025-01-06$/.test(url) && init?.method === 'PUT') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }),
+        })
+      }
+      if (url.includes('lesson-plans')) {
+        const classroomId = url.includes(secondClassroom.id) ? secondClassroom.id : classroom.id
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ lesson_plans: [lessonPlan({ classroom_id: classroomId })] }),
+        })
+      }
+      if (url.includes('assignments')) return Promise.resolve({ ok: true, json: async () => ({ assignments: [] }) })
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    sidebarState.isOpen = true
+    const renderTab = (activeClassroom = classroom) => (
+      <TeacherLessonCalendarTab
+        classroom={activeClassroom}
+        onSidebarStateChange={(state) => { latestSidebarState = state }}
+      />
+    )
+    const view = render(renderTab(), { wrapper: Wrapper })
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Original lesson'))
+
+    const identicalDraft = '## 2025-01-06\nIdentical draft'
+    act(() => latestSidebarState?.onMarkdownChange(identicalDraft))
+    let earlierSave!: Promise<void>
+    act(() => { earlierSave = latestSidebarState!.onSave() })
+    await waitFor(() => expect(bulkSaveCount).toBe(1))
+
+    view.rerender(renderTab(secondClassroom))
+    await waitFor(() => expect(latestSidebarState?.markdownContent).not.toBe(''))
+    view.rerender(renderTab())
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toBe(identicalDraft))
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    await act(async () => {
+      vi.advanceTimersByTime(10_000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    let laterSave!: Promise<void>
+    act(() => { laterSave = latestSidebarState!.onSave() })
+
+    firstBulkSave.resolve({ ok: true, json: async () => ({ lesson_plans: [] }) })
+    await act(async () => {
+      await earlierSave
+      await laterSave
+    })
+
+    expect(latestSidebarState?.markdownContent).toBe(identicalDraft)
+    expect(latestSidebarState?.markdownError).toBe('Later identical save failed')
+    expect(sidebarState.setOpen).not.toHaveBeenCalledWith(false)
+    vi.useRealTimers()
+  })
+
   it('ignores late autosave responses after the classroom changes', async () => {
     const secondClassroom = createMockClassroom({
       id: 'classroom-2',
@@ -1072,10 +1159,11 @@ describe('TeacherLessonCalendarTab', () => {
       await Promise.resolve()
     })
 
-    expect(saveBodies).toHaveLength(2)
+    expect(saveBodies).toHaveLength(3)
     expect(saveBodies[0]).toMatchObject({ content_markdown: 'Updated lesson', mutation: { sequence: 1 } })
-    expect(saveBodies[1]).toMatchObject({ content_markdown: 'Newest lesson', mutation: { sequence: 2 } })
-    expect(saveBodies[1].mutation.client_id).toBe(saveBodies[0].mutation.client_id)
+    expect(saveBodies[1]).toMatchObject({ content_markdown: 'Updated lesson', mutation: { sequence: 1 } })
+    expect(saveBodies[2]).toMatchObject({ content_markdown: 'Newest lesson', mutation: { sequence: 2 } })
+    expect(saveBodies[2].mutation.client_id).toBe(saveBodies[0].mutation.client_id)
 
     secondSave.resolve({
       ok: true,
@@ -1090,6 +1178,63 @@ describe('TeacherLessonCalendarTab', () => {
     })
 
     expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Newest lesson')
+    vi.useRealTimers()
+  })
+
+  it('sends a queue-blocked second date directly during unload', async () => {
+    const firstSave = deferred<any>()
+    const saves: Array<{ date: string; content: string }> = []
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      const dateMatch = url.match(/lesson-plans\/(2025-01-\d{2})$/)
+      if (dateMatch && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body))
+        saves.push({ date: dateMatch[1], content: body.content_markdown })
+        if (saves.length === 1) return firstSave.promise
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ applied: true, lesson_plan: lessonPlan({ date: dateMatch[1] }) }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => {
+          if (url.includes('lesson-plans')) return { lesson_plans: [lessonPlan()] }
+          if (url.includes('assignments')) return { assignments: [] }
+          if (url.includes('announcements')) return { announcements: [] }
+          return {}
+        },
+      })
+    })
+
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit second date' }))
+    await act(async () => {
+      vi.advanceTimersByTime(10_000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(saves).toEqual([{ date: '2025-01-06', content: 'Updated lesson' }])
+    await act(async () => {
+      window.dispatchEvent(new Event('beforeunload'))
+      await Promise.resolve()
+    })
+    expect(saves).toContainEqual({ date: '2025-01-07', content: 'Second date lesson' })
+
+    firstSave.resolve({
+      ok: true,
+      json: async () => ({ applied: true, lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }),
+    })
+    await act(async () => {
+      await firstSave.promise
+      await Promise.resolve()
+      await Promise.resolve()
+    })
     vi.useRealTimers()
   })
 

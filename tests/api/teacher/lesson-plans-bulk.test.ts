@@ -132,6 +132,31 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     expect(data.error).toContain('Invalid date format: invalid-date')
   })
 
+  it('rejects every plan before writing when one calendar date is impossible', async () => {
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/bulk',
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          plans: [
+            { date: '2026-02-27', content_markdown: 'Valid plan' },
+            { date: '2026-02-31', content_markdown: 'Impossible plan' },
+          ],
+          mutation: {
+            client_id: '10000000-0000-4000-8000-000000000001',
+            sequence: 8,
+          },
+        }),
+      },
+    )
+    const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toContain('Invalid date format: 2026-02-31')
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
   it('should return 400 for duplicate dates in plans', async () => {
     const plans = [
       { date: '2025-01-06', content: { type: 'doc', content: [] } },

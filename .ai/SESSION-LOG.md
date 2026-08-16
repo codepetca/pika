@@ -1036,19 +1036,29 @@ the shared local database only. Production was not modified.
 - Added a durable per-browser-session ordering head and atomic lesson-plan
   mutation function so reversed save/delete completion cannot overwrite newer
   teacher intent, including direct keepalive requests during unload.
+- Retained queued and in-flight inline saves through page unload, with database
+  sequence fencing making repeated keepalive delivery idempotent.
 - Fenced bulk-save completion by classroom epoch, retained failed classroom
-  drafts, and prevented delayed responses from closing or clearing newer work.
+  drafts by revision, and prevented delayed or identical-payload responses from
+  closing or clearing newer work.
 - Added bounded inline retries with an explicit manual Retry action after
   exhaustion, preserving the exact unsaved lesson content.
 - Migrated the date and bulk request bodies to feature-owned Zod schemas and
-  removed both routes from the API validation debt baseline.
+  removed both routes from the API validation debt baseline. Calendar dates
+  are now validated as real dates before any bulk write begins.
+- Registered the durable mutation-head table as purge-only operational data and
+  included it in classroom purge impact inventory without archiving it.
 
 **Validation:**
-- Full suite passes: 4,309 tests across 498 files. Production build, lint,
+- Full suite passes: 4,314 tests across 498 files. Production build, lint,
   TypeScript, generated Supabase type drift, Pika audit, and diff checks pass.
 - Local PostgreSQL rollback tests prove newer-save/stale-save,
   newer-delete/stale-save, and newer-save/stale-delete ordering. RPC execution
   is denied to `anon` and `authenticated` and granted only to `service_role`.
+- Independent review findings covering queue-blocked unload writes,
+  identical-payload draft ownership, impossible calendar dates, and schema
+  ownership were remediated with focused regressions. The local classroom
+  schema audit passes across 198 foreign-key relationships.
 - Playwright verification passes for the exhausted-save Retry alert in teacher
   light/dark views; the student Calendar remains visually unchanged. Mobile
   redesign remains explicitly deferred.
