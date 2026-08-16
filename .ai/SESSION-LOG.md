@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Apply production hot-archive purge schema
-
-**Risk profile:** irreversible production schema installation; rollout and
-execution remained disabled.
-
-**Completed:**
-- Verified production project `zhioqbapgfcrronyuidm`, migration history through
-  118, migration 119 checksum, focused tests, managed-storage lineage, and
-  PostgreSQL function lint.
-- The linked dry run contained only
-  `119_hot_archived_classroom_purge_managed_ownership.sql`.
-- Applied migration 119 exactly once through `supabase db push --linked` under
-  exact production authorization.
-
-**Validation:**
-- Remote migration history now records 119.
-- `classroom_purge_settings.rollout_mode` is `disabled`; canary teacher and
-  Classroom IDs are null.
-- Managed Storage remains `enforced` with 144/144 objects `ready`; no purge or
-  cleanup operation is active.
-- The synthetic hot-archived Classroom, reusable Blueprint, and verified archive
-  remain intact. No purge, generic cleanup, or Storage deletion ran.
-
-**Remaining:**
-- Treat Classroom deletion activation and any first purge canary as separate
-  production decisions requiring fresh target-specific authorization.
-
 ## 2026-08-05 — Enable and verify exact production purge canary
 
 **Risk profile:** production rollout-gate write only; no purge or cleanup.
@@ -1053,3 +1026,24 @@ request state; no API, schema, migration, production, or Gradex change.
 - Teacher verification is not applicable because no teacher-owned surface
   changed. Composite semantics and keyboard behavior are covered; no manual
   follow-up remains.
+
+## 2026-08-15 — Make teacher Survey results recoverable
+
+**Risk profile:** none — teacher-only results presentation and local request
+state; no API, schema, migration, production, or Gradex change.
+
+**Completed:**
+- Replaced false empty-result fallback data with survey-scoped loading, ready,
+  and announced failure states plus explicit Retry actions.
+- Preserved the last valid result snapshot during failed roster/response-count
+  refreshes and kept stale Survey responses out of the selected workspace.
+- Recorded the completed teacher/student Surveys slice in the product audit.
+
+**Validation:**
+- Full suite passes: 4,244 tests across 494 files. Production build, lint,
+  architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright and visual inspection pass for teacher results and cold errors at
+  desktop/mobile in light/dark, with no horizontal overflow. Unit interaction
+  coverage proves retained-result failure and successful retry replacement.
+- Composite-widget checklist is not applicable because no composite control or
+  keyboard model changed; alert/status semantics and Retry are role-tested.

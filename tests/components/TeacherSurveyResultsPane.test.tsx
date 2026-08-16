@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { ReactNode } from 'react'
@@ -36,6 +37,10 @@ function createDeferred<T>() {
 
 function jsonResponse(body: unknown): Response {
   return { ok: true, json: async () => body } as Response
+}
+
+function jsonErrorResponse(body: unknown): Response {
+  return { ok: false, json: async () => body } as Response
 }
 
 function createMountedRoot() {
@@ -87,6 +92,76 @@ describe('TeacherSurveyResultsPane', () => {
       expect(screen.getAllByText('50%')).toHaveLength(2)
     })
     expect(screen.queryByText('1 (50%)')).not.toBeInTheDocument()
+  })
+
+  it('shows an announced cold error with retry instead of empty results', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonErrorResponse({ error: 'Results service unavailable' }))
+      .mockResolvedValueOnce(jsonResponse({
+        stats: { total_students: 2, responded: 0 },
+        results: [],
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<TeacherSurveyResultsPane survey={makeSurvey()} />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Survey results unavailable')
+    expect(alert).toHaveTextContent('Results service unavailable')
+    expect(screen.queryByText('No responses yet.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('No responses yet.')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('retains valid results and offers retry when a refresh fails', async () => {
+    const user = userEvent.setup()
+    const initialPayload = {
+      stats: { total_students: 2, responded: 1 },
+      results: [{
+        question_id: 'question-1',
+        question_type: 'multiple_choice',
+        question_text: 'Previously loaded question',
+        options: ['A', 'B'],
+        counts: [1, 0],
+        responses: [],
+        total_responses: 1,
+      }],
+    }
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(jsonResponse(initialPayload))
+      .mockResolvedValueOnce(jsonErrorResponse({ error: 'Refresh failed' }))
+      .mockResolvedValueOnce(jsonResponse({
+        stats: { total_students: 3, responded: 2 },
+        results: [{
+          ...initialPayload.results[0],
+          question_text: 'Freshly loaded question',
+          counts: [1, 1],
+          total_responses: 2,
+        }],
+      })))
+
+    const { rerender } = render(<TeacherSurveyResultsPane survey={makeSurvey()} />)
+    expect(await screen.findByText('Previously loaded question')).toBeInTheDocument()
+
+    rerender(<TeacherSurveyResultsPane survey={makeSurvey({
+      stats: { total_students: 3, responded: 0, questions_count: 1 },
+    })} />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Refresh failed')
+    expect(alert).toHaveTextContent('The previous results are still shown.')
+    expect(screen.getByText('Previously loaded question')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Freshly loaded question')).toBeInTheDocument()
+    expect(screen.queryByText('Previously loaded question')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('ignores stale result responses after selected survey changes', async () => {

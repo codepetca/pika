@@ -18057,3 +18057,31 @@ accounts; no migration, cleanup, or deletion activation.
 - Decide separately whether to apply exact migration
   `119_hot_archived_classroom_purge_managed_ownership.sql` to production. Do not
   enable generic cleanup or Classroom deletion without separate authorization.
+
+<!-- pika-session-log-archive-batch:fa23cb220e4d8aca68e6c0130e0ecbfb90b362b55312b4ef6a40459f4f201713 -->
+## 2026-08-05 — Apply production hot-archive purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified production project `zhioqbapgfcrronyuidm`, migration history through
+  118, migration 119 checksum, focused tests, managed-storage lineage, and
+  PostgreSQL function lint.
+- The linked dry run contained only
+  `119_hot_archived_classroom_purge_managed_ownership.sql`.
+- Applied migration 119 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Remote migration history now records 119.
+- `classroom_purge_settings.rollout_mode` is `disabled`; canary teacher and
+  Classroom IDs are null.
+- Managed Storage remains `enforced` with 144/144 objects `ready`; no purge or
+  cleanup operation is active.
+- The synthetic hot-archived Classroom, reusable Blueprint, and verified archive
+  remain intact. No purge, generic cleanup, or Storage deletion ran.
+
+**Remaining:**
+- Treat Classroom deletion activation and any first purge canary as separate
+  production decisions requiring fresh target-specific authorization.

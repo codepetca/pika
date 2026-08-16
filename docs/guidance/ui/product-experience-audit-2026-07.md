@@ -195,12 +195,19 @@ Tests progress:
 - Link snapshots now validate and pin public DNS addresses across manual redirects before fetching. Migration 105 atomically rechecks ownership, archive state, document identity, and URL under row locks before attaching a unique snapshot; it must be applied before deploying the updated sync route.
 - Remaining Tests work is accessible flag/save announcements and the deferred mobile navigation treatment.
 
+Surveys progress:
+
+- Student results now distinguish loading, success, and announced failure states, offer explicit retry recovery, and use native radio semantics for multiple-choice responses.
+- Teacher results now use governed loading and cold-error states. Failed refreshes retain the last valid results with an announced retry warning, and request guards prevent another Survey's response from painting in the selected workspace.
+- Component tests cover cold failure, retry recovery, retained-results refresh failure, successful refresh replacement, and stale Survey isolation. Teacher desktop/mobile and light/dark browser verification preserves the existing results-first workspace with no horizontal overflow.
+- The Phase 3 Surveys slice is complete.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
 4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
-6. Surveys: explicit results error/retry and native-equivalent choice semantics.
+6. Surveys: completed explicit student/teacher results recovery, retained refresh data, stale-response guards, and native choice semantics.
 7. Calendar and lesson plans: independent source failures, compact navigation, and Toronto date/time behavior.
 8. Announcements: explicit failure/read states and Toronto timestamp formatting.
 9. Gradebook: narrow-screen navigation, selected-student detail, and direct table keyboard tests.
