@@ -1527,6 +1527,33 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('columnheader', { name: 'Away' })).toHaveClass('lg:table-cell')
   })
 
+  it('formats sub-second away telemetry as whole seconds', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [makeGradingStudent({
+          focus_summary: {
+            exit_count: 1,
+            away_count: 1,
+            away_total_seconds: 0.153,
+            route_exit_attempts: 0,
+            window_unmaximize_attempts: 0,
+            last_away_started_at: '2026-04-17T18:15:00.000Z',
+            last_away_ended_at: '2026-04-17T18:15:00.153Z',
+          },
+        })],
+      }))
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const row = await screen.findByTestId('test-grading-student-row-student-1')
+    expect(within(row).getByLabelText(/Away time 0:00\./)).toBeInTheDocument()
+  })
+
   it('uses shared sorting, selection, and resizable grading columns', async () => {
     fetchMock
       .mockResolvedValueOnce({

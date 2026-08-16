@@ -9,43 +9,17 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TestFocusEventType } from '@/types'
+import { postTestFocusEventSchema } from '@/lib/validations/test-focus-events'
+import type { Json } from '@/types/database.generated'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-const ALLOWED_EVENT_TYPES: TestFocusEventType[] = [
-  'away_start',
-  'away_end',
-  'route_exit_attempt',
-  'window_unmaximize_attempt',
-]
 
 // POST /api/student/tests/[id]/focus-events - log focus telemetry for tests
 export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request, context) => {
   const user = await requireRole('student')
   const { id: testId } = await context.params
-  const body = await request.json()
-
-  const eventType = body?.event_type as TestFocusEventType | undefined
-  const sessionId = String(body?.session_id || '').trim()
-
-  if (!eventType || !ALLOWED_EVENT_TYPES.includes(eventType)) {
-    return NextResponse.json(
-      {
-        error:
-          'event_type must be one of away_start, away_end, route_exit_attempt, window_unmaximize_attempt',
-      },
-      { status: 400 }
-    )
-  }
-
-  if (!sessionId || sessionId.length > 120) {
-    return NextResponse.json(
-      { error: 'session_id is required and must be <= 120 characters' },
-      { status: 400 }
-    )
-  }
+  const input = postTestFocusEventSchema.parse(await request.json())
 
   const access = await assertStudentCanAccessTest(user.id, testId)
   if (!access.ok) {
@@ -122,9 +96,17 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     .insert({
       test_id: testId,
       student_id: user.id,
-      session_id: sessionId,
-      event_type: eventType,
-      metadata: body?.metadata && typeof body.metadata === 'object' ? body.metadata : null,
+      session_id: input.session_id,
+      event_type: input.event_type,
+      metadata: (input.incident_id
+        ? {
+            ...(input.metadata || {}),
+            detector_version: 2,
+            incident_id: input.incident_id,
+            client_event_id: input.client_event_id,
+            client_occurred_at: input.client_occurred_at,
+          }
+        : input.metadata || null) as Json,
     })
 
   if (insertError) {
@@ -134,7 +116,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
 
   const { data: events, error: eventsError } = await supabase
     .from('test_focus_events')
-    .select('event_type, occurred_at')
+    .select('event_type, session_id, occurred_at, metadata')
     .eq('test_id', testId)
     .eq('student_id', user.id)
     .order('occurred_at', { ascending: true })

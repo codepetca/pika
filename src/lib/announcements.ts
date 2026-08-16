@@ -1,4 +1,7 @@
+import { formatInTimeZone } from 'date-fns-tz'
+
 export const ANNOUNCEMENT_TITLE_MAX_LENGTH = 60
+const ANNOUNCEMENT_TIMEZONE = 'America/Toronto'
 
 export type AnnouncementTitleInputResult =
   | { ok: true; value: string | null | undefined }
@@ -40,4 +43,11 @@ export function sortAnnouncementsNewestFirst<T extends { created_at: string }>(
   return [...announcements].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )
+}
+
+export function formatAnnouncementTimestamp(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return formatInTimeZone(date, ANNOUNCEMENT_TIMEZONE, 'EEE MMM d, h:mm a')
 }

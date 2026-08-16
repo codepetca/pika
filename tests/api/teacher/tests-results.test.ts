@@ -277,6 +277,131 @@ describe('GET /api/teacher/tests/[id]/results', () => {
     expect(data.active_ai_grading_run).toBeNull()
   })
 
+  it('shows one teacher-side exit per versioned incident across raw signal classifications', async () => {
+    const incidentMetadata = (incidentId: string, clientEventId: string, occurredAt: string) => ({
+      detector_version: 2,
+      incident_id: incidentId,
+      client_event_id: clientEventId,
+      client_occurred_at: occurredAt,
+    })
+    const focusRows = [
+      {
+        id: 'focus-1',
+        test_id: 'test-1',
+        student_id: 'student-1',
+        session_id: 'session-1',
+        event_type: 'away_start',
+        occurred_at: '2026-01-01T00:05:00.000Z',
+        metadata: incidentMetadata('incident-1', 'event-1', '2026-01-01T00:05:00.000Z'),
+      },
+      {
+        id: 'focus-2',
+        test_id: 'test-1',
+        student_id: 'student-1',
+        session_id: 'session-1',
+        event_type: 'away_end',
+        occurred_at: '2026-01-01T00:05:00.200Z',
+        metadata: {
+          ...incidentMetadata('incident-1', 'event-2', '2026-01-01T00:05:00.200Z'),
+          duration_ms: 200,
+        },
+      },
+      {
+        id: 'focus-3',
+        test_id: 'test-1',
+        student_id: 'student-1',
+        session_id: 'session-1',
+        event_type: 'window_unmaximize_attempt',
+        occurred_at: '2026-01-01T00:05:00.400Z',
+        metadata: incidentMetadata('incident-1', 'event-3', '2026-01-01T00:05:00.400Z'),
+      },
+      {
+        id: 'focus-4',
+        test_id: 'test-1',
+        student_id: 'student-1',
+        session_id: 'session-1',
+        event_type: 'away_start',
+        occurred_at: '2026-01-01T00:05:01.000Z',
+        metadata: incidentMetadata('incident-2', 'event-4', '2026-01-01T00:05:01.000Z'),
+      },
+      {
+        id: 'focus-5',
+        test_id: 'test-1',
+        student_id: 'student-1',
+        session_id: 'session-1',
+        event_type: 'away_end',
+        occurred_at: '2026-01-01T00:05:01.100Z',
+        metadata: {
+          ...incidentMetadata('incident-2', 'event-5', '2026-01-01T00:05:01.100Z'),
+          duration_ms: 100,
+        },
+      },
+    ]
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+      if (table === 'test_responses') return mockTestResponsesQuery([])
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'test_attempts') {
+        return mockChunkedTable([{
+          test_id: 'test-1',
+          student_id: 'student-1',
+          is_submitted: true,
+          submitted_at: '2026-01-01T00:10:00.000Z',
+          returned_at: null,
+          returned_by: null,
+          closed_for_grading_at: null,
+          closed_for_grading_by: null,
+          updated_at: '2026-01-01T00:10:00.000Z',
+          responses: null,
+        }])
+      }
+      if (table === 'users') {
+        return mockUsersQuery([{ id: 'student-1', email: 'student1@example.com' }])
+      }
+      if (table === 'student_profiles') {
+        return mockProfilesQuery([{
+          id: 'profile-1',
+          user_id: 'student-1',
+          first_name: 'Student',
+          last_name: 'One',
+        }])
+      }
+      if (table === 'test_focus_events') return mockFocusEventsQuery(focusRows)
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/results'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.students[0].focus_summary).toEqual(expect.objectContaining({
+      exit_count: 2,
+      away_count: 2,
+      window_unmaximize_attempts: 1,
+    }))
+    expect(data.students[0].focus_summary.away_total_seconds).toBeCloseTo(0.3)
+  })
+
   it('ignores unenrolled response rows in result aggregates and open-response counts', async () => {
     let testResponseStudentIds: string[] | null = null
 

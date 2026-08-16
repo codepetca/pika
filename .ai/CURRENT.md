@@ -1,3 +1,3 @@
-Prod 001–123. Student purge on; cold/generic deletion off. codex/cron-run-ledger: local-only 124 adds durable cron evidence; no new authority. Replay/fixtures/types and 4,240 tests/build/audit pass. Next: PR/deploy, separate prod-124 auth. Migration-123 retry lint stays separate.
+Prod 001–123. Student purge on; cold/generic deletion off. cron-run-ledger remains local-only 124; prod auth required. Surveys, Announcements, and Calendar recovery/semantics complete; select the next Phase 3 slice. Migration-123 retry lint stays separate.
 WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.

@@ -327,6 +327,16 @@ export const CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES = [
     },
     privacy: ['student_work', 'operations'],
   },
+  {
+    table: 'lesson_plan_mutation_heads',
+    primary_key: ['classroom_id', 'date', 'client_id'],
+    scope: {
+      kind: 'foreign_key',
+      parent: 'classrooms',
+      column: 'classroom_id',
+    },
+    privacy: ['operations'],
+  },
 ] as const satisfies readonly {
   table: string
   primary_key: readonly string[]

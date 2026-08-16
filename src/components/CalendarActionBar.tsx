@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
@@ -45,7 +45,7 @@ export function getCalendarHeaderLabel(
   }
 
   if (rangeStart && rangeEnd) {
-    return `${format(new Date(rangeStart), 'MMM d, yyyy')} - ${format(new Date(rangeEnd), 'MMM d, yyyy')}`
+    return `${format(parseISO(rangeStart), 'MMM d, yyyy')} - ${format(parseISO(rangeEnd), 'MMM d, yyyy')}`
   }
 
   return 'All Dates'

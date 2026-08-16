@@ -427,4 +427,111 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
     expect(data.focus_summary.exit_count).toBe(1)
     expect(data.focus_summary.window_unmaximize_attempts).toBe(1)
   })
+
+  it('rejects an invalid versioned incident id at the request boundary', async () => {
+    const response = await POST(
+      buildRequest({
+        event_type: 'away_start',
+        session_id: 'session-1',
+        incident_id: 'x'.repeat(121),
+        client_event_id: 'event-1',
+        client_occurred_at: '2026-02-24T12:00:00.000Z',
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain('incident')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('persists versioned incident metadata and returns an incident-deduped summary', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: 'attempt-1', is_submitted: false },
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+          })),
+        }
+      }
+      if (table === 'test_focus_events') {
+        return {
+          insert,
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  event_type: 'away_start',
+                  session_id: 'session-1',
+                  occurred_at: '2026-02-24T12:00:00.100Z',
+                  metadata: {
+                    detector_version: 2,
+                    incident_id: 'incident-1',
+                    client_event_id: 'event-1',
+                    client_occurred_at: '2026-02-24T12:00:00.000Z',
+                  },
+                },
+                {
+                  event_type: 'window_unmaximize_attempt',
+                  session_id: 'session-1',
+                  occurred_at: '2026-02-24T12:00:00.500Z',
+                  metadata: {
+                    detector_version: 2,
+                    incident_id: 'incident-1',
+                    client_event_id: 'event-2',
+                    client_occurred_at: '2026-02-24T12:00:00.400Z',
+                  },
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      buildRequest({
+        event_type: 'away_start',
+        session_id: 'session-1',
+        incident_id: 'incident-1',
+        client_event_id: 'event-1',
+        client_occurred_at: '2026-02-24T12:00:00.000Z',
+        metadata: { source: 'visibility' },
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      session_id: 'session-1',
+      metadata: {
+        source: 'visibility',
+        detector_version: 2,
+        incident_id: 'incident-1',
+        client_event_id: 'event-1',
+        client_occurred_at: '2026-02-24T12:00:00.000Z',
+      },
+    }))
+    expect(data.focus_summary.exit_count).toBe(1)
+    expect(data.focus_summary.away_count).toBe(1)
+    expect(data.focus_summary.window_unmaximize_attempts).toBe(1)
+  })
 })

@@ -25,7 +25,13 @@ vi.mock('@/components/layout', () => ({
 
 // Mock the class days hook
 vi.mock('@/hooks/useClassDays', () => ({
-  useClassDays: () => [],
+  useClassDaysContext: () => ({
+    classDays: [],
+    error: null,
+    hasLoadedSnapshot: true,
+    isLoading: false,
+    refresh: vi.fn(async () => {}),
+  }),
 }))
 
 // Mock the keyboard shortcut hook
