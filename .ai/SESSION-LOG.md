@@ -11,46 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Verify production managed Storage writers under enforcement
-
-**Risk profile:** bounded production smoke writes using synthetic teacher/student
-accounts; no migration, cleanup, or deletion activation.
-
-**Completed:**
-- Created a synthetic Classroom, allowlisted and enrolled a synthetic student,
-  uploaded one teacher PDF to a Test, and submitted one student image artifact.
-- Saved the Classroom as Course Blueprint
-  `c318ef23-5039-4b64-9977-66bceee54ba0`, instantiated Classroom
-  `7979c0fd-44ae-4c08-a430-39cf432b48fa` from that Blueprint, and hot archived
-  the copy.
-- Verified the deployment export gate remains disabled, then invoked the exact
-  deployed archive writer implementation for the authorized synthetic Classroom.
-  Archive operation `18ff7d6f-84ee-49c9-ab7e-e065b4f8391b` completed and
-  produced a verified, Classroom-owned `classroom-archives` object.
-- Captured and visually inspected teacher/student desktop/mobile production UI.
-  Teacher archive controls and student submitted-artifact surfaces rendered
-  correctly; permanent deletion remained absent.
-
-**Validation:**
-- The five new managed objects cover teacher test material, student assignment
-  artifact, Classroom-to-Blueprint copy, Blueprint-to-Classroom copy, and
-  Classroom archive creation. All use distinct managed identities and exact
-  owner bindings; matching Storage bytes and JSON/relational references exist.
-- Production now contains 144 managed objects and 144 managed-bucket Storage
-  objects, all `ready`: zero ownerless Storage, missing Storage, ownerless
-  identities, unreferenced ready objects, raw references lacking managed IDs,
-  or active operations.
-- The Blueprint and both user accounts remain intact. The copy remains hot
-  archived (no cold tombstone) for a future deletion canary.
-- Migration 119 remains unapplied. Generic cleanup and Classroom deletion remain
-  disabled. Readiness generation 1 remains the activation evidence; writer
-  growth after activation is expected under the enforced protocol.
-
-**Remaining:**
-- Decide separately whether to apply exact migration
-  `119_hot_archived_classroom_purge_managed_ownership.sql` to production. Do not
-  enable generic cleanup or Classroom deletion without separate authorization.
-
 ## 2026-08-05 — Apply production hot-archive purge schema
 
 **Risk profile:** irreversible production schema installation; rollout and
@@ -1069,3 +1029,27 @@ overlap serialization around the existing cleanup-history safety-net route.
   canonical app-managed worktree and collaborator env forms. The compressed
   handoff restores both contracts; startup-doc coverage and the full 4,240-test
   suite pass.
+
+## 2026-08-15 — Make student Surveys recoverable and keyboard-native
+
+**Risk profile:** workspace-state — student-only survey presentation and local
+request state; no API, schema, migration, production, or Gradex change.
+
+**Completed:**
+- Replaced the ambiguous results `null` state with survey-scoped loading,
+  success, and announced error states plus an explicit Retry action.
+- Replaced styled answer buttons with native radios in a named radio group,
+  retaining the existing card treatment while adding checked state, focus, and
+  browser keyboard behavior.
+- Updated the exact native-control policy entry and added component regression
+  coverage for semantic selection and failed-results recovery.
+
+**Validation:**
+- Full suite passes: 4,242 tests across 494 files. Lint, production build,
+  architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright and visual inspection pass for student results, edit/selected,
+  focus, error/retry, desktop, mobile, light, and dark states. Arrow-key radio
+  movement passed in Chromium; mobile body width remained within 390px.
+- Teacher verification is not applicable because no teacher-owned surface
+  changed. Composite semantics and keyboard behavior are covered; no manual
+  follow-up remains.

@@ -38,6 +38,11 @@ type SurveyResultsPayload = {
   results: StudentSurveyQuestionResult[]
 }
 
+type SurveyResultsState =
+  | { surveyId: string; status: 'loading' }
+  | { surveyId: string; status: 'error'; message: string }
+  | { surveyId: string; status: 'success'; payload: SurveyResultsPayload }
+
 function selectedOptionFromResponse(response: SurveyResponseValue | undefined): number | null {
   return response?.question_type === 'multiple_choice' ? response.selected_option : null
 }
@@ -46,22 +51,43 @@ function textFromResponse(response: SurveyResponseValue | undefined): string {
   return response && response.question_type !== 'multiple_choice' ? response.response_text : ''
 }
 
-function StudentSurveyResults({ payload }: { payload: SurveyResultsPayload | null }) {
-  if (!payload) {
+function StudentSurveyResults({
+  state,
+  onRetry,
+}: {
+  state: SurveyResultsState | null
+  onRetry: () => void
+}) {
+  if (!state || state.status === 'loading') {
     return (
-      <div className="flex justify-center py-6">
+      <div className="flex justify-center py-6" role="status">
         <Spinner />
+        <span className="sr-only">Loading class results</span>
       </div>
     )
   }
 
-  if (payload.results.length === 0) {
+  if (state.status === 'error') {
+    return (
+      <div
+        role="alert"
+        className="flex flex-col gap-3 rounded-md border border-danger bg-danger-bg px-3 py-3 text-sm text-danger sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p>{state.message}</p>
+        <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
+  if (state.payload.results.length === 0) {
     return <p className="text-sm text-text-muted">No class results yet.</p>
   }
 
   return (
     <div className="space-y-5">
-      {payload.results.map((result, index) => (
+      {state.payload.results.map((result, index) => (
         <div key={result.question_id} className="space-y-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
@@ -116,7 +142,7 @@ export function StudentSurveyPanel({
 }: StudentSurveyPanelProps) {
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
   const [responses, setResponses] = useState<Record<string, SurveyResponseValue>>({})
-  const [resultsState, setResultsState] = useState<{ surveyId: string; payload: SurveyResultsPayload } | null>(null)
+  const [resultsState, setResultsState] = useState<SurveyResultsState | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [isEditingResponse, setIsEditingResponse] = useState(false)
@@ -126,7 +152,7 @@ export function StudentSurveyPanel({
   const currentSurveyIdRef = useRef(surveyId)
   currentSurveyIdRef.current = surveyId
   const activeDetail = detail?.survey?.id === surveyId ? detail : null
-  const results = resultsState?.surveyId === surveyId ? resultsState.payload : null
+  const activeResultsState = resultsState?.surveyId === surveyId ? resultsState : null
 
   const loadSurvey = useCallback(async () => {
     const requestId = detailRequestIdRef.current + 1
@@ -134,7 +160,7 @@ export function StudentSurveyPanel({
     const requestedSurveyId = surveyId
     setLoading(true)
     setError('')
-    setResultsState(null)
+    setResultsState({ surveyId: requestedSurveyId, status: 'loading' })
     try {
       // Bypass fetchJSONWithCache for selected survey freshness; request ids guard stale responses.
       const response = await fetch(`/api/student/surveys/${surveyId}`)
@@ -166,10 +192,14 @@ export function StudentSurveyPanel({
       const data = await response.json()
       if (resultsRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load results')
-      setResultsState({ surveyId: requestedSurveyId, payload: data })
-    } catch {
+      setResultsState({ surveyId: requestedSurveyId, status: 'success', payload: data })
+    } catch (err) {
       if (resultsRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
-        setResultsState(null)
+        setResultsState({
+          surveyId: requestedSurveyId,
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Failed to load class results',
+        })
       }
     }
   }, [surveyId])
@@ -303,46 +333,58 @@ export function StudentSurveyPanel({
                 <div key={question.id} className="space-y-2">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
-                    <QuestionMarkdown content={question.question_text} />
+                    <div id={`survey-${surveyId}-question-${question.id}`}>
+                      <QuestionMarkdown content={question.question_text} />
+                    </div>
                   </div>
 
                   {question.question_type === 'multiple_choice' ? (
-                    <div className="space-y-2">
+                    <div
+                      className="space-y-2"
+                      role="radiogroup"
+                      aria-labelledby={`survey-${surveyId}-question-${question.id}`}
+                    >
                       {question.options.map((option, optionIndex) => {
                         const isSelected = selectedOption === optionIndex
                         return (
-                          <button
+                          <label
                             key={optionIndex}
-                            type="button"
-                            disabled={!canRespond || submitting}
-                            onClick={() => {
-                              setResponses((current) => ({
-                                ...current,
-                                [question.id]: {
-                                  question_type: 'multiple_choice',
-                                  selected_option: optionIndex,
-                                },
-                              }))
-                            }}
                             className={[
-                              'flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors',
+                              'relative flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors',
                               isSelected
                                 ? 'border-primary bg-primary/5 text-text-default'
                                 : 'border-border bg-surface hover:bg-surface-hover text-text-default',
-                              !canRespond ? 'cursor-not-allowed opacity-70' : '',
+                              !canRespond || submitting ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
                             ].join(' ')}
                           >
+                            <input
+                              type="radio"
+                              name={`survey-${surveyId}-question-${question.id}`}
+                              value={optionIndex}
+                              checked={isSelected}
+                              disabled={!canRespond || submitting}
+                              onChange={() => {
+                                setResponses((current) => ({
+                                  ...current,
+                                  [question.id]: {
+                                    question_type: 'multiple_choice',
+                                    selected_option: optionIndex,
+                                  },
+                                }))
+                              }}
+                              className="peer sr-only"
+                            />
                             <span
                               aria-hidden="true"
                               className={[
-                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface',
                                 isSelected ? 'border-primary' : 'border-border',
                               ].join(' ')}
                             >
                               {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
                             </span>
                             <span>{option}</span>
-                          </button>
+                          </label>
                         )
                       })}
                     </div>
@@ -414,7 +456,7 @@ export function StudentSurveyPanel({
             <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
             <h3 className="mt-4 text-base font-semibold text-text-default">Class results</h3>
           </div>
-          <StudentSurveyResults payload={results} />
+          <StudentSurveyResults state={activeResultsState} onRetry={() => void loadResults()} />
         </Card>
       )}
     </div>
