@@ -551,6 +551,41 @@ describe('StudentTestsTab exam mode', () => {
     })
   })
 
+  it('does not count a rejected fullscreen request as an exit', async () => {
+    queueTestList()
+    queueTestDetail()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, focus_summary: makeFocusSummary() }),
+    })
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => null,
+    })
+    const requestFullscreen = vi.fn().mockRejectedValue(new DOMException(
+      'Fullscreen requires a user gesture',
+      'NotAllowedError'
+    ))
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+
+    render(<StudentTestsTab classroom={classroom} />)
+
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    fireEvent.click(await screen.findByText('Start test'))
+
+    await waitFor(() => {
+      expect(requestFullscreen).toHaveBeenCalled()
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+    expect(fetchMock.mock.calls.some(
+      ([url]: [string]) => url.includes('/focus-events')
+    )).toBe(false)
+  })
+
   it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {
     let listReads = 0
     const setIntervalSpy = vi.spyOn(window, 'setInterval')
@@ -2456,7 +2491,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies).toEqual([])
   })
 
-  it('preserves raw window signals while counting one notification-style exit', async () => {
+  it('ignores transient blur and fullscreen signal noise', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2576,11 +2611,11 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(window, new Event('resize'))
     fireEvent(window, new Event('focus'))
 
-    await waitFor(() => {
-      expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(1)
-      expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
-      expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
-    })
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(0)
+    expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
+    expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(0)
   })
 
   it('tracks swipe-away visibility changes as one exit', async () => {
@@ -2690,6 +2725,12 @@ describe('StudentTestsTab exam mode', () => {
       expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
       expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
     })
+    const [awayStart, awayEnd] = focusBodies
+    expect(awayStart.incident_id).toMatch(/^incident_/)
+    expect(awayEnd.incident_id).toBe(awayStart.incident_id)
+    expect(awayStart.client_event_id).not.toBe(awayEnd.client_event_id)
+    expect(awayStart.client_occurred_at).toEqual(expect.any(String))
+    expect(awayEnd.metadata?.duration_ms).toEqual(expect.any(Number))
   })
 
   it('preserves raw route exit signals while the summary stays deduped', async () => {
@@ -3033,7 +3074,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(document, new Event('fullscreenchange'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
@@ -3170,7 +3211,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(document, new Event('fullscreenchange'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
@@ -3475,7 +3516,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(window, new Event('resize'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
@@ -4050,7 +4091,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(document, new Event('fullscreenchange'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
