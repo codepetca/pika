@@ -14,6 +14,77 @@ alter table public.lesson_plan_mutation_heads enable row level security;
 revoke all on table public.lesson_plan_mutation_heads from public, anon, authenticated;
 grant select, insert, update, delete on table public.lesson_plan_mutation_heads to service_role;
 
+create trigger lesson_plan_mutation_head_purge_fence
+before insert or update or delete on public.lesson_plan_mutation_heads
+for each row execute function public.reject_classroom_resource_change_during_purge(
+  'classrooms', 'classroom_id'
+);
+
+-- Migration 118 predates mutation heads. Preserve its inventory implementation
+-- behind a private helper and extend the public result with an exact database
+-- count so purge confirmation, begin-time fencing, and durable operation counts
+-- all use the same value without PostgREST pagination.
+alter function public.get_hot_archived_classroom_purge_inventory(uuid, uuid)
+  rename to get_hot_archived_classroom_purge_inventory_without_lesson_heads;
+alter function public.get_hot_archived_classroom_purge_inventory_without_lesson_heads(
+  uuid, uuid
+) set schema private;
+
+revoke all on function private.get_hot_archived_classroom_purge_inventory_without_lesson_heads(
+  uuid, uuid
+) from public, anon, authenticated, service_role;
+
+create function public.get_hot_archived_classroom_purge_inventory(
+  p_teacher_id uuid,
+  p_classroom_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_inventory jsonb;
+  v_operational_counts jsonb;
+  v_operational_digest text;
+begin
+  v_inventory := private.get_hot_archived_classroom_purge_inventory_without_lesson_heads(
+    p_teacher_id,
+    p_classroom_id
+  );
+  if not coalesce((v_inventory->>'ok')::boolean, false) then
+    return v_inventory;
+  end if;
+
+  v_operational_counts := coalesce(
+    v_inventory->'operational_counts',
+    '{}'::jsonb
+  ) || jsonb_build_object(
+    'lesson_plan_mutation_heads',
+    (
+      select count(*)::integer
+      from public.lesson_plan_mutation_heads
+      where classroom_id = p_classroom_id
+    )
+  );
+  v_operational_digest := encode(extensions.digest(
+    convert_to(v_operational_counts::text, 'UTF8'), 'sha256'
+  ), 'hex');
+
+  return v_inventory || jsonb_build_object(
+    'operational_counts', v_operational_counts,
+    'operational_inventory_sha256', v_operational_digest
+  );
+end;
+$$;
+
+revoke all on function public.get_hot_archived_classroom_purge_inventory(
+  uuid, uuid
+) from public, anon, authenticated;
+grant execute on function public.get_hot_archived_classroom_purge_inventory(
+  uuid, uuid
+) to service_role;
+
 create or replace function public.apply_ordered_lesson_plan_mutation(
   p_classroom_id uuid,
   p_date date,

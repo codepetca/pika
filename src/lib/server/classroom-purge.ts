@@ -304,7 +304,7 @@ async function readStableImpact(
     const assignmentDocIds = (resources.assignment_docs || [])
       .map((row) => row.id)
       .filter((id): id is string => typeof id === 'string')
-    const [users, saveOperations, lessonPlanMutationHeads] = await Promise.all([
+    const [users, saveOperations] = await Promise.all([
       loadChunkedRows<unknown>({
         supabase,
         table: 'users',
@@ -316,12 +316,6 @@ async function readStableImpact(
         table: 'assignment_doc_save_operations',
         select: 'id',
         filters: [{ column: 'assignment_doc_id', values: assignmentDocIds }],
-      }),
-      loadChunkedRows<unknown>({
-        supabase,
-        table: 'lesson_plan_mutation_heads',
-        select: 'classroom_id,date,client_id',
-        filters: [{ column: 'classroom_id', values: [classroomId] }],
       }),
     ])
     if (users.error) {
@@ -340,14 +334,6 @@ async function readStableImpact(
         true,
       )
     }
-    if (lessonPlanMutationHeads.error) {
-      throw new ClassroomPurgeError(
-        lessonPlanMutationHeads.error.code || 'classroom_operation_inventory_failed',
-        'Could not inventory lesson-plan mutation records',
-        500,
-        true,
-      )
-    }
     const affectedUsers = z.array(affectedUserSchema).parse(users.rows)
     const classroomCounts = Object.fromEntries([
       ...CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [
@@ -358,9 +344,7 @@ async function readStableImpact(
         resource.table,
         resource.table === 'assignment_doc_save_operations'
           ? saveOperations.rows.length
-          : resource.table === 'lesson_plan_mutation_heads'
-            ? lessonPlanMutationHeads.rows.length
-            : 0,
+          : 0,
       ] as const),
     ])
     const resourceCounts = mergeClassroomPurgeResourceCounts(

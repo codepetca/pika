@@ -1047,7 +1047,9 @@ the shared local database only. Production was not modified.
   removed both routes from the API validation debt baseline. Calendar dates
   are now validated as real dates before any bulk write begins.
 - Registered the durable mutation-head table as purge-only operational data and
-  included it in classroom purge impact inventory without archiving it.
+  included its exact PostgreSQL count in the purge stability digest and durable
+  operation inventory without archiving it. Mutation-head writes now obey the
+  classroom purge fence.
 
 **Validation:**
 - Full suite passes: 4,314 tests across 498 files. Production build, lint,
@@ -1057,8 +1059,10 @@ the shared local database only. Production was not modified.
   is denied to `anon` and `authenticated` and granted only to `service_role`.
 - Independent review findings covering queue-blocked unload writes,
   identical-payload draft ownership, impossible calendar dates, and schema
-  ownership were remediated with focused regressions. The local classroom
-  schema audit passes across 198 foreign-key relationships.
+  ownership were remediated with focused regressions. Rereview additionally
+  found paginated, unfenced mutation-head purge accounting; migration 125 now
+  computes and fences that count inside the database inventory. The local
+  classroom schema audit passes across 198 foreign-key relationships.
 - Playwright verification passes for the exhausted-save Retry alert in teacher
   light/dark views; the student Calendar remains visually unchanged. Mobile
   redesign remains explicitly deferred.

@@ -32,5 +32,18 @@ describe('ordered lesson-plan mutations migration', () => {
       primary_key: ['classroom_id', 'date', 'client_id'],
       privacy: ['operations'],
     }))
+    expect(migration).toContain('lesson_plan_mutation_head_purge_fence')
+    expect(migration).toContain(
+      'get_hot_archived_classroom_purge_inventory_without_lesson_heads',
+    )
+    expect(migration).toMatch(
+      /get_hot_archived_classroom_purge_inventory_without_lesson_heads\([\s\S]*?set schema private/,
+    )
+    expect(migration).toMatch(
+      /'lesson_plan_mutation_heads',[\s\S]*?select count\(\*\)::integer[\s\S]*?where classroom_id = p_classroom_id/,
+    )
+    expect(migration).toContain(
+      "'operational_inventory_sha256', v_operational_digest",
+    )
   })
 })
