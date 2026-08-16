@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Enable and verify exact production purge canary
-
-**Risk profile:** production rollout-gate write only; no purge or cleanup.
-
-**Completed:**
-- Revalidated the synthetic target as teacher-owned, hot archived, not cold
-  archived, conflict-free, and without any prior purge operation.
-- Atomically changed `classroom_purge_settings` from `disabled` to `canary` only
-  for teacher `34bd4439-e552-483b-b8aa-e3a8f86009af` and Classroom
-  `7979c0fd-44ae-4c08-a430-39cf432b48fa`.
-- Opened the production impact dialog without entering confirmation or invoking
-  any destructive endpoint.
-
-**Validation:**
-- Impact summary reports 0 students, 104 relational records, and two managed
-  files / 36 KB: one test document and one verified Classroom archive. Both
-  files are present; no Gradex extract, interrupted upload, or conflicting
-  operation exists.
-- Teacher desktop/light and mobile/dark show exactly one canary action, the full
-  irreversible warning, Blueprint/user preservation text, typed-confirmation
-  requirement, and a disabled destructive button.
-- Student desktop/dark and mobile/light show neither the archived canary nor a
-  deletion action; the teacher purge endpoint returns 403 for the student.
-- Final read-only state has zero purge operations, zero active generic cleanup,
-  144 managed objects all `ready`, and the hot Classroom and Blueprint intact.
-
-**Remaining:**
-- The first irreversible production canary purge requires separate exact
-  authorization. Broader rollout and generic cleanup remain disabled.
-
 ## 2026-08-05 — Complete first production hot-archive purge canary
 
 **Risk profile:** irreversible production deletion of one exact synthetic
@@ -1047,3 +1017,24 @@ state; no API, schema, migration, production, or Gradex change.
   coverage proves retained-result failure and successful retry replacement.
 - Composite-widget checklist is not applicable because no composite control or
   keyboard model changed; alert/status semantics and Retry are role-tested.
+
+## 2026-08-16 — Make Announcement tabs recoverable and Toronto-safe
+
+**Risk profile:** workspace-state — teacher/student Announcement presentation,
+request ownership, and read acknowledgement; no API, schema, migration,
+production, Calendar, mobile redesign, or Gradex change.
+
+**Completed:**
+- Added explicit loading, successful empty, cold-error, and Retry states while
+  preserving valid classroom-scoped data and rejecting stale responses.
+- Made failed student read acknowledgement visible and retryable without
+  prematurely clearing notification state.
+- Centralized Announcement timestamps in `America/Toronto` for teacher and
+  student display and scheduling labels.
+
+**Validation:**
+- Full suite passes: 4,250 tests across 494 files. Focused component/domain
+  tests, lint, TypeScript, Pika audit, and diff checks pass.
+- Visual verification passes for teacher/student desktop/mobile and light/dark
+  loaded/error states, plus the student read-error state. No composite keyboard
+  behavior changed; semantic alert/status and Retry coverage passes.

@@ -220,6 +220,87 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByText('bring notes')).toBeInTheDocument()
   })
 
+  it('shows a retryable teacher error instead of a false empty state', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Unavailable' }), { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(teacherAnnouncementsElement(classroom))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Announcements couldn't load")
+    expect(screen.queryByText(/No announcements yet/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Unit update')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    consoleError.mockRestore()
+  })
+
+  it('shows a retryable student error instead of a false empty state', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Unavailable' }), { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, marked: 1 }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentAnnouncementsSection classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Announcements couldn't load")
+    expect(screen.queryByText('No announcements yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Unit update')).toBeInTheDocument()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    consoleError.mockRestore()
+  })
+
+  it('keeps failed student read acknowledgement visible and retryable', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let postCount = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          postCount += 1
+          return postCount === 1
+            ? new Response(JSON.stringify({ error: 'Unavailable' }), { status: 500 })
+            : new Response(JSON.stringify({ success: true, marked: 1 }), { status: 200 })
+        }
+
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    render(<StudentAnnouncementsSection classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Announcements are visible, but Pika could not mark them as read.',
+    )
+    expect(screen.getByText('Unit update')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(postCount).toBe(2))
+    await waitFor(() => {
+      expect(screen.queryByText('Announcements are visible, but Pika could not mark them as read.')).not.toBeInTheDocument()
+    })
+    consoleError.mockRestore()
+  })
+
   it('does not keep stale teacher announcements visible while loading another classroom', async () => {
     let resolveSecondRead: ((response: Response) => void) | null = null
     vi.stubGlobal(
@@ -264,6 +345,32 @@ describe('announcement markdown rendering', () => {
     })
 
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+  })
+
+  it('does not relabel old teacher announcements when the next classroom fails to load', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes(secondClassroom.id)) {
+          return new Response(JSON.stringify({ error: 'Unavailable' }), { status: 500 })
+        }
+
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const view = render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+
+    view.rerender(teacherAnnouncementsElement(secondClassroom))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Announcements couldn't load")
+    expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
+    consoleError.mockRestore()
   })
 
   it('marks student announcements read once per classroom', async () => {

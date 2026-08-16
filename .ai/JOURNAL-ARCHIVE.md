@@ -18085,3 +18085,34 @@ execution remained disabled.
 **Remaining:**
 - Treat Classroom deletion activation and any first purge canary as separate
   production decisions requiring fresh target-specific authorization.
+
+<!-- pika-session-log-archive-batch:2a7ac5eef36c7c8e6c5907e493d1d0ddce9bc2a8ee8f3c362387ac76298ebdda -->
+## 2026-08-05 — Enable and verify exact production purge canary
+
+**Risk profile:** production rollout-gate write only; no purge or cleanup.
+
+**Completed:**
+- Revalidated the synthetic target as teacher-owned, hot archived, not cold
+  archived, conflict-free, and without any prior purge operation.
+- Atomically changed `classroom_purge_settings` from `disabled` to `canary` only
+  for teacher `34bd4439-e552-483b-b8aa-e3a8f86009af` and Classroom
+  `7979c0fd-44ae-4c08-a430-39cf432b48fa`.
+- Opened the production impact dialog without entering confirmation or invoking
+  any destructive endpoint.
+
+**Validation:**
+- Impact summary reports 0 students, 104 relational records, and two managed
+  files / 36 KB: one test document and one verified Classroom archive. Both
+  files are present; no Gradex extract, interrupted upload, or conflicting
+  operation exists.
+- Teacher desktop/light and mobile/dark show exactly one canary action, the full
+  irreversible warning, Blueprint/user preservation text, typed-confirmation
+  requirement, and a disabled destructive button.
+- Student desktop/dark and mobile/light show neither the archived canary nor a
+  deletion action; the teacher purge endpoint returns 403 for the student.
+- Final read-only state has zero purge operations, zero active generic cleanup,
+  144 managed objects all `ready`, and the hot Classroom and Blueprint intact.
+
+**Remaining:**
+- The first irreversible production canary purge requires separate exact
+  authorization. Broader rollout and generic cleanup remain disabled.

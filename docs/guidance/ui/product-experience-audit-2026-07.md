@@ -202,6 +202,14 @@ Surveys progress:
 - Component tests cover cold failure, retry recovery, retained-results refresh failure, successful refresh replacement, and stale Survey isolation. Teacher desktop/mobile and light/dark browser verification preserves the existing results-first workspace with no horizontal overflow.
 - The Phase 3 Surveys slice is complete.
 
+Announcements progress:
+
+- Teacher and student Announcement tabs now distinguish loading, successful empty, loaded, and announced failure states with explicit Retry recovery.
+- Classroom-scoped request guards prevent stale responses or errors from painting under another classroom. Student read acknowledgement failures remain visible and retryable instead of silently clearing notification state.
+- Announcement creation, scheduling, and display timestamps now use `America/Toronto`; focused tests cover standard/daylight offsets, failure recovery, stale classroom isolation, and read retries.
+- Teacher/student desktop/mobile browser verification passed in light/dark for loaded and cold-error states, plus the student read-error state. Calendar multi-source recovery remains in the Calendar and lesson-plans slice.
+- The Phase 3 Announcements slice is complete.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
@@ -209,7 +217,7 @@ Surveys progress:
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
 6. Surveys: completed explicit student/teacher results recovery, retained refresh data, stale-response guards, and native choice semantics.
 7. Calendar and lesson plans: independent source failures, compact navigation, and Toronto date/time behavior.
-8. Announcements: explicit failure/read states and Toronto timestamp formatting.
+8. Announcements: completed explicit failure/read states, stale-classroom guards, Retry recovery, and Toronto timestamp formatting.
 9. Gradebook: narrow-screen navigation, selected-student detail, and direct table keyboard tests.
 10. Syllabus/resources: iframe sizing, nested scroll, theme, keyboard traversal, and legacy resource-path disposition.
 11. Authentication and history utility routes: shared shell/page states, session-expiry recovery, and an evidence-based migrate/redirect/retire decision for `/student/history`.

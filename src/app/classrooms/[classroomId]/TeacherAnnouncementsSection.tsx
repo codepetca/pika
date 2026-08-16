@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { Trash2, Plus, Clock, Calendar, Settings } from 'lucide-react'
-import { Button, ConfirmDialog, FormField, Input, SplitButton } from '@/ui'
-import { Spinner } from '@/components/Spinner'
+import { Button, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
@@ -17,6 +16,7 @@ import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui'
 import {
   ANNOUNCEMENT_TITLE_MAX_LENGTH,
+  formatAnnouncementTimestamp,
   normalizeAnnouncementTitle,
   sortAnnouncementsNewestFirst,
 } from '@/lib/announcements'
@@ -82,6 +82,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadErrorClassroomId, setLoadErrorClassroomId] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
@@ -108,6 +109,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const editDropdownRef = useRef<HTMLDivElement>(null)
   const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
 
   const isReadOnly = !!classroom.archived_at
 
@@ -115,22 +118,22 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     const requestId = loadRequestIdRef.current + 1
     loadRequestIdRef.current = requestId
     setLoading(true)
+    setLoadErrorClassroomId(null)
     try {
       const data = await fetchCachedJSON<AnnouncementsResponse>(
         `teacher-announcements:${classroom.id}`,
         `/api/teacher/classrooms/${classroom.id}/announcements`,
         { ttlMs: 20_000, errorMessage: 'Failed to load announcements' },
       )
-      if (loadRequestIdRef.current !== requestId) return
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
       setAnnouncements(data.announcements || [])
       setLoadedClassroomId(classroom.id)
     } catch (err) {
-      if (loadRequestIdRef.current !== requestId) return
-      setAnnouncements([])
-      setLoadedClassroomId(classroom.id)
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+      setLoadErrorClassroomId(classroom.id)
       console.error('Error loading announcements:', err)
     } finally {
-      if (loadRequestIdRef.current === requestId) {
+      if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id) {
         setLoading(false)
       }
     }
@@ -139,6 +142,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   useEffect(() => {
     loadAnnouncements()
   }, [loadAnnouncements])
+
+  useEffect(() => {
+    setShowAll(false)
+  }, [classroom.id])
 
   // Focus textarea when editing starts
   useEffect(() => {
@@ -367,14 +374,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     }
   }
 
-  function formatDate(dateString: string) {
-    const date = new Date(dateString)
-    const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
-    const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    return `${weekday} ${monthDay}, ${time}`
-  }
-
   function handleEditKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Escape') {
       cancelEditing()
@@ -402,7 +401,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   }
 
   const currentAnnouncements = loadedClassroomId === classroom.id ? announcements : []
-  const isLoading = loading || loadedClassroomId !== classroom.id
+  const hasCurrentClassroomData = loadedClassroomId === classroom.id
+  const loadError = loadErrorClassroomId === classroom.id
+  const isInitialLoading = !hasCurrentClassroomData && !loadError
   const announcementActionItems: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'announcement',
@@ -411,16 +412,35 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     },
   ]
 
-  if (isLoading) {
+  function retryLoadAnnouncements() {
+    invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
+    void loadAnnouncements()
+  }
+
+  if (isInitialLoading) {
+    return <PageState kind="loading" title="Loading announcements" />
+  }
+
+  if (loadError && currentAnnouncements.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner />
-      </div>
+      <PageState
+        kind="error"
+        title="Announcements couldn't load"
+        description="Pika couldn't load this classroom's announcements. Nothing was changed."
+        action={<Button onClick={retryLoadAnnouncements}>Retry</Button>}
+      />
     )
   }
 
   return (
     <div className={cn('space-y-4', className ?? 'max-w-2xl mx-auto')}>
+      {loading ? <RefreshingIndicator label="Refreshing announcements" /> : null}
+      {loadError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <span>Pika could not refresh announcements. The last loaded announcements are still shown.</span>
+          <Button variant="secondary" size="sm" onClick={retryLoadAnnouncements}>Retry</Button>
+        </div>
+      ) : null}
       {!isReadOnly && (
         <TeacherWorkSurfaceActionBar
           testId="announcements-actionbar-center"
@@ -497,7 +517,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                 className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
               >
                 <Calendar className="h-4 w-4 flex-shrink-0" />
-                <span>{formatDate(scheduleDateTime)}</span>
+                <span>{formatAnnouncementTimestamp(scheduleDateTime)}</span>
               </button>
               <button
                 type="button"
@@ -638,7 +658,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                           className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
                         >
                           <Calendar className="h-4 w-4 flex-shrink-0" />
-                          <span>{formatDate(editScheduleDateTime)}</span>
+                          <span>{formatAnnouncementTimestamp(editScheduleDateTime)}</span>
                         </button>
                         <button
                           type="button"
@@ -725,12 +745,12 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                         <div className="flex items-center gap-2 mb-2">
                           <Clock className="h-3.5 w-3.5 text-amber-600" />
                           <span className="text-xs font-medium text-amber-600">
-                            Scheduled for {formatDate(announcement.scheduled_for!)}
+                            Scheduled for {formatAnnouncementTimestamp(announcement.scheduled_for!)}
                           </span>
                         </div>
                       ) : (
                         <p className="text-xs text-text-muted mb-2">
-                          {formatDate(announcement.created_at)}
+                          {formatAnnouncementTimestamp(announcement.created_at)}
                           {announcement.updated_at !== announcement.created_at && ' (edited)'}
                         </p>
                       )}
