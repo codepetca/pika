@@ -207,8 +207,16 @@ Announcements progress:
 - Teacher and student Announcement tabs now distinguish loading, successful empty, loaded, and announced failure states with explicit Retry recovery.
 - Classroom-scoped request guards prevent stale responses or errors from painting under another classroom. Student read acknowledgement failures remain visible and retryable instead of silently clearing notification state.
 - Announcement creation, scheduling, and display timestamps now use `America/Toronto`; focused tests cover standard/daylight offsets, failure recovery, stale classroom isolation, and read retries.
-- Teacher/student desktop/mobile browser verification passed in light/dark for loaded and cold-error states, plus the student read-error state. Calendar multi-source recovery remains in the Calendar and lesson-plans slice.
+- Teacher/student desktop/mobile browser verification passed in light/dark for loaded and cold-error states, plus the student read-error state.
 - The Phase 3 Announcements slice is complete.
+
+Calendar and lesson-plan progress:
+
+- Teacher and student Calendar tabs now track lesson plans, assignments, announcements, and class days independently instead of converting failed reads into empty calendar data.
+- Successful source snapshots remain visible during another source's failure or refresh. Each failed source has a named Retry action, and committed-classroom request generations reject stale responses and overlapping teacher assignment refreshes.
+- Calendar term boundaries use date-only parsing, and initial/today navigation is explicitly Toronto-based so classroom dates do not shift at UTC boundaries.
+- Focused tests cover partial and cold failures, source-specific recovery, retained refresh data, stale classroom isolation, and Toronto term labels. Teacher/student desktop light/dark loaded states and intercepted partial-error states passed Playwright review.
+- The Phase 3 Calendar and lesson-plans slice is complete. Mobile Calendar redesign remains deferred with the broader mobile work.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
@@ -216,7 +224,7 @@ Announcements progress:
 4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
 6. Surveys: completed explicit student/teacher results recovery, retained refresh data, stale-response guards, and native choice semantics.
-7. Calendar and lesson plans: independent source failures, compact navigation, and Toronto date/time behavior.
+7. Calendar and lesson plans: completed independent source recovery, retained snapshots, stale-response guards, compact error controls, and Toronto date behavior; mobile redesign remains deferred.
 8. Announcements: completed explicit failure/read states, stale-classroom guards, Retry recovery, and Toronto timestamp formatting.
 9. Gradebook: narrow-screen navigation, selected-student detail, and direct table keyboard tests.
 10. Syllabus/resources: iframe sizing, nested scroll, theme, keyboard traversal, and legacy resource-path disposition.

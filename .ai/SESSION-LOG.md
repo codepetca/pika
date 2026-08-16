@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Complete first production hot-archive purge canary
-
-**Risk profile:** irreversible production deletion of one exact synthetic
-hot-archived Classroom.
-
-**Completed:**
-- Revalidated the exact canary inventory and rollout binding immediately before
-  deletion: no conflict or prior operation, 104 relational records, one test
-  document, and one verified Classroom archive totaling 36 KB.
-- Used the production teacher UI, typed `DELETE`, and started purge operation
-  `e7b434d0-a6b0-4192-b3cb-a50e39985c92`.
-- The durable worker deleted both exact managed objects and finalized on the
-  first operation attempt with no failed file or retry.
-
-**Validation:**
-- The completed audit records 104 relational rows and two files deleted; both
-  object paths are redacted, both hashed identities remain reserved, and no
-  purged Storage object has reappeared.
-- The Classroom, its archive/operation rows, its managed identities, the purge
-  resource snapshot, and its fence are gone. No cold tombstone was created.
-- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed test
-  file, both synthetic users, and original Classroom
-  `1da6bdef-d231-47d2-90ce-c3675c3afcff` remain intact.
-- Global managed inventory is 142 ready registry objects and 142 Storage
-  objects, with zero ownerless or missing objects and zero generic cleanup work.
-- Teacher desktop/light and mobile/dark show no archived canary; teacher GET is
-  404. Student desktop/dark and mobile/light remain isolated; teacher endpoint
-  access is 403. Visual verification passed.
-
-**Remaining:**
-- The rollout row still points in `canary` mode to the deleted Classroom, which
-  enables no remaining Classroom. Disabling that stale row or selecting a new
-  canary/broader rollout requires fresh authorization. Generic cleanup remains
-  disabled.
-
 ## 2026-08-05 — Complete student/artifact production purge canary
 
 **Risk profile:** irreversible production deletion of one exact synthetic
@@ -1044,3 +1009,27 @@ production, Calendar, mobile redesign, or Gradex change.
 - Visual verification passes for teacher/student desktop/mobile and light/dark
   loaded/error states, plus the student read-error state. No composite keyboard
   behavior changed; semantic alert/status and Retry coverage passes.
+
+## 2026-08-16 — Make Calendar sources independently recoverable
+
+**Risk profile:** none — teacher/student Calendar presentation and local
+request ownership; no API, schema, migration, production, mobile redesign, or
+Gradex change.
+
+**Completed:**
+- Replaced false-empty Calendar fallbacks with independent lesson-plan,
+  assignment, announcement, and class-day loading/error/snapshot contracts.
+- Preserved successful data during partial failures, added source-specific
+  Retry actions, and fenced stale classroom and overlapping teacher assignment
+  refresh responses.
+- Corrected date-only term parsing and made initial/today navigation explicitly
+  Toronto-based.
+
+**Validation:**
+- Full suite passes: 4,285 tests across 495 files. Production build, lint,
+  TypeScript, architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher/student desktop loaded and partial
+  error states in light mode, loaded states in dark mode, and the existing
+  mobile layout. Retry controls retain valid lesson data with no overflow.
+- No composite control behavior changed; existing Calendar navigation semantics
+  remain covered, and new alert/Retry behavior has focused role tests.

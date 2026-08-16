@@ -18116,3 +18116,39 @@ execution remained disabled.
 **Remaining:**
 - The first irreversible production canary purge requires separate exact
   authorization. Broader rollout and generic cleanup remain disabled.
+
+<!-- pika-session-log-archive-batch:85754ac99e1c26b48237b374e51b3ad0ab7e4b41ae5ec8931c9572121f8bf705 -->
+## 2026-08-05 — Complete first production hot-archive purge canary
+
+**Risk profile:** irreversible production deletion of one exact synthetic
+hot-archived Classroom.
+
+**Completed:**
+- Revalidated the exact canary inventory and rollout binding immediately before
+  deletion: no conflict or prior operation, 104 relational records, one test
+  document, and one verified Classroom archive totaling 36 KB.
+- Used the production teacher UI, typed `DELETE`, and started purge operation
+  `e7b434d0-a6b0-4192-b3cb-a50e39985c92`.
+- The durable worker deleted both exact managed objects and finalized on the
+  first operation attempt with no failed file or retry.
+
+**Validation:**
+- The completed audit records 104 relational rows and two files deleted; both
+  object paths are redacted, both hashed identities remain reserved, and no
+  purged Storage object has reappeared.
+- The Classroom, its archive/operation rows, its managed identities, the purge
+  resource snapshot, and its fence are gone. No cold tombstone was created.
+- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed test
+  file, both synthetic users, and original Classroom
+  `1da6bdef-d231-47d2-90ce-c3675c3afcff` remain intact.
+- Global managed inventory is 142 ready registry objects and 142 Storage
+  objects, with zero ownerless or missing objects and zero generic cleanup work.
+- Teacher desktop/light and mobile/dark show no archived canary; teacher GET is
+  404. Student desktop/dark and mobile/light remain isolated; teacher endpoint
+  access is 403. Visual verification passed.
+
+**Remaining:**
+- The rollout row still points in `canary` mode to the deleted Classroom, which
+  enables no remaining Classroom. Disabling that stale row or selecting a new
+  canary/broader rollout requires fresh authorization. Generic cleanup remains
+  disabled.

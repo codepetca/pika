@@ -1,15 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
 import { CalendarActionBar } from '@/components/CalendarActionBar'
-import { Spinner } from '@/components/Spinner'
+import { CalendarSourceErrors, type CalendarSourceFailure } from '@/components/CalendarSourceErrors'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { useClassDays } from '@/hooks/useClassDays'
+import { useClassDaysContext } from '@/hooks/useClassDays'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import { fetchCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
+import { nowInToronto } from '@/lib/timezone'
 import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
+import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 interface Props {
   classroom: Classroom
@@ -21,6 +23,20 @@ type StudentLessonPlansResponse = { lesson_plans?: LessonPlan[]; max_date?: stri
 type StudentAssignmentsResponse = { assignments?: Assignment[] }
 type StudentAnnouncementsResponse = { announcements?: Announcement[] }
 
+type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements'
+type SourceStatus = {
+  classroomId: string | null
+  error: boolean
+  hasLoadedSnapshot: boolean
+  isLoading: boolean
+}
+
+const initialSourceStatus = (): Record<CalendarSource, SourceStatus> => ({
+  lessonPlans: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  assignments: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  announcements: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+})
+
 export function StudentLessonCalendarTab({
   classroom,
   onNavigateToAssignments = () => {},
@@ -29,12 +45,20 @@ export function StudentLessonCalendarTab({
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
-  const loadRequestIdRef = useRef(0)
+  const [sourceStatus, setSourceStatus] = useState(initialSourceStatus)
+  const loadRequestIdsRef = useRef<Record<CalendarSource, number>>({
+    lessonPlans: 0,
+    assignments: 0,
+    announcements: 0,
+  })
   const currentClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
-  const classDays = useClassDays(classroom.id)
-  const [loading, setLoading] = useState(true)
+  const {
+    classDays,
+    error: classDaysError,
+    hasLoadedSnapshot: hasClassDaysSnapshot,
+    isLoading: classDaysLoading,
+    refresh: refreshClassDays,
+  } = useClassDaysContext()
   const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
     const saved = readCookie(`calendarViewMode:${classroom.id}`)
     return (saved === 'week' || saved === 'month' || saved === 'all') ? saved : 'week'
@@ -43,7 +67,7 @@ export function StudentLessonCalendarTab({
     setViewMode(mode)
     writeCookie(`calendarViewMode:${classroom.id}`, mode)
   }, [classroom.id])
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(nowInToronto)
   const [maxDate, setMaxDate] = useState<string | null>(null)
 
   // Always fetch the full term - switching views is then instant
@@ -52,83 +76,171 @@ export function StudentLessonCalendarTab({
     end: classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd'),
   }
 
-  useEffect(() => {
-    loadRequestIdRef.current += 1
+  useLayoutEffect(() => {
+    currentClassroomIdRef.current = classroom.id
+    loadRequestIdsRef.current.lessonPlans += 1
+    loadRequestIdsRef.current.assignments += 1
+    loadRequestIdsRef.current.announcements += 1
     setLessonPlans([])
     setAssignments([])
     setAnnouncements([])
     setMaxDate(null)
-    setLoadedClassroomId(null)
-    setLoading(true)
+    setSourceStatus(initialSourceStatus())
   }, [classroom.id])
 
-  // Fetch lesson plans, assignments, and announcements in parallel
-  useEffect(() => {
-    async function loadCalendarData() {
-      const requestId = loadRequestIdRef.current + 1
-      loadRequestIdRef.current = requestId
-      const requestedClassroomId = classroom.id
-      const isCurrentLoad = () => (
-        loadRequestIdRef.current === requestId &&
-        currentClassroomIdRef.current === requestedClassroomId
+  const loadLessonPlans = useCallback(async (force = false) => {
+    const source: CalendarSource = 'lessonPlans'
+    const requestedClassroomId = classroom.id
+    const requestId = loadRequestIdsRef.current[source] + 1
+    loadRequestIdsRef.current[source] = requestId
+    const cacheKey = `student-lesson-plans:${requestedClassroomId}:${fetchRange.start}:${fetchRange.end}`
+    if (force) invalidateCachedJSON(cacheKey)
+    setSourceStatus((current) => ({
+      ...current,
+      [source]: {
+        classroomId: requestedClassroomId,
+        error: false,
+        hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
+        isLoading: true,
+      },
+    }))
+    try {
+      const data = await fetchCachedJSON<StudentLessonPlansResponse>(
+        cacheKey,
+        `/api/student/classrooms/${requestedClassroomId}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load lesson plans' },
       )
-
-      setLoading(true)
-      try {
-        const [lessonPlansData, assignmentsData, announcementsData] = await Promise.all([
-          fetchCachedJSON<StudentLessonPlansResponse>(
-            `student-lesson-plans:${classroom.id}:${fetchRange.start}:${fetchRange.end}`,
-            `/api/student/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`,
-            { ttlMs: 20_000, errorMessage: 'Failed to load lesson plans' },
-          ).catch((err) => {
-            console.error('Error loading lesson plans:', err)
-            return { lesson_plans: [], max_date: null }
-          }),
-          fetchCachedJSON<StudentAssignmentsResponse>(
-            `student-assignments:${classroom.id}`,
-            `/api/student/assignments?classroom_id=${classroom.id}`,
-            { ttlMs: 20_000, errorMessage: 'Failed to load assignments' },
-          ).catch((err) => {
-            console.error('Error loading calendar assignments:', err)
-            return { assignments: [] }
-          }),
-          fetchCachedJSON<StudentAnnouncementsResponse>(
-            `student-announcements:${classroom.id}`,
-            `/api/student/classrooms/${classroom.id}/announcements`,
-            { ttlMs: 20_000, errorMessage: 'Failed to load announcements' },
-          ).catch((err) => {
-            console.error('Error loading calendar announcements:', err)
-            return { announcements: [] }
-          }),
-        ])
-        if (!isCurrentLoad()) return
-        setLessonPlans(lessonPlansData.lesson_plans || [])
-        setMaxDate(lessonPlansData.max_date || null)
-        setAssignments(assignmentsData.assignments || [])
-        setAnnouncements(announcementsData.announcements || [])
-        setLoadedClassroomId(requestedClassroomId)
-      } catch (err) {
-        if (!isCurrentLoad()) return
-        console.error('Error loading calendar data:', err)
-        setLessonPlans([])
-        setMaxDate(null)
-        setAssignments([])
-        setAnnouncements([])
-        setLoadedClassroomId(requestedClassroomId)
-      } finally {
-        if (isCurrentLoad()) {
-          setLoading(false)
-        }
-      }
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      setLessonPlans(data.lesson_plans || [])
+      setMaxDate(data.max_date || null)
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+    } catch (err) {
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      console.error('Error loading lesson plans:', err)
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
+      }))
     }
-    loadCalendarData()
-  }, [classroom.id, fetchRange.start, fetchRange.end])
+  }, [classroom.id, fetchRange.end, fetchRange.start])
 
-  const hasCurrentClassroomData = loadedClassroomId === classroom.id
-  const currentLessonPlans = hasCurrentClassroomData ? lessonPlans : []
-  const currentAssignments = hasCurrentClassroomData ? assignments : []
-  const currentAnnouncements = hasCurrentClassroomData ? announcements : []
-  const isLoading = loading || !hasCurrentClassroomData
+  const loadAssignments = useCallback(async (force = false) => {
+    const source: CalendarSource = 'assignments'
+    const requestedClassroomId = classroom.id
+    const requestId = loadRequestIdsRef.current[source] + 1
+    loadRequestIdsRef.current[source] = requestId
+    const cacheKey = `student-assignments:${requestedClassroomId}`
+    if (force) invalidateCachedJSON(cacheKey)
+    setSourceStatus((current) => ({
+      ...current,
+      [source]: {
+        classroomId: requestedClassroomId,
+        error: false,
+        hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
+        isLoading: true,
+      },
+    }))
+    try {
+      const data = await fetchCachedJSON<StudentAssignmentsResponse>(
+        cacheKey,
+        `/api/student/assignments?classroom_id=${requestedClassroomId}`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load assignments' },
+      )
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      setAssignments(data.assignments || [])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+    } catch (err) {
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      console.error('Error loading calendar assignments:', err)
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
+      }))
+    }
+  }, [classroom.id])
+
+  const loadAnnouncements = useCallback(async (force = false) => {
+    const source: CalendarSource = 'announcements'
+    const requestedClassroomId = classroom.id
+    const requestId = loadRequestIdsRef.current[source] + 1
+    loadRequestIdsRef.current[source] = requestId
+    const cacheKey = `student-announcements:${requestedClassroomId}`
+    if (force) invalidateCachedJSON(cacheKey)
+    setSourceStatus((current) => ({
+      ...current,
+      [source]: {
+        classroomId: requestedClassroomId,
+        error: false,
+        hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
+        isLoading: true,
+      },
+    }))
+    try {
+      const data = await fetchCachedJSON<StudentAnnouncementsResponse>(
+        cacheKey,
+        `/api/student/classrooms/${requestedClassroomId}/announcements`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load announcements' },
+      )
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      setAnnouncements(data.announcements || [])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+    } catch (err) {
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      console.error('Error loading calendar announcements:', err)
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
+      }))
+    }
+  }, [classroom.id])
+
+  useEffect(() => {
+    void Promise.all([loadLessonPlans(), loadAssignments(), loadAnnouncements()])
+  }, [loadAnnouncements, loadAssignments, loadLessonPlans])
+
+  const lessonPlansStatus = sourceStatus.lessonPlans
+  const assignmentsStatus = sourceStatus.assignments
+  const announcementsStatus = sourceStatus.announcements
+  const currentLessonPlans = lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.hasLoadedSnapshot ? lessonPlans : []
+  const currentAssignments = assignmentsStatus.classroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
+  const currentAnnouncements = announcementsStatus.classroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
+  const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus]
+  const isInitialLoading = localStatuses.some((status) => (
+    status.classroomId !== classroom.id || (status.isLoading && !status.hasLoadedSnapshot)
+  )) || (classDaysLoading && !hasClassDaysSnapshot)
+  const isRefreshing = localStatuses.some((status) => status.isLoading) || classDaysLoading
+  const hasAnySnapshot = localStatuses.some((status) => (
+    status.classroomId === classroom.id && status.hasLoadedSnapshot
+  )) || hasClassDaysSnapshot
+  const failures: CalendarSourceFailure[] = []
+  if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
+    failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: () => void loadLessonPlans(true) })
+  }
+  if (assignmentsStatus.classroomId === classroom.id && assignmentsStatus.error) {
+    failures.push({ id: 'assignments', label: 'assignments', isRetrying: assignmentsStatus.isLoading, onRetry: () => void loadAssignments(true) })
+  }
+  if (announcementsStatus.classroomId === classroom.id && announcementsStatus.error) {
+    failures.push({ id: 'announcements', label: 'announcements', isRetrying: announcementsStatus.isLoading, onRetry: () => void loadAnnouncements(true) })
+  }
+  if (classDaysError) {
+    failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: () => void refreshClassDays() })
+  }
+
+  const retryAll = useCallback(() => {
+    void loadLessonPlans(true)
+    void loadAssignments(true)
+    void loadAnnouncements(true)
+    void refreshClassDays()
+  }, [loadAnnouncements, loadAssignments, loadLessonPlans, refreshClassDays])
 
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
@@ -172,16 +284,29 @@ export function StudentLessonCalendarTab({
   }, [currentDate, handleDateChange, viewMode])
 
   const handleToday = useCallback(() => {
-    handleDateChange(new Date())
+    handleDateChange(nowInToronto())
   }, [handleDateChange])
 
-  if (isLoading && currentLessonPlans.length === 0) {
+  if (isInitialLoading) {
     return (
       <PageLayout bleedX={false}>
         <PageContent>
-          <div className="flex items-center justify-center h-64">
-            <Spinner />
-          </div>
+          <PageState kind="loading" title="Loading calendar" />
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (!hasAnySnapshot && failures.length > 0) {
+    return (
+      <PageLayout bleedX={false}>
+        <PageContent>
+          <PageState
+            kind="error"
+            title="Calendar couldn't load"
+            description="Pika couldn't load this classroom's calendar information. Nothing was changed."
+            action={<Button type="button" onClick={retryAll}>Retry</Button>}
+          />
         </PageContent>
       </PageLayout>
     )
@@ -200,6 +325,8 @@ export function StudentLessonCalendarTab({
         onViewModeChange={handleViewModeChange}
       />
       <PageContent className="pb-24 pt-2">
+        {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
+        <CalendarSourceErrors failures={failures} />
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}

@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TeacherLessonCalendarTab } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
 import { createMockClassroom } from '../helpers/mocks'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { invalidateTeacherLessonPlansForClassroom } from '@/lib/teacher-lesson-plans-client'
 import { invalidateCachedJSON } from '@/lib/request-cache'
 import type { CalendarSidebarState } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
 import type { LessonPlan } from '@/types'
 import type { ReactNode } from 'react'
+import { TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 
 const sidebarState = vi.hoisted(() => ({
   isOpen: false,
@@ -15,12 +16,20 @@ const sidebarState = vi.hoisted(() => ({
   setOpen: vi.fn(),
 }))
 
+const classDaysState = vi.hoisted(() => ({
+  classDays: [],
+  error: null as string | null,
+  hasLoadedSnapshot: true,
+  isLoading: false,
+  refresh: vi.fn(async () => {}),
+}))
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
 vi.mock('@/hooks/useClassDays', () => ({
-  useClassDays: () => [],
+  useClassDaysContext: () => classDaysState,
 }))
 
 vi.mock('@/lib/cookies', () => ({
@@ -49,6 +58,7 @@ vi.mock('@/components/LessonCalendar', () => ({
       data-lesson-count={lessonPlans.length}
       data-lesson-classrooms={lessonPlans.map((plan: LessonPlan) => plan.classroom_id).join(',')}
       data-assignment-classrooms={assignments.map((assignment: any) => assignment.classroom_id).join(',')}
+      data-assignment-ids={assignments.map((assignment: any) => assignment.id).join(',')}
       data-announcement-classrooms={announcements.map((announcement: any) => announcement.classroom_id).join(',')}
     >
       <button type="button" onClick={() => onContentChange?.('2025-01-06', 'Updated lesson')}>
@@ -83,7 +93,11 @@ function deferred<T>() {
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>
+  return (
+    <AppMessageProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </AppMessageProvider>
+  )
 }
 
 describe('TeacherLessonCalendarTab', () => {
@@ -101,6 +115,11 @@ describe('TeacherLessonCalendarTab', () => {
     sidebarState.isOpen = false
     sidebarState.toggle.mockReset()
     sidebarState.setOpen.mockReset()
+    classDaysState.classDays = []
+    classDaysState.error = null
+    classDaysState.hasLoadedSnapshot = true
+    classDaysState.isLoading = false
+    classDaysState.refresh.mockClear()
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -142,6 +161,104 @@ describe('TeacherLessonCalendarTab', () => {
     expect(urls.filter((url) => url.includes('/lesson-plans?'))).toHaveLength(1)
     expect(urls.filter((url) => url.includes('/assignments'))).toHaveLength(1)
     expect(urls.filter((url) => url.includes('/announcements'))).toHaveLength(1)
+  })
+
+  it('keeps successful sources visible and retries only failed assignments', async () => {
+    let assignmentReads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('assignments')) {
+        assignmentReads += 1
+        if (assignmentReads === 1) {
+          return { ok: false, json: async () => ({ error: 'Failed' }) }
+        }
+        return {
+          ok: true,
+          json: async () => ({ assignments: [{ id: 'assignment-1', classroom_id: classroom.id }] }),
+        }
+      }
+      return {
+        ok: true,
+        json: async () => {
+          if (url.includes('lesson-plans')) return { lesson_plans: [lessonPlan()] }
+          if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1', classroom_id: classroom.id }] }
+          return {}
+        },
+      }
+    })
+
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-classrooms', classroom.id)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Retry assignments' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-classrooms', classroom.id)
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(assignmentReads).toBe(2)
+  })
+
+  it('shows a retryable cold error when no calendar source loads', async () => {
+    classDaysState.error = 'The class schedule could not be loaded.'
+    classDaysState.hasLoadedSnapshot = false
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'Failed' }) })
+
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+
+    expect(await screen.findByRole('heading', { name: "Calendar couldn't load" })).toBeInTheDocument()
+    expect(screen.queryByTestId('lesson-calendar')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(classDaysState.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains the last assignment snapshot when an event refresh fails', async () => {
+    let assignmentReads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('assignments')) {
+        assignmentReads += 1
+        if (assignmentReads === 2) {
+          return { ok: false, json: async () => ({ error: 'Failed' }) }
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            assignments: [{
+              id: assignmentReads === 1 ? 'assignment-1' : 'assignment-2',
+              classroom_id: classroom.id,
+            }],
+          }),
+        }
+      }
+      return {
+        ok: true,
+        json: async () => url.includes('lesson-plans')
+          ? { lesson_plans: [lessonPlan()] }
+          : { announcements: [] },
+      }
+    })
+
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-ids', 'assignment-1')
+    })
+
+    window.dispatchEvent(new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
+      detail: { classroomId: classroom.id },
+    }))
+
+    await screen.findByRole('button', { name: 'Retry assignments' })
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-ids', 'assignment-1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry assignments' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-ids', 'assignment-2')
+    })
+    expect(assignmentReads).toBe(3)
   })
 
   it('ignores stale classroom-scoped loads after the classroom changes', async () => {

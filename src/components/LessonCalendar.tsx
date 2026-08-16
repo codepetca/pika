@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend, addDays } from 'date-fns'
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend, addDays, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
@@ -191,8 +191,8 @@ export function LessonCalendar({
 
     // 'all' mode: show entire term if available
     if (classroom.start_date && classroom.end_date) {
-      const termStart = new Date(classroom.start_date)
-      const termEnd = new Date(classroom.end_date)
+      const termStart = parseISO(classroom.start_date)
+      const termEnd = parseISO(classroom.end_date)
       // Extend to full weeks
       const calendarStart = startOfWeek(termStart, { weekStartsOn: 0 })
       const calendarEnd = endOfWeek(termEnd, { weekStartsOn: 0 })
@@ -329,7 +329,7 @@ export function LessonCalendar({
     }
     // 'all' mode
     if (classroom.start_date && classroom.end_date) {
-      return `${format(new Date(classroom.start_date), 'MMM d, yyyy')} - ${format(new Date(classroom.end_date), 'MMM d, yyyy')}`
+      return `${format(parseISO(classroom.start_date), 'MMM d, yyyy')} - ${format(parseISO(classroom.end_date), 'MMM d, yyyy')}`
     }
     return 'All Dates'
   }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
