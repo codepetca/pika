@@ -1103,3 +1103,9 @@ redesign change.
 - Post-push UI policy caught the intentionally removed native close button in
   the exact control registry. The Dashboard debt count is updated from three to
   two; no exception or policy rule was weakened.
+- Final integration review found Retry could unmount the focused action while
+  leaving the dialog open. Retry now preserves the same button node as a named,
+  aria-disabled in-progress action, keeping focus inside the modal until the
+  request settles; a deterministic regression covers the transition.
+- The exact design-value inventory now removes the retired raw scrim color and
+  reduces the Dashboard raw z-index count from three to two.

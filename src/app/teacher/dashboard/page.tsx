@@ -43,7 +43,7 @@ type EntryDetailTarget = {
 
 type EntryDetailState =
   | { status: 'closed' }
-  | { status: 'loading'; target: EntryDetailTarget }
+  | { status: 'loading'; target: EntryDetailTarget; isRetry: boolean }
   | { status: 'ready'; target: EntryDetailTarget; entry: Entry }
   | { status: 'empty'; target: EntryDetailTarget }
   | { status: 'error'; target: EntryDetailTarget }
@@ -168,11 +168,11 @@ export default function TeacherDashboardPage() {
     loadAttendance()
   }, [attendanceAttempt, selectedClassroom])
 
-  async function loadEntryDetail(target: EntryDetailTarget) {
+  async function loadEntryDetail(target: EntryDetailTarget, isRetry = false) {
     const requestId = entryRequestIdRef.current + 1
     entryRequestIdRef.current = requestId
 
-    setEntryDetail({ status: 'loading', target })
+    setEntryDetail({ status: 'loading', target, isRetry })
 
     try {
       const entry = await fetchTeacherDashboardEntry(target.classroomId, target.studentId, target.date)
@@ -216,7 +216,7 @@ export default function TeacherDashboardPage() {
 
   function retryEntryDetail() {
     if (entryDetail.status === 'closed') return
-    void loadEntryDetail(entryDetail.target)
+    void loadEntryDetail(entryDetail.target, true)
   }
 
   async function handleExportCSV() {
@@ -580,22 +580,23 @@ export default function TeacherDashboardPage() {
                 maxWidth="!max-w-2xl"
                 showFooterClose={false}
               >
-                {entryDetail.status === 'loading' && (
+                {(entryDetail.status === 'loading' || entryDetail.status === 'error') && (
                   <PageState
-                    kind="loading"
+                    kind={entryDetail.status === 'loading' ? 'loading' : 'error'}
                     headingLevel="h3"
-                    title="Loading log"
-                    description="Getting the latest student entry."
-                  />
-                )}
-
-                {entryDetail.status === 'error' && (
-                  <PageState
-                    kind="error"
-                    headingLevel="h3"
-                    title="Could not load log"
-                    description="The student entry could not be retrieved."
-                    action={<Button onClick={retryEntryDetail}>Try again</Button>}
+                    title={entryDetail.status === 'loading' ? 'Loading log' : 'Could not load log'}
+                    description={entryDetail.status === 'loading'
+                      ? 'Getting the latest student entry.'
+                      : 'The student entry could not be retrieved.'}
+                    action={(entryDetail.status === 'error' || entryDetail.isRetry) ? (
+                      <Button
+                        aria-disabled={entryDetail.status === 'loading'}
+                        className={entryDetail.status === 'loading' ? 'cursor-not-allowed opacity-50' : undefined}
+                        onClick={entryDetail.status === 'error' ? retryEntryDetail : undefined}
+                      >
+                        {entryDetail.status === 'loading' ? 'Trying again' : 'Try again'}
+                      </Button>
+                    ) : undefined}
                   />
                 )}
 

@@ -395,9 +395,13 @@ describe('Teacher dashboard page', () => {
   })
 
   it('shows a retryable entry failure and reloads the same scope', async () => {
+    const pendingRetry = deferred<Entry[]>()
     const fetchMock = installFetchMock({
       entryFailuresByScope: {
         'c1:s1:2026-06-01': 1,
+      },
+      entriesByScope: {
+        'c1:s1:2026-06-01': pendingRetry.promise,
       },
     })
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -409,7 +413,26 @@ describe('Teacher dashboard page', () => {
     }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load log')
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    const dialog = screen.getByRole('dialog', { name: 'student@example.com' })
+    const retryButton = screen.getByRole('button', { name: 'Try again' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading log')
+    expect(screen.getByRole('button', { name: 'Trying again' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Trying again' })).toHaveFocus()
+    expect(dialog).toContainElement(document.activeElement)
+
+    await act(async () => {
+      pendingRetry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Focused entry text',
+        }),
+      ])
+    })
 
     expect(await screen.findByText('Focused entry text')).toBeInTheDocument()
     const entryUrl = '/api/teacher/student-history?classroom_id=c1&student_id=s1&date=2026-06-01&limit=1'
