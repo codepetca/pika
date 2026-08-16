@@ -142,6 +142,7 @@ describe('GET /api/student/tests/[id]', () => {
 
   it('falls back when test_attempts return columns are missing', async () => {
     let questionSelectColumns = ''
+    let focusSelectColumns = ''
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
@@ -210,10 +211,38 @@ describe('GET /api/student/tests/[id]', () => {
       }
       if (table === 'test_focus_events') {
         return {
-          select: vi.fn(() => ({
+          select: vi.fn((columns: string) => {
+            focusSelectColumns = columns
+            return ({
             eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  event_type: 'away_start',
+                  session_id: 'session-1',
+                  occurred_at: '2026-01-01T00:00:00.000Z',
+                  metadata: {
+                    detector_version: 2,
+                    incident_id: 'incident-1',
+                    client_event_id: 'event-1',
+                    client_occurred_at: '2026-01-01T00:00:00.000Z',
+                  },
+                },
+                {
+                  event_type: 'window_unmaximize_attempt',
+                  session_id: 'session-1',
+                  occurred_at: '2026-01-01T00:00:00.200Z',
+                  metadata: {
+                    detector_version: 2,
+                    incident_id: 'incident-1',
+                    client_event_id: 'event-2',
+                    client_occurred_at: '2026-01-01T00:00:00.200Z',
+                  },
+                },
+              ],
+              error: null,
+            }),
+          })}),
         }
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -231,6 +260,11 @@ describe('GET /api/student/tests/[id]', () => {
     expect(data.test.returned_at).toBeNull()
     expect(questionSelectColumns).not.toContain('correct_option')
     expect(questionSelectColumns).not.toContain('answer_key')
+    expect(focusSelectColumns).toContain('session_id')
+    expect(focusSelectColumns).toContain('metadata')
+    expect(data.focus_summary.exit_count).toBe(1)
+    expect(data.focus_summary.away_count).toBe(1)
+    expect(data.focus_summary.window_unmaximize_attempts).toBe(1)
     expect(data.questions[0].correct_option).toBeUndefined()
     expect(data.questions[0].answer_key).toBeUndefined()
   })

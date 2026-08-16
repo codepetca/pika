@@ -9,6 +9,7 @@ import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import {
   getTestExitCount,
   getTestStatusBadgeClass,
+  mergeTestFocusSummaries,
   TEST_EXIT_BURST_WINDOW_MS,
 } from '@/lib/tests'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
@@ -21,6 +22,14 @@ import {
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
 import { normalizeTestDocuments } from '@/lib/test-documents'
+import {
+  createExamIncidentState,
+  EXAM_FOCUS_LOSS_GRACE_MS,
+  reduceExamIncident,
+  type ExamIncidentEffect,
+  type ExamIncidentEvent,
+  type ExamIncidentState,
+} from '@/lib/exam-mode-incidents'
 import type {
   Classroom,
   TestFocusSummary,
@@ -98,6 +107,13 @@ function createFocusSessionId(): string {
   return `focus_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+function createExamTelemetryId(prefix: 'incident' | 'event'): string {
+  const randomId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+  return `${prefix}_${randomId}`
+}
+
 function formatPointsTotal(points: number): string {
   const rounded = Math.round(points * 100) / 100
   const formatted = Number.isInteger(rounded)
@@ -140,7 +156,8 @@ function isMobileBrowserWithoutFullscreen(): boolean {
   return hasTouchInput && compactViewport
 }
 
-const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 400
+const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 750
+const EXAM_FOCUS_EVENT_QUEUE_TIMEOUT_MS = 4_000
 const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
 const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
 const EXAM_LOCK_OVERLAY_ENABLED = true
@@ -150,6 +167,11 @@ const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
   'tab_navigation',
   'home_navigation',
   'classroom_switch',
+])
+const EXAM_LIFECYCLE_EXIT_SOURCES = new Set([
+  'beforeunload',
+  'pagehide',
+  'component_unmount',
 ])
 
 type ExamWindowComplianceSnapshot = {
@@ -199,6 +221,24 @@ function getExamWindowComplianceSnapshot(): ExamWindowComplianceSnapshot {
     availWidth,
     availHeight,
   }
+}
+
+function settleFocusEventWithinQueueTimeout(request: Promise<void>): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    const timeoutId = window.setTimeout(() => {
+      settled = true
+      resolve()
+    }, EXAM_FOCUS_EVENT_QUEUE_TIMEOUT_MS)
+
+    const finish = () => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeoutId)
+      resolve()
+    }
+    request.then(finish, finish)
+  })
 }
 
 function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): AllowedDocItem[] {
@@ -264,10 +304,16 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
   const selectedTestIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
-  const awayStartedAtRef = useRef<number | null>(null)
+  const focusEventQueueRef = useRef<{
+    sessionId: string | null
+    tail: Promise<void>
+  }>({ sessionId: null, tail: Promise.resolve() })
+  const examIncidentStateRef = useRef<ExamIncidentState>(createExamIncidentState())
+  const pendingBlurTimeoutRef = useRef<number | null>(null)
   const focusEnabledRef = useRef(false)
   const fullscreenActiveRef = useRef(false)
   const isWindowCompliantStableRef = useRef(true)
+  const nonCompliantWindowTelemetryLoggedRef = useRef(false)
   const pendingNonCompliantTimeoutRef = useRef<number | null>(null)
   const pendingNonCompliantSourceRef = useRef<'fullscreen_exit' | 'window_resize' | null>(null)
   const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
@@ -335,18 +381,27 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     pendingNonCompliantSourceRef.current = null
   }, [])
 
+  const clearPendingBlurTimeout = useCallback(() => {
+    if (pendingBlurTimeoutRef.current !== null) {
+      window.clearTimeout(pendingBlurTimeoutRef.current)
+      pendingBlurTimeoutRef.current = null
+    }
+  }, [])
+
   useEffect(() => {
     focusEnabledRef.current = focusEnabled
     if (!focusEnabled) {
       clearPendingNonCompliantTimeout()
+      clearPendingBlurTimeout()
       lastRouteExitRef.current = null
       lastWindowSignalRef.current = null
+      nonCompliantWindowTelemetryLoggedRef.current = false
       lastExamFormInteractionAtRef.current = 0
       findIntentUntilRef.current = 0
       findSuppressionUntilRef.current = 0
       docsInteractionSuppressionUntilRef.current = 0
     }
-  }, [clearPendingNonCompliantTimeout, focusEnabled])
+  }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout, focusEnabled])
 
   useEffect(() => {
     const snapshot = getExamWindowComplianceSnapshot()
@@ -359,8 +414,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   useEffect(() => {
     return () => {
       clearPendingNonCompliantTimeout()
+      clearPendingBlurTimeout()
     }
-  }, [clearPendingNonCompliantTimeout])
+  }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout])
 
   const loadTests = useCallback(async (options: { forceRefresh?: boolean } = {}) => {
     const classroomId = classroom.id
@@ -466,10 +522,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       description: getRemoteClosureDescription(nextStudentStatus, options?.message),
     })
     focusSessionIdRef.current = null
-    awayStartedAtRef.current = null
+    examIncidentStateRef.current = createExamIncidentState()
+    clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
-  }, [clearPendingNonCompliantTimeout])
+  }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout])
 
   async function handleSelectTest(testId: string) {
     const classroomId = classroom.id
@@ -482,7 +539,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setActiveDoc(null)
     setRemoteClosureNotice(null)
     focusSessionIdRef.current = createFocusSessionId()
-    awayStartedAtRef.current = null
+    examIncidentStateRef.current = createExamIncidentState()
+    clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
     findIntentUntilRef.current = 0
@@ -578,6 +636,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       testId?: string | null
       sessionId?: string | null
       updateSummary?: boolean
+      incidentId?: string
+      occurredAtMs?: number
     }
   ) => {
     const testId = options?.testId ?? selectedTestIdRef.current
@@ -592,6 +652,13 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         body: JSON.stringify({
           event_type: eventType,
           session_id: sessionId,
+          ...(options?.incidentId
+            ? {
+                incident_id: options.incidentId,
+                client_event_id: createExamTelemetryId('event'),
+                client_occurred_at: new Date(options.occurredAtMs ?? Date.now()).toISOString(),
+              }
+            : {}),
           metadata: metadata || null,
         }),
         keepalive: true,
@@ -600,13 +667,98 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       if (options?.updateSummary === false) return
 
       const data = await res.json().catch(() => ({}))
-      if (res.ok && data?.focus_summary) {
-        setFocusSummary(data.focus_summary as TestFocusSummary)
+      if (
+        res.ok &&
+        data?.focus_summary &&
+        selectedTestIdRef.current === testId &&
+        focusSessionIdRef.current === sessionId
+      ) {
+        setFocusSummary((current) => mergeTestFocusSummaries(
+          current,
+          data.focus_summary as TestFocusSummary
+        ))
       }
     } catch (err) {
       console.error('Error posting test focus event:', err)
     }
   }, [apiBasePath])
+
+  const enqueueFocusEvent = useCallback((
+    eventType: 'away_start' | 'away_end' | 'route_exit_attempt' | 'window_unmaximize_attempt',
+    metadata?: Record<string, unknown>,
+    options?: {
+      testId?: string | null
+      sessionId?: string | null
+      updateSummary?: boolean
+      incidentId?: string
+      occurredAtMs?: number
+    }
+  ) => {
+    const testId = options?.testId ?? selectedTestIdRef.current
+    const sessionId = options?.sessionId ?? focusSessionIdRef.current
+    if (!testId || !sessionId) return
+
+    if (options?.updateSummary === false) {
+      void postFocusEvent(eventType, metadata, { ...options, testId, sessionId })
+      return
+    }
+
+    if (focusEventQueueRef.current.sessionId !== sessionId) {
+      focusEventQueueRef.current = { sessionId, tail: Promise.resolve() }
+    }
+
+    const queue = focusEventQueueRef.current
+    const send = () => settleFocusEventWithinQueueTimeout(
+      postFocusEvent(eventType, metadata, { ...options, testId, sessionId })
+    )
+    queue.tail = queue.tail.then(
+      send,
+      send
+    )
+  }, [postFocusEvent])
+
+  const applyExamIncidentEvent = useCallback((
+    event: ExamIncidentEvent,
+    options?: {
+      metadata?: Record<string, unknown>
+      updateSummary?: boolean
+    }
+  ): ExamIncidentEffect[] => {
+    const transition = reduceExamIncident(examIncidentStateRef.current, event)
+    examIncidentStateRef.current = transition.state
+
+    for (const effect of transition.effects) {
+      const commonOptions = {
+        incidentId: effect.incidentId,
+        occurredAtMs: effect.occurredAtMs,
+        updateSummary: options?.updateSummary,
+      }
+
+      if (effect.type === 'away_start') {
+        enqueueFocusEvent('away_start', { source: effect.source }, commonOptions)
+      } else if (effect.type === 'away_end') {
+        enqueueFocusEvent(
+          'away_end',
+          { source: effect.source, duration_ms: effect.durationMs },
+          commonOptions
+        )
+      } else if (effect.type === 'window_exit') {
+        enqueueFocusEvent(
+          'window_unmaximize_attempt',
+          { source: effect.source, ...(options?.metadata || {}) },
+          commonOptions
+        )
+      } else {
+        enqueueFocusEvent(
+          'route_exit_attempt',
+          { source: effect.source, ...(options?.metadata || {}) },
+          commonOptions
+        )
+      }
+    }
+
+    return transition.effects
+  }, [enqueueFocusEvent])
 
   const shouldSuppressForBrowserFind = useCallback(() => {
     const now = Date.now()
@@ -615,7 +767,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
     if (now <= findIntentUntilRef.current) {
       findIntentUntilRef.current = 0
-      findSuppressionUntilRef.current = now + 500
+      findSuppressionUntilRef.current = now + TEST_EXIT_BURST_WINDOW_MS
       return true
     }
     return false
@@ -665,15 +817,23 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       return
     }
     lastRouteExitRef.current = { source, loggedAtMs: now }
-    void postFocusEvent(
-      'route_exit_attempt',
-      {
-        source,
-        ...(metadata || {}),
-      },
-      { updateSummary: options?.updateSummary }
+    applyExamIncidentEvent(
+      EXAM_LIFECYCLE_EXIT_SOURCES.has(source)
+        ? {
+            type: 'lifecycle_exit',
+            atMs: now,
+            incidentId: createExamTelemetryId('incident'),
+            source,
+          }
+        : {
+            type: 'route_exit',
+            atMs: now,
+            incidentId: createExamTelemetryId('incident'),
+            source,
+          },
+      { metadata, updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent, shouldSuppressForDocInteraction])
+  }, [applyExamIncidentEvent, shouldSuppressForDocInteraction])
 
   const logWindowUnmaximizeAttempt = useCallback((
     source: string,
@@ -686,11 +846,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
   ) => {
     if (shouldSuppressForDocInteraction()) {
-      return
+      return false
     }
     const now = Date.now()
     if (options?.suppressDuringFind && shouldSuppressForBrowserFind()) {
-      return
+      return false
     }
     const dedupeWindowMs = options?.dedupeWindowMs ?? 1200
     if (
@@ -699,23 +859,29 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       lastWindowSignalRef.current.source === source &&
       now - lastWindowSignalRef.current.loggedAtMs < dedupeWindowMs
     ) {
-      return
+      return false
     }
     lastWindowSignalRef.current = { source, loggedAtMs: now }
-    void postFocusEvent(
-      'window_unmaximize_attempt',
+    applyExamIncidentEvent(
       {
-        source,
-        ...(metadata || {}),
+        type: 'window_noncompliant',
+        atMs: now,
+        incidentId: createExamTelemetryId('incident'),
+        source: source === 'fullscreen_exit' ? 'fullscreen_exit' : 'window_resize',
       },
-      { updateSummary: options?.updateSummary }
+      { metadata, updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
+    return true
+  }, [applyExamIncidentEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
 
   const applyWindowComplianceSnapshot = useCallback((snapshot: ExamWindowComplianceSnapshot) => {
     fullscreenActiveRef.current = snapshot.isFullscreen
     setIsFullscreen(snapshot.isFullscreen)
     setIsWindowCompliantNow(snapshot.isCompliant)
+    if (snapshot.isCompliant) {
+      nonCompliantWindowTelemetryLoggedRef.current = false
+      lastWindowSignalRef.current = null
+    }
   }, [])
 
   const confirmNonCompliantWindow = useCallback((
@@ -723,7 +889,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     snapshot: ExamWindowComplianceSnapshot
   ) => {
     setIsWindowCompliantStable(false)
-    if (!isWindowCompliantStableRef.current) return
+    if (nonCompliantWindowTelemetryLoggedRef.current) return
 
     const baseMetadata = {
       width_ratio: Number(snapshot.widthRatio.toFixed(3)),
@@ -735,15 +901,16 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
 
     if (source === 'window_resize') {
-      logWindowUnmaximizeAttempt(
+      const logged = logWindowUnmaximizeAttempt(
         'window_resize',
         baseMetadata,
         { dedupe: true, dedupeWindowMs: 3000, suppressDuringFind: true, updateSummary: true }
       )
+      if (logged) nonCompliantWindowTelemetryLoggedRef.current = true
       return
     }
 
-    logWindowUnmaximizeAttempt(
+    const logged = logWindowUnmaximizeAttempt(
       'fullscreen_exit',
       {
         trigger: 'fullscreenchange',
@@ -751,6 +918,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       },
       { dedupe: true, suppressDuringFind: true, updateSummary: true }
     )
+    if (logged) nonCompliantWindowTelemetryLoggedRef.current = true
   }, [logWindowUnmaximizeAttempt])
 
   const updateWindowCompliance = useCallback((
@@ -820,10 +988,17 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     confirmNonCompliantWindow,
   ])
 
-  const requestExamFullscreen = useCallback(async (
-    source: string,
-    options?: { logFailures?: boolean }
-  ) => {
+  const scheduleInitialWindowComplianceCheck = useCallback(() => {
+    clearPendingNonCompliantTimeout()
+    pendingNonCompliantTimeoutRef.current = window.setTimeout(() => {
+      pendingNonCompliantTimeoutRef.current = null
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      setIsWindowCompliantStable(snapshot.isCompliant)
+    }, EXAM_WINDOW_COMPLIANCE_GRACE_MS)
+  }, [applyWindowComplianceSnapshot, clearPendingNonCompliantTimeout])
+
+  const requestExamFullscreen = useCallback(async (_source: string) => {
     const fullscreenElement = document.documentElement as FullscreenCapableElement
     if (!fullscreenElement?.requestFullscreen) {
       const snapshot = getExamWindowComplianceSnapshot()
@@ -831,13 +1006,6 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       if (snapshot.isCompliant) {
         clearPendingNonCompliantTimeout()
         setIsWindowCompliantStable(true)
-      }
-      if (options?.logFailures) {
-        logWindowUnmaximizeAttempt(
-          'fullscreen_not_supported',
-          { request_source: source },
-          { updateSummary: false }
-        )
       }
       return
     }
@@ -856,28 +1024,17 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       applyWindowComplianceSnapshot(snapshot)
       clearPendingNonCompliantTimeout()
       setIsWindowCompliantStable(snapshot.isCompliant)
-    } catch (error) {
+    } catch {
       const snapshot = getExamWindowComplianceSnapshot()
       applyWindowComplianceSnapshot(snapshot)
       if (snapshot.isCompliant) {
         clearPendingNonCompliantTimeout()
         setIsWindowCompliantStable(true)
       }
-      if (options?.logFailures) {
-        logWindowUnmaximizeAttempt(
-          'fullscreen_request_failed',
-          {
-            request_source: source,
-            error_name: error instanceof Error ? error.name : 'unknown_error',
-          },
-          { updateSummary: true }
-        )
-      }
     }
   }, [
     applyWindowComplianceSnapshot,
     clearPendingNonCompliantTimeout,
-    logWindowUnmaximizeAttempt,
   ])
 
   const performBackToAssessmentList = useCallback(() => {
@@ -896,14 +1053,15 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     applyWindowComplianceSnapshot(snapshot)
     setIsWindowCompliantStable(snapshot.isCompliant)
     focusSessionIdRef.current = null
-    awayStartedAtRef.current = null
+    examIncidentStateRef.current = createExamIncidentState()
+    clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
     findIntentUntilRef.current = 0
     findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
     loadTests({ forceRefresh: true }) // Refresh list to get updated status
-  }, [applyWindowComplianceSnapshot, clearPendingNonCompliantTimeout, loadTests])
+  }, [applyWindowComplianceSnapshot, clearPendingBlurTimeout, clearPendingNonCompliantTimeout, loadTests])
 
   function handleBack() {
     performBackToAssessmentList()
@@ -937,7 +1095,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setPendingStartTestId(null)
     setStartedTestId(testId)
     focusSessionIdRef.current = createFocusSessionId()
-    awayStartedAtRef.current = null
+    examIncidentStateRef.current = createExamIncidentState()
+    clearPendingBlurTimeout()
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
     findIntentUntilRef.current = 0
@@ -1064,7 +1223,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       void requestExamFullscreen('exam_mode_start')
     }
     if (!initialSnapshot.isCompliant) {
-      updateWindowCompliance('window_resize')
+      scheduleInitialWindowComplianceCheck()
     }
 
     const handleFullscreenChange = () => {
@@ -1087,6 +1246,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     clearPendingNonCompliantTimeout,
     focusEnabled,
     requestExamFullscreen,
+    scheduleInitialWindowComplianceCheck,
     updateWindowCompliance,
   ])
 
@@ -1109,49 +1269,70 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   useEffect(() => {
     if (!focusEnabled) return
 
-    const startAway = (source: 'visibility' | 'blur') => {
-      if (awayStartedAtRef.current !== null) return
-      if (shouldSuppressForBrowserFind()) return
-      if (shouldSuppressForDocInteraction()) return
-      awayStartedAtRef.current = Date.now()
-      void postFocusEvent('away_start', { source })
+    const shouldSuppressBlur = () => {
+      if (shouldSuppressForBrowserFind()) return true
+      if (shouldSuppressForDocInteraction()) return true
+      return false
     }
 
-    const endAway = (source: 'visibility' | 'focus') => {
-      if (awayStartedAtRef.current === null) return
-      const durationSeconds = Math.max(
-        0,
-        Math.round((Date.now() - awayStartedAtRef.current) / 1000)
-      )
-      awayStartedAtRef.current = null
-      void postFocusEvent('away_end', { source, duration_seconds: durationSeconds })
+    const handleBlur = () => {
+      if (shouldSuppressBlur()) return
+      clearPendingBlurTimeout()
+      applyExamIncidentEvent({ type: 'blur', atMs: Date.now() })
+      pendingBlurTimeoutRef.current = window.setTimeout(() => {
+        pendingBlurTimeoutRef.current = null
+        applyExamIncidentEvent({
+          type: 'blur_timeout',
+          atMs: Date.now(),
+          incidentId: createExamTelemetryId('incident'),
+        })
+      }, EXAM_FOCUS_LOSS_GRACE_MS)
+    }
+
+    const handleFocus = () => {
+      clearPendingBlurTimeout()
+      applyExamIncidentEvent({
+        type: 'focus',
+        atMs: Date.now(),
+        incidentId: createExamTelemetryId('incident'),
+      })
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        startAway('visibility')
+        clearPendingBlurTimeout()
+        applyExamIncidentEvent({
+          type: 'visibility_hidden',
+          atMs: Date.now(),
+          incidentId: createExamTelemetryId('incident'),
+        })
       } else if (document.visibilityState === 'visible') {
-        endAway('visibility')
+        clearPendingBlurTimeout()
+        applyExamIncidentEvent({ type: 'visibility_visible', atMs: Date.now() })
       }
     }
-
-    const handleBlur = () => startAway('blur')
-    const handleFocus = () => endAway('focus')
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('blur', handleBlur)
     window.addEventListener('focus', handleFocus)
 
     return () => {
+      clearPendingBlurTimeout()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('blur', handleBlur)
       window.removeEventListener('focus', handleFocus)
-      if (awayStartedAtRef.current !== null) {
-        awayStartedAtRef.current = null
-        void postFocusEvent('away_end', { source: 'cleanup' })
-      }
+      applyExamIncidentEvent(
+        { type: 'reset', atMs: Date.now() },
+        { updateSummary: false }
+      )
     }
-  }, [focusEnabled, postFocusEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
+  }, [
+    applyExamIncidentEvent,
+    clearPendingBlurTimeout,
+    focusEnabled,
+    shouldSuppressForBrowserFind,
+    shouldSuppressForDocInteraction,
+  ])
 
   useEffect(() => {
     return () => {
@@ -1291,7 +1472,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                 size="lg"
                 className="w-full gap-2"
                 onClick={() => {
-                  void requestExamFullscreen('center_overlay_maximize', { logFailures: true })
+                  void requestExamFullscreen('center_overlay_maximize')
                 }}
               >
                 <Maximize className="h-5 w-5" />

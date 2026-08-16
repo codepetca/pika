@@ -167,7 +167,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
 
   const { data: focusEvents } = await supabase
     .from('test_focus_events')
-    .select('event_type, occurred_at')
+    .select('event_type, session_id, occurred_at, metadata')
     .eq('test_id', testId)
     .eq('student_id', user.id)
     .order('occurred_at', { ascending: true })

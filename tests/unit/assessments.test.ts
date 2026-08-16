@@ -21,6 +21,7 @@ import {
   validateAssessmentOptions,
   emptyAssessmentFocusSummary,
   getAssessmentExitCount,
+  mergeAssessmentFocusSummaries,
   summarizeAssessmentFocusEvents,
 } from '@/lib/assessments'
 import {
@@ -424,6 +425,31 @@ describe('assessment utilities', () => {
     })
   })
 
+  describe('mergeAssessmentFocusSummaries', () => {
+    it('keeps cumulative telemetry monotonic when an older response arrives last', () => {
+      const completed = {
+        exit_count: 2,
+        away_count: 1,
+        away_total_seconds: 4,
+        route_exit_attempts: 1,
+        window_unmaximize_attempts: 0,
+        last_away_started_at: '2026-02-24T12:00:00.000Z',
+        last_away_ended_at: '2026-02-24T12:00:04.000Z',
+      }
+      const older = {
+        exit_count: 1,
+        away_count: 1,
+        away_total_seconds: 0,
+        route_exit_attempts: 0,
+        window_unmaximize_attempts: 0,
+        last_away_started_at: '2026-02-24T12:00:00.000Z',
+        last_away_ended_at: null,
+      }
+
+      expect(mergeAssessmentFocusSummaries(completed, older)).toEqual(completed)
+    })
+  })
+
   // ==========================================================================
   // summarizeAssessmentFocusEvents()
   // ==========================================================================
@@ -535,6 +561,138 @@ describe('assessment utilities', () => {
 
       expect(result.exit_count).toBe(1)
       expect(result.away_total_seconds).toBe(5)
+    })
+
+    it('counts related versioned signals as one incident even when away_end arrives first', () => {
+      const result = summarizeAssessmentFocusEvents([
+        {
+          event_type: 'away_start',
+          occurred_at: '2026-02-01T10:00:00.000Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-1',
+          },
+        },
+        {
+          event_type: 'away_end',
+          occurred_at: '2026-02-01T10:00:00.200Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-2',
+            duration_ms: 200,
+          },
+        },
+        {
+          event_type: 'window_unmaximize_attempt',
+          occurred_at: '2026-02-01T10:00:00.500Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-3',
+          },
+        },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.away_count).toBe(1)
+      expect(result.window_unmaximize_attempts).toBe(1)
+      expect(result.away_total_seconds).toBeCloseTo(0.2)
+    })
+
+    it('counts two versioned hidden-page incidents separately inside the legacy burst window', () => {
+      const result = summarizeAssessmentFocusEvents([
+        {
+          event_type: 'away_start',
+          occurred_at: '2026-02-01T10:00:00.000Z',
+          metadata: { detector_version: 2, incident_id: 'incident-1', client_event_id: 'event-1' },
+        },
+        {
+          event_type: 'away_end',
+          occurred_at: '2026-02-01T10:00:00.100Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-2',
+            duration_ms: 100,
+          },
+        },
+        {
+          event_type: 'away_start',
+          occurred_at: '2026-02-01T10:00:00.250Z',
+          metadata: { detector_version: 2, incident_id: 'incident-2', client_event_id: 'event-3' },
+        },
+        {
+          event_type: 'away_end',
+          occurred_at: '2026-02-01T10:00:00.350Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-2',
+            client_event_id: 'event-4',
+            duration_ms: 100,
+          },
+        },
+      ])
+
+      expect(result.exit_count).toBe(2)
+      expect(result.away_count).toBe(2)
+      expect(result.away_total_seconds).toBeCloseTo(0.2)
+    })
+
+    it('deduplicates a retried versioned event by client event id', () => {
+      const duplicatedEvent = {
+        event_type: 'route_exit_attempt' as const,
+        occurred_at: '2026-02-01T10:00:00.000Z',
+        metadata: {
+          detector_version: 2,
+          incident_id: 'incident-1',
+          client_event_id: 'event-1',
+        },
+      }
+
+      const result = summarizeAssessmentFocusEvents([duplicatedEvent, duplicatedEvent])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.route_exit_attempts).toBe(1)
+    })
+
+    it('aggregates route, pagehide, and unmount signals from one incident as one exit', () => {
+      const result = summarizeAssessmentFocusEvents([
+        {
+          event_type: 'route_exit_attempt',
+          occurred_at: '2026-02-01T10:00:00.000Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-route',
+            source: 'in_app_navigation',
+          },
+        },
+        {
+          event_type: 'route_exit_attempt',
+          occurred_at: '2026-02-01T10:00:00.050Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-pagehide',
+            source: 'pagehide',
+          },
+        },
+        {
+          event_type: 'route_exit_attempt',
+          occurred_at: '2026-02-01T10:00:00.060Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-unmount',
+            source: 'component_unmount',
+          },
+        },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.route_exit_attempts).toBe(1)
     })
   })
 })

@@ -551,6 +551,150 @@ describe('StudentTestsTab exam mode', () => {
     })
   })
 
+  it('does not count a rejected fullscreen request as an exit', async () => {
+    queueTestList()
+    queueTestDetail()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, focus_summary: makeFocusSummary() }),
+    })
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => null,
+    })
+    const requestFullscreen = vi.fn().mockRejectedValue(new DOMException(
+      'Fullscreen requires a user gesture',
+      'NotAllowedError'
+    ))
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+
+    render(<StudentTestsTab classroom={classroom} />)
+
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    fireEvent.click(await screen.findByText('Start test'))
+
+    await waitFor(() => {
+      expect(requestFullscreen).toHaveBeenCalled()
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+    expect(fetchMock.mock.calls.some(
+      ([url]: [string]) => url.includes('/focus-events')
+    )).toBe(false)
+  })
+
+  it('records distinct resizes around a compliant restoration after fullscreen rejection', async () => {
+    queueTestList()
+    queueTestDetail()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, focus_summary: makeFocusSummary() }),
+    })
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => null,
+    })
+    const requestFullscreen = vi.fn().mockRejectedValue(new DOMException(
+      'Fullscreen requires a user gesture',
+      'NotAllowedError'
+    ))
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+
+    render(<StudentTestsTab classroom={classroom} />)
+
+    fireEvent.click(await screen.findByText('Midterm Test'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    await screen.findByText('Start this test?')
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByText('Start test'))
+
+    await act(async () => {
+      await Promise.resolve()
+      vi.advanceTimersByTime(800)
+    })
+
+    expect(requestFullscreen).toHaveBeenCalled()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(
+      ([url]: [string]) => url.includes('/focus-events')
+    )).toBe(false)
+
+    fireEvent(window, new Event('resize'))
+    await act(async () => {
+      vi.advanceTimersByTime(1600)
+    })
+
+    const focusCalls = fetchMock.mock.calls.filter(
+      ([url]: [string]) => url.includes('/focus-events')
+    )
+    expect(focusCalls).toHaveLength(1)
+    expect(JSON.parse(String(focusCalls[0][1]?.body || '{}'))).toMatchObject({
+      event_type: 'window_unmaximize_attempt',
+      metadata: { source: 'window_resize' },
+    })
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    fireEvent(window, new Event('resize'))
+
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    fireEvent(window, new Event('resize'))
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+
+    const restoredFocusCalls = fetchMock.mock.calls.filter(
+      ([url]: [string]) => url.includes('/focus-events')
+    )
+    expect(restoredFocusCalls).toHaveLength(2)
+    const firstIncidentId = JSON.parse(String(restoredFocusCalls[0][1]?.body || '{}')).incident_id
+    const secondIncidentId = JSON.parse(String(restoredFocusCalls[1][1]?.body || '{}')).incident_id
+    expect(secondIncidentId).not.toBe(firstIncidentId)
+  })
+
   it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {
     let listReads = 0
     const setIntervalSpy = vi.spyOn(window, 'setInterval')
@@ -1533,7 +1677,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies).toEqual([])
   })
 
-  it('suppresses blur and visibility exits after text doc interaction', async () => {
+  it('suppresses document blur noise but records an immediate hidden-page exit', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let visibilityState: DocumentVisibilityState = 'visible'
 
@@ -1656,10 +1800,17 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(window, new Event('blur'))
     visibilityState = 'hidden'
     fireEvent(document, new Event('visibilitychange'))
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    visibilityState = 'visible'
+    fireEvent(document, new Event('visibilitychange'))
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
-    expect(focusBodies).toEqual([])
+    await waitFor(() => {
+      expect(focusBodies).toHaveLength(2)
+    })
+    expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusBodies[0].incident_id).toMatch(/^incident_/)
+    expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
+    expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
   })
 
   it('does not log exit telemetry when returning from an open doc to the docs list', async () => {
@@ -2340,15 +2491,10 @@ describe('StudentTestsTab exam mode', () => {
   it('does not log exit telemetry for Cmd+F interruption bursts', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
-    let visibilityState: DocumentVisibilityState = 'visible'
 
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
       get: () => fullscreenElement,
-    })
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => visibilityState,
     })
     Object.defineProperty(document.documentElement, 'requestFullscreen', {
       configurable: true,
@@ -2443,21 +2589,23 @@ describe('StudentTestsTab exam mode', () => {
       expect(fullscreenElement).toBe(document.documentElement)
     })
 
+    vi.useFakeTimers()
     fireEvent.keyDown(window, { key: 'f', metaKey: true })
     fireEvent(window, new Event('blur'))
-    visibilityState = 'hidden'
-    fireEvent(document, new Event('visibilitychange'))
     fullscreenElement = null
     fireEvent(document, new Event('fullscreenchange'))
     fireEvent(window, new Event('resize'))
 
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
 
     expect(focusBodies).toEqual([])
   })
 
-  it('preserves raw window signals while counting one notification-style exit', async () => {
+  it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {
     const focusBodies: Array<Record<string, any>> = []
+    const firstFocusResponse = createDeferred<void>()
     let fullscreenElement: Element | null = null
 
     Object.defineProperty(document, 'fullscreenElement', {
@@ -2532,17 +2680,22 @@ describe('StudentTestsTab exam mode', () => {
         const routeAttempts = focusBodies.filter(
           (body) => body.event_type === 'route_exit_attempt'
         ).length
+        const focusSummaryAtRequest = makeFocusSummary({
+          exit_count: Math.max(awayStarts, windowAttempts + routeAttempts),
+          away_count: awayStarts,
+          away_total_seconds: awayEnds > 0 ? 1 : 0,
+          route_exit_attempts: routeAttempts,
+          window_unmaximize_attempts: windowAttempts,
+          last_away_ended_at: awayEnds > 0 ? '2026-02-24T12:00:01.000Z' : null,
+        })
+        if (parsedBody.event_type === 'away_start') {
+          await firstFocusResponse.promise
+        }
         return {
           ok: true,
           json: async () => ({
             success: true,
-            focus_summary: makeFocusSummary({
-              exit_count: Math.max(awayStarts, windowAttempts + routeAttempts),
-              away_count: awayStarts,
-              route_exit_attempts: routeAttempts,
-              window_unmaximize_attempts: windowAttempts,
-              last_away_ended_at: awayEnds > 0 ? '2026-02-24T12:00:01.000Z' : null,
-            }),
+            focus_summary: focusSummaryAtRequest,
           }),
         }
       }
@@ -2576,11 +2729,45 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(window, new Event('resize'))
     fireEvent(window, new Event('focus'))
 
-    await waitFor(() => {
-      expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(1)
-      expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
-      expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(0)
+    expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
+    expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(0)
+
+    vi.useFakeTimers()
+    const blurredAtMs = Date.now()
+    fireEvent(window, new Event('blur'))
+    vi.setSystemTime(blurredAtMs + 1_000)
+    fireEvent(window, new Event('focus'))
+
+    await act(async () => {
+      await Promise.resolve()
     })
+
+    expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start'])
+    await act(async () => {
+      vi.advanceTimersByTime(5_000)
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start', 'away_end'])
+    expect(focusBodies[0].incident_id).toMatch(/^incident_/)
+    expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
+    expect(focusBodies[1].metadata?.duration_ms).toBe(1_000)
+    expect(screen.getByLabelText(/Exits 1\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 1s.')).toBeInTheDocument()
+
+    firstFocusResponse.resolve(undefined)
+    await act(async () => {
+      await firstFocusResponse.promise
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByLabelText(/Exits 1\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 1s.')).toBeInTheDocument()
   })
 
   it('tracks swipe-away visibility changes as one exit', async () => {
@@ -2690,10 +2877,23 @@ describe('StudentTestsTab exam mode', () => {
       expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
       expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
     })
+    const [awayStart, awayEnd] = focusBodies
+    expect(awayStart.incident_id).toMatch(/^incident_/)
+    expect(awayEnd.incident_id).toBe(awayStart.incident_id)
+    expect(awayStart.client_event_id).not.toBe(awayEnd.client_event_id)
+    expect(awayStart.client_occurred_at).toEqual(expect.any(String))
+    expect(awayEnd.metadata?.duration_ms).toEqual(expect.any(Number))
   })
 
-  it('preserves raw route exit signals while the summary stays deduped', async () => {
+  it('dispatches teardown telemetry immediately while ordered telemetry is still pending', async () => {
     const focusBodies: Array<Record<string, any>> = []
+    const firstFocusResponse = createDeferred<void>()
+    let visibilityState: DocumentVisibilityState = 'visible'
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
 
     fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
@@ -2748,6 +2948,9 @@ describe('StudentTestsTab exam mode', () => {
       if (url.includes('/api/student/tests/test-1/focus-events')) {
         const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
         focusBodies.push(parsedBody)
+        if (parsedBody.event_type === 'away_start') {
+          await firstFocusResponse.promise
+        }
         const routeExitAttempts = focusBodies.filter(
           (body) => body.event_type === 'route_exit_attempt'
         ).length
@@ -2766,7 +2969,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentTestsTab classroom={classroom} />)
+    const { unmount } = render(<StudentTestsTab classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2786,15 +2989,40 @@ describe('StudentTestsTab exam mode', () => {
       expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
     })
 
+    visibilityState = 'hidden'
+    fireEvent(document, new Event('visibilitychange'))
+    await waitFor(() => {
+      expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start'])
+    })
+
     window.dispatchEvent(
       new CustomEvent(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, {
         detail: { classroomId: classroom.id, source: 'in_app_navigation' },
       })
     )
     fireEvent(window, new Event('pagehide'))
+    unmount()
 
     await waitFor(() => {
-      expect(focusBodies.filter((body) => body.event_type === 'route_exit_attempt')).toHaveLength(2)
+      const routeExits = focusBodies.filter((body) => body.event_type === 'route_exit_attempt')
+      expect(routeExits).toHaveLength(2)
+      expect(routeExits.map((body) => body.metadata?.source)).toEqual([
+        'pagehide',
+        'component_unmount',
+      ])
+      expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
+    })
+
+    visibilityState = 'visible'
+    firstFocusResponse.resolve(undefined)
+    await waitFor(() => {
+      const routeExits = focusBodies.filter((body) => body.event_type === 'route_exit_attempt')
+      expect(routeExits).toHaveLength(3)
+      expect(routeExits.map((body) => body.metadata?.source)).toEqual(expect.arrayContaining([
+        'in_app_navigation',
+        'pagehide',
+        'component_unmount',
+      ]))
     })
   })
 
@@ -3033,7 +3261,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(document, new Event('fullscreenchange'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
@@ -3170,7 +3398,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(document, new Event('fullscreenchange'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
@@ -3475,7 +3703,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(window, new Event('resize'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
@@ -4050,7 +4278,7 @@ describe('StudentTestsTab exam mode', () => {
     fireEvent(document, new Event('fullscreenchange'))
 
     await act(async () => {
-      vi.advanceTimersByTime(450)
+      vi.advanceTimersByTime(800)
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
