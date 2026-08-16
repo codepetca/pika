@@ -342,7 +342,9 @@ async function readStableImpact(
       ] as const),
       ...CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES.map((resource) => [
         resource.table,
-        resource.table === 'assignment_doc_save_operations' ? saveOperations.rows.length : 0,
+        resource.table === 'assignment_doc_save_operations'
+          ? saveOperations.rows.length
+          : 0,
       ] as const),
     ])
     const resourceCounts = mergeClassroomPurgeResourceCounts(

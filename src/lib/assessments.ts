@@ -203,6 +203,8 @@ export function canActivateAssessment(
 type FocusEventLike = {
   event_type: TestFocusEventType
   occurred_at: string
+  session_id?: string | null
+  metadata?: unknown
 }
 
 export const ASSESSMENT_EXIT_BURST_WINDOW_MS = 2000
@@ -244,43 +246,140 @@ export function emptyAssessmentFocusSummary(): TestFocusSummary {
   }
 }
 
+function latestFocusTimestamp(current: string | null, incoming: string | null): string | null {
+  if (!current) return incoming
+  if (!incoming) return current
+  return new Date(incoming).getTime() >= new Date(current).getTime() ? incoming : current
+}
+
+export function mergeAssessmentFocusSummaries(
+  current: TestFocusSummary | null,
+  incoming: TestFocusSummary
+): TestFocusSummary {
+  if (!current) return incoming
+
+  return {
+    exit_count: Math.max(current.exit_count, incoming.exit_count),
+    away_count: Math.max(current.away_count, incoming.away_count),
+    away_total_seconds: Math.max(current.away_total_seconds, incoming.away_total_seconds),
+    route_exit_attempts: Math.max(current.route_exit_attempts, incoming.route_exit_attempts),
+    window_unmaximize_attempts: Math.max(
+      current.window_unmaximize_attempts,
+      incoming.window_unmaximize_attempts
+    ),
+    last_away_started_at: latestFocusTimestamp(
+      current.last_away_started_at,
+      incoming.last_away_started_at
+    ),
+    last_away_ended_at: latestFocusTimestamp(
+      current.last_away_ended_at,
+      incoming.last_away_ended_at
+    ),
+  }
+}
+
 export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFocusSummary {
   if (!events.length) return emptyAssessmentFocusSummary()
 
-  const sorted = [...events].sort(
-    (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
-  )
+  const getMetadata = (event: FocusEventLike): Record<string, unknown> =>
+    event.metadata && typeof event.metadata === 'object' && !Array.isArray(event.metadata)
+      ? event.metadata as Record<string, unknown>
+      : {}
+  const seenClientEventIds = new Set<string>()
+  const deduped = events.filter((event) => {
+    const metadata = getMetadata(event)
+    const clientEventId =
+      typeof metadata.client_event_id === 'string'
+        ? metadata.client_event_id.trim()
+        : ''
+    if (!clientEventId) return true
+    const key = `${event.session_id || 'session'}:${clientEventId}`
+    if (seenClientEventIds.has(key)) return false
+    seenClientEventIds.add(key)
+    return true
+  })
+  const getEventAtMs = (event: FocusEventLike): number => {
+    const metadata = getMetadata(event)
+    const clientOccurredAt =
+      typeof metadata.client_occurred_at === 'string'
+        ? new Date(metadata.client_occurred_at).getTime()
+        : Number.NaN
+    if (!Number.isNaN(clientOccurredAt)) return clientOccurredAt
+    return new Date(event.occurred_at).getTime()
+  }
+  const sorted = [...deduped].sort((a, b) => getEventAtMs(a) - getEventAtMs(b))
 
   const summary = emptyAssessmentFocusSummary()
   let activeAwayStartedAtMs: number | null = null
   let lastExitAtMs: number | null = null
+  const versionedExitIncidents = new Set<string>()
+  const versionedAwayIncidents = new Set<string>()
+  const versionedRouteIncidents = new Set<string>()
+  const versionedWindowIncidents = new Set<string>()
+  const versionedAwayStartedAt = new Map<string, number>()
+  const versionedAwayEnded = new Set<string>()
 
   for (const event of sorted) {
-    const eventAtMs = new Date(event.occurred_at).getTime()
+    const eventAtMs = getEventAtMs(event)
     if (Number.isNaN(eventAtMs)) continue
+    const metadata = getMetadata(event)
+    const incidentId =
+      Number(metadata.detector_version) >= 2 &&
+      typeof metadata.incident_id === 'string'
+        ? metadata.incident_id.trim()
+        : ''
+    const incidentKey = incidentId ? `${event.session_id || 'session'}:${incidentId}` : ''
+    const isVersionedIncident = Boolean(incidentKey)
+
+    if (isVersionedIncident && event.event_type !== 'away_end') {
+      versionedExitIncidents.add(incidentKey)
+    }
 
     const shouldCountExit =
       lastExitAtMs === null || eventAtMs - lastExitAtMs > ASSESSMENT_EXIT_BURST_WINDOW_MS
 
     if (event.event_type === 'route_exit_attempt') {
-      summary.route_exit_attempts += 1
-      if (shouldCountExit) {
+      if (isVersionedIncident) {
+        if (!versionedRouteIncidents.has(incidentKey)) {
+          versionedRouteIncidents.add(incidentKey)
+          summary.route_exit_attempts += 1
+        }
+      } else {
+        summary.route_exit_attempts += 1
+      }
+      if (!isVersionedIncident && shouldCountExit) {
         summary.exit_count += 1
       }
-      lastExitAtMs = eventAtMs
+      if (!isVersionedIncident) lastExitAtMs = eventAtMs
       continue
     }
 
     if (event.event_type === 'window_unmaximize_attempt') {
-      summary.window_unmaximize_attempts += 1
-      if (shouldCountExit) {
+      if (isVersionedIncident) {
+        if (!versionedWindowIncidents.has(incidentKey)) {
+          versionedWindowIncidents.add(incidentKey)
+          summary.window_unmaximize_attempts += 1
+        }
+      } else {
+        summary.window_unmaximize_attempts += 1
+      }
+      if (!isVersionedIncident && shouldCountExit) {
         summary.exit_count += 1
       }
-      lastExitAtMs = eventAtMs
+      if (!isVersionedIncident) lastExitAtMs = eventAtMs
       continue
     }
 
     if (event.event_type === 'away_start') {
+      if (isVersionedIncident) {
+        if (!versionedAwayIncidents.has(incidentKey)) {
+          versionedAwayIncidents.add(incidentKey)
+          versionedAwayStartedAt.set(incidentKey, eventAtMs)
+          summary.away_count += 1
+        }
+        summary.last_away_started_at = event.occurred_at
+        continue
+      }
       if (activeAwayStartedAtMs === null) {
         activeAwayStartedAtMs = eventAtMs
         summary.away_count += 1
@@ -294,6 +393,22 @@ export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFo
     }
 
     if (event.event_type === 'away_end') {
+      if (isVersionedIncident) {
+        if (!versionedAwayEnded.has(incidentKey)) {
+          versionedAwayEnded.add(incidentKey)
+          const durationMs = Number(metadata.duration_ms)
+          if (Number.isFinite(durationMs) && durationMs >= 0) {
+            summary.away_total_seconds += durationMs / 1000
+          } else {
+            const startedAtMs = versionedAwayStartedAt.get(incidentKey)
+            if (startedAtMs !== undefined && eventAtMs >= startedAtMs) {
+              summary.away_total_seconds += (eventAtMs - startedAtMs) / 1000
+            }
+          }
+        }
+        summary.last_away_ended_at = event.occurred_at
+        continue
+      }
       if (activeAwayStartedAtMs !== null && eventAtMs >= activeAwayStartedAtMs) {
         summary.away_total_seconds += Math.max(
           0,
@@ -305,6 +420,8 @@ export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFo
       summary.last_away_ended_at = event.occurred_at
     }
   }
+
+  summary.exit_count += versionedExitIncidents.size
 
   return summary
 }

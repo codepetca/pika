@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -185,6 +185,54 @@ describe('ClassDaysProvider', () => {
     expect(screen.getByTestId('probe-dates')).toHaveTextContent('2026-05-01')
     expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('true')
     expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
+  })
+
+  it('keeps a retained refresh pending and preserves its error until it settles', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const retainedRetry = deferred<{ class_days: ClassDay[] }>()
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ class_days: [classDay('2026-05-01')] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Class days unavailable' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => retainedRetry.promise,
+      } as Response)
+
+    render(
+      <ClassDaysProvider classroomId="classroom-1">
+        <ContextProbe />
+      </ClassDaysProvider>,
+    )
+
+    await screen.findByText('2026-05-01')
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh probe' }))
+    await screen.findByText('The class schedule could not be loaded.')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh probe' }))
+
+    expect(screen.getByTestId('probe-loading')).toHaveTextContent('true')
+    expect(screen.getByTestId('probe-error')).toHaveTextContent(
+      'The class schedule could not be loaded.',
+    )
+    expect(screen.getByTestId('probe-dates')).toHaveTextContent('2026-05-01')
+
+    await act(async () => {
+      retainedRetry.resolve({ class_days: [classDay('2026-05-02')] })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('probe-loading')).toHaveTextContent('false')
+      expect(screen.getByTestId('probe-error')).toHaveTextContent('')
+      expect(screen.getByTestId('probe-dates')).toHaveTextContent('2026-05-02')
+    })
+    expect(consoleError).toHaveBeenCalledTimes(1)
   })
 
   it('resets the provider subtree before children observe a new classroom', async () => {

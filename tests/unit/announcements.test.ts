@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ANNOUNCEMENT_TITLE_MAX_LENGTH,
+  formatAnnouncementTimestamp,
   getAnnouncementCalendarLabel,
   normalizeAnnouncementTitle,
   parseAnnouncementTitleInput,
@@ -42,5 +43,14 @@ describe('announcement helpers', () => {
     ])
 
     expect(sorted.map((announcement) => announcement.id)).toEqual(['newest', 'older', 'older-scheduled'])
+  })
+
+  it('formats announcement timestamps in Toronto across standard and daylight time', () => {
+    expect(formatAnnouncementTimestamp('2026-01-15T15:00:00.000Z')).toBe('Thu Jan 15, 10:00 AM')
+    expect(formatAnnouncementTimestamp('2026-07-15T15:00:00.000Z')).toBe('Wed Jul 15, 11:00 AM')
+  })
+
+  it('returns an invalid timestamp unchanged', () => {
+    expect(formatAnnouncementTimestamp('not-a-date')).toBe('not-a-date')
   })
 })

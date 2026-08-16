@@ -11,180 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Verify production managed Storage writers under enforcement
-
-**Risk profile:** bounded production smoke writes using synthetic teacher/student
-accounts; no migration, cleanup, or deletion activation.
-
-**Completed:**
-- Created a synthetic Classroom, allowlisted and enrolled a synthetic student,
-  uploaded one teacher PDF to a Test, and submitted one student image artifact.
-- Saved the Classroom as Course Blueprint
-  `c318ef23-5039-4b64-9977-66bceee54ba0`, instantiated Classroom
-  `7979c0fd-44ae-4c08-a430-39cf432b48fa` from that Blueprint, and hot archived
-  the copy.
-- Verified the deployment export gate remains disabled, then invoked the exact
-  deployed archive writer implementation for the authorized synthetic Classroom.
-  Archive operation `18ff7d6f-84ee-49c9-ab7e-e065b4f8391b` completed and
-  produced a verified, Classroom-owned `classroom-archives` object.
-- Captured and visually inspected teacher/student desktop/mobile production UI.
-  Teacher archive controls and student submitted-artifact surfaces rendered
-  correctly; permanent deletion remained absent.
-
-**Validation:**
-- The five new managed objects cover teacher test material, student assignment
-  artifact, Classroom-to-Blueprint copy, Blueprint-to-Classroom copy, and
-  Classroom archive creation. All use distinct managed identities and exact
-  owner bindings; matching Storage bytes and JSON/relational references exist.
-- Production now contains 144 managed objects and 144 managed-bucket Storage
-  objects, all `ready`: zero ownerless Storage, missing Storage, ownerless
-  identities, unreferenced ready objects, raw references lacking managed IDs,
-  or active operations.
-- The Blueprint and both user accounts remain intact. The copy remains hot
-  archived (no cold tombstone) for a future deletion canary.
-- Migration 119 remains unapplied. Generic cleanup and Classroom deletion remain
-  disabled. Readiness generation 1 remains the activation evidence; writer
-  growth after activation is expected under the enforced protocol.
-
-**Remaining:**
-- Decide separately whether to apply exact migration
-  `119_hot_archived_classroom_purge_managed_ownership.sql` to production. Do not
-  enable generic cleanup or Classroom deletion without separate authorization.
-
-## 2026-08-05 — Apply production hot-archive purge schema
-
-**Risk profile:** irreversible production schema installation; rollout and
-execution remained disabled.
-
-**Completed:**
-- Verified production project `zhioqbapgfcrronyuidm`, migration history through
-  118, migration 119 checksum, focused tests, managed-storage lineage, and
-  PostgreSQL function lint.
-- The linked dry run contained only
-  `119_hot_archived_classroom_purge_managed_ownership.sql`.
-- Applied migration 119 exactly once through `supabase db push --linked` under
-  exact production authorization.
-
-**Validation:**
-- Remote migration history now records 119.
-- `classroom_purge_settings.rollout_mode` is `disabled`; canary teacher and
-  Classroom IDs are null.
-- Managed Storage remains `enforced` with 144/144 objects `ready`; no purge or
-  cleanup operation is active.
-- The synthetic hot-archived Classroom, reusable Blueprint, and verified archive
-  remain intact. No purge, generic cleanup, or Storage deletion ran.
-
-**Remaining:**
-- Treat Classroom deletion activation and any first purge canary as separate
-  production decisions requiring fresh target-specific authorization.
-
-## 2026-08-05 — Enable and verify exact production purge canary
-
-**Risk profile:** production rollout-gate write only; no purge or cleanup.
-
-**Completed:**
-- Revalidated the synthetic target as teacher-owned, hot archived, not cold
-  archived, conflict-free, and without any prior purge operation.
-- Atomically changed `classroom_purge_settings` from `disabled` to `canary` only
-  for teacher `34bd4439-e552-483b-b8aa-e3a8f86009af` and Classroom
-  `7979c0fd-44ae-4c08-a430-39cf432b48fa`.
-- Opened the production impact dialog without entering confirmation or invoking
-  any destructive endpoint.
-
-**Validation:**
-- Impact summary reports 0 students, 104 relational records, and two managed
-  files / 36 KB: one test document and one verified Classroom archive. Both
-  files are present; no Gradex extract, interrupted upload, or conflicting
-  operation exists.
-- Teacher desktop/light and mobile/dark show exactly one canary action, the full
-  irreversible warning, Blueprint/user preservation text, typed-confirmation
-  requirement, and a disabled destructive button.
-- Student desktop/dark and mobile/light show neither the archived canary nor a
-  deletion action; the teacher purge endpoint returns 403 for the student.
-- Final read-only state has zero purge operations, zero active generic cleanup,
-  144 managed objects all `ready`, and the hot Classroom and Blueprint intact.
-
-**Remaining:**
-- The first irreversible production canary purge requires separate exact
-  authorization. Broader rollout and generic cleanup remain disabled.
-
-## 2026-08-05 — Complete first production hot-archive purge canary
-
-**Risk profile:** irreversible production deletion of one exact synthetic
-hot-archived Classroom.
-
-**Completed:**
-- Revalidated the exact canary inventory and rollout binding immediately before
-  deletion: no conflict or prior operation, 104 relational records, one test
-  document, and one verified Classroom archive totaling 36 KB.
-- Used the production teacher UI, typed `DELETE`, and started purge operation
-  `e7b434d0-a6b0-4192-b3cb-a50e39985c92`.
-- The durable worker deleted both exact managed objects and finalized on the
-  first operation attempt with no failed file or retry.
-
-**Validation:**
-- The completed audit records 104 relational rows and two files deleted; both
-  object paths are redacted, both hashed identities remain reserved, and no
-  purged Storage object has reappeared.
-- The Classroom, its archive/operation rows, its managed identities, the purge
-  resource snapshot, and its fence are gone. No cold tombstone was created.
-- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed test
-  file, both synthetic users, and original Classroom
-  `1da6bdef-d231-47d2-90ce-c3675c3afcff` remain intact.
-- Global managed inventory is 142 ready registry objects and 142 Storage
-  objects, with zero ownerless or missing objects and zero generic cleanup work.
-- Teacher desktop/light and mobile/dark show no archived canary; teacher GET is
-  404. Student desktop/dark and mobile/light remain isolated; teacher endpoint
-  access is 403. Visual verification passed.
-
-**Remaining:**
-- The rollout row still points in `canary` mode to the deleted Classroom, which
-  enables no remaining Classroom. Disabling that stale row or selecting a new
-  canary/broader rollout requires fresh authorization. Generic cleanup remains
-  disabled.
-
-## 2026-08-05 — Complete student/artifact production purge canary
-
-**Risk profile:** irreversible production deletion of one exact synthetic
-hot-archived Classroom with a student, assignment artifact, and test material.
-
-**Completed:**
-- Archived synthetic Classroom `1da6bdef-d231-47d2-90ce-c3675c3afcff` through
-  the teacher UI and atomically retargeted the existing exact canary gate.
-- Revalidated no conflict or prior purge and an impact of one student, 106
-  relational records, and two ready managed files / 114,179 bytes.
-- Used the production teacher UI, typed `DELETE`, and completed durable purge
-  operation `afb8e6aa-e36a-4196-9e7e-49d5ab57da99` on its first attempt.
-
-**Validation:**
-- The audit records 106 relational rows and two files deleted: one
-  `assignment-artifacts` object and one `test-documents` object. Both paths are
-  redacted, both hashed identities are absent from Storage, and neither object
-  reappeared.
-- The Classroom, enrollment, roster, assignment/document/artifact, test, 96
-  class days, archive state, managed ownership, purge resources, and purge fence
-  are absent.
-- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed file,
-  and both synthetic user accounts remain intact.
-- Global inventory is 140 ready registry objects and 140 Storage objects, with
-  zero ownerless, missing, unregistered, or generic-cleanup objects. The 20
-  historical archive-source cleanup ledgers remain terminal `deleted`.
-- Teacher and student desktop/mobile light/dark boundaries passed before and
-  after deletion. Teacher GET is 404 after deletion; student access remains 403.
-
-**Remaining:**
-- The exact canary row points to the now-deleted Classroom and therefore enables
-  no remaining Classroom. Broader rollout and generic cleanup remain disabled.
-
-## 2026-08-05 — Record managed Blueprint lifecycle follow-up
-
-- Added a separate failing feature for durable Blueprint deletion with managed
-  files; no Blueprint deletion implementation was added to the Classroom purge
-  reconciliation patch.
-- The acceptance sequence first creates and verifies a Classroom from preserved
-  canary Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, then exercises the
-  future Blueprint purge so preservation and deletion are independently proven.
-
 ## 2026-08-05 — Validate production-reconciliation patch
 
 - Full Vitest passed: 468 files and 4,047 tests. Production build, lint,
@@ -1069,3 +895,174 @@ overlap serialization around the existing cleanup-history safety-net route.
   canonical app-managed worktree and collaborator env forms. The compressed
   handoff restores both contracts; startup-doc coverage and the full 4,240-test
   suite pass.
+
+## 2026-08-15 — Make student Surveys recoverable and keyboard-native
+
+**Risk profile:** workspace-state — student-only survey presentation and local
+request state; no API, schema, migration, production, or Gradex change.
+
+**Completed:**
+- Replaced the ambiguous results `null` state with survey-scoped loading,
+  success, and announced error states plus an explicit Retry action.
+- Replaced styled answer buttons with native radios in a named radio group,
+  retaining the existing card treatment while adding checked state, focus, and
+  browser keyboard behavior.
+- Updated the exact native-control policy entry and added component regression
+  coverage for semantic selection and failed-results recovery.
+
+**Validation:**
+- Full suite passes: 4,242 tests across 494 files. Lint, production build,
+  architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright and visual inspection pass for student results, edit/selected,
+  focus, error/retry, desktop, mobile, light, and dark states. Arrow-key radio
+  movement passed in Chromium; mobile body width remained within 390px.
+- Teacher verification is not applicable because no teacher-owned surface
+  changed. Composite semantics and keyboard behavior are covered; no manual
+  follow-up remains.
+
+## 2026-08-15 — Make teacher Survey results recoverable
+
+**Risk profile:** none — teacher-only results presentation and local request
+state; no API, schema, migration, production, or Gradex change.
+
+**Completed:**
+- Replaced false empty-result fallback data with survey-scoped loading, ready,
+  and announced failure states plus explicit Retry actions.
+- Preserved the last valid result snapshot during failed roster/response-count
+  refreshes and kept stale Survey responses out of the selected workspace.
+- Recorded the completed teacher/student Surveys slice in the product audit.
+
+**Validation:**
+- Full suite passes: 4,244 tests across 494 files. Production build, lint,
+  architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright and visual inspection pass for teacher results and cold errors at
+  desktop/mobile in light/dark, with no horizontal overflow. Unit interaction
+  coverage proves retained-result failure and successful retry replacement.
+- Composite-widget checklist is not applicable because no composite control or
+  keyboard model changed; alert/status semantics and Retry are role-tested.
+
+## 2026-08-16 — Make Announcement tabs recoverable and Toronto-safe
+
+**Risk profile:** workspace-state — teacher/student Announcement presentation,
+request ownership, and read acknowledgement; no API, schema, migration,
+production, Calendar, mobile redesign, or Gradex change.
+
+**Completed:**
+- Added explicit loading, successful empty, cold-error, and Retry states while
+  preserving valid classroom-scoped data and rejecting stale responses.
+- Made failed student read acknowledgement visible and retryable without
+  prematurely clearing notification state.
+- Centralized Announcement timestamps in `America/Toronto` for teacher and
+  student display and scheduling labels.
+- Fenced teacher create/edit/delete and student read completions by committed
+  classroom generation, including abandoned concurrent renders.
+
+**Validation:**
+- Full suite passes: 4,258 tests across 494 files. Focused component/domain
+  tests, lint, TypeScript, Pika audit, and diff checks pass.
+- Independent review findings for provider-driven automatic read retry,
+  cross-classroom mutation repainting, and render-phase ownership leakage were
+  remediated with provider-settlement, committed-switch, and suspended-transition
+  regression coverage.
+- Visual verification passes for teacher/student desktop/mobile and light/dark
+  loaded/error states, plus the student read-error state. No composite keyboard
+  behavior changed; semantic alert/status and Retry coverage passes.
+
+## 2026-08-16 — Make Calendar sources independently recoverable
+
+**Risk profile:** none — teacher/student Calendar presentation and local
+request ownership; no API, schema, migration, production, mobile redesign, or
+Gradex change.
+
+**Completed:**
+- Replaced false-empty Calendar fallbacks with independent lesson-plan,
+  assignment, announcement, and class-day loading/error/snapshot contracts.
+- Preserved successful data during partial failures, added source-specific
+  Retry actions, and fenced stale classroom and overlapping teacher assignment
+  refresh responses.
+- Corrected date-only term parsing and made initial/today navigation explicitly
+  Toronto-based.
+
+**Validation:**
+- Full suite passes: 4,289 tests across 495 files. Production build, lint,
+  TypeScript, architecture, design/UI policy, Pika audit, and diff checks pass.
+- Independent review found that background lesson refreshes could discard
+  edits and successful Retry actions could strand keyboard focus. Pending
+  edits now remain authoritative during refreshes, Retry controls stay mounted
+  while requests run, and successful recovery focuses the named Calendar
+  workspace. Targeted re-review additionally caught a GET/autosave ordering
+  gap and retry intent crossing classroom boundaries; per-edit acknowledgments
+  and classroom-scoped retry state now fence both cases. A final ABA review
+  found that returning to a classroom could make an earlier visit's save look
+  current; queued saves now carry a monotonically increasing classroom epoch.
+  Focused teacher/student regressions cover all corrections.
+- Playwright verification passes for teacher/student desktop loaded and partial
+  error states in light mode, loaded states in dark mode, and the existing
+  mobile layout. Retry controls retain valid lesson data with no overflow.
+- No composite control behavior changed; existing Calendar navigation semantics
+  remain covered, and new alert/Retry behavior has focused role tests.
+
+## 2026-08-16 — Serialize Calendar writes and retained retries
+
+**Risk profile:** workspace-state — teacher lesson-plan mutation ordering and
+teacher/student Calendar retry state; no API, schema, migration, production,
+mobile redesign, or Gradex change.
+
+**Completed:**
+- Serialized inline, bulk, and unload lesson-plan writes per classroom across
+  component remounts so older requests cannot commit after newer edits.
+- Retained failed inline saves with bounded automatic retries, scoped pending
+  edits by classroom, and blocked bulk markdown saves until inline drains
+  succeed.
+- Replaced unload beacons with explicit keepalive `PUT` requests and exposed
+  retained class-day refreshes as pending without clearing their prior error.
+
+**Validation:**
+- Full suite passes: 4,295 tests across 495 files. Production build, lint,
+  TypeScript, architecture, Pika audit, and diff checks pass.
+- Focused regressions cover server commit order, inline-before-bulk order,
+  failed-write retry, unload method/payload, and teacher/student class-day
+  retry focus through failure and recovery.
+- Playwright verification passes for teacher/student desktop/mobile and
+  light/dark Calendar views plus the retained `Retrying class days` state.
+
+## 2026-08-16 — Make Calendar mutations durable across unload and classroom switches
+
+**Risk profile:** schema-and-workspace-state — teacher lesson-plan ordering,
+bulk draft ownership, and visible save recovery; migration 125 was applied to
+the shared local database only. Production was not modified.
+
+**Completed:**
+- Added a durable per-browser-session ordering head and atomic lesson-plan
+  mutation function so reversed save/delete completion cannot overwrite newer
+  teacher intent, including direct keepalive requests during unload.
+- Retained queued and in-flight inline saves through page unload, with database
+  sequence fencing making repeated keepalive delivery idempotent.
+- Fenced bulk-save completion by classroom epoch, retained failed classroom
+  drafts by revision, and prevented delayed or identical-payload responses from
+  closing or clearing newer work.
+- Added bounded inline retries with an explicit manual Retry action after
+  exhaustion, preserving the exact unsaved lesson content.
+- Migrated the date and bulk request bodies to feature-owned Zod schemas and
+  removed both routes from the API validation debt baseline. Calendar dates
+  are now validated as real dates before any bulk write begins.
+- Registered the durable mutation-head table as purge-only operational data and
+  included its exact PostgreSQL count in the purge stability digest and durable
+  operation inventory without archiving it. Mutation-head writes now obey the
+  classroom purge fence.
+
+**Validation:**
+- Full suite passes: 4,314 tests across 498 files. Production build, lint,
+  TypeScript, generated Supabase type drift, Pika audit, and diff checks pass.
+- Local PostgreSQL rollback tests prove newer-save/stale-save,
+  newer-delete/stale-save, and newer-save/stale-delete ordering. RPC execution
+  is denied to `anon` and `authenticated` and granted only to `service_role`.
+- Independent review findings covering queue-blocked unload writes,
+  identical-payload draft ownership, impossible calendar dates, and schema
+  ownership were remediated with focused regressions. Rereview additionally
+  found paginated, unfenced mutation-head purge accounting; migration 125 now
+  computes and fences that count inside the database inventory. The local
+  classroom schema audit passes across 198 foreign-key relationships.
+- Playwright verification passes for the exhausted-save Retry alert in teacher
+  light/dark views; the student Calendar remains visually unchanged. Mobile
+  redesign remains explicitly deferred.

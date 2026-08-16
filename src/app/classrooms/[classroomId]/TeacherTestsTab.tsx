@@ -2125,7 +2125,10 @@ export function TeacherTestsTab({
                     : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                 const statusMeta = getTestGradingWorkStatusDisplay(student.status)
                 const awayCount = student.focus_summary?.away_count ?? 0
-                const awaySeconds = student.focus_summary?.away_total_seconds ?? 0
+                const awaySeconds = Math.max(
+                  0,
+                  Math.round(student.focus_summary?.away_total_seconds ?? 0)
+                )
                 const awayMinutes = Math.floor(awaySeconds / 60)
                 const awayRemainder = awaySeconds % 60
                 const awayLabel = `${awayMinutes}:${String(awayRemainder).padStart(2, '0')}`

@@ -67,7 +67,9 @@ type StudentProfileResultRow = {
 type FocusEventResultRow = {
   student_id: string
   event_type: any
+  session_id: string | null
   occurred_at: string
+  metadata: Record<string, unknown> | null
 }
 
 type AvailabilityResultRow = {
@@ -231,7 +233,7 @@ async function loadFocusEvents(
   return loadStudentScopedRows<FocusEventResultRow>(
     supabase,
     'test_focus_events',
-    'id, student_id, event_type, occurred_at',
+    'id, student_id, event_type, session_id, occurred_at, metadata',
     testId,
     studentIds,
   )
@@ -470,10 +472,20 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       return NextResponse.json({ error: 'Failed to fetch focus events' }, { status: 500 })
     }
 
-    const grouped = new Map<string, Array<{ event_type: any; occurred_at: string }>>()
+    const grouped = new Map<string, Array<{
+      event_type: any
+      session_id: string | null
+      occurred_at: string
+      metadata: Record<string, unknown> | null
+    }>>()
     for (const row of focusEvents || []) {
       const current = grouped.get(row.student_id) || []
-      current.push({ event_type: row.event_type, occurred_at: row.occurred_at })
+      current.push({
+        event_type: row.event_type,
+        session_id: row.session_id,
+        occurred_at: row.occurred_at,
+        metadata: row.metadata,
+      })
       grouped.set(row.student_id, current)
     }
 

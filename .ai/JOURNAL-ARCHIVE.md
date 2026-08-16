@@ -18016,3 +18016,183 @@ and terminal cleanup-ledger reconciliation.
 - Verify representative production writers under enforcement before considering
   migration 119. Applying migration 119, generic cleanup, and classroom deletion
   remain separately gated changes.
+
+<!-- pika-session-log-archive-batch:25c04a24b885c7d08ae12548cb79575edab7a8096bee346865e1e169565d3956 -->
+## 2026-08-05 — Verify production managed Storage writers under enforcement
+
+**Risk profile:** bounded production smoke writes using synthetic teacher/student
+accounts; no migration, cleanup, or deletion activation.
+
+**Completed:**
+- Created a synthetic Classroom, allowlisted and enrolled a synthetic student,
+  uploaded one teacher PDF to a Test, and submitted one student image artifact.
+- Saved the Classroom as Course Blueprint
+  `c318ef23-5039-4b64-9977-66bceee54ba0`, instantiated Classroom
+  `7979c0fd-44ae-4c08-a430-39cf432b48fa` from that Blueprint, and hot archived
+  the copy.
+- Verified the deployment export gate remains disabled, then invoked the exact
+  deployed archive writer implementation for the authorized synthetic Classroom.
+  Archive operation `18ff7d6f-84ee-49c9-ab7e-e065b4f8391b` completed and
+  produced a verified, Classroom-owned `classroom-archives` object.
+- Captured and visually inspected teacher/student desktop/mobile production UI.
+  Teacher archive controls and student submitted-artifact surfaces rendered
+  correctly; permanent deletion remained absent.
+
+**Validation:**
+- The five new managed objects cover teacher test material, student assignment
+  artifact, Classroom-to-Blueprint copy, Blueprint-to-Classroom copy, and
+  Classroom archive creation. All use distinct managed identities and exact
+  owner bindings; matching Storage bytes and JSON/relational references exist.
+- Production now contains 144 managed objects and 144 managed-bucket Storage
+  objects, all `ready`: zero ownerless Storage, missing Storage, ownerless
+  identities, unreferenced ready objects, raw references lacking managed IDs,
+  or active operations.
+- The Blueprint and both user accounts remain intact. The copy remains hot
+  archived (no cold tombstone) for a future deletion canary.
+- Migration 119 remains unapplied. Generic cleanup and Classroom deletion remain
+  disabled. Readiness generation 1 remains the activation evidence; writer
+  growth after activation is expected under the enforced protocol.
+
+**Remaining:**
+- Decide separately whether to apply exact migration
+  `119_hot_archived_classroom_purge_managed_ownership.sql` to production. Do not
+  enable generic cleanup or Classroom deletion without separate authorization.
+
+<!-- pika-session-log-archive-batch:fa23cb220e4d8aca68e6c0130e0ecbfb90b362b55312b4ef6a40459f4f201713 -->
+## 2026-08-05 — Apply production hot-archive purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified production project `zhioqbapgfcrronyuidm`, migration history through
+  118, migration 119 checksum, focused tests, managed-storage lineage, and
+  PostgreSQL function lint.
+- The linked dry run contained only
+  `119_hot_archived_classroom_purge_managed_ownership.sql`.
+- Applied migration 119 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Remote migration history now records 119.
+- `classroom_purge_settings.rollout_mode` is `disabled`; canary teacher and
+  Classroom IDs are null.
+- Managed Storage remains `enforced` with 144/144 objects `ready`; no purge or
+  cleanup operation is active.
+- The synthetic hot-archived Classroom, reusable Blueprint, and verified archive
+  remain intact. No purge, generic cleanup, or Storage deletion ran.
+
+**Remaining:**
+- Treat Classroom deletion activation and any first purge canary as separate
+  production decisions requiring fresh target-specific authorization.
+
+<!-- pika-session-log-archive-batch:2a7ac5eef36c7c8e6c5907e493d1d0ddce9bc2a8ee8f3c362387ac76298ebdda -->
+## 2026-08-05 — Enable and verify exact production purge canary
+
+**Risk profile:** production rollout-gate write only; no purge or cleanup.
+
+**Completed:**
+- Revalidated the synthetic target as teacher-owned, hot archived, not cold
+  archived, conflict-free, and without any prior purge operation.
+- Atomically changed `classroom_purge_settings` from `disabled` to `canary` only
+  for teacher `34bd4439-e552-483b-b8aa-e3a8f86009af` and Classroom
+  `7979c0fd-44ae-4c08-a430-39cf432b48fa`.
+- Opened the production impact dialog without entering confirmation or invoking
+  any destructive endpoint.
+
+**Validation:**
+- Impact summary reports 0 students, 104 relational records, and two managed
+  files / 36 KB: one test document and one verified Classroom archive. Both
+  files are present; no Gradex extract, interrupted upload, or conflicting
+  operation exists.
+- Teacher desktop/light and mobile/dark show exactly one canary action, the full
+  irreversible warning, Blueprint/user preservation text, typed-confirmation
+  requirement, and a disabled destructive button.
+- Student desktop/dark and mobile/light show neither the archived canary nor a
+  deletion action; the teacher purge endpoint returns 403 for the student.
+- Final read-only state has zero purge operations, zero active generic cleanup,
+  144 managed objects all `ready`, and the hot Classroom and Blueprint intact.
+
+**Remaining:**
+- The first irreversible production canary purge requires separate exact
+  authorization. Broader rollout and generic cleanup remain disabled.
+
+<!-- pika-session-log-archive-batch:85754ac99e1c26b48237b374e51b3ad0ab7e4b41ae5ec8931c9572121f8bf705 -->
+## 2026-08-05 — Complete first production hot-archive purge canary
+
+**Risk profile:** irreversible production deletion of one exact synthetic
+hot-archived Classroom.
+
+**Completed:**
+- Revalidated the exact canary inventory and rollout binding immediately before
+  deletion: no conflict or prior operation, 104 relational records, one test
+  document, and one verified Classroom archive totaling 36 KB.
+- Used the production teacher UI, typed `DELETE`, and started purge operation
+  `e7b434d0-a6b0-4192-b3cb-a50e39985c92`.
+- The durable worker deleted both exact managed objects and finalized on the
+  first operation attempt with no failed file or retry.
+
+**Validation:**
+- The completed audit records 104 relational rows and two files deleted; both
+  object paths are redacted, both hashed identities remain reserved, and no
+  purged Storage object has reappeared.
+- The Classroom, its archive/operation rows, its managed identities, the purge
+  resource snapshot, and its fence are gone. No cold tombstone was created.
+- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed test
+  file, both synthetic users, and original Classroom
+  `1da6bdef-d231-47d2-90ce-c3675c3afcff` remain intact.
+- Global managed inventory is 142 ready registry objects and 142 Storage
+  objects, with zero ownerless or missing objects and zero generic cleanup work.
+- Teacher desktop/light and mobile/dark show no archived canary; teacher GET is
+  404. Student desktop/dark and mobile/light remain isolated; teacher endpoint
+  access is 403. Visual verification passed.
+
+**Remaining:**
+- The rollout row still points in `canary` mode to the deleted Classroom, which
+  enables no remaining Classroom. Disabling that stale row or selecting a new
+  canary/broader rollout requires fresh authorization. Generic cleanup remains
+  disabled.
+
+<!-- pika-session-log-archive-batch:76393174b1d53f39e7eff91965f58f04a00ce9c713265dd672f04b0855d0d511 -->
+## 2026-08-05 — Complete student/artifact production purge canary
+
+**Risk profile:** irreversible production deletion of one exact synthetic
+hot-archived Classroom with a student, assignment artifact, and test material.
+
+**Completed:**
+- Archived synthetic Classroom `1da6bdef-d231-47d2-90ce-c3675c3afcff` through
+  the teacher UI and atomically retargeted the existing exact canary gate.
+- Revalidated no conflict or prior purge and an impact of one student, 106
+  relational records, and two ready managed files / 114,179 bytes.
+- Used the production teacher UI, typed `DELETE`, and completed durable purge
+  operation `afb8e6aa-e36a-4196-9e7e-49d5ab57da99` on its first attempt.
+
+**Validation:**
+- The audit records 106 relational rows and two files deleted: one
+  `assignment-artifacts` object and one `test-documents` object. Both paths are
+  redacted, both hashed identities are absent from Storage, and neither object
+  reappeared.
+- The Classroom, enrollment, roster, assignment/document/artifact, test, 96
+  class days, archive state, managed ownership, purge resources, and purge fence
+  are absent.
+- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed file,
+  and both synthetic user accounts remain intact.
+- Global inventory is 140 ready registry objects and 140 Storage objects, with
+  zero ownerless, missing, unregistered, or generic-cleanup objects. The 20
+  historical archive-source cleanup ledgers remain terminal `deleted`.
+- Teacher and student desktop/mobile light/dark boundaries passed before and
+  after deletion. Teacher GET is 404 after deletion; student access remains 403.
+
+**Remaining:**
+- The exact canary row points to the now-deleted Classroom and therefore enables
+  no remaining Classroom. Broader rollout and generic cleanup remain disabled.
+
+<!-- pika-session-log-archive-batch:c28c32203e3e49bc279bb47cb2b292ca1376eb7e7491f4a9822672d3454425e9 -->
+## 2026-08-05 — Record managed Blueprint lifecycle follow-up
+
+- Added a separate failing feature for durable Blueprint deletion with managed
+  files; no Blueprint deletion implementation was added to the Classroom purge
+  reconciliation patch.
+- The acceptance sequence first creates and verifies a Classroom from preserved
+  canary Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, then exercises the
+  future Blueprint purge so preservation and deletion are independently proven.

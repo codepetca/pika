@@ -24,6 +24,7 @@ interface AssessmentDraftRecord {
 
 interface StudentTestDetailRecord {
   focus_summary?: {
+    exit_count?: number
     away_count?: number
     away_total_seconds?: number
     route_exit_attempts?: number
@@ -227,7 +228,7 @@ test.describe('student exam mode', () => {
       const responseBox = page.locator('textarea[placeholder="Write your response..."]')
       await expect(responseBox).toBeVisible()
       await responseBox.fill('Draft survives exam-mode lock and reload.')
-      await expect(page.getByText('Saved')).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved', { timeout: 20_000 })
 
       await page.setViewportSize({ width: 900, height: 500 })
       await page.setViewportSize({ width: 1440, height: 900 })
@@ -300,7 +301,7 @@ test.describe('student exam mode', () => {
       const responseBox = page.locator('textarea[placeholder="Write your response..."]')
       await expect(responseBox).toBeVisible()
       await responseBox.fill('Draft remains visible after a blocked route exit.')
-      await expect(page.getByText('Saved')).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved', { timeout: 20_000 })
 
       await page.getByRole('link', { name: 'Home' }).click()
 
@@ -349,8 +350,8 @@ test.describe('student exam mode', () => {
       const responseBox = page.locator('textarea[placeholder="Write your response..."]')
       await expect(responseBox).toBeVisible()
       await responseBox.fill('Draft resumes after a browser reload.')
-      await expect(page.getByText('Unsaved changes')).toBeVisible()
-      await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Unsaved changes')
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved', { timeout: 20_000 })
 
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
@@ -412,7 +413,7 @@ test.describe('student exam mode', () => {
       const responseBox = page.locator('textarea[placeholder="Write your response..."]')
       await expect(responseBox).toBeVisible()
       await responseBox.fill('Draft survives teacher-closed access.')
-      await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved', { timeout: 20_000 })
 
       await withTeacherPage(browser, async (teacherPage) => {
         await updateStudentTestAccess(teacherPage, testId!, currentStudent.user.id, 'closed')
@@ -441,7 +442,7 @@ test.describe('student exam mode', () => {
     }
   })
 
-  test('records restored away focus without hiding the open-response draft', async ({ browser, page }) => {
+  test('records a sub-two-second tab visibility transition without hiding the open-response draft', async ({ browser, page }) => {
     test.setTimeout(90_000)
     let testId: string | null = null
 
@@ -469,24 +470,34 @@ test.describe('student exam mode', () => {
       const responseBox = page.locator('textarea[placeholder="Write your response..."]')
       await expect(responseBox).toBeVisible()
       await responseBox.fill('Draft remains mounted while focus is restored.')
-      await expect(page.getByText('Saved')).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved', { timeout: 20_000 })
 
-      await page.evaluate(() => window.dispatchEvent(new Event('blur')))
-      await page.waitForTimeout(1100)
-      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await page.evaluate(async () => {
+        let visibilityState: DocumentVisibilityState = 'hidden'
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          get: () => visibilityState,
+        })
+        document.dispatchEvent(new Event('visibilitychange'))
+        await new Promise((resolve) => window.setTimeout(resolve, 150))
+        visibilityState = 'visible'
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
 
       await expect(page.locator('[data-testid="exam-content-obscurer"]')).toHaveCount(0)
       await expect(responseBox).toBeVisible()
       await expect(responseBox).toHaveValue('Draft remains mounted while focus is restored.')
 
       await expect.poll(async () => {
-        if (!testId) return { awayCount: 0, awayTotalSeconds: 0 }
+        if (!testId) return { exitCount: 0, awayCount: 0, awayTotalSeconds: 0 }
         const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
         return {
+          exitCount: detail.focus_summary?.exit_count ?? 0,
           awayCount: detail.focus_summary?.away_count ?? 0,
           awayTotalSeconds: detail.focus_summary?.away_total_seconds ?? 0,
         }
       }).toEqual(expect.objectContaining({
+        exitCount: 1,
         awayCount: 1,
         awayTotalSeconds: expect.any(Number),
       }))
@@ -494,7 +505,7 @@ test.describe('student exam mode', () => {
         if (!testId) return 0
         const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
         return detail.focus_summary?.away_total_seconds ?? 0
-      }).toBeGreaterThanOrEqual(1)
+      }).toBeGreaterThan(0)
       await expect(
         page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Away\/focus 1/)
       ).toBeVisible()
@@ -503,7 +514,7 @@ test.describe('student exam mode', () => {
     }
   })
 
-  test('keeps a transient away restoration visible and preserves the draft response', async ({ browser, page }) => {
+  test('ignores a transient focus restoration and preserves the draft response', async ({ browser, page }) => {
     test.setTimeout(90_000)
     let testId: string | null = null
 
@@ -531,7 +542,7 @@ test.describe('student exam mode', () => {
       const responseBox = page.locator('textarea[placeholder="Write your response..."]')
       await expect(responseBox).toBeVisible()
       await responseBox.fill('Draft remains visible through a transient away restoration.')
-      await expect(page.getByText('Saved')).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('student-test-autosave-status')).toHaveText('Saved', { timeout: 20_000 })
 
       await page.evaluate(() => {
         window.dispatchEvent(new Event('blur'))
@@ -551,11 +562,11 @@ test.describe('student exam mode', () => {
           awayTotalSeconds: detail.focus_summary?.away_total_seconds ?? -1,
         }
       }).toEqual({
-        awayCount: 1,
+        awayCount: 0,
         awayTotalSeconds: 0,
       })
       await expect(
-        page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Away\/focus 1/)
+        page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Away\/focus 0/)
       ).toBeVisible()
     } finally {
       await cleanupTest(browser, testId)

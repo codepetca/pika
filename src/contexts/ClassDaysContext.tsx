@@ -46,10 +46,8 @@ function ClassDaysProviderState({ classroomId, children }: ClassDaysProviderProp
   const loadClassDays = useCallback(async (options?: { force?: boolean }) => {
     const loadSequence = loadSequenceRef.current + 1
     loadSequenceRef.current = loadSequence
-    setError(null)
-    if (!hasLoadedDataRef.current) {
-      setIsLoading(true)
-    }
+    if (!hasLoadedDataRef.current) setError(null)
+    setIsLoading(true)
 
     try {
       if (options?.force) {

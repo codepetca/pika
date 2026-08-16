@@ -12,11 +12,58 @@ vi.mock('@/lib/server/classrooms', () => ({
   assertTeacherCanMutateClassroom: vi.fn(async () => ({ ok: true })),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('PUT /api/teacher/classrooms/[id]/lesson-plans/[date]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('applies versioned mutations through the atomic ordering function', async () => {
+    const mockLessonPlan = {
+      id: 'lp-ordered',
+      classroom_id: 'c-1',
+      date: '2025-01-06',
+      content: { type: 'doc', content: [] },
+      content_markdown: 'Newest',
+    }
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: { applied: true, lesson_plan: mockLessonPlan },
+      error: null,
+    })
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/2025-01-06',
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          content_markdown: 'Newest',
+          mutation: {
+            client_id: '10000000-0000-4000-8000-000000000001',
+            sequence: 2,
+          },
+        }),
+      },
+    )
+    const response = await PUT(request, {
+      params: Promise.resolve({ id: 'c-1', date: '2025-01-06' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'apply_ordered_lesson_plan_mutation',
+      expect.objectContaining({
+        p_classroom_id: 'c-1',
+        p_client_id: '10000000-0000-4000-8000-000000000001',
+        p_date: '2025-01-06',
+        p_delete: false,
+        p_sequence: 2,
+      }),
+    )
+    expect(await response.json()).toMatchObject({
+      applied: true,
+      lesson_plan: { id: 'lp-ordered', content_markdown: 'Newest' },
+    })
   })
 
   it('should return 400 for invalid date format', async () => {
@@ -33,6 +80,24 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/[date]', () => {
     expect(response.status).toBe(400)
     const data = await response.json()
     expect(data.error).toContain('Invalid date format')
+  })
+
+  it('should return 400 for an impossible calendar date', async () => {
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/2026-02-31',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content_markdown: 'Plan' }),
+      },
+    )
+    const response = await PUT(request, {
+      params: Promise.resolve({ id: 'c-1', date: '2026-02-31' }),
+    })
+
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toContain('Invalid date format')
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('should return 400 for missing content', async () => {

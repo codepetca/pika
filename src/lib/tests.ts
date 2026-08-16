@@ -12,5 +12,6 @@ export {
   ASSESSMENT_EXIT_BURST_WINDOW_MS as TEST_EXIT_BURST_WINDOW_MS,
   getAssessmentExitCount as getTestExitCount,
   emptyAssessmentFocusSummary as emptyTestFocusSummary,
+  mergeAssessmentFocusSummaries as mergeTestFocusSummaries,
   summarizeAssessmentFocusEvents as summarizeTestFocusEvents,
 } from '@/lib/assessments'

@@ -1,8 +1,17 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CalendarActionBar, CalendarDateNavigator } from '@/components/CalendarActionBar'
+import { CalendarActionBar, CalendarDateNavigator, getCalendarHeaderLabel } from '@/components/CalendarActionBar'
 
 describe('CalendarActionBar', () => {
+  it('keeps date-only term boundaries on their classroom calendar dates', () => {
+    expect(getCalendarHeaderLabel(
+      'all',
+      new Date(2025, 0, 1),
+      '2025-01-01',
+      '2025-06-30',
+    )).toBe('Jan 1, 2025 - Jun 30, 2025')
+  })
+
   it('exposes named date navigation controls', () => {
     const onPrev = vi.fn()
     const onNext = vi.fn()
