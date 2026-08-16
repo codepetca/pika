@@ -630,5 +630,43 @@ describe('assessment utilities', () => {
       expect(result.exit_count).toBe(1)
       expect(result.route_exit_attempts).toBe(1)
     })
+
+    it('aggregates route, pagehide, and unmount signals from one incident as one exit', () => {
+      const result = summarizeAssessmentFocusEvents([
+        {
+          event_type: 'route_exit_attempt',
+          occurred_at: '2026-02-01T10:00:00.000Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-route',
+            source: 'in_app_navigation',
+          },
+        },
+        {
+          event_type: 'route_exit_attempt',
+          occurred_at: '2026-02-01T10:00:00.050Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-pagehide',
+            source: 'pagehide',
+          },
+        },
+        {
+          event_type: 'route_exit_attempt',
+          occurred_at: '2026-02-01T10:00:00.060Z',
+          metadata: {
+            detector_version: 2,
+            incident_id: 'incident-1',
+            client_event_id: 'event-unmount',
+            source: 'component_unmount',
+          },
+        },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.route_exit_attempts).toBe(1)
+    })
   })
 })
