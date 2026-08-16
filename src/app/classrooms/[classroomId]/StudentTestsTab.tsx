@@ -9,6 +9,7 @@ import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import {
   getTestExitCount,
   getTestStatusBadgeClass,
+  mergeTestFocusSummaries,
   TEST_EXIT_BURST_WINDOW_MS,
 } from '@/lib/tests'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
@@ -156,6 +157,7 @@ function isMobileBrowserWithoutFullscreen(): boolean {
 }
 
 const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 750
+const EXAM_FOCUS_EVENT_QUEUE_TIMEOUT_MS = 4_000
 const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
 const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
 const EXAM_LOCK_OVERLAY_ENABLED = true
@@ -219,6 +221,24 @@ function getExamWindowComplianceSnapshot(): ExamWindowComplianceSnapshot {
     availWidth,
     availHeight,
   }
+}
+
+function settleFocusEventWithinQueueTimeout(request: Promise<void>): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    const timeoutId = window.setTimeout(() => {
+      settled = true
+      resolve()
+    }, EXAM_FOCUS_EVENT_QUEUE_TIMEOUT_MS)
+
+    const finish = () => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeoutId)
+      resolve()
+    }
+    request.then(finish, finish)
+  })
 }
 
 function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): AllowedDocItem[] {
@@ -653,7 +673,10 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         selectedTestIdRef.current === testId &&
         focusSessionIdRef.current === sessionId
       ) {
-        setFocusSummary(data.focus_summary as TestFocusSummary)
+        setFocusSummary((current) => mergeTestFocusSummaries(
+          current,
+          data.focus_summary as TestFocusSummary
+        ))
       }
     } catch (err) {
       console.error('Error posting test focus event:', err)
@@ -675,14 +698,22 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     const sessionId = options?.sessionId ?? focusSessionIdRef.current
     if (!testId || !sessionId) return
 
+    if (options?.updateSummary === false) {
+      void postFocusEvent(eventType, metadata, { ...options, testId, sessionId })
+      return
+    }
+
     if (focusEventQueueRef.current.sessionId !== sessionId) {
       focusEventQueueRef.current = { sessionId, tail: Promise.resolve() }
     }
 
     const queue = focusEventQueueRef.current
+    const send = () => settleFocusEventWithinQueueTimeout(
+      postFocusEvent(eventType, metadata, { ...options, testId, sessionId })
+    )
     queue.tail = queue.tail.then(
-      () => postFocusEvent(eventType, metadata, { ...options, testId, sessionId }),
-      () => postFocusEvent(eventType, metadata, { ...options, testId, sessionId })
+      send,
+      send
     )
   }, [postFocusEvent])
 

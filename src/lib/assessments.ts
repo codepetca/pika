@@ -246,6 +246,38 @@ export function emptyAssessmentFocusSummary(): TestFocusSummary {
   }
 }
 
+function latestFocusTimestamp(current: string | null, incoming: string | null): string | null {
+  if (!current) return incoming
+  if (!incoming) return current
+  return new Date(incoming).getTime() >= new Date(current).getTime() ? incoming : current
+}
+
+export function mergeAssessmentFocusSummaries(
+  current: TestFocusSummary | null,
+  incoming: TestFocusSummary
+): TestFocusSummary {
+  if (!current) return incoming
+
+  return {
+    exit_count: Math.max(current.exit_count, incoming.exit_count),
+    away_count: Math.max(current.away_count, incoming.away_count),
+    away_total_seconds: Math.max(current.away_total_seconds, incoming.away_total_seconds),
+    route_exit_attempts: Math.max(current.route_exit_attempts, incoming.route_exit_attempts),
+    window_unmaximize_attempts: Math.max(
+      current.window_unmaximize_attempts,
+      incoming.window_unmaximize_attempts
+    ),
+    last_away_started_at: latestFocusTimestamp(
+      current.last_away_started_at,
+      incoming.last_away_started_at
+    ),
+    last_away_ended_at: latestFocusTimestamp(
+      current.last_away_ended_at,
+      incoming.last_away_ended_at
+    ),
+  }
+}
+
 export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFocusSummary {
   if (!events.length) return emptyAssessmentFocusSummary()
 

@@ -2746,9 +2746,8 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start'])
-    firstFocusResponse.resolve(undefined)
     await act(async () => {
-      await firstFocusResponse.promise
+      vi.advanceTimersByTime(5_000)
       await Promise.resolve()
       await Promise.resolve()
       await Promise.resolve()
@@ -2758,7 +2757,13 @@ describe('StudentTestsTab exam mode', () => {
     expect(focusBodies[0].incident_id).toMatch(/^incident_/)
     expect(focusBodies[1].incident_id).toBe(focusBodies[0].incident_id)
     expect(focusBodies[1].metadata?.duration_ms).toBe(1_000)
+    expect(screen.getByLabelText(/Exits 1\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 1s.')).toBeInTheDocument()
+
+    firstFocusResponse.resolve(undefined)
     await act(async () => {
+      await firstFocusResponse.promise
+      await Promise.resolve()
       await Promise.resolve()
     })
     expect(screen.getByLabelText(/Exits 1\./)).toBeInTheDocument()
@@ -2880,8 +2885,15 @@ describe('StudentTestsTab exam mode', () => {
     expect(awayEnd.metadata?.duration_ms).toEqual(expect.any(Number))
   })
 
-  it('preserves raw route exit signals while the summary stays deduped', async () => {
+  it('dispatches teardown telemetry immediately while ordered telemetry is still pending', async () => {
     const focusBodies: Array<Record<string, any>> = []
+    const firstFocusResponse = createDeferred<void>()
+    let visibilityState: DocumentVisibilityState = 'visible'
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
 
     fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
@@ -2936,6 +2948,9 @@ describe('StudentTestsTab exam mode', () => {
       if (url.includes('/api/student/tests/test-1/focus-events')) {
         const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
         focusBodies.push(parsedBody)
+        if (parsedBody.event_type === 'away_start') {
+          await firstFocusResponse.promise
+        }
         const routeExitAttempts = focusBodies.filter(
           (body) => body.event_type === 'route_exit_attempt'
         ).length
@@ -2974,6 +2989,12 @@ describe('StudentTestsTab exam mode', () => {
       expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
     })
 
+    visibilityState = 'hidden'
+    fireEvent(document, new Event('visibilitychange'))
+    await waitFor(() => {
+      expect(focusBodies.map((body) => body.event_type)).toEqual(['away_start'])
+    })
+
     window.dispatchEvent(
       new CustomEvent(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, {
         detail: { classroomId: classroom.id, source: 'in_app_navigation' },
@@ -2984,8 +3005,24 @@ describe('StudentTestsTab exam mode', () => {
 
     await waitFor(() => {
       const routeExits = focusBodies.filter((body) => body.event_type === 'route_exit_attempt')
+      expect(routeExits).toHaveLength(2)
+      expect(routeExits.map((body) => body.metadata?.source)).toEqual([
+        'pagehide',
+        'component_unmount',
+      ])
+      expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
+    })
+
+    visibilityState = 'visible'
+    firstFocusResponse.resolve(undefined)
+    await waitFor(() => {
+      const routeExits = focusBodies.filter((body) => body.event_type === 'route_exit_attempt')
       expect(routeExits).toHaveLength(3)
-      expect(new Set(routeExits.map((body) => body.incident_id)).size).toBe(1)
+      expect(routeExits.map((body) => body.metadata?.source)).toEqual(expect.arrayContaining([
+        'in_app_navigation',
+        'pagehide',
+        'component_unmount',
+      ]))
     })
   })
 

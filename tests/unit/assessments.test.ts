@@ -21,6 +21,7 @@ import {
   validateAssessmentOptions,
   emptyAssessmentFocusSummary,
   getAssessmentExitCount,
+  mergeAssessmentFocusSummaries,
   summarizeAssessmentFocusEvents,
 } from '@/lib/assessments'
 import {
@@ -421,6 +422,31 @@ describe('assessment utilities', () => {
           window_unmaximize_attempts: 3,
         })
       ).toBe(9)
+    })
+  })
+
+  describe('mergeAssessmentFocusSummaries', () => {
+    it('keeps cumulative telemetry monotonic when an older response arrives last', () => {
+      const completed = {
+        exit_count: 2,
+        away_count: 1,
+        away_total_seconds: 4,
+        route_exit_attempts: 1,
+        window_unmaximize_attempts: 0,
+        last_away_started_at: '2026-02-24T12:00:00.000Z',
+        last_away_ended_at: '2026-02-24T12:00:04.000Z',
+      }
+      const older = {
+        exit_count: 1,
+        away_count: 1,
+        away_total_seconds: 0,
+        route_exit_attempts: 0,
+        window_unmaximize_attempts: 0,
+        last_away_started_at: '2026-02-24T12:00:00.000Z',
+        last_away_ended_at: null,
+      }
+
+      expect(mergeAssessmentFocusSummaries(completed, older)).toEqual(completed)
     })
   })
 
