@@ -35,6 +35,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
   const currentClassroomIdRef = useRef(classroom.id)
   currentClassroomIdRef.current = classroom.id
   const notifications = useStudentNotifications()
+  const markAnnouncementsRead = notifications?.markAnnouncementsRead
 
   const loadAnnouncements = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1
@@ -88,7 +89,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
 
       hasMarkedRead.current = true
       invalidateCachedJSON(`student-announcements:${classroomId}`)
-      notifications?.markAnnouncementsRead?.()
+      markAnnouncementsRead?.()
     } catch (err) {
       if (markReadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setReadError('Announcements are visible, but Pika could not mark them as read.')
@@ -99,7 +100,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
         setMarkingRead(false)
       }
     }
-  }, [classroom.id, notifications])
+  }, [classroom.id, markAnnouncementsRead])
 
   useEffect(() => {
     loadAnnouncements()

@@ -2,6 +2,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherAnnouncementsSection } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsSection'
 import { StudentAnnouncementsSection } from '@/app/classrooms/[classroomId]/StudentAnnouncementsSection'
+import {
+  StudentNotificationsProvider,
+  useStudentNotifications,
+} from '@/components/StudentNotificationsProvider'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { TooltipProvider } from '@/ui'
 import type { Announcement, Classroom } from '@/types'
@@ -79,10 +83,16 @@ function teacherAnnouncementsElement(sectionClassroom: Classroom) {
   )
 }
 
+function UnreadAnnouncementCount() {
+  const notifications = useStudentNotifications()
+  return <div>Unread announcements: {notifications?.unreadAnnouncementsCount ?? 0}</div>
+}
+
 describe('announcement markdown rendering', () => {
   beforeEach(() => {
     invalidateCachedJSONMatching('teacher-announcements:')
     invalidateCachedJSONMatching('student-announcements:')
+    invalidateCachedJSONMatching('student-notifications:')
     mockAnnouncementFetch()
   })
 
@@ -298,6 +308,74 @@ describe('announcement markdown rendering', () => {
     await waitFor(() => {
       expect(screen.queryByText('Announcements are visible, but Pika could not mark them as read.')).not.toBeInTheDocument()
     })
+    consoleError.mockRestore()
+  })
+
+  it('does not retry a failed read acknowledgement when notification state settles', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let resolveNotifications!: (response: Response) => void
+    const notificationsResponse = new Promise<Response>((resolve) => {
+      resolveNotifications = resolve
+    })
+    let postCount = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('/api/student/notifications')) {
+          return notificationsResponse
+        }
+        if (init?.method === 'POST') {
+          postCount += 1
+          return postCount === 1
+            ? new Response(JSON.stringify({ error: 'Unavailable' }), { status: 500 })
+            : new Response(JSON.stringify({ success: true, marked: 1 }), { status: 200 })
+        }
+
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    render(
+      <StudentNotificationsProvider classroomId={classroom.id}>
+        <UnreadAnnouncementCount />
+        <StudentAnnouncementsSection classroom={classroom} />
+      </StudentNotificationsProvider>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Announcements are visible, but Pika could not mark them as read.',
+    )
+    expect(postCount).toBe(1)
+
+    await act(async () => {
+      resolveNotifications(
+        new Response(JSON.stringify({
+          hasTodayEntry: true,
+          unviewedAssignmentsCount: 0,
+          activeTestsCount: 0,
+          unreadAnnouncementsCount: 1,
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(await screen.findByText('Unread announcements: 1')).toBeInTheDocument()
+    expect(postCount).toBe(1)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Announcements are visible, but Pika could not mark them as read.',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(postCount).toBe(2))
+    expect(await screen.findByText('Unread announcements: 0')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     consoleError.mockRestore()
   })
 
