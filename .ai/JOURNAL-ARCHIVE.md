@@ -18152,3 +18152,37 @@ hot-archived Classroom.
   enables no remaining Classroom. Disabling that stale row or selecting a new
   canary/broader rollout requires fresh authorization. Generic cleanup remains
   disabled.
+
+<!-- pika-session-log-archive-batch:76393174b1d53f39e7eff91965f58f04a00ce9c713265dd672f04b0855d0d511 -->
+## 2026-08-05 — Complete student/artifact production purge canary
+
+**Risk profile:** irreversible production deletion of one exact synthetic
+hot-archived Classroom with a student, assignment artifact, and test material.
+
+**Completed:**
+- Archived synthetic Classroom `1da6bdef-d231-47d2-90ce-c3675c3afcff` through
+  the teacher UI and atomically retargeted the existing exact canary gate.
+- Revalidated no conflict or prior purge and an impact of one student, 106
+  relational records, and two ready managed files / 114,179 bytes.
+- Used the production teacher UI, typed `DELETE`, and completed durable purge
+  operation `afb8e6aa-e36a-4196-9e7e-49d5ab57da99` on its first attempt.
+
+**Validation:**
+- The audit records 106 relational rows and two files deleted: one
+  `assignment-artifacts` object and one `test-documents` object. Both paths are
+  redacted, both hashed identities are absent from Storage, and neither object
+  reappeared.
+- The Classroom, enrollment, roster, assignment/document/artifact, test, 96
+  class days, archive state, managed ownership, purge resources, and purge fence
+  are absent.
+- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed file,
+  and both synthetic user accounts remain intact.
+- Global inventory is 140 ready registry objects and 140 Storage objects, with
+  zero ownerless, missing, unregistered, or generic-cleanup objects. The 20
+  historical archive-source cleanup ledgers remain terminal `deleted`.
+- Teacher and student desktop/mobile light/dark boundaries passed before and
+  after deletion. Teacher GET is 404 after deletion; student access remains 403.
+
+**Remaining:**
+- The exact canary row points to the now-deleted Classroom and therefore enables
+  no remaining Classroom. Broader rollout and generic cleanup remain disabled.

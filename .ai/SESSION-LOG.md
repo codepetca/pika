@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Complete student/artifact production purge canary
-
-**Risk profile:** irreversible production deletion of one exact synthetic
-hot-archived Classroom with a student, assignment artifact, and test material.
-
-**Completed:**
-- Archived synthetic Classroom `1da6bdef-d231-47d2-90ce-c3675c3afcff` through
-  the teacher UI and atomically retargeted the existing exact canary gate.
-- Revalidated no conflict or prior purge and an impact of one student, 106
-  relational records, and two ready managed files / 114,179 bytes.
-- Used the production teacher UI, typed `DELETE`, and completed durable purge
-  operation `afb8e6aa-e36a-4196-9e7e-49d5ab57da99` on its first attempt.
-
-**Validation:**
-- The audit records 106 relational rows and two files deleted: one
-  `assignment-artifacts` object and one `test-documents` object. Both paths are
-  redacted, both hashed identities are absent from Storage, and neither object
-  reappeared.
-- The Classroom, enrollment, roster, assignment/document/artifact, test, 96
-  class days, archive state, managed ownership, purge resources, and purge fence
-  are absent.
-- Course Blueprint `c318ef23-5039-4b64-9977-66bceee54ba0`, its managed file,
-  and both synthetic user accounts remain intact.
-- Global inventory is 140 ready registry objects and 140 Storage objects, with
-  zero ownerless, missing, unregistered, or generic-cleanup objects. The 20
-  historical archive-source cleanup ledgers remain terminal `deleted`.
-- Teacher and student desktop/mobile light/dark boundaries passed before and
-  after deletion. Teacher GET is 404 after deletion; student access remains 403.
-
-**Remaining:**
-- The exact canary row points to the now-deleted Classroom and therefore enables
-  no remaining Classroom. Broader rollout and generic cleanup remain disabled.
-
 ## 2026-08-05 — Record managed Blueprint lifecycle follow-up
 
 - Added a separate failing feature for durable Blueprint deletion with managed
@@ -1043,3 +1010,27 @@ Gradex change.
   mobile layout. Retry controls retain valid lesson data with no overflow.
 - No composite control behavior changed; existing Calendar navigation semantics
   remain covered, and new alert/Retry behavior has focused role tests.
+
+## 2026-08-16 — Serialize Calendar writes and retained retries
+
+**Risk profile:** workspace-state — teacher lesson-plan mutation ordering and
+teacher/student Calendar retry state; no API, schema, migration, production,
+mobile redesign, or Gradex change.
+
+**Completed:**
+- Serialized inline, bulk, and unload lesson-plan writes per classroom across
+  component remounts so older requests cannot commit after newer edits.
+- Retained failed inline saves with bounded automatic retries, scoped pending
+  edits by classroom, and blocked bulk markdown saves until inline drains
+  succeed.
+- Replaced unload beacons with explicit keepalive `PUT` requests and exposed
+  retained class-day refreshes as pending without clearing their prior error.
+
+**Validation:**
+- Full suite passes: 4,295 tests across 495 files. Production build, lint,
+  TypeScript, architecture, Pika audit, and diff checks pass.
+- Focused regressions cover server commit order, inline-before-bulk order,
+  failed-write retry, unload method/payload, and teacher/student class-day
+  retry focus through failure and recovery.
+- Playwright verification passes for teacher/student desktop/mobile and
+  light/dark Calendar views plus the retained `Retrying class days` state.

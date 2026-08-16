@@ -253,6 +253,45 @@ describe('StudentLessonCalendarTab', () => {
     expect(assignmentReads).toBe(2)
   })
 
+  it('keeps a retained class-day retry focused until failure or recovery settles', async () => {
+    classDaysState.error = 'The class schedule could not be loaded.'
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }] }
+        if (url.includes('assignments')) return { assignments: [] }
+        if (url.includes('announcements')) return { announcements: [] }
+        return {}
+      },
+    }))
+
+    const view = render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const retryButton = await screen.findByRole('button', { name: 'Retry class days' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+
+    classDaysState.isLoading = true
+    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    expect(screen.getByRole('button', { name: 'Retrying class days' })).toBeDisabled()
+    expect(document.activeElement).toBe(retryButton)
+
+    classDaysState.isLoading = false
+    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    expect(screen.getByRole('button', { name: 'Retry class days' })).toBeInTheDocument()
+    expect(document.activeElement).toBe(retryButton)
+
+    fireEvent.click(retryButton)
+    classDaysState.isLoading = true
+    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+    classDaysState.isLoading = false
+    classDaysState.error = null
+    view.rerender(<StudentLessonCalendarTab classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
+    })
+  })
+
   it('shows a retryable cold error when no calendar source loads', async () => {
     classDaysState.error = 'The class schedule could not be loaded.'
     classDaysState.hasLoadedSnapshot = false

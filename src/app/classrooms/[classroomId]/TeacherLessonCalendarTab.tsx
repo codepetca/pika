@@ -21,6 +21,7 @@ import {
   fetchTeacherLessonPlansForRange,
   invalidateTeacherLessonPlansForClassroom,
 } from '@/lib/teacher-lesson-plans-client'
+import { enqueueTeacherLessonPlanMutation } from '@/lib/teacher-lesson-plan-mutation-queue'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 /**
@@ -41,7 +42,32 @@ export function isNormalizationNoise(
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+const AUTOSAVE_MAX_RETRIES = 3
 const MARKDOWN_SYNC_DEBOUNCE_MS = 300
+
+type PendingLessonSave = {
+  classroomId: string
+  content: string
+  date: string
+  editGeneration?: number
+  retries: number
+  saveEpoch: number
+}
+
+function pendingLessonSaveKey(classroomId: string, date: string): string {
+  return `${classroomId}:${date}`
+}
+
+function pendingLessonChangesForClassroom(
+  pendingSaves: Map<string, PendingLessonSave>,
+  classroomId: string,
+): Map<string, string> {
+  return new Map(
+    Array.from(pendingSaves.values())
+      .filter((save) => save.classroomId === classroomId)
+      .map((save) => [save.date, save.content]),
+  )
+}
 
 type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements'
 type CalendarRetrySource = CalendarSource | 'classDays'
@@ -63,7 +89,7 @@ export interface CalendarSidebarState {
   markdownError: string | null
   bulkSaving: boolean
   onMarkdownChange: (content: string) => void
-  onSave: () => void
+  onSave: () => Promise<void>
 }
 
 interface Props {
@@ -150,9 +176,9 @@ export function TeacherLessonCalendarTab({
   }, [classroom.id])
 
   // Auto-save tracking
-  const pendingChangesRef = useRef<Map<string, string>>(new Map())
-  const pendingChangeEpochsRef = useRef<Map<string, number>>(new Map())
+  const pendingSavesRef = useRef<Map<string, PendingLessonSave>>(new Map())
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const flushInFlightRef = useRef<Promise<void> | null>(null)
   const lastSaveAtRef = useRef<number>(0)
   const prevSidebarOpenRef = useRef(false)
   const needsRefreshRef = useRef(true) // Force refresh on first open or after save
@@ -235,7 +261,11 @@ export function TeacherLessonCalendarTab({
       try {
         const plans = await fetchTeacherLessonPlansForRange(requestedClassroomId, fetchRange.start, fetchRange.end)
         if (!isCurrentLoad()) return
-        const plansWithPending = applyPendingLessonPlanChanges(plans, pendingChangesRef.current, requestedClassroomId)
+        const plansWithPending = applyPendingLessonPlanChanges(
+          plans,
+          pendingLessonChangesForClassroom(pendingSavesRef.current, requestedClassroomId),
+          requestedClassroomId,
+        )
         const editsToPreserve = new Map<string, string>()
         for (const [date, edit] of lessonEditsRef.current) {
           if (acknowledgedEditsAtRequestStart.get(date) !== edit.generation) {
@@ -395,66 +425,92 @@ export function TeacherLessonCalendarTab({
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
-    async (date: string, contentMarkdown: string, saveEpoch: number, editGeneration?: number) => {
-      const requestedClassroomId = classroom.id
-      try {
+    async (
+      requestedClassroomId: string,
+      date: string,
+      contentMarkdown: string,
+      saveEpoch: number,
+      editGeneration?: number,
+      options?: { keepalive?: boolean; updateView?: boolean },
+    ) => {
+      return enqueueTeacherLessonPlanMutation(requestedClassroomId, async () => {
         const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/lesson-plans/${date}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content_markdown: contentMarkdown }),
+          keepalive: options?.keepalive,
         })
-        if (res.ok) {
-          const data = await res.json()
-          invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
-          if (classroomEpochRef.current !== saveEpoch) return
-          needsRefreshRef.current = true
-          if (currentClassroomIdRef.current !== requestedClassroomId) return
-          const currentEdit = lessonEditsRef.current.get(date)
-          if (editGeneration !== undefined) {
-            if (currentEdit?.generation !== editGeneration || currentEdit.content !== contentMarkdown) return
-            currentEdit.acknowledged = true
-          }
-          setLessonPlansClassroomId(requestedClassroomId)
-          setLessonPlans((prev) => {
-            if (!data.lesson_plan) {
-              return prev.filter((plan) => plan.date !== date)
-            }
-
-            const existing = prev.findIndex((p) => p.date === date)
-            if (existing >= 0) {
-              const updated = [...prev]
-              updated[existing] = data.lesson_plan
-              return updated
-            }
-            return [...prev, data.lesson_plan]
-          })
+        if (!res.ok) {
+          throw new Error(`Failed to save lesson plan (${res.status})`)
         }
-      } catch (err) {
-        console.error('Error saving lesson plan:', err)
-      }
+
+        const data = await res.json()
+        invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+        if (options?.updateView === false || classroomEpochRef.current !== saveEpoch) return
+        needsRefreshRef.current = true
+        if (currentClassroomIdRef.current !== requestedClassroomId) return
+        const currentEdit = lessonEditsRef.current.get(date)
+        if (editGeneration !== undefined) {
+          if (currentEdit?.generation !== editGeneration || currentEdit.content !== contentMarkdown) return
+          currentEdit.acknowledged = true
+        }
+        setLessonPlansClassroomId(requestedClassroomId)
+        setLessonPlans((prev) => {
+          if (!data.lesson_plan) {
+            return prev.filter((plan) => plan.date !== date)
+          }
+
+          const existing = prev.findIndex((p) => p.date === date)
+          if (existing >= 0) {
+            const updated = [...prev]
+            updated[existing] = data.lesson_plan
+            return updated
+          }
+          return [...prev, data.lesson_plan]
+        })
+      })
     },
-    [classroom.id]
+    []
   )
 
   // Flush pending saves
   const flushPendingSaves = useCallback(async () => {
-    if (pendingChangesRef.current.size === 0) return
+    if (flushInFlightRef.current) return flushInFlightRef.current
+    if (pendingSavesRef.current.size === 0) return
 
-    setSaving(true)
-    const entries = Array.from(pendingChangesRef.current.entries()).map(([date, content]) => ({
-      content,
-      date,
-      editGeneration: lessonEditsRef.current.get(date)?.generation,
-      saveEpoch: pendingChangeEpochsRef.current.get(date) ?? -1,
-    }))
-    pendingChangesRef.current.clear()
-    pendingChangeEpochsRef.current.clear()
+    const flush = async () => {
+      setSaving(true)
+      const entries = Array.from(pendingSavesRef.current.entries())
+      for (const [key] of entries) pendingSavesRef.current.delete(key)
 
-    await Promise.all(entries.map(({ content, date, editGeneration, saveEpoch }) => (
-      saveLessonPlan(date, content, saveEpoch, editGeneration)
-    )))
-    lastSaveAtRef.current = Date.now()
-    setSaving(false)
+      await Promise.all(entries.map(async ([key, entry]) => {
+        const { classroomId, content, date, editGeneration, retries, saveEpoch } = entry
+        try {
+          await saveLessonPlan(classroomId, date, content, saveEpoch, editGeneration)
+        } catch (err) {
+          console.error('Error saving lesson plan:', err)
+          if (!pendingSavesRef.current.has(key)) {
+            pendingSavesRef.current.set(key, { ...entry, retries: retries + 1 })
+          }
+        }
+      }))
+      lastSaveAtRef.current = Date.now()
+      setSaving(false)
+    }
+
+    const flushPromise = flush().finally(() => {
+      flushInFlightRef.current = null
+      const hasRetryableSave = Array.from(pendingSavesRef.current.values())
+        .some((save) => save.retries <= AUTOSAVE_MAX_RETRIES)
+      if (hasRetryableSave) {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = setTimeout(() => {
+          void flushPendingSaves()
+        }, AUTOSAVE_MIN_INTERVAL_MS)
+      }
+    })
+    flushInFlightRef.current = flushPromise
+    return flushPromise
   }, [saveLessonPlan])
 
   // Schedule save with debounce and throttle
@@ -467,7 +523,7 @@ export function TeacherLessonCalendarTab({
     const delay = Math.max(AUTOSAVE_DEBOUNCE_MS, AUTOSAVE_MIN_INTERVAL_MS - timeSinceLastSave)
 
     saveTimeoutRef.current = setTimeout(() => {
-      flushPendingSaves()
+      void flushPendingSaves()
     }, delay)
   }, [flushPendingSaves])
 
@@ -488,35 +544,40 @@ export function TeacherLessonCalendarTab({
         generation: lessonEditGenerationRef.current,
       })
       applyLocalLessonPlanChange(date, contentMarkdown)
-      pendingChangesRef.current.set(date, contentMarkdown)
-      pendingChangeEpochsRef.current.set(date, classroomEpochRef.current)
+      pendingSavesRef.current.set(pendingLessonSaveKey(classroom.id, date), {
+        classroomId: classroom.id,
+        content: contentMarkdown,
+        date,
+        editGeneration: lessonEditGenerationRef.current,
+        retries: 0,
+        saveEpoch: classroomEpochRef.current,
+      })
       scheduleSave()
     },
-    [applyLocalLessonPlanChange, lessonPlansStatus.hasLoadedSnapshot, scheduleSave]
+    [applyLocalLessonPlanChange, classroom.id, lessonPlansStatus.hasLoadedSnapshot, scheduleSave]
   )
 
   // Flush on unmount and handle page close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Synchronously save any pending changes before page unload
-      if (pendingChangesRef.current.size > 0) {
-        const entries = Array.from(pendingChangesRef.current.entries())
-        for (const [date, contentMarkdown] of entries) {
-          // Use sendBeacon for reliable delivery during page unload
-          navigator.sendBeacon(
-            `/api/teacher/classrooms/${classroom.id}/lesson-plans/${date}`,
-            new Blob([JSON.stringify({ content_markdown: contentMarkdown })], { type: 'application/json' })
-          )
+      if (pendingSavesRef.current.size > 0) {
+        const entries = Array.from(pendingSavesRef.current.entries())
+        for (const [key, { classroomId, content, date, editGeneration, saveEpoch }] of entries) {
+          void saveLessonPlan(classroomId, date, content, saveEpoch, editGeneration, {
+            keepalive: true,
+            updateView: false,
+          }).catch((err) => {
+            console.error('Error saving lesson plan during page unload:', err)
+          })
+          pendingSavesRef.current.delete(key)
         }
-        pendingChangesRef.current.clear()
-        pendingChangeEpochsRef.current.clear()
       }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
 
     // Capture ref value for cleanup
-    const pendingChanges = pendingChangesRef.current
+    const pendingSaves = pendingSavesRef.current
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
@@ -528,11 +589,11 @@ export function TeacherLessonCalendarTab({
       }
       // Flush any pending changes on component unmount (e.g., navigation)
       // The fetch will complete even after unmount
-      if (pendingChanges.size > 0) {
-        flushPendingSaves()
+      if (pendingSaves.size > 0) {
+        void flushPendingSaves()
       }
     }
-  }, [classroom.id, flushPendingSaves])
+  }, [classroom.id, flushPendingSaves, saveLessonPlan])
 
   // Fetch and generate markdown content
   const loadMarkdownContent = useCallback(async () => {
@@ -546,7 +607,11 @@ export function TeacherLessonCalendarTab({
       const end = classroom.end_date || fetchRange.end
       const cachedPlans = await fetchTeacherLessonPlansForRange(requestedClassroomId, start, end)
       if (!isCurrentLoad()) return
-      const plans = applyPendingLessonPlanChanges(cachedPlans, pendingChangesRef.current, requestedClassroomId)
+      const plans = applyPendingLessonPlanChanges(
+        cachedPlans,
+        pendingLessonChangesForClassroom(pendingSavesRef.current, requestedClassroomId),
+        requestedClassroomId,
+      )
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
       setMarkdownContentClassroomId(requestedClassroomId)
       setMarkdownContent(markdown)
@@ -640,12 +705,20 @@ export function TeacherLessonCalendarTab({
         return
       }
 
-      // Bulk save
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plans: result.plans, cleared_dates: result.clearedDates }),
-      })
+      await flushPendingSaves()
+      const hasPendingInlineSave = Array.from(pendingSavesRef.current.values())
+        .some((save) => save.classroomId === classroom.id)
+      if (hasPendingInlineSave) {
+        setMarkdownError('Pending calendar edits could not be saved. Try again.')
+        return
+      }
+      const res = await enqueueTeacherLessonPlanMutation(classroom.id, () => (
+        fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plans: result.plans, cleared_dates: result.clearedDates }),
+        })
+      ))
 
       if (!res.ok) {
         const data = await res.json()
@@ -665,7 +738,7 @@ export function TeacherLessonCalendarTab({
     } finally {
       setBulkSaving(false)
     }
-  }, [classroom, markdownContentClassroomId, setSidebarOpen])
+  }, [classroom, flushPendingSaves, markdownContentClassroomId, setSidebarOpen])
 
   // Handle assignment click - navigate to assignments tab with assignment selected
   const handleAssignmentClick = useCallback(
