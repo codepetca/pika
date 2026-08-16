@@ -289,6 +289,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const focusEnabledRef = useRef(false)
   const fullscreenActiveRef = useRef(false)
   const isWindowCompliantStableRef = useRef(true)
+  const nonCompliantWindowTelemetryLoggedRef = useRef(false)
   const pendingNonCompliantTimeoutRef = useRef<number | null>(null)
   const pendingNonCompliantSourceRef = useRef<'fullscreen_exit' | 'window_resize' | null>(null)
   const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
@@ -370,6 +371,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       clearPendingBlurTimeout()
       lastRouteExitRef.current = null
       lastWindowSignalRef.current = null
+      nonCompliantWindowTelemetryLoggedRef.current = false
       lastExamFormInteractionAtRef.current = 0
       findIntentUntilRef.current = 0
       findSuppressionUntilRef.current = 0
@@ -778,11 +780,11 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
   ) => {
     if (shouldSuppressForDocInteraction()) {
-      return
+      return false
     }
     const now = Date.now()
     if (options?.suppressDuringFind && shouldSuppressForBrowserFind()) {
-      return
+      return false
     }
     const dedupeWindowMs = options?.dedupeWindowMs ?? 1200
     if (
@@ -791,7 +793,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       lastWindowSignalRef.current.source === source &&
       now - lastWindowSignalRef.current.loggedAtMs < dedupeWindowMs
     ) {
-      return
+      return false
     }
     lastWindowSignalRef.current = { source, loggedAtMs: now }
     applyExamIncidentEvent(
@@ -803,12 +805,16 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       },
       { metadata, updateSummary: options?.updateSummary }
     )
+    return true
   }, [applyExamIncidentEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
 
   const applyWindowComplianceSnapshot = useCallback((snapshot: ExamWindowComplianceSnapshot) => {
     fullscreenActiveRef.current = snapshot.isFullscreen
     setIsFullscreen(snapshot.isFullscreen)
     setIsWindowCompliantNow(snapshot.isCompliant)
+    if (snapshot.isCompliant) {
+      nonCompliantWindowTelemetryLoggedRef.current = false
+    }
   }, [])
 
   const confirmNonCompliantWindow = useCallback((
@@ -816,7 +822,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     snapshot: ExamWindowComplianceSnapshot
   ) => {
     setIsWindowCompliantStable(false)
-    if (!isWindowCompliantStableRef.current) return
+    if (nonCompliantWindowTelemetryLoggedRef.current) return
 
     const baseMetadata = {
       width_ratio: Number(snapshot.widthRatio.toFixed(3)),
@@ -828,15 +834,16 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     }
 
     if (source === 'window_resize') {
-      logWindowUnmaximizeAttempt(
+      const logged = logWindowUnmaximizeAttempt(
         'window_resize',
         baseMetadata,
         { dedupe: true, dedupeWindowMs: 3000, suppressDuringFind: true, updateSummary: true }
       )
+      if (logged) nonCompliantWindowTelemetryLoggedRef.current = true
       return
     }
 
-    logWindowUnmaximizeAttempt(
+    const logged = logWindowUnmaximizeAttempt(
       'fullscreen_exit',
       {
         trigger: 'fullscreenchange',
@@ -844,6 +851,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       },
       { dedupe: true, suppressDuringFind: true, updateSummary: true }
     )
+    if (logged) nonCompliantWindowTelemetryLoggedRef.current = true
   }, [logWindowUnmaximizeAttempt])
 
   const updateWindowCompliance = useCallback((

@@ -586,7 +586,7 @@ describe('StudentTestsTab exam mode', () => {
     )).toBe(false)
   })
 
-  it('locks an initially undersized window without counting a rejected fullscreen request', async () => {
+  it('locks after fullscreen rejection, then records a later real resize exactly once', async () => {
     queueTestList()
     queueTestDetail()
     fetchMock.mockResolvedValue({
@@ -642,6 +642,20 @@ describe('StudentTestsTab exam mode', () => {
     expect(fetchMock.mock.calls.some(
       ([url]: [string]) => url.includes('/focus-events')
     )).toBe(false)
+
+    fireEvent(window, new Event('resize'))
+    await act(async () => {
+      vi.advanceTimersByTime(1600)
+    })
+
+    const focusCalls = fetchMock.mock.calls.filter(
+      ([url]: [string]) => url.includes('/focus-events')
+    )
+    expect(focusCalls).toHaveLength(1)
+    expect(JSON.parse(String(focusCalls[0][1]?.body || '{}'))).toMatchObject({
+      event_type: 'window_unmaximize_attempt',
+      metadata: { source: 'window_resize' },
+    })
   })
 
   it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {

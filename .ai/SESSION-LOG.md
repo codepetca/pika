@@ -1072,4 +1072,6 @@ state; no API, schema, migration, production, or Gradex change.
   a resize infraction when fullscreen permission was rejected. Initial
   compliance enforcement is now non-punitive unless a real resize or
   fullscreen-change signal occurs; rejected requests still lock an undersized
-  exam window after the grace period without posting telemetry.
+  exam window after the grace period without posting telemetry. Enforcement
+  state and telemetry deduplication are tracked separately so a later real
+  resize is still recorded exactly once.
