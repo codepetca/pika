@@ -136,6 +136,7 @@ export interface ConfirmDialogProps {
   confirmLabel?: string
   cancelLabel?: string
   confirmVariant?: ConfirmDialogVariant
+  errorMessage?: string
   isCancelDisabled?: boolean
   isConfirmDisabled?: boolean
   onConfirm: () => void | Promise<void>
@@ -163,6 +164,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   confirmVariant = 'default',
+  errorMessage,
   isCancelDisabled = false,
   isConfirmDisabled = false,
   onConfirm,
@@ -171,6 +173,12 @@ export function ConfirmDialog({
   const titleId = useId()
   const descriptionId = useId()
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
+  const confirmButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!isOpen || !errorMessage || isConfirmDisabled) return
+    confirmButtonRef.current?.focus()
+  }, [errorMessage, isConfirmDisabled, isOpen])
 
   const confirmButtonVariant = confirmVariant === 'danger' ? 'danger' : 'primary'
 
@@ -192,6 +200,14 @@ export function ConfirmDialog({
             {description}
           </div>
         )}
+        {errorMessage ? (
+          <div
+            role="alert"
+            className="mt-3 rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+          >
+            {errorMessage}
+          </div>
+        ) : null}
         <div className="mt-4 flex gap-control">
           <Button
             ref={cancelButtonRef}
@@ -204,6 +220,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button
+            ref={confirmButtonRef}
             type="button"
             variant={confirmButtonVariant}
             className="flex-1"

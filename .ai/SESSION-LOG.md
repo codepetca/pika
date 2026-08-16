@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Prove post-purge Blueprint reuse in production
-
-**Risk profile:** exact synthetic production create/archive/purge canary; no
-broader rollout, generic cleanup, migration, or Blueprint deletion.
-
-**Completed:**
-- Created Classroom `362b444c-ec43-4f33-bdc5-47d957c4bcc0` named
-  `Post-Purge Blueprint Reuse Canary` from preserved Blueprint
-  `c318ef23-5039-4b64-9977-66bceee54ba0` through the teacher UI.
-- Verified 96 class days, one assignment, one test and document, and distinct
-  ready Classroom-owned managed object
-  `dfffde84-1b21-502e-8b30-167d4fe4de79` (14,760 bytes).
-- Hot archived the Classroom, conditionally retargeted only the existing
-  synthetic canary binding, typed `DELETE`, and completed durable purge
-  operation `c40b3f5d-865f-4997-8046-c780eb77b401` in one tick.
-
-**Validation:**
-- The impact summary reported 0 students, 102 relational rows, and one 15 KB
-  managed file, with no missing file or conflicting operation.
-- The Classroom and its managed object are absent; the audit object is terminal
-  `deleted`, its path is redacted, and the purge resource snapshot is empty.
-- The instantiate operation remains completed with Blueprint lineage preserved
-  and deleted Classroom references reconciled to null.
-- The Blueprint still has one assignment, one assessment, one Version, and its
-  original ready 14,760-byte managed PDF in Storage. Teacher and student
-  accounts remain.
-- Global managed state returned from 141/141 to 140/140, with zero non-ready,
-  missing, or unregistered objects.
-- Teacher/student desktop/mobile light/dark verification passed before and
-  after deletion. The teacher sees the preserved Blueprint test/PDF; the
-  student sees `Classroom unavailable` for the purged Classroom.
-
-**Remaining:**
-- The exact canary row points to the deleted Classroom and enables no remaining
-  Classroom. Global rollout and generic cleanup are still disabled.
-- Durable teacher-owned Blueprint/managed-file deletion remains the next local
-  implementation scope. Production migration or Blueprint deletion needs fresh
-  exact authorization.
-
 ## 2026-08-05 — Implement durable Course Blueprint deletion locally
 
 **Contract:**
@@ -1109,3 +1070,33 @@ redesign change.
   request settles; a deterministic regression covers the transition.
 - The exact design-value inventory now removes the retired raw scrim color and
   reduces the Dashboard raw z-index count from three to two.
+
+## 2026-08-16 — Complete Roster recovery and accessibility
+
+**Risk profile:** workspace-state and accessibility — teacher Roster loading,
+removal, counselor editing, and keyboard behavior only; no API, schema,
+migration, production, Gradex, or mobile redesign change.
+
+**Completed:**
+- Separated cold roster failures from successful empty classrooms, added
+  focus-preserving Retry, and retained valid roster data during refresh errors.
+- Kept committed removals visible when their follow-up refresh fails and moved
+  removal errors into the confirmation dialog with deterministic retry focus.
+- Replaced counselor-edit native controls with governed primitives, added
+  descriptive field/action semantics and operation-scoped recovery, and fenced
+  stale saves across students and classroom changes.
+- Added direct keyboard coverage for table selection and Escape focus return,
+  plus regressions for overlapping loads, counselor saves, removal recovery,
+  modal error semantics, and focus behavior.
+
+**Validation:**
+- Focused roster, table, and dialog suites pass: 63 tests. The full suite
+  passes: 4,331 tests across 498 files. TypeScript, lint, production build, UI
+  policy, design policy, architecture checks, Pika audit, and diff checks pass.
+- Composite-widget checklist reviewed: direct keyboard behavior and semantic
+  state are covered by tests, with no manual accessibility follow-up remaining.
+- Playwright verification passes for teacher desktop/mobile ready and error
+  states, selected and editing states, light/dark themes, and the student-role
+  redirect. Captures have no horizontal viewport overflow.
+- Mobile row detail for hidden email and counselor fields remains deliberately
+  deferred with the broader mobile UI/UX work.
