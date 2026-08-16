@@ -109,6 +109,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const editDropdownRef = useRef<HTMLDivElement>(null)
   const loadRequestIdRef = useRef(0)
+  const saveRequestIdRef = useRef(0)
+  const deleteRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
   currentClassroomIdRef.current = classroom.id
 
@@ -144,7 +146,25 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   }, [loadAnnouncements])
 
   useEffect(() => {
+    saveRequestIdRef.current += 1
+    deleteRequestIdRef.current += 1
     setShowAll(false)
+    setEditingId(null)
+    setEditTitle('')
+    setOriginalTitle(null)
+    setEditContent('')
+    setOriginalContent('')
+    setEditScheduleDateTime('')
+    setOriginalScheduledFor(null)
+    setIsCreating(false)
+    setNewTitle('')
+    setNewContent('')
+    setSaving(false)
+    setDeleteTarget(null)
+    setDeleting(false)
+    setScheduleDateTime('')
+    setShowScheduleDropdown(false)
+    setShowEditScheduleDropdown(false)
   }, [classroom.id])
 
   // Focus textarea when editing starts
@@ -231,6 +251,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
   async function saveEdit() {
     if (!editingId || !editContent.trim() || saving) return
+    const classroomId = classroom.id
+    const announcementId = editingId
+    const requestId = saveRequestIdRef.current + 1
+    saveRequestIdRef.current = requestId
 
     // Check if anything changed
     const normalizedEditTitle = normalizeAnnouncementTitle(editTitle)
@@ -250,7 +274,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     const optimisticScheduledFor = editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null
     setAnnouncements((prev) =>
       prev.map((a) =>
-        a.id === editingId
+        a.id === announcementId
           ? {
               ...a,
               title: normalizedEditTitle,
@@ -274,7 +298,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       }
 
       const res = await fetch(
-        `/api/teacher/classrooms/${classroom.id}/announcements/${editingId}`,
+        `/api/teacher/classrooms/${classroomId}/announcements/${announcementId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -283,22 +307,29 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       )
       if (!res.ok) throw new Error('Failed to update')
       const data = await res.json()
+      invalidateCachedJSON(`teacher-announcements:${classroomId}`)
+      invalidateCachedJSON(`student-announcements:${classroomId}`)
+      if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === data.announcement.id ? data.announcement : a))
       )
-      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
-      invalidateCachedJSON(`student-announcements:${classroom.id}`)
       cancelEditing()
     } catch (err) {
+      if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements(prevAnnouncements)
       console.error('Error updating announcement:', err)
     } finally {
-      setSaving(false)
+      if (saveRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
+        setSaving(false)
+      }
     }
   }
 
   async function createAnnouncement(scheduledFor?: string) {
     if (!newContent.trim() || saving) return
+    const classroomId = classroom.id
+    const requestId = saveRequestIdRef.current + 1
+    saveRequestIdRef.current = requestId
 
     setSaving(true)
     const normalizedNewTitle = normalizeAnnouncementTitle(newTitle)
@@ -306,7 +337,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     const now = new Date().toISOString()
     const optimisticAnnouncement: Announcement = {
       id: tempId,
-      classroom_id: classroom.id,
+      classroom_id: classroomId,
       title: normalizedNewTitle,
       content: newContent.trim(),
       created_by: classroom.teacher_id,
@@ -324,33 +355,40 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         body.scheduled_for = new Date(scheduledFor).toISOString()
       }
 
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}/announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Failed to create')
       const data = await res.json()
+      invalidateCachedJSON(`teacher-announcements:${classroomId}`)
+      invalidateCachedJSON(`student-announcements:${classroomId}`)
+      if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === tempId ? data.announcement : a))
       )
-      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
-      invalidateCachedJSON(`student-announcements:${classroom.id}`)
       setIsCreating(false)
       setNewTitle('')
       setNewContent('')
       setScheduleDateTime('')
       setShowScheduleDropdown(false)
     } catch (err) {
+      if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements((prev) => prev.filter((a) => a.id !== tempId))
       console.error('Error creating announcement:', err)
     } finally {
-      setSaving(false)
+      if (saveRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
+        setSaving(false)
+      }
     }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
+    const classroomId = classroom.id
+    const requestId = deleteRequestIdRef.current + 1
+    deleteRequestIdRef.current = requestId
 
     setDeleting(true)
     const target = deleteTarget
@@ -358,19 +396,23 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     setAnnouncements((prev) => prev.filter((a) => a.id !== target.id))
     try {
       const res = await fetch(
-        `/api/teacher/classrooms/${classroom.id}/announcements/${target.id}`,
+        `/api/teacher/classrooms/${classroomId}/announcements/${target.id}`,
         { method: 'DELETE' }
       )
       if (!res.ok) throw new Error('Failed to delete')
-      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
-      invalidateCachedJSON(`student-announcements:${classroom.id}`)
+      invalidateCachedJSON(`teacher-announcements:${classroomId}`)
+      invalidateCachedJSON(`student-announcements:${classroomId}`)
+      if (deleteRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setDeleteTarget(null)
     } catch (err) {
+      if (deleteRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements(prevAnnouncements)
       console.error('Delete error:', err)
       setDeleteTarget(null)
     } finally {
-      setDeleting(false)
+      if (deleteRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
+        setDeleting(false)
+      }
     }
   }
 

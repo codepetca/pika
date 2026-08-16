@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherAnnouncementsSection } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsSection'
 import { StudentAnnouncementsSection } from '@/app/classrooms/[classroomId]/StudentAnnouncementsSection'
@@ -57,6 +57,21 @@ const secondClassroom: Classroom = {
   ...classroom,
   id: 'classroom-announcements-second',
   title: 'Second Announcements',
+}
+
+const secondClassroomAnnouncement: Announcement = {
+  ...markdownAnnouncement,
+  id: 'second-classroom-announcement',
+  classroom_id: secondClassroom.id,
+  title: 'Second classroom update',
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
 }
 
 function mockAnnouncementFetch(announcements: Announcement[] = [markdownAnnouncement]) {
@@ -447,6 +462,137 @@ describe('announcement markdown rendering', () => {
     view.rerender(teacherAnnouncementsElement(secondClassroom))
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Announcements couldn't load")
+    expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
+    consoleError.mockRestore()
+  })
+
+  it('ignores a completed teacher create after switching classrooms', async () => {
+    const createResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'POST') return createResponse.promise
+        const announcements = String(input).includes(secondClassroom.id)
+          ? [secondClassroomAnnouncement]
+          : [markdownAnnouncement]
+        return new Response(JSON.stringify({ announcements }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const view = render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), {
+      target: { value: 'Pending Classroom A update' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+
+    expect(await screen.findByText('Pending Classroom A update', { selector: 'p' })).toBeInTheDocument()
+    view.rerender(teacherAnnouncementsElement(secondClassroom))
+    expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+
+    await act(async () => {
+      createResponse.resolve(
+        new Response(JSON.stringify({
+          announcement: {
+            ...markdownAnnouncement,
+            id: 'created-announcement',
+            content: 'Pending Classroom A update',
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByText('Second classroom update')).toBeInTheDocument()
+    expect(screen.queryByText('Pending Classroom A update')).not.toBeInTheDocument()
+  })
+
+  it('ignores a completed teacher edit after switching classrooms', async () => {
+    const editResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH') return editResponse.promise
+        const announcements = String(input).includes(secondClassroom.id)
+          ? [secondClassroomAnnouncement]
+          : [markdownAnnouncement]
+        return new Response(JSON.stringify({ announcements }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const view = render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByText('bring notes'))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), {
+      target: { value: 'Edited Classroom A update' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+
+    view.rerender(teacherAnnouncementsElement(secondClassroom))
+    expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+
+    await act(async () => {
+      editResponse.resolve(
+        new Response(JSON.stringify({
+          announcement: {
+            ...markdownAnnouncement,
+            content: 'Edited Classroom A update',
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByText('Second classroom update')).toBeInTheDocument()
+    expect(screen.queryByText('Edited Classroom A update')).not.toBeInTheDocument()
+  })
+
+  it('does not restore a failed teacher delete after switching classrooms', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const deleteResponse = deferred<Response>()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'DELETE') return deleteResponse.promise
+        const announcements = String(input).includes(secondClassroom.id)
+          ? [secondClassroomAnnouncement]
+          : [markdownAnnouncement]
+        return new Response(JSON.stringify({ announcements }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const view = render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('Unit update')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete announcement' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+
+    view.rerender(teacherAnnouncementsElement(secondClassroom))
+    expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+
+    await act(async () => {
+      deleteResponse.resolve(
+        new Response(JSON.stringify({ error: 'Unavailable' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(screen.getByText('Second classroom update')).toBeInTheDocument()
     expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
     consoleError.mockRestore()
   })
