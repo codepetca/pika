@@ -814,6 +814,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setIsWindowCompliantNow(snapshot.isCompliant)
     if (snapshot.isCompliant) {
       nonCompliantWindowTelemetryLoggedRef.current = false
+      lastWindowSignalRef.current = null
     }
   }, [])
 

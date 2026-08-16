@@ -1074,4 +1074,6 @@ state; no API, schema, migration, production, or Gradex change.
   fullscreen-change signal occurs; rejected requests still lock an undersized
   exam window after the grace period without posting telemetry. Enforcement
   state and telemetry deduplication are tracked separately so a later real
-  resize is still recorded exactly once.
+  resize is still recorded exactly once. Restoring compliance clears both the
+  reported-state latch and the same-source timestamp, so a distinct departure
+  within the legacy three-second window is recorded as a new incident.

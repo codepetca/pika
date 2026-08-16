@@ -586,7 +586,7 @@ describe('StudentTestsTab exam mode', () => {
     )).toBe(false)
   })
 
-  it('locks after fullscreen rejection, then records a later real resize exactly once', async () => {
+  it('records distinct resizes around a compliant restoration after fullscreen rejection', async () => {
     queueTestList()
     queueTestDetail()
     fetchMock.mockResolvedValue({
@@ -656,6 +656,43 @@ describe('StudentTestsTab exam mode', () => {
       event_type: 'window_unmaximize_attempt',
       metadata: { source: 'window_resize' },
     })
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    fireEvent(window, new Event('resize'))
+
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    fireEvent(window, new Event('resize'))
+    await act(async () => {
+      vi.advanceTimersByTime(800)
+    })
+
+    const restoredFocusCalls = fetchMock.mock.calls.filter(
+      ([url]: [string]) => url.includes('/focus-events')
+    )
+    expect(restoredFocusCalls).toHaveLength(2)
+    const firstIncidentId = JSON.parse(String(restoredFocusCalls[0][1]?.body || '{}')).incident_id
+    const secondIncidentId = JSON.parse(String(restoredFocusCalls[1][1]?.body || '{}')).incident_id
+    expect(secondIncidentId).not.toBe(firstIncidentId)
   })
 
   it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {
