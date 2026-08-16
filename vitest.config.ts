@@ -14,6 +14,7 @@ const jsdomOnlyTsSuites = [
   'tests/lib/flag-questions.test.ts',
   'tests/unit/classroom-ux-metrics.test.ts',
   'tests/unit/client-storage.test.ts',
+  'tests/unit/teacher-lesson-plan-mutation-queue.test.ts',
 ]
 
 export default defineConfig({

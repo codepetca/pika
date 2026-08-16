@@ -1,25 +1,32 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, subMonths, subWeeks } from 'date-fns'
 import { CalendarActionBar } from '@/components/CalendarActionBar'
-import { Spinner } from '@/components/Spinner'
+import { CalendarSourceErrors, type CalendarSourceFailure } from '@/components/CalendarSourceErrors'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
-import { useClassDays } from '@/hooks/useClassDays'
+import { useClassDaysContext } from '@/hooks/useClassDays'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
+import { nowInToronto } from '@/lib/timezone'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import {
   fetchTeacherLessonPlansForRange,
   invalidateTeacherLessonPlansForClassroom,
 } from '@/lib/teacher-lesson-plans-client'
+import {
+  allocateTeacherLessonPlanMutationVersion,
+  enqueueTeacherLessonPlanMutation,
+  type TeacherLessonPlanMutationVersion,
+} from '@/lib/teacher-lesson-plan-mutation-queue'
+import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 /**
  * Returns true if the content change is identical to the last value emitted
@@ -39,14 +46,70 @@ export function isNormalizationNoise(
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+const AUTOSAVE_MAX_RETRIES = 3
 const MARKDOWN_SYNC_DEBOUNCE_MS = 300
+
+type PendingLessonSave = {
+  classroomId: string
+  content: string
+  date: string
+  editGeneration?: number
+  retries: number
+  saveEpoch: number
+  mutation: TeacherLessonPlanMutationVersion
+}
+
+type PendingBulkLessonSave = {
+  body: string
+  classroomId: string
+  mutation: TeacherLessonPlanMutationVersion
+}
+
+type MarkdownLessonDraft = {
+  content: string
+  revision: number
+}
+
+function pendingLessonSaveKey(classroomId: string, date: string): string {
+  return `${classroomId}:${date}`
+}
+
+function lessonSaveMutationKey(save: PendingLessonSave): string {
+  return `${save.mutation.client_id}:${save.mutation.sequence}`
+}
+
+function pendingLessonChangesForClassroom(
+  pendingSaves: Map<string, PendingLessonSave>,
+  classroomId: string,
+): Map<string, string> {
+  return new Map(
+    Array.from(pendingSaves.values())
+      .filter((save) => save.classroomId === classroomId)
+      .map((save) => [save.date, save.content]),
+  )
+}
+
+type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements'
+type CalendarRetrySource = CalendarSource | 'classDays'
+type SourceStatus = {
+  classroomId: string | null
+  error: boolean
+  hasLoadedSnapshot: boolean
+  isLoading: boolean
+}
+
+const initialSourceStatus = (): Record<CalendarSource, SourceStatus> => ({
+  lessonPlans: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  assignments: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  announcements: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+})
 
 export interface CalendarSidebarState {
   markdownContent: string
   markdownError: string | null
   bulkSaving: boolean
   onMarkdownChange: (content: string) => void
-  onSave: () => void
+  onSave: () => Promise<void>
 }
 
 interface Props {
@@ -64,18 +127,30 @@ export function TeacherLessonCalendarTab({
 }: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [lessonPlansClassroomId, setLessonPlansClassroomId] = useState(classroom.id)
-  const visibleLessonPlans = lessonPlansClassroomId === classroom.id ? lessonPlans : []
-  const lessonPlansRef = useRef(visibleLessonPlans)
-  lessonPlansRef.current = visibleLessonPlans
   // Track last-seen markdown per date to suppress duplicate autosave emissions.
   const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [assignmentsClassroomId, setAssignmentsClassroomId] = useState(classroom.id)
-  const visibleAssignments = assignmentsClassroomId === classroom.id ? assignments : []
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [announcementsClassroomId, setAnnouncementsClassroomId] = useState(classroom.id)
-  const visibleAnnouncements = announcementsClassroomId === classroom.id ? announcements : []
-  const classDays = useClassDays(classroom.id)
+  const [sourceStatus, setSourceStatus] = useState(initialSourceStatus)
+  const lessonPlansStatus = sourceStatus.lessonPlans
+  const assignmentsStatus = sourceStatus.assignments
+  const announcementsStatus = sourceStatus.announcements
+  const visibleLessonPlans = lessonPlansClassroomId === classroom.id && lessonPlansStatus.hasLoadedSnapshot ? lessonPlans : []
+  const visibleAssignments = assignmentsClassroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
+  const visibleAnnouncements = announcementsClassroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
+  const lessonPlansRef = useRef(visibleLessonPlans)
+  lessonPlansRef.current = visibleLessonPlans
+  const lessonEditGenerationRef = useRef(0)
+  const lessonEditsRef = useRef<Map<string, { acknowledged: boolean; content: string; generation: number }>>(new Map())
+  const {
+    classDays,
+    error: classDaysError,
+    hasLoadedSnapshot: hasClassDaysSnapshot,
+    isLoading: classDaysLoading,
+    refresh: refreshClassDays,
+  } = useClassDaysContext()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
@@ -86,26 +161,55 @@ export function TeacherLessonCalendarTab({
     setViewMode(mode)
     writeCookie(`calendarViewMode:${classroom.id}`, mode)
   }, [classroom.id])
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(nowInToronto)
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownContentClassroomId, setMarkdownContentClassroomId] = useState('')
   const visibleMarkdownContent = markdownContentClassroomId === classroom.id ? markdownContent : ''
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
+  const [failedSaveClassroomIds, setFailedSaveClassroomIds] = useState<Set<string>>(() => new Set())
   const [refreshKey, setRefreshKey] = useState(0)
+  const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0)
+  const [announcementsRefreshKey, setAnnouncementsRefreshKey] = useState(0)
   const currentClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
+  const classroomEpochRef = useRef(0)
+  const sourceRequestIdsRef = useRef<Record<CalendarSource, number>>({
+    lessonPlans: 0,
+    assignments: 0,
+    announcements: 0,
+  })
+  const retryingSourcesRef = useRef<Set<CalendarRetrySource>>(new Set())
+  const calendarWorkspaceRef = useRef<HTMLDivElement>(null)
 
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
   const { showMarkdown } = useMarkdownPreference()
 
+  useLayoutEffect(() => {
+    classroomEpochRef.current += 1
+    currentClassroomIdRef.current = classroom.id
+    sourceRequestIdsRef.current.lessonPlans += 1
+    sourceRequestIdsRef.current.assignments += 1
+    sourceRequestIdsRef.current.announcements += 1
+    lessonEditGenerationRef.current = 0
+    lessonEditsRef.current.clear()
+    retryingSourcesRef.current.clear()
+    setBulkSaving(false)
+    setSourceStatus(initialSourceStatus())
+  }, [classroom.id])
+
   // Auto-save tracking
-  const pendingChangesRef = useRef<Map<string, string>>(new Map())
+  const pendingSavesRef = useRef<Map<string, PendingLessonSave>>(new Map())
+  const unsettledSavesRef = useRef<Map<string, PendingLessonSave>>(new Map())
+  const pendingBulkSavesRef = useRef<Map<string, PendingBulkLessonSave>>(new Map())
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const flushInFlightRef = useRef<Promise<void> | null>(null)
   const lastSaveAtRef = useRef<number>(0)
   const prevSidebarOpenRef = useRef(false)
   const needsRefreshRef = useRef(true) // Force refresh on first open or after save
   const markdownContentRef = useRef('') // Ref to avoid stale closure in save handler
+  const markdownDraftsRef = useRef<Map<string, MarkdownLessonDraft>>(new Map())
+  const markdownDraftRevisionRef = useRef(0)
+  const markdownErrorsRef = useRef<Map<string, string>>(new Map())
   const markdownSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const applyLocalLessonPlanChange = useCallback((date: string, contentMarkdown: string) => {
@@ -158,23 +262,69 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     let cancelled = false
     const requestedClassroomId = classroom.id
-    const isCurrentLoad = () => !cancelled && currentClassroomIdRef.current === requestedClassroomId
 
     async function loadLessonPlans() {
+      const acknowledgedEditsAtRequestStart = new Map<string, number>()
+      for (const [date, edit] of lessonEditsRef.current) {
+        if (edit.acknowledged) acknowledgedEditsAtRequestStart.set(date, edit.generation)
+      }
+      const requestId = sourceRequestIdsRef.current.lessonPlans + 1
+      sourceRequestIdsRef.current.lessonPlans = requestId
+      const isCurrentLoad = () => (
+        !cancelled &&
+        sourceRequestIdsRef.current.lessonPlans === requestId &&
+        currentClassroomIdRef.current === requestedClassroomId
+      )
       setLoading(true)
+      setSourceStatus((current) => ({
+        ...current,
+        lessonPlans: {
+          classroomId: requestedClassroomId,
+          error: current.lessonPlans.classroomId === requestedClassroomId && current.lessonPlans.error,
+          hasLoadedSnapshot: current.lessonPlans.classroomId === requestedClassroomId && current.lessonPlans.hasLoadedSnapshot,
+          isLoading: true,
+        },
+      }))
       try {
         const plans = await fetchTeacherLessonPlansForRange(requestedClassroomId, fetchRange.start, fetchRange.end)
         if (!isCurrentLoad()) return
-        // Seed last-seen content so Tiptap normalization doesn't trigger saves
+        const plansWithPending = applyPendingLessonPlanChanges(
+          plans,
+          pendingLessonChangesForClassroom(pendingSavesRef.current, requestedClassroomId),
+          requestedClassroomId,
+        )
+        const editsToPreserve = new Map<string, string>()
+        for (const [date, edit] of lessonEditsRef.current) {
+          if (acknowledgedEditsAtRequestStart.get(date) !== edit.generation) {
+            editsToPreserve.set(date, edit.content)
+          }
+        }
+        const plansWithCurrentEdits = applyPendingLessonPlanChanges(plansWithPending, editsToPreserve, requestedClassroomId)
+        // Seed last-seen content so Tiptap normalization doesn't trigger saves.
+        // Local edits remain authoritative while a background refresh settles.
         lastSeenContentRef.current.clear()
-        for (const plan of plans) {
+        for (const plan of plansWithCurrentEdits) {
           lastSeenContentRef.current.set(plan.date, plan.content_markdown ?? '')
         }
         setLessonPlansClassroomId(requestedClassroomId)
-        setLessonPlans(plans)
+        setLessonPlans(plansWithCurrentEdits)
+        for (const [date, generation] of acknowledgedEditsAtRequestStart) {
+          const currentEdit = lessonEditsRef.current.get(date)
+          if (currentEdit?.generation === generation && currentEdit.acknowledged) {
+            lessonEditsRef.current.delete(date)
+          }
+        }
+        setSourceStatus((current) => ({
+          ...current,
+          lessonPlans: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+        }))
       } catch (err) {
         if (!isCurrentLoad()) return
         console.error('Error loading lesson plans:', err)
+        setSourceStatus((current) => ({
+          ...current,
+          lessonPlans: { ...current.lessonPlans, classroomId: requestedClassroomId, error: true, isLoading: false },
+        }))
       } finally {
         if (isCurrentLoad()) {
           setLoading(false)
@@ -192,9 +342,24 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     let cancelled = false
     const requestedClassroomId = classroom.id
-    const isCurrentLoad = () => !cancelled && currentClassroomIdRef.current === requestedClassroomId
 
     async function loadAssignments() {
+      const requestId = sourceRequestIdsRef.current.assignments + 1
+      sourceRequestIdsRef.current.assignments = requestId
+      const isCurrentLoad = () => (
+        !cancelled &&
+        sourceRequestIdsRef.current.assignments === requestId &&
+        currentClassroomIdRef.current === requestedClassroomId
+      )
+      setSourceStatus((current) => ({
+        ...current,
+        assignments: {
+          classroomId: requestedClassroomId,
+          error: current.assignments.classroomId === requestedClassroomId && current.assignments.error,
+          hasLoadedSnapshot: current.assignments.classroomId === requestedClassroomId && current.assignments.hasLoadedSnapshot,
+          isLoading: true,
+        },
+      }))
       try {
         const data = await fetchCachedJSON<{ assignments?: Assignment[] }>(
           `teacher-assignments:${requestedClassroomId}`,
@@ -204,9 +369,17 @@ export function TeacherLessonCalendarTab({
         if (!isCurrentLoad()) return
         setAssignmentsClassroomId(requestedClassroomId)
         setAssignments(data.assignments || [])
+        setSourceStatus((current) => ({
+          ...current,
+          assignments: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+        }))
       } catch (err) {
         if (!isCurrentLoad()) return
         console.error('Error loading assignments:', err)
+        setSourceStatus((current) => ({
+          ...current,
+          assignments: { ...current.assignments, classroomId: requestedClassroomId, error: true, isLoading: false },
+        }))
       }
     }
     loadAssignments()
@@ -224,15 +397,30 @@ export function TeacherLessonCalendarTab({
       cancelled = true
       window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
     }
-  }, [classroom.id])
+  }, [assignmentsRefreshKey, classroom.id])
 
   // Fetch announcements for the classroom
   useEffect(() => {
     let cancelled = false
     const requestedClassroomId = classroom.id
-    const isCurrentLoad = () => !cancelled && currentClassroomIdRef.current === requestedClassroomId
 
     async function loadAnnouncements() {
+      const requestId = sourceRequestIdsRef.current.announcements + 1
+      sourceRequestIdsRef.current.announcements = requestId
+      const isCurrentLoad = () => (
+        !cancelled &&
+        sourceRequestIdsRef.current.announcements === requestId &&
+        currentClassroomIdRef.current === requestedClassroomId
+      )
+      setSourceStatus((current) => ({
+        ...current,
+        announcements: {
+          classroomId: requestedClassroomId,
+          error: current.announcements.classroomId === requestedClassroomId && current.announcements.error,
+          hasLoadedSnapshot: current.announcements.classroomId === requestedClassroomId && current.announcements.hasLoadedSnapshot,
+          isLoading: true,
+        },
+      }))
       try {
         const data = await fetchCachedJSON<{ announcements?: Announcement[] }>(
           `teacher-announcements:${requestedClassroomId}`,
@@ -242,9 +430,17 @@ export function TeacherLessonCalendarTab({
         if (!isCurrentLoad()) return
         setAnnouncementsClassroomId(requestedClassroomId)
         setAnnouncements(data.announcements || [])
+        setSourceStatus((current) => ({
+          ...current,
+          announcements: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+        }))
       } catch (err) {
         if (!isCurrentLoad()) return
         console.error('Error loading announcements:', err)
+        setSourceStatus((current) => ({
+          ...current,
+          announcements: { ...current.announcements, classroomId: requestedClassroomId, error: true, isLoading: false },
+        }))
       }
     }
     loadAnnouncements()
@@ -252,56 +448,115 @@ export function TeacherLessonCalendarTab({
     return () => {
       cancelled = true
     }
-  }, [classroom.id])
+  }, [announcementsRefreshKey, classroom.id])
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
-    async (date: string, contentMarkdown: string) => {
-      const requestedClassroomId = classroom.id
-      try {
+    async (
+      requestedClassroomId: string,
+      date: string,
+      contentMarkdown: string,
+      saveEpoch: number,
+      editGeneration?: number,
+      mutation?: TeacherLessonPlanMutationVersion,
+      options?: { updateView?: boolean },
+    ) => {
+      const mutationVersion = mutation ?? allocateTeacherLessonPlanMutationVersion()
+      return enqueueTeacherLessonPlanMutation(requestedClassroomId, async () => {
         const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/lesson-plans/${date}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content_markdown: contentMarkdown }),
+          body: JSON.stringify({ content_markdown: contentMarkdown, mutation: mutationVersion }),
+          keepalive: true,
         })
-        if (res.ok) {
-          const data = await res.json()
-          invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
-          needsRefreshRef.current = true
-          if (currentClassroomIdRef.current !== requestedClassroomId) return
-          setLessonPlansClassroomId(requestedClassroomId)
-          setLessonPlans((prev) => {
-            if (!data.lesson_plan) {
-              return prev.filter((plan) => plan.date !== date)
-            }
-
-            const existing = prev.findIndex((p) => p.date === date)
-            if (existing >= 0) {
-              const updated = [...prev]
-              updated[existing] = data.lesson_plan
-              return updated
-            }
-            return [...prev, data.lesson_plan]
-          })
+        if (!res.ok) {
+          throw new Error(`Failed to save lesson plan (${res.status})`)
         }
-      } catch (err) {
-        console.error('Error saving lesson plan:', err)
-      }
+
+        const data = await res.json()
+        invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+        if (options?.updateView === false || classroomEpochRef.current !== saveEpoch) return
+        needsRefreshRef.current = true
+        if (currentClassroomIdRef.current !== requestedClassroomId) return
+        const currentEdit = lessonEditsRef.current.get(date)
+        if (editGeneration !== undefined) {
+          if (currentEdit?.generation !== editGeneration || currentEdit.content !== contentMarkdown) return
+          currentEdit.acknowledged = true
+        }
+        setLessonPlansClassroomId(requestedClassroomId)
+        setLessonPlans((prev) => {
+          if (!data.lesson_plan) {
+            return prev.filter((plan) => plan.date !== date)
+          }
+
+          const existing = prev.findIndex((p) => p.date === date)
+          if (existing >= 0) {
+            const updated = [...prev]
+            updated[existing] = data.lesson_plan
+            return updated
+          }
+          return [...prev, data.lesson_plan]
+        })
+      })
     },
-    [classroom.id]
+    []
   )
 
   // Flush pending saves
   const flushPendingSaves = useCallback(async () => {
-    if (pendingChangesRef.current.size === 0) return
+    if (flushInFlightRef.current) return flushInFlightRef.current
+    if (pendingSavesRef.current.size === 0) return
 
-    setSaving(true)
-    const entries = Array.from(pendingChangesRef.current.entries())
-    pendingChangesRef.current.clear()
+    const flush = async () => {
+      setSaving(true)
+      const entries = Array.from(pendingSavesRef.current.entries())
+      for (const [key, entry] of entries) {
+        pendingSavesRef.current.delete(key)
+        unsettledSavesRef.current.set(lessonSaveMutationKey(entry), entry)
+      }
 
-    await Promise.all(entries.map(([date, content]) => saveLessonPlan(date, content)))
-    lastSaveAtRef.current = Date.now()
-    setSaving(false)
+      const touchedClassroomIds = new Set(entries.map(([, entry]) => entry.classroomId))
+      await Promise.all(entries.map(async ([key, entry]) => {
+        const { classroomId, content, date, editGeneration, mutation, retries, saveEpoch } = entry
+        try {
+          await saveLessonPlan(classroomId, date, content, saveEpoch, editGeneration, mutation)
+        } catch (err) {
+          console.error('Error saving lesson plan:', err)
+          if (!pendingSavesRef.current.has(key)) {
+            pendingSavesRef.current.set(key, { ...entry, retries: retries + 1 })
+          }
+        } finally {
+          unsettledSavesRef.current.delete(lessonSaveMutationKey(entry))
+        }
+      }))
+      setFailedSaveClassroomIds((current) => {
+        const next = new Set(current)
+        for (const classroomId of touchedClassroomIds) {
+          const exhausted = Array.from(pendingSavesRef.current.values()).some((save) => (
+            save.classroomId === classroomId && save.retries > AUTOSAVE_MAX_RETRIES
+          ))
+          if (exhausted) next.add(classroomId)
+          else next.delete(classroomId)
+        }
+        return next
+      })
+      lastSaveAtRef.current = Date.now()
+      setSaving(false)
+    }
+
+    const flushPromise = flush().finally(() => {
+      flushInFlightRef.current = null
+      const hasRetryableSave = Array.from(pendingSavesRef.current.values())
+        .some((save) => save.retries <= AUTOSAVE_MAX_RETRIES)
+      if (hasRetryableSave) {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = setTimeout(() => {
+          void flushPendingSaves()
+        }, AUTOSAVE_MIN_INTERVAL_MS)
+      }
+    })
+    flushInFlightRef.current = flushPromise
+    return flushPromise
   }, [saveLessonPlan])
 
   // Schedule save with debounce and throttle
@@ -314,48 +569,76 @@ export function TeacherLessonCalendarTab({
     const delay = Math.max(AUTOSAVE_DEBOUNCE_MS, AUTOSAVE_MIN_INTERVAL_MS - timeSinceLastSave)
 
     saveTimeoutRef.current = setTimeout(() => {
-      flushPendingSaves()
+      void flushPendingSaves()
     }, delay)
   }, [flushPendingSaves])
 
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, contentMarkdown: string) => {
-      if (loading) return
+      if (!lessonPlansStatus.hasLoadedSnapshot) return
       const contentStr = contentMarkdown
       if (isNormalizationNoise(lastSeenContentRef.current, lessonPlansRef.current, date, contentStr)) {
         lastSeenContentRef.current.set(date, contentStr)
         return
       }
       lastSeenContentRef.current.set(date, contentStr)
+      lessonEditGenerationRef.current += 1
+      lessonEditsRef.current.set(date, {
+        acknowledged: false,
+        content: contentMarkdown,
+        generation: lessonEditGenerationRef.current,
+      })
       applyLocalLessonPlanChange(date, contentMarkdown)
-      pendingChangesRef.current.set(date, contentMarkdown)
+      pendingSavesRef.current.set(pendingLessonSaveKey(classroom.id, date), {
+        classroomId: classroom.id,
+        content: contentMarkdown,
+        date,
+        editGeneration: lessonEditGenerationRef.current,
+        retries: 0,
+        saveEpoch: classroomEpochRef.current,
+        mutation: allocateTeacherLessonPlanMutationVersion(),
+      })
       scheduleSave()
     },
-    [applyLocalLessonPlanChange, loading, scheduleSave]
+    [applyLocalLessonPlanChange, classroom.id, lessonPlansStatus.hasLoadedSnapshot, scheduleSave]
   )
 
   // Flush on unmount and handle page close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Synchronously save any pending changes before page unload
-      if (pendingChangesRef.current.size > 0) {
-        const entries = Array.from(pendingChangesRef.current.entries())
-        for (const [date, contentMarkdown] of entries) {
-          // Use sendBeacon for reliable delivery during page unload
-          navigator.sendBeacon(
-            `/api/teacher/classrooms/${classroom.id}/lesson-plans/${date}`,
-            new Blob([JSON.stringify({ content_markdown: contentMarkdown })], { type: 'application/json' })
-          )
+      const unloadSaves = new Map<string, PendingLessonSave>(unsettledSavesRef.current)
+      for (const save of pendingSavesRef.current.values()) {
+        unloadSaves.set(lessonSaveMutationKey(save), save)
+      }
+      if (unloadSaves.size > 0) {
+        for (const { classroomId, content, date, mutation } of unloadSaves.values()) {
+          void fetch(`/api/teacher/classrooms/${classroomId}/lesson-plans/${date}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content_markdown: content, mutation }),
+            keepalive: true,
+          }).catch((err) => {
+            console.error('Error saving lesson plan during page unload:', err)
+          })
         }
-        pendingChangesRef.current.clear()
+      }
+      for (const { body, classroomId } of pendingBulkSavesRef.current.values()) {
+        void fetch(`/api/teacher/classrooms/${classroomId}/lesson-plans/bulk`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        }).catch((err) => {
+          console.error('Error saving bulk lesson plans during page unload:', err)
+        })
       }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
 
     // Capture ref value for cleanup
-    const pendingChanges = pendingChangesRef.current
+    const pendingSaves = pendingSavesRef.current
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
@@ -367,11 +650,11 @@ export function TeacherLessonCalendarTab({
       }
       // Flush any pending changes on component unmount (e.g., navigation)
       // The fetch will complete even after unmount
-      if (pendingChanges.size > 0) {
-        flushPendingSaves()
+      if (pendingSaves.size > 0) {
+        void flushPendingSaves()
       }
     }
-  }, [classroom.id, flushPendingSaves])
+  }, [classroom.id, flushPendingSaves, saveLessonPlan])
 
   // Fetch and generate markdown content
   const loadMarkdownContent = useCallback(async () => {
@@ -385,7 +668,11 @@ export function TeacherLessonCalendarTab({
       const end = classroom.end_date || fetchRange.end
       const cachedPlans = await fetchTeacherLessonPlansForRange(requestedClassroomId, start, end)
       if (!isCurrentLoad()) return
-      const plans = applyPendingLessonPlanChanges(cachedPlans, pendingChangesRef.current, requestedClassroomId)
+      const plans = applyPendingLessonPlanChanges(
+        cachedPlans,
+        pendingLessonChangesForClassroom(pendingSavesRef.current, requestedClassroomId),
+        requestedClassroomId,
+      )
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
       setMarkdownContentClassroomId(requestedClassroomId)
       setMarkdownContent(markdown)
@@ -406,12 +693,14 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     if (previousMarkdownClassroomIdRef.current === classroom.id) return
     previousMarkdownClassroomIdRef.current = classroom.id
-    markdownContentRef.current = ''
-    setMarkdownContent('')
-    setMarkdownContentClassroomId('')
-    setMarkdownError(null)
+    const retainedDraft = markdownDraftsRef.current.get(classroom.id)
+    const retainedError = markdownErrorsRef.current.get(classroom.id) ?? null
+    markdownContentRef.current = retainedDraft?.content ?? ''
+    setMarkdownContent(retainedDraft?.content ?? '')
+    setMarkdownContentClassroomId(retainedDraft === undefined ? '' : classroom.id)
+    setMarkdownError(retainedError)
     needsRefreshRef.current = true
-    if (showMarkdown && isSidebarOpen) {
+    if (retainedDraft === undefined && showMarkdown && isSidebarOpen) {
       loadMarkdownContent()
     }
   }, [classroom.id, isSidebarOpen, loadMarkdownContent, showMarkdown])
@@ -426,6 +715,12 @@ export function TeacherLessonCalendarTab({
   const handleMarkdownChange = useCallback((content: string) => {
     // Always update ref immediately so save has latest content
     markdownContentRef.current = content
+    markdownDraftRevisionRef.current += 1
+    markdownDraftsRef.current.set(classroom.id, {
+      content,
+      revision: markdownDraftRevisionRef.current,
+    })
+    markdownErrorsRef.current.delete(classroom.id)
     setMarkdownContentClassroomId(classroom.id)
 
     // Debounce state update to reduce parent re-renders
@@ -455,56 +750,127 @@ export function TeacherLessonCalendarTab({
 
   // Handle markdown save
   const handleMarkdownSave = useCallback(async () => {
+    const requestedClassroomId = classroom.id
+    const requestedClassroomEpoch = classroomEpochRef.current
+    const markdownPayload = markdownContentRef.current
+    const mutation = allocateTeacherLessonPlanMutationVersion()
+    const bulkMutationKey = `${mutation.client_id}:${mutation.sequence}`
+    markdownDraftRevisionRef.current += 1
+    const draftRevision = markdownDraftRevisionRef.current
+    const draftIsCurrent = () => (
+      markdownDraftsRef.current.get(requestedClassroomId)?.revision === draftRevision
+    )
+    const isCurrentOperation = () => (
+      currentClassroomIdRef.current === requestedClassroomId &&
+      classroomEpochRef.current === requestedClassroomEpoch
+    )
     setMarkdownError(null)
+    markdownErrorsRef.current.delete(requestedClassroomId)
     if (markdownContentClassroomId !== classroom.id) {
       setMarkdownError('Lesson plans are still loading')
       return
     }
+    markdownDraftsRef.current.set(requestedClassroomId, {
+      content: markdownPayload,
+      revision: draftRevision,
+    })
     setBulkSaving(true)
 
     try {
-      const result = markdownToLessonPlans(markdownContentRef.current, classroom)
+      const result = markdownToLessonPlans(markdownPayload, classroom)
 
       if (result.errors.length > 0) {
-        setMarkdownError(result.errors.join('\n'))
-        setBulkSaving(false)
+        const error = result.errors.join('\n')
+        if (draftIsCurrent()) {
+          markdownErrorsRef.current.set(requestedClassroomId, error)
+          if (isCurrentOperation()) setMarkdownError(error)
+        }
         return
       }
 
       if (result.plans.length === 0 && result.clearedDates.length === 0) {
-        invalidateTeacherLessonPlansForClassroom(classroom.id)
+        if (draftIsCurrent()) {
+          markdownDraftsRef.current.delete(requestedClassroomId)
+          markdownErrorsRef.current.delete(requestedClassroomId)
+        }
+        invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+        if (!isCurrentOperation()) return
         needsRefreshRef.current = true
         setSidebarOpen(false)
         setRefreshKey((k) => k + 1)
         return
       }
 
-      // Bulk save
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plans: result.plans, cleared_dates: result.clearedDates }),
+      const bulkBody = JSON.stringify({
+        plans: result.plans,
+        cleared_dates: result.clearedDates,
+        mutation,
       })
+      pendingBulkSavesRef.current.set(bulkMutationKey, {
+        body: bulkBody,
+        classroomId: requestedClassroomId,
+        mutation,
+      })
+
+      await flushPendingSaves()
+      const hasPendingInlineSave = Array.from(pendingSavesRef.current.values())
+        .some((save) => save.classroomId === classroom.id)
+      if (hasPendingInlineSave) {
+        const error = 'Pending calendar edits could not be saved. Try again.'
+        if (draftIsCurrent()) {
+          markdownErrorsRef.current.set(requestedClassroomId, error)
+          if (isCurrentOperation()) setMarkdownError(error)
+        }
+        return
+      }
+      const res = await enqueueTeacherLessonPlanMutation(classroom.id, () => (
+        fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: bulkBody,
+          keepalive: true,
+        })
+      ))
 
       if (!res.ok) {
         const data = await res.json()
-        setMarkdownError(data.error || 'Failed to save')
-        setBulkSaving(false)
+        const error = data.error || 'Failed to save'
+        if (draftIsCurrent()) {
+          markdownErrorsRef.current.set(requestedClassroomId, error)
+          if (isCurrentOperation()) setMarkdownError(error)
+        }
         return
       }
 
-      // Success - close panel and refresh calendar
-      invalidateTeacherLessonPlansForClassroom(classroom.id)
+      if (draftIsCurrent()) {
+        markdownDraftsRef.current.delete(requestedClassroomId)
+        markdownErrorsRef.current.delete(requestedClassroomId)
+      }
+      for (const [key, pending] of pendingBulkSavesRef.current) {
+        if (
+          pending.classroomId === requestedClassroomId &&
+          pending.mutation.client_id === mutation.client_id &&
+          pending.mutation.sequence <= mutation.sequence
+        ) {
+          pendingBulkSavesRef.current.delete(key)
+        }
+      }
+      invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+      if (!isCurrentOperation()) return
       needsRefreshRef.current = true // Force refresh on next sidebar open
       setSidebarOpen(false)
       setRefreshKey((k) => k + 1)
     } catch (err) {
       console.error('Error saving markdown:', err)
-      setMarkdownError('Failed to save lesson plans')
+      const error = 'Failed to save lesson plans'
+      if (draftIsCurrent()) {
+        markdownErrorsRef.current.set(requestedClassroomId, error)
+        if (isCurrentOperation()) setMarkdownError(error)
+      }
     } finally {
-      setBulkSaving(false)
+      if (isCurrentOperation()) setBulkSaving(false)
     }
-  }, [classroom, markdownContentClassroomId, setSidebarOpen])
+  }, [classroom, flushPendingSaves, markdownContentClassroomId, setSidebarOpen])
 
   // Handle assignment click - navigate to assignments tab with assignment selected
   const handleAssignmentClick = useCallback(
@@ -545,7 +911,7 @@ export function TeacherLessonCalendarTab({
   }, [viewMode])
 
   const handleToday = useCallback(() => {
-    setCurrentDate(new Date())
+    setCurrentDate(nowInToronto())
   }, [])
 
   // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
@@ -565,13 +931,117 @@ export function TeacherLessonCalendarTab({
     }
   }, [showMarkdown, isSidebarOpen, visibleMarkdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
 
-  if (loading && visibleLessonPlans.length === 0) {
+  const retryLessonPlans = useCallback(() => {
+    retryingSourcesRef.current.add('lessonPlans')
+    invalidateTeacherLessonPlansForClassroom(classroom.id)
+    setRefreshKey((key) => key + 1)
+  }, [classroom.id])
+
+  const retryAssignments = useCallback(() => {
+    retryingSourcesRef.current.add('assignments')
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+    setAssignmentsRefreshKey((key) => key + 1)
+  }, [classroom.id])
+
+  const retryAnnouncements = useCallback(() => {
+    retryingSourcesRef.current.add('announcements')
+    invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
+    setAnnouncementsRefreshKey((key) => key + 1)
+  }, [classroom.id])
+
+  const retryClassDays = useCallback(() => {
+    retryingSourcesRef.current.add('classDays')
+    void refreshClassDays()
+  }, [refreshClassDays])
+
+  const retryFailedSaves = useCallback(() => {
+    for (const [key, save] of pendingSavesRef.current) {
+      if (save.classroomId === classroom.id) {
+        pendingSavesRef.current.set(key, { ...save, retries: 0 })
+      }
+    }
+    setFailedSaveClassroomIds((current) => {
+      const next = new Set(current)
+      next.delete(classroom.id)
+      return next
+    })
+    void flushPendingSaves()
+  }, [classroom.id, flushPendingSaves])
+
+  const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus]
+  const hasAnyLocalSnapshot = localStatuses.some((status) => (
+    status.classroomId === classroom.id && status.hasLoadedSnapshot
+  ))
+  const hasAnySnapshot = hasAnyLocalSnapshot || hasClassDaysSnapshot
+  const haveLocalSourcesInitialized = localStatuses.every((status) => status.classroomId === classroom.id)
+  const isInitialLoading = !haveLocalSourcesInitialized || (
+    !hasAnyLocalSnapshot && localStatuses.some((status) => status.isLoading)
+  )
+  const isRefreshing = loading || localStatuses.some((status) => status.isLoading) || classDaysLoading
+
+  useEffect(() => {
+    const statuses: Record<CalendarRetrySource, { error: boolean; isLoading: boolean }> = {
+      lessonPlans: lessonPlansStatus,
+      assignments: assignmentsStatus,
+      announcements: announcementsStatus,
+      classDays: { error: Boolean(classDaysError), isLoading: classDaysLoading },
+    }
+    for (const source of retryingSourcesRef.current) {
+      const status = statuses[source]
+      if (status.isLoading) continue
+      retryingSourcesRef.current.delete(source)
+      if (!status.error) calendarWorkspaceRef.current?.focus()
+    }
+  }, [announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
+
+  const failures: CalendarSourceFailure[] = []
+  const saveFailures: CalendarSourceFailure[] = failedSaveClassroomIds.has(classroom.id)
+    ? [{ id: 'lesson-plan-saves', label: 'lesson plan changes', isRetrying: saving, onRetry: retryFailedSaves }]
+    : []
+  if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
+    failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: retryLessonPlans })
+  }
+  if (assignmentsStatus.classroomId === classroom.id && assignmentsStatus.error) {
+    failures.push({ id: 'assignments', label: 'assignments', isRetrying: assignmentsStatus.isLoading, onRetry: retryAssignments })
+  }
+  if (announcementsStatus.classroomId === classroom.id && announcementsStatus.error) {
+    failures.push({ id: 'announcements', label: 'announcements', isRetrying: announcementsStatus.isLoading, onRetry: retryAnnouncements })
+  }
+  if (classDaysError) {
+    failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: retryClassDays })
+  }
+
+  const retryAll = useCallback(() => {
+    retryLessonPlans()
+    retryAssignments()
+    retryAnnouncements()
+    retryClassDays()
+  }, [retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
+
+  if (!hasAnySnapshot && failures.length > 0) {
     return (
       <PageLayout bleedX={false}>
         <PageContent>
-          <div className="flex items-center justify-center h-64">
-            <Spinner />
-          </div>
+          <PageState
+            kind="error"
+            title="Calendar couldn't load"
+            description="Pika couldn't load this classroom's calendar information. Nothing was changed."
+            action={(
+              <Button type="button" onClick={retryAll} disabled={isRefreshing}>
+                {isRefreshing ? 'Retrying...' : 'Retry'}
+              </Button>
+            )}
+          />
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (isInitialLoading) {
+    return (
+      <PageLayout bleedX={false}>
+        <PageContent>
+          <PageState kind="loading" title="Loading calendar" />
         </PageContent>
       </PageLayout>
     )
@@ -604,23 +1074,31 @@ export function TeacherLessonCalendarTab({
         ) : null}
       />
       <PageContent className="pb-24 pt-2">
-        <div className="overflow-hidden rounded-lg border border-border bg-surface">
-          <LessonCalendar
-            classroom={classroom}
-            lessonPlans={visibleLessonPlans}
-            assignments={visibleAssignments}
-            announcements={visibleAnnouncements}
-            classDays={classDays}
-            viewMode={viewMode}
-            currentDate={currentDate}
-            editable={!classroom.archived_at}
-            showHeader={false}
-            onDateChange={setCurrentDate}
-            onViewModeChange={handleViewModeChange}
-            onContentChange={handleContentChange}
-            onAssignmentClick={handleAssignmentClick}
-            onAnnouncementClick={handleAnnouncementClick}
+        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
+          {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
+          <CalendarSourceErrors failures={failures} />
+          <CalendarSourceErrors
+            failures={saveFailures}
+            message="Some lesson plan changes could not be saved."
           />
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <LessonCalendar
+              classroom={classroom}
+              lessonPlans={visibleLessonPlans}
+              assignments={visibleAssignments}
+              announcements={visibleAnnouncements}
+              classDays={classDays}
+              viewMode={viewMode}
+              currentDate={currentDate}
+              editable={!classroom.archived_at}
+              showHeader={false}
+              onDateChange={setCurrentDate}
+              onViewModeChange={handleViewModeChange}
+              onContentChange={handleContentChange}
+              onAssignmentClick={handleAssignmentClick}
+              onAnnouncementClick={handleAnnouncementClick}
+            />
+          </div>
         </div>
       </PageContent>
     </PageLayout>

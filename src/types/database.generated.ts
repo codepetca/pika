@@ -3982,6 +3982,38 @@ export type Database = {
           },
         ]
       }
+      lesson_plan_mutation_heads: {
+        Row: {
+          classroom_id: string
+          client_id: string
+          date: string
+          last_sequence: number
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          client_id: string
+          date: string
+          last_sequence: number
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          client_id?: string
+          date?: string
+          last_sequence?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_plan_mutation_heads_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_plans: {
         Row: {
           artifact_id: string
@@ -6164,6 +6196,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      apply_ordered_lesson_plan_mutation: {
+        Args: {
+          p_classroom_id: string
+          p_client_id: string
+          p_content: Json
+          p_content_markdown: string
+          p_date: string
+          p_delete: boolean
+          p_sequence: number
+        }
+        Returns: Json
       }
       archived_classroom_blueprint_snapshot_from_plan: {
         Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
