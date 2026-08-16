@@ -193,7 +193,8 @@ Tests progress:
 - Standalone preview route tests now prove unauthenticated, non-teacher, non-owner, and classroom/test mismatch denials. Preview data is owned by `testId`, late requests cannot repaint another test, and opening or closing a document transfers focus predictably.
 - Full-screen teacher preview framing was browser-verified in light/dark at desktop and the mobile breakpoint, including a mobile-dark opened text document with focus on Back and no horizontal overflow. A student-authenticated route check rendered only the generic authorization denial.
 - Link snapshots now validate and pin public DNS addresses across manual redirects before fetching. Migration 105 atomically rechecks ownership, archive state, document identity, and URL under row locks before attaching a unique snapshot; it must be applied before deploying the updated sync route.
-- Remaining Tests work is accessible flag/save announcements and the deferred mobile navigation treatment.
+- Student flag controls now expose pressed state and keyboard activation, while student autosave and teacher authoring/grading save transitions use polite atomic live announcements. Focused regressions cover successful saves, failures, locked controls, storage restoration, and stale save completion.
+- Remaining Tests work is limited to the deferred mobile navigation treatment.
 
 Surveys progress:
 

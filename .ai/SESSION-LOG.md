@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Validate production-reconciliation patch
-
-- Full Vitest passed: 468 files and 4,047 tests. Production build, lint,
-  TypeScript, Pika audit, focused migration/server tests, migration lineage,
-  migration-118 function lint, feature validation, shell syntax, and diff checks
-  also passed.
-- The shared local database currently lacks the managed-storage/purge schema, so
-  database fixtures stopped before mutation on missing migration-117/119
-  objects. No reset or migration application was performed. Disposable CI must
-  replay 001–119 and pass both database fixtures before merge.
-
 ## 2026-08-05 — Preserve merged migration 118 during reconciliation
 
 - Independent review found that replacing merged migration version 118 would
@@ -1066,3 +1055,34 @@ the shared local database only. Production was not modified.
 - Playwright verification passes for the exhausted-save Retry alert in teacher
   light/dark views; the student Calendar remains visually unchanged. Mobile
   redesign remains explicitly deferred.
+
+## 2026-08-16 — Complete Tests save-status accessibility
+
+**Risk profile:** workspace-state — teacher test authoring and grading save
+announcements plus cross-student grading draft retention; no visual styling,
+mobile redesign, API, schema, migration, production data, or Gradex change.
+
+**Completed:**
+- Added one persistent polite atomic live region to teacher test authoring and
+  grading so unsaved, saving, and saved transitions are announced without
+  repeating the existing visual status labels.
+- Kept stale authoring save responses from announcing false success and retained
+  the existing selected-student grading workflow and class-wide table.
+- Updated the product-experience audit: student flag/save accessibility was
+  already complete, and Tests now has only deferred mobile navigation work.
+
+**Validation:**
+- Focused remediation coverage passes: 123 tests across `TestDetailPanel`,
+  `TeacherTestsTab`, and `TestStudentGradingPanel`; TypeScript passes.
+- The full suite passes: 4,318 tests across 498 files, and the production build,
+  lint, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher grading, teacher authoring, and
+  student Tests in desktop/mobile and light/dark. The change is visually neutral.
+- Independent review found that an in-flight save could outlive a student
+  selection change and publish its status under the newly selected student.
+  The grading panel now emits operation-owned test/student scope while the
+  parent gates announcements by classroom, test, and selected student. The
+  shared grading draft map remains mounted across selection changes, and
+  regressions prove stale completion is not announced while an A → B → A draft
+  remains intact and autosaves. The post-fix grading-switch visual matrix also
+  passes.
