@@ -2485,6 +2485,17 @@ export function TeacherTestsTab({
     </div>
   ) : null
 
+  const testGradingSaveAnnouncement =
+    selectedWorkspaceTab === 'grading' && selectedStudentId
+      ? testGradingSaveState.status === 'saved'
+        ? 'Grades saved'
+        : testGradingSaveState.status === 'saving'
+          ? 'Saving grades'
+          : testGradingSaveState.status === 'unsaved'
+            ? 'Unsaved grade changes'
+            : ''
+      : ''
+
   const activeTestGradingMessage =
     workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
       ? hasActiveTestAiRun && activeTestAiRun
@@ -2720,6 +2731,14 @@ export function TeacherTestsTab({
 
   return (
     <>
+      <span
+        data-testid="teacher-test-grading-save-status"
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {testGradingSaveAnnouncement}
+      </span>
       <div
         ref={testsRegionRef}
         role="region"

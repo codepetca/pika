@@ -163,6 +163,24 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
     return (
       <div data-testid="mock-test-grading-panel">
         Grading panel for {testId}:{selectedStudentId || 'none'}
+        <button
+          type="button"
+          onClick={() => onSaveStateChange?.({ canSave: true, isSaving: false, status: 'unsaved' })}
+        >
+          Mark grades unsaved
+        </button>
+        <button
+          type="button"
+          onClick={() => onSaveStateChange?.({ canSave: false, isSaving: true, status: 'saving' })}
+        >
+          Mark grades saving
+        </button>
+        <button
+          type="button"
+          onClick={() => onSaveStateChange?.({ canSave: false, isSaving: false, status: 'saved' })}
+        >
+          Mark grades saved
+        </button>
       </div>
     )
   },
@@ -690,6 +708,28 @@ describe('TeacherTestsTab', () => {
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
+  })
+
+  it('announces grading save transitions from the selected student workspace', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    const saveStatus = screen.getByTestId('teacher-test-grading-save-status')
+    expect(saveStatus).toHaveAttribute('aria-live', 'polite')
+    expect(saveStatus).toHaveAttribute('aria-atomic', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark grades unsaved' }))
+    expect(saveStatus).toHaveTextContent('Unsaved grade changes')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark grades saving' }))
+    expect(saveStatus).toHaveTextContent('Saving grades')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark grades saved' }))
+    expect(saveStatus).toHaveTextContent('Grades saved')
   })
 
   it('opens the edit modal from the selected test edit button', async () => {
