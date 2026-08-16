@@ -18208,3 +18208,17 @@ hot-archived Classroom with a student, assignment artifact, and test material.
   database fixtures stopped before mutation on missing migration-117/119
   objects. No reset or migration application was performed. Disposable CI must
   replay 001–119 and pass both database fixtures before merge.
+
+<!-- pika-session-log-archive-batch:55b8a610c0d4470ee34c7bd1f9062bc5bd0a098bf21471ec386b34c9f184551c -->
+## 2026-08-05 — Preserve merged migration 118 during reconciliation
+
+- Independent review found that replacing merged migration version 118 would
+  break databases that had already applied `main`: they would skip the new 118
+  and fail when the non-idempotent purge DDL moved to 119.
+- Restored the merged purge migration 118 byte-for-byte, hash-locked it, and
+  appended archive-binding compatibility as migration 119. Current clean replay
+  therefore exercises the real upgrade order, and the managed-storage database
+  fixture proves the legacy binding after that upgrade.
+- Verified production already has the equivalent final schemas recorded as
+  versions 118 and 119 under its separately authorized reconciliation history;
+  this source correction performed no remote migration or state change.

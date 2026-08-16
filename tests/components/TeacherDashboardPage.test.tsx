@@ -128,12 +128,15 @@ function installFetchMock(options?: {
   attendanceByClassroom?: Record<string, AttendanceRecord[] | Promise<{ attendance: AttendanceRecord[]; dates: string[] }>>
   datesByClassroom?: Record<string, string[]>
   entriesByClassroom?: Record<string, Entry[]>
+  entryFailuresByScope?: Record<string, number>
+  entriesByScope?: Record<string, Entry[] | Promise<Entry[]>>
 }) {
   const classrooms = options?.classrooms ?? [
     createMockClassroom({ id: 'c1', title: 'Dashboard Class', class_code: 'DASH1' }),
   ]
   let classroomFailures = options?.classroomFailures ?? 0
   const attendanceFailuresByClassroom = { ...options?.attendanceFailuresByClassroom }
+  const entryFailuresByScope = { ...options?.entryFailuresByScope }
 
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -183,6 +186,11 @@ function installFetchMock(options?: {
       const classroomId = searchParams.get('classroom_id') || ''
       const studentId = searchParams.get('student_id')
       const date = searchParams.get('date')
+      const scope = `${classroomId}:${studentId}:${date}`
+      if ((entryFailuresByScope[scope] ?? 0) > 0) {
+        entryFailuresByScope[scope] -= 1
+        return Promise.resolve(jsonResponse({ error: 'Entry service unavailable' }, false))
+      }
       const entries = options?.entriesByClassroom?.[classroomId] ?? [
         entry({
           studentId: 's1',
@@ -191,10 +199,11 @@ function installFetchMock(options?: {
           text: 'Focused entry text',
         }),
       ]
-      return Promise.resolve(jsonResponse({
-        entries: entries.filter(candidate => (
-          candidate.student_id === studentId && candidate.date === date
-        )),
+      const scopedEntries = options?.entriesByScope?.[scope] ?? entries.filter(candidate => (
+        candidate.student_id === studentId && candidate.date === date
+      ))
+      return Promise.resolve(scopedEntries).then(resolvedEntries => jsonResponse({
+        entries: resolvedEntries,
       }))
     }
 
@@ -333,6 +342,231 @@ describe('Teacher dashboard page', () => {
     )
     expect(fetchMock.mock.calls.some(([input]) => String(input).startsWith('/api/student/entries')))
       .toBe(false)
+  })
+
+  it('opens a scoped dialog while an entry is loading', async () => {
+    const pendingEntry = deferred<Entry[]>()
+    installFetchMock({
+      entriesByScope: {
+        'c1:s1:2026-06-01': pendingEntry.promise,
+      },
+    })
+
+    renderDashboard()
+
+    const openLog = await screen.findByRole('button', {
+      name: 'Open student@example.com log for 2026-06-01',
+    })
+    openLog.focus()
+    fireEvent.click(openLog)
+
+    expect(screen.getByRole('dialog', { name: 'student@example.com' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading log')
+
+    await act(async () => {
+      pendingEntry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Loaded after waiting',
+        }),
+      ])
+    })
+
+    expect(await screen.findByText('Loaded after waiting')).toBeInTheDocument()
+  })
+
+  it('distinguishes an empty entry result from a request failure', async () => {
+    installFetchMock({
+      entriesByScope: {
+        'c1:s1:2026-06-01': [],
+      },
+    })
+
+    renderDashboard()
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Open student@example.com log for 2026-06-01',
+    }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No log found'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows a retryable entry failure and reloads the same scope', async () => {
+    const pendingRetry = deferred<Entry[]>()
+    const fetchMock = installFetchMock({
+      entryFailuresByScope: {
+        'c1:s1:2026-06-01': 1,
+      },
+      entriesByScope: {
+        'c1:s1:2026-06-01': pendingRetry.promise,
+      },
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    renderDashboard()
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Open student@example.com log for 2026-06-01',
+    }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load log')
+    const dialog = screen.getByRole('dialog', { name: 'student@example.com' })
+    const retryButton = screen.getByRole('button', { name: 'Try again' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading log')
+    expect(screen.getByRole('button', { name: 'Trying again' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Trying again' })).toHaveFocus()
+    expect(dialog).toContainElement(document.activeElement)
+
+    await act(async () => {
+      pendingRetry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Focused entry text',
+        }),
+      ])
+    })
+
+    expect(await screen.findByText('Focused entry text')).toBeInTheDocument()
+    const entryUrl = '/api/teacher/student-history?classroom_id=c1&student_id=s1&date=2026-06-01&limit=1'
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === entryUrl)).toHaveLength(2)
+  })
+
+  it('ignores a pending entry after the dialog closes and restores focus', async () => {
+    const pendingEntry = deferred<Entry[]>()
+    installFetchMock({
+      entriesByScope: {
+        'c1:s1:2026-06-01': pendingEntry.promise,
+      },
+    })
+
+    renderDashboard()
+
+    const openLog = await screen.findByRole('button', {
+      name: 'Open student@example.com log for 2026-06-01',
+    })
+    openLog.focus()
+    fireEvent.click(openLog)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(openLog).toHaveFocus())
+
+    await act(async () => {
+      pendingEntry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Stale closed response',
+        }),
+      ])
+    })
+
+    expect(screen.queryByText('Stale closed response')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('does not let an older student request replace a newer entry dialog', async () => {
+    const firstEntry = deferred<Entry[]>()
+    const secondEntry = deferred<Entry[]>()
+    installFetchMock({
+      attendanceByClassroom: {
+        c1: [
+          attendanceRecord({ studentId: 's1', email: 'first@example.com', date: '2026-06-01' }),
+          attendanceRecord({ studentId: 's2', email: 'second@example.com', date: '2026-06-01' }),
+        ],
+      },
+      entriesByScope: {
+        'c1:s1:2026-06-01': firstEntry.promise,
+        'c1:s2:2026-06-01': secondEntry.promise,
+      },
+    })
+
+    renderDashboard()
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Open first@example.com log for 2026-06-01',
+    }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Open second@example.com log for 2026-06-01',
+    }))
+
+    await act(async () => {
+      secondEntry.resolve([
+        entry({
+          studentId: 's2',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Second student entry',
+        }),
+      ])
+    })
+    expect(await screen.findByText('Second student entry')).toBeInTheDocument()
+
+    await act(async () => {
+      firstEntry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Stale first student entry',
+        }),
+      ])
+    })
+
+    expect(screen.getByText('Second student entry')).toBeInTheDocument()
+    expect(screen.queryByText('Stale first student entry')).not.toBeInTheDocument()
+  })
+
+  it('ignores a pending entry after switching classrooms', async () => {
+    const pendingEntry = deferred<Entry[]>()
+    const firstClassroom = createMockClassroom({ id: 'c1', title: 'First Class', class_code: 'FIRST' })
+    const secondClassroom = createMockClassroom({ id: 'c2', title: 'Second Class', class_code: 'SECOND' })
+    installFetchMock({
+      classrooms: [firstClassroom, secondClassroom],
+      attendanceByClassroom: {
+        c2: [attendanceRecord({ studentId: 's2', email: 'second@example.com', date: '2026-06-01' })],
+      },
+      entriesByScope: {
+        'c1:s1:2026-06-01': pendingEntry.promise,
+      },
+    })
+
+    renderDashboard()
+
+    const secondClassroomButton = await screen.findByRole('button', { name: /Second Class/ })
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Open student@example.com log for 2026-06-01',
+    }))
+    expect(screen.getByRole('dialog', { name: 'student@example.com' })).toBeInTheDocument()
+
+    fireEvent.click(secondClassroomButton)
+
+    expect(await screen.findByText('second@example.com')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await act(async () => {
+      pendingEntry.resolve([
+        entry({
+          studentId: 's1',
+          classroomId: 'c1',
+          date: '2026-06-01',
+          text: 'Stale first-class entry',
+        }),
+      ])
+    })
+
+    expect(screen.queryByText('Stale first-class entry')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('invalidates and reloads attendance after roster upload', async () => {

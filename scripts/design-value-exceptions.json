@@ -360,15 +360,9 @@
       "reviewBy": "phase-3-dashboard",
       "values": [
         {
-          "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "3b2129406eefd7fd",
-          "reason": "legacy-visual-value"
-        },
-        {
           "kind": "raw-z-index",
-          "count": 3,
-          "fingerprint": "5b8a95dbe44cc73b",
+          "count": 2,
+          "fingerprint": "556991f875e0acb3",
           "reason": "special-layer"
         }
       ]
