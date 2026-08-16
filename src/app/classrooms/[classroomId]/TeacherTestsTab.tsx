@@ -348,10 +348,12 @@ export function TeacherTestsTab({
     canSave: boolean
     isSaving: boolean
     status: 'idle' | 'unsaved' | 'saving' | 'saved'
+    scopeKey: string | null
   }>({
     canSave: false,
     isSaving: false,
     status: 'idle',
+    scopeKey: null,
   })
 
   const {
@@ -368,6 +370,17 @@ export function TeacherTestsTab({
     selectedTestStudentId,
     updateSearchParams,
   })
+  const activeTestGradingSaveScopeKey =
+    selectedTestId && selectedWorkspaceTab === 'grading' && selectedStudentId
+      ? `${classroom.id}:${selectedTestId}:${selectedStudentId}`
+      : null
+  const handleTestGradingSaveStateChange = useCallback((state: {
+    canSave: boolean
+    isSaving: boolean
+    status: 'idle' | 'unsaved' | 'saving' | 'saved'
+  }) => {
+    setTestGradingSaveState({ ...state, scopeKey: activeTestGradingSaveScopeKey })
+  }, [activeTestGradingSaveScopeKey])
   currentClassroomIdRef.current = classroom.id
   const {
     tests,
@@ -599,7 +612,7 @@ export function TeacherTestsTab({
     setGradingError('')
     setGradingInfo('')
     setGradingWarning('')
-    setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle' })
+    setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle', scopeKey: null })
     setIsBatchAutoGrading(false)
     setIsBatchReturning(false)
     setIsBatchUnsubmitting(false)
@@ -2443,7 +2456,9 @@ export function TeacherTestsTab({
     } : null
 
   const workspaceModeStatus =
-    selectedWorkspaceTab === 'grading' && selectedStudentId && testGradingSaveState.status !== 'idle' ? (
+    activeTestGradingSaveScopeKey &&
+    testGradingSaveState.scopeKey === activeTestGradingSaveScopeKey &&
+    testGradingSaveState.status !== 'idle' ? (
       <span
         className={[
           'text-xs',
@@ -2486,7 +2501,7 @@ export function TeacherTestsTab({
   ) : null
 
   const testGradingSaveAnnouncement =
-    selectedWorkspaceTab === 'grading' && selectedStudentId
+    activeTestGradingSaveScopeKey && testGradingSaveState.scopeKey === activeTestGradingSaveScopeKey
       ? testGradingSaveState.status === 'saved'
         ? 'Grades saved'
         : testGradingSaveState.status === 'saving'
@@ -2667,11 +2682,12 @@ export function TeacherTestsTab({
 
   const gradingInspector = selectedTest && selectedStudentId ? (
     <TestStudentGradingPanel
+      key={activeTestGradingSaveScopeKey}
       testId={selectedTest.id}
       selectedStudentId={selectedStudentId}
       apiBasePath={apiBasePath}
       refreshToken={testGradingPanelRefreshToken}
-      onSaveStateChange={setTestGradingSaveState}
+      onSaveStateChange={handleTestGradingSaveStateChange}
     />
   ) : null
   const isTestEditorOpen = !!selectedTestWorkspace && (showEditModal || selectedWorkspaceTab === 'authoring')

@@ -1072,9 +1072,14 @@ production data, or Gradex change.
   already complete, and Tests now has only deferred mobile navigation work.
 
 **Validation:**
-- Focused component coverage passes: 110 tests across `TestDetailPanel` and
-  `TeacherTestsTab`; TypeScript passes.
-- The full suite passes: 4,316 tests across 498 files, and the production build,
+- Focused remediation coverage passes: 122 tests across `TestDetailPanel`,
+  `TeacherTestsTab`, and `TestStudentGradingPanel`; TypeScript passes.
+- The full suite passes: 4,317 tests across 498 files, and the production build,
   lint, Pika audit, and diff checks pass.
 - Playwright verification passes for teacher grading, teacher authoring, and
   student Tests in desktop/mobile and light/dark. The change is visually neutral.
+- Independent review found that an in-flight save could outlive a student
+  selection change and publish its status under the newly selected student.
+  Grading panels and save state are now keyed and gated by classroom, test, and
+  student scope; a deferred cross-student regression proves stale completion is
+  not announced. The post-fix grading-switch visual matrix also passes.
