@@ -6,9 +6,9 @@ Pika should evolve through small vertical changes, not a replacement architectur
 
 The first implementation work should protect user data before visual consolidation:
 
-1. Disable the legacy permanent classroom Delete route and UI. Any future hot-data removal must run exclusively through the verified archive compaction state machine.
+1. Completed in PR #890: the legacy permanent classroom Delete route and UI are disabled. Any future hot-data removal must run exclusively through the verified archive compaction state machine.
 2. Prevent assignment submission when the latest document save failed.
-3. Correct the legacy teacher dashboard entry-detail authorization path.
+3. Completed in PR #894: the teacher dashboard entry-detail path uses the teacher-owned authorization contract.
 4. Reconcile the blueprint runtime/package-doc v3 contract with the shared transfer/lifecycle v2 contract.
 
 ## Audit Method
@@ -48,7 +48,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 
 | Finding | Evidence | Required outcome |
 | --- | --- | --- |
-| Teacher dashboard entry detail calls the student-only entries endpoint; its test mocks the unauthorized path as successful. | `teacher-dashboard-client.ts`, `api/student/entries/route.ts`, `TeacherDashboardPage.test.tsx` | Use a teacher-owned endpoint/domain function and make authorization behavior explicit in tests. |
+| Resolved in PR #894: teacher dashboard entry detail now uses the teacher-owned student-history endpoint with explicit authorization coverage. | `teacher-dashboard-client.ts`, `api/teacher/student-history/route.ts`, `TeacherDashboardPage.test.tsx` | Preserve the teacher-owned contract and its ownership/enrollment regressions. |
 | Daily, Classwork, Tests, announcements, surveys, and calendar often render fetch failures as empty or stale content. | Teacher and student list hooks/components; one route-level `loading.tsx`, no route `error.tsx` | Shared loading/error/empty contracts with retry behavior; errors must not claim there is no data. |
 | Canonical dialogs and classroom drawers do not trap focus, restore the opener, make the background inert, or consistently lock scroll. Hand-built modals add further drift. | `src/ui/Dialog.tsx`, `LeftSidebar.tsx`, `RightSidebar.tsx`, 52 canonical dialog uses | One tested modal-layer contract covering initial focus, containment, Escape, focus return, inert background, and scroll lock. |
 | Canonical token pairs fail WCAG AA, including dark primary, success, danger, and light warning combinations. | `tokens.css`, `Button.tsx` | Adjust semantic pairs and add automated contrast assertions. |
@@ -57,7 +57,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 | Blueprint create/instantiate calls do not preserve a caller idempotency key; lesson-plan overflow metadata is ignored; runtime and package guidance use v3 while `COURSE_BLUEPRINT_TRANSFER_CONTRACT` and the archive lifecycle guide still declare v2. | blueprint clients and operation modules; `course-blueprint-package.ts`; `course-blueprint-packages.md`; `classroom-artifacts.ts`; `classroom-lifecycle-archives.md` | Stable idempotency across retries, an overflow review step, one package version contract, compatibility evidence, and a browser round trip. |
 | Gradex is substantial server-side but has only a global assignment flag, advances while a teacher page sends tick requests, and lacks a named status/audit product surface or recorded production canary. | assignment AI-run routes/modules and Gradex extract modules | Teacher/classroom canary scope, durable background progression, explicit status/retry/audit UX, hardened smoke target validation, and recorded canaries. |
 | Archive export/restore/compaction infrastructure is operator-gated. Hot restore and a gated cold-restore control exist, but teachers cannot initiate or monitor export, understand verification/retention/quota, or see why cold restore is unavailable. Purge is absent. | archive server modules and migrations 082-086 and 095-098 | Productize verified export and lifecycle status before cleanup; retain existing restore controls with explicit availability/progress; cleanup remains disabled until separately canaried and approved. |
-| Legacy dashboard and top-level calendar expose Delete for active classrooms, but the shared route rejects non-archived deletion. | `teacher/dashboard/page.tsx`, `teacher/calendar/page.tsx`, `api/teacher/classrooms/[id]/route.ts` | Remove the invalid commands or replace them with the governed archive workflow and regression coverage. |
+| Resolved in PR #890: the legacy dashboard and top-level calendar no longer expose invalid active-classroom Delete commands. | `teacher/dashboard/page.tsx`, `teacher/calendar/page.tsx`, `api/teacher/classrooms/[id]/route.ts` | Keep classroom removal behind the governed archive lifecycle. |
 
 ### P2: Consistency And Maintainability
 
@@ -91,8 +91,8 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 | Calendar, lesson plans, announcements | classroom calendar and announcement surfaces | lesson-plan, announcement, class-day, and read routes; lesson/announcement/read tables | Component/API coverage exists across the individual features. | Independent failures collapse to partial empty calendars; announcement time is not consistently Toronto-based; compact calendar controls need mobile target checks. |
 | Syllabus/resources | teacher resources tab and `/actual` iframe | course-site and published-source modules; classroom site fields/resources plus course content | Published-source and resource behavior has focused tests; the legacy editor is still separately tested. | Empty/published states exist, but iframe sizing, nested scrolling, theme contrast, and keyboard traversal need browser checks. |
 | Settings | classroom settings surface | classroom/site/calendar/join/blueprint routes and modules | Settings and related route/domain behavior have focused component/API coverage. | One long surface mixes joining, display, calendar, syllabus publishing, and blueprint capture; section navigation, field semantics, failure recovery, and mobile scroll position are not governed. |
-| Legacy dashboard | `/teacher/dashboard` | teacher attendance/export plus an incorrect student entry call; classroom/roster/class-day/entry data | Component and API coverage exists but the component test mocks an unauthorized call as success. | Entry detail is functionally broken for teachers. The shell differs from classrooms and the matrix has unbounded mobile width. |
-| Top-level teacher calendar | `/teacher/calendar` | teacher classroom/lesson-plan/calendar routes and classroom/class-day/lesson data | Calendar component/API behavior has focused coverage; evidence `43` and `44` adds a dedicated utility-route browser review. | Delete is offered for active classrooms even though the API rejects it. Mobile evidence shows horizontal overflow; keyboard, empty, and failure states still need direct verification. |
+| Legacy dashboard | `/teacher/dashboard` | teacher attendance/export plus teacher-owned student-history detail; classroom/roster/class-day/entry data | Component and API coverage proves authorization, loading/error/empty recovery, retry, stale-request isolation, modal semantics, and focus return. | Entry detail correctness and invalid commands are resolved. The shell still differs from classrooms, and responsive summary-first attendance remains deferred with broader mobile work. |
+| Top-level teacher calendar | `/teacher/calendar` | teacher classroom/lesson-plan/calendar routes and classroom/class-day/lesson data | Calendar component/API behavior has focused coverage; evidence `43` and `44` adds a dedicated utility-route browser review. | The invalid active-classroom Delete command is removed. Mobile evidence still shows horizontal overflow; broader narrow-screen redesign remains deferred. |
 | Blueprints | `/teacher/blueprints` | blueprint CRUD/import/export/instantiate/merge/AI routes; operation/package modules; blueprint tables and atomic RPCs | Server, API, package, migration, and focused component suites exist. No browser round trip exists. | Client retries lack stable idempotency, overflow is ignored, navigation has no dirty-state guard, and legacy tabs/shell/modal semantics drift from shared primitives. |
 | Public planned-course site | `/planned/[slug]`, opened from Blueprints | public planned-course loader and publishing contract; blueprint publication metadata and course content | Publishing/domain tests cover source selection and availability; no durable browser capture exists yet. | Public not-found, responsive layout, keyboard traversal, and content-exposure boundaries require browser verification before Phase 5 exits. |
 | Standalone test preview | `/classrooms/[classroomId]/tests/[testId]/preview` | teacher preview page plus test authorization/detail contracts | Test authorization and authoring suites cover related behavior; no durable full-screen browser capture exists yet. | The separate full-screen shell, authorization failure, keyboard flow, and mobile framing require browser verification in the Tests slice. |
@@ -148,9 +148,9 @@ Exit evidence: merged audit, reviewable Open Design artifact, durable workflow/v
 
 1. Disable the legacy archived-classroom Delete endpoint and UI with API/UI regression tests. Design any future removal control only around the compaction state machine.
 2. Make pre-submit assignment save failures reject submission and add data-loss regression coverage.
-3. Replace the dashboard student endpoint call with a teacher-owned contract and correct its tests.
+3. Completed in PR #894: replace the dashboard student endpoint call with a teacher-owned contract and correct its tests.
 4. Resolve blueprint package v2/v3 drift in runtime, docs, fixtures, and compatibility tests.
-5. Remove or replace invalid active-classroom Delete actions on the dashboard and top-level calendar.
+5. Completed in PR #890: remove invalid active-classroom Delete actions on the dashboard and top-level calendar.
 
 Each item is a separate PR unless one shared route contract makes two inseparable. Exit evidence is a focused regression test, relevant contract test, and role/viewport verification where UI changes.
 
@@ -219,10 +219,18 @@ Calendar and lesson-plan progress:
 - Focused tests cover partial and cold failures, source-specific recovery, retained refresh data, stale classroom isolation, and Toronto term labels. Teacher/student desktop light/dark loaded states and intercepted partial-error states passed Playwright review.
 - The Phase 3 Calendar and lesson-plans slice is complete. Mobile Calendar redesign remains deferred with the broader mobile work.
 
+Dashboard progress:
+
+- The dashboard entry-detail path uses the teacher-owned student-history contract, and invalid active-classroom Delete commands are removed.
+- Student logs now open immediately in the canonical dialog with explicit loading, successful-empty, ready, and retryable error states. Request generations fence close, classroom changes, and overlapping student requests so stale responses cannot reopen or replace the active detail.
+- Focus containment, Escape/backdrop dismissal, background isolation, scroll locking, and opener focus return come from the shared modal-layer contract. Focused tests cover the entry states, retry, stale responses, and focus return.
+- Teacher desktop/mobile and light/dark browser verification covers ready, loading, and error states without horizontal overflow. The student role is not authorized for this teacher utility route and redirects to its classroom surface.
+- Remaining Dashboard work is limited to responsive summary-first attendance and utility-shell convergence, both deferred with the broader mobile and shell work.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
-4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
+4. Dashboard: completed teacher-owned entry detail, governed recovery/dialog behavior, and removal of invalid classroom commands; responsive summary-first attendance remains deferred.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
 6. Surveys: completed explicit student/teacher results recovery, retained refresh data, stale-response guards, and native choice semantics.
 7. Calendar and lesson plans: completed independent source recovery, retained snapshots, stale-response guards, compact error controls, and Toronto date behavior; mobile redesign remains deferred.

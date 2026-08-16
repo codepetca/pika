@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   AlertDialog,
   Button,
+  ContentDialog,
   DataTable,
   DataTableBody,
   DataTableCell,
@@ -33,6 +34,20 @@ import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 
 type AttendanceSortColumn = 'student' | 'present' | 'absent'
 
+type EntryDetailTarget = {
+  classroomId: string
+  studentId: string
+  studentEmail: string
+  date: string
+}
+
+type EntryDetailState =
+  | { status: 'closed' }
+  | { status: 'loading'; target: EntryDetailTarget }
+  | { status: 'ready'; target: EntryDetailTarget; entry: Entry }
+  | { status: 'empty'; target: EntryDetailTarget }
+  | { status: 'error'; target: EntryDetailTarget }
+
 const DASHBOARD_ATTENDANCE_COLUMN_LIMITS = {
   student: { defaultWidth: 220, min: 140, max: 360 },
 }
@@ -49,8 +64,7 @@ export default function TeacherDashboardPage() {
   const [loadingAttendance, setLoadingAttendance] = useState(false)
   const [attendanceError, setAttendanceError] = useState('')
   const [attendanceAttempt, setAttendanceAttempt] = useState(0)
-  const [selectedEntry, setSelectedEntry] = useState<Entry & { student_email: string } | null>(null)
-  const [loadingEntry, setLoadingEntry] = useState(false)
+  const [entryDetail, setEntryDetail] = useState<EntryDetailState>({ status: 'closed' })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [{ column: attendanceSortColumn, direction: attendanceSortDirection }, setAttendanceSort] = useState<{
@@ -116,14 +130,12 @@ export default function TeacherDashboardPage() {
       setDates([])
       setAttendanceClassroomId(null)
       setAttendanceError('')
-      setSelectedEntry(null)
-      setLoadingEntry(false)
+      setEntryDetail({ status: 'closed' })
       return
     }
 
     entryRequestIdRef.current += 1
-    setSelectedEntry(null)
-    setLoadingEntry(false)
+    setEntryDetail({ status: 'closed' })
 
     async function loadAttendance() {
       if (!selectedClassroom) return
@@ -156,34 +168,55 @@ export default function TeacherDashboardPage() {
     loadAttendance()
   }, [attendanceAttempt, selectedClassroom])
 
-  async function handleCellClick(studentId: string, studentEmail: string, date: string) {
-    if (!selectedClassroom) return
-    const classroomId = selectedClassroom.id
+  async function loadEntryDetail(target: EntryDetailTarget) {
     const requestId = entryRequestIdRef.current + 1
     entryRequestIdRef.current = requestId
 
-    setLoadingEntry(true)
+    setEntryDetail({ status: 'loading', target })
 
     try {
-      const entry = await fetchTeacherDashboardEntry(classroomId, studentId, date)
+      const entry = await fetchTeacherDashboardEntry(target.classroomId, target.studentId, target.date)
 
       if (
-        entry
-        && entryRequestIdRef.current === requestId
-        && selectedClassroomIdRef.current === classroomId
+        entryRequestIdRef.current !== requestId
+        || selectedClassroomIdRef.current !== target.classroomId
       ) {
-        setSelectedEntry({ ...entry, student_email: studentEmail })
+        return
       }
+
+      setEntryDetail(entry
+        ? { status: 'ready', target, entry }
+        : { status: 'empty', target })
     } catch (err) {
-      console.error('Error loading entry:', err)
-    } finally {
       if (
-        entryRequestIdRef.current === requestId
-        && selectedClassroomIdRef.current === classroomId
+        entryRequestIdRef.current !== requestId
+        || selectedClassroomIdRef.current !== target.classroomId
       ) {
-        setLoadingEntry(false)
+        return
       }
+      console.error('Error loading entry:', err)
+      setEntryDetail({ status: 'error', target })
     }
+  }
+
+  function handleCellClick(studentId: string, studentEmail: string, date: string) {
+    if (!selectedClassroom) return
+    void loadEntryDetail({
+      classroomId: selectedClassroom.id,
+      studentId,
+      studentEmail,
+      date,
+    })
+  }
+
+  function closeEntryDetail() {
+    entryRequestIdRef.current += 1
+    setEntryDetail({ status: 'closed' })
+  }
+
+  function retryEntryDetail() {
+    if (entryDetail.status === 'closed') return
+    void loadEntryDetail(entryDetail.target)
   }
 
   async function handleExportCSV() {
@@ -539,61 +572,65 @@ export default function TeacherDashboardPage() {
                 </div>
               )}
 
-              {/* Entry Modal */}
-              {selectedEntry && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                  onClick={() => setSelectedEntry(null)}
-                >
-                  <div
-                    className="bg-surface rounded-lg shadow-xl max-w-2xl w-full p-6"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-text-default">
-                          {selectedEntry.student_email}
-                        </h3>
-                        <p className="text-sm text-text-muted">{selectedEntry.date}</p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedEntry(null)}
-                        className="text-text-muted hover:text-text-default"
-                        aria-label="Close entry"
-                      >
-                        ✕
-                      </button>
+              <ContentDialog
+                isOpen={entryDetail.status !== 'closed'}
+                onClose={closeEntryDetail}
+                title={entryDetail.status === 'closed' ? 'Student log' : entryDetail.target.studentEmail}
+                subtitle={entryDetail.status === 'closed' ? undefined : entryDetail.target.date}
+                maxWidth="!max-w-2xl"
+                showFooterClose={false}
+              >
+                {entryDetail.status === 'loading' && (
+                  <PageState
+                    kind="loading"
+                    headingLevel="h3"
+                    title="Loading log"
+                    description="Getting the latest student entry."
+                  />
+                )}
+
+                {entryDetail.status === 'error' && (
+                  <PageState
+                    kind="error"
+                    headingLevel="h3"
+                    title="Could not load log"
+                    description="The student entry could not be retrieved."
+                    action={<Button onClick={retryEntryDetail}>Try again</Button>}
+                  />
+                )}
+
+                {entryDetail.status === 'empty' && (
+                  <PageState
+                    kind="empty"
+                    headingLevel="h3"
+                    title="No log found"
+                    description="There is no student entry for this date."
+                  />
+                )}
+
+                {entryDetail.status === 'ready' && (
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-1 text-sm font-medium text-text-muted">Entry</div>
+                      <p className="whitespace-pre-wrap text-text-default">{entryDetail.entry.text}</p>
                     </div>
 
-                    <div className="space-y-4">
+                    {entryDetail.entry.minutes_reported != null && (
                       <div>
-                        <label className="block text-sm font-medium text-text-muted mb-1">
-                          Entry
-                        </label>
-                        <p className="text-text-default whitespace-pre-wrap">{selectedEntry.text}</p>
+                        <div className="mb-1 text-sm font-medium text-text-muted">Time Spent</div>
+                        <p className="text-text-default">{entryDetail.entry.minutes_reported} minutes</p>
                       </div>
+                    )}
 
-                      {selectedEntry.minutes_reported && (
-                        <div>
-                          <label className="block text-sm font-medium text-text-muted mb-1">
-                            Time Spent
-                          </label>
-                          <p className="text-text-default">{selectedEntry.minutes_reported} minutes</p>
-                        </div>
-                      )}
-
-                      {selectedEntry.mood && (
-                        <div>
-                          <label className="block text-sm font-medium text-text-muted mb-1">
-                            Mood
-                          </label>
-                          <p className="text-2xl">{selectedEntry.mood}</p>
-                        </div>
-                      )}
-                    </div>
+                    {entryDetail.entry.mood && (
+                      <div>
+                        <div className="mb-1 text-sm font-medium text-text-muted">Mood</div>
+                        <p className="text-2xl">{entryDetail.entry.mood}</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </ContentDialog>
             </PageContent>
           </PageLayout>
         ) : (

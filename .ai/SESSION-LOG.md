@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Preserve merged migration 118 during reconciliation
-
-- Independent review found that replacing merged migration version 118 would
-  break databases that had already applied `main`: they would skip the new 118
-  and fail when the non-idempotent purge DDL moved to 119.
-- Restored the merged purge migration 118 byte-for-byte, hash-locked it, and
-  appended archive-binding compatibility as migration 119. Current clean replay
-  therefore exercises the real upgrade order, and the managed-storage database
-  fixture proves the legacy binding after that upgrade.
-- Verified production already has the equivalent final schemas recorded as
-  versions 118 and 119 under its separately authorized reconciliation history;
-  this source correction performed no remote migration or state change.
-
 ## 2026-08-05 — Prove post-purge Blueprint reuse in production
 
 **Risk profile:** exact synthetic production create/archive/purge canary; no
@@ -1086,3 +1073,27 @@ mobile redesign, API, schema, migration, production data, or Gradex change.
   regressions prove stale completion is not announced while an A → B → A draft
   remains intact and autosaves. The post-fix grading-switch visual matrix also
   passes.
+
+## 2026-08-16 — Complete Dashboard entry-detail recovery
+
+**Risk profile:** workspace-state and accessibility — teacher Dashboard student
+log detail only; no API, schema, migration, production, Gradex, or mobile
+redesign change.
+
+**Completed:**
+- Replaced the hand-built student-log overlay with the canonical content dialog
+  and explicit loading, ready, successful-empty, and retryable error states.
+- Scoped each request to classroom, student, and date; closing the dialog,
+  changing classrooms, or opening another student invalidates older responses.
+- Preserved the compact detail width and existing attendance table, classroom
+  selection, sorting, resizing, roster, and export workflows.
+
+**Validation:**
+- Focused Dashboard and modal suites pass: 19 tests. The full suite passes:
+  4,323 tests across 498 files. TypeScript, lint, production build, Pika audit,
+  and diff checks pass.
+- Composite-widget checklist reviewed: keyboard behavior covered, semantic
+  state covered by tests, and no manual accessibility follow-up remains.
+- Playwright verification passes for teacher ready/loading/error states at
+  desktop and mobile widths, ready state in dark mode, and the student-role
+  redirect. Captures have no horizontal viewport overflow.
