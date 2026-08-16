@@ -57,6 +57,7 @@ vi.mock('@/components/LessonCalendar', () => ({
       data-testid="lesson-calendar"
       data-lesson-count={lessonPlans.length}
       data-lesson-classrooms={lessonPlans.map((plan: LessonPlan) => plan.classroom_id).join(',')}
+      data-lesson-content={lessonPlans.map((plan: LessonPlan) => plan.content_markdown).join(',')}
       data-assignment-classrooms={assignments.map((assignment: any) => assignment.classroom_id).join(',')}
       data-assignment-ids={assignments.map((assignment: any) => assignment.id).join(',')}
       data-announcement-classrooms={announcements.map((announcement: any) => announcement.classroom_id).join(',')}
@@ -165,25 +166,23 @@ describe('TeacherLessonCalendarTab', () => {
 
   it('keeps successful sources visible and retries only failed assignments', async () => {
     let assignmentReads = 0
-    fetchMock.mockImplementation(async (url: string) => {
+    const assignmentRetry = deferred<any>()
+    fetchMock.mockImplementation((url: string) => {
       if (url.includes('assignments')) {
         assignmentReads += 1
         if (assignmentReads === 1) {
-          return { ok: false, json: async () => ({ error: 'Failed' }) }
+          return Promise.resolve({ ok: false, json: async () => ({ error: 'Failed' }) })
         }
-        return {
-          ok: true,
-          json: async () => ({ assignments: [{ id: 'assignment-1', classroom_id: classroom.id }] }),
-        }
+        return assignmentRetry.promise
       }
-      return {
+      return Promise.resolve({
         ok: true,
         json: async () => {
           if (url.includes('lesson-plans')) return { lesson_plans: [lessonPlan()] }
           if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1', classroom_id: classroom.id }] }
           return {}
         },
-      }
+      })
     })
 
     render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
@@ -192,13 +191,82 @@ describe('TeacherLessonCalendarTab', () => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-classrooms', classroom.id)
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Retry assignments' }))
+    const retryButton = screen.getByRole('button', { name: 'Retry assignments' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+
+    expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
+    expect(document.activeElement).toBe(retryButton)
+
+    assignmentRetry.resolve({
+      ok: true,
+      json: async () => ({ assignments: [{ id: 'assignment-1', classroom_id: classroom.id }] }),
+    })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-classrooms', classroom.id)
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
     })
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(assignmentReads).toBe(2)
+  })
+
+  it('keeps local lesson edits while a retained snapshot refresh is in flight', async () => {
+    const refreshedLessonPlans = deferred<any>()
+    let lessonPlanReads = 0
+    let latestSidebarState: CalendarSidebarState | null = null
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes('/lesson-plans/bulk') && init?.method === 'PUT') {
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      }
+      if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') {
+        return Promise.resolve({ ok: true, json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }) })
+      }
+      if (url.includes('lesson-plans')) {
+        lessonPlanReads += 1
+        if (lessonPlanReads === 1) {
+          return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [lessonPlan()] }) })
+        }
+        return refreshedLessonPlans.promise
+      }
+      if (url.includes('assignments')) return Promise.resolve({ ok: true, json: async () => ({ assignments: [] }) })
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    sidebarState.isOpen = true
+    render(
+      <TeacherLessonCalendarTab
+        classroom={classroom}
+        onSidebarStateChange={(state) => {
+          latestSidebarState = state
+        }}
+      />,
+      { wrapper: Wrapper },
+    )
+
+    await waitFor(() => expect(latestSidebarState?.markdownContent).toContain('Original lesson'))
+    act(() => latestSidebarState?.onMarkdownChange('## 2025-01-06\nSidebar lesson'))
+    await act(async () => latestSidebarState?.onSave())
+    await waitFor(() => expect(lessonPlanReads).toBe(2))
+
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
+
+    await act(async () => {
+      vi.advanceTimersByTime(10_000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(fetchMock.mock.calls.some(([url, init]) => String(url).includes('/lesson-plans/2025-01-06') && init?.method === 'PUT')).toBe(true)
+    vi.useRealTimers()
+
+    refreshedLessonPlans.resolve({ ok: true, json: async () => ({ lesson_plans: [lessonPlan()] }) })
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
+    })
   })
 
   it('shows a retryable cold error when no calendar source loads', async () => {

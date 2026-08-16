@@ -24,6 +24,7 @@ type StudentAssignmentsResponse = { assignments?: Assignment[] }
 type StudentAnnouncementsResponse = { announcements?: Announcement[] }
 
 type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements'
+type CalendarRetrySource = CalendarSource | 'classDays'
 type SourceStatus = {
   classroomId: string | null
   error: boolean
@@ -52,6 +53,8 @@ export function StudentLessonCalendarTab({
     announcements: 0,
   })
   const currentClassroomIdRef = useRef(classroom.id)
+  const retryingSourcesRef = useRef<Set<CalendarRetrySource>>(new Set())
+  const calendarWorkspaceRef = useRef<HTMLDivElement>(null)
   const {
     classDays,
     error: classDaysError,
@@ -99,7 +102,7 @@ export function StudentLessonCalendarTab({
       ...current,
       [source]: {
         classroomId: requestedClassroomId,
-        error: false,
+        error: current[source].classroomId === requestedClassroomId && current[source].error,
         hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
         isLoading: true,
       },
@@ -138,7 +141,7 @@ export function StudentLessonCalendarTab({
       ...current,
       [source]: {
         classroomId: requestedClassroomId,
-        error: false,
+        error: current[source].classroomId === requestedClassroomId && current[source].error,
         hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
         isLoading: true,
       },
@@ -176,7 +179,7 @@ export function StudentLessonCalendarTab({
       ...current,
       [source]: {
         classroomId: requestedClassroomId,
-        error: false,
+        error: current[source].classroomId === requestedClassroomId && current[source].error,
         hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
         isLoading: true,
       },
@@ -214,33 +217,67 @@ export function StudentLessonCalendarTab({
   const currentAssignments = assignmentsStatus.classroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
   const currentAnnouncements = announcementsStatus.classroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
   const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus]
-  const isInitialLoading = localStatuses.some((status) => (
-    status.classroomId !== classroom.id || (status.isLoading && !status.hasLoadedSnapshot)
-  )) || (classDaysLoading && !hasClassDaysSnapshot)
-  const isRefreshing = localStatuses.some((status) => status.isLoading) || classDaysLoading
-  const hasAnySnapshot = localStatuses.some((status) => (
+  const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot
-  )) || hasClassDaysSnapshot
+  ))
+  const hasAnySnapshot = hasAnyLocalSnapshot || hasClassDaysSnapshot
+  const haveLocalSourcesInitialized = localStatuses.every((status) => status.classroomId === classroom.id)
+  const isInitialLoading = !haveLocalSourcesInitialized || (
+    !hasAnyLocalSnapshot && localStatuses.some((status) => status.isLoading)
+  )
+  const isRefreshing = localStatuses.some((status) => status.isLoading) || classDaysLoading
+  const retryLessonPlans = useCallback(() => {
+    retryingSourcesRef.current.add('lessonPlans')
+    void loadLessonPlans(true)
+  }, [loadLessonPlans])
+  const retryAssignments = useCallback(() => {
+    retryingSourcesRef.current.add('assignments')
+    void loadAssignments(true)
+  }, [loadAssignments])
+  const retryAnnouncements = useCallback(() => {
+    retryingSourcesRef.current.add('announcements')
+    void loadAnnouncements(true)
+  }, [loadAnnouncements])
+  const retryClassDays = useCallback(() => {
+    retryingSourcesRef.current.add('classDays')
+    void refreshClassDays()
+  }, [refreshClassDays])
+
+  useEffect(() => {
+    const statuses: Record<CalendarRetrySource, { error: boolean; isLoading: boolean }> = {
+      lessonPlans: lessonPlansStatus,
+      assignments: assignmentsStatus,
+      announcements: announcementsStatus,
+      classDays: { error: Boolean(classDaysError), isLoading: classDaysLoading },
+    }
+    for (const source of retryingSourcesRef.current) {
+      const status = statuses[source]
+      if (status.isLoading) continue
+      retryingSourcesRef.current.delete(source)
+      if (!status.error) calendarWorkspaceRef.current?.focus()
+    }
+  }, [announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
+
   const failures: CalendarSourceFailure[] = []
   if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
-    failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: () => void loadLessonPlans(true) })
+    failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: retryLessonPlans })
   }
   if (assignmentsStatus.classroomId === classroom.id && assignmentsStatus.error) {
-    failures.push({ id: 'assignments', label: 'assignments', isRetrying: assignmentsStatus.isLoading, onRetry: () => void loadAssignments(true) })
+    failures.push({ id: 'assignments', label: 'assignments', isRetrying: assignmentsStatus.isLoading, onRetry: retryAssignments })
   }
   if (announcementsStatus.classroomId === classroom.id && announcementsStatus.error) {
-    failures.push({ id: 'announcements', label: 'announcements', isRetrying: announcementsStatus.isLoading, onRetry: () => void loadAnnouncements(true) })
+    failures.push({ id: 'announcements', label: 'announcements', isRetrying: announcementsStatus.isLoading, onRetry: retryAnnouncements })
   }
   if (classDaysError) {
-    failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: () => void refreshClassDays() })
+    failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: retryClassDays })
   }
 
   const retryAll = useCallback(() => {
-    void loadLessonPlans(true)
-    void loadAssignments(true)
-    void loadAnnouncements(true)
-    void refreshClassDays()
-  }, [loadAnnouncements, loadAssignments, loadLessonPlans, refreshClassDays])
+    retryLessonPlans()
+    retryAssignments()
+    retryAnnouncements()
+    retryClassDays()
+  }, [retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
 
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
@@ -287,16 +324,6 @@ export function StudentLessonCalendarTab({
     handleDateChange(nowInToronto())
   }, [handleDateChange])
 
-  if (isInitialLoading) {
-    return (
-      <PageLayout bleedX={false}>
-        <PageContent>
-          <PageState kind="loading" title="Loading calendar" />
-        </PageContent>
-      </PageLayout>
-    )
-  }
-
   if (!hasAnySnapshot && failures.length > 0) {
     return (
       <PageLayout bleedX={false}>
@@ -305,8 +332,22 @@ export function StudentLessonCalendarTab({
             kind="error"
             title="Calendar couldn't load"
             description="Pika couldn't load this classroom's calendar information. Nothing was changed."
-            action={<Button type="button" onClick={retryAll}>Retry</Button>}
+            action={(
+              <Button type="button" onClick={retryAll} disabled={isRefreshing}>
+                {isRefreshing ? 'Retrying...' : 'Retry'}
+              </Button>
+            )}
           />
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (isInitialLoading) {
+    return (
+      <PageLayout bleedX={false}>
+        <PageContent>
+          <PageState kind="loading" title="Loading calendar" />
         </PageContent>
       </PageLayout>
     )
@@ -325,24 +366,26 @@ export function StudentLessonCalendarTab({
         onViewModeChange={handleViewModeChange}
       />
       <PageContent className="pb-24 pt-2">
-        {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
-        <CalendarSourceErrors failures={failures} />
-        <div className="overflow-hidden rounded-lg border border-border bg-surface">
-          <LessonCalendar
-            classroom={classroom}
-            lessonPlans={currentLessonPlans}
-            assignments={currentAssignments}
-            announcements={currentAnnouncements}
-            classDays={classDays}
-            viewMode={viewMode}
-            currentDate={currentDate}
-            editable={false}
-            showHeader={false}
-            onDateChange={handleDateChange}
-            onViewModeChange={handleViewModeChange}
-            onAssignmentClick={handleAssignmentClick}
-            onAnnouncementClick={handleAnnouncementClick}
-          />
+        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
+          {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
+          <CalendarSourceErrors failures={failures} />
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <LessonCalendar
+              classroom={classroom}
+              lessonPlans={currentLessonPlans}
+              assignments={currentAssignments}
+              announcements={currentAnnouncements}
+              classDays={classDays}
+              viewMode={viewMode}
+              currentDate={currentDate}
+              editable={false}
+              showHeader={false}
+              onDateChange={handleDateChange}
+              onViewModeChange={handleViewModeChange}
+              onAssignmentClick={handleAssignmentClick}
+              onAnnouncementClick={handleAnnouncementClick}
+            />
+          </div>
         </div>
       </PageContent>
     </PageLayout>

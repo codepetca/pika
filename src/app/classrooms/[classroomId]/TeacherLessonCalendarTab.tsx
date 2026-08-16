@@ -44,6 +44,7 @@ const AUTOSAVE_MIN_INTERVAL_MS = 10000
 const MARKDOWN_SYNC_DEBOUNCE_MS = 300
 
 type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements'
+type CalendarRetrySource = CalendarSource | 'classDays'
 type SourceStatus = {
   classroomId: string | null
   error: boolean
@@ -95,6 +96,8 @@ export function TeacherLessonCalendarTab({
   const visibleAnnouncements = announcementsClassroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
   const lessonPlansRef = useRef(visibleLessonPlans)
   lessonPlansRef.current = visibleLessonPlans
+  const lessonEditGenerationRef = useRef(0)
+  const lessonEditsRef = useRef<Map<string, { content: string; generation: number }>>(new Map())
   const {
     classDays,
     error: classDaysError,
@@ -127,6 +130,8 @@ export function TeacherLessonCalendarTab({
     assignments: 0,
     announcements: 0,
   })
+  const retryingSourcesRef = useRef<Set<CalendarRetrySource>>(new Set())
+  const calendarWorkspaceRef = useRef<HTMLDivElement>(null)
 
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
   const { showMarkdown } = useMarkdownPreference()
@@ -136,6 +141,8 @@ export function TeacherLessonCalendarTab({
     sourceRequestIdsRef.current.lessonPlans += 1
     sourceRequestIdsRef.current.assignments += 1
     sourceRequestIdsRef.current.announcements += 1
+    lessonEditGenerationRef.current = 0
+    lessonEditsRef.current.clear()
     setSourceStatus(initialSourceStatus())
   }, [classroom.id])
 
@@ -200,6 +207,7 @@ export function TeacherLessonCalendarTab({
     const requestedClassroomId = classroom.id
 
     async function loadLessonPlans() {
+      const editGenerationAtRequestStart = lessonEditGenerationRef.current
       const requestId = sourceRequestIdsRef.current.lessonPlans + 1
       sourceRequestIdsRef.current.lessonPlans = requestId
       const isCurrentLoad = () => (
@@ -212,7 +220,7 @@ export function TeacherLessonCalendarTab({
         ...current,
         lessonPlans: {
           classroomId: requestedClassroomId,
-          error: false,
+          error: current.lessonPlans.classroomId === requestedClassroomId && current.lessonPlans.error,
           hasLoadedSnapshot: current.lessonPlans.classroomId === requestedClassroomId && current.lessonPlans.hasLoadedSnapshot,
           isLoading: true,
         },
@@ -220,13 +228,20 @@ export function TeacherLessonCalendarTab({
       try {
         const plans = await fetchTeacherLessonPlansForRange(requestedClassroomId, fetchRange.start, fetchRange.end)
         if (!isCurrentLoad()) return
-        // Seed last-seen content so Tiptap normalization doesn't trigger saves
+        const plansWithPending = applyPendingLessonPlanChanges(plans, pendingChangesRef.current, requestedClassroomId)
+        const editsSinceRequest = new Map<string, string>()
+        for (const [date, edit] of lessonEditsRef.current) {
+          if (edit.generation > editGenerationAtRequestStart) editsSinceRequest.set(date, edit.content)
+        }
+        const plansWithCurrentEdits = applyPendingLessonPlanChanges(plansWithPending, editsSinceRequest, requestedClassroomId)
+        // Seed last-seen content so Tiptap normalization doesn't trigger saves.
+        // Local edits remain authoritative while a background refresh settles.
         lastSeenContentRef.current.clear()
-        for (const plan of plans) {
+        for (const plan of plansWithCurrentEdits) {
           lastSeenContentRef.current.set(plan.date, plan.content_markdown ?? '')
         }
         setLessonPlansClassroomId(requestedClassroomId)
-        setLessonPlans(plans)
+        setLessonPlans(plansWithCurrentEdits)
         setSourceStatus((current) => ({
           ...current,
           lessonPlans: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
@@ -268,7 +283,7 @@ export function TeacherLessonCalendarTab({
         ...current,
         assignments: {
           classroomId: requestedClassroomId,
-          error: false,
+          error: current.assignments.classroomId === requestedClassroomId && current.assignments.error,
           hasLoadedSnapshot: current.assignments.classroomId === requestedClassroomId && current.assignments.hasLoadedSnapshot,
           isLoading: true,
         },
@@ -329,7 +344,7 @@ export function TeacherLessonCalendarTab({
         ...current,
         announcements: {
           classroomId: requestedClassroomId,
-          error: false,
+          error: current.announcements.classroomId === requestedClassroomId && current.announcements.error,
           hasLoadedSnapshot: current.announcements.classroomId === requestedClassroomId && current.announcements.hasLoadedSnapshot,
           isLoading: true,
         },
@@ -430,18 +445,23 @@ export function TeacherLessonCalendarTab({
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, contentMarkdown: string) => {
-      if (loading) return
+      if (!lessonPlansStatus.hasLoadedSnapshot) return
       const contentStr = contentMarkdown
       if (isNormalizationNoise(lastSeenContentRef.current, lessonPlansRef.current, date, contentStr)) {
         lastSeenContentRef.current.set(date, contentStr)
         return
       }
       lastSeenContentRef.current.set(date, contentStr)
+      lessonEditGenerationRef.current += 1
+      lessonEditsRef.current.set(date, {
+        content: contentMarkdown,
+        generation: lessonEditGenerationRef.current,
+      })
       applyLocalLessonPlanChange(date, contentMarkdown)
       pendingChangesRef.current.set(date, contentMarkdown)
       scheduleSave()
     },
-    [applyLocalLessonPlanChange, loading, scheduleSave]
+    [applyLocalLessonPlanChange, lessonPlansStatus.hasLoadedSnapshot, scheduleSave]
   )
 
   // Flush on unmount and handle page close
@@ -675,28 +695,54 @@ export function TeacherLessonCalendarTab({
   }, [showMarkdown, isSidebarOpen, visibleMarkdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
 
   const retryLessonPlans = useCallback(() => {
+    retryingSourcesRef.current.add('lessonPlans')
     invalidateTeacherLessonPlansForClassroom(classroom.id)
     setRefreshKey((key) => key + 1)
   }, [classroom.id])
 
   const retryAssignments = useCallback(() => {
+    retryingSourcesRef.current.add('assignments')
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     setAssignmentsRefreshKey((key) => key + 1)
   }, [classroom.id])
 
   const retryAnnouncements = useCallback(() => {
+    retryingSourcesRef.current.add('announcements')
     invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
     setAnnouncementsRefreshKey((key) => key + 1)
   }, [classroom.id])
 
+  const retryClassDays = useCallback(() => {
+    retryingSourcesRef.current.add('classDays')
+    void refreshClassDays()
+  }, [refreshClassDays])
+
   const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus]
-  const isInitialLoading = localStatuses.some((status) => (
-    status.classroomId !== classroom.id || (status.isLoading && !status.hasLoadedSnapshot)
-  )) || (classDaysLoading && !hasClassDaysSnapshot)
-  const isRefreshing = loading || localStatuses.some((status) => status.isLoading) || classDaysLoading
-  const hasAnySnapshot = localStatuses.some((status) => (
+  const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot
-  )) || hasClassDaysSnapshot
+  ))
+  const hasAnySnapshot = hasAnyLocalSnapshot || hasClassDaysSnapshot
+  const haveLocalSourcesInitialized = localStatuses.every((status) => status.classroomId === classroom.id)
+  const isInitialLoading = !haveLocalSourcesInitialized || (
+    !hasAnyLocalSnapshot && localStatuses.some((status) => status.isLoading)
+  )
+  const isRefreshing = loading || localStatuses.some((status) => status.isLoading) || classDaysLoading
+
+  useEffect(() => {
+    const statuses: Record<CalendarRetrySource, { error: boolean; isLoading: boolean }> = {
+      lessonPlans: lessonPlansStatus,
+      assignments: assignmentsStatus,
+      announcements: announcementsStatus,
+      classDays: { error: Boolean(classDaysError), isLoading: classDaysLoading },
+    }
+    for (const source of retryingSourcesRef.current) {
+      const status = statuses[source]
+      if (status.isLoading) continue
+      retryingSourcesRef.current.delete(source)
+      if (!status.error) calendarWorkspaceRef.current?.focus()
+    }
+  }, [announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
+
   const failures: CalendarSourceFailure[] = []
   if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
     failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: retryLessonPlans })
@@ -708,25 +754,15 @@ export function TeacherLessonCalendarTab({
     failures.push({ id: 'announcements', label: 'announcements', isRetrying: announcementsStatus.isLoading, onRetry: retryAnnouncements })
   }
   if (classDaysError) {
-    failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: () => void refreshClassDays() })
+    failures.push({ id: 'class-days', label: 'class days', isRetrying: classDaysLoading, onRetry: retryClassDays })
   }
 
   const retryAll = useCallback(() => {
     retryLessonPlans()
     retryAssignments()
     retryAnnouncements()
-    void refreshClassDays()
-  }, [refreshClassDays, retryAnnouncements, retryAssignments, retryLessonPlans])
-
-  if (isInitialLoading) {
-    return (
-      <PageLayout bleedX={false}>
-        <PageContent>
-          <PageState kind="loading" title="Loading calendar" />
-        </PageContent>
-      </PageLayout>
-    )
-  }
+    retryClassDays()
+  }, [retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
 
   if (!hasAnySnapshot && failures.length > 0) {
     return (
@@ -736,8 +772,22 @@ export function TeacherLessonCalendarTab({
             kind="error"
             title="Calendar couldn't load"
             description="Pika couldn't load this classroom's calendar information. Nothing was changed."
-            action={<Button type="button" onClick={retryAll}>Retry</Button>}
+            action={(
+              <Button type="button" onClick={retryAll} disabled={isRefreshing}>
+                {isRefreshing ? 'Retrying...' : 'Retry'}
+              </Button>
+            )}
           />
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (isInitialLoading) {
+    return (
+      <PageLayout bleedX={false}>
+        <PageContent>
+          <PageState kind="loading" title="Loading calendar" />
         </PageContent>
       </PageLayout>
     )
@@ -770,25 +820,27 @@ export function TeacherLessonCalendarTab({
         ) : null}
       />
       <PageContent className="pb-24 pt-2">
-        {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
-        <CalendarSourceErrors failures={failures} />
-        <div className="overflow-hidden rounded-lg border border-border bg-surface">
-          <LessonCalendar
-            classroom={classroom}
-            lessonPlans={visibleLessonPlans}
-            assignments={visibleAssignments}
-            announcements={visibleAnnouncements}
-            classDays={classDays}
-            viewMode={viewMode}
-            currentDate={currentDate}
-            editable={!classroom.archived_at}
-            showHeader={false}
-            onDateChange={setCurrentDate}
-            onViewModeChange={handleViewModeChange}
-            onContentChange={handleContentChange}
-            onAssignmentClick={handleAssignmentClick}
-            onAnnouncementClick={handleAnnouncementClick}
-          />
+        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
+          {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
+          <CalendarSourceErrors failures={failures} />
+          <div className="overflow-hidden rounded-lg border border-border bg-surface">
+            <LessonCalendar
+              classroom={classroom}
+              lessonPlans={visibleLessonPlans}
+              assignments={visibleAssignments}
+              announcements={visibleAnnouncements}
+              classDays={classDays}
+              viewMode={viewMode}
+              currentDate={currentDate}
+              editable={!classroom.archived_at}
+              showHeader={false}
+              onDateChange={setCurrentDate}
+              onViewModeChange={handleViewModeChange}
+              onContentChange={handleContentChange}
+              onAssignmentClick={handleAssignmentClick}
+              onAnnouncementClick={handleAnnouncementClick}
+            />
+          </div>
         </div>
       </PageContent>
     </PageLayout>

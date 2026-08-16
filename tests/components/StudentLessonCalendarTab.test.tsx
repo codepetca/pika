@@ -213,28 +213,40 @@ describe('StudentLessonCalendarTab', () => {
 
   it('retries only the failed calendar source and adds its recovered data', async () => {
     let assignmentReads = 0
-    fetchMock.mockImplementation(async (url: string) => {
+    let resolveAssignmentRetry!: (value: any) => void
+    const assignmentRetry = new Promise<any>((resolve) => {
+      resolveAssignmentRetry = resolve
+    })
+    fetchMock.mockImplementation((url: string) => {
       if (url.includes('assignments')) {
         assignmentReads += 1
         if (assignmentReads === 1) {
-          return { ok: false, json: async () => ({ error: 'Failed' }) }
+          return Promise.resolve({ ok: false, json: async () => ({ error: 'Failed' }) })
         }
-        return { ok: true, json: async () => ({ assignments: [{ id: 'assignment-1' }] }) }
+        return assignmentRetry
       }
-      return {
+      return Promise.resolve({
         ok: true,
         json: async () => url.includes('lesson-plans')
           ? { lesson_plans: [{ id: 'lesson-1' }] }
           : { announcements: [{ id: 'announcement-1' }] },
-      }
+      })
     })
 
     render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry assignments' }))
+    const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
+    retryButton.focus()
+    fireEvent.click(retryButton)
+
+    expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
+    expect(document.activeElement).toBe(retryButton)
+
+    resolveAssignmentRetry({ ok: true, json: async () => ({ assignments: [{ id: 'assignment-1' }] }) })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '1')
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
     })
     expect(screen.queryByRole('button', { name: 'Retry assignments' })).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(4)
