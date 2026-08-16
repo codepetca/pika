@@ -125,6 +125,7 @@ export function TeacherLessonCalendarTab({
   const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0)
   const [announcementsRefreshKey, setAnnouncementsRefreshKey] = useState(0)
   const currentClassroomIdRef = useRef(classroom.id)
+  const classroomEpochRef = useRef(0)
   const sourceRequestIdsRef = useRef<Record<CalendarSource, number>>({
     lessonPlans: 0,
     assignments: 0,
@@ -137,6 +138,7 @@ export function TeacherLessonCalendarTab({
   const { showMarkdown } = useMarkdownPreference()
 
   useLayoutEffect(() => {
+    classroomEpochRef.current += 1
     currentClassroomIdRef.current = classroom.id
     sourceRequestIdsRef.current.lessonPlans += 1
     sourceRequestIdsRef.current.assignments += 1
@@ -149,6 +151,7 @@ export function TeacherLessonCalendarTab({
 
   // Auto-save tracking
   const pendingChangesRef = useRef<Map<string, string>>(new Map())
+  const pendingChangeEpochsRef = useRef<Map<string, number>>(new Map())
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
   const prevSidebarOpenRef = useRef(false)
@@ -392,7 +395,7 @@ export function TeacherLessonCalendarTab({
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
-    async (date: string, contentMarkdown: string, editGeneration?: number) => {
+    async (date: string, contentMarkdown: string, saveEpoch: number, editGeneration?: number) => {
       const requestedClassroomId = classroom.id
       try {
         const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/lesson-plans/${date}`, {
@@ -403,6 +406,7 @@ export function TeacherLessonCalendarTab({
         if (res.ok) {
           const data = await res.json()
           invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
+          if (classroomEpochRef.current !== saveEpoch) return
           needsRefreshRef.current = true
           if (currentClassroomIdRef.current !== requestedClassroomId) return
           const currentEdit = lessonEditsRef.current.get(date)
@@ -441,10 +445,14 @@ export function TeacherLessonCalendarTab({
       content,
       date,
       editGeneration: lessonEditsRef.current.get(date)?.generation,
+      saveEpoch: pendingChangeEpochsRef.current.get(date) ?? -1,
     }))
     pendingChangesRef.current.clear()
+    pendingChangeEpochsRef.current.clear()
 
-    await Promise.all(entries.map(({ content, date, editGeneration }) => saveLessonPlan(date, content, editGeneration)))
+    await Promise.all(entries.map(({ content, date, editGeneration, saveEpoch }) => (
+      saveLessonPlan(date, content, saveEpoch, editGeneration)
+    )))
     lastSaveAtRef.current = Date.now()
     setSaving(false)
   }, [saveLessonPlan])
@@ -481,6 +489,7 @@ export function TeacherLessonCalendarTab({
       })
       applyLocalLessonPlanChange(date, contentMarkdown)
       pendingChangesRef.current.set(date, contentMarkdown)
+      pendingChangeEpochsRef.current.set(date, classroomEpochRef.current)
       scheduleSave()
     },
     [applyLocalLessonPlanChange, lessonPlansStatus.hasLoadedSnapshot, scheduleSave]
@@ -500,6 +509,7 @@ export function TeacherLessonCalendarTab({
           )
         }
         pendingChangesRef.current.clear()
+        pendingChangeEpochsRef.current.clear()
       }
     }
 

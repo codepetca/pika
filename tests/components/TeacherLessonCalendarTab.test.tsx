@@ -744,6 +744,62 @@ describe('TeacherLessonCalendarTab', () => {
     })
   })
 
+  it('ignores an autosave from an earlier visit after returning to the classroom', async () => {
+    const secondClassroom = createMockClassroom({
+      id: 'classroom-2',
+      start_date: '2025-01-01',
+      end_date: '2025-06-30',
+    })
+    const firstVisitAutosave = deferred<any>()
+    let classroomAAutosaves = 0
+
+    invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
+    invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes(`/api/teacher/classrooms/${classroom.id}/lesson-plans/2025-01-06`) && init?.method === 'PUT') {
+        classroomAAutosaves += 1
+        if (classroomAAutosaves === 1) return firstVisitAutosave.promise
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Updated lesson' }) }),
+        })
+      }
+      if (url.includes('lesson-plans')) {
+        const classroomId = url.includes(secondClassroom.id) ? secondClassroom.id : classroom.id
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ lesson_plans: [lessonPlan({ classroom_id: classroomId })] }),
+        })
+      }
+      if (url.includes('assignments')) return Promise.resolve({ ok: true, json: async () => ({ assignments: [] }) })
+      if (url.includes('announcements')) return Promise.resolve({ ok: true, json: async () => ({ announcements: [] }) })
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    const view = render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', classroom.id))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    view.rerender(<TeacherLessonCalendarTab classroom={secondClassroom} />)
+    await waitFor(() => expect(classroomAAutosaves).toBe(1))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', secondClassroom.id))
+
+    view.rerender(<TeacherLessonCalendarTab classroom={classroom} />)
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-classrooms', classroom.id))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit lesson' }))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
+
+    firstVisitAutosave.resolve({
+      ok: true,
+      json: async () => ({ lesson_plan: lessonPlan({ content_markdown: 'Late saved lesson' }) }),
+    })
+    await act(async () => firstVisitAutosave.promise)
+
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-content', 'Updated lesson')
+  })
+
   it('invalidates cached teacher lesson plans after an autosaved edit', async () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes('/lesson-plans/2025-01-06') && init?.method === 'PUT') {
