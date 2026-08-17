@@ -89,6 +89,7 @@ Package import, classroom-to-blueprint capture, and blueprint-to-classroom insta
 The invariants are:
 
 - A caller may send a UUID `Idempotency-Key`. Repeating a completed request with the same key returns the original result and creates no duplicate rows.
+- Browser import surfaces retain one caller key while normalized JSON or exact archive bytes are retried, replace it when the package changes, and suppress concurrent import submissions.
 - Generated class codes and default themes are derived deterministically from the operation ID so retries rebuild the same write plan.
 - Reusing a key for a different semantic request returns `idempotency_conflict`.
 - Blueprint and classroom source reads use revision checks before and after loading child rows. The RPC locks and rechecks the same revision before writing.

@@ -18454,3 +18454,18 @@ schema/Storage concurrency verification only.
 - Shell syntax, the versioned Blueprint database contract, and the Course
   Blueprint purge database fixture pass against local `supabase_db_pika`.
 - No migration, application runtime, staging, or production state changed.
+
+<!-- pika-session-log-archive-batch:5e000bf002eb32af5f44135a554cd029eaff106f7de1ef81bb14943007b76054 -->
+## 2026-08-07 — Add workflow-friction guardrails
+
+**Risk profile:** workspace-state.
+
+- Updated the E2E coverage and weekly simplification automations to create their
+  named task branch before edits when Codex starts them on a detached HEAD, and
+  to stop on any unexpected checkout state.
+- Added an explicit fallback for the workflow-friction review memory path while
+  retaining the configured hub project roots and report-only boundary.
+- Made session-log trim and check operations reject empty entries, removed the
+  existing empty duplicate heading, and added focused regression coverage.
+- Validation passed: focused trim/startup tests (51), full Vitest (468 files,
+  4,049 tests), lint, session-log check, TOML parsing, and diff checks.

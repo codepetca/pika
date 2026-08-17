@@ -254,6 +254,192 @@ describe('CreateClassroomModal', () => {
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
   })
 
+  it('sends a caller idempotency key when importing a JSON course package', async () => {
+    const bundle = { manifest: { version: '5', title: 'Imported course' }, files: {} }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ blueprint: mockBlueprint }),
+    })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File([JSON.stringify(bundle)], 'course-package.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', {
+      value: async () => JSON.stringify(bundle, null, 2),
+    })
+
+    fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    await waitFor(() => expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id))
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/course-blueprints/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': expect.any(String),
+      },
+      body: JSON.stringify(bundle),
+    })
+  })
+
+  it('reuses the import key for semantically unchanged JSON retries', async () => {
+    const bundle = { manifest: { version: '5', title: 'Imported course' }, files: {} }
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ blueprint: mockBlueprint }),
+      })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const formattedFile = new File([], 'course-package.json', { type: 'application/json' })
+    Object.defineProperty(formattedFile, 'text', {
+      value: async () => JSON.stringify(bundle, null, 2),
+    })
+    const compactFile = new File([], 'course-package.json', { type: 'application/json' })
+    Object.defineProperty(compactFile, 'text', {
+      value: async () => JSON.stringify(bundle),
+    })
+
+    for (const [file, expectedCalls] of [[formattedFile, 1], [compactFile, 2]] as const) {
+      fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(expectedCalls))
+    }
+
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('reuses the import key for unchanged archive retries and replaces it for changed bytes', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ blueprint: mockBlueprint }),
+      })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const originalFile = new File(['original'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(originalFile, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('original').buffer,
+    })
+    const changedFile = new File(['changed'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(changedFile, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('changed').buffer,
+    })
+
+    for (const [file, expectedCalls] of [
+      [originalFile, 1],
+      [originalFile, 2],
+      [changedFile, 3],
+    ] as const) {
+      fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(expectedCalls))
+    }
+
+    await waitFor(() => expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id))
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    const firstKey = (importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']
+    const secondKey = (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key']
+    const changedKey = (importCalls[2][1]?.headers as Record<string, string>)['Idempotency-Key']
+
+    expect(firstKey).toBe(secondKey)
+    expect(changedKey).not.toBe(secondKey)
+  })
+
+  it('clears the import key after a successful package import', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ blueprint: mockBlueprint }),
+    })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+
+    for (const expectedCalls of [1, 2]) {
+      fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(expectedCalls))
+    }
+
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).not.toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('clears the import key when the wizard is cancelled after a failure', async () => {
+    const onClose = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ blueprint: mockBlueprint }),
+      })
+
+    renderModal({ onClose })
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(await screen.findByText('Temporary import failure')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+
+    await openBlueprintSourceStep()
+    fireEvent.change(screen.getByLabelText('Import course package file'), { target: { files: [file] } })
+    await waitFor(() => expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id))
+
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).not.toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
   it('shows the rollover review before completing a classroom created from a blueprint', async () => {
     const onSuccess = vi.fn()
     const onBlueprintCreated = vi.fn()
