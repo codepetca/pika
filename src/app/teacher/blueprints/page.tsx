@@ -511,9 +511,7 @@ export default function TeacherBlueprintsPage() {
       if (selectedBlueprintIdRef.current !== blueprintId) return
       setProposalsError(err.message || 'Failed to prepare classroom update')
     } finally {
-      if (selectedBlueprintIdRef.current === blueprintId) {
-        setClassroomProposalPreparing(false)
-      }
+      setClassroomProposalPreparing(false)
     }
   }
 
@@ -1129,7 +1127,10 @@ export default function TeacherBlueprintsPage() {
                     key={blueprint.id}
                     type="button"
                     onClick={() => selectBlueprint(blueprint.id)}
-                    disabled={saving || importingPackage || applyingProposalId !== null}
+                    disabled={saving
+                      || importingPackage
+                      || applyingProposalId !== null
+                      || classroomProposalPreparing}
                     className={`w-full rounded-card border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       selectedBlueprintId === blueprint.id
                         ? 'border-primary bg-info-bg'

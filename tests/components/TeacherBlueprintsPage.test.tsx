@@ -875,6 +875,46 @@ describe('TeacherBlueprintsPage', () => {
     ))
   })
 
+  it('prevents Blueprint switching while a classroom update proposal is pending', async () => {
+    let resolveProposal!: (response: Response) => void
+    const pendingProposal = new Promise<Response>((resolve) => {
+      resolveProposal = resolve
+    })
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (
+        url === '/api/teacher/course-blueprints/b-2/proposals/classrooms'
+        && method === 'POST'
+      ) {
+        return pendingProposal
+      }
+      if (url === '/api/teacher/course-blueprints/b-2/proposals' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ proposals: [] }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Update Classroom from Blueprint' }))
+
+    const blueprintOne = screen.getByRole('button', { name: /Blueprint One/ })
+    await waitFor(() => expect(blueprintOne).toBeDisabled())
+    fireEvent.click(blueprintOne)
+    expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveProposal(jsonResponse({ proposal: proposalFixture('classroom-update', 4) }))
+      await pendingProposal
+    })
+
+    await waitFor(() => expect(blueprintOne).not.toBeDisabled())
+    expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+  })
+
   it('registers unload protection only while the Blueprint has unsaved changes', async () => {
     render(<TeacherBlueprintsPage />)
     await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
