@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LoginClient } from '@/app/login/LoginClient'
+import { SESSION_EXPIRED_MESSAGE } from '@/lib/client-auth'
 
 const { mockPush, mockRefresh, mockGet, mockNavigateTo } = vi.hoisted(() => ({
   mockPush: vi.fn(),
@@ -107,6 +108,20 @@ describe('LoginClient', () => {
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('/dashboard')
     })
+  })
+
+  it('announces session expiry and focuses the email field', () => {
+    mockGet.mockImplementation((key: string) => (
+      key === 'reason' ? 'session-expired' : '/teacher/calendar'
+    ))
+
+    render(<LoginClient />)
+
+    const message = screen.getByRole('status')
+    const email = screen.getByLabelText(/school email/i)
+    expect(message).toHaveTextContent(SESSION_EXPIRED_MESSAGE)
+    expect(email).toHaveFocus()
+    expect(email).toHaveAttribute('aria-describedby', message.id)
   })
 
   it('displays error message on failed login', async () => {

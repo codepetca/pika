@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
 import { navigateTo } from '@/lib/client-navigation'
+import { SESSION_EXPIRED_MESSAGE, SESSION_EXPIRED_REASON } from '@/lib/client-auth'
 
 function isSafeNextPath(next: string): boolean {
   if (!next.startsWith('/')) return false
@@ -24,7 +25,16 @@ export function LoginClient() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const emailInputRef = useRef<HTMLInputElement | null>(null)
+  const sessionMessageId = useId()
   const isDev = process.env.NODE_ENV === 'development'
+  const sessionExpired = searchParams.get('reason') === SESSION_EXPIRED_REASON
+
+  useEffect(() => {
+    if (sessionExpired) {
+      emailInputRef.current?.focus()
+    }
+  }, [sessionExpired])
 
   function fillCredentials(creds: { email: string; password: string }) {
     setEmail(creds.email)
@@ -69,6 +79,17 @@ export function LoginClient() {
           Login to Pika
         </h1>
 
+        {sessionExpired ? (
+          <div
+            id={sessionMessageId}
+            role="status"
+            aria-live="polite"
+            className="mb-6 rounded-control border border-warning bg-warning-bg px-4 py-3 text-sm text-text-default"
+          >
+            {SESSION_EXPIRED_MESSAGE}
+          </div>
+        ) : null}
+
         {isDev && (
           <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
             <p className="text-sm font-medium text-text-default mb-3">
@@ -103,9 +124,11 @@ export function LoginClient() {
         <form onSubmit={handleSubmit}>
           <FormField label="School Email" required className="mb-4">
             <Input
+              ref={emailInputRef}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-describedby={sessionExpired ? sessionMessageId : undefined}
               required
               disabled={loading}
             />

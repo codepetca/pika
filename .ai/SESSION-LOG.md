@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-06 — Make Blueprint copy fences fail closed
-
-**Implementation:**
-- Removed lease expiry from Blueprint purge authorization: every unclosed
-  source-copy intent now blocks purge until durable settlement.
-- Heartbeats continue after transient failures; a later successful heartbeat
-  clears the operational error while the durable intent remains the safety
-  boundary throughout provider I/O.
-- Added a private, service-role-only hard-crash recovery RPC. It requires the
-  exact owner/operation/teacher/source tuple and expiry snapshot, 24 hours of
-  staleness, no running operation, no live provisional files, and explicit
-  confirmation that no worker remains. Recovery is compare-and-swap and
-  idempotent.
-- Expanded static, runtime, privilege, stale-intent, exact-snapshot, running-
-  operation, and provisional-file reconciliation fixtures.
-- Classified heartbeat transport failures as retryable and intent/fence
-  rejection as terminal. A single wrapper now checks authority before and after
-  every asynchronous copy action so no later reservation, read-back, or
-  verification begins after authority is lost.
-- Completed-operation retries return the deterministic owner identity and
-  idempotently repair lost settlement. Migration 120 also binds and closes only
-  legacy adopted owners proven by a matching completed operation and live
-  teacher-owned source Blueprint.
-
-**Boundary:**
-- Full Vitest (4,083 tests), lint, architecture, production build, Pika audit,
-  shell syntax, static migration checks, and final bounded reviews pass.
-  Migration 120 has not been replayed after this change; generated types and
-  the database fixture still require a fresh authorized local reset. No staging
-  or production state changed, and all rollout gates remain disabled.
-
 ## 2026-08-06 — Verify revised Blueprint purge on clean local replay
 
 **Risk profile:** runtime-platform — authorized destructive local reset and
@@ -1103,3 +1072,28 @@ migration, production, Gradex, legacy-resource deletion, or mobile redesign.
   horizontal overflow was observed.
 - TypeScript, lint, production build, architecture, design/UI policy, Pika
   audit, startup-context budget, session-log, and diff checks pass.
+
+## 2026-08-17 — Add session-expiry recovery
+
+**Risk profile:** workspace-state and accessibility — shared teacher/student
+reauthentication routing and the unauthenticated login state; no schema,
+migration, production, Gradex, mobile, or student-history route change.
+
+**Completed:**
+- Added an explicit session-expiry reason to safe login redirects while
+  preserving the interrupted path and query string.
+- Added a persistent polite warning on the existing login card, associated it
+  with the email field, and moved focus there for immediate recovery.
+- Added component and unit regressions for announcement, focus, safe redirect
+  fallback, and return-path preservation, plus a seeded Chromium recovery flow
+  that returns a teacher to the interrupted utility route after login.
+
+**Validation:**
+- Focused auth suites pass. The full suite passes: 4,376 tests across 500
+  files. TypeScript, lint, production build, architecture, design/UI policy,
+  Pika audit, session-log, and diff checks pass.
+- Desktop Playwright captures pass in light and dark for the shared
+  unauthenticated recovery state. Teacher/student role-specific rendering is
+  not applicable; both role return paths use this same login surface.
+- The `/student/history` compatibility decision remains the next independent
+  slice.

@@ -4,6 +4,7 @@ import { navigateTo } from '@/lib/client-navigation'
 import type { UserRole } from '@/types'
 
 export const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again before continuing.'
+export const SESSION_EXPIRED_REASON = 'session-expired'
 
 export function isAuthFailureStatus(status: number): boolean {
   return status === 401 || status === 403
@@ -17,7 +18,11 @@ export function buildLoginRedirectPath(currentPath?: string): string {
       : '/classrooms')
 
   const safePath = path.startsWith('/') && !path.startsWith('//') ? path : '/classrooms'
-  return `/login?next=${encodeURIComponent(safePath)}`
+  const searchParams = new URLSearchParams({
+    next: safePath,
+    reason: SESSION_EXPIRED_REASON,
+  })
+  return `/login?${searchParams.toString()}`
 }
 
 export function redirectToLoginForReauth(currentPath?: string): void {

@@ -98,6 +98,36 @@ test.describe('teacher experience matrix', () => {
     await verifyProjectContract(page, testInfo)
   })
 
+  test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One desktop recovery pass is sufficient')
+
+    await page.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Not authenticated' }),
+      })
+    })
+    await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
+
+    await expect(page).toHaveURL((url) => (
+      url.pathname === '/login' &&
+      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('reason') === 'session-expired'
+    ))
+    await expect(page.getByRole('status')).toContainText('Your session expired')
+    await expect(page.getByLabel('School Email')).toBeFocused()
+
+    await page.unroute('**/api/auth/me')
+    await page.getByLabel('School Email').fill('teacher@example.com')
+    await page.getByLabel('Password').fill('test1234')
+    await page.getByRole('button', { name: 'Login' }).click()
+
+    await expect(page).toHaveURL(/\/teacher\/blueprints$/)
+    await expect(page.getByRole('navigation', { name: 'Teacher tools' })).toBeVisible()
+    await verifyProjectContract(page, testInfo)
+  })
+
   test('keeps failed syllabus documents unavailable', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One real-browser failure pass is sufficient')
 
