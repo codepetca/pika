@@ -423,6 +423,59 @@ describe('TeacherBlueprintsPage', () => {
     await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
   })
 
+  it('ignores an older Blueprint list response after import reloads the list', async () => {
+    let resolveInitialList!: (response: Response) => void
+    const pendingInitialList = new Promise<Response>((resolve) => {
+      resolveInitialList = resolve
+    })
+    let listRequestCount = 0
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/auth/me') {
+        return Promise.resolve(jsonResponse({ user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' } }))
+      }
+      if (url === '/api/teacher/course-blueprints' && method === 'GET') {
+        listRequestCount += 1
+        return listRequestCount === 1
+          ? pendingInitialList
+          : Promise.resolve(jsonResponse({ blueprints: blueprintList }))
+      }
+      if (url === '/api/teacher/course-blueprints/import' && method === 'POST') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintOneDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintOneDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintDetail }))
+      }
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`))
+    }) as any)
+
+    const view = render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Import Course Package' })).not.toBeDisabled()
+
+    const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+    fireEvent.change(fileInput!, { target: { files: [file] } })
+
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+
+    await act(async () => {
+      resolveInitialList(jsonResponse({ blueprints: [blueprintList[1]] }))
+      await pendingInitialList
+    })
+
+    expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeInTheDocument()
+  })
+
   it('clears the previous editor until a newly created Blueprint detail loads', async () => {
     let resolveCreatedDetail!: (response: Response) => void
     const pendingCreatedDetail = new Promise<Response>((resolve) => {
@@ -688,6 +741,24 @@ describe('TeacherBlueprintsPage', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
     })
+  })
+
+  it('keeps editing or explicitly discards changes before opening permanent deletion', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Unsaved title' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(screen.getByRole('dialog', { name: 'Delete this Course Blueprint?' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Delete Blueprint Two?' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(title).toHaveValue('Unsaved title')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard and review deletion' }))
+    expect(screen.getByRole('dialog', { name: 'Delete Blueprint Two?' })).toBeInTheDocument()
   })
 
   it('never offers deletion for stale detail during a Blueprint selection change', async () => {

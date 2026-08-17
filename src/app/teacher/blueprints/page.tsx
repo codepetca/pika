@@ -217,6 +217,7 @@ export default function TeacherBlueprintsPage() {
   const [proposalsLoading, setProposalsLoading] = useState(false)
   const [proposalsError, setProposalsError] = useState('')
   const [applyingProposalId, setApplyingProposalId] = useState<string | null>(null)
+  const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
   const selectedBlueprintIdRef = useRef<string | null>(null)
   selectedBlueprintIdRef.current = selectedBlueprintId
@@ -355,6 +356,8 @@ export default function TeacherBlueprintsPage() {
   }, [])
 
   const loadBlueprints = useCallback(async (preferredId?: string) => {
+    const requestId = listRequestIdRef.current + 1
+    listRequestIdRef.current = requestId
     if (preferredId && preferredId !== selectedBlueprintIdRef.current) {
       beginBlueprintSelection(preferredId)
     }
@@ -362,6 +365,7 @@ export default function TeacherBlueprintsPage() {
     setError('')
     try {
       const nextBlueprints = await fetchTeacherBlueprints()
+      if (listRequestIdRef.current !== requestId) return
       setBlueprints(nextBlueprints)
       const nextSelectedId = preferredId
         || selectedBlueprintIdRef.current
@@ -371,8 +375,10 @@ export default function TeacherBlueprintsPage() {
         beginBlueprintSelection(nextSelectedId)
       }
     } catch (err: any) {
+      if (listRequestIdRef.current !== requestId) return
       setError(err.message || 'Failed to load course blueprints')
     } finally {
+      if (listRequestIdRef.current !== requestId) return
       setLoadingList(false)
     }
   }, [beginBlueprintSelection])
@@ -1031,7 +1037,11 @@ export default function TeacherBlueprintsPage() {
                       label: 'Delete permanently',
                       destructive: true,
                       disabled: editorWriteLocked,
-                      onSelect: openDeleteConfirm,
+                      onSelect: () => requestDiscardingAction(
+                        openDeleteConfirm,
+                        'Delete this Course Blueprint?',
+                        'Discard and review deletion',
+                      ),
                     }]
                   : []),
               ]

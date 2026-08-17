@@ -1171,14 +1171,19 @@ Gradex, or student behavior changes.
 - Blueprint changes, local route actions, authority changes, imports, and
   proposal application now require explicit discard confirmation. Export and
   classroom creation explicitly confirm that they use the last saved version.
+- Permanent deletion also requires the local-discard confirmation before its
+  existing durable purge review. Blueprint-list reloads use request generations
+  so older responses cannot overwrite newer post-mutation state.
 - The editor exposes shared Saved/Saving/Unsaved status and protects browser
   refresh or tab closure while any section differs from its saved baseline.
 
 **Validation:**
-- Twenty-one focused unit/component tests cover per-section comparisons,
+- Twenty-three focused unit/component tests cover per-section comparisons,
   cross-section save preservation, accepted server values, transition guards,
-  import/create transition races, saved-version actions, unload protection, and
-  in-flight editor locking.
+  import/create/list transition races, deletion, saved-version actions, unload
+  protection, and in-flight editor locking.
 - Teacher desktop/mobile light/dark Playwright captures verify the dirty state
   and discard dialog with no horizontal overflow and initial focus on Keep
   editing. Student rendering is not applicable to this teacher-only route.
+- The full suite passes all 4,420 tests across 500 files. TypeScript, lint,
+  architecture boundaries, production build, Pika audit, and diff checks pass.
