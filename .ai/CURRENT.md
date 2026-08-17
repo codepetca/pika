@@ -1,3 +1,3 @@
-Prod 001-125. Student purge on; cold/generic deletion off. Gradebook recovery, stale-request isolation, and table keyboard behavior are complete; mobile navigation remains deferred. Select the Syllabus/resources Phase 3 slice next. Migration-123 retry lint stays separate.
+Prod 001-125. Student purge on; cold/generic deletion off. Syllabus iframe recovery, scroll, theme, and keyboard checks complete; legacy resources wait for Phase 6. Mobile and Gradex deferred. Next: non-mobile auth/history utility slice. Migration-123 retry lint stays separate.
 WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.

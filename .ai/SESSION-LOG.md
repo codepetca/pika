@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-06 — Harden Blueprint purge recovery boundaries
-
-**Review remediation:**
-- Active purges are rediscovered before fresh inventory, return their persisted
-  impact, and reuse a client-retained operation UUID after a lost start response.
-  Pre-migration APIs now fail closed with an intentional 503 instead of a
-  generic 500.
-- Source-aware Blueprint copies now heartbeat a durable intent and explicitly
-  settle it as adopted or aborted after ownership or cleanup is durable.
-  Expired abandoned intents no longer block purge forever, while a running
-  operation or heartbeat keeps the fence live.
-- The confirmation digest now includes each linked Classroom's Blueprint
-  Version, source revision, and origin identity, and begin locks those lineage
-  rows before sealing inventory.
-- A periodic heartbeat now spans individual provider calls, and finalization
-  uses a separate Blueprint-owned membership digest so preserved Classroom
-  edits cannot strand deletion after Storage cleanup.
-- Expanded unit, API, UI, static migration, and transactional database fixtures
-  for lost responses, partial deletion, pre-120 compatibility, copy failures,
-  intent lifetime, and equal-membership lineage drift.
-
-**Validation and boundary:**
-- Focused remediation tests pass (58/58), with TypeScript, focused ESLint,
-  shell syntax, feature validation, and diff checks also passing.
-- Full Vitest (4,078 tests), lint, and production build pass. Final targeted
-  review still found one P1: after a transient heartbeat failure, the current
-  timer stops renewing while an in-flight provider call can remain stalled.
-  The feature remains failing pending an abortable deadline or durable copy
-  operation ledger; no further review-fix batch was taken in this session.
-- The changed migration 120 has not been replayed after this review batch;
-  fresh exact local-reset authorization is required before database fixture and
-  generated-type verification. No staging or production state changed, and all
-  deletion/cleanup rollout gates remain disabled.
-
 ## 2026-08-06 — Make Blueprint copy fences fail closed
 
 **Implementation:**
@@ -1093,3 +1059,47 @@ schema, migration, production, Gradex, or mobile redesign change.
   focus. Per-assessment ownership and success-gated focus restoration resolve
   both findings; targeted rereview found no blockers, and the noted failed-retry
   test gap is closed.
+
+## 2026-08-17 — Complete Syllabus iframe reliability
+
+**Risk profile:** workspace-state and accessibility — shared teacher/student
+Syllabus framing, readiness, failure recovery, and keyboard access; no schema,
+migration, production, Gradex, legacy-resource deletion, or mobile redesign.
+
+**Completed:**
+- Replaced the duplicated teacher/student iframe markup with one shared,
+  viewport-bounded `SyllabusPreview` and constrained the classroom Resources
+  workspace to prevent competing desktop document scrolling.
+- Added a compact external-open action, a named focusable iframe with a visible
+  focus boundary, and removed the covered iframe from keyboard order until its
+  document is ready.
+- Added an explicit same-origin readiness handshake emitted only by the
+  successfully hydrated syllabus page. The parent validates origin, source
+  frame, and exact URL, so HTTP error documents remain hidden and outside
+  keyboard order. A bounded timeout exposes Retry, which remounts the iframe
+  with a fresh request while preserving the canonical public syllabus URL.
+- Confirmed the old rich-text resource sidebars are unmounted; retained their
+  APIs and data contract for a focused Phase 6 compatibility-led retirement.
+
+**Validation:**
+- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass.
+  The full bounded suite passes: 4,372 tests across 499 files.
+  Component coverage includes loading, ready, unpublished, timeout, Retry,
+  keyboard eligibility, and viewport ownership states.
+- The durable Chromium matrix now intercepts real iframe navigations with HTTP
+  404 and 500 documents and requires both to remain unavailable and
+  unfocusable. It first proves a real published page completes the handshake
+  and accepts keyboard focus. Local execution was blocked before that case by
+  missing shared seed accounts; CI's seeded browser lane owns the repeatable
+  run.
+- Targeted review found that a settings-driven slug change could inherit the
+  mounted preview's prior ready state. Teacher and student resource tabs now
+  key the preview by syllabus URL, and regression coverage proves a new URL
+  remounts loading, ignores a matching-URL signal from the stale frame, and
+  times out unfocusable for both roles.
+- Playwright verification passes for teacher/student desktop and narrow,
+  light/dark loaded states plus the teacher failed-load state. Desktop outer
+  scroll is `900/900`; focus moves from Open syllabus to the named iframe; no
+  horizontal overflow was observed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, startup-context budget, session-log, and diff checks pass.

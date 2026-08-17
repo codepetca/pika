@@ -70,6 +70,8 @@ async function enterSeededClassroom(page: Page, role: 'teacher' | 'student') {
     waitUntil: 'domcontentloaded',
     timeout: 60_000,
   })
+
+  return seededClassroom.id
 }
 
 test.describe('teacher experience matrix', () => {
@@ -94,6 +96,58 @@ test.describe('teacher experience matrix', () => {
     const navigation = page.getByRole('navigation', { name: 'Teacher tools' })
     await expect(navigation.getByRole('link', { name: 'Blueprints' })).toHaveAttribute('aria-current', 'page')
     await verifyProjectContract(page, testInfo)
+  })
+
+  test('keeps failed syllabus documents unavailable', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One real-browser failure pass is sufficient')
+
+    const classroomId = await enterSeededClassroom(page, 'teacher')
+    const originalResponse = await page.request.get(`/api/teacher/classrooms/${classroomId}`)
+    expect(originalResponse.ok()).toBe(true)
+    const original = (await originalResponse.json() as {
+      classroom: { actual_site_slug: string | null; actual_site_published: boolean }
+    }).classroom
+    const slug = `e2e-syllabus-${classroomId}`
+    let responseStatus = 404
+
+    try {
+      const publishResponse = await page.request.patch(`/api/teacher/classrooms/${classroomId}`, {
+        data: { actualSiteSlug: slug, actualSitePublished: true },
+      })
+      expect(publishResponse.ok()).toBe(true)
+
+      await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
+      const preview = page.getByTitle('Test Classroom syllabus preview')
+      await expect(preview).toHaveAttribute('tabindex', '0')
+      await page.getByRole('link', { name: 'Open syllabus' }).focus()
+      await page.keyboard.press('Tab')
+      await expect(preview).toBeFocused()
+
+      await page.route(`**/actual/${slug}*`, async (route) => {
+        await route.fulfill({
+          status: responseStatus,
+          contentType: 'text/html',
+          body: `<html><body>Syllabus failure ${responseStatus}</body></html>`,
+        })
+      })
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await expect(preview).toHaveAttribute('tabindex', '-1')
+      await expect(page.getByText('Syllabus unavailable')).toBeVisible({ timeout: 20_000 })
+
+      responseStatus = 500
+      await page.getByRole('button', { name: 'Retry' }).click()
+      await expect(preview).toHaveAttribute('src', new RegExp(`^/actual/${slug}\\?previewAttempt=1$`))
+      await expect(preview).toHaveAttribute('tabindex', '-1')
+      await expect(page.getByText('Syllabus unavailable')).toBeVisible({ timeout: 20_000 })
+    } finally {
+      const restoreResponse = await page.request.patch(`/api/teacher/classrooms/${classroomId}`, {
+        data: {
+          actualSitePublished: original.actual_site_published,
+          actualSiteSlug: original.actual_site_slug,
+        },
+      })
+      expect(restoreResponse.ok()).toBe(true)
+    }
   })
 })
 
