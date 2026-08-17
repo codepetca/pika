@@ -154,6 +154,42 @@ const blueprintOneDetail = {
   linked_classrooms: [],
 }
 
+function proposalFixture(id: string, revision: number) {
+  return {
+    id,
+    source_kind: 'ai',
+    target_kind: 'blueprint',
+    target_classroom_id: null,
+    status: 'ready',
+    base_blueprint_revision: revision,
+    base_classroom_revision: null,
+    applied_blueprint_revision: null,
+    applied_classroom_revision: null,
+    operations_json: [],
+    diff_json: { summary: { update: 1 } },
+    created_at: '2026-08-17T00:00:00.000Z',
+  }
+}
+
+function mergeSuggestionResponse(title: string): Response {
+  return jsonResponse({
+    suggestion_set: {
+      classroom_id: 'c-9',
+      classroom_title: 'Semester 2',
+      classroom_revision: 2,
+      blueprint_id: 'b-2',
+      blueprint_revision: 4,
+      generated_at: '2026-08-17T00:00:00.000Z',
+      suggestions: [{
+        area: 'overview',
+        title,
+        summary: `${title} summary`,
+        items: [],
+      }],
+    },
+  })
+}
+
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
@@ -561,6 +597,99 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.queryByDisplayValue('Blueprint Two')).toBeNull()
   })
 
+  it('ignores an older proposal response after returning to the same Blueprint', async () => {
+    let resolveOlderProposals!: (response: Response) => void
+    const olderProposals = new Promise<Response>((resolve) => {
+      resolveOlderProposals = resolve
+    })
+    let blueprintTwoProposalRequests = 0
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints/b-2/proposals' && method === 'GET') {
+        blueprintTwoProposalRequests += 1
+        return blueprintTwoProposalRequests === 1
+          ? olderProposals
+          : Promise.resolve(jsonResponse({ proposals: [proposalFixture('newer', 22)] }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-1/proposals' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ proposals: [] }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint Two/ }))
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /^Proposals/ }))
+
+    expect(await screen.findByText(/based on Blueprint revision 22/)).toBeInTheDocument()
+
+    await act(async () => {
+      resolveOlderProposals(jsonResponse({ proposals: [proposalFixture('older', 11)] }))
+      await olderProposals
+    })
+
+    expect(screen.getByText(/based on Blueprint revision 22/)).toBeInTheDocument()
+    expect(screen.queryByText(/based on Blueprint revision 11/)).toBeNull()
+  })
+
+  it('ignores an older classroom comparison after starting a newer one', async () => {
+    let resolveOlderSuggestions!: (response: Response) => void
+    const olderSuggestions = new Promise<Response>((resolve) => {
+      resolveOlderSuggestions = resolve
+    })
+    let suggestionRequests = 0
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (
+        url === '/api/teacher/course-blueprints/b-2/merge-suggestions?classroomId=c-9'
+        && method === 'GET'
+      ) {
+        suggestionRequests += 1
+        return suggestionRequests === 1
+          ? olderSuggestions
+          : Promise.resolve(mergeSuggestionResponse('Newer comparison'))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+
+    const compareButton = screen.getByRole('button', {
+      name: 'Save Classroom Changes to Blueprint',
+    })
+    fireEvent.click(compareButton)
+    await waitFor(() => expect(compareButton).toBeDisabled())
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Classroom' }), {
+      target: { value: '' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Classroom' }), {
+      target: { value: 'c-9' },
+    })
+    fireEvent.click(compareButton)
+
+    expect(await screen.findByText('Newer comparison')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveOlderSuggestions(mergeSuggestionResponse('Older comparison'))
+      await olderSuggestions
+    })
+
+    expect(screen.getByText('Newer comparison')).toBeInTheDocument()
+    expect(screen.queryByText('Older comparison')).toBeNull()
+  })
+
   it('invalidates blueprint caches before reloading after saving metadata', async () => {
     render(<TeacherBlueprintsPage />)
 
@@ -622,12 +751,17 @@ describe('TeacherBlueprintsPage', () => {
     render(<TeacherBlueprintsPage />)
     await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
 
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+
     const title = screen.getByRole('textbox', { name: 'Title' })
     fireEvent.change(title, { target: { value: 'Saving Blueprint Two' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
 
     await waitFor(() => expect(title).toBeDisabled())
     expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeDisabled()
+    expect(screen.getByRole('button', {
+      name: 'Update Classroom from Blueprint',
+    })).toBeDisabled()
 
     await act(async () => {
       resolveSave(jsonResponse({ blueprint: blueprintDetail }))
@@ -698,6 +832,47 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.queryByRole('dialog', { name: 'Create Classroom' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Use saved version' }))
     expect(screen.getByRole('dialog', { name: 'Create Classroom' })).toBeInTheDocument()
+  })
+
+  it('requires confirmation before preparing a classroom update from the saved version', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (
+        url === '/api/teacher/course-blueprints/b-2/proposals/classrooms'
+        && method === 'POST'
+      ) {
+        return Promise.resolve(jsonResponse({ proposal: proposalFixture('classroom-update', 4) }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2/proposals' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ proposals: [] }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Unsaved title' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom Updates' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Update Classroom from Blueprint' }))
+
+    expect(screen.getByRole('dialog', {
+      name: 'Update the Classroom from the saved Blueprint?',
+    })).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalledWith(
+      '/api/teacher/course-blueprints/b-2/proposals/classrooms',
+      expect.objectContaining({ method: 'POST' }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use saved version' }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      '/api/teacher/course-blueprints/b-2/proposals/classrooms',
+      expect.objectContaining({ method: 'POST' }),
+    ))
   })
 
   it('registers unload protection only while the Blueprint has unsaved changes', async () => {

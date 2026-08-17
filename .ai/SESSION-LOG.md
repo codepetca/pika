@@ -1175,16 +1175,20 @@ Gradex, or student behavior changes.
   existing durable purge review. Blueprint-list reloads use request generations
   so older responses cannot overwrite newer post-mutation state; purge
   completion starts a fresh authoritative guarded reload.
+- Preparing a classroom update now confirms that it uses the last saved
+  Blueprint and is disabled while a save can replace accepted state. Proposal
+  and classroom-comparison requests use independent generations so returning to
+  the same Blueprint cannot surface an older response.
 - The editor exposes shared Saved/Saving/Unsaved status and protects browser
   refresh or tab closure while any section differs from its saved baseline.
 
 **Validation:**
-- Twenty-four focused unit/component tests cover per-section comparisons,
+- Twenty-seven focused unit/component tests cover per-section comparisons,
   cross-section save preservation, accepted server values, transition guards,
-  import/create/list transition races, deletion, saved-version actions, unload
-  protection, and in-flight editor locking.
+  import/create/list/proposal/comparison races, deletion, saved-version actions,
+  unload protection, and in-flight editor locking.
 - Teacher desktop/mobile light/dark Playwright captures verify the dirty state
-  and discard dialog with no horizontal overflow and initial focus on Keep
-  editing. Student rendering is not applicable to this teacher-only route.
-- The full suite passes all 4,421 tests across 500 files. TypeScript, lint,
+  and saved-version dialogs with no horizontal overflow and initial focus on
+  Keep editing. Student rendering is not applicable to this teacher-only route.
+- The full suite passes all 4,424 tests across 500 files. TypeScript, lint,
   architecture boundaries, production build, Pika audit, and diff checks pass.

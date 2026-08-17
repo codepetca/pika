@@ -219,6 +219,8 @@ export default function TeacherBlueprintsPage() {
   const [applyingProposalId, setApplyingProposalId] = useState<string | null>(null)
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
+  const proposalsRequestIdRef = useRef(0)
+  const mergeSuggestionsRequestIdRef = useRef(0)
   const selectedBlueprintIdRef = useRef<string | null>(null)
   selectedBlueprintIdRef.current = selectedBlueprintId
   const preferredBlueprintId = searchParams.get('blueprint')
@@ -243,6 +245,7 @@ export default function TeacherBlueprintsPage() {
     || importingPackage
     || loadingDetail
     || applyingProposalId !== null
+    || classroomProposalPreparing
   const dirtySectionSummary = dirtySections
     .map((section) => DIRTY_SECTION_LABELS[section])
     .join(', ')
@@ -346,11 +349,18 @@ export default function TeacherBlueprintsPage() {
 
   const beginBlueprintSelection = useCallback((blueprintId: string | null) => {
     detailRequestIdRef.current += 1
+    proposalsRequestIdRef.current += 1
+    mergeSuggestionsRequestIdRef.current += 1
     selectedBlueprintIdRef.current = blueprintId
     setDeleteTarget(null)
     setDetail(null)
     setSavedEditorState(null)
     setProposals([])
+    setProposalsError('')
+    setProposalsLoading(false)
+    setMergeSuggestions(null)
+    setMergeSelection({})
+    setMergeLoading(false)
     setLoadingDetail(blueprintId !== null)
     setSelectedBlueprintId(blueprintId)
   }, [])
@@ -407,20 +417,31 @@ export default function TeacherBlueprintsPage() {
   }, [replaceEditorWithDetail])
 
   async function loadProposals(id: string) {
+    const requestId = proposalsRequestIdRef.current + 1
+    proposalsRequestIdRef.current = requestId
     setProposalsLoading(true)
     setProposalsError('')
     try {
       const response = await fetch(`/api/teacher/course-blueprints/${id}/proposals`)
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to load Blueprint proposals')
-      if (selectedBlueprintIdRef.current !== id) return
+      if (
+        proposalsRequestIdRef.current !== requestId
+        || selectedBlueprintIdRef.current !== id
+      ) return
       setProposals(data.proposals || [])
     } catch (err: any) {
-      if (selectedBlueprintIdRef.current !== id) return
+      if (
+        proposalsRequestIdRef.current !== requestId
+        || selectedBlueprintIdRef.current !== id
+      ) return
       setProposals([])
       setProposalsError(err.message || 'Failed to load Blueprint proposals')
     } finally {
-      if (selectedBlueprintIdRef.current === id) setProposalsLoading(false)
+      if (
+        proposalsRequestIdRef.current === requestId
+        && selectedBlueprintIdRef.current === id
+      ) setProposalsLoading(false)
     }
   }
 
@@ -467,11 +488,12 @@ export default function TeacherBlueprintsPage() {
 
   async function prepareClassroomProposal() {
     if (!selectedBlueprintId || !mergeClassroomId) return
+    const blueprintId = selectedBlueprintId
     setClassroomProposalPreparing(true)
     setProposalsError('')
     try {
       const response = await fetch(
-        `/api/teacher/course-blueprints/${selectedBlueprintId}/proposals/classrooms`,
+        `/api/teacher/course-blueprints/${blueprintId}/proposals/classrooms`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -482,12 +504,16 @@ export default function TeacherBlueprintsPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to prepare classroom update')
       }
+      if (selectedBlueprintIdRef.current !== blueprintId) return
       setActiveTab('proposals')
-      await loadProposals(selectedBlueprintId)
+      await loadProposals(blueprintId)
     } catch (err: any) {
+      if (selectedBlueprintIdRef.current !== blueprintId) return
       setProposalsError(err.message || 'Failed to prepare classroom update')
     } finally {
-      setClassroomProposalPreparing(false)
+      if (selectedBlueprintIdRef.current === blueprintId) {
+        setClassroomProposalPreparing(false)
+      }
     }
   }
 
@@ -742,25 +768,39 @@ export default function TeacherBlueprintsPage() {
     classroomId = mergeClassroomId,
   ) => {
     if (!selectedBlueprintId || !classroomId) return
+    const blueprintId = selectedBlueprintId
+    const requestId = mergeSuggestionsRequestIdRef.current + 1
+    mergeSuggestionsRequestIdRef.current = requestId
     setMergeLoading(true)
     setError('')
     try {
       const response = await fetch(
-        `/api/teacher/course-blueprints/${selectedBlueprintId}/merge-suggestions?classroomId=${encodeURIComponent(classroomId)}`
+        `/api/teacher/course-blueprints/${blueprintId}/merge-suggestions?classroomId=${encodeURIComponent(classroomId)}`
       )
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(data.error || 'Failed to load merge suggestions')
       }
+      if (
+        mergeSuggestionsRequestIdRef.current !== requestId
+        || selectedBlueprintIdRef.current !== blueprintId
+      ) return
       const suggestionSet = data.suggestion_set as BlueprintMergeSuggestionSet
       setMergeSuggestions(suggestionSet)
       setMergeSelection(
         Object.fromEntries(suggestionSet.suggestions.map((suggestion) => [suggestion.area, true]))
       )
     } catch (err: any) {
+      if (
+        mergeSuggestionsRequestIdRef.current !== requestId
+        || selectedBlueprintIdRef.current !== blueprintId
+      ) return
       setError(err.message || 'Failed to load merge suggestions')
     } finally {
-      setMergeLoading(false)
+      if (
+        mergeSuggestionsRequestIdRef.current === requestId
+        && selectedBlueprintIdRef.current === blueprintId
+      ) setMergeLoading(false)
     }
   }, [mergeClassroomId, selectedBlueprintId])
 
@@ -1436,8 +1476,11 @@ export default function TeacherBlueprintsPage() {
                             <select
                               value={mergeClassroomId}
                               onChange={(e) => {
+                                mergeSuggestionsRequestIdRef.current += 1
                                 setMergeClassroomId(e.target.value)
                                 setMergeSuggestions(null)
+                                setMergeSelection({})
+                                setMergeLoading(false)
                               }}
                               className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                             >
@@ -1451,8 +1494,12 @@ export default function TeacherBlueprintsPage() {
                           <div className="flex flex-wrap items-end gap-2">
                             <Button
                               type="button"
-                              onClick={prepareClassroomProposal}
-                              disabled={classroomProposalPreparing || !mergeClassroomId}
+                              onClick={() => requestSavedVersionAction(
+                                prepareClassroomProposal,
+                                'Update the Classroom from the saved Blueprint?',
+                                'Use saved version',
+                              )}
+                              disabled={editorWriteLocked || !mergeClassroomId}
                             >
                               {classroomProposalPreparing
                                 ? 'Preparing...'
