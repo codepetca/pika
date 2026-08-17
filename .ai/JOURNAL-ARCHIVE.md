@@ -18262,3 +18262,72 @@ broader rollout, generic cleanup, migration, or Blueprint deletion.
 - Durable teacher-owned Blueprint/managed-file deletion remains the next local
   implementation scope. Production migration or Blueprint deletion needs fresh
   exact authorization.
+
+<!-- pika-session-log-archive-batch:023cca7e5d9f805f25990427232366e0e9846764c98ca0417834517d586bb7a8 -->
+## 2026-08-05 — Implement durable Course Blueprint deletion locally
+
+**Contract:**
+- Owning teachers may permanently delete only Pika-managed Course Blueprints.
+  Deletion removes the draft graph, immutable Versions, planned course site,
+  proposals/sessions, audit identifiers, and exact Blueprint-owned
+  `test-documents` objects.
+- Linked Classrooms, their independently copied files and student data, all
+  users, and unrelated Blueprints remain. Linked Classrooms and artifact rows
+  are explicitly unlinked from the deleted Blueprint/Versions.
+
+**Implementation:**
+- Added unapplied migration 120 with an independent disabled rollout gate,
+  durable operation/fence/object ledgers, exact-object leases, retries,
+  storage-absence and reappearance checks, raw-path redaction/reservation,
+  explicit graph finalization, and fail-closed direct root deletion.
+- Added Blueprint/Version-lineage, managed-object, provisional-copy, and
+  Storage fences. Blueprint-to-Classroom copies now establish a source-aware
+  provisional intent before provider work, with a safe pre-120 fallback.
+- Added owner-scoped purge APIs, typed impact/confirmation validation, a
+  resumable worker and cron safety net, and a Blueprint deletion dialog that
+  states the irreversible scope and preserved Classroom/user boundary.
+- Added a transactional database fixture covering authorization, active
+  operation conflicts, concurrency fences, provider failure/retry, exact file
+  cleanup, path reappearance, explicit database finalization, Classroom/user
+  preservation, and durable audit evidence. The fixture is authored but not run
+  because migration 120 has not been authorized for local replay.
+- Documented the contract and staged rollout in
+  `docs/guidance/course-blueprint-purge.md`.
+
+**Validation:**
+- Full Vitest, production build, lint, TypeScript, Pika audit, shell syntax,
+  static migration contracts, focused server/API/UI tests, and diff checks
+  pass after updating the cleanup-cron mocks for the new safety net.
+- Teacher UI verified at 1440×1000 and 390×844 with a read-only intercepted
+  impact response. Confirmation remains disabled until the exact title or
+  `DELETE`; the mobile dialog scrolls to reachable actions. Student purge API
+  access returned 403 and `/teacher/blueprints` redirected to Classrooms.
+- No migration 120 replay, local reset, remote mutation, rollout activation, or
+  Blueprint deletion occurred.
+
+**Remaining:**
+- Obtain exact authorization to reset local Supabase, replay 001–120,
+  regenerate types, reseed, and run the destructive transactional database
+  fixture. Keep all remote rollout gates disabled.
+
+## 2026-08-05 — Verify Course Blueprint purge on clean local replay
+
+**Completed:**
+- Reset local Supabase and replayed migrations 001–120 from the dedicated
+  worktree, regenerated database types, and reseeded against loopback Supabase.
+- Corrected migration-120 PL/pgSQL row selection, made the polymorphic Blueprint
+  trigger use table-safe JSON fields, and removed an unnecessary transaction-
+  scoped begin bypass that could outlive purge initialization.
+- Updated the Blueprint purge fixture to model the Storage API's transaction-
+  local delete capability while retaining exact managed-object authority.
+
+**Validation:**
+- Managed-storage readiness, activation, Blueprint-adoption, and reference/
+  deletion concurrency fixtures pass against `supabase_db_pika`.
+- The Blueprint purge database fixture passes authorization, conflict, fence,
+  retry, exact Storage deletion, reappearance, finalization, Classroom unlinking
+  and preservation, user preservation, and unrelated-Blueprint preservation.
+- Migration history is exactly 001–120, generated database types match, seeded
+  users remain, and diff/static migration checks pass.
+- Local managed Storage is `compatibility`; Classroom purge, Blueprint purge,
+  and generic cleanup remain disabled. No staging or production state changed.

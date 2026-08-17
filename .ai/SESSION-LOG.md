@@ -11,74 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Implement durable Course Blueprint deletion locally
-
-**Contract:**
-- Owning teachers may permanently delete only Pika-managed Course Blueprints.
-  Deletion removes the draft graph, immutable Versions, planned course site,
-  proposals/sessions, audit identifiers, and exact Blueprint-owned
-  `test-documents` objects.
-- Linked Classrooms, their independently copied files and student data, all
-  users, and unrelated Blueprints remain. Linked Classrooms and artifact rows
-  are explicitly unlinked from the deleted Blueprint/Versions.
-
-**Implementation:**
-- Added unapplied migration 120 with an independent disabled rollout gate,
-  durable operation/fence/object ledgers, exact-object leases, retries,
-  storage-absence and reappearance checks, raw-path redaction/reservation,
-  explicit graph finalization, and fail-closed direct root deletion.
-- Added Blueprint/Version-lineage, managed-object, provisional-copy, and
-  Storage fences. Blueprint-to-Classroom copies now establish a source-aware
-  provisional intent before provider work, with a safe pre-120 fallback.
-- Added owner-scoped purge APIs, typed impact/confirmation validation, a
-  resumable worker and cron safety net, and a Blueprint deletion dialog that
-  states the irreversible scope and preserved Classroom/user boundary.
-- Added a transactional database fixture covering authorization, active
-  operation conflicts, concurrency fences, provider failure/retry, exact file
-  cleanup, path reappearance, explicit database finalization, Classroom/user
-  preservation, and durable audit evidence. The fixture is authored but not run
-  because migration 120 has not been authorized for local replay.
-- Documented the contract and staged rollout in
-  `docs/guidance/course-blueprint-purge.md`.
-
-**Validation:**
-- Full Vitest, production build, lint, TypeScript, Pika audit, shell syntax,
-  static migration contracts, focused server/API/UI tests, and diff checks
-  pass after updating the cleanup-cron mocks for the new safety net.
-- Teacher UI verified at 1440×1000 and 390×844 with a read-only intercepted
-  impact response. Confirmation remains disabled until the exact title or
-  `DELETE`; the mobile dialog scrolls to reachable actions. Student purge API
-  access returned 403 and `/teacher/blueprints` redirected to Classrooms.
-- No migration 120 replay, local reset, remote mutation, rollout activation, or
-  Blueprint deletion occurred.
-
-**Remaining:**
-- Obtain exact authorization to reset local Supabase, replay 001–120,
-  regenerate types, reseed, and run the destructive transactional database
-  fixture. Keep all remote rollout gates disabled.
-
-## 2026-08-05 — Verify Course Blueprint purge on clean local replay
-
-**Completed:**
-- Reset local Supabase and replayed migrations 001–120 from the dedicated
-  worktree, regenerated database types, and reseeded against loopback Supabase.
-- Corrected migration-120 PL/pgSQL row selection, made the polymorphic Blueprint
-  trigger use table-safe JSON fields, and removed an unnecessary transaction-
-  scoped begin bypass that could outlive purge initialization.
-- Updated the Blueprint purge fixture to model the Storage API's transaction-
-  local delete capability while retaining exact managed-object authority.
-
-**Validation:**
-- Managed-storage readiness, activation, Blueprint-adoption, and reference/
-  deletion concurrency fixtures pass against `supabase_db_pika`.
-- The Blueprint purge database fixture passes authorization, conflict, fence,
-  retry, exact Storage deletion, reappearance, finalization, Classroom unlinking
-  and preservation, user preservation, and unrelated-Blueprint preservation.
-- Migration history is exactly 001–120, generated database types match, seeded
-  users remain, and diff/static migration checks pass.
-- Local managed Storage is `compatibility`; Classroom purge, Blueprint purge,
-  and generic cleanup remain disabled. No staging or production state changed.
-
 ## 2026-08-06 — Harden Blueprint purge recovery boundaries
 
 **Review remediation:**
@@ -1127,3 +1059,31 @@ conflict copy; no schema, migration, API field, or production data change.
 - Focused roster API and component suites pass: 92 tests. The full suite passes:
   4,359 tests across 499 files. TypeScript, lint, production build, UI policy,
   design policy, architecture checks, Pika audit, and diff checks pass.
+
+## 2026-08-16 — Complete Gradebook desktop recovery
+
+**Risk profile:** workspace-state and accessibility — teacher Gradebook reads,
+assessment-weight refreshes, retry focus, and stale classroom ownership; no
+schema, migration, production, Gradex, or mobile redesign change.
+
+**Completed:**
+- Separated cold Gradebook failures from successful empty classrooms with a
+  governed loading/error state and explicit Retry recovery.
+- Preserved the last valid assessment matrix during failed refreshes and kept
+  the class-wide table, selected-student detail, sorting, selection, and column
+  controls intact.
+- Fenced overlapping reads and in-flight assessment-weight saves by committed
+  classroom identity and request generation so stale work cannot repaint or
+  refresh another classroom.
+- Restored focus to the named student table after successful cold recovery and
+  retained the existing direct keyboard row navigation and Escape behavior.
+
+**Validation:**
+- Focused Gradebook component, API, and architecture suites pass: 46 tests;
+  the component suite now covers cold, empty, retained-refresh, stale-load,
+  stale-save, retry-focus, and direct keyboard behavior.
+- Full suite passes: 4,364 tests across 499 files. TypeScript, lint, production
+  build, architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher loaded light/dark, cold-error
+  light/dark, retained-refresh, and narrow loaded/error states with no viewport
+  overflow. Gradebook is teacher-only; student role coverage is not applicable.
