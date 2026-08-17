@@ -173,7 +173,8 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByRole('heading', { name: 'Classroom Created' })).toBeFocused()
     await expect(page.getByText(/assignments and tests are unpublished/i)).toBeVisible()
     await expect(page.getByText('Final project workshop')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Continue to Classroom' })).toBeVisible()
+    const reviewButton = page.getByRole('button', { name: 'Review Classroom' })
+    await expect(reviewButton).toBeVisible()
     await verifyProjectContract(page, testInfo)
 
     await page.evaluate(() => document.fonts.ready)
@@ -183,6 +184,8 @@ test.describe('teacher experience matrix', () => {
       fullPage: true,
       animations: 'disabled',
     })
+    await reviewButton.click()
+    await expect(page).toHaveURL(/\/classrooms\/20000000-0000-4000-8000-000000000101\?tab=assignments$/)
   })
 
   test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {

@@ -293,7 +293,7 @@ Exit evidence: browser-tested rollover and date/release review; idempotent opera
 Blueprint rollover progress:
 
 - Classroom capture and blueprint instantiation now retain one UUID idempotency key while an unchanged client request is retried. Changing the semantic request produces a new key, and successful completion clears it.
-- Blueprint-created classrooms pause at a teacher review handoff before the create dialog closes. The handoff states that assignments and tests are unpublished, requires due-date/release review, and lists lesson templates that did not fit the selected classroom calendar.
+- Blueprint-created classrooms pause at a teacher review handoff before the create dialog closes. The handoff states that assignments and tests are unpublished, requires due-date/release review, lists lesson templates that did not fit the selected classroom calendar, and opens the new classroom's Assignments tab from every entry point.
 - The teacher-only refinement follows the existing create-classroom dialog pattern. Desktop/mobile and light/dark browser verification covers the overflow state, confirms the browser sends a UUID idempotency key, and finds no horizontal overflow; focused component tests cover successful handoff and same-key retries for both capture and instantiation.
 - Remaining Blueprint work includes package-import retry identity, dirty-state protection, a real classroom-to-blueprint-to-new-classroom browser drill, package compatibility evidence, planned-site verification, and broader preview/version workflow productization.
 

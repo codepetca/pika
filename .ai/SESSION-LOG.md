@@ -1132,7 +1132,8 @@ UX; no schema, migration, production, archive cleanup, or Gradex work.
   key while the same semantic request is retried, then clear it after success.
 - Blueprint-created classrooms remain in the create dialog for a focused review
   handoff that states assignments/tests are unpublished, calls out due-date and
-  release review, and lists lesson plans that did not fit the chosen calendar.
+  release review, lists lesson plans that did not fit the chosen calendar, and
+  opens the new classroom's Assignments tab from every parent surface.
 - The completed step moves focus to its heading and preserves the existing
   dialog, progress, and continuation patterns.
 

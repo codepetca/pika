@@ -5,6 +5,12 @@ import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
 
+const mockPush = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 vi.mock('@/lib/teacher-blueprints-client', () => ({
   fetchTeacherBlueprints: vi.fn(),
   invalidateTeacherBlueprints: vi.fn(),
@@ -62,6 +68,7 @@ describe('CreateClassroomModal', () => {
     vi.stubGlobal('fetch', fetchMock)
     vi.mocked(fetchTeacherBlueprints).mockClear()
     vi.mocked(invalidateTeacherBlueprints).mockClear()
+    mockPush.mockClear()
   })
 
   afterEach(() => {
@@ -298,8 +305,9 @@ describe('CreateClassroomModal', () => {
     expect(screen.getByText(/assignments and tests are unpublished/i)).toBeInTheDocument()
     expect(screen.getByText('Final project workshop')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to Classroom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Classroom' }))
     expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Computer Science 11 - Period 2' })
+    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-1?tab=assignments')
   })
 
   it('reuses the instantiate idempotency key when an unchanged request is retried', async () => {

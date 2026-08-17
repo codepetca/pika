@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
 import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
@@ -32,6 +33,7 @@ export function CreateClassroomModal({
   onSuccess,
   initialBlueprintId = null,
 }: CreateClassroomModalProps) {
+  const router = useRouter()
   const startMonthId = useId()
   const endMonthId = useId()
   const importInputRef = useRef<HTMLInputElement | null>(null)
@@ -276,7 +278,12 @@ export function CreateClassroomModal({
 
   function handleClose() {
     if (blueprintCreationResult) {
-      onSuccess(blueprintCreationResult.classroom)
+      const { classroom } = blueprintCreationResult
+      resetForm()
+      onSuccess(classroom)
+      onClose()
+      router.push(`/classrooms/${classroom.id}?tab=assignments`)
+      return
     }
     resetForm()
     onClose()
@@ -619,7 +626,7 @@ export function CreateClassroomModal({
             onClick={handleClose}
             className="flex-1"
           >
-            Continue to Classroom
+            Review Classroom
           </Button>
         )}
       </div>
