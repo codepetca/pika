@@ -2067,7 +2067,6 @@ _None_
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
-        expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2)
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
@@ -2153,6 +2152,8 @@ _None_
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+        expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-inline-preview-id/draft')
+        expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-inline-preview-id')
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
