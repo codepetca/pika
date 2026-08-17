@@ -45,6 +45,15 @@ describe('PATCH /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
       }),
     }), { params: { id: 'c-1', rosterId: 'r-1' } })
     expect(invalidRevision.status).toBe(400)
+
+    const postgresInvalidRevision = await PATCH(new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        counselor_email: 'counselor@example.com',
+        expected_updated_at: '0',
+      }),
+    }), { params: { id: 'c-1', rosterId: 'r-1' } })
+    expect(postgresInvalidRevision.status).toBe(400)
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 

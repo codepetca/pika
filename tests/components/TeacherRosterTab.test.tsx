@@ -748,6 +748,7 @@ describe('TeacherRosterTab', () => {
     const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
     const initialRevision = '2026-08-16T12:00:00.000Z'
     const newestRevision = '2026-08-16T12:01:00.000Z'
+    const finalRevision = '2026-08-16T12:02:00.000Z'
     let firstClassroomLoads = 0
     let counselorSaves = 0
     let resolveOldSave: (() => void) | null = null
@@ -762,8 +763,8 @@ describe('TeacherRosterTab', () => {
             ...rosterRow,
             counselor_email: firstClassroomLoads < 3
               ? 'counselor@example.com'
-              : 'newest@example.com',
-            updated_at: firstClassroomLoads < 3 ? initialRevision : newestRevision,
+              : 'final@example.com',
+            updated_at: firstClassroomLoads < 3 ? initialRevision : finalRevision,
           }],
         })
       }
@@ -781,12 +782,13 @@ describe('TeacherRosterTab', () => {
             })
           })
         }
+        const isNewestSave = counselorSaves === 2
         return mockJson({
           success: true,
           roster: {
             id: rosterRow.id,
-            counselor_email: 'newest@example.com',
-            updated_at: newestRevision,
+            counselor_email: isNewestSave ? 'newest@example.com' : 'final@example.com',
+            updated_at: isNewestSave ? newestRevision : finalRevision,
           },
         })
       }
@@ -819,25 +821,37 @@ describe('TeacherRosterTab', () => {
       name: 'Edit counselor email for Ada Lovelace',
     })).toHaveTextContent('newest@example.com')
 
+    await user.click(screen.getByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    await user.clear(input)
+    await user.type(input, 'final@example.com')
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    expect(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    })).toHaveTextContent('final@example.com')
+
     const patchBodies = fetchMock.mock.calls
       .filter(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH')
       .map((call) => getRequestBody(call))
     expect(patchBodies).toEqual([
       { counselor_email: 'old-request@example.com', expected_updated_at: initialRevision },
       { counselor_email: 'newest@example.com', expected_updated_at: initialRevision },
+      { counselor_email: 'final@example.com', expected_updated_at: newestRevision },
     ])
 
     await act(async () => {
       resolveOldSave?.()
     })
     expect(screen.getByRole('button', { name: 'Edit counselor email for Ada Lovelace' }))
-      .toHaveTextContent('newest@example.com')
+      .toHaveTextContent('final@example.com')
 
     view.rerender(renderRosterElement(secondClassroom))
     expect(await screen.findByText('Grace')).toBeInTheDocument()
     invalidateCachedJSONMatching(`teacher-roster:${classroom.id}`)
     view.rerender(renderRosterElement(classroom))
-    expect(await screen.findByText('newest@example.com')).toBeInTheDocument()
+    expect(await screen.findByText('final@example.com')).toBeInTheDocument()
   })
 
   it('opens single-student removal from the roster actions menu with confirmation', async () => {

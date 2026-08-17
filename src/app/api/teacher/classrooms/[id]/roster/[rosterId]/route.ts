@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { z } from 'zod'
 import {
   getKnownRosterRemovalRpcError,
   removeClassroomRosterEntriesAtomic,
@@ -10,6 +11,11 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const patchRosterEntrySchema = z.object({
+  counselor_email: z.string().nullable().optional(),
+  expected_updated_at: z.string().datetime({ offset: true }),
+})
 
 // PATCH /api/teacher/classrooms/[id]/roster/[rosterId] - Update roster entry (e.g., counselor_email)
 export const PATCH = withErrorHandler('PatchRosterEntry', async (request, context) => {
@@ -27,24 +33,17 @@ export const PATCH = withErrorHandler('PatchRosterEntry', async (request, contex
     )
   }
 
-  // Only allow updating counselor_email for now
-  const { counselor_email, expected_updated_at: expectedUpdatedAt } = body
-  if (counselor_email !== undefined && counselor_email !== null && typeof counselor_email !== 'string') {
+  const parsed = patchRosterEntrySchema.safeParse(body)
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: 'counselor_email must be a string or null' },
+      { error: 'Invalid roster update' },
       { status: 400 }
     )
   }
-  if (
-    typeof expectedUpdatedAt !== 'string'
-    || expectedUpdatedAt.trim().length === 0
-    || !Number.isFinite(Date.parse(expectedUpdatedAt))
-  ) {
-    return NextResponse.json(
-      { error: 'expected_updated_at must be a valid timestamp' },
-      { status: 400 }
-    )
-  }
+  const {
+    counselor_email,
+    expected_updated_at: expectedUpdatedAt,
+  } = parsed.data
 
   const updateData: { counselor_email?: string | null } = {}
   if (counselor_email !== undefined) {
