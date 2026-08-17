@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useLayoutEffect, useRef } from 'react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
 import {
   DataTable,
@@ -29,13 +29,6 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
-  if (scopeRef.current.classroomId !== classroomId || scopeRef.current.isOpen !== isOpen) {
-    scopeRef.current = {
-      classroomId,
-      isOpen,
-      generation: scopeRef.current.generation + 1,
-    }
-  }
 
   function isCurrentScope(scope: typeof scopeRef.current) {
     return scopeRef.current.classroomId === scope.classroomId
@@ -44,12 +37,22 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   }
 
   // Reset state when modal opens/closes
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const generation = scopeRef.current.generation + 1
+    scopeRef.current = { classroomId, isOpen, generation }
     setInput('')
     setPreview(null)
     setShowPreview(false)
     setIsSubmitting(false)
     setError('')
+    return () => {
+      if (scopeRef.current.generation === generation) {
+        scopeRef.current = {
+          ...scopeRef.current,
+          generation: generation + 1,
+        }
+      }
+    }
   }, [classroomId, isOpen])
 
   // Parse input when textarea loses focus or when toggling preview

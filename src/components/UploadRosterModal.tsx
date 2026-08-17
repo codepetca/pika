@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, ChangeEvent, useEffect, useId, useRef } from 'react'
+import { useState, FormEvent, ChangeEvent, useId, useLayoutEffect, useRef } from 'react'
 import { Button, DialogPanel } from '@/ui'
 
 interface StudentChange {
@@ -43,13 +43,6 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   const [result, setResult] = useState<any>(null)
   const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null)
   const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
-  if (scopeRef.current.classroomId !== classroomId || scopeRef.current.isOpen !== isOpen) {
-    scopeRef.current = {
-      classroomId,
-      isOpen,
-      generation: scopeRef.current.generation + 1,
-    }
-  }
 
   function isCurrentScope(scope: typeof scopeRef.current) {
     return scopeRef.current.classroomId === scope.classroomId
@@ -57,12 +50,22 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       && scopeRef.current.generation === scope.generation
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const generation = scopeRef.current.generation + 1
+    scopeRef.current = { classroomId, isOpen, generation }
     setCsvFile(null)
     setLoading(false)
     setError('')
     setResult(null)
     setConfirmationData(null)
+    return () => {
+      if (scopeRef.current.generation === generation) {
+        scopeRef.current = {
+          ...scopeRef.current,
+          generation: generation + 1,
+        }
+      }
+    }
   }, [classroomId, isOpen])
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
