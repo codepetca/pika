@@ -29,11 +29,7 @@ export function urlsMatchForPreview(actualHref: string, expectedHref: string) {
   try {
     const actual = new URL(actualHref)
     const expected = new URL(expectedHref)
-    return (
-      actual.origin === expected.origin &&
-      actual.pathname === expected.pathname &&
-      actual.search === expected.search
-    )
+    return actual.href === expected.href
   } catch {
     return false
   }

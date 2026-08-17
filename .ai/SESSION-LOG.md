@@ -1082,8 +1082,8 @@ migration, production, Gradex, legacy-resource deletion, or mobile redesign.
   APIs and data contract for a focused Phase 6 compatibility-led retirement.
 
 **Validation:**
-- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass:
-  34 tests. The full bounded suite passes: 4,368 tests across 499 files.
+- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass.
+  The full bounded suite passes: 4,372 tests across 499 files.
   Component coverage includes loading, ready, unpublished, timeout, Retry,
   keyboard eligibility, and viewport ownership states.
 - The durable Chromium matrix now intercepts real iframe navigations with HTTP

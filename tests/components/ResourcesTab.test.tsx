@@ -130,6 +130,30 @@ describe('ResourcesTab', () => {
     expect(preview).toHaveAttribute('tabindex', '-1')
   })
 
+  it.each([
+    ['fragment', `${window.location.origin}/actual/test-classroom#other`],
+    ['trailing query marker', `${window.location.origin}/actual/test-classroom?`],
+  ])('requires the exact syllabus URL and rejects a %s', (_caseName, href) => {
+    render(
+      <SyllabusPreview
+        classroomTitle="Test Classroom"
+        siteHref="/actual/test-classroom"
+      />,
+    )
+
+    const preview = screen.getByTitle('Test Classroom syllabus preview')
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: SYLLABUS_PREVIEW_READY, href },
+        origin: window.location.origin,
+        source: (preview as HTMLIFrameElement).contentWindow,
+      }))
+    })
+
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    expect(preview).toHaveAttribute('tabindex', '-1')
+  })
+
   it.each(resourceTabCases)('returns a changed syllabus URL to protected loading state for $role resources', ({ renderTab }) => {
     vi.useFakeTimers()
     try {
