@@ -207,7 +207,7 @@ export default function CalendarPage() {
   function handleClassroomCreated(classroom: Classroom) {
     invalidateTeacherClassrooms()
     invalidateClassDaysForClassroom(classroom.id)
-    setClassrooms([classroom, ...classrooms])
+    setClassrooms((current) => [classroom, ...current.filter((item) => item.id !== classroom.id)])
     setSelectedClassroom(classroom)
   }
 
@@ -484,6 +484,7 @@ export default function CalendarPage() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleClassroomCreated}
+          onBlueprintCreated={handleClassroomCreated}
         />
       </div>
     )
@@ -573,6 +574,7 @@ export default function CalendarPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
+        onBlueprintCreated={handleClassroomCreated}
       />
 
       <AlertDialog {...alertState} onClose={closeAlert} />

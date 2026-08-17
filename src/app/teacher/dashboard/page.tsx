@@ -227,7 +227,7 @@ export default function TeacherDashboardPage() {
   function handleClassroomCreated(classroom: Classroom) {
     invalidateTeacherClassrooms()
     invalidateTeacherDashboardAttendance(classroom.id)
-    setClassrooms([classroom, ...classrooms])
+    setClassrooms((current) => [classroom, ...current.filter((item) => item.id !== classroom.id)])
     setSelectedClassroom(classroom)
   }
 
@@ -336,6 +336,7 @@ export default function TeacherDashboardPage() {
             isOpen={showCreateModal}
             onClose={() => setShowCreateModal(false)}
             onSuccess={handleClassroomCreated}
+            onBlueprintCreated={handleClassroomCreated}
           />
         </PageLayout>
       </div>
@@ -645,6 +646,7 @@ export default function TeacherDashboardPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
+        onBlueprintCreated={handleClassroomCreated}
       />
 
       {selectedClassroom && (

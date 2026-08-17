@@ -13,13 +13,21 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: ({ isOpen, onSuccess }: any) => isOpen ? (
-    <button
-      type="button"
-      onClick={() => onSuccess(createMockClassroom({ id: 'created', title: 'Created Class' }))}
-    >
-      Create mocked classroom
-    </button>
+  CreateClassroomModal: ({ isOpen, onSuccess, onBlueprintCreated }: any) => isOpen ? (
+    <div>
+      <button
+        type="button"
+        onClick={() => onSuccess(createMockClassroom({ id: 'created', title: 'Created Class' }))}
+      >
+        Create mocked classroom
+      </button>
+      <button
+        type="button"
+        onClick={() => onBlueprintCreated(createMockClassroom({ id: 'blueprint-created', title: 'Blueprint Class' }))}
+      >
+        Complete mocked blueprint classroom
+      </button>
+    </div>
   ) : null,
 }))
 
@@ -243,6 +251,19 @@ describe('Teacher dashboard page', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('refreshes dashboard state without navigating when blueprint creation completes', async () => {
+    installFetchMock({ classrooms: [] })
+
+    renderDashboard()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Classroom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Complete mocked blueprint classroom' }))
+
+    expect(await screen.findByText('student@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Complete mocked blueprint classroom' })).toBeInTheDocument()
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('sorts and resizes the shared attendance table and exposes log cells as buttons', async () => {

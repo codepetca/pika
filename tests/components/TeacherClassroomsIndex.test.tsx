@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
 import {
   fetchTeacherArchivedClassroomState,
@@ -10,19 +10,22 @@ import { createMockClassroom } from '../helpers/mocks'
 import type { Classroom } from '@/types'
 
 const push = vi.hoisted(() => vi.fn())
+const createClassroomModalProps = vi.hoisted(() => ({ current: null as any }))
 
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: ({
-    isOpen,
-    initialBlueprintId,
-  }: {
+  CreateClassroomModal: (props: {
     isOpen: boolean
     initialBlueprintId?: string | null
-  }) => isOpen ? (
-    <div role="dialog" data-testid="create-classroom-modal">
-      Blueprint: {initialBlueprintId || 'none'}
-    </div>
-  ) : null,
+    onBlueprintCreated?: (classroom: Classroom) => void
+  }) => {
+    createClassroomModalProps.current = props
+    const { isOpen, initialBlueprintId } = props
+    return isOpen ? (
+      <div role="dialog" data-testid="create-classroom-modal">
+        Blueprint: {initialBlueprintId || 'none'}
+      </div>
+    ) : null
+  },
 }))
 
 vi.mock('next/navigation', () => ({
@@ -59,6 +62,7 @@ describe('TeacherClassroomsIndex', () => {
     vi.clearAllMocks()
     fetchMock = vi.fn()
     push.mockReset()
+    createClassroomModalProps.current = null
     vi.mocked(fetchTeacherClassrooms).mockResolvedValue([])
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
       classrooms: [],
@@ -243,6 +247,14 @@ describe('TeacherClassroomsIndex', () => {
     expect(await screen.findByTestId('create-classroom-modal')).toHaveTextContent(
       'Blueprint: 20000000-0000-4000-8000-000000000002',
     )
+
+    const created = createMockClassroom({ id: 'created-1', title: 'Created from blueprint' })
+    act(() => createClassroomModalProps.current.onBlueprintCreated(created))
+
+    expect(screen.getByTestId('create-classroom-modal')).toBeInTheDocument()
+    expect(push).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }))
+    expect(await screen.findByText('Created from blueprint')).toBeInTheDocument()
   })
 
   it('sends simultaneous classroom and Blueprint changes to review', async () => {

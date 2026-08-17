@@ -1133,15 +1133,21 @@ UX; no schema, migration, production, archive cleanup, or Gradex work.
 - Blueprint-created classrooms remain in the create dialog for a focused review
   handoff that states assignments/tests are unpublished, calls out due-date and
   release review, lists lesson plans that did not fit the chosen calendar, and
-  opens the new classroom's Assignments tab from every parent surface.
+  opens the new classroom's Assignments tab from every parent surface when the
+  teacher explicitly selects Review Classroom.
+- Blueprint completion refreshes parent classroom state through a non-routing
+  callback. Escape/backdrop dismissal only closes the completed handoff, and
+  dismissal is blocked while instantiation is pending so its operation key
+  cannot be discarded before the request settles.
 - The completed step moves focus to its heading and preserves the existing
   dialog, progress, and continuation patterns.
 
 **Validation:**
 - Focused component coverage proves both same-key retry paths, delayed success
-  completion, overflow rendering, and focus transfer. The full suite passes all
-  4,394 tests across 499 files; TypeScript, lint, production build, Pika audit,
-  and diff checks pass.
+  completion, in-flight dismissal blocking, non-routing completion callbacks,
+  overflow rendering, and focus transfer. The full suite passes all 4,394 tests
+  across 499 files; TypeScript, lint, production build, Pika audit, and diff
+  checks pass.
 - Playwright verifies the teacher-only overflow handoff at desktop/mobile in
   light/dark, including a browser-sent UUID operation key and no horizontal
   overflow. Student rendering is not applicable to this teacher creation flow.

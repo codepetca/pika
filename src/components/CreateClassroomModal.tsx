@@ -24,6 +24,7 @@ interface CreateClassroomModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (classroom: any) => void
+  onBlueprintCreated?: (classroom: any) => void
   initialBlueprintId?: string | null
 }
 
@@ -31,6 +32,7 @@ export function CreateClassroomModal({
   isOpen,
   onClose,
   onSuccess,
+  onBlueprintCreated,
   initialBlueprintId = null,
 }: CreateClassroomModalProps) {
   const router = useRouter()
@@ -234,6 +236,7 @@ export function CreateClassroomModal({
         instantiateOperationRef.current = null
         invalidateTeacherBlueprints()
         invalidateTeacherClassrooms()
+        onBlueprintCreated?.(classroom)
         setBlueprintCreationResult({
           classroom,
           overflowLessonTemplates: Array.isArray(instantiateData.lesson_mapping?.overflow_lesson_templates)
@@ -280,12 +283,12 @@ export function CreateClassroomModal({
     if (!blueprintCreationResult) return
     const { classroom } = blueprintCreationResult
     resetForm()
-    onSuccess(classroom)
     onClose()
     if (openForReview) router.push(`/classrooms/${classroom.id}?tab=assignments`)
   }
 
   function handleClose() {
+    if (loading || importingBlueprint) return
     if (blueprintCreationResult) return finishBlueprintCreation(false)
     resetForm()
     onClose()
