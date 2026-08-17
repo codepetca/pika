@@ -452,14 +452,16 @@ describe('CreateClassroomModal', () => {
 
     const fileInput = screen.getByLabelText('Import course package file')
     const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    const readPackage = vi.fn(async () => new TextEncoder().encode('bundle').buffer)
     Object.defineProperty(file, 'arrayBuffer', {
-      value: async () => new TextEncoder().encode('bundle').buffer,
+      value: readPackage,
     })
 
     fireEvent.change(fileInput, { target: { files: [file] } })
     expect(await screen.findByRole('option', { name: 'Importing package...' })).toBeInTheDocument()
 
     fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(readPackage).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls.filter(([url]) => (
       String(url) === '/api/teacher/course-blueprints/import'
     ))).toHaveLength(1)

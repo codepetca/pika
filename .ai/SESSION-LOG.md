@@ -1163,6 +1163,8 @@ migration, database, production, Gradex, or student behavior changes.
   second file submission until the first request settles.
 - Independent review's P3 maintainability finding was fixed by scoping the
   suppression assertion to package-import requests instead of all global fetches.
+- Targeted re-review's P1 false-positive finding was fixed by also proving the
+  second event never re-enters asynchronous package preparation.
 
 **Validation:**
 - All 27 focused component tests and all 4,407 repository tests pass.
