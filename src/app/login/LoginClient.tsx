@@ -4,13 +4,13 @@ import { useEffect, useId, useRef, useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
 import { navigateTo } from '@/lib/client-navigation'
-import { SESSION_EXPIRED_MESSAGE, SESSION_EXPIRED_REASON } from '@/lib/client-auth'
-
-function isSafeNextPath(next: string): boolean {
-  if (!next.startsWith('/')) return false
-  if (next.startsWith('//')) return false
-  return true
-}
+import {
+  getSafeInternalPath,
+  SESSION_CHANGED_MESSAGE,
+  SESSION_CHANGED_REASON,
+  SESSION_EXPIRED_MESSAGE,
+  SESSION_EXPIRED_REASON,
+} from '@/lib/client-auth'
 
 const DEV_CREDENTIALS = {
   teacher: { email: 'teacher@example.com', password: 'test1234' },
@@ -28,13 +28,18 @@ export function LoginClient() {
   const emailInputRef = useRef<HTMLInputElement | null>(null)
   const sessionMessageId = useId()
   const isDev = process.env.NODE_ENV === 'development'
-  const sessionExpired = searchParams.get('reason') === SESSION_EXPIRED_REASON
+  const sessionReason = searchParams.get('reason')
+  const sessionMessage = sessionReason === SESSION_EXPIRED_REASON
+    ? SESSION_EXPIRED_MESSAGE
+    : sessionReason === SESSION_CHANGED_REASON
+      ? SESSION_CHANGED_MESSAGE
+      : null
 
   useEffect(() => {
-    if (sessionExpired) {
+    if (sessionMessage) {
       emailInputRef.current?.focus()
     }
-  }, [sessionExpired])
+  }, [sessionMessage])
 
   function fillCredentials(creds: { email: string; password: string }) {
     setEmail(creds.email)
@@ -59,8 +64,8 @@ export function LoginClient() {
         throw new Error(data.error || 'Login failed')
       }
 
-      const next = searchParams.get('next')
-      if (next && isSafeNextPath(next)) {
+      const next = getSafeInternalPath(searchParams.get('next'))
+      if (next) {
         navigateTo(next)
         return
       }
@@ -79,14 +84,14 @@ export function LoginClient() {
           Login to Pika
         </h1>
 
-        {sessionExpired ? (
+        {sessionMessage ? (
           <div
             id={sessionMessageId}
             role="status"
             aria-live="polite"
             className="mb-6 rounded-control border border-warning bg-warning-bg px-4 py-3 text-sm text-text-default"
           >
-            {SESSION_EXPIRED_MESSAGE}
+            {sessionMessage}
           </div>
         ) : null}
 
@@ -128,7 +133,7 @@ export function LoginClient() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              aria-describedby={sessionExpired ? sessionMessageId : undefined}
+              aria-describedby={sessionMessage ? sessionMessageId : undefined}
               required
               disabled={loading}
             />

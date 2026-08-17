@@ -99,7 +99,7 @@ test.describe('teacher experience matrix', () => {
   })
 
   test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium-desktop', 'One desktop recovery pass is sufficient')
+    test.skip(!testInfo.project.name.startsWith('chromium-desktop'), 'Desktop recovery themes are sufficient')
 
     await page.route('**/api/auth/me', async (route) => {
       await route.fulfill({
@@ -126,6 +126,29 @@ test.describe('teacher experience matrix', () => {
     await expect(page).toHaveURL(/\/teacher\/blueprints$/)
     await expect(page.getByRole('navigation', { name: 'Teacher tools' })).toBeVisible()
     await verifyProjectContract(page, testInfo)
+  })
+
+  test('blocks a stale page after the session changes to another teacher', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One account-change pass is sufficient')
+
+    await page.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: { id: 'different-teacher', email: 'other@example.com', role: 'teacher' },
+        }),
+      })
+    })
+    await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
+
+    await expect(page).toHaveURL((url) => (
+      url.pathname === '/login' &&
+      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('reason') === 'session-changed'
+    ))
+    await expect(page.getByRole('status')).toContainText('signed-in account changed')
+    await expect(page.getByLabel('School Email')).toBeFocused()
   })
 
   test('keeps failed syllabus documents unavailable', async ({ page }, testInfo) => {

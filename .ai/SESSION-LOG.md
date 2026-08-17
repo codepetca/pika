@@ -1082,16 +1082,22 @@ migration, production, Gradex, mobile, or student-history route change.
 **Completed:**
 - Added an explicit session-expiry reason to safe login redirects while
   preserving the interrupted path and query string.
+- Closed backslash-based external redirect variants through one canonical
+  same-origin path parser shared by redirect production and login consumption.
 - Added a persistent polite warning on the existing login card, associated it
   with the email field, and moved focus there for immediate recovery.
+- Made the session watcher validate both user ID and role, with a distinct
+  account-change recovery message. Ordinary authorization failures remain in
+  place instead of being mislabeled as expired sessions.
 - Added component and unit regressions for announcement, focus, safe redirect
   fallback, and return-path preservation, plus a seeded Chromium recovery flow
   that returns a teacher to the interrupted utility route after login.
 
 **Validation:**
-- Focused auth suites pass. The full suite passes: 4,376 tests across 500
-  files. TypeScript, lint, production build, architecture, design/UI policy,
-  Pika audit, session-log, and diff checks pass.
+- Focused auth and Daily suites pass after review remediation. The pre-review
+  full suite passed: 4,376 tests across 500 files. TypeScript and lint pass;
+  production build, architecture, design/UI policy, Pika audit, session-log,
+  and diff checks passed before remediation and are rerun at the final gate.
 - Desktop Playwright captures pass in light and dark for the shared
   unauthenticated recovery state. Teacher/student role-specific rendering is
   not applicable; both role return paths use this same login surface.

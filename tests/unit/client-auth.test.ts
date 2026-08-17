@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  SESSION_CHANGED_REASON,
   SESSION_EXPIRED_REASON,
   buildLoginRedirectPath,
+  getSafeInternalPath,
 } from '@/lib/client-auth'
 
 describe('client auth recovery', () => {
@@ -14,7 +16,12 @@ describe('client auth recovery', () => {
     expect(url.searchParams.get('reason')).toBe(SESSION_EXPIRED_REASON)
   })
 
-  it.each(['https://evil.example', '//evil.example']) (
+  it.each([
+    'https://evil.example',
+    '//evil.example',
+    '/\\evil.example',
+    '/%5Cevil.example',
+  ])(
     'falls back to classrooms for an unsafe return path: %s',
     (unsafePath) => {
       const redirectPath = buildLoginRedirectPath(unsafePath)
@@ -24,4 +31,16 @@ describe('client auth recovery', () => {
       expect(url.searchParams.get('reason')).toBe(SESSION_EXPIRED_REASON)
     },
   )
+
+  it('identifies an account change separately from session expiry', () => {
+    const redirectPath = buildLoginRedirectPath('/teacher/calendar', SESSION_CHANGED_REASON)
+    const url = new URL(redirectPath, 'https://pika.example')
+
+    expect(url.searchParams.get('reason')).toBe(SESSION_CHANGED_REASON)
+  })
+
+  it('canonicalizes safe internal paths without changing their query or hash', () => {
+    expect(getSafeInternalPath('/student/history?month=8#entry-1'))
+      .toBe('/student/history?month=8#entry-1')
+  })
 })

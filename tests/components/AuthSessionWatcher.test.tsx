@@ -45,10 +45,22 @@ describe('AuthSessionWatcher', () => {
       user: { id: 'student-1', email: 'student@example.com', role: 'student' },
     })))
 
-    render(<AuthSessionWatcher expectedRole="teacher" />)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
 
     await waitFor(() => {
-      expect(redirectToLoginForReauthMock).toHaveBeenCalled()
+      expect(redirectToLoginForReauthMock).toHaveBeenCalledWith(undefined, 'session-changed')
+    })
+  })
+
+  it('redirects with an account-change reason when a same-role session belongs to another user', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => mockResponse(200, {
+      user: { id: 'teacher-2', email: 'other@example.com', role: 'teacher' },
+    })))
+
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+
+    await waitFor(() => {
+      expect(redirectToLoginForReauthMock).toHaveBeenCalledWith(undefined, 'session-changed')
     })
   })
 
@@ -57,7 +69,7 @@ describe('AuthSessionWatcher', () => {
       user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' },
     })))
 
-    render(<AuthSessionWatcher expectedRole="teacher" />)
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith('/api/auth/me', { cache: 'no-store' })
@@ -65,14 +77,22 @@ describe('AuthSessionWatcher', () => {
     expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
   })
 
-  it('keeps the page mounted when the session endpoint has a server error', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => mockResponse(500, { error: 'Internal server error' })))
+  it('keeps the page mounted for authorization and server failures', async () => {
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => mockResponse(403, { error: 'Forbidden' }))
+      .mockImplementationOnce(() => mockResponse(500, { error: 'Internal server error' }))
+    vi.stubGlobal('fetch', fetchMock)
 
-    render(<AuthSessionWatcher expectedRole="teacher" />)
+    const firstRender = render(
+      <AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />,
+    )
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
 
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/auth/me', { cache: 'no-store' })
-    })
+    firstRender.unmount()
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
   })
+
 })
