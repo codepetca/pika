@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
 import {
   DataTable,
@@ -28,16 +28,29 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   const [showPreview, setShowPreview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
+  if (scopeRef.current.classroomId !== classroomId || scopeRef.current.isOpen !== isOpen) {
+    scopeRef.current = {
+      classroomId,
+      isOpen,
+      generation: scopeRef.current.generation + 1,
+    }
+  }
+
+  function isCurrentScope(scope: typeof scopeRef.current) {
+    return scopeRef.current.classroomId === scope.classroomId
+      && scopeRef.current.isOpen === scope.isOpen
+      && scopeRef.current.generation === scope.generation
+  }
 
   // Reset state when modal opens/closes
   useEffect(() => {
-    if (isOpen) {
-      setInput('')
-      setPreview(null)
-      setShowPreview(false)
-      setError('')
-    }
-  }, [isOpen])
+    setInput('')
+    setPreview(null)
+    setShowPreview(false)
+    setIsSubmitting(false)
+    setError('')
+  }, [classroomId, isOpen])
 
   // Parse input when textarea loses focus or when toggling preview
   function handleParseInput() {
@@ -57,11 +70,13 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
       return
     }
 
+    const operationScope = { ...scopeRef.current }
+    const operationClassroomId = classroomId
     setIsSubmitting(true)
     setError('')
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/add`, {
+      const res = await fetch(`/api/teacher/classrooms/${operationClassroomId}/roster/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,12 +97,14 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
       }
 
       // Success!
-      onSuccess(classroomId)
-      onClose()
+      onSuccess(operationClassroomId)
+      if (isCurrentScope(operationScope)) onClose()
     } catch (err: any) {
-      setError(err.message || 'Failed to add students')
+      if (isCurrentScope(operationScope)) {
+        setError(err.message || 'Failed to add students')
+      }
     } finally {
-      setIsSubmitting(false)
+      if (isCurrentScope(operationScope)) setIsSubmitting(false)
     }
   }
 

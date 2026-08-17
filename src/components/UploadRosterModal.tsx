@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, ChangeEvent, useId } from 'react'
+import { useState, FormEvent, ChangeEvent, useEffect, useId, useRef } from 'react'
 import { Button, DialogPanel } from '@/ui'
 
 interface StudentChange {
@@ -20,6 +20,7 @@ interface StudentChange {
 }
 
 interface ConfirmationData {
+  classroomId: string
   changes: StudentChange[]
   updateCount: number
   newCount: number
@@ -41,6 +42,28 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
   const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null)
+  const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
+  if (scopeRef.current.classroomId !== classroomId || scopeRef.current.isOpen !== isOpen) {
+    scopeRef.current = {
+      classroomId,
+      isOpen,
+      generation: scopeRef.current.generation + 1,
+    }
+  }
+
+  function isCurrentScope(scope: typeof scopeRef.current) {
+    return scopeRef.current.classroomId === scope.classroomId
+      && scopeRef.current.isOpen === scope.isOpen
+      && scopeRef.current.generation === scope.generation
+  }
+
+  useEffect(() => {
+    setCsvFile(null)
+    setLoading(false)
+    setError('')
+    setResult(null)
+    setConfirmationData(null)
+  }, [classroomId, isOpen])
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -56,13 +79,16 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
     e.preventDefault()
     if (!csvFile) return
 
+    const operationScope = { ...scopeRef.current }
+    const operationClassroomId = classroomId
     setError('')
     setLoading(true)
 
     try {
       const text = await csvFile.text()
+      if (!isCurrentScope(operationScope)) return
 
-      const response = await fetch(`/api/teacher/classrooms/${classroomId}/roster/upload-csv`, {
+      const response = await fetch(`/api/teacher/classrooms/${operationClassroomId}/roster/upload-csv`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csvData: text }),
@@ -76,7 +102,9 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
       // Check if confirmation is needed
       if (data.needsConfirmation) {
+        if (!isCurrentScope(operationScope)) return
         setConfirmationData({
+          classroomId: operationClassroomId,
           changes: data.changes,
           updateCount: data.updateCount,
           newCount: data.newCount,
@@ -86,25 +114,34 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
         return
       }
 
+      await onSuccess(operationClassroomId)
+      if (!isCurrentScope(operationScope)) return
       setResult(data)
-      await onSuccess(classroomId)
       handleClose()
       return
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      if (isCurrentScope(operationScope)) {
+        setError(err.message || 'An error occurred')
+      }
     } finally {
-      setLoading(false)
+      if (isCurrentScope(operationScope)) setLoading(false)
     }
   }
 
   async function handleConfirmUpload() {
     if (!confirmationData) return
+    const operationScope = { ...scopeRef.current }
+    const operationClassroomId = confirmationData.classroomId
+    if (
+      operationClassroomId !== classroomId
+      || !isCurrentScope(operationScope)
+    ) return
 
     setError('')
     setLoading(true)
 
     try {
-      const response = await fetch(`/api/teacher/classrooms/${classroomId}/roster/upload-csv`, {
+      const response = await fetch(`/api/teacher/classrooms/${operationClassroomId}/roster/upload-csv`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ csvData: confirmationData.csvText, confirmed: true }),
@@ -116,14 +153,17 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
         throw new Error(data.error || 'Failed to upload roster')
       }
 
+      await onSuccess(operationClassroomId)
+      if (!isCurrentScope(operationScope)) return
       setResult(data)
       setConfirmationData(null)
-      await onSuccess(classroomId)
       handleClose()
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      if (isCurrentScope(operationScope)) {
+        setError(err.message || 'An error occurred')
+      }
     } finally {
-      setLoading(false)
+      if (isCurrentScope(operationScope)) setLoading(false)
     }
   }
 

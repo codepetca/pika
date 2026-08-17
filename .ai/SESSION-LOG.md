@@ -1088,13 +1088,16 @@ contract; no schema, migration, production, Gradex, or mobile redesign change.
 - Added optimistic concurrency to counselor updates through each roster row's
   existing `updated_at` revision, and scoped delayed add/upload completion to
   the classroom that was actually mutated.
+- Fenced Add Students and CSV Upload internal loading, error, confirmation, and
+  close state by classroom/open generation so an earlier classroom response
+  cannot repaint or submit into the current classroom.
 - Added direct keyboard coverage for table selection and Escape focus return,
   plus regressions for overlapping loads, counselor saves, removal recovery,
   modal error semantics, and focus behavior.
 
 **Validation:**
-- Focused roster API, table, and dialog suites pass: 71 tests. The full suite
-  passes: 4,339 tests across 498 files. TypeScript, lint, production build, UI
+- Focused roster API, modal, table, and dialog suites pass: 74 tests. The full
+  suite passes: 4,341 tests across 499 files. TypeScript, lint, production build, UI
   policy, design policy, architecture checks, Pika audit, and diff checks pass.
 - Composite-widget checklist reviewed: direct keyboard behavior and semantic
   state are covered by tests, with no manual accessibility follow-up remaining.
