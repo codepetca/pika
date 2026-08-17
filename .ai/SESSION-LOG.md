@@ -1165,6 +1165,9 @@ Gradex, or student behavior changes.
 - Saving one section now refreshes accepted server state only for that section,
   preserving unsaved work elsewhere. Editor writes are locked while a save,
   import, or proposal application can replace accepted state.
+- Every selected-Blueprint transition invalidates stale detail requests and
+  clears the previous editor before the new detail loads, including successful
+  package import and new-Blueprint creation.
 - Blueprint changes, local route actions, authority changes, imports, and
   proposal application now require explicit discard confirmation. Export and
   classroom creation explicitly confirm that they use the last saved version.
@@ -1172,9 +1175,10 @@ Gradex, or student behavior changes.
   refresh or tab closure while any section differs from its saved baseline.
 
 **Validation:**
-- Nineteen focused unit/component tests cover per-section comparisons,
+- Twenty-one focused unit/component tests cover per-section comparisons,
   cross-section save preservation, accepted server values, transition guards,
-  saved-version actions, unload protection, and in-flight editor locking.
+  import/create transition races, saved-version actions, unload protection, and
+  in-flight editor locking.
 - Teacher desktop/mobile light/dark Playwright captures verify the dirty state
   and discard dialog with no horizontal overflow and initial focus on Keep
   editing. Student rendering is not applicable to this teacher-only route.

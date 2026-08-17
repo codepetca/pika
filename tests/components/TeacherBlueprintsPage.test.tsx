@@ -29,7 +29,21 @@ vi.mock('@/components/PageLayout', () => ({
 }))
 
 vi.mock('@/components/CreateBlueprintModal', () => ({
-  CreateBlueprintModal: () => null,
+  CreateBlueprintModal: ({
+    isOpen,
+    onSuccess,
+  }: {
+    isOpen: boolean
+    onSuccess: (blueprint: typeof blueprintOneDetail) => void | Promise<void>
+  }) => (
+    isOpen ? (
+      <div role="dialog" aria-label="Create Course Blueprint">
+        <button type="button" onClick={() => onSuccess(blueprintOneDetail)}>
+          Complete Blueprint creation
+        </button>
+      </div>
+    ) : null
+  ),
 }))
 
 vi.mock('@/components/CreateClassroomModal', () => ({
@@ -370,6 +384,71 @@ describe('TeacherBlueprintsPage', () => {
       resolveImport(jsonResponse({ error: 'Temporary import failure' }, false))
     })
     expect(await screen.findByRole('button', { name: 'Import Course Package' })).not.toBeDisabled()
+  })
+
+  it('clears the previous editor until an imported Blueprint detail loads', async () => {
+    let resolveImportedDetail!: (response: Response) => void
+    const pendingImportedDetail = new Promise<Response>((resolve) => {
+      resolveImportedDetail = resolve
+    })
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints/import' && method === 'POST') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintOneDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'GET') {
+        return pendingImportedDetail
+      }
+      return defaultFetch!(input, init)
+    })
+
+    const view = render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+    fireEvent.change(fileInput!, { target: { files: [file] } })
+
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Save Details' })).toBeNull()
+
+    await act(async () => {
+      resolveImportedDetail(jsonResponse({ blueprint: blueprintOneDetail }))
+    })
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+  })
+
+  it('clears the previous editor until a newly created Blueprint detail loads', async () => {
+    let resolveCreatedDetail!: (response: Response) => void
+    const pendingCreatedDetail = new Promise<Response>((resolve) => {
+      resolveCreatedDetail = resolve
+    })
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/teacher/course-blueprints/b-1' && (init?.method || 'GET') === 'GET') {
+        return pendingCreatedDetail
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Course Blueprint' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Complete Blueprint creation' }))
+
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Save Details' })).toBeNull()
+
+    await act(async () => {
+      resolveCreatedDetail(jsonResponse({ blueprint: blueprintOneDetail }))
+    })
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
   })
 
   it('opens classroom change review from the archived reuse handoff', async () => {

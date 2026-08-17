@@ -238,7 +238,10 @@ export default function TeacherBlueprintsPage() {
     [currentEditorState, savedEditorState],
   )
   const hasUnsavedChanges = dirtySections.length > 0
-  const editorWriteLocked = saving || importingPackage || applyingProposalId !== null
+  const editorWriteLocked = saving
+    || importingPackage
+    || loadingDetail
+    || applyingProposalId !== null
   const dirtySectionSummary = dirtySections
     .map((section) => DIRTY_SECTION_LABELS[section])
     .join(', ')
@@ -340,19 +343,39 @@ export default function TeacherBlueprintsPage() {
     })
   }
 
-  async function loadBlueprints(preferredId?: string) {
+  const beginBlueprintSelection = useCallback((blueprintId: string | null) => {
+    detailRequestIdRef.current += 1
+    selectedBlueprintIdRef.current = blueprintId
+    setDeleteTarget(null)
+    setDetail(null)
+    setSavedEditorState(null)
+    setProposals([])
+    setLoadingDetail(blueprintId !== null)
+    setSelectedBlueprintId(blueprintId)
+  }, [])
+
+  const loadBlueprints = useCallback(async (preferredId?: string) => {
+    if (preferredId && preferredId !== selectedBlueprintIdRef.current) {
+      beginBlueprintSelection(preferredId)
+    }
     setLoadingList(true)
     setError('')
     try {
       const nextBlueprints = await fetchTeacherBlueprints()
       setBlueprints(nextBlueprints)
-      setSelectedBlueprintId((current) => preferredId || current || nextBlueprints[0]?.id || null)
+      const nextSelectedId = preferredId
+        || selectedBlueprintIdRef.current
+        || nextBlueprints[0]?.id
+        || null
+      if (nextSelectedId !== selectedBlueprintIdRef.current) {
+        beginBlueprintSelection(nextSelectedId)
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load course blueprints')
     } finally {
       setLoadingList(false)
     }
-  }
+  }, [beginBlueprintSelection])
 
   const loadDetail = useCallback(async (id: string) => {
     const requestId = detailRequestIdRef.current + 1
@@ -397,7 +420,7 @@ export default function TeacherBlueprintsPage() {
 
   useEffect(() => {
     loadBlueprints(preferredBlueprintId || undefined)
-  }, [preferredBlueprintId])
+  }, [loadBlueprints, preferredBlueprintId])
 
   useEffect(() => {
     if (!selectedBlueprintId) {
@@ -405,6 +428,7 @@ export default function TeacherBlueprintsPage() {
       setDetail(null)
       setSavedEditorState(null)
       setProposals([])
+      setLoadingDetail(false)
       return
     }
     loadDetail(selectedBlueprintId)
@@ -501,8 +525,7 @@ export default function TeacherBlueprintsPage() {
     detailRequestIdRef.current += 1
     invalidateTeacherBlueprints()
     setBlueprints(remainingBlueprints)
-    setDetail(null)
-    setSelectedBlueprintId(remainingBlueprints[0]?.id || null)
+    beginBlueprintSelection(remainingBlueprints[0]?.id || null)
     setDeleteTarget(null)
     router.push('/teacher/blueprints')
   }
@@ -511,10 +534,7 @@ export default function TeacherBlueprintsPage() {
     if (blueprintId === selectedBlueprintId) return
     requestUnsavedAction(
       () => {
-        setDeleteTarget(null)
-        setDetail(null)
-        setSavedEditorState(null)
-        setSelectedBlueprintId(blueprintId)
+        beginBlueprintSelection(blueprintId)
       },
       {
         title: 'Switch Course Blueprints?',
@@ -1058,7 +1078,7 @@ export default function TeacherBlueprintsPage() {
                     key={blueprint.id}
                     type="button"
                     onClick={() => selectBlueprint(blueprint.id)}
-                    disabled={editorWriteLocked}
+                    disabled={saving || importingPackage || applyingProposalId !== null}
                     className={`w-full rounded-card border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       selectedBlueprintId === blueprint.id
                         ? 'border-primary bg-info-bg'
@@ -1076,7 +1096,7 @@ export default function TeacherBlueprintsPage() {
           </aside>
 
           <section className="min-w-0 rounded-card border border-border bg-surface p-4">
-            {!selectedBlueprintId || !detail ? (
+            {!selectedBlueprintId || !detail || detail.id !== selectedBlueprintId ? (
               loadingDetail ? (
                 <div className="flex justify-center py-12">
                   <Spinner size="lg" />
