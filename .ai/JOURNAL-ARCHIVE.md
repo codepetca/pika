@@ -18423,3 +18423,16 @@ schema/Storage concurrency verification only.
   environment gates are disabled or unset; no purge operation is active.
 - Synthetic fixture users and Storage objects were removed. No staging or
   production state changed, and migration 120 remains local only.
+
+<!-- pika-session-log-archive-batch:8f258b54b15c37961b41fc89f328fbb157eb651d54fcbbd851de3614c9e28a3c -->
+## 2026-08-06 — Prepare verified Blueprint deletion draft
+
+**Risk profile:** workspace-state — publish the already verified feature only.
+
+**Prepared:**
+- Reconfirmed this dedicated branch matches current `origin/main`, the complete
+  worktree diff is limited to Course Blueprint deletion and its continuity
+  metadata, and the Pika audit and diff checks pass.
+- Prepared migration 120, the disabled-by-default application/API/UI flow,
+  tests, fixtures, and rollout guidance for a separate draft PR. PR #963 and
+  all staging and production state remain untouched.

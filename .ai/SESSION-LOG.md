@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-06 — Prepare verified Blueprint deletion draft
-
-**Risk profile:** workspace-state — publish the already verified feature only.
-
-**Prepared:**
-- Reconfirmed this dedicated branch matches current `origin/main`, the complete
-  worktree diff is limited to Course Blueprint deletion and its continuity
-  metadata, and the Pika audit and diff checks pass.
-- Prepared migration 120, the disabled-by-default application/API/UI flow,
-  tests, fixtures, and rollout guidance for a separate draft PR. PR #963 and
-  all staging and production state remain untouched.
-
 ## 2026-08-06 — Reconcile Blueprint deletion CI contracts
 
 **Risk profile:** runtime-platform — test and CI integration only.
@@ -1116,3 +1104,34 @@ schema, migration, production, Gradex, or mobile redesign work.
   the submitted-log button name hid its visible attendance status; the name now
   includes date, status, and action, with a focused regression test and targeted
   rereview.
+
+## 2026-08-17 — Organize Settings and decide student grades/profile scope
+
+**Risk profile:** none — teacher Settings organization and durable product
+decisions; no API, schema, migration, production, Gradex, or mobile redesign.
+
+**Completed:**
+- Split the existing teacher Settings surface into stable URL-backed General,
+  Access, Syllabus, Class Days, and Reuse sections without changing the fields,
+  save behavior, archived read-only behavior, or underlying routes.
+- Kept the shared keyboard-operable segmented control and added narrow-screen
+  containment so section navigation cannot widen the page.
+- Recorded that returned assignment/test feedback remains the student grade
+  surface until aggregate disclosure, weighting, hidden-work, and incomplete-
+  work semantics are defined.
+- Recorded that standalone student profile editing remains declined until one
+  source of truth and synchronization contract exists for global profiles and
+  classroom roster names.
+
+**Validation:**
+- The 26-test Settings component suite passes, including cross-section state
+  reset, stale URL fallback, save/error behavior, archived read-only behavior,
+  syllabus preferences, enrollment, and blueprint capture.
+- The full run passed all 4,390 behavior tests; its only failure was a
+  19-character startup-context overage, then the tightened summary passed the
+  complete 38-test startup contract.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright captures pass for every section at desktop and 390px in light and
+  dark. Each URL selects the intended section, body width equals viewport width,
+  and the teacher surface remains visually consistent. Student is not affected.

@@ -42,12 +42,21 @@ function generateJoinCode() {
     .join('')
 }
 
-type SettingsSection = 'general' | 'class-days'
+type SettingsSection = 'general' | 'access' | 'syllabus' | 'class-days' | 'reuse'
 
 const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }> = [
   { value: 'general', label: 'General' },
+  { value: 'access', label: 'Access' },
+  { value: 'syllabus', label: 'Syllabus' },
   { value: 'class-days', label: 'Class Days' },
+  { value: 'reuse', label: 'Reuse' },
 ]
+
+const SETTINGS_SECTIONS = new Set<SettingsSection>(SETTINGS_SECTION_OPTIONS.map((option) => option.value))
+
+function parseSettingsSection(value: string | null | undefined): SettingsSection {
+  return value && SETTINGS_SECTIONS.has(value as SettingsSection) ? (value as SettingsSection) : 'general'
+}
 
 const LESSON_PLAN_VISIBILITY_OPTIONS = [
   { value: 'current_week', label: 'Current week (and all previous)' },
@@ -189,7 +198,7 @@ export function TeacherSettingsTab({
   onClassroomUpdated,
 }: Props) {
   const router = useRouter()
-  const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
+  const section = parseSettingsSection(sectionParam)
   const titleId = useId()
   const actualSiteSlugId = useId()
   const actualOverviewId = useId()
@@ -642,7 +651,7 @@ export function TeacherSettingsTab({
 
   return (
     <PageLayout>
-      <div className="mb-2">
+      <div className="mb-2 overflow-x-auto pb-1">
         <SegmentedControl
           ariaLabel="Settings section"
           value={section}
@@ -652,32 +661,35 @@ export function TeacherSettingsTab({
         />
       </div>
 
-      {section === 'general' ? (
+      {section !== 'class-days' ? (
         <PageContent className="space-y-4 pt-0">
-          <SettingsPanel>
-            <SettingsHeading title="Classroom name" tooltip="Name shown to students and in reports" />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <FormField label="Classroom name" htmlFor={titleId} hideLabel error={displayedTitleError} className="flex-1">
-                <Input
-                  type="text"
-                  value={displayedTitle}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={saveTitle}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      saveTitle()
-                    }
-                  }}
-                  disabled={displayedTitleSaving || isReadOnly || !formStateReady}
-                  placeholder="Enter classroom name"
-                />
-              </FormField>
-              {displayedTitleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
-            </div>
-          </SettingsPanel>
+          {section === 'general' ? (
+            <SettingsPanel>
+              <SettingsHeading title="Classroom name" tooltip="Name shown to students and in reports" />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <FormField label="Classroom name" htmlFor={titleId} hideLabel error={displayedTitleError} className="flex-1">
+                  <Input
+                    type="text"
+                    value={displayedTitle}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={saveTitle}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        saveTitle()
+                      }
+                    }}
+                    disabled={displayedTitleSaving || isReadOnly || !formStateReady}
+                    placeholder="Enter classroom name"
+                  />
+                </FormField>
+                {displayedTitleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
+              </div>
+            </SettingsPanel>
+          ) : null}
 
-          <SettingsPanel>
+          {section === 'access' ? (
+            <SettingsPanel>
             <SettingsHeading
               title="Joining"
               tooltip="Control new joins and whether students must be on the roster."
@@ -765,25 +777,29 @@ export function TeacherSettingsTab({
 
             {displayedJoinCodeError && <div className="text-sm text-danger">{displayedJoinCodeError}</div>}
             {displayedEnrollmentError && <div className="text-sm text-danger">{displayedEnrollmentError}</div>}
-          </SettingsPanel>
+            </SettingsPanel>
+          ) : null}
 
-          <SettingsPanel>
-            <SettingsHeading title="Calendar Visibility" tooltip="Control how far ahead students can see lesson plans" />
+          {section === 'access' ? (
+            <SettingsPanel>
+              <SettingsHeading title="Calendar Visibility" tooltip="Control how far ahead students can see lesson plans" />
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <FormField label="Calendar visibility" htmlFor={visibilityId} hideLabel error={displayedVisibilityError} className="sm:max-w-md">
-                <Select
-                  options={LESSON_PLAN_VISIBILITY_OPTIONS}
-                  value={displayedLessonPlanVisibility}
-                  onChange={(e) => saveLessonPlanVisibility(e.target.value as LessonPlanVisibility)}
-                  disabled={displayedVisibilitySaving || isReadOnly || !formStateReady}
-                />
-              </FormField>
-              {displayedVisibilitySaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
-            </div>
-          </SettingsPanel>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <FormField label="Calendar visibility" htmlFor={visibilityId} hideLabel error={displayedVisibilityError} className="sm:max-w-md">
+                  <Select
+                    options={LESSON_PLAN_VISIBILITY_OPTIONS}
+                    value={displayedLessonPlanVisibility}
+                    onChange={(e) => saveLessonPlanVisibility(e.target.value as LessonPlanVisibility)}
+                    disabled={displayedVisibilitySaving || isReadOnly || !formStateReady}
+                  />
+                </FormField>
+                {displayedVisibilitySaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
+              </div>
+            </SettingsPanel>
+          ) : null}
 
-          <SettingsPanel>
+          {section === 'general' ? (
+            <SettingsPanel>
             <div className="text-sm font-semibold text-text-default">Display</div>
 
             <div className="space-y-2">
@@ -819,18 +835,20 @@ export function TeacherSettingsTab({
               {displayedThemeError && <div className="text-sm text-danger">{displayedThemeError}</div>}
             </div>
 
-            <div className="border-t border-border pt-3">
-            <SettingsSwitchRow
-              checked={markdownMounted ? showMarkdown : true}
-              onChange={setShowMarkdown}
-              ariaLabel="Show markdown"
-            >
-              <span className="font-medium">Show markdown</span>
-            </SettingsSwitchRow>
-            </div>
-          </SettingsPanel>
+              <div className="border-t border-border pt-3">
+                <SettingsSwitchRow
+                  checked={markdownMounted ? showMarkdown : true}
+                  onChange={setShowMarkdown}
+                  ariaLabel="Show markdown"
+                >
+                  <span className="font-medium">Show markdown</span>
+                </SettingsSwitchRow>
+              </div>
+            </SettingsPanel>
+          ) : null}
 
-          <SettingsPanel className="space-y-4">
+          {section === 'syllabus' ? (
+            <SettingsPanel className="space-y-4">
             <SettingsHeading title="Public Syllabus" tooltip="Publish the public syllabus page for this classroom" />
 
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
@@ -958,29 +976,32 @@ export function TeacherSettingsTab({
             </div>
 
             {displayedSiteError && <div className="text-sm text-danger">{displayedSiteError}</div>}
-          </SettingsPanel>
+            </SettingsPanel>
+          ) : null}
 
-          <SettingsPanel>
-            <SettingsHeading
-              title="Course Blueprint"
-              tooltip="Save this classroom's teacher-authored course content as a reusable course blueprint"
-            />
+          {section === 'reuse' ? (
+            <SettingsPanel>
+              <SettingsHeading
+                title="Course Blueprint"
+                tooltip="Save this classroom's teacher-authored course content as a reusable course blueprint"
+              />
 
-            <p className="text-sm text-text-muted">
-              Save the classroom overview, outline, resources, assignments, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
-            </p>
+              <p className="text-sm text-text-muted">
+                Save the classroom overview, outline, resources, assignments, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
+              </p>
 
-            <div className="flex flex-wrap gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={openCreateBlueprintDialog}
-                disabled={displayedBlueprintBusy || isReadOnly || !formStateReady}
-              >
-                {displayedBlueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
-              </Button>
-            </div>
-          </SettingsPanel>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={openCreateBlueprintDialog}
+                  disabled={displayedBlueprintBusy || isReadOnly || !formStateReady}
+                >
+                  {displayedBlueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
+                </Button>
+              </div>
+            </SettingsPanel>
+          ) : null}
 
             <ConfirmDialog
               isOpen={displayedShowRegenerateConfirm}

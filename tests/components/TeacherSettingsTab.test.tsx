@@ -115,12 +115,16 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       actual_site_slug: 'test-course',
       actual_site_published: true,
     }
-    const { rerender } = render(<TeacherSettingsTab classroom={firstClassroom} />, { wrapper: Wrapper })
+    const { rerender } = render(
+      <TeacherSettingsTab classroom={firstClassroom} sectionParam="general" />,
+      { wrapper: Wrapper },
+    )
 
     fireEvent.change(screen.getByLabelText('Classroom name'), { target: { value: 'Unsaved Course A' } })
+    rerender(<TeacherSettingsTab classroom={firstClassroom} sectionParam="syllabus" />)
     fireEvent.change(screen.getByLabelText('Syllabus slug'), { target: { value: 'course-a-draft' } })
 
-    rerender(<TeacherSettingsTab classroom={secondClassroom} />)
+    rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="syllabus" />)
 
     expect(screen.getByRole('link', { name: '/actual/chemistry-12' })).toHaveAttribute(
       'href',
@@ -128,18 +132,20 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     )
     expect(screen.queryByRole('link', { name: '/actual/test-course' })).not.toBeInTheDocument()
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12')
-    })
-    expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('CHEM12')
-    expect(screen.getByRole('button', { name: /Coral Selected/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('switch', { name: 'Allow new students to join' })).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByLabelText('Calendar visibility')).toHaveValue('all')
-    expect(screen.getByLabelText('Syllabus slug')).toHaveValue('chemistry-12')
+    await waitFor(() => expect(screen.getByLabelText('Syllabus slug')).toHaveValue('chemistry-12'))
     expect(screen.getByRole('switch', { name: 'Publish this classroom syllabus' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByLabelText('Lesson plan visibility on syllabus')).toHaveValue('one_week_ahead')
     expect(screen.getByLabelText('Course overview')).toHaveValue('Chemistry overview')
     expect(screen.getByLabelText('Course outline')).toHaveValue('Chemistry outline')
+
+    rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="access" />)
+    expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('CHEM12')
+    expect(screen.getByRole('switch', { name: 'Allow new students to join' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByLabelText('Calendar visibility')).toHaveValue('all')
+
+    rerender(<TeacherSettingsTab classroom={secondClassroom} sectionParam="general" />)
+    await waitFor(() => expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12'))
+    expect(screen.getByRole('button', { name: /Coral Selected/ })).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.blur(screen.getByLabelText('Classroom name'))
 
@@ -190,7 +196,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
   it('hides syllabus markdown fields when the user preference is off', async () => {
     window.localStorage.setItem('pika_show_markdown', 'false')
 
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="syllabus" />, { wrapper: Wrapper })
 
     await waitFor(() => {
       expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
@@ -200,7 +206,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
   })
 
   it('persists the show markdown display setting from the general settings tab', async () => {
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    const { rerender } = render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
     const markdownToggle = await screen.findByRole('switch', { name: 'Show markdown' })
     expect(markdownToggle).toHaveAttribute('aria-checked', 'true')
@@ -211,17 +217,18 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       expect(markdownToggle).toHaveAttribute('aria-checked', 'false')
     })
     expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
+    rerender(<TeacherSettingsTab classroom={mockClassroom} sectionParam="syllabus" />)
     expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
     expect(screen.getByText('Course overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
   })
 
   it('exposes the syllabus lesson-plan visibility select with an accessible label', () => {
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="syllabus" />, { wrapper: Wrapper })
 
     expect(screen.getByLabelText('Lesson plan visibility on syllabus')).toHaveValue('current_week')
   })
 
-  it('uses the shared section switcher for general and class-days settings', () => {
+  it('uses the shared section switcher for each settings area', () => {
     const onSectionChange = vi.fn()
     render(
       <TeacherSettingsTab
@@ -234,10 +241,20 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
 
     const sectionSwitcher = screen.getByRole('group', { name: 'Settings section' })
     expect(within(sectionSwitcher).getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(sectionSwitcher).getByRole('button', { name: 'Access' })).toBeInTheDocument()
+    expect(within(sectionSwitcher).getByRole('button', { name: 'Syllabus' })).toBeInTheDocument()
+    expect(within(sectionSwitcher).getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
 
     fireEvent.click(within(sectionSwitcher).getByRole('button', { name: 'Class Days' }))
 
     expect(onSectionChange).toHaveBeenCalledWith('class-days')
+  })
+
+  it('falls back to general settings for an unknown section URL', () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="removed-section" />, { wrapper: Wrapper })
+
+    expect(screen.getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Classroom name')).toBeInTheDocument()
   })
 
   it('saves on blur when value has changed', async () => {
@@ -483,7 +500,7 @@ describe('TeacherSettingsTab - Allow Joining', () => {
       json: async () => ({ classroom: { ...mockClassroom, allow_enrollment: false } }),
     })
 
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
 
     const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
@@ -501,7 +518,7 @@ describe('TeacherSettingsTab - Allow Joining', () => {
   })
 
   it('opens a title-only confirmation before generating a new join code', () => {
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate new join code and link' }))
 
@@ -516,7 +533,7 @@ describe('TeacherSettingsTab - Allow Joining', () => {
       json: async () => ({ classroom: { ...mockClassroom, join_policy: 'open_join' } }),
     })
 
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
 
     const joinMode = screen.getByRole('switch', { name: 'Join mode' })
     expect(joinMode).toHaveAttribute('aria-checked', 'true')
@@ -551,7 +568,7 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
   })
 
   it('opens the save-as-course-blueprint dialog with the classroom title prefilled', () => {
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
 
     fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
 
@@ -570,7 +587,7 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
       }),
     })
 
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
 
     fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
     const dialog = screen.getByRole('dialog')
@@ -642,7 +659,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
       json: async () => ({ classroom: { ...mockClassroom, allow_enrollment: false } }),
     })
 
-    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="access" />, { wrapper: Wrapper })
 
     const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
     fireEvent.click(toggle)
