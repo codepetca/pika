@@ -1,5 +1,11 @@
 import type { AttendanceStatus, ClassDay, Entry, AttendanceRecord } from '@/types'
 
+export interface StudentAttendanceHistoryRow {
+  date: string
+  entry: Entry | null
+  status: AttendanceStatus
+}
+
 /**
  * Checks if an entry has actual content (non-whitespace text)
  */
@@ -58,6 +64,24 @@ export function computeAttendanceStatusForStudent(
   })
 
   return result
+}
+
+export function buildStudentAttendanceHistory(
+  classDays: ClassDay[],
+  entries: Entry[],
+  today: string,
+): StudentAttendanceHistoryRow[] {
+  const statuses = computeAttendanceStatusForStudent(classDays, entries, today)
+  const entriesByDate = new Map(entries.map(entry => [entry.date, entry]))
+
+  return classDays
+    .filter(day => day.is_class_day)
+    .map(day => ({
+      date: day.date,
+      entry: entriesByDate.get(day.date) ?? null,
+      status: statuses[day.date],
+    }))
+    .sort((left, right) => right.date.localeCompare(left.date))
 }
 
 /**

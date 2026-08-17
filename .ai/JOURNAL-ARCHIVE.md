@@ -18398,3 +18398,28 @@ broader rollout, generic cleanup, migration, or Blueprint deletion.
   Migration 120 has not been replayed after this change; generated types and
   the database fixture still require a fresh authorized local reset. No staging
   or production state changed, and all rollout gates remain disabled.
+
+<!-- pika-session-log-archive-batch:86e8b208511ec7e5fd9ee8540ae9cb9a43c062b2fc9c8eb3ea0b884d6c1fe0e0 -->
+## 2026-08-06 — Verify revised Blueprint purge on clean local replay
+
+**Risk profile:** runtime-platform — authorized destructive local reset and
+schema/Storage concurrency verification only.
+
+**Completed:**
+- Verified the target was loopback `127.0.0.1:54321` with the healthy
+  `supabase_db_pika` container, then used the one-time authorization to reset
+  local Supabase and replay migrations 001–120 including the revised migration
+  120.
+- Regenerated `database.generated.ts`, reseeded one teacher, two students, one
+  Classroom, assignments, tests, grades, and history, and confirmed generated
+  types match the replayed schema.
+- Passed the managed-storage contract/readiness and multi-session concurrency
+  fixtures plus the transactional Course Blueprint purge fixture, including
+  fail-closed copy intents and guarded recovery.
+
+**Postconditions:**
+- Migration history is exactly 001–120 with no gaps or mismatches. Both purge
+  modes are `disabled`; managed Storage is `compatibility`; cleanup/compaction
+  environment gates are disabled or unset; no purge operation is active.
+- Synthetic fixture users and Storage objects were removed. No staging or
+  production state changed, and migration 120 remains local only.

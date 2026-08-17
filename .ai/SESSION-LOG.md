@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-06 — Verify revised Blueprint purge on clean local replay
-
-**Risk profile:** runtime-platform — authorized destructive local reset and
-schema/Storage concurrency verification only.
-
-**Completed:**
-- Verified the target was loopback `127.0.0.1:54321` with the healthy
-  `supabase_db_pika` container, then used the one-time authorization to reset
-  local Supabase and replay migrations 001–120 including the revised migration
-  120.
-- Regenerated `database.generated.ts`, reseeded one teacher, two students, one
-  Classroom, assignments, tests, grades, and history, and confirmed generated
-  types match the replayed schema.
-- Passed the managed-storage contract/readiness and multi-session concurrency
-  fixtures plus the transactional Course Blueprint purge fixture, including
-  fail-closed copy intents and guarded recovery.
-
-**Postconditions:**
-- Migration history is exactly 001–120 with no gaps or mismatches. Both purge
-  modes are `disabled`; managed Storage is `compatibility`; cleanup/compaction
-  environment gates are disabled or unset; no purge operation is active.
-- Synthetic fixture users and Storage objects were removed. No staging or
-  production state changed, and migration 120 remains local only.
-
 ## 2026-08-06 — Prepare verified Blueprint deletion draft
 
 **Risk profile:** workspace-state — publish the already verified feature only.
@@ -1109,3 +1085,34 @@ migration, production, Gradex, mobile, or student-history route change.
   the same bounded time it receives under full-suite coverage load.
 - The `/student/history` compatibility decision remains the next independent
   slice.
+
+## 2026-08-17 — Retain and clarify student attendance utility
+
+**Risk profile:** none — compatibility-preserving student utility cleanup; no
+schema, migration, production, Gradex, or mobile redesign work.
+
+**Completed:**
+- Confirmed `/student/history` is attendance history rather than assignment or
+  test history. It remains the only cross-classroom full class-day summary;
+  classroom Today intentionally loads only the latest submitted logs, so a
+  redirect would lose absent and pending records.
+- Preserved the stable URL, changed its visible navigation label to Attendance,
+  and moved class-day row construction into the tested attendance domain.
+- Removed the unmounted duplicate `StudentHistoryTab` and its isolated tests.
+- Replaced feature-local native controls and the hand-built log modal with
+  shared controls, keyboard-operable rows, and governed dialog focus return.
+
+**Validation:**
+- The full suite passes: 4,390 tests across 499 files. A first run exposed only
+  a 17-character startup-context overage from the continuity update; the
+  summary was tightened and its complete 38-test contract rerun passed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, session-log, and diff checks pass. Six stale native-control and raw
+  design-value exceptions were removed with the legacy implementation.
+- Playwright passes the student utility contract across desktop/mobile and
+  light/dark with no horizontal overflow. Loaded and empty states were visually
+  inspected; the shared dialog passes both desktop themes and returns focus.
+- Independent compatibility review was clean. Accessibility review found that
+  the submitted-log button name hid its visible attendance status; the name now
+  includes date, status, and action, with a focused regression test and targeted
+  rereview.

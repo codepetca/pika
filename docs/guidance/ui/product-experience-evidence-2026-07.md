@@ -70,7 +70,7 @@ The audit maps every core workflow, but the committed visual subset is intention
 | Student assignments | Mobile committed; desktop local-only | Phase 3 commits a desktop pair member plus failed-save/submission evidence. |
 | Teacher dashboard | Committed pair | Phase 3 replaces the authorization path and captures the corrected responsive state. |
 | Teacher calendar | Committed pair | Phase 3 captures removal of invalid Delete and corrected mobile overflow. |
-| Student history utility | Committed pair | Phase 3 records the migrate/redirect/retire result. |
+| Student attendance utility | Prior committed pair | Phase 3 retained `/student/history` as the stable cross-classroom attendance URL; the changed desktop light/dark surface is reverified in PR, while refreshed mobile evidence remains deferred with the mobile pass. |
 | Hot archive discovery/actions | Committed pair | Safety Wave captures Delete removal; Phase 5 adds export/verification/restore operation states. |
 | Authentication entry | Desktop signup/reset committed; credential-bearing login capture removed | Phase 2 adds a fixture-only login plus mobile field/focus states; Phase 3 captures verification, password creation, logout, and session-expiry recovery because they require controlled session lifecycle setup. |
 | Teacher Daily, Classwork summary, Tests summary, Gradebook, Roster, classroom Calendar, Syllabus, Settings | Local-only desktop and selected mobile evidence | Each Phase 3 vertical slice, including the explicit Settings slice, commits desktop/mobile evidence for changed states; Phase 6 closes any remaining parity gaps. |

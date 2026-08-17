@@ -263,17 +263,6 @@
       ]
     },
     {
-      "file": "src/app/student/history/page.tsx",
-      "reviewBy": "phase-2-shared-foundation-debt",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 4,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/app/teacher/blueprints/page.tsx",
       "reviewBy": "phase-2-shared-foundation-debt",
       "controls": [
