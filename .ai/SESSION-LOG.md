@@ -1088,8 +1088,14 @@ migration, production, Gradex, legacy-resource deletion, or mobile redesign.
   keyboard eligibility, and viewport ownership states.
 - The durable Chromium matrix now intercepts real iframe navigations with HTTP
   404 and 500 documents and requires both to remain unavailable and
-  unfocusable. Local execution was blocked before that case by missing shared
-  seed accounts; CI's seeded browser lane owns the repeatable run.
+  unfocusable. It first proves a real published page completes the handshake
+  and accepts keyboard focus. Local execution was blocked before that case by
+  missing shared seed accounts; CI's seeded browser lane owns the repeatable
+  run.
+- Targeted review found that a settings-driven slug change could inherit the
+  mounted preview's prior ready state. Teacher and student resource tabs now
+  key the preview by syllabus URL, and regression coverage proves a new URL
+  remounts loading, ignores the stale frame, and times out unfocusable.
 - Playwright verification passes for teacher/student desktop and narrow,
   light/dark loaded states plus the teacher failed-load state. Desktop outer
   scroll is `900/900`; focus moves from Open syllabus to the named iframe; no

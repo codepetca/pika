@@ -110,14 +110,6 @@ test.describe('teacher experience matrix', () => {
     const slug = `e2e-syllabus-${classroomId}`
     let responseStatus = 404
 
-    await page.route(`**/actual/${slug}*`, async (route) => {
-      await route.fulfill({
-        status: responseStatus,
-        contentType: 'text/html',
-        body: `<html><body>Syllabus failure ${responseStatus}</body></html>`,
-      })
-    })
-
     try {
       const publishResponse = await page.request.patch(`/api/teacher/classrooms/${classroomId}`, {
         data: { actualSiteSlug: slug, actualSitePublished: true },
@@ -126,6 +118,19 @@ test.describe('teacher experience matrix', () => {
 
       await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
       const preview = page.getByTitle('Test Classroom syllabus preview')
+      await expect(preview).toHaveAttribute('tabindex', '0')
+      await page.getByRole('link', { name: 'Open syllabus' }).focus()
+      await page.keyboard.press('Tab')
+      await expect(preview).toBeFocused()
+
+      await page.route(`**/actual/${slug}*`, async (route) => {
+        await route.fulfill({
+          status: responseStatus,
+          contentType: 'text/html',
+          body: `<html><body>Syllabus failure ${responseStatus}</body></html>`,
+        })
+      })
+      await page.reload({ waitUntil: 'domcontentloaded' })
       await expect(preview).toHaveAttribute('tabindex', '-1')
       await expect(page.getByText('Syllabus unavailable')).toBeVisible({ timeout: 20_000 })
 

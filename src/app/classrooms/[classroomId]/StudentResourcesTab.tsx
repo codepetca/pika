@@ -17,7 +17,11 @@ export function StudentResourcesTab({ classroom }: Props) {
     return (
       <PageLayout className="h-full min-h-0 flex-1">
         <PageContent className="flex min-h-0 flex-1 flex-col px-0 pt-0">
-          <SyllabusPreview classroomTitle={classroom.title} siteHref={siteHref} />
+          <SyllabusPreview
+            key={siteHref}
+            classroomTitle={classroom.title}
+            siteHref={siteHref}
+          />
         </PageContent>
       </PageLayout>
     )

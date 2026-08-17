@@ -118,6 +118,54 @@ describe('ResourcesTab', () => {
     expect(preview).toHaveAttribute('tabindex', '-1')
   })
 
+  it('returns a changed syllabus URL to protected loading state', () => {
+    vi.useFakeTimers()
+    try {
+      const { rerender } = render(<TeacherResourcesTab classroom={classroom} />)
+      const originalPreview = screen.getByTitle('Test Classroom syllabus preview')
+      const originalWindow = (originalPreview as HTMLIFrameElement).contentWindow
+
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: SYLLABUS_PREVIEW_READY,
+            href: `${window.location.origin}/actual/test-classroom`,
+          },
+          origin: window.location.origin,
+          source: originalWindow,
+        }))
+      })
+      expect(originalPreview).toHaveAttribute('tabindex', '0')
+
+      rerender(
+        <TeacherResourcesTab
+          classroom={{ ...classroom, actual_site_slug: 'replacement-classroom' }}
+        />,
+      )
+      const replacementPreview = screen.getByTitle('Test Classroom syllabus preview')
+      expect(replacementPreview).toHaveAttribute('src', '/actual/replacement-classroom')
+      expect(replacementPreview).toHaveAttribute('tabindex', '-1')
+      expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: SYLLABUS_PREVIEW_READY,
+            href: `${window.location.origin}/actual/test-classroom`,
+          },
+          origin: window.location.origin,
+          source: originalWindow,
+        }))
+        vi.advanceTimersByTime(15_000)
+      })
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Syllabus unavailable')
+      expect(replacementPreview).toHaveAttribute('tabindex', '-1')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renders student resources as a syllabus entry point', () => {
     render(<StudentResourcesTab classroom={classroom} />)
 
