@@ -18436,3 +18436,21 @@ schema/Storage concurrency verification only.
 - Prepared migration 120, the disabled-by-default application/API/UI flow,
   tests, fixtures, and rollout guidance for a separate draft PR. PR #963 and
   all staging and production state remain untouched.
+
+<!-- pika-session-log-archive-batch:1db377e33df2f08f81abb6fd4b37cf6278c081c72d114aeaaea61d437b7430ea -->
+## 2026-08-06 — Reconcile Blueprint deletion CI contracts
+
+**Risk profile:** runtime-platform — test and CI integration only.
+
+**Fixed:**
+- Updated the versioned Blueprint database fixture to assert that migration
+  120 rejects direct root deletion while preserving the Blueprint and its
+  immutable Version. The independent user-account cascade test remains.
+- Added the transactional Course Blueprint purge fixture to the Architecture
+  Database Contracts job so authorization, fencing, retries, exact Storage
+  cleanup, and Classroom/user preservation run in CI.
+
+**Validation:**
+- Shell syntax, the versioned Blueprint database contract, and the Course
+  Blueprint purge database fixture pass against local `supabase_db_pika`.
+- No migration, application runtime, staging, or production state changed.

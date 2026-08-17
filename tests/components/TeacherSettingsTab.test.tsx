@@ -600,13 +600,46 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/teacher/classrooms/cls-123/blueprint', expect.objectContaining({
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: expect.objectContaining({
+        'Content-Type': 'application/json',
+        'Idempotency-Key': expect.any(String),
+      }),
       body: JSON.stringify({ title: 'Reusable Draft' }),
     }))
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/teacher/blueprints?blueprint=b-1&fromClassroom=cls-123')
     })
+  })
+
+  it('reuses the capture idempotency key when an unchanged request is retried', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          blueprint_id: 'b-1',
+          redirect_url: '/teacher/blueprints?blueprint=b-1&fromClassroom=cls-123',
+        }),
+      })
+
+    render(<TeacherSettingsTab classroom={mockClassroom} sectionParam="reuse" />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText('Grade 11 Computer Science'), { target: { value: 'Reusable Draft' } })
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Blueprint' }))
+    expect(await within(dialog).findByText('Temporary failure')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Blueprint' }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    const firstHeaders = fetchMock.mock.calls[0][1]?.headers as Record<string, string>
+    const secondHeaders = fetchMock.mock.calls[1][1]?.headers as Record<string, string>
+    expect(firstHeaders['Idempotency-Key']).toBe(secondHeaders['Idempotency-Key'])
   })
 })
 

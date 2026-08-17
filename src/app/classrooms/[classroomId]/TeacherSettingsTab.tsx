@@ -208,6 +208,7 @@ export function TeacherSettingsTab({
   const activeClassroomIdRef = useRef(classroom.id)
   const formClassroomIdRef = useRef(classroom.id)
   const formGenerationRef = useRef(0)
+  const blueprintOperationRef = useRef<{ fingerprint: string; id: string } | null>(null)
   activeClassroomIdRef.current = classroom.id
   const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
@@ -611,12 +612,14 @@ export function TeacherSettingsTab({
   function openCreateBlueprintDialog() {
     setBlueprintTitle(classroom.title)
     setBlueprintError('')
+    blueprintOperationRef.current = null
     setShowCreateBlueprintDialog(true)
   }
 
   function closeCreateBlueprintDialog() {
     if (blueprintBusy) return
     setBlueprintError('')
+    blueprintOperationRef.current = null
     setShowCreateBlueprintDialog(false)
   }
 
@@ -625,19 +628,28 @@ export function TeacherSettingsTab({
     const classroomId = classroom.id
     if (!hasCurrentFormState(classroomId)) return
     const formGeneration = formGenerationRef.current
+    const blueprintTitleValue = blueprintTitle.trim() || classroom.title
+    const fingerprint = JSON.stringify({ classroomId, title: blueprintTitleValue })
+    if (blueprintOperationRef.current?.fingerprint !== fingerprint) {
+      blueprintOperationRef.current = { fingerprint, id: crypto.randomUUID() }
+    }
     setBlueprintBusy(true)
     setBlueprintError('')
     try {
       const response = await fetch(`/api/teacher/classrooms/${classroomId}/blueprint`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: blueprintTitle.trim() || classroom.title }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': blueprintOperationRef.current.id,
+        },
+        body: JSON.stringify({ title: blueprintTitleValue }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save classroom as a course blueprint')
       }
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      blueprintOperationRef.current = null
       router.push(data.redirect_url || `/teacher/blueprints?blueprint=${data.blueprint_id}&fromClassroom=${classroomId}`)
     } catch (err: any) {
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return

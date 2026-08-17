@@ -247,7 +247,7 @@ describe('CreateClassroomModal', () => {
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
   })
 
-  it('invalidates blueprint caches after creating a classroom from a blueprint', async () => {
+  it('shows the rollover review before completing a classroom created from a blueprint', async () => {
     const onSuccess = vi.fn()
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -255,7 +255,13 @@ describe('CreateClassroomModal', () => {
       if (url === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate` && method === 'POST') {
         return {
           ok: true,
-          json: async () => ({ classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' } }),
+          json: async () => ({
+            classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+            lesson_mapping: {
+              applied_lesson_templates: 2,
+              overflow_lesson_templates: ['Final project workshop'],
+            },
+          }),
         }
       }
       throw new Error(`Unexpected fetch: ${url}`)
@@ -278,11 +284,60 @@ describe('CreateClassroomModal', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`,
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Idempotency-Key': expect.any(String),
+          }),
+        }),
       )
     })
     expect(invalidateTeacherBlueprints).toHaveBeenCalledOnce()
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Classroom Created' })).toHaveFocus()
+    expect(screen.getByText(/assignments and tests are unpublished/i)).toBeInTheDocument()
+    expect(screen.getByText('Final project workshop')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to Classroom' }))
     expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Computer Science 11 - Period 2' })
+  })
+
+  it('reuses the instantiate idempotency key when an unchanged request is retried', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+          lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+        }),
+      })
+
+    renderModal({ initialBlueprintId: mockBlueprint.id })
+    fireEvent.change(getClassroomNameInput(), {
+      target: { value: 'Computer Science 11 - Period 2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('combobox', { name: /course blueprint/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Choose Calendar')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(await screen.findByText('Temporary failure')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await screen.findByRole('heading', { name: 'Classroom Created' })
+
+    const instantiateCalls = fetchMock.mock.calls.filter(([url, init]) => (
+      String(url) === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`
+      && init?.method === 'POST'
+    ))
+    expect(instantiateCalls).toHaveLength(2)
+    expect((instantiateCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      (instantiateCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
   })
 
   it('preserves the preselected blueprint flow when launched from the blueprints page', async () => {
