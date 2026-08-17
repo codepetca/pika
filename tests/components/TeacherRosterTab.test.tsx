@@ -310,12 +310,12 @@ describe('TeacherRosterTab', () => {
 
     render(<Harness />)
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'updated@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     await waitFor(() => expect(resolveSave).toEqual(expect.any(Function)))
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch classroom' }))
@@ -326,7 +326,7 @@ describe('TeacherRosterTab', () => {
     })
 
     expect(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })).toHaveTextContent('updated@example.com')
   })
 
@@ -556,7 +556,8 @@ describe('TeacherRosterTab', () => {
       '96',
     )
     expect(screen.getByRole('separator', { name: 'Resize Email column' })).toBeInTheDocument()
-    expect(screen.getByRole('separator', { name: 'Resize Counselor column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Alt email column' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Alt email' })).toBeInTheDocument()
 
     fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize First column' }), { key: 'Home' })
     expect(screen.getByRole('separator', { name: 'Resize First column' })).toHaveAttribute(
@@ -634,26 +635,26 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
 
-    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     expect(input).toHaveClass('min-h-control')
     await user.clear(input)
     await user.type(input, 'new-counselor@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
     const editorAlert = await screen.findByRole('alert')
     expect(editorAlert).toHaveTextContent('Counselor save failed')
-    const failedInput = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const failedInput = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     expect(failedInput).toHaveValue('new-counselor@example.com')
     expect(failedInput).toHaveAttribute('aria-describedby', editorAlert.id)
     expect(failedInput).toHaveAttribute('aria-invalid', 'true')
 
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
     const editTrigger = await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })
     await waitFor(() => expect(editTrigger).toHaveFocus())
     expect(editTrigger).toHaveTextContent('new-counselor@example.com')
@@ -686,7 +687,7 @@ describe('TeacherRosterTab', () => {
           return Promise.resolve({
             ok: false,
             status: 409,
-            json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+            json: () => Promise.resolve({ error: 'Alt email changed elsewhere.' }),
           })
         }
         return mockJson({
@@ -703,21 +704,21 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'attempted@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Counselor email changed elsewhere.')
-    expect(screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Alt email changed elsewhere.')
+    expect(screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' }))
       .toHaveValue('attempted@example.com')
     expect(rosterLoads).toBe(2)
 
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     expect(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })).toHaveTextContent('attempted@example.com')
 
     const patchBodies = fetchMock.mock.calls
@@ -748,7 +749,7 @@ describe('TeacherRosterTab', () => {
           resolveConflict = () => resolve({
             ok: false,
             status: 409,
-            json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+            json: () => Promise.resolve({ error: 'Alt email changed elsewhere.' }),
           })
         })
       }
@@ -766,9 +767,9 @@ describe('TeacherRosterTab', () => {
 
     const view = renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     await waitFor(() => expect(resolveConflict).toEqual(expect.any(Function)))
 
     view.rerender(renderRosterElement(secondClassroom))
@@ -802,7 +803,7 @@ describe('TeacherRosterTab', () => {
           resolveConflict = () => resolve({
             ok: false,
             status: 409,
-            json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+            json: () => Promise.resolve({ error: 'Alt email changed elsewhere.' }),
           })
         })
       }
@@ -811,9 +812,9 @@ describe('TeacherRosterTab', () => {
 
     const view = renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     await waitFor(() => expect(resolveConflict).toEqual(expect.any(Function)))
 
     view.unmount()
@@ -849,24 +850,24 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    const adaInput = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const adaInput = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(adaInput)
     await user.type(adaInput, 'ada-new@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
     await user.click(screen.getByRole('button', {
-      name: 'Edit counselor email for Grace Hopper',
+      name: 'Edit alt email for Grace Hopper',
     }))
-    expect(screen.getByRole('textbox', { name: 'Counselor email for Grace Hopper' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Alt email for Grace Hopper' })).toBeInTheDocument()
 
     await act(async () => {
       resolveAdaSave?.()
     })
 
-    expect(screen.getByRole('textbox', { name: 'Counselor email for Grace Hopper' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit counselor email for Ada Lovelace' }))
+    expect(screen.getByRole('textbox', { name: 'Alt email for Grace Hopper' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit alt email for Ada Lovelace' }))
       .toHaveTextContent('ada-new@example.com')
   })
 
@@ -896,22 +897,22 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    const adaInput = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const adaInput = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(adaInput)
     await user.type(adaInput, 'pending@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
     await user.click(screen.getByRole('button', {
-      name: 'Edit counselor email for Grace Hopper',
+      name: 'Edit alt email for Grace Hopper',
     }))
     const pendingAdaEdit = screen.getByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })
     expect(pendingAdaEdit).toBeDisabled()
     await user.click(pendingAdaEdit)
-    expect(screen.queryByRole('textbox', { name: 'Counselor email for Ada Lovelace' }))
+    expect(screen.queryByRole('textbox', { name: 'Alt email for Ada Lovelace' }))
       .not.toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([input, init]) => (
       String(input) === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}`
@@ -961,21 +962,21 @@ describe('TeacherRosterTab', () => {
     await waitFor(() => expect(resolveRefresh).toEqual(expect.any(Function)))
 
     await user.click(screen.getByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'newest@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     expect(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })).toHaveTextContent('newest@example.com')
 
     await act(async () => {
       resolveRefresh?.()
     })
 
-    expect(screen.getByRole('button', { name: 'Edit counselor email for Ada Lovelace' }))
+    expect(screen.getByRole('button', { name: 'Edit alt email for Ada Lovelace' }))
       .toHaveTextContent('newest@example.com')
     expect(screen.queryByText('Grace')).not.toBeInTheDocument()
   })
@@ -1016,12 +1017,12 @@ describe('TeacherRosterTab', () => {
     })
 
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    const input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'stale@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
     view.rerender(renderRosterElement(secondClassroom))
     expect(await screen.findByText('Grace')).toBeInTheDocument()
@@ -1072,7 +1073,7 @@ describe('TeacherRosterTab', () => {
             resolveOldSave = () => resolve({
               ok: false,
               status: 409,
-              json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+              json: () => Promise.resolve({ error: 'Alt email changed elsewhere.' }),
             })
           })
         }
@@ -1093,37 +1094,37 @@ describe('TeacherRosterTab', () => {
 
     const view = renderRoster()
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    let input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    let input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'old-request@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
 
     view.rerender(renderRosterElement(secondClassroom))
     expect(await screen.findByText('Grace')).toBeInTheDocument()
     invalidateCachedJSONMatching(`teacher-roster:${classroom.id}`)
     view.rerender(renderRosterElement(classroom))
     await user.click(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'newest@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     expect(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })).toHaveTextContent('newest@example.com')
 
     await user.click(screen.getByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     }))
-    input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    input = screen.getByRole('textbox', { name: 'Alt email for Ada Lovelace' })
     await user.clear(input)
     await user.type(input, 'final@example.com')
-    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await user.click(screen.getByRole('button', { name: 'Save alt email for Ada Lovelace' }))
     expect(await screen.findByRole('button', {
-      name: 'Edit counselor email for Ada Lovelace',
+      name: 'Edit alt email for Ada Lovelace',
     })).toHaveTextContent('final@example.com')
 
     const patchBodies = fetchMock.mock.calls
@@ -1138,7 +1139,7 @@ describe('TeacherRosterTab', () => {
     await act(async () => {
       resolveOldSave?.()
     })
-    expect(screen.getByRole('button', { name: 'Edit counselor email for Ada Lovelace' }))
+    expect(screen.getByRole('button', { name: 'Edit alt email for Ada Lovelace' }))
       .toHaveTextContent('final@example.com')
 
     view.rerender(renderRosterElement(secondClassroom))

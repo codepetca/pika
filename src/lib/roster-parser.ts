@@ -117,7 +117,7 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
     }
   }
 
-  // Assume format is: firstName lastName email [studentNumber] [counselorEmail]
+  // The legacy counselorEmail property stores the user-facing alt email slot.
   const firstName = tokens[0]
   const lastName = tokens[1]
   const emailCandidate = tokens[2]
@@ -148,7 +148,7 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
     student.studentNumber = studentNumber
   }
 
-  // Validate counselor email if provided
+  // Validate the alt email if provided.
   if (counselorEmailCandidate) {
     if (EMAIL_REGEX.test(counselorEmailCandidate)) {
       student.counselorEmail = counselorEmailCandidate.toLowerCase()

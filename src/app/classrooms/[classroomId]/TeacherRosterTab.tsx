@@ -497,7 +497,7 @@ export function TeacherRosterTab({ classroom }: Props) {
           invalidateCachedJSON(`teacher-roster:${classroomId}`)
           await loadRoster({ preserveRoster: true })
         }
-        throw new Error(data.error || 'Failed to update counselor email')
+        throw new Error(data.error || 'Failed to update alt email')
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)
       if (
@@ -530,7 +530,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       ) return
       setCounselorError({
         rosterId,
-        message: err.message || 'Failed to update counselor email',
+        message: err.message || 'Failed to update alt email',
       })
     } finally {
       if (
@@ -686,9 +686,9 @@ export function TeacherRosterTab({ classroom }: Props) {
     selectedEmailOptions.push(
       {
         id: 'copy-counselor-emails',
-        label: `Copy counselors (${selectedCounselorEmails.length})`,
+        label: `Copy alt emails (${selectedCounselorEmails.length})`,
         icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => copyToClipboard(selectedCounselorEmails, 'Counselor emails'),
+        onSelect: () => copyToClipboard(selectedCounselorEmails, 'Alt emails'),
         dividerBefore: true,
       },
       {
@@ -805,7 +805,7 @@ export function TeacherRosterTab({ classroom }: Props) {
               role="alert"
               className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
             >
-              Could not save counselor email for {formatRosterRowName(counselorErrorRow)}: {counselorError.message}
+              Could not save alt email for {formatRosterRowName(counselorErrorRow)}: {counselorError.message}
             </div>
           </div>
         ) : null}
@@ -878,7 +878,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   }}
                 />
                 <SortableHeaderCell
-                  label="Counselor"
+                  label="Alt email"
                   isActive={sortColumn === 'counselor_email'}
                   direction={sortDirection}
                   onClick={() => onSort('counselor_email')}
@@ -946,7 +946,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                       {editingCounselorId === row.id ? (
                         <div className="flex items-center gap-1">
                           <FormField
-                            label={`Counselor email for ${rowName}`}
+                            label={`Alt email for ${rowName}`}
                             hideLabel
                             className="w-32 [&>div:first-child]:sr-only"
                           >
@@ -968,7 +968,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                                 }
                               }}
                               className="px-2 py-1 text-sm"
-                              placeholder="counselor@..."
+                              placeholder="alt@example.com"
                               aria-describedby={currentCounselorError ? counselorErrorId : undefined}
                               aria-invalid={!!currentCounselorError}
                               readOnly={isSavingCurrentCounselor}
@@ -980,7 +980,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                               variant="ghost"
                               size="sm"
                               onClick={isSavingCurrentCounselor ? undefined : () => saveCounselorEmail(row.id)}
-                              aria-label={`Save counselor email for ${rowName}`}
+                              aria-label={`Save alt email for ${rowName}`}
                               aria-disabled={isSavingCurrentCounselor || undefined}
                               className={`h-8 w-8 p-0 text-success ${
                                 isSavingCurrentCounselor ? 'cursor-not-allowed opacity-50' : ''
@@ -993,7 +993,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                               variant="ghost"
                               size="sm"
                               onClick={isSavingCurrentCounselor ? undefined : () => cancelEditingCounselor(row.id)}
-                              aria-label={`Cancel counselor email for ${rowName}`}
+                              aria-label={`Cancel alt email for ${rowName}`}
                               aria-disabled={isSavingCurrentCounselor || undefined}
                               className={`h-8 w-8 p-0 text-text-muted ${
                                 isSavingCurrentCounselor ? 'cursor-not-allowed opacity-50' : ''
@@ -1010,7 +1010,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                           size="sm"
                           onClick={() => startEditingCounselor(row)}
                           disabled={isReadOnly || isCounselorSavePending}
-                          aria-label={`Edit counselor email for ${rowName}`}
+                          aria-label={`Edit alt email for ${rowName}`}
                           className={`h-auto min-h-8 max-w-full justify-start gap-1 px-1 py-1 text-left ${
                             isReadOnly || isCounselorSavePending
                               ? 'cursor-not-allowed opacity-50'

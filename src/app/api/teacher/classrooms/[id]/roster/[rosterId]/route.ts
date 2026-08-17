@@ -91,7 +91,7 @@ export const PATCH = withErrorHandler('PatchRosterEntry', async (request, contex
     }
     if (existing) {
       return NextResponse.json(
-        { error: 'Counselor email changed elsewhere. Review the latest roster and try again.' },
+        { error: 'Alt email changed elsewhere. Review the latest roster and try again.' },
         { status: 409 }
       )
     }
