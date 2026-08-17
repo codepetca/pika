@@ -1073,17 +1073,23 @@ migration, production, Gradex, legacy-resource deletion, or mobile redesign.
 - Added a compact external-open action, a named focusable iframe with a visible
   focus boundary, and removed the covered iframe from keyboard order until its
   document is ready.
-- Added hydration-safe same-origin readiness detection, a bounded stalled-load
-  timeout, and a governed retryable error state. Retry remounts the iframe with
-  a fresh request while preserving the canonical public syllabus URL.
+- Added an explicit same-origin readiness handshake emitted only by the
+  successfully hydrated syllabus page. The parent validates origin, source
+  frame, and exact URL, so HTTP error documents remain hidden and outside
+  keyboard order. A bounded timeout exposes Retry, which remounts the iframe
+  with a fresh request while preserving the canonical public syllabus URL.
 - Confirmed the old rich-text resource sidebars are unmounted; retained their
   APIs and data contract for a focused Phase 6 compatibility-led retirement.
 
 **Validation:**
 - Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass:
-  33 tests. The full bounded suite passes: 4,367 tests across 499 files.
+  34 tests. The full bounded suite passes: 4,368 tests across 499 files.
   Component coverage includes loading, ready, unpublished, timeout, Retry,
   keyboard eligibility, and viewport ownership states.
+- The durable Chromium matrix now intercepts real iframe navigations with HTTP
+  404 and 500 documents and requires both to remain unavailable and
+  unfocusable. Local execution was blocked before that case by missing shared
+  seed accounts; CI's seeded browser lane owns the repeatable run.
 - Playwright verification passes for teacher/student desktop and narrow,
   light/dark loaded states plus the teacher failed-load state. Desktop outer
   scroll is `900/900`; focus moves from Open syllabus to the named iframe; no

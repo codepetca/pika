@@ -3,6 +3,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import {
+  SYLLABUS_PREVIEW_READY_REQUEST,
+  isSyllabusPreviewReadyMessage,
+  urlsMatchForPreview,
+} from '@/lib/syllabus-preview-messages'
+import {
   ACTIONBAR_BUTTON_SECONDARY_CLASSNAME,
   Button,
   PageState,
@@ -22,20 +27,25 @@ export function SyllabusPreview({ classroomTitle, siteHref }: SyllabusPreviewPro
   const iframeSrc = loadAttempt === 0 ? siteHref : `${siteHref}?previewAttempt=${loadAttempt}`
 
   useEffect(() => {
-    const iframe = iframeRef.current
-    if (!iframe) return
-
-    try {
+    const handleMessage = (event: MessageEvent) => {
+      const iframeWindow = iframeRef.current?.contentWindow
       if (
-        iframe.contentDocument?.readyState === 'complete' &&
-        iframe.contentWindow?.location.href !== 'about:blank'
+        event.origin !== window.location.origin ||
+        event.source !== iframeWindow ||
+        !isSyllabusPreviewReadyMessage(event.data)
       ) {
+        return
+      }
+
+      const expectedHref = new URL(iframeSrc, window.location.origin).href
+      if (urlsMatchForPreview(event.data.href, expectedHref)) {
         setLoadState('ready')
       }
-    } catch {
-      // The preview is same-origin today; onLoad remains the fallback if that changes.
     }
-  }, [loadAttempt])
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [iframeSrc])
 
   useEffect(() => {
     if (loadState !== 'loading') return
@@ -100,7 +110,12 @@ export function SyllabusPreview({ classroomTitle, siteHref }: SyllabusPreviewPro
           src={iframeSrc}
           tabIndex={loadState === 'ready' ? 0 : -1}
           aria-hidden={loadState !== 'ready'}
-          onLoad={() => setLoadState('ready')}
+          onLoad={() => {
+            iframeRef.current?.contentWindow?.postMessage(
+              { type: SYLLABUS_PREVIEW_READY_REQUEST },
+              window.location.origin,
+            )
+          }}
           onError={() => setLoadState('error')}
           className="h-full min-h-[calc(100dvh-6.75rem)] w-full border-0 bg-page focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset lg:min-h-0"
         />

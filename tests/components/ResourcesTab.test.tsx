@@ -4,6 +4,8 @@ import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResou
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
+import { SyllabusPreview } from '@/components/SyllabusPreview'
+import { SYLLABUS_PREVIEW_READY } from '@/lib/syllabus-preview-messages'
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassResourcesSidebar', () => ({
   TeacherClassResourcesSidebar: () => <div>Teacher resources content</div>,
@@ -68,12 +70,52 @@ describe('ResourcesTab', () => {
     )
     expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
     fireEvent.load(preview)
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: {
+          type: SYLLABUS_PREVIEW_READY,
+          href: `${window.location.origin}/actual/test-classroom`,
+        },
+        origin: window.location.origin,
+        source: (preview as HTMLIFrameElement).contentWindow,
+      }))
+    })
     expect(screen.queryByText('Loading syllabus')).toBeNull()
     expect(preview).toHaveAttribute('tabindex', '0')
     expect(screen.queryByText('Public syllabus')).toBeNull()
     expect(screen.queryByRole('button', { name: /syllabus settings/i })).toBeNull()
     expect(screen.queryByRole('link', { name: '/actual/test-classroom' })).toBeNull()
     expect(screen.queryByText('Teacher announcements content')).toBeNull()
+  })
+
+  it('ignores readiness messages from another frame or URL', () => {
+    render(
+      <SyllabusPreview
+        classroomTitle="Test Classroom"
+        siteHref="/actual/test-classroom"
+      />,
+    )
+
+    const preview = screen.getByTitle('Test Classroom syllabus preview')
+    const sendReady = (source: MessageEventSource | null, href: string) => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: SYLLABUS_PREVIEW_READY, href },
+        origin: window.location.origin,
+        source,
+      }))
+    }
+
+    act(() => {
+      sendReady(window, `${window.location.origin}/actual/test-classroom`)
+      sendReady(
+        (preview as HTMLIFrameElement).contentWindow,
+        `${window.location.origin}/actual/another-classroom`,
+      )
+    })
+
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    expect(preview).toHaveAttribute('tabindex', '-1')
   })
 
   it('renders student resources as a syllabus entry point', () => {
