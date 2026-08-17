@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Spinner } from '@/components/Spinner'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   ConfirmDialog,
@@ -11,7 +10,10 @@ import {
   DataTableHead,
   DataTableRow,
   EmptyStateRow,
+  FormField,
   KeyboardNavigableTable,
+  Input,
+  PageState,
   SortableHeaderCell,
   TableCard,
   TableSelectionCell,
@@ -49,6 +51,7 @@ const ROSTER_COLUMN_LIMITS = {
 } satisfies Record<RosterResizableColumn, { defaultWidth: number; min: number; max: number }>
 
 const getRosterStudentRowId = (rosterId: string) => `roster-student-row-${rosterId}`
+const getCounselorEditButtonId = (rosterId: string) => `roster-counselor-edit-${rosterId}`
 
 interface RosterRow {
   id: string
@@ -109,9 +112,10 @@ function JoinSourceBadge({ source }: { source: RosterJoinSource }) {
 export function TeacherRosterTab({ classroom }: Props) {
   const isReadOnly = !!classroom.archived_at
   const [loading, setLoading] = useState(true)
+  const [isRetryingRoster, setIsRetryingRoster] = useState(false)
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [studentPurgeEnabledIds, setStudentPurgeEnabledIds] = useState<Set<string>>(new Set())
-  const [error, setError] = useState<string>('')
+  const [loadError, setLoadError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
   const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -122,12 +126,24 @@ export function TeacherRosterTab({ classroom }: Props) {
     rows: RemovalTarget[]
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [removalError, setRemovalError] = useState('')
   const [pendingPurge, setPendingPurge] = useState<RosterRow | null>(null)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
-  const currentClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
+  const rosterMutationVersionRef = useRef(0)
+  const classroomEpochRef = useRef(0)
+  const currentClassroomIdRef = useRef<string | null>(null)
+
+  useLayoutEffect(() => {
+    const committedClassroomId = classroom.id
+    currentClassroomIdRef.current = committedClassroomId
+    return () => {
+      if (currentClassroomIdRef.current === committedClassroomId) {
+        currentClassroomIdRef.current = null
+      }
+    }
+  }, [classroom.id])
 
   // Selection state
   const { showMessage } = useAppMessage()
@@ -135,7 +151,19 @@ export function TeacherRosterTab({ classroom }: Props) {
   // Counselor email editing state
   const [editingCounselorId, setEditingCounselorId] = useState<string | null>(null)
   const [editingCounselorValue, setEditingCounselorValue] = useState('')
-  const [isSavingCounselor, setIsSavingCounselor] = useState(false)
+  const [savingCounselor, setSavingCounselor] = useState<{
+    rosterId: string
+    editEpoch: number
+  } | null>(null)
+  const [counselorError, setCounselorError] = useState<{
+    rosterId: string
+    message: string
+  } | null>(null)
+  const counselorEditEpochRef = useRef(0)
+  const pendingCounselorRosterIdsRef = useRef<Set<string>>(new Set())
+  const [pendingCounselorRosterIds, setPendingCounselorRosterIds] = useState<Set<string>>(new Set())
+  const rosterRegionRef = useRef<HTMLDivElement>(null)
+  const retryFocusIntentRef = useRef(false)
 
   const hasCurrentRoster = loadedClassroomId === classroom.id
   const currentRoster = useMemo(
@@ -183,17 +211,26 @@ export function TeacherRosterTab({ classroom }: Props) {
     columns: ROSTER_COLUMN_LIMITS,
   })
   const isRosterLoading = loading || !hasCurrentRoster
+  const isRosterUnavailable = !hasCurrentRoster
 
   function onSort(column: RosterSortColumn) {
     setSortState((prev) => toggleSort(prev, column))
   }
 
-  async function loadRoster() {
+  async function loadRoster({
+    preserveRoster = false,
+    isRetry = false,
+  }: {
+    preserveRoster?: boolean
+    isRetry?: boolean
+  } = {}) {
     const classroomId = classroom.id
     const requestId = loadRequestIdRef.current + 1
+    const mutationVersion = rosterMutationVersionRef.current
     loadRequestIdRef.current = requestId
     setLoading(true)
-    setError('')
+    setIsRetryingRoster(isRetry)
+    if (!isRetry) setLoadError('')
     try {
       const data = await fetchJSONWithCache(
         `teacher-roster:${classroomId}`,
@@ -225,31 +262,48 @@ export function TeacherRosterTab({ classroom }: Props) {
         },
         20_000,
       )
-      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      if (
+        loadRequestIdRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+        || rosterMutationVersionRef.current !== mutationVersion
+      ) return
       setRoster(normalizeRosterRows(data.roster || []))
       setStudentPurgeEnabledIds(new Set(data.student_purge_enabled_ids || []))
       setLoadedClassroomId(classroomId)
+      setLoadError('')
       clearSelection()
     } catch (err: any) {
-      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
-      setRoster([])
-      setStudentPurgeEnabledIds(new Set())
-      setLoadedClassroomId(classroomId)
-      setError(err.message || 'Failed to load roster')
+      if (
+        loadRequestIdRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+        || rosterMutationVersionRef.current !== mutationVersion
+      ) return
+      if (!preserveRoster) {
+        setRoster([])
+        setStudentPurgeEnabledIds(new Set())
+        setLoadedClassroomId(null)
+      }
+      setLoadError(err.message || 'Failed to load roster')
     } finally {
       if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
         setLoading(false)
+        setIsRetryingRoster(false)
       }
     }
   }
 
   useEffect(() => {
+    classroomEpochRef.current += 1
+    rosterMutationVersionRef.current += 1
+    counselorEditEpochRef.current += 1
     loadRequestIdRef.current += 1
     setRoster([])
     setStudentPurgeEnabledIds(new Set())
     setLoadedClassroomId(null)
-    setError('')
+    setLoadError('')
+    setIsRetryingRoster(false)
     setPendingRemoval(null)
+    setRemovalError('')
     setSelectedRosterId(null)
     setUploadModalOpen(false)
     setAddModalOpen(false)
@@ -257,7 +311,11 @@ export function TeacherRosterTab({ classroom }: Props) {
     setPendingPurge(null)
     setEditingCounselorId(null)
     setEditingCounselorValue('')
-    setIsSavingCounselor(false)
+    setSavingCounselor(null)
+    pendingCounselorRosterIdsRef.current = new Set()
+    setPendingCounselorRosterIds(new Set())
+    setCounselorError(null)
+    retryFocusIntentRef.current = false
     loadRoster()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
@@ -266,29 +324,47 @@ export function TeacherRosterTab({ classroom }: Props) {
     if (!pendingRemoval || pendingRemoval.rows.length === 0) return
     if (isReadOnly) return
     const classroomId = classroom.id
+    const classroomEpoch = classroomEpochRef.current
+    const removalRosterIds = pendingRemoval.rows.map((row) => row.rosterId)
     setIsRemoving(true)
-    setError('')
+    setRemovalError('')
     const fallbackError = pendingRemoval.rows.length > 1 ? 'Failed to remove students' : 'Failed to remove student'
 
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/bulk-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roster_ids: pendingRemoval.rows.map((row) => row.rosterId) }),
+        body: JSON.stringify({ roster_ids: removalRosterIds }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         throw new Error(data.error || fallbackError)
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)
-      if (currentClassroomIdRef.current !== classroomId) return
+      if (
+        currentClassroomIdRef.current !== classroomId
+        || classroomEpochRef.current !== classroomEpoch
+      ) return
+      rosterMutationVersionRef.current += 1
       setPendingRemoval(null)
-      await loadRoster()
+      setRemovalError('')
+      setRoster((current) => current.filter((row) => !removalRosterIds.includes(row.id)))
+      if (selectedRosterId && removalRosterIds.includes(selectedRosterId)) {
+        setSelectedRosterId(null)
+      }
+      clearSelection()
+      await loadRoster({ preserveRoster: true })
     } catch (err: any) {
-      if (currentClassroomIdRef.current !== classroomId) return
-      setError(err.message || fallbackError)
+      if (
+        currentClassroomIdRef.current !== classroomId
+        || classroomEpochRef.current !== classroomEpoch
+      ) return
+      setRemovalError(err.message || fallbackError)
     } finally {
-      if (currentClassroomIdRef.current === classroomId) {
+      if (
+        currentClassroomIdRef.current === classroomId
+        && classroomEpochRef.current === classroomEpoch
+      ) {
         setIsRemoving(false)
       }
     }
@@ -301,6 +377,9 @@ export function TeacherRosterTab({ classroom }: Props) {
   const selectedStudentEmails = selectedRows.map((r) => r.email)
   const selectedCounselorEmails = selectedRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const selectedRosterRow = sortedRoster.find((row) => row.id === selectedRosterId) ?? null
+  const counselorErrorRow = counselorError
+    ? sortedRoster.find((row) => row.id === counselorError.rosterId) ?? null
+    : null
   const removalTargetRows = selectedRows.length > 0 ? selectedRows : selectedRosterRow ? [selectedRosterRow] : []
   const {
     scrollRef: rosterTableScrollRef,
@@ -364,49 +443,108 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   // Counselor email editing
   function startEditingCounselor(row: RosterRow) {
-    if (isReadOnly) return
+    if (isReadOnly || pendingCounselorRosterIdsRef.current.has(row.id)) return
+    counselorEditEpochRef.current += 1
     setEditingCounselorId(row.id)
     setEditingCounselorValue(row.counselor_email || '')
+    setCounselorError(null)
   }
 
-  function cancelEditingCounselor() {
+  function focusCounselorEditButton(rosterId: string) {
+    window.setTimeout(() => {
+      document.getElementById(getCounselorEditButtonId(rosterId))?.focus()
+    }, 0)
+  }
+
+  function cancelEditingCounselor(rosterId: string) {
+    counselorEditEpochRef.current += 1
     setEditingCounselorId(null)
     setEditingCounselorValue('')
+    setCounselorError(null)
+    focusCounselorEditButton(rosterId)
   }
 
   async function saveCounselorEmail(rosterId: string) {
     if (isReadOnly) return
+    const rosterRow = currentRoster.find((row) => row.id === rosterId)
+    if (!rosterRow) return
     const classroomId = classroom.id
-    setIsSavingCounselor(true)
-    setError('')
+    const classroomEpoch = classroomEpochRef.current
+    const editEpoch = counselorEditEpochRef.current
+    const counselorEmail = editingCounselorValue.trim() || null
+    pendingCounselorRosterIdsRef.current = new Set(pendingCounselorRosterIdsRef.current).add(rosterId)
+    setPendingCounselorRosterIds(new Set(pendingCounselorRosterIdsRef.current))
+    setSavingCounselor({ rosterId, editEpoch })
+    setCounselorError(null)
 
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/${rosterId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counselor_email: editingCounselorValue.trim() || null }),
+        body: JSON.stringify({
+          counselor_email: counselorEmail,
+          expected_updated_at: rosterRow.updated_at,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        if (
+          res.status === 409
+          && currentClassroomIdRef.current === classroomId
+          && classroomEpochRef.current === classroomEpoch
+          && counselorEditEpochRef.current === editEpoch
+        ) {
+          invalidateCachedJSON(`teacher-roster:${classroomId}`)
+          await loadRoster({ preserveRoster: true })
+        }
         throw new Error(data.error || 'Failed to update counselor email')
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)
-      if (currentClassroomIdRef.current !== classroomId) return
-      // Update local state
+      if (
+        currentClassroomIdRef.current !== classroomId
+        || classroomEpochRef.current !== classroomEpoch
+      ) return
+      rosterMutationVersionRef.current += 1
       setRoster((prev) =>
         prev.map((r) =>
-          r.id === rosterId ? { ...r, counselor_email: editingCounselorValue.trim() || null } : r
+          r.id === rosterId
+            ? {
+                ...r,
+                counselor_email: counselorEmail,
+                updated_at: data.roster?.updated_at ?? r.updated_at,
+              }
+            : r
         )
       )
-      setEditingCounselorId(null)
-      setEditingCounselorValue('')
-    } catch (err: any) {
-      if (currentClassroomIdRef.current !== classroomId) return
-      setError(err.message || 'Failed to update counselor email')
-    } finally {
-      if (currentClassroomIdRef.current === classroomId) {
-        setIsSavingCounselor(false)
+      if (counselorEditEpochRef.current === editEpoch) {
+        setEditingCounselorId(null)
+        setEditingCounselorValue('')
+        setCounselorError(null)
+        focusCounselorEditButton(rosterId)
       }
+    } catch (err: any) {
+      if (
+        currentClassroomIdRef.current !== classroomId
+        || classroomEpochRef.current !== classroomEpoch
+        || counselorEditEpochRef.current !== editEpoch
+      ) return
+      setCounselorError({
+        rosterId,
+        message: err.message || 'Failed to update counselor email',
+      })
+    } finally {
+      if (
+        currentClassroomIdRef.current === classroomId
+        && classroomEpochRef.current === classroomEpoch
+      ) {
+        const nextPendingIds = new Set(pendingCounselorRosterIdsRef.current)
+        nextPendingIds.delete(rosterId)
+        pendingCounselorRosterIdsRef.current = nextPendingIds
+        setPendingCounselorRosterIds(nextPendingIds)
+      }
+      setSavingCounselor((current) => (
+        current?.rosterId === rosterId && current.editEpoch === editEpoch ? null : current
+      ))
     }
   }
 
@@ -422,13 +560,30 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   function openRemoveStudentDialog(rows: RosterRow[]) {
     if (rows.length === 0 || isReadOnly) return
+    setRemovalError('')
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
   }
 
-  function refreshRosterAfterMutation() {
-    invalidateCachedJSON(`teacher-roster:${classroom.id}`)
-    void loadRoster()
+  function refreshRosterAfterMutation(mutatedClassroomId: string) {
+    invalidateCachedJSON(`teacher-roster:${mutatedClassroomId}`)
+    if (currentClassroomIdRef.current !== mutatedClassroomId) return
+    rosterMutationVersionRef.current += 1
+    void loadRoster({ preserveRoster: hasCurrentRoster })
   }
+
+  function retryRosterLoad() {
+    if (loading) return
+    retryFocusIntentRef.current = isRosterUnavailable
+    invalidateCachedJSON(`teacher-roster:${classroom.id}`)
+    void loadRoster({ preserveRoster: hasCurrentRoster, isRetry: true })
+  }
+
+  useEffect(() => {
+    if (!loading && hasCurrentRoster && retryFocusIntentRef.current) {
+      retryFocusIntentRef.current = false
+      rosterRegionRef.current?.focus()
+    }
+  }, [hasCurrentRoster, loading])
 
   function getRemovalMenuLabel(rowCount: number) {
     return rowCount > 1 ? 'Remove students' : 'Remove student'
@@ -436,6 +591,10 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   function formatRemovalTargetName(row: RemovalTarget) {
     return [row.firstName, row.lastName].filter(Boolean).join(' ') || 'Unnamed student'
+  }
+
+  function formatRosterRowName(row: RosterRow) {
+    return [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email
   }
 
   function getRemovalDescription(rows: RemovalTarget[]) {
@@ -598,10 +757,28 @@ export function TeacherRosterTab({ classroom }: Props) {
     />
   )
 
-  const workspace = isRosterLoading ? (
-    <div className="flex flex-1 justify-center py-12">
-      <Spinner size="lg" />
-    </div>
+  const rosterRetryAction = loadError || isRetryingRoster ? (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      aria-label={isRetryingRoster ? 'Retrying roster' : 'Retry loading roster'}
+      aria-disabled={isRetryingRoster || undefined}
+      className={isRetryingRoster ? 'cursor-not-allowed opacity-50' : undefined}
+      onClick={isRetryingRoster ? undefined : retryRosterLoad}
+    >
+      {isRetryingRoster ? 'Retrying...' : 'Retry'}
+    </Button>
+  ) : null
+
+  const workspace = isRosterUnavailable ? (
+    <PageState
+      kind={loading ? 'loading' : 'error'}
+      title={loading ? 'Loading roster' : 'Roster unavailable'}
+      description={loading ? 'Loading the classroom roster.' : loadError}
+      action={rosterRetryAction}
+      compact
+    />
   ) : (
     <div
       ref={rosterTableScrollRef}
@@ -610,15 +787,31 @@ export function TeacherRosterTab({ classroom }: Props) {
       onScroll={preserveRosterTableScrollPosition}
     >
       <TableCard chrome="flush" overflowX>
-        {error && (
+        {loadError && (
           <div className="border-b border-border p-3">
-            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+            >
+              <span>{loadError}</span>
+              {rosterRetryAction}
             </div>
           </div>
         )}
+        {counselorError && counselorErrorRow ? (
+          <div className="border-b border-border p-3">
+            <div
+              id={`roster-counselor-error-${counselorError.rosterId}`}
+              role="alert"
+              className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+            >
+              Could not save counselor email for {formatRosterRowName(counselorErrorRow)}: {counselorError.message}
+            </div>
+          </div>
+        ) : null}
 
         <KeyboardNavigableTable
+          ref={rosterRegionRef}
           ariaLabel="Classroom roster"
           rowKeys={rosterIds}
           selectedKey={selectedRosterId}
@@ -712,6 +905,15 @@ export function TeacherRosterTab({ classroom }: Props) {
             <DataTableBody>
               {sortedRoster.map((row) => {
                 const isSelected = row.id === selectedRosterId
+                const rowName = formatRosterRowName(row)
+                const counselorErrorId = `roster-counselor-error-${row.id}`
+                const currentEditEpoch = counselorEditEpochRef.current
+                const isSavingCurrentCounselor = savingCounselor?.rosterId === row.id
+                  && savingCounselor.editEpoch === currentEditEpoch
+                const currentCounselorError = counselorError?.rosterId === row.id
+                  ? counselorError.message
+                  : null
+                const isCounselorSavePending = pendingCounselorRosterIds.has(row.id)
                 return (
                   <DataTableRow
                     key={row.id}
@@ -743,45 +945,76 @@ export function TeacherRosterTab({ classroom }: Props) {
                     <DataTableCell className="hidden text-text-muted lg:table-cell">
                       {editingCounselorId === row.id ? (
                         <div className="flex items-center gap-1">
-                          <input
-                            type="email"
-                            value={editingCounselorValue}
-                            onChange={(e) => setEditingCounselorValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') saveCounselorEmail(row.id)
-                              if (e.key === 'Escape') cancelEditingCounselor()
-                            }}
-                            className="w-32 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
-                            placeholder="counselor@..."
-                            autoFocus
-                            disabled={isSavingCounselor}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => saveCounselorEmail(row.id)}
-                            disabled={isSavingCounselor}
-                            className="text-success hover:text-success-hover"
-                            aria-label="Save"
+                          <FormField
+                            label={`Counselor email for ${rowName}`}
+                            hideLabel
+                            className="w-32 [&>div:first-child]:sr-only"
                           >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEditingCounselor}
-                            disabled={isSavingCounselor}
-                            className="text-text-muted hover:text-text-default"
-                            aria-label="Cancel"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                            <Input
+                              type="email"
+                              value={editingCounselorValue}
+                              onChange={(event) => {
+                                if (!isSavingCurrentCounselor) {
+                                  setEditingCounselorValue(event.target.value)
+                                  setCounselorError(null)
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' && !isSavingCurrentCounselor) {
+                                  void saveCounselorEmail(row.id)
+                                }
+                                if (event.key === 'Escape' && !isSavingCurrentCounselor) {
+                                  cancelEditingCounselor(row.id)
+                                }
+                              }}
+                              className="px-2 py-1 text-sm"
+                              placeholder="counselor@..."
+                              aria-describedby={currentCounselorError ? counselorErrorId : undefined}
+                              aria-invalid={!!currentCounselorError}
+                              readOnly={isSavingCurrentCounselor}
+                              autoFocus
+                            />
+                          </FormField>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={isSavingCurrentCounselor ? undefined : () => saveCounselorEmail(row.id)}
+                              aria-label={`Save counselor email for ${rowName}`}
+                              aria-disabled={isSavingCurrentCounselor || undefined}
+                              className={`h-8 w-8 p-0 text-success ${
+                                isSavingCurrentCounselor ? 'cursor-not-allowed opacity-50' : ''
+                              }`}
+                            >
+                              <Check className="h-4 w-4" aria-hidden="true" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={isSavingCurrentCounselor ? undefined : () => cancelEditingCounselor(row.id)}
+                              aria-label={`Cancel counselor email for ${rowName}`}
+                              aria-disabled={isSavingCurrentCounselor || undefined}
+                              className={`h-8 w-8 p-0 text-text-muted ${
+                                isSavingCurrentCounselor ? 'cursor-not-allowed opacity-50' : ''
+                              }`}
+                            >
+                              <X className="h-4 w-4" aria-hidden="true" />
+                            </Button>
                         </div>
                       ) : (
-                        <button
+                        <Button
+                          id={getCounselorEditButtonId(row.id)}
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => startEditingCounselor(row)}
-                          disabled={isReadOnly}
-                          className={`flex items-center gap-1 text-left ${
-                            isReadOnly ? 'cursor-not-allowed opacity-50' : 'hover:text-text-default'
+                          disabled={isReadOnly || isCounselorSavePending}
+                          aria-label={`Edit counselor email for ${rowName}`}
+                          className={`h-auto min-h-8 max-w-full justify-start gap-1 px-1 py-1 text-left ${
+                            isReadOnly || isCounselorSavePending
+                              ? 'cursor-not-allowed opacity-50'
+                              : 'hover:text-text-default'
                           }`}
                         >
                           {row.counselor_email ? (
@@ -791,8 +1024,8 @@ export function TeacherRosterTab({ classroom }: Props) {
                           ) : (
                             <span className="text-text-muted italic">Add</span>
                           )}
-                          {!isReadOnly && <Pencil className="h-3 w-3 flex-shrink-0" />}
-                        </button>
+                          {!isReadOnly && <Pencil className="h-3 w-3 flex-shrink-0" aria-hidden="true" />}
+                        </Button>
                       )}
                     </DataTableCell>
                     <DataTableCell align="center">
@@ -845,9 +1078,14 @@ export function TeacherRosterTab({ classroom }: Props) {
         confirmLabel={isRemoving ? 'Removing...' : 'Remove'}
         cancelLabel="Cancel"
         confirmVariant="danger"
+        errorMessage={removalError || undefined}
         isCancelDisabled={isRemoving}
         isConfirmDisabled={isRemoving}
-        onCancel={() => (isRemoving ? null : setPendingRemoval(null))}
+        onCancel={() => {
+          if (isRemoving) return
+          setPendingRemoval(null)
+          setRemovalError('')
+        }}
         onConfirm={confirmRemoveStudent}
       />
 
@@ -862,7 +1100,7 @@ export function TeacherRosterTab({ classroom }: Props) {
           onClose={() => setPendingPurge(null)}
           onCompleted={() => {
             setPendingPurge(null)
-            refreshRosterAfterMutation()
+            refreshRosterAfterMutation(classroom.id)
           }}
         />
       ) : null}

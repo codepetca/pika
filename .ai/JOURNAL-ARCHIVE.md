@@ -18222,3 +18222,43 @@ hot-archived Classroom with a student, assignment artifact, and test material.
 - Verified production already has the equivalent final schemas recorded as
   versions 118 and 119 under its separately authorized reconciliation history;
   this source correction performed no remote migration or state change.
+
+<!-- pika-session-log-archive-batch:2ffca9a2de5cfdf16459c1bddf0dbb21929c0ac53f47a3f24a06afe1b19cfd52 -->
+## 2026-08-05 — Prove post-purge Blueprint reuse in production
+
+**Risk profile:** exact synthetic production create/archive/purge canary; no
+broader rollout, generic cleanup, migration, or Blueprint deletion.
+
+**Completed:**
+- Created Classroom `362b444c-ec43-4f33-bdc5-47d957c4bcc0` named
+  `Post-Purge Blueprint Reuse Canary` from preserved Blueprint
+  `c318ef23-5039-4b64-9977-66bceee54ba0` through the teacher UI.
+- Verified 96 class days, one assignment, one test and document, and distinct
+  ready Classroom-owned managed object
+  `dfffde84-1b21-502e-8b30-167d4fe4de79` (14,760 bytes).
+- Hot archived the Classroom, conditionally retargeted only the existing
+  synthetic canary binding, typed `DELETE`, and completed durable purge
+  operation `c40b3f5d-865f-4997-8046-c780eb77b401` in one tick.
+
+**Validation:**
+- The impact summary reported 0 students, 102 relational rows, and one 15 KB
+  managed file, with no missing file or conflicting operation.
+- The Classroom and its managed object are absent; the audit object is terminal
+  `deleted`, its path is redacted, and the purge resource snapshot is empty.
+- The instantiate operation remains completed with Blueprint lineage preserved
+  and deleted Classroom references reconciled to null.
+- The Blueprint still has one assignment, one assessment, one Version, and its
+  original ready 14,760-byte managed PDF in Storage. Teacher and student
+  accounts remain.
+- Global managed state returned from 141/141 to 140/140, with zero non-ready,
+  missing, or unregistered objects.
+- Teacher/student desktop/mobile light/dark verification passed before and
+  after deletion. The teacher sees the preserved Blueprint test/PDF; the
+  student sees `Classroom unavailable` for the purged Classroom.
+
+**Remaining:**
+- The exact canary row points to the deleted Classroom and enables no remaining
+  Classroom. Global rollout and generic cleanup are still disabled.
+- Durable teacher-owned Blueprint/managed-file deletion remains the next local
+  implementation scope. Production migration or Blueprint deletion needs fresh
+  exact authorization.
