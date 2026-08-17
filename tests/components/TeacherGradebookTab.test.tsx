@@ -428,7 +428,7 @@ describe('TeacherGradebookTab', () => {
       }
       if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
         gradebookReads += 1
-        if (gradebookReads !== 2) {
+        if (gradebookReads !== 2 && gradebookReads !== 3) {
           return Promise.resolve({ ok: true, json: async () => gradebookResponse() })
         }
         return Promise.resolve({
@@ -452,6 +452,14 @@ describe('TeacherGradebookTab', () => {
     const retry = screen.getByRole('button', { name: 'Retry loading gradebook' })
     retry.focus()
     fireEvent.click(retry)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Retry loading gradebook' })).toHaveFocus()
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Gradebook could not be refreshed. Showing the last loaded grades.',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading gradebook' }))
 
     await waitFor(() => {
       expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()

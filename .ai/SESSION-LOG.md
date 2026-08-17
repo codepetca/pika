@@ -1073,17 +1073,23 @@ schema, migration, production, Gradex, or mobile redesign change.
   the class-wide table, selected-student detail, sorting, selection, and column
   controls intact.
 - Fenced overlapping reads and in-flight assessment-weight saves by committed
-  classroom identity and request generation so stale work cannot repaint or
-  refresh another classroom.
-- Restored focus to the named student table after successful cold recovery and
-  retained the existing direct keyboard row navigation and Escape behavior.
+  classroom identity and per-assessment request generation so stale work cannot
+  repaint another classroom and concurrent column saves each trigger a refresh.
+- Restored focus to the named student table after successful cold or retained
+  recovery, preserved Retry focus after another failure, and retained the
+  existing direct keyboard row navigation and Escape behavior.
 
 **Validation:**
-- Focused Gradebook component, API, and architecture suites pass: 46 tests;
+- Focused Gradebook component, API, and architecture suites pass: 47 tests;
   the component suite now covers cold, empty, retained-refresh, stale-load,
   stale-save, retry-focus, and direct keyboard behavior.
-- Full suite passes: 4,364 tests across 499 files. TypeScript, lint, production
+- Full suite passes: 4,365 tests across 499 files. TypeScript, lint, production
   build, architecture, design/UI policy, Pika audit, and diff checks pass.
 - Playwright verification passes for teacher loaded light/dark, cold-error
   light/dark, retained-refresh, and narrow loaded/error states with no viewport
   overflow. Gradebook is teacher-only; student role coverage is not applicable.
+- Independent review found component-wide save ownership could suppress a
+  concurrent column's final refresh and retained Retry success could lose
+  focus. Per-assessment ownership and success-gated focus restoration resolve
+  both findings; targeted rereview found no blockers, and the noted failed-retry
+  test gap is closed.
