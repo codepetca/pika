@@ -274,6 +274,69 @@ describe('TeacherBlueprintsPage', () => {
     )
   })
 
+  it('normalizes JSON retry identity and resets it after changed content and success', async () => {
+    const view = render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+
+    const fetchMock = vi.mocked(fetch)
+    const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
+    expect(fileInput).not.toBeNull()
+    const bundle = { manifest: { version: '5', title: 'Imported course' }, files: {} }
+    const changedBundle = { manifest: { version: '5', title: 'Changed course' }, files: {} }
+    const createJsonFile = (contents: unknown, formatted = false) => {
+      const file = new File([], 'course-package.json', { type: 'application/json' })
+      Object.defineProperty(file, 'text', {
+        value: async () => JSON.stringify(contents, null, formatted ? 2 : undefined),
+      })
+      return file
+    }
+    const importCalls = () => fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    const importFile = async (file: File, response: Response, expectedCalls: number) => {
+      fetchMock.mockResolvedValueOnce(response)
+      fireEvent.change(fileInput!, { target: { files: [file] } })
+      await waitFor(() => expect(importCalls()).toHaveLength(expectedCalls))
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Import Course Package' })).not.toBeDisabled()
+      })
+    }
+
+    await importFile(
+      createJsonFile(bundle, true),
+      jsonResponse({ error: 'Temporary import failure' }, false),
+      1,
+    )
+    await importFile(
+      createJsonFile(bundle),
+      jsonResponse({ error: 'Temporary import failure' }, false),
+      2,
+    )
+    await importFile(
+      createJsonFile(changedBundle),
+      jsonResponse({ blueprint: blueprintDetail }),
+      3,
+    )
+    await importFile(
+      createJsonFile(changedBundle),
+      jsonResponse({ blueprint: blueprintDetail }),
+      4,
+    )
+
+    const calls = importCalls()
+    const keys = calls.map(([, init]) => (
+      (init?.headers as Record<string, string>)['Idempotency-Key']
+    ))
+    expect(calls[0][1]?.body).toBe(JSON.stringify(bundle))
+    expect(calls[1][1]?.body).toBe(JSON.stringify(bundle))
+    expect(keys[0]).toBe(keys[1])
+    expect(keys[2]).not.toBe(keys[1])
+    expect(keys[3]).not.toBe(keys[2])
+  })
+
   it('disables package import while the current request is pending', async () => {
     let resolveImport!: (response: Response) => void
     const pendingImport = new Promise<Response>((resolve) => {

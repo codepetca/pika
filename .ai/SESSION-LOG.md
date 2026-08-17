@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-07 — Center login password-recovery link
-
-**Risk profile:** none — localized unauthenticated login layout refinement.
-
-**Completed:**
-- Moved “Forgot password?” from the password-field edge to a centered row
-  between the Login button and Sign up link.
-- Preserved the recovery navigation and added the shared minimum target and
-  visible keyboard-focus treatment.
-
-**Validation:**
-- Focused LoginClient tests, lint, design/UI policy checks, Pika audit, and
-  diff checks passed.
-- Regenerated and reviewed the affected Playwright desktop light/dark login
-  visual-regression baselines; their focused snapshot suite passed.
-- Playwright visual verification passed for the unauthenticated desktop/mobile
-  login screen in light and dark themes, including default, hover, and focus
-  states. Teacher/student authenticated variants are not applicable.
-
 ## 2026-08-08 — Rebase Blueprint deletion onto current main
 
 **Risk profile:** runtime-platform — migration and durable deletion integration.
@@ -1169,3 +1150,23 @@ migration, production, archive cleanup, Gradex, or student behavior changes.
 - Teacher desktop/mobile light/dark screenshots remain clean. An intercepted,
   non-mutating request verifies the disabled importing state without layout
   shift or clipping. Student is not affected by this teacher-only route.
+
+## 2026-08-17 — Blueprint import review-gap coverage
+
+**Risk profile:** none — test-only follow-up; no runtime, UI, API, schema,
+migration, database, production, Gradex, or student behavior changes.
+
+**Completed:**
+- Added dedicated Blueprints-page coverage for normalized JSON retry identity,
+  changed-content key replacement, and operation-key clearing after success.
+- Added classroom-wizard coverage proving a pending package import suppresses a
+  second file submission until the first request settles.
+- Independent review's P3 maintainability finding was fixed by scoping the
+  suppression assertion to package-import requests instead of all global fetches.
+- Targeted re-review's P1 false-positive finding was fixed by also proving the
+  second event never re-enters asynchronous package preparation.
+
+**Validation:**
+- All 27 focused component tests and all 4,407 repository tests pass.
+- TypeScript, lint, architecture, production build, diff checks, and Pika audit
+  pass. Visual verification is not applicable to this test-only patch.

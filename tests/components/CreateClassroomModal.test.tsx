@@ -440,6 +440,42 @@ describe('CreateClassroomModal', () => {
     )
   })
 
+  it('suppresses concurrent package imports while the current request is pending', async () => {
+    const pendingImport = createDeferred<{
+      ok: boolean
+      json: () => Promise<{ error: string }>
+    }>()
+    fetchMock.mockReturnValueOnce(pendingImport.promise)
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    const readPackage = vi.fn(async () => new TextEncoder().encode('bundle').buffer)
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: readPackage,
+    })
+
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(await screen.findByRole('option', { name: 'Importing package...' })).toBeInTheDocument()
+
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(readPackage).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))).toHaveLength(1)
+
+    await act(async () => {
+      pendingImport.resolve({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+    })
+    expect(await screen.findByText('Temporary import failure')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Import course package...' })).toBeInTheDocument()
+  })
+
   it('shows the rollover review before completing a classroom created from a blueprint', async () => {
     const onSuccess = vi.fn()
     const onBlueprintCreated = vi.fn()

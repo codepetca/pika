@@ -18469,3 +18469,23 @@ schema/Storage concurrency verification only.
   existing empty duplicate heading, and added focused regression coverage.
 - Validation passed: focused trim/startup tests (51), full Vitest (468 files,
   4,049 tests), lint, session-log check, TOML parsing, and diff checks.
+
+<!-- pika-session-log-archive-batch:5dc44045e4d1e7934757cb92ac5581a1c6929ff0a75d3ebc26c6747d355d370b -->
+## 2026-08-07 — Center login password-recovery link
+
+**Risk profile:** none — localized unauthenticated login layout refinement.
+
+**Completed:**
+- Moved “Forgot password?” from the password-field edge to a centered row
+  between the Login button and Sign up link.
+- Preserved the recovery navigation and added the shared minimum target and
+  visible keyboard-focus treatment.
+
+**Validation:**
+- Focused LoginClient tests, lint, design/UI policy checks, Pika audit, and
+  diff checks passed.
+- Regenerated and reviewed the affected Playwright desktop light/dark login
+  visual-regression baselines; their focused snapshot suite passed.
+- Playwright visual verification passed for the unauthenticated desktop/mobile
+  login screen in light and dark themes, including default, hover, and focus
+  states. Teacher/student authenticated variants are not applicable.
