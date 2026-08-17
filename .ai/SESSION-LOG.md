@@ -1095,7 +1095,8 @@ migration, production, Gradex, legacy-resource deletion, or mobile redesign.
 - Targeted review found that a settings-driven slug change could inherit the
   mounted preview's prior ready state. Teacher and student resource tabs now
   key the preview by syllabus URL, and regression coverage proves a new URL
-  remounts loading, ignores the stale frame, and times out unfocusable.
+  remounts loading, ignores a matching-URL signal from the stale frame, and
+  times out unfocusable for both roles.
 - Playwright verification passes for teacher/student desktop and narrow,
   light/dark loaded states plus the teacher failed-load state. Desktop outer
   scroll is `900/900`; focus moves from Open syllabus to the named iframe; no

@@ -6,6 +6,7 @@ import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherA
 import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
 import { SyllabusPreview } from '@/components/SyllabusPreview'
 import { SYLLABUS_PREVIEW_READY } from '@/lib/syllabus-preview-messages'
+import type { Classroom } from '@/types'
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassResourcesSidebar', () => ({
   TeacherClassResourcesSidebar: () => <div>Teacher resources content</div>,
@@ -55,6 +56,17 @@ const classroom = {
   course_overview_markdown: '',
   course_outline_markdown: '',
 } as const
+
+const resourceTabCases = [
+  {
+    role: 'teacher',
+    renderTab: (value: Classroom) => <TeacherResourcesTab classroom={value} />,
+  },
+  {
+    role: 'student',
+    renderTab: (value: Classroom) => <StudentResourcesTab classroom={value} />,
+  },
+] as const
 
 describe('ResourcesTab', () => {
   it('renders teacher resources as a syllabus entry point', () => {
@@ -118,10 +130,10 @@ describe('ResourcesTab', () => {
     expect(preview).toHaveAttribute('tabindex', '-1')
   })
 
-  it('returns a changed syllabus URL to protected loading state', () => {
+  it.each(resourceTabCases)('returns a changed syllabus URL to protected loading state for $role resources', ({ renderTab }) => {
     vi.useFakeTimers()
     try {
-      const { rerender } = render(<TeacherResourcesTab classroom={classroom} />)
+      const { rerender } = render(renderTab(classroom))
       const originalPreview = screen.getByTitle('Test Classroom syllabus preview')
       const originalWindow = (originalPreview as HTMLIFrameElement).contentWindow
 
@@ -137,11 +149,7 @@ describe('ResourcesTab', () => {
       })
       expect(originalPreview).toHaveAttribute('tabindex', '0')
 
-      rerender(
-        <TeacherResourcesTab
-          classroom={{ ...classroom, actual_site_slug: 'replacement-classroom' }}
-        />,
-      )
+      rerender(renderTab({ ...classroom, actual_site_slug: 'replacement-classroom' }))
       const replacementPreview = screen.getByTitle('Test Classroom syllabus preview')
       expect(replacementPreview).toHaveAttribute('src', '/actual/replacement-classroom')
       expect(replacementPreview).toHaveAttribute('tabindex', '-1')
@@ -151,7 +159,7 @@ describe('ResourcesTab', () => {
         window.dispatchEvent(new MessageEvent('message', {
           data: {
             type: SYLLABUS_PREVIEW_READY,
-            href: `${window.location.origin}/actual/test-classroom`,
+            href: `${window.location.origin}/actual/replacement-classroom`,
           },
           origin: window.location.origin,
           source: originalWindow,
