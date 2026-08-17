@@ -152,4 +152,60 @@ describe('AddStudentsModal', () => {
     }
     expect(screen.getByRole('button', { name: 'Add 1 Student' })).toBeEnabled()
   })
+
+  it.each([
+    { lifecycle: 'close and reopen', ok: true },
+    { lifecycle: 'close and reopen', ok: false },
+    { lifecycle: 'unmount', ok: true },
+    { lifecycle: 'unmount', ok: false },
+  ])('ignores an in-flight $lifecycle completion (ok: $ok)', async ({ lifecycle, ok }) => {
+    let resolveAdd: (() => void) | null = null
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => {
+      resolveAdd = () => resolve({
+        ok,
+        json: () => Promise.resolve(ok ? { success: true } : { error: 'Add failed' }),
+      })
+    })))
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    const modal = (isOpen: boolean) => (
+      <AddStudentsModal
+        isOpen={isOpen}
+        onClose={onClose}
+        classroomId="classroom-a"
+        onSuccess={onSuccess}
+      />
+    )
+    const view = render(modal(true))
+
+    fireEvent.change(screen.getByLabelText('Enter student information'), {
+      target: { value: 'Ada Lovelace ada@example.com' },
+    })
+    fireEvent.blur(screen.getByLabelText('Enter student information'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' }))
+    expect(await screen.findByRole('button', { name: 'Adding...' })).toBeDisabled()
+
+    if (lifecycle === 'unmount') {
+      view.unmount()
+    } else {
+      view.rerender(modal(false))
+      view.rerender(modal(true))
+      expect(screen.getByLabelText('Enter student information')).toHaveValue('')
+    }
+
+    await act(async () => {
+      resolveAdd?.()
+    })
+
+    if (ok) {
+      expect(onSuccess).toHaveBeenCalledWith('classroom-a')
+    } else {
+      expect(onSuccess).not.toHaveBeenCalled()
+    }
+    expect(onClose).not.toHaveBeenCalled()
+    if (lifecycle !== 'unmount') {
+      expect(screen.queryByText('Add failed')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add 0 Students' })).toBeDisabled()
+    }
+  })
 })

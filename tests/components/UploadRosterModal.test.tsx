@@ -146,4 +146,65 @@ describe('UploadRosterModal', () => {
       expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled()
     }
   })
+
+  it.each([
+    { lifecycle: 'close and reopen', ok: true },
+    { lifecycle: 'close and reopen', ok: false },
+    { lifecycle: 'unmount', ok: true },
+    { lifecycle: 'unmount', ok: false },
+  ])('ignores an in-flight $lifecycle completion (ok: $ok)', async ({ lifecycle, ok }) => {
+    let resolveUpload: (() => void) | null = null
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => {
+      resolveUpload = () => resolve({
+        ok,
+        json: () => Promise.resolve(ok
+          ? { totalProcessed: 1, upsertedCount: 1, errors: [] }
+          : { error: 'Upload failed' }),
+      })
+    })))
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    const modal = (isOpen: boolean) => (
+      <UploadRosterModal
+        isOpen={isOpen}
+        onClose={onClose}
+        classroomId="classroom-a"
+        onSuccess={onSuccess}
+      />
+    )
+    const view = render(modal(true))
+    const csvFile = new File(['csv'], 'a.csv', { type: 'text/csv' })
+    Object.defineProperty(csvFile, 'text', {
+      value: vi.fn().mockResolvedValue('A classroom CSV'),
+    })
+
+    fireEvent.change(screen.getByLabelText('Choose CSV file'), {
+      target: { files: [csvFile] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
+    expect(await screen.findByRole('button', { name: 'Uploading...' })).toBeDisabled()
+
+    if (lifecycle === 'unmount') {
+      view.unmount()
+    } else {
+      view.rerender(modal(false))
+      view.rerender(modal(true))
+      expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled()
+    }
+
+    await act(async () => {
+      resolveUpload?.()
+    })
+
+    if (ok) {
+      expect(onSuccess).toHaveBeenCalledWith('classroom-a')
+    } else {
+      expect(onSuccess).not.toHaveBeenCalled()
+    }
+    expect(onClose).not.toHaveBeenCalled()
+    if (lifecycle !== 'unmount') {
+      expect(screen.queryByText('Upload failed')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled()
+    }
+  })
 })
