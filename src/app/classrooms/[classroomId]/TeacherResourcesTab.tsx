@@ -1,6 +1,7 @@
 'use client'
 
 import { Settings } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { SyllabusPreview } from '@/components/SyllabusPreview'
 import { Button, EmptyState } from '@/ui'
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function TeacherResourcesTab({ classroom }: Props) {
+  const router = useRouter()
   const siteHref = classroom.actual_site_slug ? `/actual/${classroom.actual_site_slug}` : ''
   const isPublished = !!classroom.actual_site_published && !!classroom.actual_site_slug
   const hasBlueprint = !!classroom.source_blueprint_id
@@ -58,7 +60,7 @@ export function TeacherResourcesTab({ classroom }: Props) {
               type="button"
               variant="secondary"
               onClick={() => {
-                window.location.href = `/classrooms/${classroom.id}?tab=settings`
+                router.push(`/classrooms/${classroom.id}?tab=settings&section=syllabus`)
               }}
             >
               <Settings className="h-4 w-4" aria-hidden="true" />

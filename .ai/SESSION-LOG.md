@@ -1135,3 +1135,6 @@ decisions; no API, schema, migration, production, Gradex, or mobile redesign.
 - Playwright captures pass for every section at desktop and 390px in light and
   dark. Each URL selects the intended section, body width equals viewport width,
   and the teacher surface remains visually consistent. Student is not affected.
+- Independent review found the unpublished-syllabus recovery action still
+  opened bare Settings. It now uses in-app navigation directly to the Syllabus
+  section, with a focused resources regression.

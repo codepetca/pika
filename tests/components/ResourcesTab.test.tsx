@@ -8,6 +8,12 @@ import { SyllabusPreview } from '@/components/SyllabusPreview'
 import { SYLLABUS_PREVIEW_READY } from '@/lib/syllabus-preview-messages'
 import type { Classroom } from '@/types'
 
+const mockPush = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassResourcesSidebar', () => ({
   TeacherClassResourcesSidebar: () => <div>Teacher resources content</div>,
 }))
@@ -238,6 +244,15 @@ describe('ResourcesTab', () => {
     expect(screen.getByText('No syllabus yet')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByTitle('Test Classroom syllabus preview')).toBeNull()
+  })
+
+  it('opens the syllabus settings section from the unpublished teacher state', () => {
+    mockPush.mockClear()
+    render(<TeacherResourcesTab classroom={{ ...classroom, actual_site_published: false }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Syllabus Settings' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-1?tab=settings&section=syllabus')
   })
 
   it('renders teacher announcements in the announcements tab', () => {
