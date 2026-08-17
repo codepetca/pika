@@ -1161,6 +1161,8 @@ migration, database, production, Gradex, or student behavior changes.
   changed-content key replacement, and operation-key clearing after success.
 - Added classroom-wizard coverage proving a pending package import suppresses a
   second file submission until the first request settles.
+- Independent review's P3 maintainability finding was fixed by scoping the
+  suppression assertion to package-import requests instead of all global fetches.
 
 **Validation:**
 - All 27 focused component tests and all 4,407 repository tests pass.

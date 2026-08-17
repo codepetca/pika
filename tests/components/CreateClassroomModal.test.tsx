@@ -460,7 +460,9 @@ describe('CreateClassroomModal', () => {
     expect(await screen.findByRole('option', { name: 'Importing package...' })).toBeInTheDocument()
 
     fireEvent.change(fileInput, { target: { files: [file] } })
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))).toHaveLength(1)
 
     await act(async () => {
       pendingImport.resolve({
