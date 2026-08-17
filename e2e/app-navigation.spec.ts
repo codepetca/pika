@@ -89,7 +89,7 @@ test.describe('student utility application navigation', () => {
       const navigation = page.getByRole('navigation', { name: 'Student tools' })
       await expect(navigation).toBeVisible()
       await expect(navigation.getByRole('link')).toHaveCount(2)
-      await expect(navigation.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
+      await expect(navigation.getByRole('link', { name: 'Attendance' })).toHaveAttribute('aria-current', 'page')
 
       const header = page.getByRole('banner')
       const home = header.getByRole('link', { name: 'Home' })

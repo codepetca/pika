@@ -237,7 +237,7 @@ test.describe('student experience matrix', () => {
     await page.goto('/student/history', { waitUntil: 'domcontentloaded' })
 
     const navigation = page.getByRole('navigation', { name: 'Student tools' })
-    await expect(navigation.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
+    await expect(navigation.getByRole('link', { name: 'Attendance' })).toHaveAttribute('aria-current', 'page')
     await verifyProjectContract(page, testInfo)
   })
 })

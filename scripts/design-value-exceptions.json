@@ -284,30 +284,6 @@
       ]
     },
     {
-      "file": "src/app/student/history/page.tsx",
-      "reviewBy": "phase-3-student-history",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "9696cc4f81f0a789",
-          "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "3b2129406eefd7fd",
-          "reason": "legacy-visual-value"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 1,
-          "fingerprint": "3eef1ce97dba458a",
-          "reason": "special-layer"
-        }
-      ]
-    },
-    {
       "file": "src/app/teacher/blueprints/page.tsx",
       "reviewBy": "phase-5-blueprints",
       "values": [

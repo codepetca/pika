@@ -5,7 +5,7 @@ import { AppShell } from '@/components/AppShell'
 
 const studentNavigationItems: AppNavigationItem[] = [
   { href: '/classrooms', label: 'Classrooms' },
-  { href: '/student/history', label: 'History', match: 'prefix' },
+  { href: '/student/history', label: 'Attendance', match: 'prefix' },
 ]
 
 export default async function StudentLayout({
