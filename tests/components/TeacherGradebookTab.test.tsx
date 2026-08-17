@@ -428,7 +428,7 @@ describe('TeacherGradebookTab', () => {
       }
       if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
         gradebookReads += 1
-        if (gradebookReads === 1) {
+        if (gradebookReads !== 2) {
           return Promise.resolve({ ok: true, json: async () => gradebookResponse() })
         }
         return Promise.resolve({
@@ -449,7 +449,70 @@ describe('TeacherGradebookTab', () => {
     )
     expect(screen.getByText('Ada')).toBeInTheDocument()
     expect(screen.getByText('A1')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Retry loading gradebook' })).toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()
+    })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('refreshes the matrix after each concurrently saved assessment weight', async () => {
+    let gradebookReads = 0
+    let a1Weight = 10
+    let t1Weight = 10
+    let resolveA1Save: (() => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          assessment_id: string
+          gradebook_weight: number
+        }
+        if (body.assessment_id === 'assignment-1') {
+          return new Promise((resolve) => {
+            resolveA1Save = () => {
+              a1Weight = body.gradebook_weight
+              resolve({ ok: true, json: async () => ({}) })
+            }
+          })
+        }
+        t1Weight = body.gradebook_weight
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        gradebookReads += 1
+        const response = gradebookResponse()
+        response.assessment_columns = response.assessment_columns.map((column) => ({
+          ...column,
+          weight: column.assessment_id === 'assignment-1' ? a1Weight : t1Weight,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    renderGradebook('settings')
+    const a1Input = await screen.findByRole('spinbutton', { name: 'A1 assessment weight' })
+    const t1Input = screen.getByRole('spinbutton', { name: 'T1 assessment weight' })
+    fireEvent.change(a1Input, { target: { value: '20' } })
+    fireEvent.blur(a1Input)
+    await waitFor(() => expect(resolveA1Save).toEqual(expect.any(Function)))
+
+    fireEvent.change(t1Input, { target: { value: '30' } })
+    fireEvent.blur(t1Input)
+    await waitFor(() => expect(gradebookReads).toBe(2))
+    expect(screen.getByRole('spinbutton', { name: 'T1 assessment weight' })).toHaveValue(30)
+
+    await act(async () => {
+      resolveA1Save?.()
+    })
+
+    await waitFor(() => expect(gradebookReads).toBe(3))
+    expect(screen.getByRole('spinbutton', { name: 'A1 assessment weight' })).toHaveValue(20)
+    expect(screen.getByRole('spinbutton', { name: 'T1 assessment weight' })).toHaveValue(30)
   })
 
   it('ignores a stale classroom response after the classroom changes', async () => {

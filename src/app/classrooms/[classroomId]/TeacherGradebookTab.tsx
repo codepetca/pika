@@ -619,7 +619,7 @@ function AssessmentMatrixTable({
   visibleSummaryRows,
   hiddenAssessmentColumnKeys,
   assessmentWeightDrafts,
-  savingAssessmentKey,
+  savingAssessmentKeys,
   isReadOnly,
   onFixedColumnVisibleChange,
   onIdentityColumnWidthChange,
@@ -652,7 +652,7 @@ function AssessmentMatrixTable({
   visibleSummaryRows: Record<GradebookSummaryRow, boolean>
   hiddenAssessmentColumnKeys: Set<string>
   assessmentWeightDrafts: Record<string, string>
-  savingAssessmentKey: string | null
+  savingAssessmentKeys: Set<string>
   isReadOnly: boolean
   onFixedColumnVisibleChange: (column: GradebookFixedColumn, visible: boolean) => void
   onIdentityColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
@@ -808,7 +808,7 @@ function AssessmentMatrixTable({
                   const weightDraft = assessmentWeightDrafts[key] ?? String(column.weight)
                   const weightValue = Number(weightDraft)
                   const weightShare = formatWeightShare(weightValue, assessmentWeightTotal)
-                  const savingWeight = savingAssessmentKey === key
+                  const savingWeight = savingAssessmentKeys.has(key)
                   return (
                     <DataTableHeaderCell
                       key={`weight:${key}`}
@@ -1241,13 +1241,14 @@ export function TeacherGradebookTab({
     useState<Record<GradebookSummaryRow, boolean>>(DEFAULT_VISIBLE_SUMMARY_ROWS)
   const [hiddenAssessmentColumnKeys, setHiddenAssessmentColumnKeys] = useState<Set<string>>(() => new Set())
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
-  const [savingAssessmentKey, setSavingAssessmentKey] = useState<string | null>(null)
+  const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
   const [students, setStudents] = useState<GradebookStudentSummary[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [detailPaneWidth, setDetailPaneWidth] = useState(32)
   const loadRequestIdRef = useRef(0)
-  const assessmentSaveRequestIdRef = useRef(0)
+  const assessmentSaveSequenceRef = useRef(0)
+  const assessmentSaveRequestIdsRef = useRef<Map<string, number>>(new Map())
   const currentClassroomIdRef = useRef<string | null>(null)
   const retryFocusIntentRef = useRef(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -1397,7 +1398,8 @@ export function TeacherGradebookTab({
 
   useEffect(() => {
     loadRequestIdRef.current += 1
-    assessmentSaveRequestIdRef.current += 1
+    assessmentSaveSequenceRef.current += 1
+    assessmentSaveRequestIdsRef.current = new Map()
     setAssessmentColumns([])
     setAssessmentWeightDrafts({})
     setStudents([])
@@ -1405,7 +1407,7 @@ export function TeacherGradebookTab({
     setLoadError('')
     setActionError('')
     setIsRetrying(false)
-    setSavingAssessmentKey(null)
+    setSavingAssessmentKeys(new Set())
     setSelectedStudentId(null)
     retryFocusIntentRef.current = false
     void loadGradebook()
@@ -1415,17 +1417,17 @@ export function TeacherGradebookTab({
 
   function retryGradebookLoad() {
     if (loading) return
-    retryFocusIntentRef.current = !hasCurrentSnapshot
+    retryFocusIntentRef.current = true
     invalidateCachedJSONMatching(`gradebook:${classroom.id}:`)
     void loadGradebook({ preserveSnapshot: hasCurrentSnapshot, isRetry: true })
   }
 
   useEffect(() => {
-    if (!loading && hasCurrentSnapshot && retryFocusIntentRef.current) {
+    if (!loading && !loadError && hasCurrentSnapshot && retryFocusIntentRef.current) {
       retryFocusIntentRef.current = false
       gradebookTableScrollRef.current?.focus()
     }
-  }, [gradebookTableScrollRef, hasCurrentSnapshot, loading])
+  }, [gradebookTableScrollRef, hasCurrentSnapshot, loadError, loading])
 
   useEffect(() => {
     setColumnEditorOpen(section === 'settings')
@@ -1555,6 +1557,7 @@ export function TeacherGradebookTab({
     if (isReadOnly) return
 
     const key = getAssessmentColumnKey(column)
+    if (savingAssessmentKeys.has(key)) return
     const rawValue = assessmentWeightDrafts[key] ?? String(column.weight)
     const nextWeight = Number(rawValue)
 
@@ -1571,9 +1574,10 @@ export function TeacherGradebookTab({
     if (nextWeight === column.weight) return
 
     const classroomId = classroom.id
-    const requestId = assessmentSaveRequestIdRef.current + 1
-    assessmentSaveRequestIdRef.current = requestId
-    setSavingAssessmentKey(key)
+    const requestId = assessmentSaveSequenceRef.current + 1
+    assessmentSaveSequenceRef.current = requestId
+    assessmentSaveRequestIdsRef.current.set(key, requestId)
+    setSavingAssessmentKeys((previous) => new Set(previous).add(key))
     setActionError('')
     try {
       const response = await fetch('/api/teacher/gradebook', {
@@ -1591,7 +1595,7 @@ export function TeacherGradebookTab({
         throw new Error(data.error || 'Failed to save assessment weight')
       }
       if (
-        assessmentSaveRequestIdRef.current !== requestId
+        assessmentSaveRequestIdsRef.current.get(key) !== requestId
         || currentClassroomIdRef.current !== classroomId
       ) return
 
@@ -1605,17 +1609,22 @@ export function TeacherGradebookTab({
       await loadGradebook({ preserveSnapshot: true })
     } catch (err: unknown) {
       if (
-        assessmentSaveRequestIdRef.current !== requestId
+        assessmentSaveRequestIdsRef.current.get(key) !== requestId
         || currentClassroomIdRef.current !== classroomId
       ) return
       setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
       setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
     } finally {
       if (
-        assessmentSaveRequestIdRef.current === requestId
+        assessmentSaveRequestIdsRef.current.get(key) === requestId
         && currentClassroomIdRef.current === classroomId
       ) {
-        setSavingAssessmentKey(null)
+        assessmentSaveRequestIdsRef.current.delete(key)
+        setSavingAssessmentKeys((previous) => {
+          const next = new Set(previous)
+          next.delete(key)
+          return next
+        })
       }
     }
   }
@@ -1736,7 +1745,7 @@ export function TeacherGradebookTab({
         visibleSummaryRows={visibleSummaryRows}
         hiddenAssessmentColumnKeys={hiddenAssessmentColumnKeys}
         assessmentWeightDrafts={assessmentWeightDrafts}
-        savingAssessmentKey={savingAssessmentKey}
+        savingAssessmentKeys={savingAssessmentKeys}
         isReadOnly={isReadOnly}
         onFixedColumnVisibleChange={handleFixedColumnVisibleChange}
         onIdentityColumnWidthChange={handleIdentityColumnWidthChange}
