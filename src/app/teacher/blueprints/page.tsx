@@ -38,6 +38,11 @@ import {
   fetchTeacherBlueprints,
   invalidateTeacherBlueprints,
 } from '@/lib/teacher-blueprints-client'
+import {
+  courseBlueprintImportRequestInit,
+  resolveCourseBlueprintImportOperation,
+  type CourseBlueprintImportOperation,
+} from '@/lib/course-blueprint-import-client'
 import type {
   BlueprintMergeSuggestionSet,
   CourseBlueprint,
@@ -157,6 +162,8 @@ export default function TeacherBlueprintsPage() {
   const searchParams = useSearchParams()
   const { showMarkdown } = useMarkdownPreference()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const importInFlightRef = useRef(false)
+  const importOperationRef = useRef<CourseBlueprintImportOperation | null>(null)
   const [blueprints, setBlueprints] = useState<CourseBlueprint[]>([])
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null)
   const [detail, setDetail] = useState<CourseBlueprintDetail | null>(null)
@@ -175,6 +182,7 @@ export default function TeacherBlueprintsPage() {
     term_template: '',
   })
   const [error, setError] = useState('')
+  const [importingPackage, setImportingPackage] = useState(false)
   const [saving, setSaving] = useState(false)
   const [plannedSite, setPlannedSite] = useState<{
     slug: string
@@ -746,33 +754,32 @@ export default function TeacherBlueprintsPage() {
   async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
+    if (importInFlightRef.current) {
+      event.target.value = ''
+      return
+    }
+    importInFlightRef.current = true
+    setImportingPackage(true)
     setError('')
     try {
-      const isJsonBundle = file.name.toLowerCase().endsWith('.json')
-      const response = isJsonBundle
-        ? await (async () => {
-            const text = await file.text()
-            const bundle = JSON.parse(text)
-            return fetch('/api/teacher/course-blueprints/import', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(bundle),
-            })
-          })()
-        : await fetch('/api/teacher/course-blueprints/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-tar' },
-            body: await file.arrayBuffer(),
-          })
+      const operation = await resolveCourseBlueprintImportOperation(file, importOperationRef.current)
+      importOperationRef.current = operation
+      const response = await fetch(
+        '/api/teacher/course-blueprints/import',
+        courseBlueprintImportRequestInit(operation),
+      )
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(data.errors?.join('\n') || data.error || 'Failed to import course package')
       }
+      importOperationRef.current = null
       invalidateTeacherBlueprints()
       await loadBlueprints(data.blueprint.id)
     } catch (err: any) {
       setError(err.message || 'Failed to import course package')
     } finally {
+      importInFlightRef.current = false
+      setImportingPackage(false)
       if (event.target) event.target.value = ''
     }
   }
@@ -841,7 +848,12 @@ export default function TeacherBlueprintsPage() {
         actions={[
           { id: 'back-classrooms', label: 'Classrooms', onSelect: () => router.push('/classrooms') },
           { id: 'new-blueprint', label: 'New Course Blueprint', onSelect: () => setShowCreate(true) },
-          { id: 'import-package', label: 'Import Course Package', onSelect: () => importInputRef.current?.click() },
+          {
+            id: 'import-package',
+            label: importingPackage ? 'Importing Course Package...' : 'Import Course Package',
+            disabled: importingPackage,
+            onSelect: () => importInputRef.current?.click(),
+          },
           ...(selectedBlueprintId
             ? [
                 { id: 'create-classroom', label: 'Use for Classroom', primary: true, onSelect: () => setShowCreateClassroom(true) },

@@ -20,7 +20,7 @@ vi.mock('@/components/PageLayout', () => ({
     <div>
       {primary}
       {actions.map((action: any) => (
-        <button key={action.id} type="button" onClick={action.onSelect}>
+        <button key={action.id} type="button" onClick={action.onSelect} disabled={action.disabled}>
           {action.label}
         </button>
       ))}
@@ -236,6 +236,75 @@ describe('TeacherBlueprintsPage', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('reuses one import key when the same course package is retried', async () => {
+    const view = render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+
+    const fetchMock = vi.mocked(fetch)
+    const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
+    expect(fileInput).not.toBeNull()
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Temporary import failure' }, false))
+    fireEvent.change(fileInput!, { target: { files: [file] } })
+    expect(await screen.findByText('Temporary import failure')).toBeInTheDocument()
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ blueprint: blueprintDetail }))
+    fireEvent.change(fileInput!, { target: { files: [file] } })
+
+    await waitFor(() => {
+      const importCalls = fetchMock.mock.calls.filter(([url]) => (
+        String(url) === '/api/teacher/course-blueprints/import'
+      ))
+      expect(importCalls).toHaveLength(2)
+    })
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('disables package import while the current request is pending', async () => {
+    let resolveImport!: (response: Response) => void
+    const pendingImport = new Promise<Response>((resolve) => {
+      resolveImport = resolve
+    })
+    const view = render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+
+    const fetchMock = vi.mocked(fetch)
+    const fileInput = view.container.querySelector<HTMLInputElement>('input[type="file"]')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+    fetchMock.mockReturnValueOnce(pendingImport)
+
+    fireEvent.change(fileInput!, { target: { files: [file] } })
+
+    expect(await screen.findByRole('button', { name: 'Importing Course Package...' })).toBeDisabled()
+    fireEvent.change(fileInput!, { target: { files: [file] } })
+    expect(fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))).toHaveLength(1)
+
+    await act(async () => {
+      resolveImport(jsonResponse({ error: 'Temporary import failure' }, false))
+    })
+    expect(await screen.findByRole('button', { name: 'Import Course Package' })).not.toBeDisabled()
   })
 
   it('opens classroom change review from the archived reuse handoff', async () => {

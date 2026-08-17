@@ -7,6 +7,11 @@ import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
+import {
+  courseBlueprintImportRequestInit,
+  resolveCourseBlueprintImportOperation,
+  type CourseBlueprintImportOperation,
+} from '@/lib/course-blueprint-import-client'
 
 type WizardStep = 'name' | 'blueprint' | 'calendar' | 'review'
 type CalendarMode = 'preset' | 'custom'
@@ -41,6 +46,8 @@ export function CreateClassroomModal({
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const reviewHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const blueprintLoadGenerationRef = useRef(0)
+  const importInFlightRef = useRef(false)
+  const importOperationRef = useRef<CourseBlueprintImportOperation | null>(null)
   const instantiateOperationRef = useRef<{ fingerprint: string; id: string } | null>(null)
 
   const [step, setStep] = useState<WizardStep>('name')
@@ -122,6 +129,7 @@ export function CreateClassroomModal({
     setSelectedSemester('semester1')
     setError('')
     setBlueprintCreationResult(null)
+    importOperationRef.current = null
     instantiateOperationRef.current = null
   }
 
@@ -144,26 +152,21 @@ export function CreateClassroomModal({
   async function handleImportBlueprintFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
+    if (importInFlightRef.current) {
+      event.target.value = ''
+      return
+    }
+    importInFlightRef.current = true
     setImportingBlueprint(true)
     setError('')
 
     try {
-      const isJsonBundle = file.name.toLowerCase().endsWith('.json')
-      const response = isJsonBundle
-        ? await (async () => {
-            const text = await file.text()
-            const bundle = JSON.parse(text)
-            return fetch('/api/teacher/course-blueprints/import', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(bundle),
-            })
-          })()
-        : await fetch('/api/teacher/course-blueprints/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-tar' },
-            body: await file.arrayBuffer(),
-          })
+      const operation = await resolveCourseBlueprintImportOperation(file, importOperationRef.current)
+      importOperationRef.current = operation
+      const response = await fetch(
+        '/api/teacher/course-blueprints/import',
+        courseBlueprintImportRequestInit(operation),
+      )
 
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -171,6 +174,7 @@ export function CreateClassroomModal({
       }
 
       const blueprint = data.blueprint as CourseBlueprint
+      importOperationRef.current = null
       invalidateTeacherBlueprints()
       blueprintLoadGenerationRef.current += 1
       setAvailableBlueprints((current) => {
@@ -181,6 +185,7 @@ export function CreateClassroomModal({
     } catch (err: any) {
       setError(err.message || 'Failed to import course package')
     } finally {
+      importInFlightRef.current = false
       setImportingBlueprint(false)
       if (event.target) event.target.value = ''
     }

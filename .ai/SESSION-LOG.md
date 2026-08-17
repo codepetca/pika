@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-07 — Add workflow-friction guardrails
-
-**Risk profile:** workspace-state.
-
-- Updated the E2E coverage and weekly simplification automations to create their
-  named task branch before edits when Codex starts them on a detached HEAD, and
-  to stop on any unexpected checkout state.
-- Added an explicit fallback for the workflow-friction review memory path while
-  retaining the configured hub project roots and report-only boundary.
-- Made session-log trim and check operations reject empty entries, removed the
-  existing empty duplicate heading, and added focused regression coverage.
-- Validation passed: focused trim/startup tests (51), full Vitest (468 files,
-  4,049 tests), lint, session-log check, TOML parsing, and diff checks.
-
 ## 2026-08-07 — Center login password-recovery link
 
 **Risk profile:** none — localized unauthenticated login layout refinement.
@@ -1156,3 +1142,30 @@ UX; no schema, migration, production, archive cleanup, or Gradex work.
   overflow. Student rendering is not applicable to this teacher creation flow.
 - Composite checklist reviewed: yes. Keyboard behavior covered: yes. Semantic
   state covered by tests: yes. Remaining manual follow-up: none.
+
+## 2026-08-17 — Course package import retry identity
+
+**Risk profile:** none — teacher-only client retry behavior; no API, schema,
+migration, production, archive cleanup, Gradex, or student behavior changes.
+
+**Completed:**
+- Added one shared browser-safe package operation helper used by both teacher
+  import entry points. It normalizes JSON, compares exact TAR bytes, retains one
+  caller UUID for unchanged retries, and replaces the key when content changes.
+- Import identity now survives retryable network/server failures and clears
+  after success, wizard cancellation, or component teardown. Synchronous guards
+  prevent concurrent file submissions from creating competing operation IDs.
+- The Blueprints page disables and relabels its import action while a request is
+  pending; the classroom wizard retains its existing busy-state behavior.
+
+**Validation:**
+- Thirty focused component/API tests cover JSON and TAR headers, semantic JSON
+  retries, exact archive retries, changed bytes, success/cancellation clearing,
+  both import entry points, pending-request suppression, and the existing route
+  contract.
+- The full suite passes all 4,405 tests across 499 files.
+- TypeScript, lint, architecture, production build, Pika audit, and diff checks
+  pass.
+- Teacher desktop/mobile light/dark screenshots remain clean. An intercepted,
+  non-mutating request verifies the disabled importing state without layout
+  shift or clipping. Student is not affected by this teacher-only route.
