@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, FormField, Input } from '@/ui'
+import { Button, ConfirmDialog, FormField, Input, SaveStatus } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
 import { CourseBlueprintPurgeDialog } from '@/components/CourseBlueprintPurgeDialog'
@@ -10,23 +10,18 @@ import { CreateBlueprintModal } from '@/components/CreateBlueprintModal'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import {
-  courseBlueprintAssignmentsToMarkdown,
   markdownToCourseBlueprintAssignments,
 } from '@/lib/course-blueprint-assignments'
 import {
-  courseBlueprintAssessmentsToMarkdown,
   markdownToCourseBlueprintAssessments,
 } from '@/lib/course-blueprint-assessments-markdown'
 import {
-  courseBlueprintLessonTemplatesToMarkdown,
   markdownToCourseBlueprintLessonTemplates,
 } from '@/lib/course-blueprint-lesson-templates'
 import {
-  courseBlueprintMaterialsToMarkdown,
   markdownToCourseBlueprintMaterials,
 } from '@/lib/course-blueprint-materials'
 import {
-  courseBlueprintSurveysToMarkdown,
   markdownToCourseBlueprintSurveys,
 } from '@/lib/course-blueprint-surveys'
 import {
@@ -43,6 +38,15 @@ import {
   resolveCourseBlueprintImportOperation,
   type CourseBlueprintImportOperation,
 } from '@/lib/course-blueprint-import-client'
+import {
+  courseBlueprintEditorStateFromDetail,
+  emptyCourseBlueprintDraftState,
+  getCourseBlueprintDirtySections,
+  normalizePlannedCourseSiteConfig,
+  type CourseBlueprintEditorSection,
+  type CourseBlueprintEditorState,
+  type CourseBlueprintMarkdownTab,
+} from '@/lib/course-blueprint-editor-state'
 import type {
   BlueprintMergeSuggestionSet,
   CourseBlueprint,
@@ -94,22 +98,33 @@ const PLANNED_SITE_CONFIG_OPTIONS: Array<[keyof PlannedCourseSiteConfig, string]
   ['lesson_plans', 'lesson plans'],
 ]
 
-function visiblePlannedSiteConfig(config: PlannedCourseSiteConfig | null | undefined): PlannedCourseSiteConfig {
-  return {
-    ...(config || DEFAULT_PLANNED_COURSE_SITE_CONFIG),
-  }
-}
-
-type MarkdownEditorTab = Exclude<
-  EditorTab,
-  'copilot' | 'publish' | 'sync' | 'proposals' | 'grading'
->
-
-type DraftState = Record<MarkdownEditorTab, string>
+type MarkdownEditorTab = CourseBlueprintMarkdownTab
 
 type BlueprintDeleteTarget = {
   id: string
   title: string
+}
+
+type PendingUnsavedAction = {
+  title: string
+  description: string
+  confirmLabel: string
+  destructive: boolean
+  onConfirm: () => void | Promise<void>
+}
+
+const DIRTY_SECTION_LABELS: Record<CourseBlueprintEditorSection, string> = {
+  metadata: 'course details',
+  'planned-site': 'planned site',
+  grading: 'grading',
+  overview: 'overview',
+  outline: 'outline',
+  resources: 'resources',
+  assignments: 'assignments',
+  tests: 'tests',
+  'lesson-plans': 'lesson plans',
+  materials: 'materials',
+  surveys: 'surveys',
 }
 
 type BlueprintProposal = {
@@ -144,19 +159,6 @@ type BlueprintProposal = {
   created_at: string
 }
 
-function emptyDraftState(): DraftState {
-  return {
-    overview: '',
-    outline: '',
-    resources: '',
-    assignments: '',
-    tests: '',
-    'lesson-plans': '',
-    materials: '',
-    surveys: '',
-  }
-}
-
 export default function TeacherBlueprintsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -173,7 +175,7 @@ export default function TeacherBlueprintsPage() {
   const [showCreateClassroom, setShowCreateClassroom] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<BlueprintDeleteTarget | null>(null)
   const [activeTab, setActiveTab] = useState<EditorTab>('overview')
-  const [drafts, setDrafts] = useState<DraftState>(emptyDraftState())
+  const [drafts, setDrafts] = useState(emptyCourseBlueprintDraftState)
   const [meta, setMeta] = useState({
     title: '',
     subject: '',
@@ -198,6 +200,8 @@ export default function TeacherBlueprintsPage() {
     assignments_weight: 70,
     tests_weight: 30,
   })
+  const [savedEditorState, setSavedEditorState] = useState<CourseBlueprintEditorState | null>(null)
+  const [pendingUnsavedAction, setPendingUnsavedAction] = useState<PendingUnsavedAction | null>(null)
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiTarget, setAiTarget] = useState<CopilotTarget>('overview')
   const [aiPreview, setAiPreview] = useState<{ target: CopilotTarget; content: string } | null>(null)
@@ -220,6 +224,24 @@ export default function TeacherBlueprintsPage() {
   const fromClassroomId = searchParams.get('fromClassroom')
   const reviewClassroomId = searchParams.get('reviewClassroom')
   const openedReviewClassroomRef = useRef<string | null>(null)
+
+  const currentEditorState = useMemo<CourseBlueprintEditorState>(() => ({
+    metadata: meta,
+    plannedSite,
+    grading,
+    drafts,
+  }), [drafts, grading, meta, plannedSite])
+  const dirtySections = useMemo(
+    () => savedEditorState
+      ? getCourseBlueprintDirtySections(currentEditorState, savedEditorState)
+      : [],
+    [currentEditorState, savedEditorState],
+  )
+  const hasUnsavedChanges = dirtySections.length > 0
+  const editorWriteLocked = saving || importingPackage || applyingProposalId !== null
+  const dirtySectionSummary = dirtySections
+    .map((section) => DIRTY_SECTION_LABELS[section])
+    .join(', ')
 
   const counts = useMemo(() => {
     if (!detail) return null
@@ -249,6 +271,75 @@ export default function TeacherBlueprintsPage() {
       : 'Course blueprint saved from classroom content. Review it here, then use it for another classroom or export the course package.'
   }, [detail, fromClassroomId, preferredBlueprintId, selectedBlueprintId])
 
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
+  const replaceEditorWithDetail = useCallback((blueprint: CourseBlueprintDetail) => {
+    const nextEditorState = courseBlueprintEditorStateFromDetail(blueprint)
+    setDetail(blueprint)
+    setSavedEditorState(nextEditorState)
+    setMeta(nextEditorState.metadata)
+    setPlannedSite(nextEditorState.plannedSite)
+    setGrading(nextEditorState.grading)
+    setDrafts(nextEditorState.drafts)
+  }, [])
+
+  function syncSavedSection(
+    section: CourseBlueprintEditorSection,
+    nextEditorState: CourseBlueprintEditorState,
+  ) {
+    if (section === 'metadata') {
+      setMeta(nextEditorState.metadata)
+    } else if (section === 'planned-site') {
+      setPlannedSite(nextEditorState.plannedSite)
+    } else if (section === 'grading') {
+      setGrading(nextEditorState.grading)
+    } else {
+      setDrafts((current) => ({
+        ...current,
+        [section]: nextEditorState.drafts[section],
+      }))
+    }
+  }
+
+  async function refreshDetailAfterSave(
+    blueprintId: string,
+    section: CourseBlueprintEditorSection,
+  ) {
+    const blueprint = await fetchTeacherBlueprintDetail(blueprintId)
+    if (selectedBlueprintIdRef.current !== blueprintId) return
+
+    const nextEditorState = courseBlueprintEditorStateFromDetail(blueprint)
+    setDetail(blueprint)
+    setSavedEditorState(nextEditorState)
+    syncSavedSection(section, nextEditorState)
+  }
+
+  function requestUnsavedAction(
+    action: () => void | Promise<void>,
+    options: Omit<PendingUnsavedAction, 'onConfirm'>,
+  ) {
+    if (!hasUnsavedChanges) {
+      void action()
+      return
+    }
+
+    setPendingUnsavedAction({
+      ...options,
+      description: `${options.description} Unsaved sections: ${dirtySectionSummary}.`,
+      onConfirm: action,
+    })
+  }
+
   async function loadBlueprints(preferredId?: string) {
     setLoadingList(true)
     setError('')
@@ -263,7 +354,7 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
-  async function loadDetail(id: string) {
+  const loadDetail = useCallback(async (id: string) => {
     const requestId = detailRequestIdRef.current + 1
     detailRequestIdRef.current = requestId
     setLoadingDetail(true)
@@ -271,34 +362,7 @@ export default function TeacherBlueprintsPage() {
     try {
       const blueprint = await fetchTeacherBlueprintDetail(id)
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
-      setDetail(blueprint)
-      setMeta({
-        title: blueprint.title,
-        subject: blueprint.subject,
-        grade_level: blueprint.grade_level,
-        course_code: blueprint.course_code,
-        term_template: blueprint.term_template,
-      })
-      setPlannedSite({
-        slug: blueprint.planned_site_slug || '',
-        published: blueprint.planned_site_published,
-        config: visiblePlannedSiteConfig(blueprint.planned_site_config),
-      })
-      setGrading({
-        use_weights: blueprint.gradebook_use_weights ?? false,
-        assignments_weight: blueprint.gradebook_assignments_weight ?? 70,
-        tests_weight: blueprint.gradebook_tests_weight ?? 30,
-      })
-      setDrafts({
-        overview: blueprint.overview_markdown || '',
-        outline: blueprint.outline_markdown || '',
-        resources: blueprint.resources_markdown || '',
-        assignments: courseBlueprintAssignmentsToMarkdown(blueprint.assignments),
-        tests: courseBlueprintAssessmentsToMarkdown(blueprint.assessments as any, 'test'),
-        'lesson-plans': courseBlueprintLessonTemplatesToMarkdown(blueprint.lesson_templates),
-        materials: courseBlueprintMaterialsToMarkdown(blueprint.materials || []),
-        surveys: courseBlueprintSurveysToMarkdown(blueprint.surveys || []),
-      })
+      replaceEditorWithDetail(blueprint)
       setMergeClassroomId(blueprint.linked_classrooms[0]?.id || '')
       setMergeSuggestions(null)
       setMergeSelection({})
@@ -311,7 +375,7 @@ export default function TeacherBlueprintsPage() {
       if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
       setLoadingDetail(false)
     }
-  }
+  }, [replaceEditorWithDetail])
 
   async function loadProposals(id: string) {
     setProposalsLoading(true)
@@ -339,12 +403,13 @@ export default function TeacherBlueprintsPage() {
     if (!selectedBlueprintId) {
       detailRequestIdRef.current += 1
       setDetail(null)
+      setSavedEditorState(null)
       setProposals([])
       return
     }
     loadDetail(selectedBlueprintId)
     loadProposals(selectedBlueprintId)
-  }, [selectedBlueprintId])
+  }, [loadDetail, selectedBlueprintId])
 
   async function applyProposal(proposalId: string) {
     if (!selectedBlueprintId) return
@@ -411,8 +476,8 @@ export default function TeacherBlueprintsPage() {
         throw new Error(data.error || 'Failed to save metadata')
       }
       invalidateTeacherBlueprints()
-      await loadBlueprints(selectedBlueprintId)
-      await loadDetail(selectedBlueprintId)
+      await loadBlueprints()
+      await refreshDetailAfterSave(selectedBlueprintId, 'metadata')
     } catch (err: any) {
       setError(err.message || 'Failed to save metadata')
     } finally {
@@ -443,9 +508,21 @@ export default function TeacherBlueprintsPage() {
   }
 
   function selectBlueprint(blueprintId: string) {
-    setDeleteTarget(null)
-    setDetail(null)
-    setSelectedBlueprintId(blueprintId)
+    if (blueprintId === selectedBlueprintId) return
+    requestUnsavedAction(
+      () => {
+        setDeleteTarget(null)
+        setDetail(null)
+        setSavedEditorState(null)
+        setSelectedBlueprintId(blueprintId)
+      },
+      {
+        title: 'Switch Course Blueprints?',
+        description: 'Switching will discard changes that have not been saved.',
+        confirmLabel: 'Discard and switch',
+        destructive: true,
+      },
+    )
   }
 
   async function changeAuthorityMode() {
@@ -463,7 +540,7 @@ export default function TeacherBlueprintsPage() {
       if (!response.ok) throw new Error(data.error || 'Failed to change Blueprint authority')
       invalidateTeacherBlueprints()
       await Promise.all([
-        loadBlueprints(selectedBlueprintId),
+        loadBlueprints(),
         loadDetail(selectedBlueprintId),
       ])
     } catch (err: any) {
@@ -597,8 +674,8 @@ export default function TeacherBlueprintsPage() {
       }
 
       invalidateTeacherBlueprints()
-      await loadBlueprints(selectedBlueprintId)
-      await loadDetail(selectedBlueprintId)
+      await loadBlueprints()
+      await refreshDetailAfterSave(selectedBlueprintId, activeTab)
     } catch (err: any) {
       setError(err.message || 'Failed to save current tab')
     } finally {
@@ -617,7 +694,7 @@ export default function TeacherBlueprintsPage() {
         body: JSON.stringify({
           planned_site_slug: plannedSite.slug || null,
           planned_site_published: plannedSite.published,
-          planned_site_config: visiblePlannedSiteConfig(plannedSite.config),
+          planned_site_config: normalizePlannedCourseSiteConfig(plannedSite.config),
         }),
       })
       const data = await response.json().catch(() => ({}))
@@ -625,8 +702,8 @@ export default function TeacherBlueprintsPage() {
         throw new Error(data.error || 'Failed to save planned site settings')
       }
       invalidateTeacherBlueprints()
-      await loadBlueprints(selectedBlueprintId)
-      await loadDetail(selectedBlueprintId)
+      await loadBlueprints()
+      await refreshDetailAfterSave(selectedBlueprintId, 'planned-site')
     } catch (err: any) {
       setError(err.message || 'Failed to save planned site settings')
     } finally {
@@ -836,6 +913,32 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
+  function requestDiscardingAction(
+    action: () => void | Promise<void>,
+    title: string,
+    confirmLabel: string,
+  ) {
+    requestUnsavedAction(action, {
+      title,
+      description: 'Continuing will discard changes that have not been saved.',
+      confirmLabel,
+      destructive: true,
+    })
+  }
+
+  function requestSavedVersionAction(
+    action: () => void | Promise<void>,
+    title: string,
+    confirmLabel: string,
+  ) {
+    requestUnsavedAction(action, {
+      title,
+      description: 'The action will use the last saved Blueprint and will not include current edits.',
+      confirmLabel,
+      destructive: false,
+    })
+  }
+
   return (
     <PageLayout width="wide">
       <PageActionBar
@@ -846,18 +949,59 @@ export default function TeacherBlueprintsPage() {
           </div>
         }
         actions={[
-          { id: 'back-classrooms', label: 'Classrooms', onSelect: () => router.push('/classrooms') },
-          { id: 'new-blueprint', label: 'New Course Blueprint', onSelect: () => setShowCreate(true) },
+          {
+            id: 'back-classrooms',
+            label: 'Classrooms',
+            disabled: editorWriteLocked,
+            onSelect: () => requestDiscardingAction(
+              () => router.push('/classrooms'),
+              'Leave Course Blueprints?',
+              'Discard and leave',
+            ),
+          },
+          {
+            id: 'new-blueprint',
+            label: 'New Course Blueprint',
+            disabled: editorWriteLocked,
+            onSelect: () => requestDiscardingAction(
+              () => setShowCreate(true),
+              'Create another Course Blueprint?',
+              'Discard and continue',
+            ),
+          },
           {
             id: 'import-package',
             label: importingPackage ? 'Importing Course Package...' : 'Import Course Package',
-            disabled: importingPackage,
-            onSelect: () => importInputRef.current?.click(),
+            disabled: editorWriteLocked,
+            onSelect: () => requestDiscardingAction(
+              () => importInputRef.current?.click(),
+              'Import another Course Blueprint?',
+              'Discard and choose file',
+            ),
           },
           ...(selectedBlueprintId
             ? [
-                { id: 'create-classroom', label: 'Use for Classroom', primary: true, onSelect: () => setShowCreateClassroom(true) },
-                { id: 'export-package', label: 'Export Course Package', onSelect: handleExport },
+                {
+                  id: 'create-classroom',
+                  label: 'Use for Classroom',
+                  primary: true,
+                  disabled: editorWriteLocked,
+                  onSelect: () => requestSavedVersionAction(
+                    () => setShowCreateClassroom(true),
+                    'Use the saved Blueprint?',
+                    'Use saved version',
+                  ),
+                },
+                {
+                  id: 'export-package',
+                  label: 'Export Course Package',
+                  disabled: editorWriteLocked,
+                  onSelect: () => requestSavedVersionAction(
+                    handleExport,
+                    'Export the saved Blueprint?',
+                    'Export saved version',
+                  ),
+                },
                 ...(plannedSite.published && plannedSite.slug
                   ? [{ id: 'open-planned-site', label: 'Open Planned Site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
                   : []),
@@ -866,6 +1010,7 @@ export default function TeacherBlueprintsPage() {
                       id: 'delete-blueprint',
                       label: 'Delete permanently',
                       destructive: true,
+                      disabled: editorWriteLocked,
                       onSelect: openDeleteConfirm,
                     }]
                   : []),
@@ -913,7 +1058,8 @@ export default function TeacherBlueprintsPage() {
                     key={blueprint.id}
                     type="button"
                     onClick={() => selectBlueprint(blueprint.id)}
-                    className={`w-full rounded-card border px-3 py-3 text-left transition-colors ${
+                    disabled={editorWriteLocked}
+                    className={`w-full rounded-card border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       selectedBlueprintId === blueprint.id
                         ? 'border-primary bg-info-bg'
                         : 'border-border hover:bg-surface-hover'
@@ -944,26 +1090,30 @@ export default function TeacherBlueprintsPage() {
               <div className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <FormField label="Title">
-                    <Input disabled={repositoryManaged} value={meta.title} onChange={(e) => setMeta((current) => ({ ...current, title: e.target.value }))} />
+                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.title} onChange={(e) => setMeta((current) => ({ ...current, title: e.target.value }))} />
                   </FormField>
                   <FormField label="Subject">
-                    <Input disabled={repositoryManaged} value={meta.subject} onChange={(e) => setMeta((current) => ({ ...current, subject: e.target.value }))} />
+                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.subject} onChange={(e) => setMeta((current) => ({ ...current, subject: e.target.value }))} />
                   </FormField>
                   <FormField label="Grade Level">
-                    <Input disabled={repositoryManaged} value={meta.grade_level} onChange={(e) => setMeta((current) => ({ ...current, grade_level: e.target.value }))} />
+                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.grade_level} onChange={(e) => setMeta((current) => ({ ...current, grade_level: e.target.value }))} />
                   </FormField>
                   <FormField label="Course Code">
-                    <Input disabled={repositoryManaged} value={meta.course_code} onChange={(e) => setMeta((current) => ({ ...current, course_code: e.target.value }))} />
+                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.course_code} onChange={(e) => setMeta((current) => ({ ...current, course_code: e.target.value }))} />
                   </FormField>
                   <FormField label="Term Template">
-                    <Input disabled={repositoryManaged} value={meta.term_template} onChange={(e) => setMeta((current) => ({ ...current, term_template: e.target.value }))} />
+                    <Input disabled={editorWriteLocked || repositoryManaged} value={meta.term_template} onChange={(e) => setMeta((current) => ({ ...current, term_template: e.target.value }))} />
                   </FormField>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="secondary" onClick={saveMetadata} disabled={saving || repositoryManaged}>
+                  <Button type="button" variant="secondary" onClick={saveMetadata} disabled={editorWriteLocked || repositoryManaged}>
                     Save Details
                   </Button>
+                  <SaveStatus
+                    status={saving ? 'saving' : hasUnsavedChanges ? 'unsaved' : 'saved'}
+                    title={hasUnsavedChanges ? `Unsaved sections: ${dirtySectionSummary}` : undefined}
+                  />
                   {counts ? (
                     <div className="text-xs text-text-muted">
                       {counts.assignments} assignments • {counts.tests} tests • {counts.materials} materials • {counts.surveys} surveys • {counts.lesson_templates} lesson templates
@@ -994,8 +1144,12 @@ export default function TeacherBlueprintsPage() {
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={changeAuthorityMode}
-                      disabled={saving}
+                      onClick={() => requestDiscardingAction(
+                        changeAuthorityMode,
+                        repositoryManaged ? 'Use Pika as the editor?' : 'Use the repository as the editor?',
+                        'Discard and change editor',
+                      )}
+                      disabled={editorWriteLocked}
                     >
                       {repositoryManaged ? 'Use Pika as Editor' : 'Use Repository as Editor'}
                     </Button>
@@ -1137,7 +1291,11 @@ export default function TeacherBlueprintsPage() {
                                 {canApply ? (
                                   <Button
                                     type="button"
-                                    onClick={() => applyProposal(proposal.id)}
+                                    onClick={() => requestDiscardingAction(
+                                      () => applyProposal(proposal.id),
+                                      'Apply this proposal?',
+                                      'Discard and apply',
+                                    )}
                                     disabled={applyingProposalId !== null}
                                   >
                                     {applyingProposalId === proposal.id
@@ -1164,6 +1322,7 @@ export default function TeacherBlueprintsPage() {
                             setPlannedSite((current) => ({ ...current, slug: slugifyCourseSiteValue(e.target.value) }))
                           }
                           placeholder="computer-science-11"
+                          disabled={editorWriteLocked || repositoryManaged}
                         />
                       </FormField>
                       <div className="flex items-end">
@@ -1176,6 +1335,7 @@ export default function TeacherBlueprintsPage() {
                               slug: slugifyCourseSiteValue(meta.title || detail.title),
                             }))
                           }
+                          disabled={editorWriteLocked || repositoryManaged}
                         >
                           Generate From Title
                         </Button>
@@ -1189,6 +1349,7 @@ export default function TeacherBlueprintsPage() {
                         onChange={(e) =>
                           setPlannedSite((current) => ({ ...current, published: e.target.checked }))
                         }
+                        disabled={editorWriteLocked || repositoryManaged}
                         className="h-4 w-4"
                       />
                         Publish this planned course site
@@ -1206,9 +1367,10 @@ export default function TeacherBlueprintsPage() {
                                 onChange={(e) =>
                                   setPlannedSite((current) => ({
                                     ...current,
-                                    config: visiblePlannedSiteConfig({ ...current.config, [key]: e.target.checked }),
+                                    config: normalizePlannedCourseSiteConfig({ ...current.config, [key]: e.target.checked }),
                                   }))
                                 }
+                                disabled={editorWriteLocked || repositoryManaged}
                                 className="h-4 w-4"
                               />
                               {label}
@@ -1225,7 +1387,7 @@ export default function TeacherBlueprintsPage() {
                     ) : null}
 
                     <div className="flex justify-end">
-                      <Button type="button" onClick={savePlannedSite} disabled={saving || repositoryManaged}>
+                      <Button type="button" onClick={savePlannedSite} disabled={editorWriteLocked || repositoryManaged}>
                         {saving ? 'Saving...' : 'Save Planned Site'}
                       </Button>
                     </div>
@@ -1421,7 +1583,7 @@ export default function TeacherBlueprintsPage() {
                           ...current,
                           use_weights: event.target.checked,
                         }))}
-                        disabled={repositoryManaged}
+                        disabled={editorWriteLocked || repositoryManaged}
                         className="h-4 w-4"
                       />
                       Weight assignments and tests by category
@@ -1437,7 +1599,7 @@ export default function TeacherBlueprintsPage() {
                             ...current,
                             assignments_weight: Number(event.target.value),
                           }))}
-                          disabled={repositoryManaged}
+                          disabled={editorWriteLocked || repositoryManaged}
                         />
                       </FormField>
                       <FormField label="Tests Weight (%)">
@@ -1450,7 +1612,7 @@ export default function TeacherBlueprintsPage() {
                             ...current,
                             tests_weight: Number(event.target.value),
                           }))}
-                          disabled={repositoryManaged}
+                          disabled={editorWriteLocked || repositoryManaged}
                         />
                       </FormField>
                     </div>
@@ -1471,7 +1633,7 @@ export default function TeacherBlueprintsPage() {
                       <Button
                         type="button"
                         onClick={saveCurrentTab}
-                        disabled={saving || repositoryManaged}
+                        disabled={editorWriteLocked || repositoryManaged}
                       >
                         {saving ? 'Saving...' : 'Save Grading'}
                       </Button>
@@ -1489,12 +1651,13 @@ export default function TeacherBlueprintsPage() {
                       ) : null}
                       <textarea
                         value={drafts[activeTab as MarkdownEditorTab]}
+                        aria-label={`${TAB_LABELS[activeTab]} Markdown`}
                         onChange={(e) => setDrafts((current) => ({ ...current, [activeTab]: e.target.value }))}
-                        disabled={repositoryManaged}
+                        disabled={editorWriteLocked || repositoryManaged}
                         className="min-h-[520px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                       <div className="flex justify-end">
-                        <Button type="button" onClick={saveCurrentTab} disabled={saving || repositoryManaged}>
+                        <Button type="button" onClick={saveCurrentTab} disabled={editorWriteLocked || repositoryManaged}>
                           {saving ? 'Saving...' : `Save ${TAB_LABELS[activeTab]}`}
                         </Button>
                       </div>
@@ -1540,6 +1703,21 @@ export default function TeacherBlueprintsPage() {
           onCompleted={handleBlueprintPurgeCompleted}
         />
       ) : null}
+
+      <ConfirmDialog
+        isOpen={pendingUnsavedAction !== null}
+        title={pendingUnsavedAction?.title || 'Continue?'}
+        description={pendingUnsavedAction?.description}
+        confirmLabel={pendingUnsavedAction?.confirmLabel || 'Continue'}
+        cancelLabel="Keep editing"
+        confirmVariant={pendingUnsavedAction?.destructive ? 'danger' : 'default'}
+        onCancel={() => setPendingUnsavedAction(null)}
+        onConfirm={() => {
+          const action = pendingUnsavedAction?.onConfirm
+          setPendingUnsavedAction(null)
+          return action?.()
+        }}
+      />
     </PageLayout>
   )
 }

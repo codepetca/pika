@@ -33,7 +33,9 @@ vi.mock('@/components/CreateBlueprintModal', () => ({
 }))
 
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: () => null,
+  CreateClassroomModal: ({ isOpen }: { isOpen: boolean }) => (
+    isOpen ? <div role="dialog" aria-label="Create Classroom">Create Classroom</div> : null
+  ),
 }))
 
 vi.mock('@/components/CourseBlueprintPurgeDialog', () => ({
@@ -439,6 +441,151 @@ describe('TeacherBlueprintsPage', () => {
     await waitFor(() => {
       expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
     })
+  })
+
+  it('preserves an unsaved Outline while saving course details', async () => {
+    render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Outline' }))
+    const outline = screen.getByRole('textbox', { name: 'Outline Markdown' })
+    fireEvent.change(outline, { target: { value: 'Unsaved revised outline' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Updated Blueprint Two' },
+    })
+
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved')
+    fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/teacher/course-blueprints/b-2',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: expect.stringContaining('Updated Blueprint Two'),
+        }),
+      )
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save Details' })).not.toBeDisabled())
+    expect(screen.getByRole('textbox', { name: 'Outline Markdown' })).toHaveValue('Unsaved revised outline')
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved')
+  })
+
+  it('locks editor writes while a save can replace accepted server state', async () => {
+    let resolveSave!: (response: Response) => void
+    const pendingSave = new Promise<Response>((resolve) => {
+      resolveSave = resolve
+    })
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/teacher/course-blueprints/b-2' && init?.method === 'PATCH') {
+        return pendingSave
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Saving Blueprint Two' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
+
+    await waitFor(() => expect(title).toBeDisabled())
+    expect(screen.getByRole('button', { name: /Blueprint One/ })).toBeDisabled()
+
+    await act(async () => {
+      resolveSave(jsonResponse({ blueprint: blueprintDetail }))
+    })
+    await waitFor(() => expect(title).not.toBeDisabled())
+  })
+
+  it('clears the saved section without changing its accepted server value', async () => {
+    let serverDetail = blueprintDetail
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'PATCH') {
+        const updates = JSON.parse(String(init?.body || '{}'))
+        serverDetail = { ...serverDetail, ...updates }
+        return Promise.resolve(jsonResponse({ blueprint: serverDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: serverDetail }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Updated Blueprint Two' },
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved'))
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated Blueprint Two')
+  })
+
+  it('keeps editing or explicitly discards changes before switching Blueprints', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Unsaved title' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+
+    expect(screen.getByRole('dialog', { name: 'Switch Course Blueprints?' })).toBeInTheDocument()
+    expect(screen.getByText(/Unsaved sections: course details/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Unsaved title')
+
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard and switch' }))
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+  })
+
+  it('requires confirmation before creating a classroom from the saved version', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
+      target: { value: 'Unsaved title' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Use for Classroom' }))
+
+    expect(screen.getByRole('dialog', { name: 'Use the saved Blueprint?' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Create Classroom' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Use saved version' }))
+    expect(screen.getByRole('dialog', { name: 'Create Classroom' })).toBeInTheDocument()
+  })
+
+  it('registers unload protection only while the Blueprint has unsaved changes', async () => {
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    const cleanUnload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(cleanUnload)
+    expect(cleanUnload.defaultPrevented).toBe(false)
+
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Unsaved title' } })
+    const dirtyUnload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(dirtyUnload)
+    expect(dirtyUnload.defaultPrevented).toBe(true)
+
+    fireEvent.change(title, { target: { value: 'Blueprint Two' } })
+    const revertedUnload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(revertedUnload)
+    expect(revertedUnload.defaultPrevented).toBe(false)
   })
 
   it('warns about linked classrooms before deleting the selected Blueprint', async () => {

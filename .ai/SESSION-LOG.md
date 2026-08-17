@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Rebase Blueprint deletion onto current main
-
-**Risk profile:** runtime-platform — migration and durable deletion integration.
-
-**Completed:**
-- Rebased PR #971 onto current `origin/main`, preserving the login recovery and
-  AI-continuity guardrail changes added after the initial review.
-- Resolved only derived continuity-archive conflicts; application code and
-  migration 120 had no merge conflict or numbering collision.
-- Kept Course Blueprint deletion rollout disabled and migration 120 unapplied
-  outside the existing local development database.
-
-**Validation:**
-- Exact-head migration lineage, generated-type parity, shell/workflow syntax,
-  147 focused tests, both Blueprint database contracts, feature validation,
-  TypeScript, lint, production build, and diff checks pass.
-- Fresh cumulative PR review and GitHub CI remain before merge.
-
 ## 2026-08-08 — Add immediate Pal event delivery
 
 **Risk profile:** runtime-platform — transactional outbox delivery and learner
@@ -1170,3 +1152,29 @@ migration, database, production, Gradex, or student behavior changes.
 - All 27 focused component tests and all 4,407 repository tests pass.
 - TypeScript, lint, architecture, production build, diff checks, and Pika audit
   pass. Visual verification is not applicable to this test-only patch.
+
+## 2026-08-17 — Blueprint editor dirty-state protection
+
+**Risk profile:** none — teacher-only Blueprint editor reliability and shared
+status/dialog UI; no API contract, schema, migration, production, archive,
+Gradex, or student behavior changes.
+
+**Completed:**
+- Added a normalized saved baseline for every independently editable Blueprint
+  section: course details, planned site, grading, and each Markdown package tab.
+- Saving one section now refreshes accepted server state only for that section,
+  preserving unsaved work elsewhere. Editor writes are locked while a save,
+  import, or proposal application can replace accepted state.
+- Blueprint changes, local route actions, authority changes, imports, and
+  proposal application now require explicit discard confirmation. Export and
+  classroom creation explicitly confirm that they use the last saved version.
+- The editor exposes shared Saved/Saving/Unsaved status and protects browser
+  refresh or tab closure while any section differs from its saved baseline.
+
+**Validation:**
+- Nineteen focused unit/component tests cover per-section comparisons,
+  cross-section save preservation, accepted server values, transition guards,
+  saved-version actions, unload protection, and in-flight editor locking.
+- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
+  and discard dialog with no horizontal overflow and initial focus on Keep
+  editing. Student rendering is not applicable to this teacher-only route.
