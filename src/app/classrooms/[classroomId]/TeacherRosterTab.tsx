@@ -457,6 +457,8 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   async function saveCounselorEmail(rosterId: string) {
     if (isReadOnly) return
+    const rosterRow = currentRoster.find((row) => row.id === rosterId)
+    if (!rosterRow) return
     const classroomId = classroom.id
     const classroomEpoch = classroomEpochRef.current
     const editEpoch = counselorEditEpochRef.current
@@ -470,7 +472,10 @@ export function TeacherRosterTab({ classroom }: Props) {
       const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/${rosterId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counselor_email: counselorEmail }),
+        body: JSON.stringify({
+          counselor_email: counselorEmail,
+          expected_updated_at: rosterRow.updated_at,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -484,7 +489,13 @@ export function TeacherRosterTab({ classroom }: Props) {
       rosterMutationVersionRef.current += 1
       setRoster((prev) =>
         prev.map((r) =>
-          r.id === rosterId ? { ...r, counselor_email: counselorEmail } : r
+          r.id === rosterId
+            ? {
+                ...r,
+                counselor_email: counselorEmail,
+                updated_at: data.roster?.updated_at ?? r.updated_at,
+              }
+            : r
         )
       )
       if (counselorEditEpochRef.current === editEpoch) {
@@ -535,9 +546,10 @@ export function TeacherRosterTab({ classroom }: Props) {
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
   }
 
-  function refreshRosterAfterMutation() {
+  function refreshRosterAfterMutation(mutatedClassroomId: string) {
+    invalidateCachedJSON(`teacher-roster:${mutatedClassroomId}`)
+    if (currentClassroomIdRef.current !== mutatedClassroomId) return
     rosterMutationVersionRef.current += 1
-    invalidateCachedJSON(`teacher-roster:${classroom.id}`)
     void loadRoster({ preserveRoster: hasCurrentRoster })
   }
 
@@ -1070,7 +1082,7 @@ export function TeacherRosterTab({ classroom }: Props) {
           onClose={() => setPendingPurge(null)}
           onCompleted={() => {
             setPendingPurge(null)
-            refreshRosterAfterMutation()
+            refreshRosterAfterMutation(classroom.id)
           }}
         />
       ) : null}

@@ -16,7 +16,7 @@ interface AddStudentsModalProps {
   isOpen: boolean
   onClose: () => void
   classroomId: string
-  onSuccess: () => void
+  onSuccess: (classroomId: string) => void
 }
 
 export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: AddStudentsModalProps) {
@@ -82,7 +82,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
       }
 
       // Success!
-      onSuccess()
+      onSuccess(classroomId)
       onClose()
     } catch (err: any) {
       setError(err.message || 'Failed to add students')

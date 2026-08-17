@@ -231,7 +231,7 @@ Roster progress:
 
 - Cold roster failures are distinct from successful empty classrooms and expose an in-place Retry action. A failed refresh retains the last valid roster.
 - Successful removals remain committed in the visible roster even when the follow-up refresh fails. Removal errors stay inside the confirmation dialog with a focused retry action.
-- Direct keyboard selection and focus return are covered for the table. Counselor editing uses governed controls, descriptive labels, operation-scoped errors, and stale-request fencing across students and classroom changes.
+- Direct keyboard selection and focus return are covered for the table. Counselor editing uses governed controls, descriptive labels, operation-scoped errors, row-revision conflicts, and stale-request fencing across students and classroom changes. Delayed add/upload completions cannot supersede the active classroom load.
 - Teacher desktop/mobile and light/dark browser verification covers ready, selected, editing, cold-error, removal-error, and counselor-error states. The student role redirects away from the teacher-only roster.
 - Remaining Roster work is limited to the deferred mobile row-detail experience for hidden email and counselor fields.
 

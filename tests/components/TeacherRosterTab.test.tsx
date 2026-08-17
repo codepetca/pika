@@ -7,12 +7,23 @@ import type { Classroom } from '@/types'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 
+const modalCallbacks = vi.hoisted(() => ({
+  add: null as ((classroomId: string) => void) | null,
+  upload: null as ((classroomId: string) => void) | null,
+}))
+
 vi.mock('@/components/AddStudentsModal', () => ({
-  AddStudentsModal: () => null,
+  AddStudentsModal: ({ onSuccess }: { onSuccess: (classroomId: string) => void }) => {
+    modalCallbacks.add = onSuccess
+    return null
+  },
 }))
 
 vi.mock('@/components/UploadRosterModal', () => ({
-  UploadRosterModal: () => null,
+  UploadRosterModal: ({ onSuccess }: { onSuccess: (classroomId: string) => void }) => {
+    modalCallbacks.upload = onSuccess
+    return null
+  },
 }))
 
 const classroom: Classroom = {
@@ -142,6 +153,8 @@ describe('TeacherRosterTab', () => {
     invalidateCachedJSONMatching('teacher-roster:')
     invalidateCachedJSONMatching('auth-me:')
     vi.unstubAllGlobals()
+    modalCallbacks.add = null
+    modalCallbacks.upload = null
   })
 
   it('ignores stale roster loads after switching classrooms', async () => {
@@ -187,6 +200,50 @@ describe('TeacherRosterTab', () => {
     expect(screen.getByText('Grace')).toBeInTheDocument()
     expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
+
+  it.each(['add', 'upload'] as const)(
+    'ignores a stale %s success callback while the next classroom loads',
+    async (callbackName) => {
+      const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+      let resolveSecondRoster: (() => void) | null = null
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        const method = init?.method ?? 'GET'
+
+        if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+          return mockJson({ roster: [rosterRow] })
+        }
+        if (url === `/api/teacher/classrooms/${secondClassroom.id}/roster` && method === 'GET') {
+          return new Promise((resolve) => {
+            resolveSecondRoster = () => resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ roster: [secondRosterRow] }),
+            })
+          })
+        }
+
+        throw new Error(`Unhandled fetch: ${method} ${url}`)
+      }))
+
+      const view = renderRoster()
+      expect(await screen.findByText('Ada')).toBeInTheDocument()
+      const staleSuccess = modalCallbacks[callbackName]
+      expect(staleSuccess).toEqual(expect.any(Function))
+
+      view.rerender(renderRosterElement(secondClassroom))
+      await waitFor(() => expect(resolveSecondRoster).toEqual(expect.any(Function)))
+      act(() => staleSuccess?.(classroom.id))
+
+      await act(async () => {
+        resolveSecondRoster?.()
+      })
+
+      expect(await screen.findByText('Grace')).toBeInTheDocument()
+      expect(screen.queryByText('Ada')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add students' })).toBeEnabled()
+    },
+  )
 
   it('hides the current roster while the next classroom roster loads', async () => {
     const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
@@ -684,6 +741,103 @@ describe('TeacherRosterTab', () => {
 
     expect(screen.getByText('current@example.com')).toBeInTheDocument()
     expect(screen.queryByText('stale@example.com')).not.toBeInTheDocument()
+  })
+
+  it('uses row revisions so an earlier classroom visit cannot overwrite a newer save', async () => {
+    const user = userEvent.setup()
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+    const initialRevision = '2026-08-16T12:00:00.000Z'
+    const newestRevision = '2026-08-16T12:01:00.000Z'
+    let firstClassroomLoads = 0
+    let counselorSaves = 0
+    let resolveOldSave: (() => void) | null = null
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        firstClassroomLoads += 1
+        return mockJson({
+          roster: [{
+            ...rosterRow,
+            counselor_email: firstClassroomLoads < 3
+              ? 'counselor@example.com'
+              : 'newest@example.com',
+            updated_at: firstClassroomLoads < 3 ? initialRevision : newestRevision,
+          }],
+        })
+      }
+      if (url === `/api/teacher/classrooms/${secondClassroom.id}/roster` && method === 'GET') {
+        return mockJson({ roster: [secondRosterRow] })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'PATCH') {
+        counselorSaves += 1
+        if (counselorSaves === 1) {
+          return new Promise((resolve) => {
+            resolveOldSave = () => resolve({
+              ok: false,
+              status: 409,
+              json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+            })
+          })
+        }
+        return mockJson({
+          success: true,
+          roster: {
+            id: rosterRow.id,
+            counselor_email: 'newest@example.com',
+            updated_at: newestRevision,
+          },
+        })
+      }
+
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = renderRoster()
+    await user.click(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    let input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    await user.clear(input)
+    await user.type(input, 'old-request@example.com')
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+
+    view.rerender(renderRosterElement(secondClassroom))
+    expect(await screen.findByText('Grace')).toBeInTheDocument()
+    invalidateCachedJSONMatching(`teacher-roster:${classroom.id}`)
+    view.rerender(renderRosterElement(classroom))
+    await user.click(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    await user.clear(input)
+    await user.type(input, 'newest@example.com')
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    expect(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    })).toHaveTextContent('newest@example.com')
+
+    const patchBodies = fetchMock.mock.calls
+      .filter(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH')
+      .map((call) => getRequestBody(call))
+    expect(patchBodies).toEqual([
+      { counselor_email: 'old-request@example.com', expected_updated_at: initialRevision },
+      { counselor_email: 'newest@example.com', expected_updated_at: initialRevision },
+    ])
+
+    await act(async () => {
+      resolveOldSave?.()
+    })
+    expect(screen.getByRole('button', { name: 'Edit counselor email for Ada Lovelace' }))
+      .toHaveTextContent('newest@example.com')
+
+    view.rerender(renderRosterElement(secondClassroom))
+    expect(await screen.findByText('Grace')).toBeInTheDocument()
+    invalidateCachedJSONMatching(`teacher-roster:${classroom.id}`)
+    view.rerender(renderRosterElement(classroom))
+    expect(await screen.findByText('newest@example.com')).toBeInTheDocument()
   })
 
   it('opens single-student removal from the roster actions menu with confirmation', async () => {

@@ -31,7 +31,7 @@ interface UploadRosterModalProps {
   isOpen: boolean
   onClose: () => void
   classroomId: string
-  onSuccess: () => void | Promise<void>
+  onSuccess: (classroomId: string) => void | Promise<void>
 }
 
 export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: UploadRosterModalProps) {
@@ -87,7 +87,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       }
 
       setResult(data)
-      await onSuccess()
+      await onSuccess(classroomId)
       handleClose()
       return
     } catch (err: any) {
@@ -118,7 +118,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
       setResult(data)
       setConfirmationData(null)
-      await onSuccess()
+      await onSuccess(classroomId)
       handleClose()
     } catch (err: any) {
       setError(err.message || 'An error occurred')

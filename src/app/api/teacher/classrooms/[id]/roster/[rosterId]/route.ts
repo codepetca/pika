@@ -28,10 +28,20 @@ export const PATCH = withErrorHandler('PatchRosterEntry', async (request, contex
   }
 
   // Only allow updating counselor_email for now
-  const { counselor_email } = body
+  const { counselor_email, expected_updated_at: expectedUpdatedAt } = body
   if (counselor_email !== undefined && counselor_email !== null && typeof counselor_email !== 'string') {
     return NextResponse.json(
       { error: 'counselor_email must be a string or null' },
+      { status: 400 }
+    )
+  }
+  if (
+    typeof expectedUpdatedAt !== 'string'
+    || expectedUpdatedAt.trim().length === 0
+    || !Number.isFinite(Date.parse(expectedUpdatedAt))
+  ) {
+    return NextResponse.json(
+      { error: 'expected_updated_at must be a valid timestamp' },
       { status: 400 }
     )
   }
@@ -53,8 +63,9 @@ export const PATCH = withErrorHandler('PatchRosterEntry', async (request, contex
     .update(updateData)
     .eq('id', rosterId)
     .eq('classroom_id', classroomId)
-    .select('id, counselor_email')
-    .single()
+    .eq('updated_at', expectedUpdatedAt)
+    .select('id, counselor_email, updated_at')
+    .maybeSingle()
 
   if (updateError) {
     console.error('Error updating roster entry:', updateError)
@@ -65,6 +76,26 @@ export const PATCH = withErrorHandler('PatchRosterEntry', async (request, contex
   }
 
   if (!updated) {
+    const { data: existing, error: lookupError } = await supabase
+      .from('classroom_roster')
+      .select('id')
+      .eq('id', rosterId)
+      .eq('classroom_id', classroomId)
+      .maybeSingle()
+
+    if (lookupError) {
+      console.error('Error checking roster entry after update conflict:', lookupError)
+      return NextResponse.json(
+        { error: 'Failed to update roster entry' },
+        { status: 500 }
+      )
+    }
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Counselor email changed elsewhere. Review the latest roster and try again.' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json(
       { error: 'Roster entry not found' },
       { status: 404 }

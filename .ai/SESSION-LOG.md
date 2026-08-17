@@ -1074,8 +1074,8 @@ redesign change.
 ## 2026-08-16 — Complete Roster recovery and accessibility
 
 **Risk profile:** workspace-state and accessibility — teacher Roster loading,
-removal, counselor editing, and keyboard behavior only; no API, schema,
-migration, production, Gradex, or mobile redesign change.
+removal, counselor editing, keyboard behavior, and the existing counselor PATCH
+contract; no schema, migration, production, Gradex, or mobile redesign change.
 
 **Completed:**
 - Separated cold roster failures from successful empty classrooms, added
@@ -1085,13 +1085,16 @@ migration, production, Gradex, or mobile redesign change.
 - Replaced counselor-edit native controls with governed primitives, added
   descriptive field/action semantics and operation-scoped recovery, and fenced
   stale saves across students and classroom changes.
+- Added optimistic concurrency to counselor updates through each roster row's
+  existing `updated_at` revision, and scoped delayed add/upload completion to
+  the classroom that was actually mutated.
 - Added direct keyboard coverage for table selection and Escape focus return,
   plus regressions for overlapping loads, counselor saves, removal recovery,
   modal error semantics, and focus behavior.
 
 **Validation:**
-- Focused roster, table, and dialog suites pass: 67 tests. The full suite
-  passes: 4,335 tests across 498 files. TypeScript, lint, production build, UI
+- Focused roster API, table, and dialog suites pass: 71 tests. The full suite
+  passes: 4,339 tests across 498 files. TypeScript, lint, production build, UI
   policy, design policy, architecture checks, Pika audit, and diff checks pass.
 - Composite-widget checklist reviewed: direct keyboard behavior and semantic
   state are covered by tests, with no manual accessibility follow-up remaining.
