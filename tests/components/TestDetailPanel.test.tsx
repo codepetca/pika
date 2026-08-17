@@ -2067,6 +2067,7 @@ _None_
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+        expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2)
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
@@ -2161,7 +2162,7 @@ _None_
           testId: 'test-inline-preview-id',
           title: 'Inline Preview Test',
         })
-      })
+      }, { timeout: 5_000 })
       expect(openSpy).not.toHaveBeenCalled()
 
       const patchCall = fetchMock.mock.calls.find(

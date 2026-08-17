@@ -1103,5 +1103,9 @@ migration, production, Gradex, mobile, or student-history route change.
 - Desktop Playwright captures pass in light and dark for the shared
   unauthenticated recovery state. Teacher/student role-specific rendering is
   not applicable; both role return paths use this same login surface.
+- CI's seeded browser and database-contract lanes pass. A repeated unrelated
+  `TestDetailPanel` coverage-lane race was stabilized by waiting for its mocked
+  initial reads before clicking Preview and allowing the async save assertion
+  the same bounded time it receives under full-suite coverage load.
 - The `/student/history` compatibility decision remains the next independent
   slice.
