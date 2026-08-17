@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Rebase Blueprint deletion onto current main
-
-**Risk profile:** runtime-platform — migration and durable deletion integration.
-
-**Completed:**
-- Rebased PR #971 onto current `origin/main`, preserving the login recovery and
-  AI-continuity guardrail changes added after the initial review.
-- Resolved only derived continuity-archive conflicts; application code and
-  migration 120 had no merge conflict or numbering collision.
-- Kept Course Blueprint deletion rollout disabled and migration 120 unapplied
-  outside the existing local development database.
-
-**Validation:**
-- Exact-head migration lineage, generated-type parity, shell/workflow syntax,
-  147 focused tests, both Blueprint database contracts, feature validation,
-  TypeScript, lint, production build, and diff checks pass.
-- Fresh cumulative PR review and GitHub CI remain before merge.
-
 ## 2026-08-08 — Add immediate Pal event delivery
 
 **Risk profile:** runtime-platform — transactional outbox delivery and learner
@@ -1170,3 +1152,45 @@ migration, database, production, Gradex, or student behavior changes.
 - All 27 focused component tests and all 4,407 repository tests pass.
 - TypeScript, lint, architecture, production build, diff checks, and Pika audit
   pass. Visual verification is not applicable to this test-only patch.
+
+## 2026-08-17 — Blueprint editor dirty-state protection
+
+**Risk profile:** none — teacher-only Blueprint editor reliability and shared
+status/dialog UI; no API contract, schema, migration, production, archive,
+Gradex, or student behavior changes.
+
+**Completed:**
+- Added a normalized saved baseline for every independently editable Blueprint
+  section: course details, planned site, grading, and each Markdown package tab.
+- Saving one section now refreshes accepted server state only for that section,
+  preserving unsaved work elsewhere. Editor writes are locked while a save,
+  import, or proposal application can replace accepted state.
+- Every selected-Blueprint transition invalidates stale detail requests and
+  clears the previous editor before the new detail loads, including successful
+  package import and new-Blueprint creation.
+- Blueprint changes, local route actions, authority changes, imports, and
+  proposal application now require explicit discard confirmation. Export and
+  classroom creation explicitly confirm that they use the last saved version.
+- Permanent deletion also requires the local-discard confirmation before its
+  existing durable purge review. Blueprint-list reloads use request generations
+  so older responses cannot overwrite newer post-mutation state; purge
+  completion starts a fresh authoritative guarded reload.
+- Preparing a classroom update now confirms that it uses the last saved
+  Blueprint and is disabled while a save can replace accepted state. Proposal
+  and classroom-comparison requests use independent generations so returning to
+  the same Blueprint cannot surface an older response. Blueprint selection is
+  locked while that durable proposal is being prepared, and its global lock is
+  cleared defensively when the request settles.
+- The editor exposes shared Saved/Saving/Unsaved status and protects browser
+  refresh or tab closure while any section differs from its saved baseline.
+
+**Validation:**
+- Twenty-eight focused unit/component tests cover per-section comparisons,
+  cross-section save preservation, accepted server values, transition guards,
+  import/create/list/proposal/comparison races, deletion, saved-version actions,
+  unload protection, and in-flight editor locking.
+- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
+  and saved-version dialogs with no horizontal overflow and initial focus on
+  Keep editing. Student rendering is not applicable to this teacher-only route.
+- The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
+  architecture boundaries, production build, Pika audit, and diff checks pass.

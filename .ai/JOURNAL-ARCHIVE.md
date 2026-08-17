@@ -18489,3 +18489,22 @@ schema/Storage concurrency verification only.
 - Playwright visual verification passed for the unauthenticated desktop/mobile
   login screen in light and dark themes, including default, hover, and focus
   states. Teacher/student authenticated variants are not applicable.
+
+<!-- pika-session-log-archive-batch:6e376e21ba399225d80670581356a43fe4a54ee9bc40abd6f66010bf9f8a6a72 -->
+## 2026-08-08 — Rebase Blueprint deletion onto current main
+
+**Risk profile:** runtime-platform — migration and durable deletion integration.
+
+**Completed:**
+- Rebased PR #971 onto current `origin/main`, preserving the login recovery and
+  AI-continuity guardrail changes added after the initial review.
+- Resolved only derived continuity-archive conflicts; application code and
+  migration 120 had no merge conflict or numbering collision.
+- Kept Course Blueprint deletion rollout disabled and migration 120 unapplied
+  outside the existing local development database.
+
+**Validation:**
+- Exact-head migration lineage, generated-type parity, shell/workflow syntax,
+  147 focused tests, both Blueprint database contracts, feature validation,
+  TypeScript, lint, production build, and diff checks pass.
+- Fresh cumulative PR review and GitHub CI remain before merge.
