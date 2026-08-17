@@ -488,7 +488,12 @@ export function TeacherRosterTab({ classroom }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        if (res.status === 409) {
+        if (
+          res.status === 409
+          && currentClassroomIdRef.current === classroomId
+          && classroomEpochRef.current === classroomEpoch
+          && counselorEditEpochRef.current === editEpoch
+        ) {
           invalidateCachedJSON(`teacher-roster:${classroomId}`)
           await loadRoster({ preserveRoster: true })
         }

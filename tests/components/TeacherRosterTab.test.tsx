@@ -729,6 +729,101 @@ describe('TeacherRosterTab', () => {
     ])
   })
 
+  it('does not let a stale counselor conflict supersede the next classroom load', async () => {
+    const user = userEvent.setup()
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+    let firstClassroomLoads = 0
+    let resolveConflict: (() => void) | null = null
+    let resolveSecondRoster: (() => void) | null = null
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        firstClassroomLoads += 1
+        return mockJson({ roster: [rosterRow] })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'PATCH') {
+        return new Promise((resolve) => {
+          resolveConflict = () => resolve({
+            ok: false,
+            status: 409,
+            json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+          })
+        })
+      }
+      if (url === `/api/teacher/classrooms/${secondClassroom.id}/roster` && method === 'GET') {
+        return new Promise((resolve) => {
+          resolveSecondRoster = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ roster: [secondRosterRow] }),
+          })
+        })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    }))
+
+    const view = renderRoster()
+    await user.click(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await waitFor(() => expect(resolveConflict).toEqual(expect.any(Function)))
+
+    view.rerender(renderRosterElement(secondClassroom))
+    await waitFor(() => expect(resolveSecondRoster).toEqual(expect.any(Function)))
+    await act(async () => {
+      resolveConflict?.()
+    })
+
+    expect(firstClassroomLoads).toBe(1)
+    await act(async () => {
+      resolveSecondRoster?.()
+    })
+    expect(await screen.findByText('Grace')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Classroom roster' })).toBeInTheDocument()
+  })
+
+  it('does not refresh a counselor conflict after the roster unmounts', async () => {
+    const user = userEvent.setup()
+    let rosterLoads = 0
+    let resolveConflict: (() => void) | null = null
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        rosterLoads += 1
+        return mockJson({ roster: [rosterRow] })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'PATCH') {
+        return new Promise((resolve) => {
+          resolveConflict = () => resolve({
+            ok: false,
+            status: 409,
+            json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+          })
+        })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    }))
+
+    const view = renderRoster()
+    await user.click(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await waitFor(() => expect(resolveConflict).toEqual(expect.any(Function)))
+
+    view.unmount()
+    await act(async () => {
+      resolveConflict?.()
+    })
+
+    expect(rosterLoads).toBe(1)
+  })
+
   it('does not let an older counselor save close a newer row editor', async () => {
     const user = userEvent.setup()
     let resolveAdaSave: (() => void) | null = null
