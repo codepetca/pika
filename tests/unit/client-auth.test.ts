@@ -21,6 +21,8 @@ describe('client auth recovery', () => {
     '//evil.example',
     '/\\evil.example',
     '/%5Cevil.example',
+    '/a/..//evil.example',
+    '/%2e%2e//evil.example',
   ])(
     'falls back to classrooms for an unsafe return path: %s',
     (unsafePath) => {

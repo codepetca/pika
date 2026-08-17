@@ -151,6 +151,20 @@ test.describe('teacher experience matrix', () => {
     await expect(page.getByLabel('School Email')).toBeFocused()
   })
 
+  test('rejects canonicalized external login return paths', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One redirect-safety pass is sufficient')
+
+    for (const unsafePath of ['/a/..//evil.example', '/%2e%2e//evil.example']) {
+      await page.goto(`/login?next=${encodeURIComponent(unsafePath)}`)
+      await page.getByLabel('School Email').fill('teacher@example.com')
+      await page.getByLabel('Password').fill('test1234')
+      await page.getByRole('button', { name: 'Login' }).click()
+      await expect(page).toHaveURL('/classrooms')
+    }
+
+    await verifyProjectContract(page, testInfo)
+  })
+
   test('keeps failed syllabus documents unavailable', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One real-browser failure pass is sufficient')
 

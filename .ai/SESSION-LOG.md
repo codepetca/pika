@@ -1083,7 +1083,9 @@ migration, production, Gradex, mobile, or student-history route change.
 - Added an explicit session-expiry reason to safe login redirects while
   preserving the interrupted path and query string.
 - Closed backslash-based external redirect variants through one canonical
-  same-origin path parser shared by redirect production and login consumption.
+  same-origin path parser shared by redirect production and login consumption;
+  canonicalized protocol-relative paths produced by dot segments are rejected
+  after URL normalization as well.
 - Added a persistent polite warning on the existing login card, associated it
   with the email field, and moved focus there for immediate recovery.
 - Made the session watcher validate both user ID and role, with a distinct

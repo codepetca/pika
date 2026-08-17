@@ -93,7 +93,13 @@ describe('LoginClient', () => {
     })
   })
 
-  it.each(['//evil.com', '/\\evil.example', '/%5Cevil.example'])(
+  it.each([
+    '//evil.com',
+    '/\\evil.example',
+    '/%5Cevil.example',
+    '/a/..//evil.example',
+    '/%2e%2e//evil.example',
+  ])(
     'rejects unsafe ?next= path %s and uses redirectUrl instead',
     async (unsafePath) => {
       mockGet.mockReturnValue(unsafePath)

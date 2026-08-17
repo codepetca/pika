@@ -15,7 +15,7 @@ export function getSafeInternalPath(path: string | null | undefined): string | n
 
   try {
     const url = new URL(path, INTERNAL_URL_BASE)
-    if (url.origin !== INTERNAL_URL_BASE) return null
+    if (url.origin !== INTERNAL_URL_BASE || url.pathname.startsWith('//')) return null
     return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return null
