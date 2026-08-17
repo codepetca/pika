@@ -98,6 +98,73 @@ test.describe('teacher experience matrix', () => {
     await verifyProjectContract(page, testInfo)
   })
 
+  test('recovers an expired session and returns to the interrupted route', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('chromium-desktop'), 'Desktop recovery themes are sufficient')
+
+    await page.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Not authenticated' }),
+      })
+    })
+    await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
+
+    await expect(page).toHaveURL((url) => (
+      url.pathname === '/login' &&
+      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('reason') === 'session-expired'
+    ))
+    await expect(page.getByRole('status')).toContainText('Your session expired')
+    await expect(page.getByLabel('School Email')).toBeFocused()
+
+    await page.unroute('**/api/auth/me')
+    await page.getByLabel('School Email').fill('teacher@example.com')
+    await page.getByLabel('Password').fill('test1234')
+    await page.getByRole('button', { name: 'Login' }).click()
+
+    await expect(page).toHaveURL(/\/teacher\/blueprints$/)
+    await expect(page.getByRole('navigation', { name: 'Teacher tools' })).toBeVisible()
+    await verifyProjectContract(page, testInfo)
+  })
+
+  test('blocks a stale page after the session changes to another teacher', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One account-change pass is sufficient')
+
+    await page.route('**/api/auth/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: { id: 'different-teacher', email: 'other@example.com', role: 'teacher' },
+        }),
+      })
+    })
+    await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
+
+    await expect(page).toHaveURL((url) => (
+      url.pathname === '/login' &&
+      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('reason') === 'session-changed'
+    ))
+    await expect(page.getByRole('status')).toContainText('signed-in account changed')
+    await expect(page.getByLabel('School Email')).toBeFocused()
+  })
+
+  test('rejects canonicalized external login return paths', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One redirect-safety pass is sufficient')
+
+    for (const unsafePath of ['/a/..//evil.example', '/%2e%2e//evil.example']) {
+      await page.goto(`/login?next=${encodeURIComponent(unsafePath)}`)
+      await page.getByLabel('School Email').fill('teacher@example.com')
+      await page.getByLabel('Password').fill('test1234')
+      await page.getByRole('button', { name: 'Login' }).click()
+      await expect(page).toHaveURL('/classrooms')
+    }
+
+    await verifyProjectContract(page, testInfo)
+  })
+
   test('keeps failed syllabus documents unavailable', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One real-browser failure pass is sufficient')
 

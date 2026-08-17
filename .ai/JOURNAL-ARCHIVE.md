@@ -18366,3 +18366,35 @@ broader rollout, generic cleanup, migration, or Blueprint deletion.
   fresh exact local-reset authorization is required before database fixture and
   generated-type verification. No staging or production state changed, and all
   deletion/cleanup rollout gates remain disabled.
+
+<!-- pika-session-log-archive-batch:1e364e2375539aa30b42f463be413f5854bfdd25ca1cd21dd20f3b105b959766 -->
+## 2026-08-06 — Make Blueprint copy fences fail closed
+
+**Implementation:**
+- Removed lease expiry from Blueprint purge authorization: every unclosed
+  source-copy intent now blocks purge until durable settlement.
+- Heartbeats continue after transient failures; a later successful heartbeat
+  clears the operational error while the durable intent remains the safety
+  boundary throughout provider I/O.
+- Added a private, service-role-only hard-crash recovery RPC. It requires the
+  exact owner/operation/teacher/source tuple and expiry snapshot, 24 hours of
+  staleness, no running operation, no live provisional files, and explicit
+  confirmation that no worker remains. Recovery is compare-and-swap and
+  idempotent.
+- Expanded static, runtime, privilege, stale-intent, exact-snapshot, running-
+  operation, and provisional-file reconciliation fixtures.
+- Classified heartbeat transport failures as retryable and intent/fence
+  rejection as terminal. A single wrapper now checks authority before and after
+  every asynchronous copy action so no later reservation, read-back, or
+  verification begins after authority is lost.
+- Completed-operation retries return the deterministic owner identity and
+  idempotently repair lost settlement. Migration 120 also binds and closes only
+  legacy adopted owners proven by a matching completed operation and live
+  teacher-owned source Blueprint.
+
+**Boundary:**
+- Full Vitest (4,083 tests), lint, architecture, production build, Pika audit,
+  shell syntax, static migration checks, and final bounded reviews pass.
+  Migration 120 has not been replayed after this change; generated types and
+  the database fixture still require a fresh authorized local reset. No staging
+  or production state changed, and all rollout gates remain disabled.

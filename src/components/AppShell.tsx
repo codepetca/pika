@@ -8,6 +8,7 @@ interface AppShellProps {
   navigation?: ReactNode
   showHeader?: boolean
   user?: {
+    id: string
     email: string
     role: 'student' | 'teacher'
     first_name?: string | null
@@ -58,7 +59,7 @@ export function AppShell({
 
   return (
     <div className={`flex min-h-dvh flex-col bg-page${shouldConstrainViewport ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
-      {user && <AuthSessionWatcher expectedRole={user.role} />}
+      {user && <AuthSessionWatcher expectedUserId={user.id} expectedRole={user.role} />}
       {showHeader && (
         <AppHeader
           user={user}

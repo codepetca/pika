@@ -75,7 +75,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 
 | Workflow | UI ownership | API/domain/database ownership | Test evidence | Accessibility and error-state assessment |
 | --- | --- | --- | --- | --- |
-| Login, signup, verification, password creation/reset, logout, session expiry, and role routing | login/signup/verify/reset pages, `UserMenu`, logout route, teacher/student layouts and root routing | auth/session/verification routes and helpers; Supabase Auth plus `users`, `student_profiles`, and session cookies | Auth pages, route handlers, verification/reset, session, role-routing, and user-menu suites cover the primary contract. | Field semantics are inconsistent because `FormField.required` is visual; route-level failures lack a shared error boundary; session-expiry recovery and post-auth focus/announcement behavior need browser verification. |
+| Login, signup, verification, password creation/reset, logout, session expiry, and role routing | login/signup/verify/reset pages, `UserMenu`, logout route, teacher/student layouts and root routing | auth/session/verification routes and helpers; Supabase Auth plus `users`, `student_profiles`, and session cookies | Auth pages, route handlers, verification/reset, session, role-routing, and user-menu suites cover the primary contract. Recovery coverage proves safe interrupted routes survive reauthentication and stale pages detect both role and user-ID changes. | Field semantics are inconsistent because `FormField.required` is visual and route-level failures lack a shared error boundary. Expired and replaced sessions now show distinct persistent warnings, focus the email field, and return only to a canonical same-origin path after login. |
 
 ## Teacher Workflow Map
 
@@ -259,7 +259,7 @@ Syllabus/resources progress:
 8. Announcements: completed explicit failure/read states, stale-classroom guards, Retry recovery, and Toronto timestamp formatting.
 9. Gradebook: completed explicit recovery, retained snapshots, stale-request isolation, selected-student detail, and direct table keyboard tests; narrow-screen navigation remains deferred.
 10. Syllabus/resources: completed shared iframe sizing, scroll ownership, theme, keyboard traversal, loading, and Retry behavior; defer the unmounted legacy resource-path retirement to Phase 6 compatibility review.
-11. Authentication and history utility routes: shared shell/page states, session-expiry recovery, and an evidence-based migrate/redirect/retire decision for `/student/history`.
+11. Authentication and history utility routes: session-expiry and account-replacement recovery are complete with distinct announced warnings, deterministic email focus, user-ID/role validation, and canonical same-origin return-path preservation; shared utility-shell/page states and the evidence-based migrate/redirect/retire decision for `/student/history` remain separate work.
 12. Settings and student grades/profile: organize the mixed settings surface, verify field/error behavior, and record the product decision for aggregate grades and profile editing before implementing or explicitly declining those surfaces.
 
 Each numbered slice is independently releasable and reviewed for both affected roles. Exit evidence: focused component/API/domain tests, explicit error-state coverage, keyboard checks for composite controls, and accepted desktop/mobile screenshots in both themes when the workflow supports them.
