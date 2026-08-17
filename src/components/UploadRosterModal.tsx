@@ -236,7 +236,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                     )}
                     {counselorChanged && (
                       <div className="text-text-muted truncate">
-                        Counselor: <span className="line-through text-danger">{change.current.counselorEmail || '(none)'}</span>
+                        Alt email: <span className="line-through text-danger">{change.current.counselorEmail || '(none)'}</span>
                         {' → '}
                         <span className="text-success">{change.incoming.counselorEmail || '(none)'}</span>
                       </div>
@@ -248,7 +248,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
           </div>
 
           <p className="text-xs text-text-muted mb-4">
-            Updating roster entries will change student metadata (name, student number, counselor email).
+            Updating roster entries will change student metadata (name, student number, alt email).
             Student submissions and enrollments are not affected.
           </p>
 
@@ -305,7 +305,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                   { label: 'First Name', optional: false },
                   { label: 'Last Name', optional: false },
                   { label: 'Email', optional: false },
-                  { label: 'Counselor Email', optional: true },
+                  { label: 'Alt email', optional: true },
                 ].map(({ label, optional }, index, arr) => (
                   <span
                     key={label}

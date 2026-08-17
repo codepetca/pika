@@ -169,7 +169,7 @@ describe('PATCH /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(409)
-    expect(data.error).toMatch(/changed elsewhere/i)
+    expect(data.error).toBe('Alt email changed elsewhere. Review the latest roster and try again.')
   })
 })
 

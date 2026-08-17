@@ -6,6 +6,20 @@ import { UploadRosterModal } from '@/components/UploadRosterModal'
 describe('UploadRosterModal', () => {
   afterEach(() => vi.unstubAllGlobals())
 
+  it('describes the optional roster contact as an alt email', () => {
+    render(
+      <UploadRosterModal
+        isOpen
+        onClose={vi.fn()}
+        classroomId="classroom-a"
+        onSuccess={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Alt email')).toBeInTheDocument()
+    expect(screen.queryByText(/Counselor Email/i)).not.toBeInTheDocument()
+  })
+
   it('does not expose an earlier classroom CSV confirmation after switching classrooms', async () => {
     let resolvePreview: (() => void) | null = null
     const fetchMock = vi.fn(() => new Promise((resolve) => {

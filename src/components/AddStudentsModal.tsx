@@ -141,15 +141,15 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
               rows={8}
               placeholder={`John Doe john@example.com
 Jane Smith jane@example.com 123456
-Bob Lee bob@example.com 789012 counselor@school.com`}
+Bob Lee bob@example.com 789012 alt@example.com`}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onBlur={handleParseInput}
               disabled={isSubmitting}
             />
             <p className="text-xs text-text-muted mt-2">
-              One student per line. StudentNumber and CounselorEmail are optional:<br />
-              <span className="font-mono">First Last Email [StudentNumber] [CounselorEmail]</span>
+              One student per line. Student number and alt email are optional:<br />
+              <span className="font-mono">First Last Email [StudentNumber] [AltEmail]</span>
             </p>
           </div>
 
@@ -207,7 +207,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
                             Student #
                           </DataTableHeaderCell>
                           <DataTableHeaderCell className="text-xs">
-                            Counselor
+                            Alt email
                           </DataTableHeaderCell>
                         </DataTableRow>
                       </DataTableHead>

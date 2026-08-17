@@ -1109,5 +1109,21 @@ contract; no schema, migration, production, Gradex, or mobile redesign change.
 - Playwright verification passes for teacher desktop/mobile ready and error
   states, selected and editing states, light/dark themes, and the student-role
   redirect. Captures have no horizontal viewport overflow.
-- Mobile row detail for hidden email and counselor fields remains deliberately
+- Mobile row detail for hidden primary and alt email fields remains deliberately
   deferred with the broader mobile UI/UX work.
+
+## 2026-08-16 — Rename the roster contact slot
+
+**Risk profile:** terminology-only — teacher roster, manual add, CSV upload, and
+conflict copy; no schema, migration, API field, or production data change.
+
+**Completed:**
+- Renamed the user-facing `counselor_email` concept to “Alt email” across
+  roster columns, actions, editing semantics, add/upload guidance, and errors.
+- Retained the legacy database and API field for compatibility, with focused
+  assertions preventing user-facing terminology drift.
+
+**Validation:**
+- Focused roster API and component suites pass: 92 tests. The full suite passes:
+  4,359 tests across 499 files. TypeScript, lint, production build, UI policy,
+  design policy, architecture checks, Pika audit, and diff checks pass.
