@@ -1096,10 +1096,10 @@ migration, production, Gradex, mobile, or student-history route change.
   that returns a teacher to the interrupted utility route after login.
 
 **Validation:**
-- Focused auth and Daily suites pass after review remediation. The pre-review
-  full suite passed: 4,376 tests across 500 files. TypeScript and lint pass;
-  production build, architecture, design/UI policy, Pika audit, session-log,
-  and diff checks passed before remediation and are rerun at the final gate.
+- Focused auth and Daily suites pass after review remediation. The final full
+  suite passes: 4,391 tests across 500 files. TypeScript, lint, production
+  build, architecture, design/UI policy, Pika audit, session-log, and diff
+  checks pass.
 - Desktop Playwright captures pass in light and dark for the shared
   unauthenticated recovery state. Teacher/student role-specific rendering is
   not applicable; both role return paths use this same login surface.
