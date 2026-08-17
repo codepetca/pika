@@ -1139,15 +1139,18 @@ UX; no schema, migration, production, archive cleanup, or Gradex work.
   callback. Escape/backdrop dismissal only closes the completed handoff, and
   dismissal is blocked while instantiation is pending so its operation key
   cannot be discarded before the request settles.
+- Dashboard and Calendar keep one stable modal instance when the first created
+  classroom replaces their empty state, preserving the completed review
+  handoff until the teacher explicitly reviews or dismisses it.
 - The completed step moves focus to its heading and preserves the existing
   dialog, progress, and continuation patterns.
 
 **Validation:**
 - Focused component coverage proves both same-key retry paths, delayed success
   completion, in-flight dismissal blocking, non-routing completion callbacks,
-  overflow rendering, and focus transfer. The full suite passes all 4,394 tests
-  across 499 files; TypeScript, lint, production build, Pika audit, and diff
-  checks pass.
+  empty-state handoff preservation, overflow rendering, and focus transfer. The
+  full suite passes all 4,394 tests across 499 files; TypeScript, lint,
+  production build, Pika audit, and diff checks pass.
 - Playwright verifies the teacher-only overflow handoff at desktop/mobile in
   light/dark, including a browser-sent UUID operation key and no horizontal
   overflow. Student rendering is not applicable to this teacher creation flow.

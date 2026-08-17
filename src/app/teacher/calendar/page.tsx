@@ -471,13 +471,15 @@ export default function CalendarPage() {
   // Empty state - no classrooms
   if (classrooms.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
-          <p className="text-text-muted mb-6">Create your first classroom to get started</p>
-          <Button onClick={() => setShowCreateModal(true)}>
-            Create Classroom
-          </Button>
+      <>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
+            <p className="text-text-muted mb-6">Create your first classroom to get started</p>
+            <Button onClick={() => setShowCreateModal(true)}>
+              Create Classroom
+            </Button>
+          </div>
         </div>
 
         <CreateClassroomModal
@@ -486,12 +488,13 @@ export default function CalendarPage() {
           onSuccess={handleClassroomCreated}
           onBlueprintCreated={handleClassroomCreated}
         />
-      </div>
+      </>
     )
   }
 
   return (
-    <div className="flex gap-6">
+    <>
+      <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
         <div className="bg-surface rounded-lg shadow-sm p-4">
@@ -570,14 +573,15 @@ export default function CalendarPage() {
         )}
       </div>
 
+        <AlertDialog {...alertState} onClose={closeAlert} />
+      </div>
+
       <CreateClassroomModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
         onBlueprintCreated={handleClassroomCreated}
       />
-
-      <AlertDialog {...alertState} onClose={closeAlert} />
-    </div>
+    </>
   )
 }

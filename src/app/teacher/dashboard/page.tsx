@@ -305,52 +305,55 @@ export default function TeacherDashboardPage() {
   // Empty state
   if (classrooms.length === 0) {
     return (
+      <>
+        <div
+          ref={pageRegionRef}
+          role="region"
+          aria-label="Teacher dashboard"
+          tabIndex={-1}
+          className="focus:outline-none"
+        >
+          <PageLayout density="teacher" width="reading">
+            <PageContent>
+              <PageState
+                kind="empty"
+                headingLevel="h1"
+                title="No Classrooms Yet"
+                description="Create your first classroom or start from a course blueprint."
+                action={
+                  <div className="flex flex-wrap justify-center gap-3">
+                    <Button onClick={() => setShowCreateModal(true)}>
+                      Create Classroom
+                    </Button>
+                    <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
+                      Course Blueprints
+                    </Button>
+                  </div>
+                }
+              />
+            </PageContent>
+          </PageLayout>
+        </div>
+
+        <CreateClassroomModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleClassroomCreated}
+          onBlueprintCreated={handleClassroomCreated}
+        />
+      </>
+    )
+  }
+
+  return (
+    <>
       <div
         ref={pageRegionRef}
         role="region"
         aria-label="Teacher dashboard"
         tabIndex={-1}
-        className="focus:outline-none"
+        className="flex flex-col gap-4 focus:outline-none md:flex-row md:gap-6"
       >
-        <PageLayout density="teacher" width="reading">
-          <PageContent>
-            <PageState
-              kind="empty"
-              headingLevel="h1"
-              title="No Classrooms Yet"
-              description="Create your first classroom or start from a course blueprint."
-              action={
-                <div className="flex flex-wrap justify-center gap-3">
-                  <Button onClick={() => setShowCreateModal(true)}>
-                    Create Classroom
-                  </Button>
-                  <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
-                    Course Blueprints
-                  </Button>
-                </div>
-              }
-            />
-          </PageContent>
-
-          <CreateClassroomModal
-            isOpen={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={handleClassroomCreated}
-            onBlueprintCreated={handleClassroomCreated}
-          />
-        </PageLayout>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      ref={pageRegionRef}
-      role="region"
-      aria-label="Teacher dashboard"
-      tabIndex={-1}
-      className="flex flex-col gap-4 focus:outline-none md:flex-row md:gap-6"
-    >
       {/* Classroom List Sidebar */}
       <div className="w-full flex-shrink-0 md:w-64">
         <div className="bg-surface rounded-lg shadow-sm p-4">
@@ -642,27 +645,28 @@ export default function TeacherDashboardPage() {
         )}
       </div>
 
+        {selectedClassroom && (
+          <UploadRosterModal
+            isOpen={showUploadModal}
+            onClose={() => setShowUploadModal(false)}
+            classroomId={selectedClassroom.id}
+            onSuccess={() => {
+              invalidateTeacherDashboardAttendance(selectedClassroom.id)
+              setAttendanceClassroomId(null)
+              setAttendanceAttempt((attempt) => attempt + 1)
+            }}
+          />
+        )}
+
+        <AlertDialog {...alertState} onClose={closeAlert} />
+      </div>
+
       <CreateClassroomModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
         onBlueprintCreated={handleClassroomCreated}
       />
-
-      {selectedClassroom && (
-        <UploadRosterModal
-          isOpen={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          classroomId={selectedClassroom.id}
-          onSuccess={() => {
-            invalidateTeacherDashboardAttendance(selectedClassroom.id)
-            setAttendanceClassroomId(null)
-            setAttendanceAttempt((attempt) => attempt + 1)
-          }}
-        />
-      )}
-
-      <AlertDialog {...alertState} onClose={closeAlert} />
-    </div>
+    </>
   )
 }
