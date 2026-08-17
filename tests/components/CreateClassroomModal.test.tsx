@@ -348,6 +348,35 @@ describe('CreateClassroomModal', () => {
     )
   })
 
+  it('commits the created classroom without navigating when the review is dismissed', async () => {
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+        lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+      }),
+    })
+
+    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onSuccess })
+    fireEvent.change(getClassroomNameInput(), {
+      target: { value: 'Computer Science 11 - Period 2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('combobox', { name: /course blueprint/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Choose Calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await screen.findByRole('heading', { name: 'Classroom Created' })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Computer Science 11 - Period 2' })
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
   it('preserves the preselected blueprint flow when launched from the blueprints page', async () => {
     renderModal({ initialBlueprintId: mockBlueprint.id })
 

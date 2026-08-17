@@ -276,15 +276,17 @@ export function CreateClassroomModal({
     }
   }
 
+  function finishBlueprintCreation(openForReview: boolean) {
+    if (!blueprintCreationResult) return
+    const { classroom } = blueprintCreationResult
+    resetForm()
+    onSuccess(classroom)
+    onClose()
+    if (openForReview) router.push(`/classrooms/${classroom.id}?tab=assignments`)
+  }
+
   function handleClose() {
-    if (blueprintCreationResult) {
-      const { classroom } = blueprintCreationResult
-      resetForm()
-      onSuccess(classroom)
-      onClose()
-      router.push(`/classrooms/${classroom.id}?tab=assignments`)
-      return
-    }
+    if (blueprintCreationResult) return finishBlueprintCreation(false)
     resetForm()
     onClose()
   }
@@ -623,7 +625,7 @@ export function CreateClassroomModal({
         ) : (
           <Button
             type="button"
-            onClick={handleClose}
+            onClick={() => finishBlueprintCreation(true)}
             className="flex-1"
           >
             Review Classroom
