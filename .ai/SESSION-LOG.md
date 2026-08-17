@@ -1173,17 +1173,18 @@ Gradex, or student behavior changes.
   classroom creation explicitly confirm that they use the last saved version.
 - Permanent deletion also requires the local-discard confirmation before its
   existing durable purge review. Blueprint-list reloads use request generations
-  so older responses cannot overwrite newer post-mutation state.
+  so older responses cannot overwrite newer post-mutation state; purge
+  completion starts a fresh authoritative guarded reload.
 - The editor exposes shared Saved/Saving/Unsaved status and protects browser
   refresh or tab closure while any section differs from its saved baseline.
 
 **Validation:**
-- Twenty-three focused unit/component tests cover per-section comparisons,
+- Twenty-four focused unit/component tests cover per-section comparisons,
   cross-section save preservation, accepted server values, transition guards,
   import/create/list transition races, deletion, saved-version actions, unload
   protection, and in-flight editor locking.
 - Teacher desktop/mobile light/dark Playwright captures verify the dirty state
   and discard dialog with no horizontal overflow and initial focus on Keep
   editing. Student rendering is not applicable to this teacher-only route.
-- The full suite passes all 4,420 tests across 500 files. TypeScript, lint,
+- The full suite passes all 4,421 tests across 500 files. TypeScript, lint,
   architecture boundaries, production build, Pika audit, and diff checks pass.

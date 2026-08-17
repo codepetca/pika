@@ -761,6 +761,51 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.getByRole('dialog', { name: 'Delete Blueprint Two?' })).toBeInTheDocument()
   })
 
+  it('ignores a pre-purge list response after authoritative deletion reload', async () => {
+    let resolvePrePurgeList!: (response: Response) => void
+    const pendingPrePurgeList = new Promise<Response>((resolve) => {
+      resolvePrePurgeList = resolve
+    })
+    let listRequestCount = 0
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/auth/me') {
+        return Promise.resolve(jsonResponse({ user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' } }))
+      }
+      if (url === '/api/teacher/course-blueprints' && method === 'GET') {
+        listRequestCount += 1
+        return listRequestCount === 1
+          ? pendingPrePurgeList
+          : Promise.resolve(jsonResponse({ blueprints: [blueprintList[0]] }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintOneDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintDetail }))
+      }
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`))
+    }) as any)
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm permanent deletion' }))
+
+    await waitFor(() => expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Blueprint Two/ })).toBeNull()
+
+    await act(async () => {
+      resolvePrePurgeList(jsonResponse({ blueprints: blueprintList }))
+      await pendingPrePurgeList
+    })
+
+    expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Blueprint Two/ })).toBeNull()
+  })
+
   it('never offers deletion for stale detail during a Blueprint selection change', async () => {
     let resolveBlueprintOne: ((response: Response) => void) | undefined
     const delayedBlueprintOne = new Promise<Response>((resolve) => {

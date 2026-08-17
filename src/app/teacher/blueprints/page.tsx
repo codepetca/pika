@@ -528,12 +528,13 @@ export default function TeacherBlueprintsPage() {
     const remainingBlueprints = blueprints.filter(
       (blueprint) => blueprint.id !== deleteTarget.id,
     )
-    detailRequestIdRef.current += 1
+    const nextSelectedId = remainingBlueprints[0]?.id || null
     invalidateTeacherBlueprints()
     setBlueprints(remainingBlueprints)
-    beginBlueprintSelection(remainingBlueprints[0]?.id || null)
+    beginBlueprintSelection(nextSelectedId)
     setDeleteTarget(null)
     router.push('/teacher/blueprints')
+    void loadBlueprints(nextSelectedId || undefined)
   }
 
   function selectBlueprint(blueprintId: string) {
