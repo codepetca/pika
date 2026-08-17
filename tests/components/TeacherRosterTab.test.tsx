@@ -201,6 +201,135 @@ describe('TeacherRosterTab', () => {
     expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
 
+  it('keeps the committed roster load active after an abandoned classroom transition', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+    let resolveRoster: (() => void) | null = null
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        return new Promise((resolve) => {
+          resolveRoster = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ roster: [rosterRow] }),
+          })
+        })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    }))
+    const suspended = new Promise<never>(() => {})
+
+    function SuspendSecondClassroom({ classroomId }: { classroomId: string }) {
+      if (classroomId === secondClassroom.id) throw suspended
+      return null
+    }
+
+    function Harness() {
+      const [targetClassroom, setTargetClassroom] = React.useState(classroom)
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => React.startTransition(() => setTargetClassroom(secondClassroom))}
+          >
+            Switch classroom
+          </button>
+          <React.Suspense fallback={<div>Switching</div>}>
+            {renderRosterElement(targetClassroom)}
+            <SuspendSecondClassroom classroomId={targetClassroom.id} />
+          </React.Suspense>
+        </>
+      )
+    }
+
+    render(<Harness />)
+    await waitFor(() => expect(resolveRoster).toEqual(expect.any(Function)))
+    fireEvent.click(screen.getByRole('button', { name: 'Switch classroom' }))
+    expect(screen.queryByText('Switching')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveRoster?.()
+    })
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Classroom roster' })).toBeInTheDocument()
+  })
+
+  it('keeps a committed counselor save active after an abandoned classroom transition', async () => {
+    const user = userEvent.setup()
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+    let resolveSave: (() => void) | null = null
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        return mockJson({ roster: [rosterRow] })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'PATCH') {
+        return new Promise((resolve) => {
+          resolveSave = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({
+              roster: {
+                id: rosterRow.id,
+                counselor_email: 'updated@example.com',
+                updated_at: '2026-08-16T14:00:00.000Z',
+              },
+            }),
+          })
+        })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    }))
+    const suspended = new Promise<never>(() => {})
+
+    function SuspendSecondClassroom({ classroomId }: { classroomId: string }) {
+      if (classroomId === secondClassroom.id) throw suspended
+      return null
+    }
+
+    function Harness() {
+      const [targetClassroom, setTargetClassroom] = React.useState(classroom)
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => React.startTransition(() => setTargetClassroom(secondClassroom))}
+          >
+            Switch classroom
+          </button>
+          <React.Suspense fallback={<div>Switching</div>}>
+            {renderRosterElement(targetClassroom)}
+            <SuspendSecondClassroom classroomId={targetClassroom.id} />
+          </React.Suspense>
+        </>
+      )
+    }
+
+    render(<Harness />)
+    await user.click(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    await user.clear(input)
+    await user.type(input, 'updated@example.com')
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    await waitFor(() => expect(resolveSave).toEqual(expect.any(Function)))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch classroom' }))
+    expect(screen.queryByText('Switching')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveSave?.()
+    })
+
+    expect(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    })).toHaveTextContent('updated@example.com')
+  })
+
   it.each(['add', 'upload'] as const)(
     'ignores a stale %s success callback while the next classroom loads',
     async (callbackName) => {
@@ -528,6 +657,76 @@ describe('TeacherRosterTab', () => {
     })
     await waitFor(() => expect(editTrigger).toHaveFocus())
     expect(editTrigger).toHaveTextContent('new-counselor@example.com')
+  })
+
+  it('refreshes a conflicting counselor revision before retrying the preserved draft', async () => {
+    const user = userEvent.setup()
+    const initialRevision = '2026-08-16T12:00:00.000Z'
+    const refreshedRevision = '2026-08-16T12:01:00.000Z'
+    const savedRevision = '2026-08-16T12:02:00.000Z'
+    let rosterLoads = 0
+    let counselorAttempts = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        rosterLoads += 1
+        return mockJson({
+          roster: [{
+            ...rosterRow,
+            counselor_email: rosterLoads === 1 ? 'counselor@example.com' : 'server@example.com',
+            updated_at: rosterLoads === 1 ? initialRevision : refreshedRevision,
+          }],
+        })
+      }
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'PATCH') {
+        counselorAttempts += 1
+        if (counselorAttempts === 1) {
+          return Promise.resolve({
+            ok: false,
+            status: 409,
+            json: () => Promise.resolve({ error: 'Counselor email changed elsewhere.' }),
+          })
+        }
+        return mockJson({
+          roster: {
+            id: rosterRow.id,
+            counselor_email: 'attempted@example.com',
+            updated_at: savedRevision,
+          },
+        })
+      }
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderRoster()
+    await user.click(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    }))
+    const input = screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' })
+    await user.clear(input)
+    await user.type(input, 'attempted@example.com')
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Counselor email changed elsewhere.')
+    expect(screen.getByRole('textbox', { name: 'Counselor email for Ada Lovelace' }))
+      .toHaveValue('attempted@example.com')
+    expect(rosterLoads).toBe(2)
+
+    await user.click(screen.getByRole('button', { name: 'Save counselor email for Ada Lovelace' }))
+    expect(await screen.findByRole('button', {
+      name: 'Edit counselor email for Ada Lovelace',
+    })).toHaveTextContent('attempted@example.com')
+
+    const patchBodies = fetchMock.mock.calls
+      .filter(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH')
+      .map((call) => getRequestBody(call))
+    expect(patchBodies).toEqual([
+      { counselor_email: 'attempted@example.com', expected_updated_at: initialRevision },
+      { counselor_email: 'attempted@example.com', expected_updated_at: refreshedRevision },
+    ])
   })
 
   it('does not let an older counselor save close a newer row editor', async () => {

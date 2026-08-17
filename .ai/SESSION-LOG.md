@@ -1093,13 +1093,16 @@ contract; no schema, migration, production, Gradex, or mobile redesign change.
   cannot repaint or submit into the current classroom. Generations advance only
   in committed layout lifecycles, so an abandoned concurrent render cannot
   invalidate the still-visible classroom's request.
+- Bound the roster workspace's classroom identity to committed layout lifecycles
+  and refresh stale counselor revisions after conflicts while preserving the
+  teacher's attempted value for retry.
 - Added direct keyboard coverage for table selection and Escape focus return,
   plus regressions for overlapping loads, counselor saves, removal recovery,
   modal error semantics, and focus behavior.
 
 **Validation:**
-- Focused roster API, modal, table, and dialog suites pass: 86 tests. The full
-  suite passes: 4,353 tests across 499 files. TypeScript, lint, production build, UI
+- Focused roster API, modal, table, and dialog suites pass: 89 tests. The full
+  suite passes: 4,356 tests across 499 files. TypeScript, lint, production build, UI
   policy, design policy, architecture checks, Pika audit, and diff checks pass.
 - Composite-widget checklist reviewed: direct keyboard behavior and semantic
   state are covered by tests, with no manual accessibility follow-up remaining.

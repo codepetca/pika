@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   ConfirmDialog,
@@ -133,8 +133,17 @@ export function TeacherRosterTab({ classroom }: Props) {
   const loadRequestIdRef = useRef(0)
   const rosterMutationVersionRef = useRef(0)
   const classroomEpochRef = useRef(0)
-  const currentClassroomIdRef = useRef(classroom.id)
-  currentClassroomIdRef.current = classroom.id
+  const currentClassroomIdRef = useRef<string | null>(null)
+
+  useLayoutEffect(() => {
+    const committedClassroomId = classroom.id
+    currentClassroomIdRef.current = committedClassroomId
+    return () => {
+      if (currentClassroomIdRef.current === committedClassroomId) {
+        currentClassroomIdRef.current = null
+      }
+    }
+  }, [classroom.id])
 
   // Selection state
   const { showMessage } = useAppMessage()
@@ -479,6 +488,10 @@ export function TeacherRosterTab({ classroom }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        if (res.status === 409) {
+          invalidateCachedJSON(`teacher-roster:${classroomId}`)
+          await loadRoster({ preserveRoster: true })
+        }
         throw new Error(data.error || 'Failed to update counselor email')
       }
       invalidateCachedJSON(`teacher-roster:${classroomId}`)
