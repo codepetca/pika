@@ -50,18 +50,6 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/StudentResourcesTab.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "ec1d80b0398c341d",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
       "file": "src/app/classrooms/[classroomId]/StudentTestsTab.tsx",
       "reviewBy": "phase-3-tests-exam-mode",
       "values": [
@@ -184,18 +172,6 @@
           "count": 24,
           "fingerprint": "3150cf1feac4d768",
           "reason": "special-layer"
-        }
-      ]
-    },
-    {
-      "file": "src/app/classrooms/[classroomId]/TeacherResourcesTab.tsx",
-      "reviewBy": "phase-2-design-foundation-debt",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "ec1d80b0398c341d",
-          "reason": "layout-geometry"
         }
       ]
     },
@@ -735,6 +711,18 @@
           "kind": "arbitrary-spacing",
           "count": 1,
           "fingerprint": "d0039cf5f3d17fa2",
+          "reason": "layout-geometry"
+        }
+      ]
+    },
+    {
+      "file": "src/components/SyllabusPreview.tsx",
+      "reviewBy": "phase-3-syllabus-resources",
+      "values": [
+        {
+          "kind": "arbitrary-spacing",
+          "count": 2,
+          "fingerprint": "13aad4c1571ae15a",
           "reason": "layout-geometry"
         }
       ]

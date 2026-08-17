@@ -2,6 +2,7 @@
 
 import { Settings } from 'lucide-react'
 import { PageContent, PageLayout } from '@/components/PageLayout'
+import { SyllabusPreview } from '@/components/SyllabusPreview'
 import { Button, EmptyState } from '@/ui'
 import type { Classroom } from '@/types'
 
@@ -18,11 +19,7 @@ export function TeacherResourcesTab({ classroom }: Props) {
     return (
       <PageLayout className="h-full min-h-0 flex-1">
         <PageContent className="flex min-h-0 flex-1 flex-col px-0 pt-0">
-          <iframe
-            title={`${classroom.title} syllabus preview`}
-            src={siteHref}
-            className="h-full min-h-[calc(100vh-3rem)] w-full flex-1 bg-page lg:min-h-0"
-          />
+          <SyllabusPreview classroomTitle={classroom.title} siteHref={siteHref} />
         </PageContent>
       </PageLayout>
     )

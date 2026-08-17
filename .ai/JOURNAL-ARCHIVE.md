@@ -18331,3 +18331,38 @@ broader rollout, generic cleanup, migration, or Blueprint deletion.
   users remain, and diff/static migration checks pass.
 - Local managed Storage is `compatibility`; Classroom purge, Blueprint purge,
   and generic cleanup remain disabled. No staging or production state changed.
+
+<!-- pika-session-log-archive-batch:17071a8c58a6ce2d046be9d081400f9dbaeef03be1274649a774038b54699fad -->
+## 2026-08-06 — Harden Blueprint purge recovery boundaries
+
+**Review remediation:**
+- Active purges are rediscovered before fresh inventory, return their persisted
+  impact, and reuse a client-retained operation UUID after a lost start response.
+  Pre-migration APIs now fail closed with an intentional 503 instead of a
+  generic 500.
+- Source-aware Blueprint copies now heartbeat a durable intent and explicitly
+  settle it as adopted or aborted after ownership or cleanup is durable.
+  Expired abandoned intents no longer block purge forever, while a running
+  operation or heartbeat keeps the fence live.
+- The confirmation digest now includes each linked Classroom's Blueprint
+  Version, source revision, and origin identity, and begin locks those lineage
+  rows before sealing inventory.
+- A periodic heartbeat now spans individual provider calls, and finalization
+  uses a separate Blueprint-owned membership digest so preserved Classroom
+  edits cannot strand deletion after Storage cleanup.
+- Expanded unit, API, UI, static migration, and transactional database fixtures
+  for lost responses, partial deletion, pre-120 compatibility, copy failures,
+  intent lifetime, and equal-membership lineage drift.
+
+**Validation and boundary:**
+- Focused remediation tests pass (58/58), with TypeScript, focused ESLint,
+  shell syntax, feature validation, and diff checks also passing.
+- Full Vitest (4,078 tests), lint, and production build pass. Final targeted
+  review still found one P1: after a transient heartbeat failure, the current
+  timer stops renewing while an in-flight provider call can remain stalled.
+  The feature remains failing pending an abortable deadline or durable copy
+  operation ledger; no further review-fix batch was taken in this session.
+- The changed migration 120 has not been replayed after this review batch;
+  fresh exact local-reset authorization is required before database fixture and
+  generated-type verification. No staging or production state changed, and all
+  deletion/cleanup rollout gates remain disabled.

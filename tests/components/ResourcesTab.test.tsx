@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResourcesTab'
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
@@ -58,9 +58,19 @@ describe('ResourcesTab', () => {
   it('renders teacher resources as a syllabus entry point', () => {
     render(<TeacherResourcesTab classroom={classroom} />)
 
-    expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
+    const preview = screen.getByTitle('Test Classroom syllabus preview')
+    expect(preview).toHaveAttribute('src', '/actual/test-classroom')
+    expect(preview).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByRole('heading', { name: 'Syllabus' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open syllabus' })).toHaveAttribute(
+      'href',
+      '/actual/test-classroom',
+    )
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    fireEvent.load(preview)
+    expect(screen.queryByText('Loading syllabus')).toBeNull()
+    expect(preview).toHaveAttribute('tabindex', '0')
     expect(screen.queryByText('Public syllabus')).toBeNull()
-    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /syllabus settings/i })).toBeNull()
     expect(screen.queryByRole('link', { name: '/actual/test-classroom' })).toBeNull()
     expect(screen.queryByText('Teacher announcements content')).toBeNull()
@@ -70,9 +80,34 @@ describe('ResourcesTab', () => {
     render(<StudentResourcesTab classroom={classroom} />)
 
     expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
+    expect(screen.getByRole('link', { name: 'Open syllabus' })).toHaveAttribute(
+      'target',
+      '_blank',
+    )
     expect(screen.queryByText('Public syllabus')).toBeNull()
-    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByText('Student announcements content')).toBeNull()
+  })
+
+  it('shows a retryable error when the published syllabus cannot load', () => {
+    vi.useFakeTimers()
+    try {
+      render(<TeacherResourcesTab classroom={classroom} />)
+
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Syllabus unavailable')
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+      expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+      expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute(
+        'src',
+        '/actual/test-classroom?previewAttempt=1',
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows unpublished state for students when the site is private', () => {
