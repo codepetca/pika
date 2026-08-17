@@ -290,6 +290,13 @@ Exit evidence: scoped rollout controls, durable runs that progress without an op
 
 Exit evidence: browser-tested rollover and date/release review; idempotent operation evidence; a documented hot-to-cold state machine; teacher-visible operation and restore states; database contract/recovery drills proving equality; named production canaries; and separately approved cleanup evidence, if cleanup is enabled at all.
 
+Blueprint rollover progress:
+
+- Classroom capture and blueprint instantiation now retain one UUID idempotency key while an unchanged client request is retried. Changing the semantic request produces a new key, and successful completion clears it.
+- Blueprint-created classrooms pause at a teacher review handoff before the create dialog closes. The handoff states that assignments and tests are unpublished, requires due-date/release review, lists lesson templates that did not fit the selected classroom calendar, and opens the new classroom's Assignments tab from every entry point.
+- The teacher-only refinement follows the existing create-classroom dialog pattern. Desktop/mobile and light/dark browser verification covers the overflow state, confirms the browser sends a UUID idempotency key, and finds no horizontal overflow; focused component tests cover successful handoff and same-key retries for both capture and instantiation.
+- Remaining Blueprint work includes package-import retry identity, dirty-state protection, a real classroom-to-blueprint-to-new-classroom browser drill, package compatibility evidence, planned-site verification, and broader preview/version workflow productization.
+
 ### Phase 6: Verification And Legacy Retirement
 
 1. Rerun the complete teacher/student workflow matrix across classroom, teacher utility, and student utility shells at desktop/mobile and light/dark states.

@@ -1,23 +1,30 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
 import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 
-type WizardStep = 'name' | 'blueprint' | 'calendar'
+type WizardStep = 'name' | 'blueprint' | 'calendar' | 'review'
 type CalendarMode = 'preset' | 'custom'
 type Semester = 'semester1' | 'semester2'
 type CreationMode = 'blank' | 'blueprint'
 
 const CHOOSE_FILE_OPTION = '__choose-file__'
 
+type BlueprintCreationResult = {
+  classroom: any
+  overflowLessonTemplates: string[]
+}
+
 interface CreateClassroomModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (classroom: any) => void
+  onBlueprintCreated?: (classroom: any) => void
   initialBlueprintId?: string | null
 }
 
@@ -25,12 +32,16 @@ export function CreateClassroomModal({
   isOpen,
   onClose,
   onSuccess,
+  onBlueprintCreated,
   initialBlueprintId = null,
 }: CreateClassroomModalProps) {
+  const router = useRouter()
   const startMonthId = useId()
   const endMonthId = useId()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const reviewHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const blueprintLoadGenerationRef = useRef(0)
+  const instantiateOperationRef = useRef<{ fingerprint: string; id: string } | null>(null)
 
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
@@ -50,6 +61,7 @@ export function CreateClassroomModal({
   const [loading, setLoading] = useState(false)
   const [importingBlueprint, setImportingBlueprint] = useState(false)
   const [error, setError] = useState('')
+  const [blueprintCreationResult, setBlueprintCreationResult] = useState<BlueprintCreationResult | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -69,6 +81,10 @@ export function CreateClassroomModal({
       isCurrent = false
     }
   }, [initialBlueprintId, isOpen])
+
+  useEffect(() => {
+    if (step === 'review') reviewHeadingRef.current?.focus()
+  }, [step])
 
   function getSemesterYears() {
     const now = new Date()
@@ -105,6 +121,8 @@ export function CreateClassroomModal({
     setCalendarMode('preset')
     setSelectedSemester('semester1')
     setError('')
+    setBlueprintCreationResult(null)
+    instantiateOperationRef.current = null
   }
 
   function proceedFromName(nextMode: CreationMode) {
@@ -191,23 +209,42 @@ export function CreateClassroomModal({
       let classroom: any
 
       if (selectedBlueprintId) {
+        const requestBody = {
+          title,
+          semester: calendarMode === 'preset' ? calendarBody.semester : undefined,
+          year: calendarMode === 'preset' ? calendarBody.year : undefined,
+          start_date: calendarMode === 'custom' ? calendarBody.start_date : undefined,
+          end_date: calendarMode === 'custom' ? calendarBody.end_date : undefined,
+        }
+        const fingerprint = JSON.stringify({ blueprintId: selectedBlueprintId, requestBody })
+        if (instantiateOperationRef.current?.fingerprint !== fingerprint) {
+          instantiateOperationRef.current = { fingerprint, id: crypto.randomUUID() }
+        }
         const instantiateResponse = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/instantiate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title,
-            semester: calendarMode === 'preset' ? calendarBody.semester : undefined,
-            year: calendarMode === 'preset' ? calendarBody.year : undefined,
-            start_date: calendarMode === 'custom' ? calendarBody.start_date : undefined,
-            end_date: calendarMode === 'custom' ? calendarBody.end_date : undefined,
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': instantiateOperationRef.current.id,
+          },
+          body: JSON.stringify(requestBody),
         })
         const instantiateData = await instantiateResponse.json().catch(() => ({}))
         if (!instantiateResponse.ok) {
           throw new Error(instantiateData.error || 'Failed to create classroom from blueprint')
         }
         classroom = instantiateData.classroom
+        instantiateOperationRef.current = null
         invalidateTeacherBlueprints()
+        invalidateTeacherClassrooms()
+        onBlueprintCreated?.(classroom)
+        setBlueprintCreationResult({
+          classroom,
+          overflowLessonTemplates: Array.isArray(instantiateData.lesson_mapping?.overflow_lesson_templates)
+            ? instantiateData.lesson_mapping.overflow_lesson_templates
+            : [],
+        })
+        setStep('review')
+        return
       } else {
         const createResponse = await fetch('/api/teacher/classrooms', {
           method: 'POST',
@@ -242,7 +279,17 @@ export function CreateClassroomModal({
     }
   }
 
+  function finishBlueprintCreation(openForReview: boolean) {
+    if (!blueprintCreationResult) return
+    const { classroom } = blueprintCreationResult
+    resetForm()
+    onClose()
+    if (openForReview) router.push(`/classrooms/${classroom.id}?tab=assignments`)
+  }
+
   function handleClose() {
+    if (loading || importingBlueprint) return
+    if (blueprintCreationResult) return finishBlueprintCreation(false)
     resetForm()
     onClose()
   }
@@ -252,6 +299,7 @@ export function CreateClassroomModal({
     creationMode === 'blueprint' || step === 'blueprint'
       ? ['name', 'blueprint', 'calendar']
       : ['name', 'calendar']
+  const currentProgressIndex = step === 'review' ? progressSteps.length : progressSteps.indexOf(step)
   const canContinueFromBlueprintStep = !!selectedBlueprintId
   const isBusy = loading || importingBlueprint
 
@@ -263,16 +311,22 @@ export function CreateClassroomModal({
       className="p-6"
       ariaLabelledBy="create-classroom-title"
     >
-      <h2 id="create-classroom-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Create Classroom</h2>
+      <h2
+        ref={reviewHeadingRef}
+        id="create-classroom-title"
+        tabIndex={step === 'review' ? -1 : undefined}
+        className="text-xl font-bold text-text-default mb-4 flex-shrink-0 focus:outline-none"
+      >
+        {step === 'review' ? 'Classroom Created' : 'Create Classroom'}
+      </h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
           {progressSteps.map((progressStep, index) => {
-            const currentIndex = progressSteps.indexOf(step)
             const progressIndex = progressSteps.indexOf(progressStep)
-            const isActive = progressIndex === currentIndex
-            const isComplete = progressIndex < currentIndex
+            const isActive = progressIndex === currentProgressIndex
+            const isComplete = progressIndex < currentProgressIndex
 
             return (
               <div
@@ -461,6 +515,37 @@ export function CreateClassroomModal({
           </div>
         )}
 
+        {step === 'review' && blueprintCreationResult && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-text-default">Classroom ready for review</h3>
+              <p className="mt-1 text-sm text-text-muted">
+                Assignments and tests are unpublished. Review their due dates and release settings before sharing classwork with students.
+              </p>
+            </div>
+
+            {blueprintCreationResult.overflowLessonTemplates.length > 0 ? (
+              <div className="rounded-md border border-warning bg-warning-bg px-4 py-3 text-sm text-text-default">
+                <p className="font-medium">
+                  {blueprintCreationResult.overflowLessonTemplates.length} lesson {blueprintCreationResult.overflowLessonTemplates.length === 1 ? 'plan was' : 'plans were'} not scheduled
+                </p>
+                <p className="mt-1 text-text-muted">
+                  The selected calendar did not have enough class days. Add dates or schedule these lesson plans manually:
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {blueprintCreationResult.overflowLessonTemplates.map((lessonTitle, index) => (
+                    <li key={`${lessonTitle}-${index}`}>{lessonTitle}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="rounded-md border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
+                All blueprint lesson plans fit within the selected classroom calendar.
+              </div>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="mt-4 text-sm text-danger">
             {error}
@@ -470,26 +555,28 @@ export function CreateClassroomModal({
 
       {/* Navigation Buttons */}
       <div className="flex gap-3 mt-6 flex-shrink-0">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={
-            step === 'name'
-              ? handleClose
-              : () => {
-                  if (step === 'calendar') {
-                    setStep(creationMode === 'blueprint' ? 'blueprint' : 'name')
-                  } else {
-                    setStep('name')
+        {step !== 'review' ? (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={
+              step === 'name'
+                ? handleClose
+                : () => {
+                    if (step === 'calendar') {
+                      setStep(creationMode === 'blueprint' ? 'blueprint' : 'name')
+                    } else {
+                      setStep('name')
+                    }
+                    setError('')
                   }
-                  setError('')
-                }
-          }
-          disabled={isBusy}
-          className="flex-1"
-        >
-          {step === 'name' ? 'Cancel' : 'Back'}
-        </Button>
+            }
+            disabled={isBusy}
+            className="flex-1"
+          >
+            {step === 'name' ? 'Cancel' : 'Back'}
+          </Button>
+        ) : null}
         {step === 'name' ? (
           <SplitButton
             label="Next"
@@ -525,7 +612,7 @@ export function CreateClassroomModal({
           >
             Next
           </Button>
-        ) : (
+        ) : step === 'calendar' ? (
           <Button
             type="button"
             onClick={() => {
@@ -537,6 +624,14 @@ export function CreateClassroomModal({
             className="flex-1"
           >
             {loading ? 'Creating...' : 'Create'}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={() => finishBlueprintCreation(true)}
+            className="flex-1"
+          >
+            Review Classroom
           </Button>
         )}
       </div>
