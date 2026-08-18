@@ -1220,9 +1220,19 @@ dependency, or UI change.
   and bounded recovery. Pika emits no collectible, finish-tier, XP, or
   achievement calculations.
 - Added contract, calendar, planner, outbox, vertical integration, and guarded
-  local Postgres/HTTP recovery coverage. All 4,539 tests across 504 files,
+  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
   TypeScript, lint, architecture/UI/design policy, production build, real
   outbox recovery, and PostgreSQL concurrency checks pass.
-- Public registry lookup for `@codepet/pal-widget@0.1.0-alpha.3` returned 404.
-  Pika retains the exact public alpha.2 pin; publishing alpha.3 remains an
-  external blocker and no local dependency was added.
+- After the initial registry lookup returned 404, alpha.3 was published and the
+  public `alpha` dist-tag moved to it. Pika now pins
+  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
+  title, and roadmap collectible presentation through the existing Pika hosts.
+  Playwright verification covers student desktop/mobile, light/dark,
+  sketch/full-color roadmap states, and the open story reward dialog; teacher
+  views remain unaffected.
+- Independent review added winter-term and Toronto DST boundary coverage,
+  proved retries preserve the original producer timestamp, and made the real
+  recovery smoke remove and verify every fixture row. Pal main still compares
+  story eligibility with ingestion time instead of the preserved producer
+  timestamp; correcting that cross-service cutoff and proving the delayed
+  boundary case is a rollout blocker outside this Pika-only PR.

@@ -8,6 +8,7 @@ import {
   buildLearningItemViewedEvent,
   buildSessionStartedEvent,
   palPeriodKeyForActivityDay,
+  palPeriodKeyForInstant,
   pseudonymizePalRef,
 } from '@/lib/server/pal-events'
 import { v1 } from '@/vendor/pal-contract'
@@ -33,6 +34,13 @@ describe('Pika Pal v1 event builder', () => {
     expect(palPeriodKeyForActivityDay('2026-09-14')).toBe('pika-week-2026-09-14')
     expect(palPeriodKeyForActivityDay('2026-09-20')).toBe('pika-week-2026-09-14')
     expect(palPeriodKeyForActivityDay('2026-09-21')).toBe('pika-week-2026-09-21')
+  })
+
+  it('keeps Toronto week classification stable across the spring DST jump', () => {
+    expect(palPeriodKeyForInstant(new Date('2027-03-14T06:59:59.000Z')))
+      .toBe('pika-week-2027-03-08')
+    expect(palPeriodKeyForInstant(new Date('2027-03-14T07:00:00.000Z')))
+      .toBe('pika-week-2027-03-08')
   })
 
   it('builds all six canonical facts accepted by Pal', () => {

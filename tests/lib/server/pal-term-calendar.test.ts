@@ -39,6 +39,23 @@ describe('Pal academic term calendar', () => {
     })
   })
 
+  it('keeps the winter rollover on one fall term before starting spring', () => {
+    expect(palTermCalendarForPeriodStart('2027-01-25')).toMatchObject({
+      termStartDay: '2026-08-31',
+      termEndDay: '2027-01-31',
+      termWeekCount: 22,
+      weekStartDay: '2027-01-25',
+      weekIndex: 22,
+    })
+    expect(palTermCalendarForPeriodStart('2027-02-01')).toMatchObject({
+      termStartDay: '2027-02-01',
+      termEndDay: '2027-06-27',
+      termWeekCount: 21,
+      weekStartDay: '2027-02-01',
+      weekIndex: 1,
+    })
+  })
+
   it('rejects malformed or non-Monday period starts', () => {
     expect(() => palTermCalendarForPeriodStart('2026-02-30'))
       .toThrow('real Monday calendar day')

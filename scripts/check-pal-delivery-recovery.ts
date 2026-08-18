@@ -84,6 +84,7 @@ async function main(): Promise<void> {
   let fixtureCreated = false
   let palAvailable = false
   const receivedKeys: string[] = []
+  const receivedOccurredAts: string[] = []
   const server = createServer((request, response) => {
     if (
       request.method !== 'POST'
@@ -99,9 +100,15 @@ async function main(): Promise<void> {
     request.setEncoding('utf8')
     request.on('data', (chunk) => { body += chunk })
     request.on('end', () => {
-      const payload = JSON.parse(body) as { idempotency_key?: unknown }
+      const payload = JSON.parse(body) as {
+        idempotency_key?: unknown
+        occurred_at?: unknown
+      }
       if (typeof payload.idempotency_key === 'string') {
         receivedKeys.push(payload.idempotency_key)
+      }
+      if (typeof payload.occurred_at === 'string') {
+        receivedOccurredAts.push(payload.occurred_at)
       }
       if (!palAvailable) {
         response.writeHead(503, { 'Content-Type': 'application/json' })
@@ -193,8 +200,10 @@ async function main(): Promise<void> {
       || deliveredRow.delivered_at === null
       || receivedKeys.length !== 2
       || receivedKeys.some((key) => key !== event.idempotency_key)
+      || receivedOccurredAts.length !== 2
+      || receivedOccurredAts.some((value) => value !== event.occurred_at)
     ) {
-      throw new Error('Queued Pal event was not recovered exactly once with one stable key')
+      throw new Error('Queued Pal event was not recovered with a stable key and source timestamp')
     }
 
     console.info('[pal-recovery-smoke]', JSON.stringify({
@@ -202,15 +211,34 @@ async function main(): Promise<void> {
       recovery: 'delivered',
       attempts: deliveredRow.attempts,
       stable_idempotency_key: true,
+      stable_occurred_at: true,
     }))
   } finally {
     await closeServer(server)
     if (fixtureCreated) {
       const cleanupSql = `
+        delete from public.pal_daily_log_week_configurations
+        where student_id = '${studentId}' and period_key = '${periodKey}';
         delete from public.pal_event_outbox
         where idempotency_key = '${event.idempotency_key}';
         delete from public.users
         where id = '${studentId}' and email = '${email}';
+        do $cleanup$
+        begin
+          if exists (
+            select 1 from public.pal_daily_log_week_configurations
+            where student_id = '${studentId}' and period_key = '${periodKey}'
+          ) or exists (
+            select 1 from public.pal_event_outbox
+            where idempotency_key = '${event.idempotency_key}'
+          ) or exists (
+            select 1 from public.users
+            where id = '${studentId}' and email = '${email}'
+          ) then
+            raise exception 'Pal recovery fixture cleanup was incomplete';
+          end if;
+        end
+        $cleanup$;
       `
       execFileSync(
         'docker',
