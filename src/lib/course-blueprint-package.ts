@@ -69,7 +69,7 @@ const COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES = new Set<string>([
   'quizzes.md',
 ])
 const COURSE_BLUEPRINT_MANAGED_STORAGE_PATH = /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//i
-const COURSE_BLUEPRINT_MANAGED_ID_FIELD = /^\s*["']?(?:managed_object_id|snapshot_managed_object_id)["']?\s*:/im
+const COURSE_BLUEPRINT_MANAGED_ID_FIELD = /(?:^|[,{])\s*["']?(?:managed_object_id|snapshot_managed_object_id)["']?\s*:/im
 const MAX_STORAGE_PATH_DECODE_ROUNDS = 3
 
 export type CourseBlueprintPackageFileName =

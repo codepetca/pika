@@ -255,6 +255,14 @@ describe('course blueprint package compatibility matrix', () => {
       'resources.md',
       '\nhttps://test.supabase.co/%2573torage/v1/object/public/test-documents/teacher/test/file.pdf',
     ],
+    [
+      'resources.md',
+      '\n{"managed_object_id":"90000000-0000-4000-8000-000000000005"}',
+    ],
+    [
+      'resources.md',
+      '\n{"title":"Reference","snapshot_managed_object_id":"90000000-0000-4000-8000-000000000005"}',
+    ],
   ] as const)('rejects managed storage references in %s for direct and TAR imports', (fileName, content) => {
     const fixture = structuredClone(fixtures['5'])
     fixture.files[fileName] += content
