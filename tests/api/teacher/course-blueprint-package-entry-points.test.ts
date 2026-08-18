@@ -70,6 +70,14 @@ describe('course package application entry points', () => {
       bundle.files['course-overview.md'] =
         '/%73torage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf'
     }],
+    ['encoded leading slash managed URL', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf'
+    }],
+    ['double-encoded leading slash managed URL', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf'
+    }],
     ['managed image-render URL', (bundle: any) => {
       bundle.files['tests.md'] = bundle.files['tests.md'].replace(
         'https://example.com/version-5-reference',

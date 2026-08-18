@@ -95,10 +95,29 @@ export function isPikaManagedStorageUrl(
   }
 }
 
+function freeformUrlCandidates(markdown: string): string[] {
+  const candidates = new Set<string>()
+  const tokens = markdown.split(/[\s<>"'()[\]{}=,;|`]+/u)
+  for (const token of tokens) {
+    const normalized = token
+      .replace(/^[.!?*_~+\-]+/u, '')
+      .replace(/[.!?*_~+\-]+$/u, '')
+    if (!normalized) continue
+    candidates.add(normalized)
+
+    const colonIndex = normalized.indexOf(':')
+    if (colonIndex > 0 && !/^https?:/i.test(normalized)) {
+      const suffix = normalized.slice(colonIndex + 1)
+      if (suffix) candidates.add(suffix)
+    }
+  }
+  return [...candidates]
+}
+
 export function containsPikaManagedStorageUrl(
   markdown: string,
   configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
 ): boolean {
-  const candidates = markdown.match(/(?:https?:)?\/\/[^\s<>"')\]]+|\/[^\s<>"')\]]+/gi) || []
-  return candidates.some((candidate) => isPikaManagedStorageUrl(candidate, configuredUrl))
+  return freeformUrlCandidates(markdown)
+    .some((candidate) => isPikaManagedStorageUrl(candidate, configuredUrl))
 }

@@ -1288,3 +1288,9 @@ dependency, or UI change.
   before any server write-capable operation is called.
 - Remediated full verification passes 4,566 tests across 503 files, lint, type
   checking, and the production build.
+- A targeted re-review found fully encoded leading slashes still escaped the
+  representation-specific freeform extractor. Replaced URL-shape matching with
+  bounded Markdown tokenization so literal, encoded, double-encoded, inline-link,
+  absolute, and protocol-relative candidates all reach the one classifier.
+- The second remediated full verification passes 4,573 tests across 503 files,
+  lint, type checking, and the production build.
