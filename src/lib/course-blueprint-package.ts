@@ -706,7 +706,12 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
     return (value.match(/https?:\/\/[^\s<>"')\]]+/gi) || []).some((candidate) => {
       try {
         const url = new URL(candidate)
-        return url.origin === configuredSupabaseOrigin && managedStoragePath.test(url.pathname)
+        if (url.origin !== configuredSupabaseOrigin) return false
+        try {
+          return managedStoragePath.test(decodeURIComponent(url.pathname))
+        } catch {
+          return true
+        }
       } catch {
         return false
       }

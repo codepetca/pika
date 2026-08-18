@@ -176,6 +176,18 @@ describe('course blueprint package compatibility matrix', () => {
       'assignments.md',
       '\nSNAPSHOT_MANAGED_OBJECT_ID: 90000000-0000-4000-8000-000000000005',
     ],
+    [
+      'resources.md',
+      '\nhttps://test.supabase.co/%73torage/v1/object/public/test-documents/teacher/test/file.pdf',
+    ],
+    [
+      'resources.md',
+      '\nhttps://test.supabase.co/storage/v1/object/public/%74est-documents/teacher/test/file.pdf',
+    ],
+    [
+      'resources.md',
+      '\nhttps://test.supabase.co/storage/v1/object/public/%ZZ/teacher/test/file.pdf',
+    ],
   ] as const)('rejects managed storage references in %s for direct and TAR imports', (fileName, content) => {
     const fixture = structuredClone(fixtures['5'])
     fixture.files[fileName] += content
