@@ -10,6 +10,7 @@ import {
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportBundle,
   parseCourseBlueprintImportArchive,
+  parseCourseBlueprintImportJson,
   type CourseBlueprintImportResult,
 } from '@/lib/course-blueprint-package'
 import {
@@ -1103,6 +1104,22 @@ export async function importCourseBlueprintBundle(
 ) {
   const operationId = resolveBlueprintOperationId(options.operationId)
   const parsed = parseCourseBlueprintImportBundle(bundle)
+  if (parsed.errors.length > 0 || !parsed.manifest) {
+    return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
+  }
+  return importParsedCourseBlueprint(teacherId, {
+    ...parsed,
+    manifest: parsed.manifest,
+  }, operationId)
+}
+
+export async function importCourseBlueprintJson(
+  teacherId: string,
+  json: string | ArrayBuffer | Uint8Array,
+  options: BlueprintOperationOptions = {},
+) {
+  const operationId = resolveBlueprintOperationId(options.operationId)
+  const parsed = parseCourseBlueprintImportJson(json)
   if (parsed.errors.length > 0 || !parsed.manifest) {
     return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
   }

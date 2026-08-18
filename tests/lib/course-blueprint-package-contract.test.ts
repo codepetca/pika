@@ -4,8 +4,10 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
+  adaptVerifiedCoursePackage,
   parseCourseBlueprintImportArchive,
   parseCourseBlueprintImportBundle,
+  parseCourseBlueprintImportJson,
 } from '@/lib/course-blueprint-package'
 import {
   COURSE_BLUEPRINT_PACKAGE_CONTRACTS,
@@ -21,6 +23,7 @@ import {
 import {
   verifyCourseBlueprintPackageArchive,
   verifyCourseBlueprintPackageBundle,
+  verifyCourseBlueprintPackageJson,
   type CoursePackageVerificationResult,
 } from '@/lib/course-blueprint-package-verification'
 import {
@@ -45,6 +48,11 @@ const fixtureArchives = Object.fromEntries(versions.map((version) => [
   version,
   new Uint8Array(readFileSync(fixturePath(version, 'tar'))),
 ])) as Record<CoursePackageVersion, Uint8Array>
+
+const fixtureJsonTexts = Object.fromEntries(versions.map((version) => [
+  version,
+  readFileSync(fixturePath(version, 'json'), 'utf8'),
+])) as Record<CoursePackageVersion, string>
 
 const fixtureDigests: Record<CoursePackageVersion, { json: string; tar: string }> = {
   '2': {
@@ -136,7 +144,7 @@ describe('versioned Course Package contract', () => {
   })
 
   it.each(versions)('verifies version %s JSON and TAR through the same raw boundary', (version) => {
-    const direct = verifyCourseBlueprintPackageBundle(fixtures[version])
+    const direct = verifyCourseBlueprintPackageJson(fixtureJsonTexts[version])
     const archive = verifyCourseBlueprintPackageArchive(fixtureArchives[version])
 
     expect(direct.success).toBe(true)
@@ -149,7 +157,7 @@ describe('versioned Course Package contract', () => {
   })
 
   it.each(versions)('adapts version %s JSON and TAR to equivalent portable content', (version) => {
-    const direct = parseCourseBlueprintImportBundle(fixtures[version])
+    const direct = parseCourseBlueprintImportJson(fixtureJsonTexts[version])
     const archive = parseCourseBlueprintImportArchive(fixtureArchives[version])
 
     expect(direct.errors).toEqual([])
@@ -227,6 +235,18 @@ describe('versioned Course Package contract', () => {
       .toBe('82000000-0000-4000-8000-000000000005')
   })
 
+  it('rejects non-zero TAR entry padding', () => {
+    const archive = fixtureArchives['5'].slice()
+    const firstEntrySize = Number.parseInt(
+      new TextDecoder().decode(archive.slice(124, 136)).replace(/\0/g, '').trim(),
+      8,
+    )
+    archive[512 + firstEntrySize] = 1
+
+    expect(issueCodes(verifyCourseBlueprintPackageArchive(archive)))
+      .toEqual(['invalid_archive'])
+  })
+
   it('accepts version 2 with or without retired quizzes.md and discards it', () => {
     const withoutQuiz = structuredClone(fixtures['2'])
     delete withoutQuiz.files['quizzes.md']
@@ -298,6 +318,14 @@ describe('versioned Course Package contract', () => {
       .toEqual(['invalid_archive'])
   })
 
+  it.each([
+    ['one zero block', (archive: Uint8Array) => archive.slice(0, -512)],
+    ['non-aligned zero tail', (archive: Uint8Array) => archive.slice(0, -1)],
+  ] as const)('rejects a TAR with a %s', (_label, mutate) => {
+    expect(issueCodes(verifyCourseBlueprintPackageArchive(mutate(fixtureArchives['5']))))
+      .toEqual(['invalid_archive'])
+  })
+
   it('rejects non-UTF-8 TAR content before adaptation', () => {
     const archive = encodeFixtureTar(decodeFixtureTar(fixtureArchives['5']).map((entry) => (
       entry.name === 'resources.md' ? { ...entry, content: new Uint8Array([0xff]) } : entry
@@ -305,6 +333,76 @@ describe('versioned Course Package contract', () => {
 
     expect(issueCodes(verifyCourseBlueprintPackageArchive(archive)))
       .toEqual(['invalid_file'])
+  })
+
+  it('rejects non-UTF-8 direct JSON before adaptation', () => {
+    const invalidUtf8 = new Uint8Array([0x7b, 0x22, 0x78, 0x22, 0x3a, 0xff, 0x7d])
+
+    expect(issueCodes(verifyCourseBlueprintPackageJson(invalidUtf8)))
+      .toEqual(['invalid_envelope'])
+  })
+
+  it.each([
+    ['root', (manifest: string, files: string) => (
+      `{"manifest":${manifest},"manifest":${manifest},"files":${files}}`
+    )],
+    ['manifest', (manifest: string, files: string) => (
+      `{"manifest":${manifest.replace('"version":"5"', '"version":"5","version":"5"')},"files":${files}}`
+    )],
+    ['files', (manifest: string, files: string) => (
+      `{"manifest":${manifest},"files":${files.replace(
+        '"course-overview.md":',
+        '"course-overview.md":"duplicate","course-overview.md":',
+      )}}`
+    )],
+  ] as const)('rejects duplicate %s keys in raw direct JSON', (_label, buildJson) => {
+    const manifest = JSON.stringify(fixtures['5'].manifest)
+    const files = JSON.stringify(fixtures['5'].files)
+
+    expect(issueCodes(verifyCourseBlueprintPackageJson(buildJson(manifest, files))))
+      .toEqual(['duplicate_entry'])
+  })
+
+  it('rejects duplicate manifest keys in a checksum-valid TAR', () => {
+    const duplicateManifest = JSON.stringify(fixtures['5'].manifest)
+      .replace('"version":"5"', '"version":"5","version":"5"')
+    const archive = encodeFixtureTar(decodeFixtureTar(fixtureArchives['5']).map((entry) => (
+      entry.name === 'manifest.json'
+        ? fixtureTarTextEntry(entry.name, duplicateManifest)
+        : entry
+    )))
+
+    expect(issueCodes(verifyCourseBlueprintPackageArchive(archive)))
+      .toEqual(['duplicate_entry'])
+  })
+
+  it('preserves immutable raw evidence and verified content after caller mutation', () => {
+    const input = structuredClone(fixtures['5'])
+    const verification = verifyCourseBlueprintPackageBundle(input)
+    expect(verification.success).toBe(true)
+    if (!verification.success) return
+    const before = adaptVerifiedCoursePackage(verification.value)
+
+    input.manifest.title = 'mutated caller title'
+    input.files['course-overview.md'] = 'mutated caller content'
+    expect(Object.isFrozen(verification.value)).toBe(true)
+    expect(Object.isFrozen(verification.value.bundle)).toBe(true)
+    expect(Object.isFrozen(verification.value.bundle.manifest)).toBe(true)
+    expect(Object.isFrozen(verification.value.bundle.files)).toBe(true)
+    expect(Object.isFrozen(verification.value.evidence.entryNames)).toBe(true)
+    expect(Object.isFrozen(verification.value.evidence.rawManifest)).toBe(true)
+    expect(Object.isFrozen(verification.value.evidence.rawFiles)).toBe(true)
+    expect(verification.value.evidence.rawManifest).toEqual(
+      expect.objectContaining({ title: 'Version 5 Computer Science' }),
+    )
+    expect(verification.value.evidence.rawFiles['course-overview.md'])
+      .not.toBe('mutated caller content')
+
+    expect(() => {
+      (verification.value.bundle.files as Record<string, string>)['course-overview.md'] =
+        'post-verification mutation'
+    }).toThrow()
+    expect(adaptVerifiedCoursePackage(verification.value)).toEqual(before)
   })
 
   it.each(versions.flatMap((version) => ([
@@ -346,6 +444,37 @@ describe('versioned Course Package contract', () => {
     expect(issueCodes(verifyCourseBlueprintPackageBundle(oversized))).toContain('file_too_large')
     expect(issueCodes(verifyCourseBlueprintPackageArchive(oversizedArchive)))
       .toContain('file_too_large')
+  })
+
+  it.each([
+    ['ASCII', ''],
+    ['multibyte', 'é'],
+  ] as const)('enforces the exact manifest byte boundary for %s JSON and TAR', (_label, prefix) => {
+    const exact = structuredClone(fixtures['5'])
+    exact.manifest.title = prefix
+    const baseBytes = new TextEncoder().encode(JSON.stringify(exact.manifest)).byteLength
+    exact.manifest.title += 'a'.repeat(COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES - baseBytes)
+    const oversized = structuredClone(exact)
+    oversized.manifest.title += 'a'
+    const exactJson = JSON.stringify(exact)
+    const oversizedJson = JSON.stringify(oversized)
+    const exactArchive = encodeFixtureTar([
+      fixtureTarTextEntry('manifest.json', JSON.stringify(exact.manifest)),
+      ...decodeFixtureTar(fixtureArchives['5']).filter((entry) => entry.name !== 'manifest.json'),
+    ])
+    const oversizedArchive = encodeFixtureTar([
+      fixtureTarTextEntry('manifest.json', JSON.stringify(oversized.manifest)),
+      ...decodeFixtureTar(fixtureArchives['5']).filter((entry) => entry.name !== 'manifest.json'),
+    ])
+
+    expect(new TextEncoder().encode(JSON.stringify(exact.manifest)).byteLength)
+      .toBe(COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES)
+    expect(verifyCourseBlueprintPackageJson(exactJson).success).toBe(true)
+    expect(verifyCourseBlueprintPackageArchive(exactArchive).success).toBe(true)
+    expect(issueCodes(verifyCourseBlueprintPackageJson(oversizedJson)))
+      .toEqual(['file_too_large'])
+    expect(issueCodes(verifyCourseBlueprintPackageArchive(oversizedArchive)))
+      .toEqual(['file_too_large'])
   })
 
   it('enforces the exact TAR package byte boundary', () => {

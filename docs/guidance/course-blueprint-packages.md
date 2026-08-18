@@ -62,10 +62,14 @@ is parsed into one canonical portable course model.
 | `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
 
 Raw schemas never create missing files or supply defaults. Direct JSON and TAR
-packages feed the same verifier, which retains the original manifest, file map,
-entry names, source kind, and byte length as raw evidence. TAR transport checks
-also reject malformed headers, invalid UTF-8, duplicate entries, and size-limit
-violations before adaptation.
+packages feed the same verifier. Raw JSON is decoded as fatal UTF-8 and parsed
+without duplicate-key normalization. The verifier retains immutable copies of
+the original JSON text or TAR manifest text, manifest, file map, entry names,
+source kind, and received byte length as raw evidence. The branded verified
+value and its nested evidence cannot be changed before adaptation. TAR transport
+checks also require block alignment, two complete zero terminator blocks, zero
+entry padding, valid headers and UTF-8, unique entries, and size limits before
+adaptation. The 2 MiB per-entry limit applies to `manifest.json` in both forms.
 
 Immutable JSON and binary TAR fixtures for every supported version live in
 `tests/fixtures/course-blueprint-package-v*.{json,tar}`. Their SHA-256 digests

@@ -41,6 +41,7 @@ import {
 import {
   verifyCourseBlueprintPackageArchive,
   verifyCourseBlueprintPackageBundle,
+  verifyCourseBlueprintPackageJson,
   type CoursePackageVerificationResult,
   type VerifiedCoursePackage,
 } from '@/lib/course-blueprint-package-verification'
@@ -661,6 +662,15 @@ export function parseCourseBlueprintImportArchive(
 
 export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprintImportResult {
   const verification = verifyCourseBlueprintPackageBundle(input)
+  return verification.success
+    ? parseVerifiedCoursePackage(verification.value)
+    : invalidImportResult(verification)
+}
+
+export function parseCourseBlueprintImportJson(
+  input: string | ArrayBuffer | Uint8Array,
+): CourseBlueprintImportResult {
+  const verification = verifyCourseBlueprintPackageJson(input)
   return verification.success
     ? parseVerifiedCoursePackage(verification.value)
     : invalidImportResult(verification)

@@ -7,6 +7,7 @@ import {
   type CoursePackageRawBundle,
   type CoursePackageVersion,
 } from '@/lib/contracts/course-blueprint-package'
+import { parseStrictJson, StrictJsonError } from '@/lib/course-blueprint-package-json'
 
 const TAR_BLOCK_BYTES = 512
 const textEncoder = new TextEncoder()
@@ -31,18 +32,31 @@ export type CoursePackageVerificationIssue = {
   fileName?: string
 }
 
-export type CoursePackageRawEvidence = {
+type DeepReadonly<T> = T extends string | number | boolean | null | undefined
+  ? T
+  : T extends readonly (infer Item)[]
+    ? readonly DeepReadonly<Item>[]
+    : T extends Record<string, unknown>
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T
+
+export type CoursePackageRawEvidence = Readonly<{
   source: 'json' | 'tar'
   byteLength: number
-  entryNames: string[]
+  entryNames: readonly string[]
+  rawText?: string
+  rawManifestText: string
   rawManifest: unknown
-  rawFiles: Record<string, unknown>
-}
+  rawFiles: Readonly<Record<string, unknown>>
+}>
 
-export type VerifiedCoursePackage = {
-  bundle: CoursePackageRawBundle
+declare const verifiedCoursePackageBrand: unique symbol
+
+export type VerifiedCoursePackage = Readonly<{
+  [verifiedCoursePackageBrand]: true
+  bundle: DeepReadonly<CoursePackageRawBundle>
   evidence: CoursePackageRawEvidence
-}
+}>
 
 export type CoursePackageVerificationResult =
   | { success: true; value: VerifiedCoursePackage }
@@ -54,6 +68,18 @@ function failure(
   fileName?: string,
 ): CoursePackageVerificationResult {
   return { success: false, issues: [{ code, message, ...(fileName ? { fileName } : {}) }] }
+}
+
+function cloneAndFreeze<T>(value: T): DeepReadonly<T> {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((item) => cloneAndFreeze(item))) as DeepReadonly<T>
+  }
+  if (isRecord(value)) {
+    return Object.freeze(Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, cloneAndFreeze(child)]),
+    )) as DeepReadonly<T>
+  }
+  return value as DeepReadonly<T>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -135,23 +161,16 @@ function verifyEvidence(evidence: CoursePackageRawEvidence): CoursePackageVerifi
 
   return {
     success: true,
-    value: {
+    value: cloneAndFreeze({
       bundle: bundleResult.data as CoursePackageRawBundle,
       evidence,
-    },
+    }) as unknown as VerifiedCoursePackage,
   }
 }
 
 export function verifyCourseBlueprintPackageBundle(
   input: unknown,
 ): CoursePackageVerificationResult {
-  if (!isRecord(input) || !isRecord(input.files)) {
-    return failure('invalid_envelope', 'Invalid course package bundle')
-  }
-  if (Object.keys(input).some((key) => key !== 'manifest' && key !== 'files')) {
-    return failure('invalid_envelope', 'Invalid course package bundle')
-  }
-
   let serialized: string | undefined
   try {
     serialized = JSON.stringify(input)
@@ -161,12 +180,55 @@ export function verifyCourseBlueprintPackageBundle(
   if (serialized === undefined) {
     return failure('invalid_envelope', 'Invalid course package bundle')
   }
-  const byteLength = textEncoder.encode(serialized).byteLength
+  return verifyCourseBlueprintPackageJson(serialized)
+}
+
+export function verifyCourseBlueprintPackageJson(
+  input: string | ArrayBuffer | Uint8Array,
+): CoursePackageVerificationResult {
+  const byteLength = typeof input === 'string'
+    ? textEncoder.encode(input).byteLength
+    : input.byteLength
   if (byteLength > COURSE_BLUEPRINT_PACKAGE_MAX_BYTES) {
     return failure('package_too_large', 'Course package exceeds the 8 MiB limit')
   }
 
-  const rawFiles = input.files
+  let rawText: string
+  try {
+    rawText = typeof input === 'string'
+      ? input
+      : textDecoder.decode(input instanceof Uint8Array ? input : new Uint8Array(input))
+  } catch {
+    return failure('invalid_envelope', 'Course package JSON is not valid UTF-8')
+  }
+
+  let parsedJson: ReturnType<typeof parseStrictJson>
+  try {
+    parsedJson = parseStrictJson(rawText)
+  } catch (error) {
+    if (error instanceof StrictJsonError && error.kind === 'duplicate_key') {
+      return failure('duplicate_entry', error.message)
+    }
+    return failure('invalid_envelope', 'Invalid course package bundle')
+  }
+  const parsed = parsedJson.value
+  if (!isRecord(parsed) || !isRecord(parsed.files)) {
+    return failure('invalid_envelope', 'Invalid course package bundle')
+  }
+  if (Object.keys(parsed).some((key) => key !== 'manifest' && key !== 'files')) {
+    return failure('invalid_envelope', 'Invalid course package bundle')
+  }
+
+  const rawManifestText = parsedJson.topLevelValueText.get('manifest') ?? ''
+  if (textEncoder.encode(rawManifestText).byteLength > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES) {
+    return failure(
+      'file_too_large',
+      'Course package file "manifest.json" exceeds the 2 MiB limit',
+      'manifest.json',
+    )
+  }
+
+  const rawFiles = parsed.files
   if (Object.keys(rawFiles).length + 1 > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT) {
     return failure('too_many_entries', 'Course package contains too many files')
   }
@@ -174,7 +236,9 @@ export function verifyCourseBlueprintPackageBundle(
     source: 'json',
     byteLength,
     entryNames: ['manifest.json', ...Object.keys(rawFiles)],
-    rawManifest: input.manifest,
+    rawText,
+    rawManifestText,
+    rawManifest: parsed.manifest,
     rawFiles,
   })
 }
@@ -217,6 +281,9 @@ export function verifyCourseBlueprintPackageArchive(
   if (bytes.byteLength > COURSE_BLUEPRINT_PACKAGE_MAX_BYTES) {
     return failure('package_too_large', 'Course package exceeds the 8 MiB limit')
   }
+  if (bytes.byteLength % TAR_BLOCK_BYTES !== 0) {
+    return failure('invalid_archive', 'Invalid course package TAR structure')
+  }
 
   const extracted = new Map<string, string>()
   const entryNames: string[] = []
@@ -226,8 +293,9 @@ export function verifyCourseBlueprintPackageArchive(
   while (offset + TAR_BLOCK_BYTES <= bytes.byteLength) {
     const header = bytes.slice(offset, offset + TAR_BLOCK_BYTES)
     if (isZeroBlock(header)) {
-      sawTerminator = true
-      if (!bytes.slice(offset).every((byte) => byte === 0)) {
+      const terminator = bytes.slice(offset)
+      sawTerminator = terminator.byteLength >= TAR_BLOCK_BYTES * 2
+      if (!sawTerminator || !terminator.every((byte) => byte === 0)) {
         return failure('invalid_archive', 'Invalid course package TAR structure')
       }
       break
@@ -267,12 +335,20 @@ export function verifyCourseBlueprintPackageArchive(
     if (offset + size > bytes.byteLength) {
       return failure('invalid_archive', 'Invalid course package TAR entry size')
     }
+    const contentEnd = offset + size
+    const paddedEnd = offset + Math.ceil(size / TAR_BLOCK_BYTES) * TAR_BLOCK_BYTES
+    if (paddedEnd > bytes.byteLength) {
+      return failure('invalid_archive', 'Invalid course package TAR entry size')
+    }
+    if (!bytes.slice(contentEnd, paddedEnd).every((byte) => byte === 0)) {
+      return failure('invalid_archive', 'Invalid course package TAR entry padding')
+    }
     try {
-      extracted.set(fullName, textDecoder.decode(bytes.slice(offset, offset + size)))
+      extracted.set(fullName, textDecoder.decode(bytes.slice(offset, contentEnd)))
     } catch {
       return failure('invalid_file', `Course package file "${fullName}" is not valid UTF-8`, fullName)
     }
-    offset += Math.ceil(size / TAR_BLOCK_BYTES) * TAR_BLOCK_BYTES
+    offset = paddedEnd
   }
 
   if (!sawTerminator) {
@@ -285,8 +361,11 @@ export function verifyCourseBlueprintPackageArchive(
 
   let rawManifest: unknown
   try {
-    rawManifest = JSON.parse(manifestText)
-  } catch {
+    rawManifest = parseStrictJson(manifestText).value
+  } catch (error) {
+    if (error instanceof StrictJsonError && error.kind === 'duplicate_key') {
+      return failure('duplicate_entry', error.message, 'manifest.json')
+    }
     return failure('invalid_manifest', 'Invalid course package manifest')
   }
   const rawFiles = Object.fromEntries(
@@ -296,6 +375,7 @@ export function verifyCourseBlueprintPackageArchive(
     source: 'tar',
     byteLength: bytes.byteLength,
     entryNames,
+    rawManifestText: manifestText,
     rawManifest,
     rawFiles,
   })
