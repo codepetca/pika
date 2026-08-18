@@ -348,6 +348,10 @@ describe('course blueprint package', () => {
     'https://test.supabase.co/storage/v1/render/image/authenticated/test-documents/reference.png',
     'https://test.supabase.co./storage/v1/object/public/test-documents/reference.pdf',
     'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co/storage/v1/object/public/test-documents/(reference).pdf',
+    'https://test.supabase.co/storage/v1/object/public/test-documents/,reference.pdf',
+    'https://test.supabase.co/storage/v1/object/public/test-documents/',
+    'https://test.supabase.co/storage/v1/render/image/public/submission-images/',
   ])('rejects configured-origin managed URL %s', (url) => {
     const bundle = withTestDocument(buildCourseBlueprintExportBundle(DETAIL), [
       'ID: 60000000-0000-4000-8000-000000000000',
@@ -392,6 +396,9 @@ describe('course blueprint package', () => {
     '%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     '%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf',
     '[Reference](%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf)',
+    '[Reference](https://test.supabase.co/storage/v1/object/public/test-documents/(reference).pdf)',
+    'https://test.supabase.co/storage/v1/object/public/test-documents/,reference.pdf',
+    '//test.supabase.co/storage/v1/render/image/public/submission-images/(reference).png',
     'https://test.supabase.co/storage/v1/render/image/public/submission-images/reference.png?width=500',
     'https://test.supabase.co./storage/v1/object/public/test-documents/reference.pdf',
     'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',

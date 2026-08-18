@@ -1294,3 +1294,11 @@ dependency, or UI change.
   absolute, and protocol-relative candidates all reach the one classifier.
 - The second remediated full verification passes 4,573 tests across 503 files,
   lint, type checking, and the production build.
+- After the same freeform extraction category recurred around valid object-key
+  punctuation, the human-approved third remediation moved the policy boundary:
+  any recognized managed route through a managed bucket is rejected at the
+  bucket boundary, without depending on successful object-key tokenization.
+- Added structured, freeform, JSON/TAR, import, and proposal regressions for
+  parenthesized and comma-prefixed object keys plus bucket-root object and image-
+  render routes. The third remediated full verification passes 4,583 tests
+  across 503 files, lint, type checking, and the production build.

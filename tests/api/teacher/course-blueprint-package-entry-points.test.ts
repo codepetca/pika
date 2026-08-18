@@ -78,6 +78,18 @@ describe('course package application entry points', () => {
       bundle.files['course-overview.md'] =
         '%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf'
     }],
+    ['managed inline URL with object-key parentheses', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '[Reference](https://test.supabase.co/storage/v1/object/public/test-documents/(reference).pdf)'
+    }],
+    ['managed URL with object-key comma', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        'https://test.supabase.co/storage/v1/object/public/test-documents/,reference.pdf'
+    }],
+    ['managed protocol-relative render URL with object-key parentheses', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '//test.supabase.co/storage/v1/render/image/public/submission-images/(reference).png'
+    }],
     ['managed image-render URL', (bundle: any) => {
       bundle.files['tests.md'] = bundle.files['tests.md'].replace(
         'https://example.com/version-5-reference',

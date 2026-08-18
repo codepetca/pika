@@ -73,7 +73,6 @@ function isManagedStoragePath(pathname: string): boolean {
   if (modeIndex < 0) return false
   return STORAGE_ACCESS_MODES.has(segments[modeIndex]?.toLowerCase())
     && MANAGED_STORAGE_BUCKETS.has(segments[modeIndex + 1]?.toLowerCase())
-    && Boolean(segments[modeIndex + 2])
 }
 
 export function isPikaManagedStorageUrl(
