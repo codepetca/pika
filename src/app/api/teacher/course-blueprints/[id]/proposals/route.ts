@@ -8,7 +8,8 @@ import {
   submitCourseBlueprintProposal,
 } from '@/lib/server/course-blueprint-proposals'
 import { resolveBlueprintOperationId } from '@/lib/server/course-blueprint-operations'
-import { coursePackageBundleSchema } from '@/lib/contracts/course-blueprint-package'
+import { planCourseBlueprintPackageJson } from '@/lib/course-blueprint-package'
+import { readCourseBlueprintPackageBody } from '@/lib/course-blueprint-package-request'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -41,6 +42,14 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintProposal', async
 ) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
+  const body = await readCourseBlueprintPackageBody(request)
+  const planned = planCourseBlueprintPackageJson(body)
+  if (!planned.ok) {
+    return NextResponse.json({
+      error: 'Invalid course package',
+      errors: planned.errors,
+    }, { status: 400 })
+  }
   const detailResult = await getCourseBlueprintDetail(user.id, id)
   if (!detailResult.detail) {
     throw new ApiError(detailResult.status || 500, detailResult.error || 'Failed to load Blueprint')
@@ -52,13 +61,7 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintProposal', async
     )
   }
 
-  const contentLength = Number(request.headers.get('content-length') || 0)
-  if (contentLength > 8 * 1024 * 1024) {
-    throw new ApiError(413, 'Course package proposal exceeds the 8 MiB request limit')
-  }
-
-  const bundle = coursePackageBundleSchema.parse(await request.json())
-  const candidateResult = buildCourseBlueprintPackageCandidate(detailResult.detail, bundle)
+  const candidateResult = buildCourseBlueprintPackageCandidate(detailResult.detail, planned.plan)
   if (!candidateResult.ok) {
     return NextResponse.json({
       error: candidateResult.error,

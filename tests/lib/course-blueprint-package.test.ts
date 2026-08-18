@@ -9,17 +9,35 @@ import {
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportArchive,
   parseCourseBlueprintImportBundle,
+  parseCourseBlueprintImportJson,
 } from '@/lib/course-blueprint-package'
 import {
   COURSE_BLUEPRINT_PACKAGE_MAX_BYTES,
   COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
 } from '@/lib/contracts/course-blueprint-package'
+import { portableCoursePackageTestDocumentSchema } from '@/lib/contracts/course-blueprint-portable-test-documents'
 import type { CourseBlueprintDetail } from '@/types'
 
 const testDir = dirname(fileURLToPath(import.meta.url))
 const V2_BUNDLE = JSON.parse(
   readFileSync(resolve(testDir, '../fixtures/course-blueprint-package-v2.json'), 'utf8'),
 )
+
+function withTestDocument(
+  bundle: ReturnType<typeof buildCourseBlueprintExportBundle>,
+  lines: string[],
+) {
+  return {
+    ...bundle,
+    files: {
+      ...bundle.files,
+      'tests.md': bundle.files['tests.md'].replace(
+        '## Documents\n_None_',
+        ['## Documents', '### Document 1', ...lines].join('\n'),
+      ),
+    },
+  }
+}
 
 const DETAIL: CourseBlueprintDetail = {
   id: '10000000-0000-4000-8000-000000000000',
@@ -211,11 +229,22 @@ describe('course blueprint package', () => {
       snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
       snapshot_content_type: 'text/html',
       synced_at: '2026-07-23T12:00:00.000Z',
+    }, {
+      id: '61000000-0000-4000-8000-000000000000',
+      title: 'Managed link',
+      source: 'link',
+      url: 'https://test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+      managed_object_id: '62000000-0000-4000-8000-000000000000',
+    }, {
+      id: '63000000-0000-4000-8000-000000000000',
+      title: 'Managed upload',
+      source: 'upload',
+      url: 'https://test.supabase.co/storage/v1/object/public/test-documents/upload.pdf',
+      managed_object_id: '64000000-0000-4000-8000-000000000000',
     }]
 
-    const parsed = parseCourseBlueprintImportBundle(
-      buildCourseBlueprintExportBundle(detail),
-    )
+    const bundle = buildCourseBlueprintExportBundle(detail)
+    const parsed = parseCourseBlueprintImportBundle(bundle)
 
     expect(parsed.errors).toEqual([])
     expect(parsed.assessments[0].documents).toEqual([
@@ -226,6 +255,140 @@ describe('course blueprint package', () => {
       }),
     ])
     expect(parsed.assessments[0].documents[0]).not.toHaveProperty('snapshot_path')
+    expect(JSON.stringify(bundle)).not.toMatch(
+      /managed_object_id|snapshot_path|snapshot_managed_object_id|snapshot_content_type|synced_at/,
+    )
+    expect(JSON.stringify(bundle)).not.toContain('/storage/v1/object/public/test-documents/')
+  })
+
+  it.each([
+    {
+      source: 'link',
+      fields: ['URL: https://docs.example.com/reference'],
+    },
+    {
+      source: 'text',
+      fields: ['Content:', 'Portable reference text'],
+    },
+  ])('accepts portable $source Test documents', ({ source, fields }) => {
+    const bundle = withTestDocument(buildCourseBlueprintExportBundle(DETAIL), [
+      'ID: 60000000-0000-4000-8000-000000000000',
+      `Source: ${source}`,
+      'Title: Reference',
+      ...fields,
+    ])
+
+    const parsed = parseCourseBlueprintImportBundle(bundle)
+
+    expect(parsed.errors).toEqual([])
+    expect(parsed.assessments[0].documents).toEqual([
+      expect.objectContaining({ source, title: 'Reference' }),
+    ])
+  })
+
+  it('rejects upload Test documents from the portable package model', () => {
+    const bundle = withTestDocument(buildCourseBlueprintExportBundle(DETAIL), [
+      'ID: 60000000-0000-4000-8000-000000000000',
+      'Source: upload',
+      'Title: Managed upload',
+      'URL: https://files.example.com/reference.pdf',
+    ])
+
+    const parsed = parseCourseBlueprintImportBundle(bundle)
+
+    expect(parsed.errors).toContainEqual(expect.stringContaining('Test 1: Document 1:'))
+  })
+
+  it.each([
+    'managed_object_id',
+    'snapshot_path',
+    'snapshot_managed_object_id',
+    'snapshot_content_type',
+    'synced_at',
+  ])('rejects runtime Test document field %s structurally', (field) => {
+    expect(portableCoursePackageTestDocumentSchema.safeParse({
+      id: '60000000-0000-4000-8000-000000000000',
+      source: 'link',
+      title: 'Reference',
+      url: 'https://docs.example.com/reference',
+      [field]: 'runtime-value',
+    }).success).toBe(false)
+    const bundle = withTestDocument(buildCourseBlueprintExportBundle(DETAIL), [
+      'ID: 60000000-0000-4000-8000-000000000000',
+      'Source: link',
+      'Title: Reference',
+      'URL: https://docs.example.com/reference',
+      `${field}: runtime-value`,
+    ])
+
+    const parsed = parseCourseBlueprintImportBundle(bundle)
+
+    expect(parsed.errors).toContainEqual(expect.stringContaining(`Invalid line "${field}: runtime-value"`))
+    expect(parsed.errors).not.toContain('Course packages cannot contain Pika-managed storage references')
+  })
+
+  it.each([
+    'https://test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co/storage/v1/object/sign/assignment-artifacts/reference.pdf',
+    'https://test.supabase.co/storage/v1/object/authenticated/submission-images/reference.png',
+    'https://test.supabase.co/%73torage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co/%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
+    'https://test.supabase.co/%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf',
+  ])('rejects configured-origin managed URL %s', (url) => {
+    const bundle = withTestDocument(buildCourseBlueprintExportBundle(DETAIL), [
+      'ID: 60000000-0000-4000-8000-000000000000',
+      'Source: link',
+      'Title: Reference',
+      `URL: ${url}`,
+    ])
+
+    const direct = parseCourseBlueprintImportBundle(bundle)
+    const json = parseCourseBlueprintImportJson(JSON.stringify(bundle))
+    const archive = parseCourseBlueprintImportArchive(encodeCourseBlueprintPackageArchive(bundle))
+
+    expect(direct.errors).toContain('Course packages cannot contain Pika-managed storage references')
+    expect(json.errors).toEqual(direct.errors)
+    expect(archive.errors).toEqual(direct.errors)
+  })
+
+  it.each([
+    'https://other.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co.evil.example/storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co@evil.example/storage/v1/object/public/test-documents/reference.pdf',
+    'https://docs.example.com/storage/v1/object/public/test-documents/reference.pdf',
+  ])('allows external-origin URL lookalike %s', (url) => {
+    const parsed = parseCourseBlueprintImportBundle(withTestDocument(
+      buildCourseBlueprintExportBundle(DETAIL),
+      [
+        'ID: 60000000-0000-4000-8000-000000000000',
+        'Source: link',
+        'Title: Reference',
+        `URL: ${url}`,
+      ],
+    ))
+
+    expect(parsed.errors).toEqual([])
+  })
+
+  it('checks freeform Markdown for configured-origin managed URLs as defense in depth', () => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    bundle.files['course-overview.md'] = [
+      'External lookalike is allowed:',
+      'https://other.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+      'Configured storage is not:',
+      'https://test.supabase.co/storage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
+    ].join('\n')
+
+    expect(parseCourseBlueprintImportBundle(bundle).errors).toContain(
+      'Course packages cannot contain Pika-managed storage references',
+    )
+  })
+
+  it('does not treat managed field names in freeform content as runtime state', () => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    bundle.files['course-overview.md'] = 'Explain what managed_object_id means in this API.'
+
+    expect(parseCourseBlueprintImportBundle(bundle).errors).toEqual([])
   })
 
   it('exports and re-imports the tar package archive', () => {

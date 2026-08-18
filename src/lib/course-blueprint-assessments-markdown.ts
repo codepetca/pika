@@ -1,6 +1,9 @@
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type { TestDocument, TestDraftContent } from '@/types'
 import {
+  portableCoursePackageTestDocumentsSchema,
+} from '@/lib/contracts/course-blueprint-portable-test-documents'
+import {
   isCourseBlueprintArtifactId,
   resolveCourseBlueprintArtifactId,
   type CourseBlueprintArtifactParseOptions,
@@ -23,6 +26,10 @@ export interface CourseBlueprintAssessmentsParseResult {
   assessments: CourseBlueprintAssessmentMarkdownRecord[]
   errors: string[]
   warnings: string[]
+}
+
+export type CourseBlueprintAssessmentsParseOptions = CourseBlueprintArtifactParseOptions & {
+  portableDocuments?: boolean
 }
 
 function sanitizeTestContent(
@@ -146,7 +153,7 @@ export function markdownToCourseBlueprintAssessments(
   markdown: string,
   existingAssessments: CourseBlueprintAssessmentMarkdownRecord[],
   assessmentType: 'test',
-  options: CourseBlueprintArtifactParseOptions = {}
+  options: CourseBlueprintAssessmentsParseOptions = {}
 ): CourseBlueprintAssessmentsParseResult {
   const errors: string[] = []
   const warnings: string[] = []
@@ -196,6 +203,17 @@ export function markdownToCourseBlueprintAssessments(
       parsed.errors.forEach((error) => errors.push(`Test ${index + 1}: ${error}`))
       return
     }
+    const portableDocuments = options.portableDocuments
+      ? portableCoursePackageTestDocumentsSchema.safeParse(parsed.documents)
+      : null
+    if (portableDocuments && !portableDocuments.success) {
+      portableDocuments.error.issues.forEach((issue) => {
+        const documentIndex = typeof issue.path[0] === 'number' ? issue.path[0] + 1 : null
+        const prefix = documentIndex ? `Document ${documentIndex}: ` : ''
+        errors.push(`Test ${index + 1}: ${prefix}${issue.message}`)
+      })
+      return
+    }
     const titleKey = parsed.draftContent.title.toLowerCase()
     const matchingExisting = artifactId
       ? existingByArtifactId.get(artifactId)
@@ -208,7 +226,9 @@ export function markdownToCourseBlueprintAssessments(
       assessment_type: 'test',
       title: parsed.draftContent.title,
       content: parsed.draftContent,
-      documents: parsed.documents,
+      documents: portableDocuments?.success
+        ? portableDocuments.data
+        : parsed.documents,
       points_possible:
         typeof gradingFields.pointsPossible === 'number' && Number.isFinite(gradingFields.pointsPossible)
           ? gradingFields.pointsPossible
