@@ -11,7 +11,10 @@ import { parseStrictJson, StrictJsonError } from '@/lib/course-blueprint-package
 
 const TAR_BLOCK_BYTES = 512
 const textEncoder = new TextEncoder()
-const textDecoder = new TextDecoder('utf-8', { fatal: true })
+// Preserve a leading BOM as U+FEFF instead of silently consuming received
+// bytes. Strict JSON parsing then rejects it, while Markdown evidence remains
+// byte-reconstructable through TextEncoder.
+const textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
 export type CoursePackageVerificationIssueCode =
   | 'invalid_envelope'

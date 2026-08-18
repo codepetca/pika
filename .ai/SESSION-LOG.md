@@ -1222,15 +1222,16 @@ change.
   deterministic per import operation and canonicalizing operation UUIDs.
 
 **Validation:**
-- The focused package contract suite passes 89 cases. The authoritative full
-  verification passes all 4,526 tests across 502 files, lint, architecture
+- The focused package contract suite passes 91 cases. The authoritative full
+  verification passes all 4,528 tests across 502 files, lint, architecture
   boundaries, and the production build. Pika audit and diff checks pass.
 - Visual verification is not applicable because this PR changes no UI.
 
 **Independent review remediation:**
 - Raw JSON now remains bytes until the package boundary, uses fatal UTF-8
-  decoding, rejects duplicate keys at every object depth, preserves the exact
-  received text, and applies the same 2 MiB manifest-entry limit as TAR.
+  decoding, rejects duplicate keys at every object depth and leading BOMs,
+  preserves the exact received text, and applies the same 2 MiB manifest-entry
+  limit as TAR.
 - Verified bundles and raw evidence are defensively cloned, deeply frozen, and
   exposed through a branded verified type so caller mutation cannot rewrite
   evidence or change what a later adapter sees.

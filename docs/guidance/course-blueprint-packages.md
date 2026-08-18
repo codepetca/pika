@@ -62,8 +62,9 @@ is parsed into one canonical portable course model.
 | `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
 
 Raw schemas never create missing files or supply defaults. Direct JSON and TAR
-packages feed the same verifier. Raw JSON is decoded as fatal UTF-8 and parsed
-without duplicate-key normalization. The verifier retains immutable copies of
+packages feed the same verifier. Raw JSON is decoded as fatal UTF-8, rejects a
+leading byte-order mark instead of silently consuming it, and is parsed without
+duplicate-key normalization. The verifier retains immutable copies of
 the original JSON text or TAR manifest text, manifest, file map, entry names,
 source kind, and received byte length as raw evidence. The branded verified
 value and its nested evidence cannot be changed before adaptation. TAR transport

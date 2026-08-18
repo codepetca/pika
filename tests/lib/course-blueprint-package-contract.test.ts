@@ -342,6 +342,29 @@ describe('versioned Course Package contract', () => {
       .toEqual(['invalid_envelope'])
   })
 
+  it('rejects BOM-prefixed direct JSON without normalizing received evidence', () => {
+    const content = new TextEncoder().encode(fixtureJsonTexts['5'])
+    const prefixed = new Uint8Array(content.byteLength + 3)
+    prefixed.set([0xef, 0xbb, 0xbf])
+    prefixed.set(content, 3)
+
+    expect(issueCodes(verifyCourseBlueprintPackageJson(prefixed)))
+      .toEqual(['invalid_envelope'])
+  })
+
+  it('rejects a BOM-prefixed TAR manifest without normalizing received evidence', () => {
+    const archive = encodeFixtureTar(decodeFixtureTar(fixtureArchives['5']).map((entry) => {
+      if (entry.name !== 'manifest.json') return entry
+      const content = new Uint8Array(entry.content.byteLength + 3)
+      content.set([0xef, 0xbb, 0xbf])
+      content.set(entry.content, 3)
+      return { ...entry, content }
+    }))
+
+    expect(issueCodes(verifyCourseBlueprintPackageArchive(archive)))
+      .toEqual(['invalid_manifest'])
+  })
+
   it.each([
     ['root', (manifest: string, files: string) => (
       `{"manifest":${manifest},"manifest":${manifest},"files":${files}}`
