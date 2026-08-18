@@ -18612,3 +18612,24 @@ authorization, ownership, operation-conflict, and managed-storage gates.
 - Desktop/mobile teacher and student boundaries passed; non-owner teacher
   access returned 404 and student access returned 403. No purge was started by
   either broad rollout action.
+
+<!-- pika-session-log-archive-batch:7148db5a7db8b6d9dfc1e321e355097189285fbcd1d2286a42b0cc52cbbba9d2 -->
+## 2026-08-08 — Add accessible student test flag toggles
+
+**Risk profile:** exam-mode — student test-taking interaction and lock behavior.
+
+**Completed:**
+- Exposed each `StudentTestForm` question flag heading as a named toggle with
+  `aria-pressed`, plus `aria-disabled` and removed tab stops while interaction
+  is locked.
+- Preserved the existing heading-sized target, visual treatment, localStorage
+  contract, and single-toggle Enter/Space behavior.
+- Added component coverage for pointer round trips, Enter, Space, accessible
+  naming, initial/updated pressed state, persistence, and locked behavior.
+
+**Validation:**
+- Focused `StudentTestForm` component tests, TypeScript, lint, architecture,
+  UI/design policy checks, Pika audit, and `git diff --check` passed.
+- Playwright visual verification passed for the student form in desktop/mobile,
+  light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
+  applicable.

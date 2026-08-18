@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Add accessible student test flag toggles
-
-**Risk profile:** exam-mode — student test-taking interaction and lock behavior.
-
-**Completed:**
-- Exposed each `StudentTestForm` question flag heading as a named toggle with
-  `aria-pressed`, plus `aria-disabled` and removed tab stops while interaction
-  is locked.
-- Preserved the existing heading-sized target, visual treatment, localStorage
-  contract, and single-toggle Enter/Space behavior.
-- Added component coverage for pointer round trips, Enter, Space, accessible
-  naming, initial/updated pressed state, persistence, and locked behavior.
-
-**Validation:**
-- Focused `StudentTestForm` component tests, TypeScript, lint, architecture,
-  UI/design policy checks, Pika audit, and `git diff --check` passed.
-- Playwright visual verification passed for the student form in desktop/mobile,
-  light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
-  applicable.
-
 ## 2026-08-08 — Audit remaining managed deletion scopes
 
 **Risk profile:** runtime-platform — irreversible cold recovery loss,
@@ -1221,3 +1201,28 @@ production, dependency, or UI change.
   the package contract documentation.
 - Full verification passes 4,530 tests across 502 files, lint, and the
   production build. Pika audit and diff checks pass.
+
+## 2026-08-18 — Emit Pal adaptive term calendars prospectively
+
+**Risk profile:** runtime-platform — additive external contract and
+transactional delivery behavior; no migration, historical backfill,
+dependency, or UI change.
+
+- Updated the vendored Pal v1 contract and fixtures to Pal main commit
+  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
+  term calendar accepted by the guaranteed weekly story scheduler.
+- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
+  tokens. Current open weekly configurations gain one monotonic calendar
+  revision; historical calendar-less catch-up weeks remain calendar-less, while
+  later closures preserve any calendar already emitted.
+- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
+  privacy allow-list, stable idempotency keys, leases, retry classification,
+  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
+  achievement calculations.
+- Added contract, calendar, planner, outbox, vertical integration, and guarded
+  local Postgres/HTTP recovery coverage. All 4,539 tests across 504 files,
+  TypeScript, lint, architecture/UI/design policy, production build, real
+  outbox recovery, and PostgreSQL concurrency checks pass.
+- Public registry lookup for `@codepet/pal-widget@0.1.0-alpha.3` returned 404.
+  Pika retains the exact public alpha.2 pin; publishing alpha.3 remains an
+  external blocker and no local dependency was added.

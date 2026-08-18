@@ -6,12 +6,15 @@ import type { AddressInfo } from 'node:net'
 import { createClient } from '@supabase/supabase-js'
 import { parse } from 'dotenv'
 
-import { buildSessionStartedEvent } from '@/lib/server/pal-events'
+import {
+  buildDailyLogWeekConfiguredEvent,
+  palPeriodKeyForInstant,
+} from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
   deliverPalOutboxBatch,
-  enqueueStandalonePalEvent,
 } from '@/lib/server/pal-outbox'
+import { palTermCalendarForPeriodStart } from '@/lib/server/pal-term-calendar'
 import type { Database } from '@/types/database'
 
 function requireLocalSupabase() {
@@ -63,13 +66,19 @@ async function main(): Promise<void> {
   const fixtureId = randomUUID()
   const studentId = randomUUID()
   const email = `pal-recovery-${fixtureId}@example.invalid`
-  const sourceId = `pal-recovery-${fixtureId}`
   const integrationSecret = 'pal-recovery-integration-secret-32-characters'
   const pseudonymSecret = 'pal-recovery-pseudonym-secret-32-characters-long'
-  const event = buildSessionStartedEvent({
+  const occurredAt = new Date()
+  const periodStart = palPeriodKeyForInstant(occurredAt).replace(/^pika-week-/, '')
+  const periodKey = `pika-week-${periodStart}`
+  const event = buildDailyLogWeekConfiguredEvent({
     learnerId: studentId,
-    sessionId: sourceId,
-    occurredAt: new Date(),
+    occurredAt,
+    periodKey,
+    configVersion: 1,
+    periodStatus: 'open',
+    eligibleDays: 3,
+    termCalendar: palTermCalendarForPeriodStart(periodStart),
     pseudonymSecret,
   })
   let fixtureCreated = false
@@ -123,13 +132,21 @@ async function main(): Promise<void> {
     if (userError) throw new Error(`Failed to create recovery fixture user: ${userError.message}`)
     fixtureCreated = true
 
-    await enqueueStandalonePalEvent({
-      studentId,
-      sourceKind: 'pal_recovery_fixture',
-      sourceId,
-      event,
-      supabase,
-    })
+    const { error: configurationError } = await supabase.rpc(
+      'record_pal_daily_log_week_configuration_atomic',
+      {
+        p_student_id: studentId,
+        p_period_key: periodKey,
+        p_config_version: 1,
+        p_period_status: 'open',
+        p_eligible_days: 3,
+        p_configured_at: occurredAt.toISOString(),
+        p_pal_event: event,
+      },
+    )
+    if (configurationError) {
+      throw new Error(`Failed to record weekly recovery fixture: ${configurationError.message}`)
+    }
 
     const immediate = await attemptImmediatePalEventDelivery({ event, supabase })
     if (immediate !== 'pending') {

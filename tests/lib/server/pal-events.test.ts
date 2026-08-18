@@ -47,6 +47,15 @@ describe('Pika Pal v1 event builder', () => {
         configVersion: 1,
         periodStatus: 'open',
         eligibleDays: 3,
+        termCalendar: {
+          termIdentity: 'pika-term:2026-08-31:2027-01-31:America/Toronto',
+          termStartDay: '2026-08-31',
+          termEndDay: '2027-01-31',
+          termTimezone: 'America/Toronto',
+          termWeekCount: 22,
+          weekStartDay: '2026-09-14',
+          weekIndex: 3,
+        },
       }),
       buildDailyLogCompletedEvent({ ...common, activityDay: '2026-09-16' }),
       buildLearningItemViewedEvent({
@@ -68,6 +77,39 @@ describe('Pika Pal v1 event builder', () => {
       expect(JSON.stringify(event)).not.toContain('assignment-uuid')
       expect(JSON.stringify(event)).not.toContain('classroom-uuid')
     }
+  })
+
+  it('sends the complete adaptive calendar with an opaque term token', () => {
+    const event = buildDailyLogWeekConfiguredEvent({
+      learnerId: 'learner-uuid',
+      occurredAt: new Date('2026-09-14T11:00:00.000Z'),
+      pseudonymSecret: secret,
+      periodKey: 'pika-week-2026-09-14',
+      configVersion: 1,
+      periodStatus: 'open',
+      eligibleDays: 3,
+      termCalendar: {
+        termIdentity: 'pika-term:2026-08-31:2027-01-31:America/Toronto',
+        termStartDay: '2026-08-31',
+        termEndDay: '2027-01-31',
+        termTimezone: 'America/Toronto',
+        termWeekCount: 22,
+        weekStartDay: '2026-09-14',
+        weekIndex: 3,
+      },
+    })
+
+    expect(event.metadata).toEqual(expect.objectContaining({
+      term_token: expect.stringMatching(/^pika-term-/),
+      term_start_day: '2026-08-31',
+      term_end_day: '2027-01-31',
+      term_timezone: 'America/Toronto',
+      term_week_count: 22,
+      week_start_day: '2026-09-14',
+      week_index: 3,
+    }))
+    expect(JSON.stringify(event)).not.toContain('pika-term:2026-08-31')
+    expect(v1.validateV1Event(event)).toMatchObject({ ok: true })
   })
 
   it('deduplicates daily logs across classrooms at learner and activity-day scope', () => {

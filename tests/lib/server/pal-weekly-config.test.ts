@@ -167,4 +167,87 @@ describe('Pal Weekly Rhythm source configuration', () => {
       periodStatus: 'closed',
     })])
   })
+
+  it('upgrades only an open current configuration to the adaptive term calendar', () => {
+    const termCalendar = {
+      termIdentity: 'pika-term:2026-08-31:2027-01-31:America/Toronto',
+      termStartDay: '2026-08-31',
+      termEndDay: '2027-01-31',
+      termTimezone: 'America/Toronto' as const,
+      termWeekCount: 22,
+      weekStartDay: periodStart,
+      weekIndex: 3,
+    }
+    const base = {
+      periodStart,
+      periodStatus: 'open' as const,
+      createIfMissing: true,
+      termCalendar,
+      allowTermCalendarUpgrade: true,
+      schedules: [schedule()],
+      classDays: classDays(['2026-09-14', '2026-09-16', '2026-09-18']),
+      completions: [],
+    }
+
+    expect(planPalWeeklyConfigurationRevisions({
+      ...base,
+      existing: [{
+        studentId: 'student-1',
+        periodKey: 'pika-week-2026-09-14',
+        configVersion: 1,
+        periodStatus: 'open',
+        eligibleDays: 3,
+        hasTermCalendar: false,
+      }],
+    })).toEqual([expect.objectContaining({
+      configVersion: 2,
+      termCalendar,
+    })])
+
+    expect(planPalWeeklyConfigurationRevisions({
+      ...base,
+      existing: [{
+        studentId: 'student-1',
+        periodKey: 'pika-week-2026-09-14',
+        configVersion: 2,
+        periodStatus: 'open',
+        eligibleDays: 3,
+        hasTermCalendar: true,
+      }],
+    })).toEqual([])
+  })
+
+  it('does not add collectible calendar metadata while closing historical periods', () => {
+    const termCalendar = {
+      termIdentity: 'pika-term:2026-08-31:2027-01-31:America/Toronto',
+      termStartDay: '2026-08-31',
+      termEndDay: '2027-01-31',
+      termTimezone: 'America/Toronto' as const,
+      termWeekCount: 22,
+      weekStartDay: periodStart,
+      weekIndex: 3,
+    }
+    const revisions = planPalWeeklyConfigurationRevisions({
+      periodStart,
+      periodStatus: 'closed',
+      createIfMissing: false,
+      termCalendar,
+      allowTermCalendarUpgrade: false,
+      schedules: [schedule()],
+      classDays: classDays(['2026-09-14']),
+      existing: [{
+        studentId: 'student-1',
+        periodKey: 'pika-week-2026-09-14',
+        configVersion: 1,
+        periodStatus: 'open',
+        eligibleDays: 1,
+        hasTermCalendar: false,
+      }],
+      completions: [],
+    })
+
+    expect(revisions).toEqual([expect.not.objectContaining({
+      termCalendar: expect.anything(),
+    })])
+  })
 })

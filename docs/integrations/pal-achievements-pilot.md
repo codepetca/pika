@@ -138,7 +138,7 @@ unsubmit/resubmit, so a second submission cannot create a second version 1
 fact.
 
 All event builders execute the exact dependency-free validator copied from
-Pal commit `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`. Its matching valid and
+Pal commit `88bab8e30319089e45d7f5e129e76dd265bc2b4c`. Its matching valid and
 invalid fixtures live in `tests/fixtures/pal-contract-v1`. Both the event
 envelope and each event's metadata are closed allow-lists; unexpected fields
 are rejected before delivery. Change the contract in Pal first, then replace
@@ -157,6 +157,19 @@ needed. Eligible days can fall when an unmet opportunity disappears, but never
 below the number of distinct completion dates Pika already asserted. Short
 weeks therefore reach Pal as their actual opportunity count; Pal owns the
 grace-day target and recurring Weekly Rhythm award.
+
+Prospective current-week configurations also include Pika's complete adaptive
+term calendar: an opaque HMAC term token, Toronto term boundaries, the
+authoritative 6–24 week count, and the current week start/index. The calendar
+uses Monday-aligned February, July, and September boundaries so the global
+learner opportunity week cannot straddle two Pal terms. An existing open current
+week receives one monotonic calendar-bearing revision. Historical calendar-less
+weeks are only closed and are never upgraded, so this rollout does not backfill
+story collectibles. A later closure preserves calendar metadata when that week
+already carried it.
+
+Pika emits only academic facts and this calendar. Pal exclusively calculates
+and owns story collectibles, visual finish tiers, XP, and achievements.
 
 ## Delivery and reconciliation
 
@@ -261,9 +274,11 @@ Before enabling an environment:
 ```bash
 pnpm exec vitest run \
   tests/lib/server/pal-contract.test.ts \
+  tests/lib/server/pal-term-calendar.test.ts \
   tests/lib/server/pal-events.test.ts \
   tests/lib/server/pal-outbox.test.ts \
-  tests/lib/server/pal-weekly-config.test.ts
+  tests/lib/server/pal-weekly-config.test.ts \
+  tests/integration/pal-weekly-story-collectibles.test.ts
 
 pnpm exec tsc --noEmit
 pnpm check:architecture
@@ -276,9 +291,10 @@ The PostgreSQL harness creates and drops a disposable database, replays the
 current migrations, and proves that two concurrent workers produce exactly one
 winner for pending and expired batch claims as well as the conditional UPDATE
 used by targeted delivery. The recovery smoke command refuses non-loopback
-Supabase targets, creates one synthetic fixture, receives a real HTTP 503,
-proves durable retry evidence, restores the local HTTP peer, drains the queued
-event once with the same idempotency key, and removes the fixture.
+Supabase targets, atomically records one adaptive weekly configuration and its
+outbox event, receives a real HTTP 503, proves durable retry evidence, restores
+the local HTTP peer, drains the queued event once with the same idempotency key,
+and removes the fixture.
 
 Then run a real pilot vertical slice only after Pal's prerequisites exist:
 

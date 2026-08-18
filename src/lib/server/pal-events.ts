@@ -2,9 +2,10 @@ import { createHmac } from 'node:crypto'
 
 import { formatDateInToronto } from '@/lib/timezone'
 import { requirePalPseudonymSecret } from '@/lib/server/pal-config'
+import type { PalTermCalendar } from '@/lib/server/pal-term-calendar'
 import { v1 } from '@/vendor/pal-contract'
 
-type PalTokenKind = 'learner' | 'classroom' | 'item' | 'session' | 'fact'
+type PalTokenKind = 'learner' | 'classroom' | 'item' | 'session' | 'fact' | 'term'
 
 function requiredSecret(explicitSecret?: string): string {
   const secret = explicitSecret?.trim() || requirePalPseudonymSecret()
@@ -114,9 +115,32 @@ export function buildDailyLogWeekConfiguredEvent(
     configVersion: number
     periodStatus: 'open' | 'closed'
     eligibleDays: number
+    termCalendar?: PalTermCalendar
   },
 ): v1.DailyLogWeekConfiguredEvent {
   const secret = requiredSecret(input.pseudonymSecret)
+  const baseMetadata = {
+    period_key: input.periodKey,
+    config_version: input.configVersion,
+    period_status: input.periodStatus,
+    eligible_days: input.eligibleDays,
+  }
+  const metadata: v1.V1Metadata['daily_log_week.configured'] = input.termCalendar
+    ? {
+        ...baseMetadata,
+        term_token: pseudonymizePalRef(
+          'term',
+          input.termCalendar.termIdentity,
+          secret,
+        ),
+        term_start_day: input.termCalendar.termStartDay,
+        term_end_day: input.termCalendar.termEndDay,
+        term_timezone: input.termCalendar.termTimezone,
+        term_week_count: input.termCalendar.termWeekCount,
+        week_start_day: input.termCalendar.weekStartDay,
+        week_index: input.termCalendar.weekIndex,
+      }
+    : baseMetadata
   return validateBuiltEvent({
     schema_version: 1,
     idempotency_key: factIdempotencyKey(
@@ -126,12 +150,7 @@ export function buildDailyLogWeekConfiguredEvent(
     learner_id: pseudonymizePalRef('learner', input.learnerId, secret),
     event_type: 'daily_log_week.configured',
     occurred_at: input.occurredAt.toISOString(),
-    metadata: {
-      period_key: input.periodKey,
-      config_version: input.configVersion,
-      period_status: input.periodStatus,
-      eligible_days: input.eligibleDays,
-    },
+    metadata,
   })
 }
 
