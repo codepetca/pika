@@ -47,6 +47,34 @@ legacy versions receive IDs once during import. The package format version is
 independent of both the database migration number and the Blueprint's own
 Version number.
 
+### Supported-Version Contract
+
+Historical formats are import-only. Every raw package is first checked against
+its exact version contract; only verified packages enter a version adapter.
+Adapters discard retired content and add current-domain defaults before Markdown
+is parsed into one canonical portable course model.
+
+| Version | Required Markdown files | Additional allowed files | Manifest behavior |
+| --- | --- | --- | --- |
+| `2` | `course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`, `tests.md`, `lesson-plans.md` | Optional `quizzes.md`, which is discarded | Strict v2 manifest and planned-site values |
+| `3` | The same six reusable files | None | Strict manifest; validated retired boolean planned-site keys are preserved as raw evidence and discarded by the adapter |
+| `4` | The same six reusable files | None | Strict manifest and current planned-site keys |
+| `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
+
+Raw schemas never create missing files or supply defaults. Direct JSON and TAR
+packages feed the same verifier, which retains the original manifest, file map,
+entry names, source kind, and byte length as raw evidence. TAR transport checks
+also reject malformed headers, invalid UTF-8, duplicate entries, and size-limit
+violations before adaptation.
+
+Immutable JSON and binary TAR fixtures for every supported version live in
+`tests/fixtures/course-blueprint-package-v*.{json,tar}`. Their SHA-256 digests
+and an independent, production-encoder-free mutation matrix are locked by:
+
+```bash
+pnpm test tests/lib/course-blueprint-package-contract.test.ts
+```
+
 ## Included
 
 - Course title, subject, grade level, course code, and term template

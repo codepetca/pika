@@ -23,9 +23,9 @@
     "course-overview.md": "# Legacy overview",
     "course-outline.md": "# Legacy outline",
     "resources.md": "# Legacy resources",
-    "assignments.md": "",
+    "assignments.md": "## Legacy Reflection [DRAFT]\nDue Days: 2\nDue Time: 16:45\nPoints: 8\n\nExplain one reusable idea from this course.\n\n---",
     "quizzes.md": "Title: Retired quiz\nShow Results: false\n\n## Questions",
-    "tests.md": "",
-    "lesson-plans.md": ""
+    "tests.md": "# Test\nTitle: Legacy Foundations Test\nShow Results: true\n\n## Questions\n### Question 1\nType: open_response\nPoints: 3\nPrompt:\nExplain the legacy package boundary.\nAnswer Key:\nReusable Test content remains supported.\n\n## Documents\n### Document 1\nSource: link\nTitle: Legacy Reference\nURL: https://example.com/legacy-reference",
+    "lesson-plans.md": "## Legacy Course Launch\n\nReview the course structure and expectations.\n\n---"
   }
 }

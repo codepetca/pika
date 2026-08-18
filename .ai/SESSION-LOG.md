@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Harden Pal delivery release readiness
-
-**Risk profile:** runtime-platform — delivery telemetry, PostgreSQL claim
-concurrency, outage recovery, and production release evidence.
-
-**Completed:**
-- Added privacy-safe structured logs for immediate delivery and daily outbox
-  drains, plus protected ready/retry/expired-lease/backlog-age and recent
-  delivery-latency metrics.
-- Added an ephemeral PostgreSQL concurrency harness proving one claim winner
-  for pending and expired batch and targeted claims.
-- Added a loopback-only HTTP recovery smoke that persists a 503 retry, restores
-  the peer, delivers the queued event once with the same idempotency key, and
-  removes its synthetic fixture.
-- Closed independent-review gaps by emitting sanitized error-category drain
-  telemetry, reserving a 60-second cron execution budget, and replacing timing
-  assumptions with database-observed claim and lock contention gates.
-- Bounded the complete drain path across claims, delivery transitions, and the
-  final count, and made ready-backlog age use the actual retry/lease-ready time.
-- Classified both direct and PostgREST-wrapped abort/timeout failures as the
-  sanitized `deadline` drain outcome.
-- Confirmed read-only that the current production adapter is enabled and has
-  delivered events; no Pal code, Pal PR #50, migration, or production data was
-  changed by the readiness implementation.
-
-**Validation:**
-- Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
-  architecture/design/UI policy checks, Pika audit, production build, both
-  real-database/HTTP Pal harnesses, continuity validation, and diff checks.
-
 ## 2026-08-08 — Install production Blueprint purge schema
 
 **Risk profile:** irreversible production schema installation; rollout and
@@ -1227,3 +1197,32 @@ application behavior, schema, migration, or production state changed.
   pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
   TypeScript, lint, architecture boundaries, production build, Pika audit, and
   diff checks pass.
+
+## 2026-08-17 — Course Package versioned contract core (PR A)
+
+**Risk profile:** high — foundational untrusted package boundary and historical
+compatibility; no schema migration, production operation, dependency, or UI
+change.
+
+**Completed:**
+- Verified the historical v2-v5 file matrix against repository history and the
+  evidence in draft PR #1018: v2 requires the six reusable legacy files and
+  optionally accepts/discards `quizzes.md`; v3/v4 require exactly those six;
+  v5 requires exactly the current eight.
+- Replaced the shared v5-shaped raw record with strict discriminated wire types,
+  per-version manifest schemas, and an explicit required/allowed file registry.
+  Raw schemas no longer synthesize missing files.
+- Added one evidence-preserving verifier shared by direct JSON and TAR inputs.
+  Historical adapters run only after verification and produce one canonical
+  portable course model.
+- Added independently built, SHA-locked JSON and binary TAR fixtures for every
+  supported version plus table-driven parity mutations for required/forbidden/
+  duplicate entries, manifests, UTF-8/checksum failures, and size boundaries.
+- Preserved useful PR #1018 retry evidence by making legacy Artifact identity
+  deterministic per import operation and canonicalizing operation UUIDs.
+
+**Validation:**
+- The focused package contract suite passes 78 cases. The authoritative full
+  verification passes all 4,515 tests across 502 files, lint, architecture
+  boundaries, and the production build. Pika audit and diff checks pass.
+- Visual verification is not applicable because this PR changes no UI.

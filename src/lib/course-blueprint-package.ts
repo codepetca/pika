@@ -26,13 +26,24 @@ import type {
   CourseBlueprintMaterial,
 } from '@/types'
 import {
-  COURSE_BLUEPRINT_PACKAGE_MAX_BYTES,
-  COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
-  COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT,
+  COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
+  COURSE_BLUEPRINT_PACKAGE_CONTRACTS,
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   coursePackageBundleSchema,
   type CoursePackageManifest,
+  type CoursePackageManifestV5,
+  type CoursePackageRawBundle,
+  type CoursePackageRawV2,
+  type CoursePackageRawV3,
+  type CoursePackageRawV4,
+  type CoursePackageRawV5,
 } from '@/lib/contracts/course-blueprint-package'
+import {
+  verifyCourseBlueprintPackageArchive,
+  verifyCourseBlueprintPackageBundle,
+  type CoursePackageVerificationResult,
+  type VerifiedCoursePackage,
+} from '@/lib/course-blueprint-package-verification'
 import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
@@ -44,38 +55,16 @@ import {
 } from '@/lib/course-blueprint-artifact-identity'
 
 const textEncoder = new TextEncoder()
-const textDecoder = new TextDecoder()
 
 export { COURSE_BLUEPRINT_PACKAGE_VERSION } from '@/lib/contracts/course-blueprint-package'
 
-const LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
-  'course-overview.md',
-  'course-outline.md',
-  'resources.md',
-  'assignments.md',
-  'tests.md',
-  'lesson-plans.md',
-] as const
-
-export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
-  ...LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES,
-  'classwork-materials.md',
-  'surveys.md',
-] as const
-
-const COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES = new Set<string>([
-  'manifest.json',
-  ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES,
-  'quizzes.md',
-])
+export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES =
+  COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES
 
 export type CourseBlueprintPackageFileName =
   (typeof COURSE_BLUEPRINT_PACKAGE_FILE_NAMES)[number]
 
-export type CourseBlueprintPackageBundle = {
-  manifest: CoursePackageManifest
-  files: Record<CourseBlueprintPackageFileName, string>
-}
+export type CourseBlueprintPackageBundle = CoursePackageRawBundle
 
 export type CourseBlueprintImportResult = {
   manifest: CoursePackageManifest | null
@@ -249,7 +238,7 @@ export function buildCoursePackageManifest(
     blueprintVersionNumber?: number | null
     editingSessionId?: string
   }
-): CoursePackageManifest {
+): CoursePackageManifestV5 {
   return {
     version: COURSE_BLUEPRINT_PACKAGE_VERSION,
     exported_at: new Date().toISOString(),
@@ -315,40 +304,11 @@ function buildTarHeader(name: string, size: number): Uint8Array {
   return header
 }
 
-function parseTarString(source: Uint8Array, offset: number, length: number): string {
-  const raw = source.slice(offset, offset + length)
-  const endIndex = raw.findIndex((byte) => byte === 0)
-  return textDecoder.decode(endIndex >= 0 ? raw.slice(0, endIndex) : raw).trim()
-}
-
-function parseTarOctal(source: Uint8Array, offset: number, length: number): number {
-  const value = parseTarString(source, offset, length).replace(/\0/g, '').trim()
-  if (!value) return 0
-  return Number.parseInt(value, 8) || 0
-}
-
-function isZeroTarBlock(block: Uint8Array): boolean {
-  return block.every((byte) => byte === 0)
-}
-
 export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPackageBundle): Uint8Array {
-  const parseInput = bundle.manifest.version === '5'
-    ? bundle
-    : {
-        manifest: bundle.manifest,
-        files: Object.fromEntries(
-          LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => [
-            fileName,
-            bundle.files[fileName],
-          ])
-        ),
-      }
-  const parsedBundle = coursePackageBundleSchema.parse(parseInput)
-  const packageFileNames =
-    parsedBundle.manifest.version === '5'
-      ? COURSE_BLUEPRINT_PACKAGE_FILE_NAMES
-      : LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES
+  const parsedBundle = coursePackageBundleSchema.parse(bundle)
+  const contract = COURSE_BLUEPRINT_PACKAGE_CONTRACTS[parsedBundle.manifest.version]
   const parsedFiles = parsedBundle.files as Record<string, string>
+  const packageFileNames = contract.allowedFiles.filter((fileName) => fileName in parsedFiles)
   const files: Array<{ name: string; content: string }> = [
     { name: 'manifest.json', content: JSON.stringify(parsedBundle.manifest, null, 2) },
     ...packageFileNames.map((fileName) => ({
@@ -356,13 +316,6 @@ export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPacka
       content: parsedFiles[fileName],
     })),
   ]
-  if (
-    parsedBundle.manifest.version === '2' &&
-    'quizzes.md' in parsedBundle.files
-  ) {
-    files.push({ name: 'quizzes.md', content: parsedBundle.files['quizzes.md'] })
-  }
-
   const parts: Uint8Array[] = []
 
   for (const file of files) {
@@ -390,58 +343,14 @@ export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPacka
 export function decodeCourseBlueprintPackageArchive(
   input: ArrayBuffer | Uint8Array
 ): CourseBlueprintPackageBundle | null {
-  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input)
-  if (bytes.byteLength > COURSE_BLUEPRINT_PACKAGE_MAX_BYTES) return null
-
-  const extractedFiles = new Map<string, string>()
-  let offset = 0
-  let fileCount = 0
-
-  while (offset + 512 <= bytes.length) {
-    const header = bytes.slice(offset, offset + 512)
-    if (isZeroTarBlock(header)) break
-
-    const name = parseTarString(header, 0, 100)
-    const prefix = parseTarString(header, 345, 155)
-    const fullName = prefix ? `${prefix}/${name}` : name
-    const size = parseTarOctal(header, 124, 12)
-
-    fileCount += 1
-    if (
-      fileCount > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT ||
-      !COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES.has(fullName) ||
-      extractedFiles.has(fullName) ||
-      size > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES
-    ) {
-      return null
-    }
-
-    offset += 512
-    if (offset + size > bytes.length) return null
-    const content = bytes.slice(offset, offset + size)
-    extractedFiles.set(fullName, textDecoder.decode(content))
-    offset += Math.ceil(size / 512) * 512
-  }
-
-  const manifestRaw = extractedFiles.get('manifest.json')
-  if (!manifestRaw) return null
-
-  try {
-    return normalizeBundle({
-      manifest: JSON.parse(manifestRaw),
-      files: Object.fromEntries(
-        [...extractedFiles.entries()].filter(([fileName]) => fileName !== 'manifest.json')
-      ),
-    })
-  } catch {
-    return null
-  }
+  const result = verifyCourseBlueprintPackageArchive(input)
+  return result.success ? result.value.bundle : null
 }
 
 export function buildCourseBlueprintExportBundle(
   detail: CourseBlueprintDetail,
   source?: Parameters<typeof buildCoursePackageManifest>[1]
-): CourseBlueprintPackageBundle {
+): CoursePackageRawV5 {
   const assignments = detail.assignments.map((assignment) => ({
     id: assignment.id,
     artifact_id: assignment.artifact_id,
@@ -504,143 +413,153 @@ export function buildCourseBlueprintExportBundle(
   }
 }
 
-function normalizeBundle(input: unknown): CourseBlueprintPackageBundle | null {
-  const inputRecord = input && typeof input === 'object'
-    ? input as Record<string, unknown>
-    : null
-  const manifestRecord =
-    inputRecord?.manifest && typeof inputRecord.manifest === 'object'
-      ? inputRecord.manifest as Record<string, unknown>
-      : null
-  const filesRecord =
-    inputRecord?.files && typeof inputRecord.files === 'object'
-      ? inputRecord.files as Record<string, unknown>
-      : {}
-  const version = manifestRecord?.version
-  const normalizedInput = version === '4' || version === '5'
-    ? input
-    : {
-        manifest: inputRecord?.manifest,
-        files: {
-          ...Object.fromEntries(
-            LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES
-              .filter((fileName) => fileName in filesRecord)
-              .map((fileName) => [fileName, filesRecord[fileName]])
-          ),
-          ...(version === '2' && 'quizzes.md' in filesRecord
-            ? { 'quizzes.md': filesRecord['quizzes.md'] }
-            : {}),
-        },
-      }
-  const parsed = coursePackageBundleSchema.safeParse(normalizedInput)
-  if (!parsed.success) return null
+export type CanonicalPortableCoursePackage = {
+  sourceManifest: CoursePackageManifest
+  files: Record<CourseBlueprintPackageFileName, string>
+  identityAware: boolean
+  grading: {
+    useWeights: boolean
+    assignmentsWeight: number
+    testsWeight: number
+  }
+  plannedSite: {
+    slug: string | null
+    published: false
+    config: CourseBlueprint['planned_site_config']
+  }
+}
 
+function adaptLegacyFiles(files: Record<string, string>) {
   return {
-    manifest: parsed.data.manifest,
-    files: Object.fromEntries(
-      COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => [
-        fileName,
-        (parsed.data.files as Record<string, string>)[fileName],
-      ])
-        .map(([fileName, content]) => [fileName, content ?? ''])
-    ) as Record<CourseBlueprintPackageFileName, string>,
+    'course-overview.md': files['course-overview.md'],
+    'course-outline.md': files['course-outline.md'],
+    'resources.md': files['resources.md'],
+    'assignments.md': files['assignments.md'],
+    'tests.md': files['tests.md'],
+    'lesson-plans.md': files['lesson-plans.md'],
+    'classwork-materials.md': '',
+    'surveys.md': '',
   }
 }
 
-export function parseCourseBlueprintImportArchive(
-  input: ArrayBuffer | Uint8Array
+function adaptLegacyPackage(
+  bundle: CoursePackageRawV2 | CoursePackageRawV3 | CoursePackageRawV4,
+): CanonicalPortableCoursePackage {
+  return {
+    sourceManifest: bundle.manifest,
+    files: adaptLegacyFiles(bundle.files),
+    identityAware: false,
+    grading: {
+      useWeights: false,
+      assignmentsWeight: 70,
+      testsWeight: 30,
+    },
+    plannedSite: {
+      slug: bundle.manifest.planned_site_slug ?? null,
+      published: false,
+      config: bundle.manifest.planned_site_config
+        ? normalizePlannedCourseSiteConfig(bundle.manifest.planned_site_config)
+        : DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+    },
+  }
+}
+
+function adaptV5Package(bundle: CoursePackageRawV5): CanonicalPortableCoursePackage {
+  return {
+    sourceManifest: bundle.manifest,
+    files: bundle.files,
+    identityAware: true,
+    grading: {
+      useWeights: bundle.manifest.grading.use_weights,
+      assignmentsWeight: bundle.manifest.grading.assignments_weight,
+      testsWeight: bundle.manifest.grading.tests_weight,
+    },
+    plannedSite: {
+      slug: bundle.manifest.planned_site_slug ?? null,
+      published: false,
+      config: bundle.manifest.planned_site_config
+        ? normalizePlannedCourseSiteConfig(bundle.manifest.planned_site_config)
+        : DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+    },
+  }
+}
+
+export function adaptVerifiedCoursePackage(
+  verified: VerifiedCoursePackage,
+): CanonicalPortableCoursePackage {
+  switch (verified.bundle.manifest.version) {
+    case '2':
+      return adaptLegacyPackage(verified.bundle as CoursePackageRawV2)
+    case '3':
+      return adaptLegacyPackage(verified.bundle as CoursePackageRawV3)
+    case '4':
+      return adaptLegacyPackage(verified.bundle as CoursePackageRawV4)
+    case '5':
+      return adaptV5Package(verified.bundle as CoursePackageRawV5)
+  }
+}
+
+function invalidImportResult(
+  verification: Extract<CoursePackageVerificationResult, { success: false }>,
 ): CourseBlueprintImportResult {
-  const bundle = decodeCourseBlueprintPackageArchive(input)
-  if (!bundle) {
-    return {
-      manifest: null,
-      blueprint: {
-        title: '',
-        subject: '',
-        grade_level: '',
-        course_code: '',
-        term_template: '',
-        overview_markdown: '',
-        outline_markdown: '',
-        resources_markdown: '',
-        gradebook_use_weights: false,
-        gradebook_assignments_weight: 70,
-        gradebook_tests_weight: 30,
-        planned_site_slug: null,
-        planned_site_published: false,
-        planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
-      },
-      assignments: [],
-      assessments: [],
-      lesson_templates: [],
-      materials: [],
-      surveys: [],
-      errors: ['Invalid course package archive'],
-    }
+  return {
+    manifest: null,
+    blueprint: {
+      title: '',
+      subject: '',
+      grade_level: '',
+      course_code: '',
+      term_template: '',
+      overview_markdown: '',
+      outline_markdown: '',
+      resources_markdown: '',
+      gradebook_use_weights: false,
+      gradebook_assignments_weight: 70,
+      gradebook_tests_weight: 30,
+      planned_site_slug: null,
+      planned_site_published: false,
+      planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+    },
+    assignments: [],
+    assessments: [],
+    lesson_templates: [],
+    materials: [],
+    surveys: [],
+    errors: verification.issues.map((issue) => issue.message),
   }
-
-  return parseCourseBlueprintImportBundle(bundle)
 }
 
-export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprintImportResult {
-  const bundle = normalizeBundle(input)
-  if (!bundle) {
-    return {
-      manifest: null,
-      blueprint: {
-        title: '',
-        subject: '',
-        grade_level: '',
-        course_code: '',
-        term_template: '',
-        overview_markdown: '',
-        outline_markdown: '',
-        resources_markdown: '',
-        gradebook_use_weights: false,
-        gradebook_assignments_weight: 70,
-        gradebook_tests_weight: 30,
-        planned_site_slug: null,
-        planned_site_published: false,
-        planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
-      },
-      assignments: [],
-      assessments: [],
-      lesson_templates: [],
-      materials: [],
-      surveys: [],
-      errors: ['Invalid course package bundle'],
-    }
-  }
-
-  const manifest = bundle.manifest
-  const files = bundle.files
-  const identityAware = manifest.version === '5'
+function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlueprintImportResult {
+  const portable = adaptVerifiedCoursePackage(verified)
+  const manifest = portable.sourceManifest
+  const files = portable.files
+  const identityAware = portable.identityAware
   const parseOptions = identityAware
     ? { requireArtifactIds: true, requirePositions: true }
     : { generateMissingArtifactIds: true }
   const assignmentResult = markdownToCourseBlueprintAssignments(
-    files['assignments.md'] ?? '',
+    files['assignments.md'],
     [],
     parseOptions
   )
   const testResult = markdownToCourseBlueprintAssessments(
-    files['tests.md'] ?? '',
+    files['tests.md'],
     [],
     'test',
     parseOptions
   )
   const lessonResult = markdownToCourseBlueprintLessonTemplates(
-    files['lesson-plans.md'] ?? '',
+    files['lesson-plans.md'],
     [],
     parseOptions
   )
   const materialResult = markdownToCourseBlueprintMaterials(
-    files['classwork-materials.md'] ?? '',
+    files['classwork-materials.md'],
     [],
     parseOptions
   )
   const surveyResult = markdownToCourseBlueprintSurveys(
-    files['surveys.md'] ?? '',
+    files['surveys.md'],
     [],
     parseOptions
   )
@@ -687,7 +606,7 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       })
     : []
   const packageStorageErrors = [
-    files['tests.md'] ?? '',
+    files['tests.md'],
   ].some((value) => (
     /managed_object_id|snapshot_managed_object_id/.test(value)
     || /storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//.test(value)
@@ -698,27 +617,20 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
   return {
     manifest,
     blueprint: {
-      title: manifest.title ?? '',
-      subject: manifest.subject ?? '',
-      grade_level: manifest.grade_level ?? '',
-      course_code: manifest.course_code ?? '',
-      term_template: manifest.term_template ?? '',
-      overview_markdown: files['course-overview.md'] ?? '',
-      outline_markdown: files['course-outline.md'] ?? '',
-      resources_markdown: files['resources.md'] ?? '',
-      gradebook_use_weights:
-        manifest.version === '5' ? manifest.grading.use_weights : false,
-      gradebook_assignments_weight:
-        manifest.version === '5' ? manifest.grading.assignments_weight : 70,
-      gradebook_tests_weight:
-        manifest.version === '5' ? manifest.grading.tests_weight : 30,
-      planned_site_slug: manifest.planned_site_slug ?? null,
-      // Package and repository input may describe a previously published site,
-      // but importing content is never itself a publish action.
-      planned_site_published: false,
-      planned_site_config: manifest.planned_site_config
-        ? normalizePlannedCourseSiteConfig(manifest.planned_site_config)
-        : DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+      title: manifest.title,
+      subject: manifest.subject,
+      grade_level: manifest.grade_level,
+      course_code: manifest.course_code,
+      term_template: manifest.term_template,
+      overview_markdown: files['course-overview.md'],
+      outline_markdown: files['course-outline.md'],
+      resources_markdown: files['resources.md'],
+      gradebook_use_weights: portable.grading.useWeights,
+      gradebook_assignments_weight: portable.grading.assignmentsWeight,
+      gradebook_tests_weight: portable.grading.testsWeight,
+      planned_site_slug: portable.plannedSite.slug,
+      planned_site_published: portable.plannedSite.published,
+      planned_site_config: portable.plannedSite.config,
     },
     assignments: parsedContent.assignments,
     assessments: parsedContent.assessments,
@@ -736,6 +648,22 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       ...packageStorageErrors,
     ],
   }
+}
+
+export function parseCourseBlueprintImportArchive(
+  input: ArrayBuffer | Uint8Array,
+): CourseBlueprintImportResult {
+  const verification = verifyCourseBlueprintPackageArchive(input)
+  return verification.success
+    ? parseVerifiedCoursePackage(verification.value)
+    : invalidImportResult(verification)
+}
+
+export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprintImportResult {
+  const verification = verifyCourseBlueprintPackageBundle(input)
+  return verification.success
+    ? parseVerifiedCoursePackage(verification.value)
+    : invalidImportResult(verification)
 }
 
 export function analyzeCourseBlueprintCompleteness(detail: CourseBlueprintDetail) {

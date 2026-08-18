@@ -109,6 +109,8 @@ describe('atomic blueprint operation contracts', () => {
 
   it('accepts UUID idempotency keys and rejects malformed keys', () => {
     expect(resolveBlueprintOperationId(operationId)).toBe(operationId)
+    expect(resolveBlueprintOperationId('ABCDEFAB-CDEF-4ABC-8DEF-ABCDEFABCDEF'))
+      .toBe('abcdefab-cdef-4abc-8def-abcdefabcdef')
     expect(() => resolveBlueprintOperationId('not-an-operation-id')).toThrow()
     expect(resolveBlueprintOperationId(null)).toMatch(/^[0-9a-f-]{36}$/)
   })

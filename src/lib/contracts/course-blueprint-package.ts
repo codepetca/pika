@@ -8,39 +8,56 @@ export const COURSE_BLUEPRINT_PACKAGE_MAX_BYTES = 8 * 1024 * 1024
 export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES = 2 * 1024 * 1024
 export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT = 10
 
-const textEncoder = new TextEncoder()
-const coursePackageFileContentSchema = z.string().refine(
-  (value) => textEncoder.encode(value).byteLength <= COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
-  'Course package file exceeds the 2 MiB limit',
-)
+export type CoursePackageVersion =
+  (typeof COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS)[number]
 
-const legacyPlannedCourseSiteConfigSchema = z.object({
-  overview: z.boolean(),
-  outline: z.boolean(),
-  resources: z.boolean(),
-  assignments: z.boolean(),
-  tests: z.boolean(),
-  lesson_plans: z.boolean(),
+export const COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES = [
+  'course-overview.md',
+  'course-outline.md',
+  'resources.md',
+  'assignments.md',
+  'tests.md',
+  'lesson-plans.md',
+] as const
+
+export const COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES = [
+  ...COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
+  'classwork-materials.md',
+  'surveys.md',
+] as const
+
+const textEncoder = new TextEncoder()
+export const coursePackageFileContentSchema = z.string().superRefine((value, ctx) => {
+  if (textEncoder.encode(value).byteLength > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Course package file exceeds the 2 MiB limit',
+      params: { coursePackageIssue: 'file_too_large' },
+    })
+  }
 })
 
-const v2PlannedCourseSiteConfigSchema = z.object({
+const plannedCourseSiteConfigShape = {
   overview: z.boolean(),
   outline: z.boolean(),
   resources: z.boolean(),
   assignments: z.boolean(),
-  quizzes: z.boolean(),
   tests: z.boolean(),
   lesson_plans: z.boolean(),
+}
+
+const v2PlannedCourseSiteConfigSchema = z.object({
+  ...plannedCourseSiteConfigShape,
+  quizzes: z.boolean(),
 }).strict()
 
-const plannedCourseSiteConfigSchema = z.object({
-  overview: z.boolean(),
-  outline: z.boolean(),
-  resources: z.boolean(),
-  assignments: z.boolean(),
-  tests: z.boolean(),
-  lesson_plans: z.boolean(),
-}).strict()
+// Version 3 was emitted while retired boolean navigation keys could still be
+// present. Validate and preserve those values here; the v3 adapter decides
+// which current keys survive.
+const v3PlannedCourseSiteConfigSchema = z.object(plannedCourseSiteConfigShape)
+  .catchall(z.boolean())
+
+const plannedCourseSiteConfigSchema = z.object(plannedCourseSiteConfigShape).strict()
 
 const coursePackageManifestBaseShape = {
   exported_at: z.string().datetime({ offset: true }),
@@ -53,25 +70,25 @@ const coursePackageManifestBaseShape = {
   planned_site_published: z.boolean().optional(),
 }
 
-const coursePackageManifestV2Schema = z.object({
+export const coursePackageManifestV2Schema = z.object({
   version: z.literal('2'),
   ...coursePackageManifestBaseShape,
   planned_site_config: v2PlannedCourseSiteConfigSchema.optional(),
 }).strict()
 
-const coursePackageManifestV3Schema = z.object({
+export const coursePackageManifestV3Schema = z.object({
   version: z.literal('3'),
   ...coursePackageManifestBaseShape,
-  planned_site_config: legacyPlannedCourseSiteConfigSchema.optional(),
+  planned_site_config: v3PlannedCourseSiteConfigSchema.optional(),
 }).strict()
 
-const coursePackageManifestV4Schema = z.object({
+export const coursePackageManifestV4Schema = z.object({
   version: z.literal('4'),
   ...coursePackageManifestBaseShape,
   planned_site_config: plannedCourseSiteConfigSchema.optional(),
 }).strict()
 
-const coursePackageManifestV5Schema = z.object({
+export const coursePackageManifestV5Schema = z.object({
   version: z.literal('5'),
   ...coursePackageManifestBaseShape,
   blueprint_id: z.string().uuid(),
@@ -101,39 +118,39 @@ export const coursePackageManifestSchema = z.discriminatedUnion('version', [
   coursePackageManifestV5Schema,
 ])
 
-const coursePackageFilesShape = {
-  'course-overview.md': coursePackageFileContentSchema.default(''),
-  'course-outline.md': coursePackageFileContentSchema.default(''),
-  'resources.md': coursePackageFileContentSchema.default(''),
-  'assignments.md': coursePackageFileContentSchema.default(''),
-  'tests.md': coursePackageFileContentSchema.default(''),
-  'lesson-plans.md': coursePackageFileContentSchema.default(''),
+const legacyCoursePackageFilesShape = {
+  'course-overview.md': coursePackageFileContentSchema,
+  'course-outline.md': coursePackageFileContentSchema,
+  'resources.md': coursePackageFileContentSchema,
+  'assignments.md': coursePackageFileContentSchema,
+  'tests.md': coursePackageFileContentSchema,
+  'lesson-plans.md': coursePackageFileContentSchema,
 }
 
-const coursePackageV2BundleSchema = z.object({
+export const coursePackageV2BundleSchema = z.object({
   manifest: coursePackageManifestV2Schema,
   files: z.object({
-    ...coursePackageFilesShape,
-    'quizzes.md': coursePackageFileContentSchema.default(''),
+    ...legacyCoursePackageFilesShape,
+    'quizzes.md': coursePackageFileContentSchema.optional(),
   }).strict(),
 }).strict()
 
-const coursePackageV3BundleSchema = z.object({
+export const coursePackageV3BundleSchema = z.object({
   manifest: coursePackageManifestV3Schema,
-  files: z.object(coursePackageFilesShape).strict(),
+  files: z.object(legacyCoursePackageFilesShape).strict(),
 }).strict()
 
-const coursePackageV4BundleSchema = z.object({
+export const coursePackageV4BundleSchema = z.object({
   manifest: coursePackageManifestV4Schema,
-  files: z.object(coursePackageFilesShape).strict(),
+  files: z.object(legacyCoursePackageFilesShape).strict(),
 }).strict()
 
-const coursePackageV5BundleSchema = z.object({
+export const coursePackageV5BundleSchema = z.object({
   manifest: coursePackageManifestV5Schema,
   files: z.object({
-    ...coursePackageFilesShape,
-    'classwork-materials.md': coursePackageFileContentSchema.default(''),
-    'surveys.md': coursePackageFileContentSchema.default(''),
+    ...legacyCoursePackageFilesShape,
+    'classwork-materials.md': coursePackageFileContentSchema,
+    'surveys.md': coursePackageFileContentSchema,
   }).strict(),
 }).strict()
 
@@ -144,4 +161,44 @@ export const coursePackageBundleSchema = z.union([
   coursePackageV5BundleSchema,
 ])
 
+export const COURSE_BLUEPRINT_PACKAGE_CONTRACTS = {
+  '2': {
+    version: '2',
+    requiredFiles: COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
+    allowedFiles: [...COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES, 'quizzes.md'],
+    manifestSchema: coursePackageManifestV2Schema,
+    bundleSchema: coursePackageV2BundleSchema,
+  },
+  '3': {
+    version: '3',
+    requiredFiles: COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
+    allowedFiles: COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
+    manifestSchema: coursePackageManifestV3Schema,
+    bundleSchema: coursePackageV3BundleSchema,
+  },
+  '4': {
+    version: '4',
+    requiredFiles: COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
+    allowedFiles: COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
+    manifestSchema: coursePackageManifestV4Schema,
+    bundleSchema: coursePackageV4BundleSchema,
+  },
+  '5': {
+    version: '5',
+    requiredFiles: COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
+    allowedFiles: COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
+    manifestSchema: coursePackageManifestV5Schema,
+    bundleSchema: coursePackageV5BundleSchema,
+  },
+} as const
+
+export type CoursePackageManifestV2 = z.infer<typeof coursePackageManifestV2Schema>
+export type CoursePackageManifestV3 = z.infer<typeof coursePackageManifestV3Schema>
+export type CoursePackageManifestV4 = z.infer<typeof coursePackageManifestV4Schema>
+export type CoursePackageManifestV5 = z.infer<typeof coursePackageManifestV5Schema>
 export type CoursePackageManifest = z.infer<typeof coursePackageManifestSchema>
+export type CoursePackageRawV2 = z.infer<typeof coursePackageV2BundleSchema>
+export type CoursePackageRawV3 = z.infer<typeof coursePackageV3BundleSchema>
+export type CoursePackageRawV4 = z.infer<typeof coursePackageV4BundleSchema>
+export type CoursePackageRawV5 = z.infer<typeof coursePackageV5BundleSchema>
+export type CoursePackageRawBundle = z.infer<typeof coursePackageBundleSchema>

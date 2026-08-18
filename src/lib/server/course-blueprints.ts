@@ -7,10 +7,10 @@ import {
 import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   buildCourseBlueprintExportBundle,
-  decodeCourseBlueprintPackageArchive,
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportBundle,
   parseCourseBlueprintImportArchive,
+  type CourseBlueprintImportResult,
 } from '@/lib/course-blueprint-package'
 import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
@@ -61,6 +61,56 @@ type BlueprintOperationOptions = {
 
 function getSupabase() {
   return getServiceRoleClient()
+}
+
+function createLegacyImportArtifactId(operationId: string, artifactPath: string): string {
+  const hex = createHash('sha256')
+    .update(`${operationId}:${artifactPath}`)
+    .digest('hex')
+  const variant = ((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16)
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `4${hex.slice(13, 16)}`,
+    `${variant}${hex.slice(17, 20)}`,
+    hex.slice(20, 32),
+  ].join('-')
+}
+
+function stabilizeLegacyImportArtifactIds(
+  parsed: ReturnType<typeof parseCourseBlueprintImportBundle>,
+  operationId: string,
+) {
+  if (parsed.manifest?.version === '5') return
+  const artifactId = (path: string) => createLegacyImportArtifactId(operationId, path)
+
+  parsed.assignments.forEach((assignment, assignmentIndex) => {
+    assignment.artifact_id = artifactId(`assignment:${assignmentIndex}`)
+    assignment.submission_requirements?.forEach((requirement, requirementIndex) => {
+      requirement.id = artifactId(`assignment:${assignmentIndex}:requirement:${requirementIndex}`)
+    })
+  })
+  parsed.assessments.forEach((assessment, assessmentIndex) => {
+    assessment.artifact_id = artifactId(`test:${assessmentIndex}`)
+    assessment.content.questions.forEach((question, questionIndex) => {
+      question.id = artifactId(`test:${assessmentIndex}:question:${questionIndex}`)
+    })
+    assessment.documents.forEach((document, documentIndex) => {
+      document.id = artifactId(`test:${assessmentIndex}:document:${documentIndex}`)
+    })
+  })
+  parsed.lesson_templates.forEach((lesson, lessonIndex) => {
+    lesson.artifact_id = artifactId(`lesson:${lessonIndex}`)
+  })
+  parsed.materials.forEach((material, materialIndex) => {
+    material.artifact_id = artifactId(`material:${materialIndex}`)
+  })
+  parsed.surveys.forEach((survey, surveyIndex) => {
+    survey.artifact_id = artifactId(`survey:${surveyIndex}`)
+    survey.questions_json.forEach((question, questionIndex) => {
+      question.id = artifactId(`survey:${surveyIndex}:question:${questionIndex}`)
+    })
+  })
 }
 
 export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
@@ -1051,13 +1101,25 @@ export async function importCourseBlueprintBundle(
   bundle: unknown,
   options: BlueprintOperationOptions = {},
 ) {
+  const operationId = resolveBlueprintOperationId(options.operationId)
   const parsed = parseCourseBlueprintImportBundle(bundle)
   if (parsed.errors.length > 0 || !parsed.manifest) {
     return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
   }
+  return importParsedCourseBlueprint(teacherId, {
+    ...parsed,
+    manifest: parsed.manifest,
+  }, operationId)
+}
+
+async function importParsedCourseBlueprint(
+  teacherId: string,
+  parsed: CourseBlueprintImportResult & { manifest: NonNullable<CourseBlueprintImportResult['manifest']> },
+  operationId: string,
+) {
+  stabilizeLegacyImportArtifactIds(parsed, operationId)
 
   const supabase = getSupabase()
-  const operationId = resolveBlueprintOperationId(options.operationId)
   const plan = buildCreateBlueprintWritePlan({
     blueprint: parsed.blueprint,
     assignments: parsed.assignments.map((assignment) => ({
@@ -1249,13 +1311,15 @@ export async function importCourseBlueprintArchive(
   archive: ArrayBuffer | Uint8Array,
   options: BlueprintOperationOptions = {},
 ) {
-  const bundle = decodeCourseBlueprintPackageArchive(archive)
-  if (!bundle) {
-    const parsed = parseCourseBlueprintImportArchive(archive)
+  const operationId = resolveBlueprintOperationId(options.operationId)
+  const parsed = parseCourseBlueprintImportArchive(archive)
+  if (parsed.errors.length > 0 || !parsed.manifest) {
     return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
   }
-
-  return importCourseBlueprintBundle(teacherId, bundle, options)
+  return importParsedCourseBlueprint(teacherId, {
+    ...parsed,
+    manifest: parsed.manifest,
+  }, operationId)
 }
 
 export async function createClassroomFromBlueprint(
