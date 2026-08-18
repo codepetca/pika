@@ -58,11 +58,13 @@ Do not enable the switch until all prerequisites are true:
    environment using the normal human-authorized migration procedure.
 2. Configure all server-only Pal settings.
 3. Confirm Pal accepts the six version 1 event shapes.
-4. Confirm Pal's story scheduler classifies a prospective configuration by the
-   preserved producer `occurred_at`, not HTTP receipt or fact insertion time.
-   A configuration enqueued before its story boundary must remain eligible when
-   an outage delays delivery until after that boundary; one first created after
-   the boundary must remain ineligible.
+4. Confirm the target Pal environment includes
+   [`0010_story_source_timestamps.sql`](https://github.com/codepetca/pal/blob/main/packages/db/drizzle/0010_story_source_timestamps.sql).
+   The migration makes the story scheduler classify a prospective configuration
+   by the preserved producer `occurred_at`, not HTTP receipt or fact insertion
+   time. A configuration enqueued before its story boundary remains eligible
+   when an outage delays delivery until after that boundary; one first created
+   after the boundary remains ineligible.
 5. Confirm Pal implements `POST /api/v1/integration/read-token`.
 6. Confirm the reviewed public `@codepet/pal-widget@0.1.0-alpha.3` package exposes
    `@codepet/pal-widget/theme-contract`.
@@ -77,6 +79,13 @@ Do not enable the switch until all prerequisites are true:
 Pal must support a contract version before Pika emits it. Pika pins the reviewed
 public `@codepet/pal-widget@0.1.0-alpha.3` release exactly. Keep the switch off
 until steps 3–8 are complete in the target environment.
+
+[Pal PR #73](https://github.com/codepetca/pal/pull/73) landed the source-timestamp
+migration and persisted-ingest coverage for Pika's seven-field adaptive calendar
+on 2026-08-18. Its delayed-delivery test proves that retries retain the producer
+chronology and remain idempotent, while truly late configurations remain
+ineligible. This clears the code-level rollout blocker; applying Pal migrations
+to a target environment remains a Pal-controlled deployment prerequisite.
 
 The pilot does not backfill actions that happened while the switch was off.
 Enabling midweek is safe, but Pal will only receive facts asserted from that

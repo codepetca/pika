@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Audit remaining managed deletion scopes
-
-**Risk profile:** runtime-platform — irreversible cold recovery loss,
-cross-Classroom student lineage, managed Storage, and durable purge recovery.
-
-**Audited:**
-- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
-  session-start workflow, and verified the local read-only schema is exactly at
-  migrations 001–120.
-- Traced cold tombstones, immutable archives, restore/compaction operations,
-  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
-  fences, and the complete Classroom resource graph.
-- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
-  student files, existing partial roster removal, account-level data, Pal
-  ledgers, and cross-Classroom preservation boundaries.
-
-**Recommendation:**
-- Add privacy-safe read-only deletion health monitoring first, then implement
-  cold-Classroom purge and Classroom-scoped individual-student purge as
-  separate migrations and PRs with independent rollout gates.
-- Keep generic orphan cleanup disabled; neither purge scope depends on it.
-- Require cold archives to be restored before individual-student purge; do not
-  rewrite immutable archive bundles or erase user accounts/other Classrooms.
-
-**Boundary:**
-- No implementation, migration application, local reset, rollout change,
-  production query, purge, or Storage deletion was performed. PR #963 remains
-  closed and untouched. Awaiting approval of the scope and sequencing package.
-
 ## 2026-08-08 — Add managed deletion health monitoring baseline
 
 **Risk profile:** runtime-platform — read-only production health aggregation
@@ -1236,3 +1207,22 @@ dependency, or UI change.
   story eligibility with ingestion time instead of the preserved producer
   timestamp; correcting that cross-service cutoff and proving the delayed
   boundary case is a rollout blocker outside this Pika-only PR.
+
+## 2026-08-18 — Verify Pal source-timestamp rollout dependency
+
+**Risk profile:** documentation and cross-service verification only; no Pika
+runtime, contract, schema, dependency, privacy, or UI change.
+
+- Verified merged Pal PR #73 at `2c4f71389db978e495af42f9d494b9de2bf8354a`
+  adds append-only migration `0010_story_source_timestamps.sql` and uses
+  producer `learner_facts.occurred_at` for story eligibility, lateness,
+  terminal effective due time, and protection/reconstruction checks.
+- Verified Pal's persisted-ingest test uses Pika's seven-field adaptive calendar,
+  accepts a pre-boundary fact delivered after the boundary, rejects a truly late
+  fact, and proves a retry with the same idempotency key remains a duplicate.
+- Confirmed Pal PR #73 CI is green, the public widget remains exactly
+  `@codepet/pal-widget@0.1.0-alpha.3`, and Pal changed no contract or widget
+  source after Pika's vendored contract commit.
+- Updated the pilot runbook to name the required Pal migration and record that
+  the code-level blocker is cleared. Applying it in a target Pal environment
+  remains Pal-controlled; Pika performs no deployment or historical backfill.

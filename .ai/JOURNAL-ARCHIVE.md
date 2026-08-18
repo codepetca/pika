@@ -18633,3 +18633,33 @@ authorization, ownership, operation-conflict, and managed-storage gates.
 - Playwright visual verification passed for the student form in desktop/mobile,
   light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
   applicable.
+
+<!-- pika-session-log-archive-batch:5fc638e888ef6f87b9d4284e4369c6e37782e6f92978b8d8523cb83ab64449e8 -->
+## 2026-08-08 — Audit remaining managed deletion scopes
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss,
+cross-Classroom student lineage, managed Storage, and durable purge recovery.
+
+**Audited:**
+- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
+  session-start workflow, and verified the local read-only schema is exactly at
+  migrations 001–120.
+- Traced cold tombstones, immutable archives, restore/compaction operations,
+  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
+  fences, and the complete Classroom resource graph.
+- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
+  student files, existing partial roster removal, account-level data, Pal
+  ledgers, and cross-Classroom preservation boundaries.
+
+**Recommendation:**
+- Add privacy-safe read-only deletion health monitoring first, then implement
+  cold-Classroom purge and Classroom-scoped individual-student purge as
+  separate migrations and PRs with independent rollout gates.
+- Keep generic orphan cleanup disabled; neither purge scope depends on it.
+- Require cold archives to be restored before individual-student purge; do not
+  rewrite immutable archive bundles or erase user accounts/other Classrooms.
+
+**Boundary:**
+- No implementation, migration application, local reset, rollout change,
+  production query, purge, or Storage deletion was performed. PR #963 remains
+  closed and untouched. Awaiting approval of the scope and sequencing package.
