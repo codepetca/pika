@@ -127,13 +127,18 @@ pnpm e2e:auth
 pnpm e2e:verify blueprint-rollover
 ```
 
-The drill uses the seeded `TEST01` classroom through the browser, captures a
-Blueprint, creates a new classroom, and verifies that reusable assignments,
-tests, lesson plans, materials, surveys, and announcements survive. It also
-verifies that enrollments, roster rows, daily logs, assignment submissions,
-and test attempts do not cross into the new classroom, and that assignments
-and tests require teacher review before release. It refuses non-loopback app,
-Supabase, or database targets and removes its generated local records.
+The drill uses the seeded `TEST01` classroom through the browser and adds
+temporary local-only material, survey, assignment-requirement, announcement,
+and announcement-read fixtures so every asserted boundary is non-empty. It
+captures a Blueprint, creates a new classroom, and verifies reusable parent and
+nested content, stable artifact identity, and immutable Blueprint Version
+lineage. It verifies that enrollments, roster rows, daily logs, assignment
+submissions, test attempts, live announcements, and announcement reads do not
+cross into the new classroom, and that assignments and tests require teacher
+review before release. It refuses managed-upload fixtures and non-loopback app,
+Supabase, or database targets. Cleanup restores the source classroom's identity,
+provenance, and revision state and requires the operation-ledger and managed
+storage inventories to match their pre-drill state.
 
 CI starts an ephemeral Supabase database, replays every migration, and runs:
 

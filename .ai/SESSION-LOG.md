@@ -1187,6 +1187,19 @@ application behavior, schema, migration, or production state changed.
 - Added loopback-only guards for the app, Supabase API, and database; the drill
   refuses managed-upload source fixtures and removes its generated local records.
 - Captured and visually inspected Blueprint review, classroom-created handoff,
-  and assignment review screenshots. All 33 browser checks passed.
+  and assignment review screenshots. The initial 33 browser checks passed.
 - Verification: the clean full suite passes all 4,432 tests. Production build,
   lint, typecheck, architecture boundaries, Pika audit, and diff checks pass.
+
+**Independent review remediation:**
+- Added temporary non-empty material, survey/question, assignment-requirement,
+  announcement, and announcement-read fixtures. Announcements are now correctly
+  asserted as excluded live state rather than reusable Blueprint content.
+- Expanded lineage checks to every reusable parent and child plus the immutable
+  Blueprint Version used to create the classroom.
+- Snapshot and restore the shared source classroom's identity, provenance, and
+  revision fields; delete only the drill's exact operation rows; and assert the
+  source, operation ledger, storage inventory, and generated fixture inventory
+  all match their pre-drill state after cleanup.
+- The remediated browser drill passes all 42 checks. Managed-upload rollover is
+  explicitly outside this drill and remains follow-up package compatibility work.
