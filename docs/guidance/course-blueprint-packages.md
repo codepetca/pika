@@ -37,15 +37,48 @@ teacher-authored course content.
 The canonical export manifest version is `5`. Pika imports versions `2`, `3`,
 `4`, and `5`, and rejects other versions. Version `2` is an import-only compatibility
 boundary: Pika imports its reusable course, assignment, Test, and lesson-plan
-content while discarding `quizzes.md`. Version `3` package manifests are
-normalized to the current planned-site configuration; unknown retired
-configuration keys are ignored. Versions `4` and `5` reject unknown manifest
-fields and undeclared files. Version `5` adds the Blueprint ID, source Draft
-revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
+content while discarding `quizzes.md`. Version `3` package manifests accept the
+two historical planned-site forms: the six current keys, with or without the
+retired `quizzes` key, which the adapter discards. Versions `4` and `5` reject
+unknown manifest fields and undeclared files. Version `5` adds the Blueprint ID,
+source Draft revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
 Missing, malformed, or duplicate Artifact IDs fail version `5` validation;
 legacy versions receive IDs once during import. The package format version is
 independent of both the database migration number and the Blueprint's own
 Version number.
+
+### Supported-Version Contract
+
+Historical formats are import-only. Every raw package is first checked against
+its exact version contract; only verified packages enter a version adapter.
+Adapters discard retired content and add current-domain defaults before Markdown
+is parsed into one canonical portable course model.
+
+| Version | Required Markdown files | Additional allowed files | Manifest behavior |
+| --- | --- | --- | --- |
+| `2` | `course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`, `tests.md`, `lesson-plans.md` | Optional `quizzes.md`, which is discarded | Strict v2 manifest and planned-site values |
+| `3` | The same six reusable files | None | Strict manifest with six current planned-site keys and only the historical `quizzes` key optionally allowed; the adapter discards it |
+| `4` | The same six reusable files | None | Strict manifest and current planned-site keys |
+| `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
+
+Raw schemas never create missing files or supply defaults. Direct JSON and TAR
+packages feed the same verifier. Raw JSON is decoded as fatal UTF-8, rejects a
+leading byte-order mark instead of silently consuming it, and is parsed without
+duplicate-key normalization. The verifier retains immutable copies of
+the original JSON text or TAR manifest text, manifest, file map, entry names,
+source kind, and received byte length as raw evidence. The branded verified
+value and its nested evidence cannot be changed before adaptation. TAR transport
+checks also require block alignment, two complete zero terminator blocks, zero
+entry padding, valid headers and UTF-8, unique entries, and size limits before
+adaptation. The 2 MiB per-entry limit applies to `manifest.json` in both forms.
+
+Immutable JSON and binary TAR fixtures for every supported version live in
+`tests/fixtures/course-blueprint-package-v*.{json,tar}`. Their SHA-256 digests
+and an independent, production-encoder-free mutation matrix are locked by:
+
+```bash
+pnpm test tests/lib/course-blueprint-package-contract.test.ts
+```
 
 ## Included
 

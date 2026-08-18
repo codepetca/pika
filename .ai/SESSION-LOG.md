@@ -11,83 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Harden Pal delivery release readiness
-
-**Risk profile:** runtime-platform — delivery telemetry, PostgreSQL claim
-concurrency, outage recovery, and production release evidence.
-
-**Completed:**
-- Added privacy-safe structured logs for immediate delivery and daily outbox
-  drains, plus protected ready/retry/expired-lease/backlog-age and recent
-  delivery-latency metrics.
-- Added an ephemeral PostgreSQL concurrency harness proving one claim winner
-  for pending and expired batch and targeted claims.
-- Added a loopback-only HTTP recovery smoke that persists a 503 retry, restores
-  the peer, delivers the queued event once with the same idempotency key, and
-  removes its synthetic fixture.
-- Closed independent-review gaps by emitting sanitized error-category drain
-  telemetry, reserving a 60-second cron execution budget, and replacing timing
-  assumptions with database-observed claim and lock contention gates.
-- Bounded the complete drain path across claims, delivery transitions, and the
-  final count, and made ready-backlog age use the actual retry/lease-ready time.
-- Classified both direct and PostgREST-wrapped abort/timeout failures as the
-  sanitized `deadline` drain outcome.
-- Confirmed read-only that the current production adapter is enabled and has
-  delivered events; no Pal code, Pal PR #50, migration, or production data was
-  changed by the readiness implementation.
-
-**Validation:**
-- Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
-  architecture/design/UI policy checks, Pika audit, production build, both
-  real-database/HTTP Pal harnesses, continuity validation, and diff checks.
-
-## 2026-08-08 — Install production Blueprint purge schema
-
-**Risk profile:** irreversible production schema installation; rollout and
-execution remained disabled.
-
-**Completed:**
-- Verified the dedicated worktree at merged `main`, the hub-linked production
-  Pika project, migration history through 119, migration 120 static checks, and
-  the managed-storage lineage.
-- Confirmed the linked dry run contained only
-  `120_course_blueprint_purge_managed_ownership.sql`.
-- Applied migration 120 exactly once through `supabase db push --linked` under
-  exact production authorization.
-
-**Validation:**
-- Production migration history now records 120.
-- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
-  and Blueprint IDs are null, and no Blueprint purge operation exists.
-- No purge, managed-storage cleanup, rollout activation, or Storage deletion
-  ran. Enabling a canary remains a separate production decision.
-
-## 2026-08-08 — Complete managed deletion production rollout
-
-**Risk profile:** irreversible production deletion availability with fail-closed
-authorization, ownership, operation-conflict, and managed-storage gates.
-
-**Completed:**
-- Ran successful production canaries for managed Course Blueprint deletion and
-  hot archived Classroom deletion, preserving linked Classrooms, reusable
-  Classroom-owned files, and user accounts where required.
-- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
-  Blueprints and hot archived Classrooms. Cold archives and comprehensive
-  individual-student purging remain separate follow-up scopes.
-- Refreshed the protected synthetic verification credentials after invalidating
-  a diagnostic-output exposure; no real-user credentials were affected.
-
-**Validation:**
-- Production migration history matches local migrations 001–120, and managed
-  storage remains enforced at protocol version 2.
-- All three current hot archived Classrooms and both current Course Blueprints
-  report deletion available, with zero active purge operations or conflicts.
-- Managed Storage reconciles at 140 registered/140 stored objects with no
-  missing, unregistered, interrupted, or active-cleanup objects.
-- Desktop/mobile teacher and student boundaries passed; non-owner teacher
-  access returned 404 and student access returned 403. No purge was started by
-  either broad rollout action.
-
 ## 2026-08-08 — Add accessible student test flag toggles
 
 **Risk profile:** exam-mode — student test-taking interaction and lock behavior.
@@ -1227,3 +1150,74 @@ application behavior, schema, migration, or production state changed.
   pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
   TypeScript, lint, architecture boundaries, production build, Pika audit, and
   diff checks pass.
+
+## 2026-08-17 — Course Package versioned contract core (PR A)
+
+**Risk profile:** high — foundational untrusted package boundary and historical
+compatibility; no schema migration, production operation, dependency, or UI
+change.
+
+**Completed:**
+- Verified the historical v2-v5 file matrix against repository history and the
+  evidence in draft PR #1018: v2 requires the six reusable legacy files and
+  optionally accepts/discards `quizzes.md`; v3/v4 require exactly those six;
+  v5 requires exactly the current eight.
+- Replaced the shared v5-shaped raw record with strict discriminated wire types,
+  per-version manifest schemas, and an explicit required/allowed file registry.
+  Raw schemas no longer synthesize missing files.
+- Added one evidence-preserving verifier shared by direct JSON and TAR inputs.
+  Historical adapters run only after verification and produce one canonical
+  portable course model.
+- Added independently built, SHA-locked JSON and binary TAR fixtures for every
+  supported version plus table-driven parity mutations for required/forbidden/
+  duplicate entries, manifests, UTF-8/checksum failures, and size boundaries.
+- Preserved useful PR #1018 retry evidence by making legacy Artifact identity
+  deterministic per import operation and canonicalizing operation UUIDs.
+
+**Validation:**
+- The focused package contract suite passes 91 cases. The authoritative full
+  verification passes all 4,528 tests across 502 files, lint, architecture
+  boundaries, and the production build. Pika audit and diff checks pass.
+- Visual verification is not applicable because this PR changes no UI.
+
+**Independent review remediation:**
+- Raw JSON now remains bytes until the package boundary, uses fatal UTF-8
+  decoding, rejects duplicate keys at every object depth and leading BOMs,
+  preserves the exact received text, and applies the same 2 MiB manifest-entry
+  limit as TAR.
+- Verified bundles and raw evidence are defensively cloned, deeply frozen, and
+  exposed through a branded verified type so caller mutation cannot rewrite
+  evidence or change what a later adapter sees.
+- TAR verification now requires block alignment, zero entry padding, and two
+  complete zero terminator blocks; truncated and non-aligned zero tails fail.
+- Upload-document and managed-storage semantic policy remains deliberately
+  deferred to PR B, matching the requested phase sequence.
+
+## 2026-08-18 — Tighten the v3 Course Package manifest contract
+
+**Risk profile:** high — strict historical compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Replaced the permissive v3 planned-site catchall with the exact historical
+  seven-key shape, including the retired `quizzes` key.
+- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
+  and TAR fixtures and updated their locked SHA-256 digests.
+- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
+  fail as `invalid_manifest` before adaptation.
+- Full verification passes 4,529 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.
+
+## 2026-08-18 — Preserve both strict v3 planned-site forms
+
+**Risk profile:** high — historical package compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Kept the v3 planned-site schema strict while allowing only the historically
+  evidenced `quizzes` key to be omitted or supplied as a boolean.
+- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
+  proved it adapts to the same portable content as the original seven-key form
+  while preserving distinct raw source manifests.
+- Retained rejection coverage for arbitrary v3 configuration keys and updated
+  the package contract documentation.
+- Full verification passes 4,530 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.

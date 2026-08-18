@@ -1,0 +1,41 @@
+{
+  "manifest": {
+    "version": "5",
+    "exported_at": "2026-07-27T12:00:00.000Z",
+    "title": "Version 5 Computer Science",
+    "subject": "Computer Science",
+    "grade_level": "Grade 11",
+    "course_code": "ICS3U",
+    "term_template": "Full Year",
+    "blueprint_id": "10000000-0000-4000-8000-000000000005",
+    "source_draft_revision": 9,
+    "blueprint_version_id": "20000000-0000-4000-8000-000000000005",
+    "blueprint_version_number": 3,
+    "editing_session_id": "30000000-0000-4000-8000-000000000005",
+    "grading": {
+      "use_weights": true,
+      "assignments_weight": 60,
+      "tests_weight": 40
+    },
+    "planned_site_slug": "version-5-computer-science",
+    "planned_site_published": true,
+    "planned_site_config": {
+      "overview": true,
+      "outline": true,
+      "resources": true,
+      "assignments": true,
+      "tests": true,
+      "lesson_plans": false
+    }
+  },
+  "files": {
+    "course-overview.md": "# Version 5 overview",
+    "course-outline.md": "# Version 5 outline",
+    "resources.md": "# Version 5 resources",
+    "assignments.md": "## Version 5 Project [DRAFT]\nArtifact ID: 41000000-0000-4000-8000-000000000005\nClasswork Position: 0\nDue Days: 8\nDue Time: 13:45\nPoints: 35\nGradebook Weight: 19\nInclude In Final: true\nTrack Authenticity: true\n\nBuild a portable course artifact.\n\n### Submission Requirements\n- 42000000-0000-4000-8000-000000000005 | link | Project link | required | Submit the published artifact.\n\n---",
+    "tests.md": "# Test\nTitle: Version 5 Unit Test\nArtifact ID: 51000000-0000-4000-8000-000000000005\nPoints Possible: 40\nGradebook Weight: 29\nInclude In Final: true\nShow Results: false\n\n## Questions\n### Question 1\nID: 52000000-0000-4000-8000-000000000005\nType: open_response\nPoints: 6\nCode: false\nMax Chars: 900\nPrompt:\nDescribe stable Artifact ID lineage.\nAnswer Key:\nThe identity survives packages, Versions, and classrooms.\n\n## Documents\n### Document 1\nID: 53000000-0000-4000-8000-000000000005\nSource: link\nTitle: Version 5 Reference\nURL: https://example.com/version-5-reference\n\n### Document 2\nID: 54000000-0000-4000-8000-000000000005\nSource: text\nTitle: Version 5 Notes\nContent:\nPortable text content remains embedded.",
+    "lesson-plans.md": "## Version 5 Lesson\nArtifact ID: 61000000-0000-4000-8000-000000000005\n\nTeach immutable Version lineage.\n\n---",
+    "classwork-materials.md": "## Version 5 Reference Sheet\nArtifact ID: 71000000-0000-4000-8000-000000000005\nClasswork Position: 1\n\nUse this reference during the unit.\n\n---",
+    "surveys.md": "# Survey: Version 5 Reflection\nArtifact ID: 81000000-0000-4000-8000-000000000005\nClasswork Position: 2\nShow Results: false\nDynamic Responses: true\n\n## Question 1\nID: 82000000-0000-4000-8000-000000000005\nType: short_text\nMax Chars: 700\nPrompt:\nWhat should the next Version improve?\n\n---"
+  }
+}

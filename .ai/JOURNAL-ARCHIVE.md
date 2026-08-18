@@ -18532,3 +18532,83 @@ state refresh behavior.
 **Validation:**
 - Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
   architecture/UI policy checks, production build, and diff checks.
+
+<!-- pika-session-log-archive-batch:ee8c3c19040175fb86c2aed49586ced53d13dabc551f55fc183e3c4c0e246444 -->
+## 2026-08-08 — Harden Pal delivery release readiness
+
+**Risk profile:** runtime-platform — delivery telemetry, PostgreSQL claim
+concurrency, outage recovery, and production release evidence.
+
+**Completed:**
+- Added privacy-safe structured logs for immediate delivery and daily outbox
+  drains, plus protected ready/retry/expired-lease/backlog-age and recent
+  delivery-latency metrics.
+- Added an ephemeral PostgreSQL concurrency harness proving one claim winner
+  for pending and expired batch and targeted claims.
+- Added a loopback-only HTTP recovery smoke that persists a 503 retry, restores
+  the peer, delivers the queued event once with the same idempotency key, and
+  removes its synthetic fixture.
+- Closed independent-review gaps by emitting sanitized error-category drain
+  telemetry, reserving a 60-second cron execution budget, and replacing timing
+  assumptions with database-observed claim and lock contention gates.
+- Bounded the complete drain path across claims, delivery transitions, and the
+  final count, and made ready-backlog age use the actual retry/lease-ready time.
+- Classified both direct and PostgREST-wrapped abort/timeout failures as the
+  sanitized `deadline` drain outcome.
+- Confirmed read-only that the current production adapter is enabled and has
+  delivered events; no Pal code, Pal PR #50, migration, or production data was
+  changed by the readiness implementation.
+
+**Validation:**
+- Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
+  architecture/design/UI policy checks, Pika audit, production build, both
+  real-database/HTTP Pal harnesses, continuity validation, and diff checks.
+
+<!-- pika-session-log-archive-batch:1ccba3e79d2af344ab0f6a14f80e4262c47acb79254817587626296546c27882 -->
+## 2026-08-08 — Install production Blueprint purge schema
+
+**Risk profile:** irreversible production schema installation; rollout and
+execution remained disabled.
+
+**Completed:**
+- Verified the dedicated worktree at merged `main`, the hub-linked production
+  Pika project, migration history through 119, migration 120 static checks, and
+  the managed-storage lineage.
+- Confirmed the linked dry run contained only
+  `120_course_blueprint_purge_managed_ownership.sql`.
+- Applied migration 120 exactly once through `supabase db push --linked` under
+  exact production authorization.
+
+**Validation:**
+- Production migration history now records 120.
+- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
+  and Blueprint IDs are null, and no Blueprint purge operation exists.
+- No purge, managed-storage cleanup, rollout activation, or Storage deletion
+  ran. Enabling a canary remains a separate production decision.
+
+<!-- pika-session-log-archive-batch:24cdfe74bac85dde3fb0f1b3155f5f135349631501cf1c840cfdc2252c43d22b -->
+## 2026-08-08 — Complete managed deletion production rollout
+
+**Risk profile:** irreversible production deletion availability with fail-closed
+authorization, ownership, operation-conflict, and managed-storage gates.
+
+**Completed:**
+- Ran successful production canaries for managed Course Blueprint deletion and
+  hot archived Classroom deletion, preserving linked Classrooms, reusable
+  Classroom-owned files, and user accounts where required.
+- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
+  Blueprints and hot archived Classrooms. Cold archives and comprehensive
+  individual-student purging remain separate follow-up scopes.
+- Refreshed the protected synthetic verification credentials after invalidating
+  a diagnostic-output exposure; no real-user credentials were affected.
+
+**Validation:**
+- Production migration history matches local migrations 001–120, and managed
+  storage remains enforced at protocol version 2.
+- All three current hot archived Classrooms and both current Course Blueprints
+  report deletion available, with zero active purge operations or conflicts.
+- Managed Storage reconciles at 140 registered/140 stored objects with no
+  missing, unregistered, interrupted, or active-cleanup objects.
+- Desktop/mobile teacher and student boundaries passed; non-owner teacher
+  access returned 404 and student access returned 403. No purge was started by
+  either broad rollout action.
