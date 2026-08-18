@@ -53,7 +53,7 @@ const v2PlannedCourseSiteConfigSchema = z.object({
 
 const v3PlannedCourseSiteConfigSchema = z.object({
   ...plannedCourseSiteConfigShape,
-  quizzes: z.boolean(),
+  quizzes: z.boolean().optional(),
 }).strict()
 
 const plannedCourseSiteConfigSchema = z.object(plannedCourseSiteConfigShape).strict()

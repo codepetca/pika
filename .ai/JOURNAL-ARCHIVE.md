@@ -18585,3 +18585,30 @@ execution remained disabled.
   and Blueprint IDs are null, and no Blueprint purge operation exists.
 - No purge, managed-storage cleanup, rollout activation, or Storage deletion
   ran. Enabling a canary remains a separate production decision.
+
+<!-- pika-session-log-archive-batch:24cdfe74bac85dde3fb0f1b3155f5f135349631501cf1c840cfdc2252c43d22b -->
+## 2026-08-08 — Complete managed deletion production rollout
+
+**Risk profile:** irreversible production deletion availability with fail-closed
+authorization, ownership, operation-conflict, and managed-storage gates.
+
+**Completed:**
+- Ran successful production canaries for managed Course Blueprint deletion and
+  hot archived Classroom deletion, preserving linked Classrooms, reusable
+  Classroom-owned files, and user accounts where required.
+- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
+  Blueprints and hot archived Classrooms. Cold archives and comprehensive
+  individual-student purging remain separate follow-up scopes.
+- Refreshed the protected synthetic verification credentials after invalidating
+  a diagnostic-output exposure; no real-user credentials were affected.
+
+**Validation:**
+- Production migration history matches local migrations 001–120, and managed
+  storage remains enforced at protocol version 2.
+- All three current hot archived Classrooms and both current Course Blueprints
+  report deletion available, with zero active purge operations or conflicts.
+- Managed Storage reconciles at 140 registered/140 stored objects with no
+  missing, unregistered, interrupted, or active-cleanup objects.
+- Desktop/mobile teacher and student boundaries passed; non-owner teacher
+  access returned 404 and student access returned 403. No purge was started by
+  either broad rollout action.

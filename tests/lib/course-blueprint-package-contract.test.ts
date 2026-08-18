@@ -96,6 +96,11 @@ function withoutGeneratedIdentity(value: unknown) {
   )))
 }
 
+function portableImportContent(value: ReturnType<typeof parseCourseBlueprintImportBundle>) {
+  const { manifest: _sourceManifest, ...content } = value
+  return withoutGeneratedIdentity(content)
+}
+
 describe('versioned Course Package contract', () => {
   it('exposes accurate version-specific raw wire types', () => {
     expectTypeOf<CoursePackageRawV2['files']>().toHaveProperty('quizzes.md')
@@ -463,6 +468,27 @@ describe('versioned Course Package contract', () => {
     expect(issueCodes(archiveVerification)).toEqual(issueCodes(directVerification))
     expect(parseCourseBlueprintImportArchive(archive).errors)
       .toEqual(parseCourseBlueprintImportBundle(direct).errors)
+  })
+
+  it('accepts both strict historical version 3 planned-site forms in JSON and TAR', () => {
+    const removeQuizConfig = (manifest: Record<string, unknown>) => {
+      const plannedSiteConfig = manifest.planned_site_config as Record<string, unknown>
+      delete plannedSiteConfig.quizzes
+    }
+    const direct = structuredClone(fixtures['3'])
+    removeQuizConfig(direct.manifest)
+    const archive = replaceTarManifest(fixtureArchives['3'], removeQuizConfig)
+
+    expect(verifyCourseBlueprintPackageBundle(direct).success).toBe(true)
+    expect(verifyCourseBlueprintPackageArchive(archive).success).toBe(true)
+
+    const withQuiz = parseCourseBlueprintImportBundle(fixtures['3'])
+    const withoutQuiz = parseCourseBlueprintImportBundle(direct)
+    const withoutQuizArchive = parseCourseBlueprintImportArchive(archive)
+    expect(withoutQuiz.errors).toEqual([])
+    expect(withoutQuizArchive.errors).toEqual([])
+    expect(portableImportContent(withoutQuiz)).toEqual(portableImportContent(withQuiz))
+    expect(portableImportContent(withoutQuizArchive)).toEqual(portableImportContent(withQuiz))
   })
 
   it.each(versions)('enforces the exact per-file byte boundary for version %s JSON and TAR', (version) => {

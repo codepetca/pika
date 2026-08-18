@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Complete managed deletion production rollout
-
-**Risk profile:** irreversible production deletion availability with fail-closed
-authorization, ownership, operation-conflict, and managed-storage gates.
-
-**Completed:**
-- Ran successful production canaries for managed Course Blueprint deletion and
-  hot archived Classroom deletion, preserving linked Classrooms, reusable
-  Classroom-owned files, and user accounts where required.
-- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
-  Blueprints and hot archived Classrooms. Cold archives and comprehensive
-  individual-student purging remain separate follow-up scopes.
-- Refreshed the protected synthetic verification credentials after invalidating
-  a diagnostic-output exposure; no real-user credentials were affected.
-
-**Validation:**
-- Production migration history matches local migrations 001–120, and managed
-  storage remains enforced at protocol version 2.
-- All three current hot archived Classrooms and both current Course Blueprints
-  report deletion available, with zero active purge operations or conflicts.
-- Managed Storage reconciles at 140 registered/140 stored objects with no
-  missing, unregistered, interrupted, or active-cleanup objects.
-- Desktop/mobile teacher and student boundaries passed; non-owner teacher
-  access returned 404 and student access returned 403. No purge was started by
-  either broad rollout action.
-
 ## 2026-08-08 — Add accessible student test flag toggles
 
 **Risk profile:** exam-mode — student test-taking interaction and lock behavior.
@@ -1231,4 +1205,19 @@ production, dependency, or UI change.
 - Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
   fail as `invalid_manifest` before adaptation.
 - Full verification passes 4,529 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.
+
+## 2026-08-18 — Preserve both strict v3 planned-site forms
+
+**Risk profile:** high — historical package compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Kept the v3 planned-site schema strict while allowing only the historically
+  evidenced `quizzes` key to be omitted or supplied as a boolean.
+- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
+  proved it adapts to the same portable content as the original seven-key form
+  while preserving distinct raw source manifests.
+- Retained rejection coverage for arbitrary v3 configuration keys and updated
+  the package contract documentation.
+- Full verification passes 4,530 tests across 502 files, lint, and the
   production build. Pika audit and diff checks pass.
