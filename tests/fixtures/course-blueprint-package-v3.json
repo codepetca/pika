@@ -16,8 +16,7 @@
       "assignments": true,
       "tests": true,
       "lesson_plans": true,
-      "quizzes": true,
-      "retired_navigation": false
+      "quizzes": true
     }
   },
   "files": {

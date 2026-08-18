@@ -60,8 +60,8 @@ const fixtureDigests: Record<CoursePackageVersion, { json: string; tar: string }
     tar: 'b0f1b8022a159e20b9de6a86753c914036c2a599c476403cc9c8c7b245ed95b6',
   },
   '3': {
-    json: 'abcb68850f6418d485171891b90f9705e00fa9355c887a80390fff3f5f810023',
-    tar: '67933955f54fa6f73ba59bf560b7a828d80941513bf806bb5aa42c8de8391d59',
+    json: '2ba84319a22e954804262e730b5012c22333215939b781428b3722314a9c2745',
+    tar: '9de9f6caabdbc21216fd4b1419ba145e409b834252a0fa1f1cc40442150a806e',
   },
   '4': {
     json: 'adfde61fb5ce5423c48cf8f0efabaa878e0ab6dc2c992c77cb8f19e853e7117a',
@@ -182,7 +182,6 @@ describe('versioned Course Package contract', () => {
         planned_site_published: false,
       }))
       expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
-      expect(parsed.blueprint.planned_site_config).not.toHaveProperty('retired_navigation')
       expect(parsed.assignments).toHaveLength(1)
       expect(parsed.assessments).toHaveLength(1)
       expect(parsed.assessments[0].assessment_type).toBe('test')
@@ -440,6 +439,23 @@ describe('versioned Course Package contract', () => {
     const direct = structuredClone(fixtures[version])
     mutate(direct.manifest)
     const archive = replaceTarManifest(fixtureArchives[version], mutate)
+
+    const directVerification = verifyCourseBlueprintPackageBundle(direct)
+    const archiveVerification = verifyCourseBlueprintPackageArchive(archive)
+    expect(issueCodes(directVerification)).toContain('invalid_manifest')
+    expect(issueCodes(archiveVerification)).toEqual(issueCodes(directVerification))
+    expect(parseCourseBlueprintImportArchive(archive).errors)
+      .toEqual(parseCourseBlueprintImportBundle(direct).errors)
+  })
+
+  it('rejects unknown version 3 planned-site keys in JSON and TAR', () => {
+    const mutate = (manifest: Record<string, unknown>) => {
+      const plannedSiteConfig = manifest.planned_site_config as Record<string, unknown>
+      plannedSiteConfig.retired_navigation = false
+    }
+    const direct = structuredClone(fixtures['3'])
+    mutate(direct.manifest)
+    const archive = replaceTarManifest(fixtureArchives['3'], mutate)
 
     const directVerification = verifyCourseBlueprintPackageBundle(direct)
     const archiveVerification = verifyCourseBlueprintPackageArchive(archive)

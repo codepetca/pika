@@ -37,11 +37,11 @@ teacher-authored course content.
 The canonical export manifest version is `5`. Pika imports versions `2`, `3`,
 `4`, and `5`, and rejects other versions. Version `2` is an import-only compatibility
 boundary: Pika imports its reusable course, assignment, Test, and lesson-plan
-content while discarding `quizzes.md`. Version `3` package manifests are
-normalized to the current planned-site configuration; unknown retired
-configuration keys are ignored. Versions `4` and `5` reject unknown manifest
-fields and undeclared files. Version `5` adds the Blueprint ID, source Draft
-revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
+content while discarding `quizzes.md`. Version `3` package manifests require
+the exact historical planned-site configuration, including the retired
+`quizzes` key, which the adapter discards. Versions `4` and `5` reject unknown
+manifest fields and undeclared files. Version `5` adds the Blueprint ID, source
+Draft revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
 Missing, malformed, or duplicate Artifact IDs fail version `5` validation;
 legacy versions receive IDs once during import. The package format version is
 independent of both the database migration number and the Blueprint's own
@@ -57,7 +57,7 @@ is parsed into one canonical portable course model.
 | Version | Required Markdown files | Additional allowed files | Manifest behavior |
 | --- | --- | --- | --- |
 | `2` | `course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`, `tests.md`, `lesson-plans.md` | Optional `quizzes.md`, which is discarded | Strict v2 manifest and planned-site values |
-| `3` | The same six reusable files | None | Strict manifest; validated retired boolean planned-site keys are preserved as raw evidence and discarded by the adapter |
+| `3` | The same six reusable files | None | Strict manifest with the historical `quizzes` planned-site key, which the adapter discards |
 | `4` | The same six reusable files | None | Strict manifest and current planned-site keys |
 | `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
 

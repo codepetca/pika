@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Install production Blueprint purge schema
-
-**Risk profile:** irreversible production schema installation; rollout and
-execution remained disabled.
-
-**Completed:**
-- Verified the dedicated worktree at merged `main`, the hub-linked production
-  Pika project, migration history through 119, migration 120 static checks, and
-  the managed-storage lineage.
-- Confirmed the linked dry run contained only
-  `120_course_blueprint_purge_managed_ownership.sql`.
-- Applied migration 120 exactly once through `supabase db push --linked` under
-  exact production authorization.
-
-**Validation:**
-- Production migration history now records 120.
-- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
-  and Blueprint IDs are null, and no Blueprint purge operation exists.
-- No purge, managed-storage cleanup, rollout activation, or Storage deletion
-  ran. Enabling a canary remains a separate production decision.
-
 ## 2026-08-08 — Complete managed deletion production rollout
 
 **Risk profile:** irreversible production deletion availability with fail-closed
@@ -1239,3 +1218,17 @@ change.
   complete zero terminator blocks; truncated and non-aligned zero tails fail.
 - Upload-document and managed-storage semantic policy remains deliberately
   deferred to PR B, matching the requested phase sequence.
+
+## 2026-08-18 — Tighten the v3 Course Package manifest contract
+
+**Risk profile:** high — strict historical compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Replaced the permissive v3 planned-site catchall with the exact historical
+  seven-key shape, including the retired `quizzes` key.
+- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
+  and TAR fixtures and updated their locked SHA-256 digests.
+- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
+  fail as `invalid_manifest` before adaptation.
+- Full verification passes 4,529 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.

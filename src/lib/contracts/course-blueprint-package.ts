@@ -51,11 +51,10 @@ const v2PlannedCourseSiteConfigSchema = z.object({
   quizzes: z.boolean(),
 }).strict()
 
-// Version 3 was emitted while retired boolean navigation keys could still be
-// present. Validate and preserve those values here; the v3 adapter decides
-// which current keys survive.
-const v3PlannedCourseSiteConfigSchema = z.object(plannedCourseSiteConfigShape)
-  .catchall(z.boolean())
+const v3PlannedCourseSiteConfigSchema = z.object({
+  ...plannedCourseSiteConfigShape,
+  quizzes: z.boolean(),
+}).strict()
 
 const plannedCourseSiteConfigSchema = z.object(plannedCourseSiteConfigShape).strict()
 
