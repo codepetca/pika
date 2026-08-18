@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Add immediate Pal event delivery
-
-**Risk profile:** runtime-platform — transactional outbox delivery and learner
-state refresh behavior.
-
-**Completed:**
-- Added a targeted, two-second post-commit delivery attempt for authenticated
-  sessions, classroom joins, qualifying daily logs, first assignment views, and
-  assignment completions while preserving the existing durable outbox,
-  idempotency, leases, retry backoff, and daily recovery worker.
-- Refreshes the mounted Pal provider only after a newly confirmed delivery, so
-  achievements and companion reactions can update without waiting for the
-  60-second polling fallback.
-- Documented the reusable host/provider SaaS boundary and clarified that the
-  daily cron owns weekly configuration reconciliation plus delivery recovery,
-  not the primary user-action response path.
-- Independent review tightened the hard caller deadline across adapter I/O and
-  added atomic recovery of expired immediate-delivery leases.
-
-**Validation:**
-- Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
-  architecture/UI policy checks, production build, and diff checks.
-
 ## 2026-08-08 — Harden Pal delivery release readiness
 
 **Risk profile:** runtime-platform — delivery telemetry, PostgreSQL claim
@@ -1194,3 +1171,22 @@ Gradex, or student behavior changes.
   Keep editing. Student rendering is not applicable to this teacher-only route.
 - The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
   architecture boundaries, production build, Pika audit, and diff checks pass.
+
+## 2026-08-17 — Classroom-to-Blueprint rollover browser drill
+
+**Risk profile:** none — local-only E2E verification and documentation; no
+application behavior, schema, migration, or production state changed.
+
+- Added `pnpm e2e:verify blueprint-rollover`, which drives the seeded `TEST01`
+  classroom through Settings → Reuse, Blueprint review, classroom creation, and
+  the assignment date/release review handoff against the real local stack.
+- The drill compares reusable titles, artifact lineage, nested requirement and
+  question content, assignment instructions, lesson content, syllabus/resources,
+  and grading configuration. It proves that assignments/tests return as drafts
+  while enrollments, roster rows, logs, submissions, and test attempts stay out.
+- Added loopback-only guards for the app, Supabase API, and database; the drill
+  refuses managed-upload source fixtures and removes its generated local records.
+- Captured and visually inspected Blueprint review, classroom-created handoff,
+  and assignment review screenshots. All 33 browser checks passed.
+- Verification: the clean full suite passes all 4,432 tests. Production build,
+  lint, typecheck, architecture boundaries, Pika audit, and diff checks pass.

@@ -119,6 +119,22 @@ Operation rows are retained indefinitely in this first slice. Any future purge p
 
 ## Verification
 
+Run the local classroom rollover drill after seeding and generating teacher auth:
+
+```bash
+pnpm seed
+pnpm e2e:auth
+pnpm e2e:verify blueprint-rollover
+```
+
+The drill uses the seeded `TEST01` classroom through the browser, captures a
+Blueprint, creates a new classroom, and verifies that reusable assignments,
+tests, lesson plans, materials, surveys, and announcements survive. It also
+verifies that enrollments, roster rows, daily logs, assignment submissions,
+and test attempts do not cross into the new classroom, and that assignments
+and tests require teacher review before release. It refuses non-loopback app,
+Supabase, or database targets and removes its generated local records.
+
 CI starts an ephemeral Supabase database, replays every migration, and runs:
 
 ```bash
