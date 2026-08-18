@@ -687,17 +687,39 @@ async function localCleanupChecks(args: {
   ]
 }
 
+export async function runBestEffortRolloverCleanup(args: {
+  discoveries: Array<() => Promise<void>>
+  cleanup: () => Promise<void> | void
+  verify: () => Promise<VerificationCheck[]>
+}): Promise<VerificationCheck[]> {
+  for (const discover of args.discoveries) {
+    try {
+      await discover()
+    } catch {
+      // Cleanup of already-known records must not depend on fallback discovery.
+    }
+  }
+  await args.cleanup()
+  return args.verify()
+}
+
 function compareReusableStructure(
   checks: VerificationCheck[],
   source: ClassroomSnapshot,
   target: ClassroomSnapshot,
+  expectedBlueprintId: string,
+  versionBlueprintId: string | null,
 ) {
   const versionId = target.settings.sourceBlueprintVersionId
   addRequiredCheck(
     checks,
     'Classroom records immutable Blueprint Version lineage',
-    Boolean(versionId && uuidSchema.safeParse(versionId).success),
-    'The rollover classroom did not record its immutable Blueprint Version',
+    Boolean(
+      versionId
+        && uuidSchema.safeParse(versionId).success
+        && versionBlueprintId === expectedBlueprintId,
+    ),
+    'The rollover classroom Version did not belong to the captured Blueprint',
   )
 
   for (const table of reusableTables) {
@@ -721,11 +743,11 @@ function compareReusableStructure(
   }
 
   const nestedContracts = [
-    ['assignment_submission_requirements', 'assignment_id'],
-    ['test_questions', 'test_id'],
-    ['survey_questions', 'survey_id'],
+    ['assignment_submission_requirements', 'assignment_id', 'assignments'],
+    ['test_questions', 'test_id', 'tests'],
+    ['survey_questions', 'survey_id', 'surveys'],
   ] as const
-  for (const [table, parentKey] of nestedContracts) {
+  for (const [table, parentKey, parentTable] of nestedContracts) {
     addRequiredCheck(
       checks,
       `${table} content preserved`,
@@ -733,14 +755,26 @@ function compareReusableStructure(
         === JSON.stringify(normalizeNestedRows(source.nested[table], parentKey)),
       `${table} content differed after rollover`,
     )
+    const sourceParentIdentities = new Map(
+      source.reusable[parentTable].map((row) => [String(row.id), sourceIdentity(row)]),
+    )
+    const targetParentIdentities = new Map(
+      target.reusable[parentTable].map((row) => [String(row.id), String(row.source_artifact_id || '')]),
+    )
+    const sourceLineagePairs = source.nested[table].map((row) => ({
+      child: sourceIdentity(row),
+      parent: sourceParentIdentities.get(String(row[parentKey])) || '',
+    })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+    const targetLineagePairs = target.nested[table].map((row) => ({
+      child: String(row.source_artifact_id || ''),
+      parent: targetParentIdentities.get(String(row[parentKey])) || '',
+    })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
     addRequiredCheck(
       checks,
       `${table} lineage preserved`,
-      sameValue(
-        targetSourceIdentities(target.nested[table]),
-        source.nested[table].map(sourceIdentity).sort(),
-      ) && target.nested[table].every((row) => row.source_blueprint_version_id === versionId),
-      `${table} did not preserve source artifact or Blueprint Version identity`,
+      sameValue(targetLineagePairs, sourceLineagePairs)
+        && target.nested[table].every((row) => row.source_blueprint_version_id === versionId),
+      `${table} did not preserve parent, source artifact, or Blueprint Version identity`,
     )
   }
 
@@ -916,6 +950,7 @@ export const blueprintRollover: VerificationScript = {
         checks,
         'Source fixture contains live student data',
         source.liveCounts.classroom_enrollments > 0
+          && source.liveCounts.classroom_roster > 0
           && source.liveCounts.entries > 0
           && source.liveCounts.assignment_docs > 0
           && source.liveCounts.test_attempts > 0
@@ -1025,65 +1060,97 @@ export const blueprintRollover: VerificationScript = {
       artifacts.push(reviewScreenshot)
 
       const target = await loadClassroomSnapshot(supabase, classroomId)
-      compareReusableStructure(checks, source, target)
+      let versionBlueprintId: string | null = null
+      if (target.settings.sourceBlueprintVersionId) {
+        const versionResponse = await supabase
+          .from('course_blueprint_versions')
+          .select('course_blueprint_id')
+          .eq('id', target.settings.sourceBlueprintVersionId)
+          .single()
+        if (versionResponse.error || !versionResponse.data) {
+          throw new Error(`Could not load rollover Blueprint Version: ${versionResponse.error?.code || 'missing'}`)
+        }
+        versionBlueprintId = uuidSchema.parse(versionResponse.data.course_blueprint_id)
+      }
+      compareReusableStructure(checks, source, target, blueprintId, versionBlueprintId)
     } catch (caught) {
       error = caught instanceof Error ? caught.message : String(caught)
     } finally {
-      try {
-        if (supabase && token && !blueprintId) {
-          const response = await supabase
+      const discoveries: Array<() => Promise<void>> = []
+      if (supabase && token && !blueprintId) {
+        const cleanupSupabase = supabase
+        discoveries.push(async () => {
+          const response = await cleanupSupabase
             .from('course_blueprints')
             .select('id')
             .eq('title', token)
             .maybeSingle()
           if (response.error) throw new Error(`Could not locate drill Blueprint: ${response.error.code}`)
           blueprintId = response.data?.id ? uuidSchema.parse(response.data.id) : null
-        }
-        if (supabase && classroomTitle && !classroomId) {
-          const response = await supabase
+        })
+      }
+      if (supabase && classroomTitle && !classroomId) {
+        const cleanupSupabase = supabase
+        discoveries.push(async () => {
+          const response = await cleanupSupabase
             .from('classrooms')
             .select('id')
             .eq('title', classroomTitle)
             .maybeSingle()
           if (response.error) throw new Error(`Could not locate drill classroom: ${response.error.code}`)
           classroomId = response.data?.id ? uuidSchema.parse(response.data.id) : null
-        }
-        if (databaseUrl && sourceClassroomId && inventoryBaseline) {
+        })
+      }
+      if (databaseUrl && sourceClassroomId && inventoryBaseline) {
+        const cleanupDatabaseUrl = databaseUrl
+        const cleanupSourceClassroomId = sourceClassroomId
+        const cleanupInventoryBaseline = inventoryBaseline
+        discoveries.push(async () => {
           const discoveredOperationIds = findLocalDrillOperationIds({
-            databaseUrl,
-            baselineIds: inventoryBaseline.operationIds,
-            sourceClassroomId,
+            databaseUrl: cleanupDatabaseUrl,
+            baselineIds: cleanupInventoryBaseline.operationIds,
+            sourceClassroomId: cleanupSourceClassroomId,
             classroomId,
             blueprintId,
           })
           operationIds.push(...discoveredOperationIds.filter((id) => !operationIds.includes(id)))
-        }
-        if (databaseUrl) {
-          cleanupLocalDrill(
-            databaseUrl,
-            sourceClassroomId,
-            sourceBaseline,
-            fixtureIds,
-            operationIds,
-            classroomId,
-            blueprintId,
-          )
-        }
-        if (supabase && databaseUrl && sourceClassroomId && sourceBaseline && inventoryBaseline) {
-          const cleanupChecks = await localCleanupChecks({
-            supabase,
-            databaseUrl,
-            sourceClassroomId,
-            sourceBaseline,
-            inventoryBaseline,
-            fixtureIds,
-            classroomId,
-            blueprintId,
-          })
-          checks.push(...cleanupChecks)
-          const failedCleanupCheck = cleanupChecks.find((check) => !check.passed)
-          if (failedCleanupCheck) throw new Error(failedCleanupCheck.message)
-        }
+        })
+      }
+
+      try {
+        const cleanupChecks = await runBestEffortRolloverCleanup({
+          discoveries,
+          cleanup: () => {
+            if (!databaseUrl) return
+            cleanupLocalDrill(
+              databaseUrl,
+              sourceClassroomId,
+              sourceBaseline,
+              fixtureIds,
+              operationIds,
+              classroomId,
+              blueprintId,
+            )
+          },
+          verify: async () => {
+            if (!supabase || !databaseUrl || !sourceClassroomId || !sourceBaseline || !inventoryBaseline) {
+              return []
+            }
+            return localCleanupChecks({
+              supabase,
+              databaseUrl,
+              sourceClassroomId,
+              sourceBaseline,
+              inventoryBaseline,
+              fixtureIds,
+              classroomId,
+              blueprintId,
+            })
+          },
+        })
+        checks.push(...cleanupChecks)
+        const failedCleanupCheck = cleanupChecks.find((check) => !check.passed)
+        if (failedCleanupCheck) throw new Error(failedCleanupCheck.message)
       } catch (cleanupError) {
         const message = cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
         checks.push({ name: 'Local drill fixtures cleaned up', passed: false, message })

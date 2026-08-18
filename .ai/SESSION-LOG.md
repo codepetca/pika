@@ -1203,3 +1203,8 @@ application behavior, schema, migration, or production state changed.
   all match their pre-drill state after cleanup.
 - The remediated browser drill passes all 42 checks. Managed-upload rollover is
   explicitly outside this drill and remains follow-up package compatibility work.
+- Targeted re-review hardened the cleanup coordinator so known records are
+  restored even when fallback discovery fails, with a focused failure-path
+  regression test. It also binds the instantiated Version to the captured
+  Blueprint, checks each nested child's cloned-parent lineage, and requires a
+  non-empty source roster before asserting roster exclusion.
