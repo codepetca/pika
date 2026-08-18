@@ -1302,3 +1302,14 @@ dependency, or UI change.
   parenthesized and comma-prefixed object keys plus bucket-root object and image-
   render routes. The third remediated full verification passes 4,583 tests
   across 503 files, lint, type checking, and the production build.
+- A targeted security re-review found the same extraction category in URL
+  userinfo containing delimiter characters. At the required human checkpoint,
+  the owner approved a fourth remediation and extended review budget.
+- Replaced delimiter tokenization with a bounded, single-pass URL/Markdown
+  candidate scanner. It preserves complete non-whitespace destinations and
+  authorities, recognizes absolute, protocol-relative, literal-relative, and
+  encoded-relative starts, and fails closed on excessive candidate spans/counts.
+- Added bundle/JSON/TAR and import/proposal no-write regressions for `=`, `;`,
+  `,`, and `|` userinfo plus external-origin, protocol, port, and labeled-relative
+  negatives. The fourth remediated full verification passes 4,595 tests across
+  503 files, lint, type checking, and the production build.

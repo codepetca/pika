@@ -393,12 +393,17 @@ describe('course blueprint package', () => {
   it.each([
     'https://test.supabase.co/storage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     '/%73torage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
+    'Reference:/%73torage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     '%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     '%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf',
     '[Reference](%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf)',
     '[Reference](https://test.supabase.co/storage/v1/object/public/test-documents/(reference).pdf)',
     'https://test.supabase.co/storage/v1/object/public/test-documents/,reference.pdf',
     '//test.supabase.co/storage/v1/render/image/public/submission-images/(reference).png',
+    'https://user=role@test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    '[Reference](https://user;role@test.supabase.co/storage/v1/render/image/public/submission-images/reference.png)',
+    'https://user,role@test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    'https://user|role@test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
     'https://test.supabase.co/storage/v1/render/image/public/submission-images/reference.png?width=500',
     'https://test.supabase.co./storage/v1/object/public/test-documents/reference.pdf',
     'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',
@@ -418,6 +423,17 @@ describe('course blueprint package', () => {
     expect(direct.errors).toContain('Course packages cannot contain Pika-managed storage references')
     expect(json.errors).toEqual(direct.errors)
     expect(archive.errors).toEqual(direct.errors)
+  })
+
+  it.each([
+    'https://other.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    'http://test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co:444/storage/v1/object/public/test-documents/reference.pdf',
+  ])('allows freeform external-origin URL lookalike %s', (externalUrl) => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    bundle.files['course-overview.md'] = `[Reference](${externalUrl})`
+
+    expect(parseCourseBlueprintImportBundle(bundle).errors).toEqual([])
   })
 
   it('does not treat managed field names in freeform content as runtime state', () => {

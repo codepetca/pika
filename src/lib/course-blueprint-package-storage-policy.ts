@@ -5,6 +5,8 @@ const MANAGED_STORAGE_BUCKETS = new Set([
 ])
 const STORAGE_ACCESS_MODES = new Set(['public', 'sign', 'authenticated'])
 const MAX_PATH_DECODE_ROUNDS = 3
+const MAX_FREEFORM_URL_CANDIDATES = 512
+const MAX_FREEFORM_URL_SPAN_CHARS = 16_384
 
 type OriginIdentity = {
   protocol: string
@@ -94,29 +96,49 @@ export function isPikaManagedStorageUrl(
   }
 }
 
-function freeformUrlCandidates(markdown: string): string[] {
-  const candidates = new Set<string>()
-  const tokens = markdown.split(/[\s<>"'()[\]{}=,;|`]+/u)
-  for (const token of tokens) {
-    const normalized = token
-      .replace(/^[.!?*_~+\-]+/u, '')
-      .replace(/[.!?*_~+\-]+$/u, '')
-    if (!normalized) continue
-    candidates.add(normalized)
+function isUrlCandidateBoundary(markdown: string, index: number): boolean {
+  if (index === 0) return true
+  const previous = markdown[index - 1]
+  if (previous.trim() === '') return true
+  const code = previous.charCodeAt(0)
+  const isAsciiAlphaNumeric = (code >= 48 && code <= 57)
+    || (code >= 65 && code <= 90)
+    || (code >= 97 && code <= 122)
+  return !isAsciiAlphaNumeric && !'%._~/-'.includes(previous)
+}
 
-    const colonIndex = normalized.indexOf(':')
-    if (colonIndex > 0 && !/^https?:/i.test(normalized)) {
-      const suffix = normalized.slice(colonIndex + 1)
-      if (suffix) candidates.add(suffix)
-    }
-  }
-  return [...candidates]
+function urlCandidatePrefixLength(markdown: string, lower: string, index: number): number {
+  if (!isUrlCandidateBoundary(markdown, index)) return 0
+  if (lower.startsWith('https://', index)) return 'https://'.length
+  if (lower.startsWith('http://', index)) return 'http://'.length
+  if (lower.startsWith('//', index) && markdown[index - 1] !== ':') return 2
+  const followsHttpScheme = lower.slice(Math.max(0, index - 'https:'.length), index) === 'https:'
+    || lower.slice(Math.max(0, index - 'http:'.length), index) === 'http:'
+  if (followsHttpScheme) return 0
+  if (lower.startsWith('%25252f', index)) return '%25252f'.length
+  if (lower.startsWith('%252f', index)) return '%252f'.length
+  if (lower.startsWith('%2f', index)) return '%2f'.length
+  return lower[index] === '/' ? 1 : 0
 }
 
 export function containsPikaManagedStorageUrl(
   markdown: string,
   configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
 ): boolean {
-  return freeformUrlCandidates(markdown)
-    .some((candidate) => isPikaManagedStorageUrl(candidate, configuredUrl))
+  const lower = markdown.toLowerCase()
+  let candidateCount = 0
+
+  for (let index = 0; index < markdown.length; index += 1) {
+    const prefixLength = urlCandidatePrefixLength(markdown, lower, index)
+    if (prefixLength === 0) continue
+
+    let end = index + prefixLength
+    while (end < markdown.length && markdown[end].trim() !== '') end += 1
+    if (end - index > MAX_FREEFORM_URL_SPAN_CHARS) return true
+    candidateCount += 1
+    if (candidateCount > MAX_FREEFORM_URL_CANDIDATES) return true
+    if (isPikaManagedStorageUrl(markdown.slice(index, end), configuredUrl)) return true
+  }
+
+  return false
 }

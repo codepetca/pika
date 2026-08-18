@@ -90,6 +90,22 @@ describe('course package application entry points', () => {
       bundle.files['course-overview.md'] =
         '//test.supabase.co/storage/v1/render/image/public/submission-images/(reference).png'
     }],
+    ['managed object URL with equals-bearing userinfo', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        'https://user=role@test.supabase.co/storage/v1/object/public/test-documents/reference.pdf'
+    }],
+    ['managed inline render URL with semicolon-bearing userinfo', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '[Reference](https://user;role@test.supabase.co/storage/v1/render/image/public/submission-images/reference.png)'
+    }],
+    ['managed object URL with comma-bearing userinfo', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        'https://user,role@test.supabase.co/storage/v1/object/public/test-documents/reference.pdf'
+    }],
+    ['managed object URL with pipe-bearing userinfo', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        'https://user|role@test.supabase.co/storage/v1/object/public/test-documents/reference.pdf'
+    }],
     ['managed image-render URL', (bundle: any) => {
       bundle.files['tests.md'] = bundle.files['tests.md'].replace(
         'https://example.com/version-5-reference',
