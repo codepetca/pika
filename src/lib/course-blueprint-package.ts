@@ -68,6 +68,9 @@ const COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES = new Set<string>([
   ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES,
   'quizzes.md',
 ])
+const COURSE_BLUEPRINT_MANAGED_STORAGE_PATH = /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//i
+const COURSE_BLUEPRINT_MANAGED_ID_FIELD = /^\s*["']?(?:managed_object_id|snapshot_managed_object_id)["']?\s*:/im
+const MAX_STORAGE_PATH_DECODE_ROUNDS = 3
 
 export type CourseBlueprintPackageFileName =
   (typeof COURSE_BLUEPRINT_PACKAGE_FILE_NAMES)[number]
@@ -517,6 +520,13 @@ function normalizeBundle(input: unknown): CourseBlueprintPackageBundle | null {
       ? inputRecord.files as Record<string, unknown>
       : {}
   const version = manifestRecord?.version
+  if (version === '2' || version === '3') {
+    const allowedFileNames = new Set<string>(LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES)
+    if (version === '2') allowedFileNames.add('quizzes.md')
+    if (Object.keys(filesRecord).some((fileName) => !allowedFileNames.has(fileName))) {
+      return null
+    }
+  }
   const normalizedInput = version === '4' || version === '5'
     ? input
     : {
@@ -548,6 +558,42 @@ function normalizeBundle(input: unknown): CourseBlueprintPackageBundle | null {
         .map(([fileName, content]) => [fileName, content ?? ''])
     ) as Record<CourseBlueprintPackageFileName, string>,
   }
+}
+
+function decodeManagedStoragePath(pathname: string): string | null {
+  let decoded = pathname
+  for (let round = 0; round < MAX_STORAGE_PATH_DECODE_ROUNDS; round += 1) {
+    let next: string
+    try {
+      next = decodeURIComponent(decoded)
+    } catch {
+      return null
+    }
+    if (next === decoded) return decoded
+    decoded = next
+  }
+
+  try {
+    return decodeURIComponent(decoded) === decoded ? decoded : null
+  } catch {
+    return null
+  }
+}
+
+function containsPikaManagedStorageReference(value: string, supabaseOrigin: string | null): boolean {
+  if (COURSE_BLUEPRINT_MANAGED_ID_FIELD.test(value)) return true
+  if (!supabaseOrigin) return false
+
+  return (value.match(/(?:https?:)?\/\/[^\s<>"')\]]+/gi) || []).some((candidate) => {
+    try {
+      const url = new URL(candidate, supabaseOrigin)
+      if (url.origin !== supabaseOrigin) return false
+      const pathname = decodeManagedStoragePath(url.pathname)
+      return pathname === null || COURSE_BLUEPRINT_MANAGED_STORAGE_PATH.test(pathname)
+    } catch {
+      return false
+    }
+  })
 }
 
 export function parseCourseBlueprintImportArchive(
@@ -689,7 +735,6 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         return []
       })
     : []
-  const managedStoragePath = /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//i
   const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const configuredSupabaseOrigin = (() => {
     if (!configuredSupabaseUrl) return null
@@ -699,24 +744,9 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       return null
     }
   })()
-  const packageStorageErrors = Object.values(files).some((value) => {
-    if (/managed_object_id|snapshot_managed_object_id/i.test(value)) return true
-    if (!configuredSupabaseOrigin) return false
-
-    return (value.match(/https?:\/\/[^\s<>"')\]]+/gi) || []).some((candidate) => {
-      try {
-        const url = new URL(candidate)
-        if (url.origin !== configuredSupabaseOrigin) return false
-        try {
-          return managedStoragePath.test(decodeURIComponent(url.pathname))
-        } catch {
-          return true
-        }
-      } catch {
-        return false
-      }
-    })
-  })
+  const packageStorageErrors = Object.values(files).some((value) => (
+    containsPikaManagedStorageReference(value, configuredSupabaseOrigin)
+  ))
     ? ['Course packages cannot contain Pika-managed storage references']
     : []
 

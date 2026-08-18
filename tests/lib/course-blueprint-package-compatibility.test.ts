@@ -24,6 +24,29 @@ function loadFixture(version: string): CourseBlueprintPackageBundle {
   ))
 }
 
+function readTarEntry(archive: Uint8Array, fileName: string): Uint8Array {
+  const decoder = new TextDecoder()
+  for (let offset = 0; offset + 512 <= archive.length; ) {
+    const header = archive.slice(offset, offset + 512)
+    if (header.every((byte) => byte === 0)) break
+    const name = decoder.decode(header.slice(0, 100)).replace(/\0.*$/, '').trim()
+    const sizeText = decoder.decode(header.slice(124, 136)).replace(/\0/g, '').trim()
+    const size = Number.parseInt(sizeText, 8) || 0
+    const entryLength = 512 + Math.ceil(size / 512) * 512
+    if (name === fileName) return archive.slice(offset, offset + entryLength)
+    offset += entryLength
+  }
+  throw new Error(`Missing TAR fixture entry: ${fileName}`)
+}
+
+function appendTarEntry(archive: Uint8Array, entry: Uint8Array): Uint8Array {
+  const body = archive.slice(0, archive.length - 1024)
+  const result = new Uint8Array(body.length + entry.length + 1024)
+  result.set(body)
+  result.set(entry, body.length)
+  return result
+}
+
 const fixtures = Object.fromEntries(
   COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS.map((version) => [version, loadFixture(version)]),
 ) as Record<string, CourseBlueprintPackageBundle>
@@ -128,8 +151,32 @@ describe('course blueprint package compatibility matrix', () => {
     },
   )
 
-  it('keeps version 5 identity, grading, and reusable child contracts exact', () => {
-    const parsed = parseCourseBlueprintImportBundle(fixtures['5'])
+  it.each(['2', '3'] as const)(
+    'rejects undeclared current files in version %s direct and TAR packages',
+    (version) => {
+      const fixture = structuredClone(fixtures[version])
+      fixture.files['surveys.md'] = fixtures['5'].files['surveys.md']
+      const legacyArchive = encodeCourseBlueprintPackageArchive(fixtures[version])
+      const currentArchive = encodeCourseBlueprintPackageArchive(fixtures['5'])
+      const invalidArchive = appendTarEntry(
+        legacyArchive,
+        readTarEntry(currentArchive, 'surveys.md'),
+      )
+
+      expect(parseCourseBlueprintImportBundle(fixture).errors)
+        .toContain('Invalid course package bundle')
+      expect(parseCourseBlueprintImportArchive(invalidArchive).errors)
+        .toContain('Invalid course package archive')
+    },
+  )
+
+  it.each([
+    ['direct bundle', () => parseCourseBlueprintImportBundle(fixtures['5'])],
+    ['TAR archive', () => parseCourseBlueprintImportArchive(
+      encodeCourseBlueprintPackageArchive(fixtures['5']),
+    )],
+  ] as const)('keeps version 5 identity, grading, and reusable child contracts exact through %s', (_source, parse) => {
+    const parsed = parse()
 
     expect(parsed.manifest).toEqual(expect.objectContaining({
       version: '5',
@@ -151,6 +198,18 @@ describe('course blueprint package compatibility matrix', () => {
     }))
     expect(parsed.assignments[0].submission_requirements?.[0].id)
       .toBe('42000000-0000-4000-8000-000000000005')
+    expect(collectArtifactIds(parsed)).toEqual([
+      '41000000-0000-4000-8000-000000000005',
+      '42000000-0000-4000-8000-000000000005',
+      '51000000-0000-4000-8000-000000000005',
+      '52000000-0000-4000-8000-000000000005',
+      '53000000-0000-4000-8000-000000000005',
+      '54000000-0000-4000-8000-000000000005',
+      '61000000-0000-4000-8000-000000000005',
+      '71000000-0000-4000-8000-000000000005',
+      '81000000-0000-4000-8000-000000000005',
+      '82000000-0000-4000-8000-000000000005',
+    ])
     expect(parsed.assessments[0].documents).toEqual([
       expect.objectContaining({ id: '53000000-0000-4000-8000-000000000005', source: 'link' }),
       expect.objectContaining({ id: '54000000-0000-4000-8000-000000000005', source: 'text' }),
@@ -188,6 +247,14 @@ describe('course blueprint package compatibility matrix', () => {
       'resources.md',
       '\nhttps://test.supabase.co/storage/v1/object/public/%ZZ/teacher/test/file.pdf',
     ],
+    [
+      'resources.md',
+      '\n//test.supabase.co/storage/v1/object/public/test-documents/teacher/test/file.pdf',
+    ],
+    [
+      'resources.md',
+      '\nhttps://test.supabase.co/%2573torage/v1/object/public/test-documents/teacher/test/file.pdf',
+    ],
   ] as const)('rejects managed storage references in %s for direct and TAR imports', (fileName, content) => {
     const fixture = structuredClone(fixtures['5'])
     fixture.files[fileName] += content
@@ -201,7 +268,11 @@ describe('course blueprint package compatibility matrix', () => {
 
   it('accepts an external URL that uses the same storage path shape', () => {
     const fixture = structuredClone(fixtures['5'])
-    fixture.files['resources.md'] += '\nhttps://docs.example.com/storage/v1/object/public/test-documents/reference.pdf'
+    fixture.files['resources.md'] += [
+      '\nhttps://docs.example.com/storage/v1/object/public/test-documents/reference.pdf',
+      '\n//docs.example.com/storage/v1/object/public/test-documents/protocol-relative.pdf',
+      '\nThe literal managed_object_id is a database field name, not a reference.',
+    ].join('')
     const archive = encodeCourseBlueprintPackageArchive(fixture)
 
     expect(parseCourseBlueprintImportBundle(fixture).errors).toEqual([])

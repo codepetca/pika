@@ -39,9 +39,10 @@ The canonical export manifest version is `5`. Pika imports versions `2`, `3`,
 boundary: Pika imports its reusable course, assignment, Test, and lesson-plan
 content while discarding `quizzes.md`. Version `3` package manifests are
 normalized to the current planned-site configuration; unknown retired
-configuration keys are ignored. Versions `4` and `5` reject unknown manifest
-fields and undeclared files. Version `5` adds the Blueprint ID, source Draft
-revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
+configuration keys are ignored. Every version rejects undeclared content files,
+with `quizzes.md` as the sole version `2` compatibility exception. Versions `4`
+and `5` also reject unknown manifest fields. Version `5` adds the Blueprint ID,
+source Draft revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
 Missing, malformed, or duplicate Artifact IDs fail version `5` validation;
 legacy versions receive IDs once during import. The package format version is
 independent of both the database migration number and the Blueprint's own
@@ -55,7 +56,7 @@ current version and never rewrites a historical package in place.
 | Version | Import contract |
 | --- | --- |
 | `2` | Imports the six reusable Markdown files, accepts and discards `quizzes.md`, removes retired planned-site keys, and assigns current-domain Artifact IDs. |
-| `3` | Imports the six reusable Markdown files and ignores unknown retired keys inside the historical planned-site configuration. |
+| `3` | Imports exactly the six reusable Markdown files, rejects undeclared files, and ignores unknown retired keys inside the historical planned-site configuration. |
 | `4` | Strictly accepts only its manifest fields and six declared Markdown files; retired Quiz or other undeclared files fail validation. |
 | `5` | Strictly validates all eight Markdown files, grading metadata, Blueprint/Version provenance, unique UUIDv4 Artifact IDs, and Classwork positions. |
 
