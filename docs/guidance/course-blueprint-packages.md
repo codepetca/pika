@@ -131,14 +131,16 @@ The drill uses the seeded `TEST01` classroom through the browser and adds
 temporary local-only material, survey, assignment-requirement, announcement,
 and announcement-read fixtures so every asserted boundary is non-empty. It
 captures a Blueprint, creates a new classroom, and verifies reusable parent and
-nested content, stable artifact identity, and immutable Blueprint Version
-lineage. It verifies that enrollments, roster rows, daily logs, assignment
-submissions, test attempts, live announcements, and announcement reads do not
+nested content, test documents/settings, both stable artifact identity columns,
+and immutable Blueprint Version lineage. It verifies that enrollments, roster
+rows, daily logs, assignment submissions, test attempts/responses, live
+announcements, and announcement reads do not
 cross into the new classroom, and that assignments and tests require teacher
 review before release. It refuses managed-upload fixtures and non-loopback app,
 Supabase, or database targets. Cleanup restores the source classroom's identity,
-provenance, and revision state and requires the operation-ledger and managed
-storage inventories to match their pre-drill state.
+provenance, revision, and temporary test-document state. Operation cleanup is
+bound to the browser requests' exact idempotency keys, and the operation-ledger
+and managed-storage inventories must match their pre-drill state.
 
 CI starts an ephemeral Supabase database, replays every migration, and runs:
 

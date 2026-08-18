@@ -1208,3 +1208,9 @@ application behavior, schema, migration, or production state changed.
   regression test. It also binds the instantiated Version to the captured
   Blueprint, checks each nested child's cloned-parent lineage, and requires a
   non-empty source roster before asserting roster exclusion.
+- Final integration review bound operation cleanup to the browser requests'
+  exact idempotency keys, preallocated every temporary fixture ID before writes,
+  added non-empty test-response exclusion, checks both target artifact identity
+  columns, and verifies reusable test documents/settings. The browser drill now
+  passes 44 checks and restores the temporary source test document as part of
+  its baseline.

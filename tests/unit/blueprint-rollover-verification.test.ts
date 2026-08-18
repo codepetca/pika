@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createSourceFixtureIds,
   isLoopbackUrl,
   runBestEffortRolloverCleanup,
+  selectDrillOperationResults,
 } from '../../e2e/verify/blueprint-rollover'
 
 describe('Blueprint rollover verification safety', () => {
@@ -50,5 +52,28 @@ describe('Blueprint rollover verification safety', () => {
       'verify baseline',
     ])
     expect(checks).toEqual([{ name: 'baseline restored', passed: true }])
+  })
+
+  it('preallocates every fixture identity before any local write', () => {
+    const ids = Object.values(createSourceFixtureIds())
+    expect(ids).toHaveLength(7)
+    expect(new Set(ids).size).toBe(7)
+    expect(ids.every((id) => /^[0-9a-f-]{36}$/.test(id))).toBe(true)
+  })
+
+  it('ignores concurrent operation results outside the browser request IDs', () => {
+    const captureId = '10000000-0000-4000-8000-000000000001'
+    const instantiateId = '10000000-0000-4000-8000-000000000002'
+    const blueprintId = '20000000-0000-4000-8000-000000000001'
+    const classroomId = '30000000-0000-4000-8000-000000000001'
+    expect(selectDrillOperationResults([captureId, instantiateId], [
+      {
+        id: '10000000-0000-4000-8000-000000000099',
+        result_blueprint_id: '20000000-0000-4000-8000-000000000099',
+        result_classroom_id: null,
+      },
+      { id: captureId, result_blueprint_id: blueprintId, result_classroom_id: null },
+      { id: instantiateId, result_blueprint_id: null, result_classroom_id: classroomId },
+    ])).toEqual({ blueprintId, classroomId })
   })
 })

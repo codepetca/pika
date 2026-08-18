@@ -5,6 +5,7 @@
  * structure survives while student/runtime records do not cross the boundary.
  */
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
@@ -14,6 +15,7 @@ import { z } from 'zod'
 
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
+import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import type { VerificationCheck, VerificationResult, VerificationScript } from './types'
 import { TIMEOUTS } from './types'
 
@@ -69,6 +71,7 @@ type SourceMutableState = {
     blueprint_source_revision: number
   }
   identities: Record<IdentityTable, IdentityRow[]>
+  testDocuments: Array<{ id: string; documents: unknown }>
 }
 
 type LocalInventory = {
@@ -76,10 +79,10 @@ type LocalInventory = {
   storageObjectIds: string[]
 }
 
-type SourceFixtureIds = Partial<Record<
-  'material' | 'survey' | 'surveyQuestion' | 'requirement' | 'announcement' | 'announcementRead',
+type SourceFixtureIds = Record<
+  'material' | 'survey' | 'surveyQuestion' | 'requirement' | 'announcement' | 'announcementRead' | 'testDocument',
   string
->>
+>
 
 type ClassroomSnapshot = {
   reusable: Record<ReusableTable, Array<Record<string, unknown>>>
@@ -94,7 +97,10 @@ type ClassroomSnapshot = {
     grading: Record<string, unknown> | null
     sourceBlueprintVersionId: string | null
   }
-  liveCounts: Record<LiveTable | 'announcement_reads' | 'assignment_docs' | 'test_attempts', number>
+  liveCounts: Record<
+    LiveTable | 'announcement_reads' | 'assignment_docs' | 'test_attempts' | 'test_responses',
+    number
+  >
 }
 
 export function isLoopbackUrl(value: string): boolean {
@@ -150,6 +156,34 @@ function sourceIdentity(row: Record<string, unknown>): string {
 
 function targetSourceIdentities(rows: Array<Record<string, unknown>>): string[] {
   return rows.map((row) => String(row.source_artifact_id || '')).sort()
+}
+
+function targetArtifactIdentities(rows: Array<Record<string, unknown>>): string[] {
+  return rows.map((row) => String(row.artifact_id || '')).sort()
+}
+
+function normalizeTestDefinition(row: Record<string, unknown>) {
+  return {
+    title: String(row.title || ''),
+    show_results: row.show_results === true,
+    documents: stripTestDocumentSnapshots(row.documents),
+    points_possible: row.points_possible === null ? null : Number(row.points_possible),
+    gradebook_weight: Number(row.gradebook_weight),
+    include_in_final: row.include_in_final !== false,
+    position: Number(row.position),
+  }
+}
+
+export function createSourceFixtureIds(): SourceFixtureIds {
+  return {
+    material: randomUUID(),
+    survey: randomUUID(),
+    surveyQuestion: randomUUID(),
+    requirement: randomUUID(),
+    announcement: randomUUID(),
+    announcementRead: randomUUID(),
+    testDocument: randomUUID(),
+  }
 }
 
 function identityRows(rows: Array<Record<string, unknown>>): IdentityRow[] {
@@ -276,6 +310,7 @@ async function loadClassroomSnapshot(
       ...Object.fromEntries(liveEntries) as Record<LiveTable, number>,
       assignment_docs: await countRows(supabase, 'assignment_docs', 'assignment_id', assignmentIds),
       test_attempts: await countRows(supabase, 'test_attempts', 'test_id', testIds),
+      test_responses: await countRows(supabase, 'test_responses', 'test_id', testIds),
       announcement_reads: await countRows(
         supabase,
         'announcement_reads',
@@ -321,29 +356,41 @@ function loadLocalInventory(databaseUrl: string): LocalInventory {
   }
 }
 
-function findLocalDrillOperationIds(args: {
-  databaseUrl: string
-  baselineIds: string[]
-  sourceClassroomId: string
-  classroomId: string | null
-  blueprintId: string | null
-}): string[] {
-  const { databaseUrl, baselineIds, sourceClassroomId, classroomId, blueprintId } = args
-  const baselineSql = baselineIds.length > 0
-    ? baselineIds.map(sqlUuid).join(',')
-    : 'null::uuid'
-  const ownershipPredicates = [
-    `source_classroom_id = ${sqlUuid(sourceClassroomId)}`,
-    classroomId ? `result_classroom_id = ${sqlUuid(classroomId)}` : null,
-    blueprintId ? `source_blueprint_id = ${sqlUuid(blueprintId)}` : null,
-    blueprintId ? `result_blueprint_id = ${sqlUuid(blueprintId)}` : null,
-  ].filter(Boolean).join(' or ')
-  return z.array(uuidSchema).parse(queryLocalJson(
+const operationResultRowSchema = z.object({
+  id: uuidSchema,
+  result_blueprint_id: uuidSchema.nullable(),
+  result_classroom_id: uuidSchema.nullable(),
+})
+type OperationResultRow = z.infer<typeof operationResultRowSchema>
+
+export function selectDrillOperationResults(
+  operationIds: string[],
+  rows: OperationResultRow[],
+): { blueprintId: string | null; classroomId: string | null } {
+  const expected = new Set(operationIds.map((id) => uuidSchema.parse(id)))
+  const drillRows = rows.filter((row) => expected.has(row.id))
+  return {
+    blueprintId: drillRows.find((row) => row.result_blueprint_id)?.result_blueprint_id || null,
+    classroomId: drillRows.find((row) => row.result_classroom_id)?.result_classroom_id || null,
+  }
+}
+
+function loadLocalDrillOperationResults(
+  databaseUrl: string,
+  operationIds: string[],
+): { blueprintId: string | null; classroomId: string | null } {
+  if (operationIds.length === 0) return { blueprintId: null, classroomId: null }
+  const rows = z.array(operationResultRowSchema).parse(queryLocalJson(
     databaseUrl,
-    `select coalesce(jsonb_agg(id::text order by id), '[]'::jsonb)
+    `select coalesce(jsonb_agg(jsonb_build_object(
+       'id', id,
+       'result_blueprint_id', result_blueprint_id,
+       'result_classroom_id', result_classroom_id
+     ) order by id), '[]'::jsonb)
      from public.course_blueprint_operations
-     where id not in (${baselineSql}) and (${ownershipPredicates})`,
+     where id in (${operationIds.map(sqlUuid).join(',')})`,
   ))
+  return selectDrillOperationResults(operationIds, rows)
 }
 
 async function loadSourceMutableState(
@@ -392,6 +439,10 @@ async function loadSourceMutableState(
       test_questions: identityRows(snapshot.nested.test_questions),
       survey_questions: identityRows(snapshot.nested.survey_questions),
     },
+    testDocuments: snapshot.reusable.tests.map((row) => ({
+      id: uuidSchema.parse(row.id),
+      documents: row.documents ?? [],
+    })).sort((left, right) => left.id.localeCompare(right.id)),
   }
 }
 
@@ -408,7 +459,8 @@ async function insertSourceFixtures(args: {
 }) {
   const { supabase, classroomId, source, token, fixtureIds } = args
   const assignmentIds = source.reusable.assignments.map((row) => uuidSchema.parse(row.id))
-  const [classroomResponse, enrollmentResponse, submittedDocsResponse] = await Promise.all([
+  const testIds = source.reusable.tests.map((row) => uuidSchema.parse(row.id))
+  const [classroomResponse, enrollmentResponse, submittedDocsResponse, attemptsResponse] = await Promise.all([
     supabase.from('classrooms').select('teacher_id').eq('id', classroomId).single(),
     supabase
       .from('classroom_enrollments')
@@ -421,6 +473,7 @@ async function insertSourceFixtures(args: {
       .select('assignment_id')
       .in('assignment_id', assignmentIds)
       .eq('is_submitted', true),
+    supabase.from('test_attempts').select('test_id').in('test_id', testIds),
   ])
   if (classroomResponse.error || !classroomResponse.data) {
     throw new Error(`Could not load fixture teacher: ${classroomResponse.error?.code || 'missing'}`)
@@ -431,6 +484,9 @@ async function insertSourceFixtures(args: {
   if (submittedDocsResponse.error) {
     throw new Error(`Could not load submitted assignment docs: ${submittedDocsResponse.error.code}`)
   }
+  if (attemptsResponse.error) {
+    throw new Error(`Could not load test attempts: ${attemptsResponse.error.code}`)
+  }
   const teacherId = uuidSchema.parse(classroomResponse.data.teacher_id)
   const studentId = uuidSchema.parse(enrollmentResponse.data.student_id)
   const submittedAssignmentIds = new Set(
@@ -440,6 +496,13 @@ async function insertSourceFixtures(args: {
   if (!assignmentId) {
     throw new Error('The local fixture needs an assignment without submitted documents')
   }
+  const attemptedTestIds = new Set(
+    (attemptsResponse.data || []).map((row) => uuidSchema.parse(row.test_id)),
+  )
+  const documentTestId = testIds.find((id) => !attemptedTestIds.has(id))
+  if (!documentTestId) {
+    throw new Error('The local fixture needs a test without attempts for reusable document coverage')
+  }
   const classworkPosition = nextPosition([
     ...source.reusable.assignments,
     ...source.reusable.classwork_materials,
@@ -447,6 +510,7 @@ async function insertSourceFixtures(args: {
   ])
 
   const materialResponse = await supabase.from('classwork_materials').insert({
+    id: fixtureIds.material,
     classroom_id: classroomId,
     title: `${token} Material`,
     content: {
@@ -460,9 +524,8 @@ async function insertSourceFixtures(args: {
   if (materialResponse.error || !materialResponse.data) {
     throw new Error(`Could not create material fixture: ${materialResponse.error?.code || 'missing'}`)
   }
-  fixtureIds.material = uuidSchema.parse(materialResponse.data.id)
-
   const surveyResponse = await supabase.from('surveys').insert({
+    id: fixtureIds.survey,
     classroom_id: classroomId,
     title: `${token} Survey`,
     status: 'draft',
@@ -474,9 +537,8 @@ async function insertSourceFixtures(args: {
   if (surveyResponse.error || !surveyResponse.data) {
     throw new Error(`Could not create survey fixture: ${surveyResponse.error?.code || 'missing'}`)
   }
-  fixtureIds.survey = uuidSchema.parse(surveyResponse.data.id)
-
   const surveyQuestionResponse = await supabase.from('survey_questions').insert({
+    id: fixtureIds.surveyQuestion,
     survey_id: fixtureIds.survey,
     question_type: 'multiple_choice',
     question_text: 'Which rollover detail should be reviewed first?',
@@ -486,9 +548,8 @@ async function insertSourceFixtures(args: {
   if (surveyQuestionResponse.error || !surveyQuestionResponse.data) {
     throw new Error(`Could not create survey question fixture: ${surveyQuestionResponse.error?.code || 'missing'}`)
   }
-  fixtureIds.surveyQuestion = uuidSchema.parse(surveyQuestionResponse.data.id)
-
   const requirementResponse = await supabase.from('assignment_submission_requirements').insert({
+    id: fixtureIds.requirement,
     assignment_id: assignmentId,
     type: 'link',
     label: `${token} Evidence link`,
@@ -499,9 +560,8 @@ async function insertSourceFixtures(args: {
   if (requirementResponse.error || !requirementResponse.data) {
     throw new Error(`Could not create assignment requirement fixture: ${requirementResponse.error?.code || 'missing'}`)
   }
-  fixtureIds.requirement = uuidSchema.parse(requirementResponse.data.id)
-
   const announcementResponse = await supabase.from('announcements').insert({
+    id: fixtureIds.announcement,
     classroom_id: classroomId,
     title: `${token} Live announcement`,
     content: 'This live classroom announcement must not be copied.',
@@ -510,16 +570,26 @@ async function insertSourceFixtures(args: {
   if (announcementResponse.error || !announcementResponse.data) {
     throw new Error(`Could not create announcement fixture: ${announcementResponse.error?.code || 'missing'}`)
   }
-  fixtureIds.announcement = uuidSchema.parse(announcementResponse.data.id)
-
   const announcementReadResponse = await supabase.from('announcement_reads').insert({
+    id: fixtureIds.announcementRead,
     announcement_id: fixtureIds.announcement,
     user_id: studentId,
   }).select('id').single()
   if (announcementReadResponse.error || !announcementReadResponse.data) {
     throw new Error(`Could not create announcement read fixture: ${announcementReadResponse.error?.code || 'missing'}`)
   }
-  fixtureIds.announcementRead = uuidSchema.parse(announcementReadResponse.data.id)
+
+  const documentResponse = await supabase.from('tests').update({
+    documents: [{
+      id: fixtureIds.testDocument,
+      title: `${token} Reference`,
+      source: 'link',
+      url: 'https://example.com/rollover-reference',
+    }],
+  }).eq('id', documentTestId).select('id').single()
+  if (documentResponse.error || !documentResponse.data) {
+    throw new Error(`Could not create test document fixture: ${documentResponse.error?.code || 'missing'}`)
+  }
 }
 
 function sqlUuid(value: string): string {
@@ -555,6 +625,19 @@ function restoreIdentityStatement(table: IdentityTable, rows: IdentityRow[]): st
       source_artifact_id,
       source_blueprint_version_id
     )
+    where target.id = original.id
+  `
+}
+
+function restoreTestDocumentsStatement(
+  rows: SourceMutableState['testDocuments'],
+): string | null {
+  if (rows.length === 0) return null
+  const values = rows.map((row) => `(${sqlUuid(row.id)}, ${sqlJsonb(row.documents)})`).join(',')
+  return `
+    update public.tests as target
+    set documents = original.documents
+    from (values ${values}) as original(id, documents)
     where target.id = original.id
   `
 }
@@ -604,6 +687,7 @@ function cleanupLocalDrill(
       ? `delete from public.classwork_materials where id = ${sqlUuid(fixtureIds.material)}`
       : null,
     ...identities,
+    restoreTestDocumentsStatement(sourceBaseline.testDocuments),
     `
       update public.classrooms
       set
@@ -737,6 +821,7 @@ function compareReusableStructure(
       checks,
       `${table} lineage preserved`,
       JSON.stringify(targetSourceIdentities(target.reusable[table])) === JSON.stringify(sourceIdentities)
+        && JSON.stringify(targetArtifactIdentities(target.reusable[table])) === JSON.stringify(sourceIdentities)
         && target.reusable[table].every((row) => row.source_blueprint_version_id === versionId),
       `${table} did not preserve source artifact or Blueprint Version identity`,
     )
@@ -761,13 +846,20 @@ function compareReusableStructure(
     const targetParentIdentities = new Map(
       target.reusable[parentTable].map((row) => [String(row.id), String(row.source_artifact_id || '')]),
     )
+    const targetParentArtifacts = new Map(
+      target.reusable[parentTable].map((row) => [String(row.id), String(row.artifact_id || '')]),
+    )
     const sourceLineagePairs = source.nested[table].map((row) => ({
-      child: sourceIdentity(row),
-      parent: sourceParentIdentities.get(String(row[parentKey])) || '',
+      childArtifact: sourceIdentity(row),
+      childSource: sourceIdentity(row),
+      parentArtifact: sourceParentIdentities.get(String(row[parentKey])) || '',
+      parentSource: sourceParentIdentities.get(String(row[parentKey])) || '',
     })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
     const targetLineagePairs = target.nested[table].map((row) => ({
-      child: String(row.source_artifact_id || ''),
-      parent: targetParentIdentities.get(String(row[parentKey])) || '',
+      childArtifact: String(row.artifact_id || ''),
+      childSource: String(row.source_artifact_id || ''),
+      parentArtifact: targetParentArtifacts.get(String(row[parentKey])) || '',
+      parentSource: targetParentIdentities.get(String(row[parentKey])) || '',
     })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
     addRequiredCheck(
       checks,
@@ -795,6 +887,22 @@ function compareReusableStructure(
     'Gradebook configuration preserved',
     JSON.stringify(target.settings.grading) === JSON.stringify(source.settings.grading),
     'Gradebook configuration differed after rollover',
+  )
+
+  const sourceTestsByIdentity = new Map(
+    source.reusable.tests.map((row) => [sourceIdentity(row), row]),
+  )
+  addRequiredCheck(
+    checks,
+    'Reusable test definitions preserved',
+    target.reusable.tests.every((row) => {
+      const sourceRow = sourceTestsByIdentity.get(String(row.source_artifact_id || ''))
+      return Boolean(
+        sourceRow
+          && sameValue(normalizeTestDefinition(row), normalizeTestDefinition(sourceRow)),
+      )
+    }),
+    'At least one test lost reusable documents, result settings, points, or gradebook configuration',
   )
 
   const sourceAssignmentsByIdentity = new Map(
@@ -892,7 +1000,7 @@ export const blueprintRollover: VerificationScript = {
     let sourceClassroomId: string | null = null
     let sourceBaseline: SourceMutableState | null = null
     let inventoryBaseline: LocalInventory | null = null
-    const fixtureIds: SourceFixtureIds = {}
+    const fixtureIds = createSourceFixtureIds()
     const operationIds: string[] = []
     let databaseUrl = ''
     let supabase: ServiceClient | null = null
@@ -941,6 +1049,9 @@ export const blueprintRollover: VerificationScript = {
           && source.reusable.lesson_plans.length > 0
           && source.reusable.classwork_materials.length > 0
           && source.reusable.surveys.length > 0
+          && source.reusable.tests.some((row) => (
+            Array.isArray(row.documents) && row.documents.length > 0
+          ))
           && source.nested.assignment_submission_requirements.length > 0
           && source.nested.test_questions.length > 0
           && source.nested.survey_questions.length > 0,
@@ -954,6 +1065,7 @@ export const blueprintRollover: VerificationScript = {
           && source.liveCounts.entries > 0
           && source.liveCounts.assignment_docs > 0
           && source.liveCounts.test_attempts > 0
+          && source.liveCounts.test_responses > 0
           && source.liveCounts.announcements > 0
           && source.liveCounts.announcement_reads > 0,
         'The local fixture needs enrollments, logs, submissions, attempts, and announcement state',
@@ -981,15 +1093,23 @@ export const blueprintRollover: VerificationScript = {
         .waitFor({ state: 'visible', timeout: TIMEOUTS.NAVIGATION })
       await page.getByRole('button', { name: 'Save as Course Blueprint' }).click()
       await page.getByLabel('Course Blueprint Title').fill(token)
+      const captureUrl = `/api/teacher/classrooms/${sourceClassroomId}/blueprint`
+      const captureRequestPromise = page.waitForRequest((request) => (
+        request.method() === 'POST' && request.url().endsWith(captureUrl)
+      ))
       const capturePromise = page.waitForResponse((response) => (
-        response.request().method() === 'POST'
-          && response.url().endsWith(`/api/teacher/classrooms/${sourceClassroomId}/blueprint`)
+        response.request().method() === 'POST' && response.url().endsWith(captureUrl)
       ))
       await page.getByRole('button', { name: 'Save Blueprint' }).click()
+      const captureRequest = await captureRequestPromise
+      const captureOperationId = uuidSchema.parse(captureRequest.headers()['idempotency-key'])
+      operationIds.push(captureOperationId)
       const captureResponse = await capturePromise
       const capturePayload = await captureResponse.json()
       const captureEnvelope = operationResponseSchema.parse(capturePayload)
-      if (captureEnvelope.operation_id) operationIds.push(captureEnvelope.operation_id)
+      if (captureEnvelope.operation_id && captureEnvelope.operation_id !== captureOperationId) {
+        throw new Error('Blueprint capture returned a different operation ID than the browser sent')
+      }
       if (!captureResponse.ok()) {
         throw new Error(
           `Blueprint capture failed with ${captureResponse.status()}: ${captureEnvelope.error || 'unknown error'}`,
@@ -1021,15 +1141,28 @@ export const blueprintRollover: VerificationScript = {
         'The captured Blueprint was not selected in the classroom wizard',
       )
       await page.getByRole('button', { name: 'Next' }).click()
+      const instantiateUrl = `/api/teacher/course-blueprints/${blueprintId}/instantiate`
+      const instantiateRequestPromise = page.waitForRequest((request) => (
+        request.method() === 'POST' && request.url().endsWith(instantiateUrl)
+      ))
       const instantiatePromise = page.waitForResponse((response) => (
-        response.request().method() === 'POST'
-          && response.url().endsWith(`/api/teacher/course-blueprints/${blueprintId}/instantiate`)
+        response.request().method() === 'POST' && response.url().endsWith(instantiateUrl)
       ))
       await page.getByRole('button', { name: 'Create' }).click()
+      const instantiateRequest = await instantiateRequestPromise
+      const instantiateOperationId = uuidSchema.parse(
+        instantiateRequest.headers()['idempotency-key'],
+      )
+      operationIds.push(instantiateOperationId)
       const instantiateResponse = await instantiatePromise
       const instantiatePayload = await instantiateResponse.json()
       const instantiateEnvelope = operationResponseSchema.parse(instantiatePayload)
-      if (instantiateEnvelope.operation_id) operationIds.push(instantiateEnvelope.operation_id)
+      if (
+        instantiateEnvelope.operation_id
+        && instantiateEnvelope.operation_id !== instantiateOperationId
+      ) {
+        throw new Error('Blueprint instantiation returned a different operation ID than the browser sent')
+      }
       if (!instantiateResponse.ok()) {
         throw new Error(
           `Blueprint instantiation failed with ${instantiateResponse.status()}: ${instantiateEnvelope.error || 'unknown error'}`,
@@ -1077,43 +1210,16 @@ export const blueprintRollover: VerificationScript = {
       error = caught instanceof Error ? caught.message : String(caught)
     } finally {
       const discoveries: Array<() => Promise<void>> = []
-      if (supabase && token && !blueprintId) {
-        const cleanupSupabase = supabase
-        discoveries.push(async () => {
-          const response = await cleanupSupabase
-            .from('course_blueprints')
-            .select('id')
-            .eq('title', token)
-            .maybeSingle()
-          if (response.error) throw new Error(`Could not locate drill Blueprint: ${response.error.code}`)
-          blueprintId = response.data?.id ? uuidSchema.parse(response.data.id) : null
-        })
-      }
-      if (supabase && classroomTitle && !classroomId) {
-        const cleanupSupabase = supabase
-        discoveries.push(async () => {
-          const response = await cleanupSupabase
-            .from('classrooms')
-            .select('id')
-            .eq('title', classroomTitle)
-            .maybeSingle()
-          if (response.error) throw new Error(`Could not locate drill classroom: ${response.error.code}`)
-          classroomId = response.data?.id ? uuidSchema.parse(response.data.id) : null
-        })
-      }
-      if (databaseUrl && sourceClassroomId && inventoryBaseline) {
+      if (databaseUrl && operationIds.length > 0) {
         const cleanupDatabaseUrl = databaseUrl
-        const cleanupSourceClassroomId = sourceClassroomId
-        const cleanupInventoryBaseline = inventoryBaseline
+        const cleanupOperationIds = [...operationIds]
         discoveries.push(async () => {
-          const discoveredOperationIds = findLocalDrillOperationIds({
-            databaseUrl: cleanupDatabaseUrl,
-            baselineIds: cleanupInventoryBaseline.operationIds,
-            sourceClassroomId: cleanupSourceClassroomId,
-            classroomId,
-            blueprintId,
-          })
-          operationIds.push(...discoveredOperationIds.filter((id) => !operationIds.includes(id)))
+          const results = loadLocalDrillOperationResults(
+            cleanupDatabaseUrl,
+            cleanupOperationIds,
+          )
+          blueprintId ||= results.blueprintId
+          classroomId ||= results.classroomId
         })
       }
 
