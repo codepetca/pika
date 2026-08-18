@@ -58,20 +58,34 @@ Do not enable the switch until all prerequisites are true:
    environment using the normal human-authorized migration procedure.
 2. Configure all server-only Pal settings.
 3. Confirm Pal accepts the six version 1 event shapes.
-4. Confirm Pal implements `POST /api/v1/integration/read-token`.
-5. Publish a reviewed `@codepet/pal-widget` package version exposing
+4. Confirm the target Pal environment includes
+   [`0010_story_source_timestamps.sql`](https://github.com/codepetca/pal/blob/main/packages/db/drizzle/0010_story_source_timestamps.sql).
+   The migration makes the story scheduler classify a prospective configuration
+   by the preserved producer `occurred_at`, not HTTP receipt or fact insertion
+   time. A configuration enqueued before its story boundary remains eligible
+   when an outage delays delivery until after that boundary; one first created
+   after the boundary remains ineligible.
+5. Confirm Pal implements `POST /api/v1/integration/read-token`.
+6. Confirm the reviewed public `@codepet/pal-widget@0.1.0-alpha.3` package exposes
    `@codepet/pal-widget/theme-contract`.
-6. Mount the native widget surfaces, import
+7. Mount the native widget surfaces, import
    `@codepet/pal-widget/styles.css` once, wrap each surface in
    `PalWidgetThemeBoundary`, and pass Pika's scoped theme, density, viewport,
    and motion values.
-7. Run the Pika/Pal theme-contract drift test and visual verification matrix.
-8. Enable `PAL_ENABLED=true` in the pilot environment only, preferably before
+8. Run the Pika/Pal theme-contract drift test and visual verification matrix.
+9. Enable `PAL_ENABLED=true` in the pilot environment only, preferably before
    learners act on the first day of a pilot week.
 
 Pal must support a contract version before Pika emits it. Pika pins the reviewed
-public `@codepet/pal-widget@0.1.0-alpha.2` release exactly. Keep the switch off
-until steps 3–7 are complete in the target environment.
+public `@codepet/pal-widget@0.1.0-alpha.3` release exactly. Keep the switch off
+until steps 3–8 are complete in the target environment.
+
+[Pal PR #73](https://github.com/codepetca/pal/pull/73) landed the source-timestamp
+migration and persisted-ingest coverage for Pika's seven-field adaptive calendar
+on 2026-08-18. Its delayed-delivery test proves that retries retain the producer
+chronology and remain idempotent, while truly late configurations remain
+ineligible. This clears the code-level rollout blocker; applying Pal migrations
+to a target environment remains a Pal-controlled deployment prerequisite.
 
 The pilot does not backfill actions that happened while the switch was off.
 Enabling midweek is safe, but Pal will only receive facts asserted from that
@@ -138,7 +152,7 @@ unsubmit/resubmit, so a second submission cannot create a second version 1
 fact.
 
 All event builders execute the exact dependency-free validator copied from
-Pal commit `cd9fc872b646b8c91551fd44f9b4b36725ab0fe4`. Its matching valid and
+Pal commit `88bab8e30319089e45d7f5e129e76dd265bc2b4c`. Its matching valid and
 invalid fixtures live in `tests/fixtures/pal-contract-v1`. Both the event
 envelope and each event's metadata are closed allow-lists; unexpected fields
 are rejected before delivery. Change the contract in Pal first, then replace
@@ -157,6 +171,19 @@ needed. Eligible days can fall when an unmet opportunity disappears, but never
 below the number of distinct completion dates Pika already asserted. Short
 weeks therefore reach Pal as their actual opportunity count; Pal owns the
 grace-day target and recurring Weekly Rhythm award.
+
+Prospective current-week configurations also include Pika's complete adaptive
+term calendar: an opaque HMAC term token, Toronto term boundaries, the
+authoritative 6–24 week count, and the current week start/index. The calendar
+uses Monday-aligned February, July, and September boundaries so the global
+learner opportunity week cannot straddle two Pal terms. An existing open current
+week receives one monotonic calendar-bearing revision. Historical calendar-less
+weeks are only closed and are never upgraded, so this rollout does not backfill
+story collectibles. A later closure preserves calendar metadata when that week
+already carried it.
+
+Pika emits only academic facts and this calendar. Pal exclusively calculates
+and owns story collectibles, visual finish tiers, XP, and achievements.
 
 ## Delivery and reconciliation
 
@@ -212,7 +239,9 @@ Delivery is at least once and may be delayed or out of order. Pal must retain
 qualified facts, apply weekly configuration revisions monotonically, and
 re-evaluate affected achievement progress when a related fact or later
 configuration revision arrives; correctness must not depend on HTTP arrival
-order.
+order. Pika preserves the original configuration `occurred_at` in every retry;
+Pal must use that source timestamp when deciding whether the configuration was
+created before the story due boundary.
 
 ## Native widget boundary
 
@@ -261,9 +290,11 @@ Before enabling an environment:
 ```bash
 pnpm exec vitest run \
   tests/lib/server/pal-contract.test.ts \
+  tests/lib/server/pal-term-calendar.test.ts \
   tests/lib/server/pal-events.test.ts \
   tests/lib/server/pal-outbox.test.ts \
-  tests/lib/server/pal-weekly-config.test.ts
+  tests/lib/server/pal-weekly-config.test.ts \
+  tests/integration/pal-weekly-story-collectibles.test.ts
 
 pnpm exec tsc --noEmit
 pnpm check:architecture
@@ -276,9 +307,10 @@ The PostgreSQL harness creates and drops a disposable database, replays the
 current migrations, and proves that two concurrent workers produce exactly one
 winner for pending and expired batch claims as well as the conditional UPDATE
 used by targeted delivery. The recovery smoke command refuses non-loopback
-Supabase targets, creates one synthetic fixture, receives a real HTTP 503,
-proves durable retry evidence, restores the local HTTP peer, drains the queued
-event once with the same idempotency key, and removes the fixture.
+Supabase targets, atomically records one adaptive weekly configuration and its
+outbox event, receives a real HTTP 503, proves durable retry evidence, restores
+the local HTTP peer, drains the queued event once with the same idempotency key,
+and removes the fixture.
 
 Then run a real pilot vertical slice only after Pal's prerequisites exist:
 

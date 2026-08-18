@@ -11,55 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Add accessible student test flag toggles
-
-**Risk profile:** exam-mode — student test-taking interaction and lock behavior.
-
-**Completed:**
-- Exposed each `StudentTestForm` question flag heading as a named toggle with
-  `aria-pressed`, plus `aria-disabled` and removed tab stops while interaction
-  is locked.
-- Preserved the existing heading-sized target, visual treatment, localStorage
-  contract, and single-toggle Enter/Space behavior.
-- Added component coverage for pointer round trips, Enter, Space, accessible
-  naming, initial/updated pressed state, persistence, and locked behavior.
-
-**Validation:**
-- Focused `StudentTestForm` component tests, TypeScript, lint, architecture,
-  UI/design policy checks, Pika audit, and `git diff --check` passed.
-- Playwright visual verification passed for the student form in desktop/mobile,
-  light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
-  applicable.
-
-## 2026-08-08 — Audit remaining managed deletion scopes
-
-**Risk profile:** runtime-platform — irreversible cold recovery loss,
-cross-Classroom student lineage, managed Storage, and durable purge recovery.
-
-**Audited:**
-- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
-  session-start workflow, and verified the local read-only schema is exactly at
-  migrations 001–120.
-- Traced cold tombstones, immutable archives, restore/compaction operations,
-  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
-  fences, and the complete Classroom resource graph.
-- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
-  student files, existing partial roster removal, account-level data, Pal
-  ledgers, and cross-Classroom preservation boundaries.
-
-**Recommendation:**
-- Add privacy-safe read-only deletion health monitoring first, then implement
-  cold-Classroom purge and Classroom-scoped individual-student purge as
-  separate migrations and PRs with independent rollout gates.
-- Keep generic orphan cleanup disabled; neither purge scope depends on it.
-- Require cold archives to be restored before individual-student purge; do not
-  rewrite immutable archive bundles or erase user accounts/other Classrooms.
-
-**Boundary:**
-- No implementation, migration application, local reset, rollout change,
-  production query, purge, or Storage deletion was performed. PR #963 remains
-  closed and untouched. Awaiting approval of the scope and sequencing package.
-
 ## 2026-08-08 — Add managed deletion health monitoring baseline
 
 **Risk profile:** runtime-platform — read-only production health aggregation
@@ -1221,3 +1172,57 @@ production, dependency, or UI change.
   the package contract documentation.
 - Full verification passes 4,530 tests across 502 files, lint, and the
   production build. Pika audit and diff checks pass.
+
+## 2026-08-18 — Emit Pal adaptive term calendars prospectively
+
+**Risk profile:** runtime-platform — additive external contract and
+transactional delivery behavior; no migration, historical backfill,
+dependency, or UI change.
+
+- Updated the vendored Pal v1 contract and fixtures to Pal main commit
+  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
+  term calendar accepted by the guaranteed weekly story scheduler.
+- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
+  tokens. Current open weekly configurations gain one monotonic calendar
+  revision; historical calendar-less catch-up weeks remain calendar-less, while
+  later closures preserve any calendar already emitted.
+- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
+  privacy allow-list, stable idempotency keys, leases, retry classification,
+  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
+  achievement calculations.
+- Added contract, calendar, planner, outbox, vertical integration, and guarded
+  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
+  TypeScript, lint, architecture/UI/design policy, production build, real
+  outbox recovery, and PostgreSQL concurrency checks pass.
+- After the initial registry lookup returned 404, alpha.3 was published and the
+  public `alpha` dist-tag moved to it. Pika now pins
+  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
+  title, and roadmap collectible presentation through the existing Pika hosts.
+  Playwright verification covers student desktop/mobile, light/dark,
+  sketch/full-color roadmap states, and the open story reward dialog; teacher
+  views remain unaffected.
+- Independent review added winter-term and Toronto DST boundary coverage,
+  proved retries preserve the original producer timestamp, and made the real
+  recovery smoke remove and verify every fixture row. Pal main still compares
+  story eligibility with ingestion time instead of the preserved producer
+  timestamp; correcting that cross-service cutoff and proving the delayed
+  boundary case is a rollout blocker outside this Pika-only PR.
+
+## 2026-08-18 — Verify Pal source-timestamp rollout dependency
+
+**Risk profile:** documentation and cross-service verification only; no Pika
+runtime, contract, schema, dependency, privacy, or UI change.
+
+- Verified merged Pal PR #73 at `2c4f71389db978e495af42f9d494b9de2bf8354a`
+  adds append-only migration `0010_story_source_timestamps.sql` and uses
+  producer `learner_facts.occurred_at` for story eligibility, lateness,
+  terminal effective due time, and protection/reconstruction checks.
+- Verified Pal's persisted-ingest test uses Pika's seven-field adaptive calendar,
+  accepts a pre-boundary fact delivered after the boundary, rejects a truly late
+  fact, and proves a retry with the same idempotency key remains a duplicate.
+- Confirmed Pal PR #73 CI is green, the public widget remains exactly
+  `@codepet/pal-widget@0.1.0-alpha.3`, and Pal changed no contract or widget
+  source after Pika's vendored contract commit.
+- Updated the pilot runbook to name the required Pal migration and record that
+  the code-level blocker is cleared. Applying it in a target Pal environment
+  remains Pal-controlled; Pika performs no deployment or historical backfill.

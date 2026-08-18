@@ -6,12 +6,15 @@ import type { AddressInfo } from 'node:net'
 import { createClient } from '@supabase/supabase-js'
 import { parse } from 'dotenv'
 
-import { buildSessionStartedEvent } from '@/lib/server/pal-events'
+import {
+  buildDailyLogWeekConfiguredEvent,
+  palPeriodKeyForInstant,
+} from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
   deliverPalOutboxBatch,
-  enqueueStandalonePalEvent,
 } from '@/lib/server/pal-outbox'
+import { palTermCalendarForPeriodStart } from '@/lib/server/pal-term-calendar'
 import type { Database } from '@/types/database'
 
 function requireLocalSupabase() {
@@ -63,18 +66,25 @@ async function main(): Promise<void> {
   const fixtureId = randomUUID()
   const studentId = randomUUID()
   const email = `pal-recovery-${fixtureId}@example.invalid`
-  const sourceId = `pal-recovery-${fixtureId}`
   const integrationSecret = 'pal-recovery-integration-secret-32-characters'
   const pseudonymSecret = 'pal-recovery-pseudonym-secret-32-characters-long'
-  const event = buildSessionStartedEvent({
+  const occurredAt = new Date()
+  const periodStart = palPeriodKeyForInstant(occurredAt).replace(/^pika-week-/, '')
+  const periodKey = `pika-week-${periodStart}`
+  const event = buildDailyLogWeekConfiguredEvent({
     learnerId: studentId,
-    sessionId: sourceId,
-    occurredAt: new Date(),
+    occurredAt,
+    periodKey,
+    configVersion: 1,
+    periodStatus: 'open',
+    eligibleDays: 3,
+    termCalendar: palTermCalendarForPeriodStart(periodStart),
     pseudonymSecret,
   })
   let fixtureCreated = false
   let palAvailable = false
   const receivedKeys: string[] = []
+  const receivedOccurredAts: string[] = []
   const server = createServer((request, response) => {
     if (
       request.method !== 'POST'
@@ -90,9 +100,15 @@ async function main(): Promise<void> {
     request.setEncoding('utf8')
     request.on('data', (chunk) => { body += chunk })
     request.on('end', () => {
-      const payload = JSON.parse(body) as { idempotency_key?: unknown }
+      const payload = JSON.parse(body) as {
+        idempotency_key?: unknown
+        occurred_at?: unknown
+      }
       if (typeof payload.idempotency_key === 'string') {
         receivedKeys.push(payload.idempotency_key)
+      }
+      if (typeof payload.occurred_at === 'string') {
+        receivedOccurredAts.push(payload.occurred_at)
       }
       if (!palAvailable) {
         response.writeHead(503, { 'Content-Type': 'application/json' })
@@ -123,13 +139,21 @@ async function main(): Promise<void> {
     if (userError) throw new Error(`Failed to create recovery fixture user: ${userError.message}`)
     fixtureCreated = true
 
-    await enqueueStandalonePalEvent({
-      studentId,
-      sourceKind: 'pal_recovery_fixture',
-      sourceId,
-      event,
-      supabase,
-    })
+    const { error: configurationError } = await supabase.rpc(
+      'record_pal_daily_log_week_configuration_atomic',
+      {
+        p_student_id: studentId,
+        p_period_key: periodKey,
+        p_config_version: 1,
+        p_period_status: 'open',
+        p_eligible_days: 3,
+        p_configured_at: occurredAt.toISOString(),
+        p_pal_event: event,
+      },
+    )
+    if (configurationError) {
+      throw new Error(`Failed to record weekly recovery fixture: ${configurationError.message}`)
+    }
 
     const immediate = await attemptImmediatePalEventDelivery({ event, supabase })
     if (immediate !== 'pending') {
@@ -176,8 +200,10 @@ async function main(): Promise<void> {
       || deliveredRow.delivered_at === null
       || receivedKeys.length !== 2
       || receivedKeys.some((key) => key !== event.idempotency_key)
+      || receivedOccurredAts.length !== 2
+      || receivedOccurredAts.some((value) => value !== event.occurred_at)
     ) {
-      throw new Error('Queued Pal event was not recovered exactly once with one stable key')
+      throw new Error('Queued Pal event was not recovered with a stable key and source timestamp')
     }
 
     console.info('[pal-recovery-smoke]', JSON.stringify({
@@ -185,15 +211,34 @@ async function main(): Promise<void> {
       recovery: 'delivered',
       attempts: deliveredRow.attempts,
       stable_idempotency_key: true,
+      stable_occurred_at: true,
     }))
   } finally {
     await closeServer(server)
     if (fixtureCreated) {
       const cleanupSql = `
+        delete from public.pal_daily_log_week_configurations
+        where student_id = '${studentId}' and period_key = '${periodKey}';
         delete from public.pal_event_outbox
         where idempotency_key = '${event.idempotency_key}';
         delete from public.users
         where id = '${studentId}' and email = '${email}';
+        do $cleanup$
+        begin
+          if exists (
+            select 1 from public.pal_daily_log_week_configurations
+            where student_id = '${studentId}' and period_key = '${periodKey}'
+          ) or exists (
+            select 1 from public.pal_event_outbox
+            where idempotency_key = '${event.idempotency_key}'
+          ) or exists (
+            select 1 from public.users
+            where id = '${studentId}' and email = '${email}'
+          ) then
+            raise exception 'Pal recovery fixture cleanup was incomplete';
+          end if;
+        end
+        $cleanup$;
       `
       execFileSync(
         'docker',
