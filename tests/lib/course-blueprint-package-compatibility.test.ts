@@ -166,4 +166,24 @@ describe('course blueprint package compatibility matrix', () => {
     expect(parseCourseBlueprintImportBundle(fixture).errors)
       .toContain('Course packages cannot contain Pika-managed storage references')
   })
+
+  it.each([
+    [
+      'resources.md',
+      '\nhttps://project.supabase.co/storage/v1/object/public/test-documents/teacher/test/file.pdf',
+    ],
+    [
+      'assignments.md',
+      '\nSNAPSHOT_MANAGED_OBJECT_ID: 90000000-0000-4000-8000-000000000005',
+    ],
+  ] as const)('rejects managed storage references in %s for direct and TAR imports', (fileName, content) => {
+    const fixture = structuredClone(fixtures['5'])
+    fixture.files[fileName] += content
+    const archive = encodeCourseBlueprintPackageArchive(fixture)
+
+    expect(parseCourseBlueprintImportBundle(fixture).errors)
+      .toContain('Course packages cannot contain Pika-managed storage references')
+    expect(parseCourseBlueprintImportArchive(archive).errors)
+      .toContain('Course packages cannot contain Pika-managed storage references')
+  })
 })

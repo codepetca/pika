@@ -689,11 +689,9 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         return []
       })
     : []
-  const packageStorageErrors = [
-    files['tests.md'] ?? '',
-  ].some((value) => (
-    /managed_object_id|snapshot_managed_object_id/.test(value)
-    || /storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//.test(value)
+  const packageStorageErrors = Object.values(files).some((value) => (
+    /managed_object_id|snapshot_managed_object_id/i.test(value)
+    || /storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//i.test(value)
   ))
     ? ['Course packages cannot contain Pika-managed storage references']
     : []

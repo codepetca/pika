@@ -426,7 +426,7 @@ export function hashBlueprintOperationRequest(value: unknown): string {
 
 export function resolveBlueprintOperationId(value: string | null | undefined): string {
   if (!value) return randomUUID()
-  return uuidSchema.parse(value.trim())
+  return uuidSchema.parse(value.trim()).toLowerCase()
 }
 
 export function isMissingBlueprintOperationRpcError(error: {

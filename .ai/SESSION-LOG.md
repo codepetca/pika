@@ -1213,10 +1213,13 @@ compatibility; no UI, schema, migration, production, mobile, or Gradex changes.
 - Preserved the six-file shape of historical packages during TAR decoding,
   fixing strict version 4 archives that previously acquired empty v5-only files
   and then rejected themselves.
+- Independent review remediation canonicalized UUID idempotency keys before
+  legacy identity derivation and expanded managed-storage rejection from Test
+  Markdown to every direct and TAR package content file.
 - Documented the supported-version contract and updated Phase 5 evidence and
   continuity. Planned-site verification and preview/version UX remain next.
 
 **Validation:**
-- Full Vitest passes 4,448 tests across 502 files. Production build, TypeScript,
+- Full Vitest passes 4,450 tests across 502 files. Production build, TypeScript,
   lint, architecture boundaries, Pika audit, JSON fixture parsing, focused
   compatibility tests, and diff checks pass.

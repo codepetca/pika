@@ -575,7 +575,7 @@ describe('course-blueprints server helpers', () => {
   })
 
   it('builds one stable atomic plan when a legacy package import retries with the same key', async () => {
-    const operationId = '10000000-0000-4000-8000-000000000015'
+    const operationId = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
     const rpc = vi.fn().mockImplementation((_rpcName, input) => Promise.resolve({
       data: {
         ok: false,
@@ -631,7 +631,9 @@ describe('course-blueprints server helpers', () => {
       },
     }
 
-    await importCourseBlueprintBundle('teacher-1', legacyBundle, { operationId })
+    await importCourseBlueprintBundle('teacher-1', legacyBundle, {
+      operationId: operationId.toUpperCase(),
+    })
     await importCourseBlueprintBundle('teacher-1', legacyBundle, { operationId })
     await importCourseBlueprintBundle('teacher-1', legacyBundle, {
       operationId: '10000000-0000-4000-8000-000000000016',
