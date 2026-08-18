@@ -1278,3 +1278,13 @@ dependency, or UI change.
 - Full verification passes 4,555 tests across 503 files, lint, type checking,
   and the production build. Pika audit and diff checks pass. Visual verification
   is not applicable because this change has no UI surface.
+
+**Independent review remediation:**
+- Expanded the managed-storage abstraction to cover Supabase image-render
+  routes, encoded relative paths, and trailing DNS-root aliases (including
+  encoded dots) while preserving exact scheme and port checks.
+- Added structured/freeform bundle, JSON, TAR, export-filter, import-route, and
+  proposal-route regressions for every bypass. Invalid inputs are rejected
+  before any server write-capable operation is called.
+- Remediated full verification passes 4,566 tests across 503 files, lint, type
+  checking, and the production build.

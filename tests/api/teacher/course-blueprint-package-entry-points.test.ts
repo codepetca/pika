@@ -66,6 +66,22 @@ describe('course package application entry points', () => {
         'https://test.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
       )
     }],
+    ['encoded relative managed URL', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '/%73torage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf'
+    }],
+    ['managed image-render URL', (bundle: any) => {
+      bundle.files['tests.md'] = bundle.files['tests.md'].replace(
+        'https://example.com/version-5-reference',
+        'https://test.supabase.co/storage/v1/render/image/public/submission-images/reference.png?width=500',
+      )
+    }],
+    ['managed DNS-root alias', (bundle: any) => {
+      bundle.files['tests.md'] = bundle.files['tests.md'].replace(
+        'https://example.com/version-5-reference',
+        'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',
+      )
+    }],
   ])('rejects %s identically before any write-capable operation', async (_label, mutate) => {
     const bundle = structuredClone(validBundle)
     mutate(bundle)

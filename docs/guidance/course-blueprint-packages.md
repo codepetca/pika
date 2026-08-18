@@ -92,9 +92,10 @@ part of this schema and fail structural parsing. Exports construct documents by
 selecting the portable fields; they never spread runtime document state.
 
 Pika also rejects managed-storage URLs from the configured Supabase origin,
-including encoded path variants. Origin checks prevent a matching path on an
-external host from being mistaken for Pika-owned storage. Structured Test
-documents are checked by their parsed URL. A centralized scan of freeform
+including object-delivery and image-render routes, encoded path variants, and
+equivalent DNS-root aliases. Normalized scheme, host, and port checks prevent a
+matching path on an external host from being mistaken for Pika-owned storage.
+Structured Test documents are checked by their parsed URL. A centralized scan of freeform
 Markdown provides defense in depth, but raw text matching is not the policy for
 structured document state.
 

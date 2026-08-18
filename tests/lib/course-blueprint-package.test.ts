@@ -241,6 +241,16 @@ describe('course blueprint package', () => {
       source: 'upload',
       url: 'https://test.supabase.co/storage/v1/object/public/test-documents/upload.pdf',
       managed_object_id: '64000000-0000-4000-8000-000000000000',
+    }, {
+      id: '65000000-0000-4000-8000-000000000000',
+      title: 'Managed rendered image',
+      source: 'link',
+      url: 'https://test.supabase.co/storage/v1/render/image/public/submission-images/reference.png?width=500',
+    }, {
+      id: '66000000-0000-4000-8000-000000000000',
+      title: 'Managed DNS-root alias',
+      source: 'link',
+      url: 'https://test.supabase.co./storage/v1/object/public/test-documents/reference.pdf',
     }]
 
     const bundle = buildCourseBlueprintExportBundle(detail)
@@ -334,6 +344,10 @@ describe('course blueprint package', () => {
     'https://test.supabase.co/%73torage/v1/object/public/test-documents/reference.pdf',
     'https://test.supabase.co/%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     'https://test.supabase.co/%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf',
+    'https://test.supabase.co/storage/v1/render/image/public/submission-images/reference.png?width=500',
+    'https://test.supabase.co/storage/v1/render/image/authenticated/test-documents/reference.png',
+    'https://test.supabase.co./storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',
   ])('rejects configured-origin managed URL %s', (url) => {
     const bundle = withTestDocument(buildCourseBlueprintExportBundle(DETAIL), [
       'ID: 60000000-0000-4000-8000-000000000000',
@@ -370,18 +384,28 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual([])
   })
 
-  it('checks freeform Markdown for configured-origin managed URLs as defense in depth', () => {
+  it.each([
+    'https://test.supabase.co/storage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
+    '/%73torage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
+    'https://test.supabase.co/storage/v1/render/image/public/submission-images/reference.png?width=500',
+    'https://test.supabase.co./storage/v1/object/public/test-documents/reference.pdf',
+    'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',
+  ])('checks freeform Markdown managed URL %s as defense in depth', (managedUrl) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     bundle.files['course-overview.md'] = [
       'External lookalike is allowed:',
       'https://other.supabase.co/storage/v1/object/public/test-documents/reference.pdf',
       'Configured storage is not:',
-      'https://test.supabase.co/storage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
+      managedUrl,
     ].join('\n')
 
-    expect(parseCourseBlueprintImportBundle(bundle).errors).toContain(
-      'Course packages cannot contain Pika-managed storage references',
-    )
+    const direct = parseCourseBlueprintImportBundle(bundle)
+    const json = parseCourseBlueprintImportJson(JSON.stringify(bundle))
+    const archive = parseCourseBlueprintImportArchive(encodeCourseBlueprintPackageArchive(bundle))
+
+    expect(direct.errors).toContain('Course packages cannot contain Pika-managed storage references')
+    expect(json.errors).toEqual(direct.errors)
+    expect(archive.errors).toEqual(direct.errors)
   })
 
   it('does not treat managed field names in freeform content as runtime state', () => {
