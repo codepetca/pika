@@ -119,6 +119,32 @@ Operation rows are retained indefinitely in this first slice. Any future purge p
 
 ## Verification
 
+Run the local classroom rollover drill after seeding and generating teacher auth:
+
+```bash
+pnpm seed
+pnpm e2e:auth
+pnpm e2e:verify blueprint-rollover
+```
+
+The drill uses the seeded `TEST01` classroom through the browser and adds
+temporary local-only assignment, material, survey, assignment-requirement,
+announcement, and announcement-read fixtures so every asserted boundary is
+non-empty. It
+captures a Blueprint, creates a new classroom, and verifies reusable parent and
+nested content, test documents/settings, both stable artifact identity columns,
+and immutable Blueprint Version lineage. It verifies that enrollments, roster
+rows, daily logs, submitted assignment documents (not drafts), test
+attempts/responses, live announcements, and announcement reads do not
+cross into the new classroom, and that assignments and tests require teacher
+review before release. It refuses managed-upload fixtures and non-loopback app,
+Supabase, or database targets. Cleanup restores the source classroom's identity,
+provenance, revision, and temporary test-document state. Operation cleanup is
+bound to exact idempotency keys recorded before each browser mutation is allowed
+onto the network. A browser failure-path probe proves missing keys are blocked
+without creating operation results. The operation-ledger and managed-storage
+inventories must match their pre-drill state.
+
 CI starts an ephemeral Supabase database, replays every migration, and runs:
 
 ```bash

@@ -18508,3 +18508,27 @@ schema/Storage concurrency verification only.
   147 focused tests, both Blueprint database contracts, feature validation,
   TypeScript, lint, production build, and diff checks pass.
 - Fresh cumulative PR review and GitHub CI remain before merge.
+
+<!-- pika-session-log-archive-batch:93102b19ff70aa95dc507d5027c4673db5d34c40e5d95e719a34fcfc12eafa76 -->
+## 2026-08-08 — Add immediate Pal event delivery
+
+**Risk profile:** runtime-platform — transactional outbox delivery and learner
+state refresh behavior.
+
+**Completed:**
+- Added a targeted, two-second post-commit delivery attempt for authenticated
+  sessions, classroom joins, qualifying daily logs, first assignment views, and
+  assignment completions while preserving the existing durable outbox,
+  idempotency, leases, retry backoff, and daily recovery worker.
+- Refreshes the mounted Pal provider only after a newly confirmed delivery, so
+  achievements and companion reactions can update without waiting for the
+  60-second polling fallback.
+- Documented the reusable host/provider SaaS boundary and clarified that the
+  daily cron owns weekly configuration reconciliation plus delivery recovery,
+  not the primary user-action response path.
+- Independent review tightened the hard caller deadline across adapter I/O and
+  added atomic recovery of expired immediate-delivery leases.
+
+**Validation:**
+- Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
+  architecture/UI policy checks, production build, and diff checks.
