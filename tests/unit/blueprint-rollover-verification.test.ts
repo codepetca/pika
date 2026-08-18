@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createSourceFixtureIds,
   isLoopbackUrl,
+  recordKnownOperationId,
   runBestEffortRolloverCleanup,
   selectDrillOperationResults,
 } from '../../e2e/verify/blueprint-rollover'
@@ -56,9 +57,20 @@ describe('Blueprint rollover verification safety', () => {
 
   it('preallocates every fixture identity before any local write', () => {
     const ids = Object.values(createSourceFixtureIds())
-    expect(ids).toHaveLength(7)
-    expect(new Set(ids).size).toBe(7)
+    expect(ids).toHaveLength(8)
+    expect(new Set(ids).size).toBe(8)
     expect(ids.every((id) => /^[0-9a-f-]{36}$/.test(id))).toBe(true)
+  })
+
+  it('records a valid browser operation identity before dispatch', () => {
+    const operationIds: string[] = []
+    const operationId = '10000000-0000-4000-8000-000000000001'
+
+    expect(recordKnownOperationId({ 'idempotency-key': operationId }, operationIds)).toBe(operationId)
+    expect(operationIds).toEqual([operationId])
+    expect(recordKnownOperationId({}, operationIds)).toBeNull()
+    expect(recordKnownOperationId({ 'idempotency-key': 'invalid' }, operationIds)).toBeNull()
+    expect(operationIds).toEqual([operationId])
   })
 
   it('ignores concurrent operation results outside the browser request IDs', () => {

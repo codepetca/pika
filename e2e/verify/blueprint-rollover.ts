@@ -9,8 +9,10 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { config as loadEnvironment } from 'dotenv'
-import { expect } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { z } from 'zod'
 
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
@@ -80,7 +82,7 @@ type LocalInventory = {
 }
 
 type SourceFixtureIds = Record<
-  'material' | 'survey' | 'surveyQuestion' | 'requirement' | 'announcement' | 'announcementRead' | 'testDocument',
+  'assignment' | 'material' | 'survey' | 'surveyQuestion' | 'requirement' | 'announcement' | 'announcementRead' | 'testDocument',
   string
 >
 
@@ -95,10 +97,11 @@ type ClassroomSnapshot = {
     classroom: Record<string, unknown>
     resources: Record<string, unknown> | null
     grading: Record<string, unknown> | null
+    startDate: string | null
     sourceBlueprintVersionId: string | null
   }
   liveCounts: Record<
-    LiveTable | 'announcement_reads' | 'assignment_docs' | 'test_attempts' | 'test_responses',
+    LiveTable | 'announcement_reads' | 'assignment_docs' | 'submitted_assignment_docs' | 'test_attempts' | 'test_responses',
     number
   >
 }
@@ -174,8 +177,67 @@ function normalizeTestDefinition(row: Record<string, unknown>) {
   }
 }
 
+function normalizeAssignmentTiming(startDate: string | null, dueAt: unknown) {
+  if (typeof dueAt !== 'string') return { dueDays: 0, dueTime: '23:59' }
+  const dueDate = parseISO(dueAt)
+  if (!isValid(dueDate)) return { dueDays: 0, dueTime: '23:59' }
+  const torontoDueDate = toZonedTime(dueDate, 'America/Toronto')
+  const dueTime = `${String(torontoDueDate.getHours()).padStart(2, '0')}:${String(torontoDueDate.getMinutes()).padStart(2, '0')}`
+  if (!startDate) return { dueDays: 0, dueTime }
+  const start = parseISO(startDate)
+  return {
+    dueDays: isValid(start) ? differenceInCalendarDays(torontoDueDate, start) : 0,
+    dueTime,
+  }
+}
+
+function normalizeAssignmentDefinition(row: Record<string, unknown>, startDate: string | null) {
+  return {
+    title: String(row.title || ''),
+    instructions: getAssignmentInstructionsMarkdown(row as any).markdown,
+    timing: normalizeAssignmentTiming(startDate, row.due_at),
+    points_possible: row.points_possible === null ? null : Number(row.points_possible),
+    gradebook_weight: Number(row.gradebook_weight),
+    include_in_final: row.include_in_final !== false,
+    track_authenticity: row.track_authenticity === true,
+    position: Number(row.position),
+  }
+}
+
+export function recordKnownOperationId(
+  headers: Record<string, string>,
+  operationIds: string[],
+): string | null {
+  const parsed = uuidSchema.safeParse(headers['idempotency-key'])
+  if (!parsed.success) return null
+  if (!operationIds.includes(parsed.data)) operationIds.push(parsed.data)
+  return parsed.data
+}
+
+async function installOperationIdentityGuard(
+  page: Page,
+  mutationUrls: string[],
+  operationIds: string[],
+) {
+  await page.route('**/api/teacher/**', async (route) => {
+    const request = route.request()
+    const isGuardedMutation = request.method() === 'POST'
+      && mutationUrls.some((url) => request.url().endsWith(url))
+    if (!isGuardedMutation) {
+      await route.continue()
+      return
+    }
+    if (!recordKnownOperationId(request.headers(), operationIds)) {
+      await route.abort('blockedbyclient')
+      return
+    }
+    await route.continue()
+  })
+}
+
 export function createSourceFixtureIds(): SourceFixtureIds {
   return {
+    assignment: randomUUID(),
     material: randomUUID(),
     survey: randomUUID(),
     surveyQuestion: randomUUID(),
@@ -216,6 +278,22 @@ async function countRows(
   return response.count || 0
 }
 
+async function countSubmittedAssignmentDocs(
+  supabase: ServiceClient,
+  assignmentIds: string[],
+): Promise<number> {
+  if (assignmentIds.length === 0) return 0
+  const response = await supabase
+    .from('assignment_docs')
+    .select('*', { count: 'exact', head: true })
+    .in('assignment_id', assignmentIds)
+    .eq('is_submitted', true)
+  if (response.error) {
+    throw new Error(`Could not count submitted assignment_docs: ${response.error.code}`)
+  }
+  return response.count || 0
+}
+
 async function loadClassroomSnapshot(
   supabase: ServiceClient,
   classroomId: string,
@@ -223,7 +301,7 @@ async function loadClassroomSnapshot(
   const [classroomResponse, resourcesResponse, gradingResponse] = await Promise.all([
     supabase
       .from('classrooms')
-      .select('course_overview_markdown, course_outline_markdown, source_blueprint_version_id')
+      .select('course_overview_markdown, course_outline_markdown, start_date, source_blueprint_version_id')
       .eq('id', classroomId)
       .single(),
     supabase.from('classroom_resources').select('content').eq('classroom_id', classroomId).maybeSingle(),
@@ -302,6 +380,7 @@ async function loadClassroomSnapshot(
         assignments_weight: 70,
         tests_weight: 30,
       },
+      startDate: classroomResponse.data.start_date || null,
       sourceBlueprintVersionId: classroomResponse.data.source_blueprint_version_id
         ? uuidSchema.parse(classroomResponse.data.source_blueprint_version_id)
         : null,
@@ -309,6 +388,7 @@ async function loadClassroomSnapshot(
     liveCounts: {
       ...Object.fromEntries(liveEntries) as Record<LiveTable, number>,
       assignment_docs: await countRows(supabase, 'assignment_docs', 'assignment_id', assignmentIds),
+      submitted_assignment_docs: await countSubmittedAssignmentDocs(supabase, assignmentIds),
       test_attempts: await countRows(supabase, 'test_attempts', 'test_id', testIds),
       test_responses: await countRows(supabase, 'test_responses', 'test_id', testIds),
       announcement_reads: await countRows(
@@ -458,9 +538,8 @@ async function insertSourceFixtures(args: {
   fixtureIds: SourceFixtureIds
 }) {
   const { supabase, classroomId, source, token, fixtureIds } = args
-  const assignmentIds = source.reusable.assignments.map((row) => uuidSchema.parse(row.id))
   const testIds = source.reusable.tests.map((row) => uuidSchema.parse(row.id))
-  const [classroomResponse, enrollmentResponse, submittedDocsResponse, attemptsResponse] = await Promise.all([
+  const [classroomResponse, enrollmentResponse, attemptsResponse] = await Promise.all([
     supabase.from('classrooms').select('teacher_id').eq('id', classroomId).single(),
     supabase
       .from('classroom_enrollments')
@@ -468,11 +547,6 @@ async function insertSourceFixtures(args: {
       .eq('classroom_id', classroomId)
       .limit(1)
       .single(),
-    supabase
-      .from('assignment_docs')
-      .select('assignment_id')
-      .in('assignment_id', assignmentIds)
-      .eq('is_submitted', true),
     supabase.from('test_attempts').select('test_id').in('test_id', testIds),
   ])
   if (classroomResponse.error || !classroomResponse.data) {
@@ -481,21 +555,11 @@ async function insertSourceFixtures(args: {
   if (enrollmentResponse.error || !enrollmentResponse.data) {
     throw new Error(`Could not load fixture student: ${enrollmentResponse.error?.code || 'missing'}`)
   }
-  if (submittedDocsResponse.error) {
-    throw new Error(`Could not load submitted assignment docs: ${submittedDocsResponse.error.code}`)
-  }
   if (attemptsResponse.error) {
     throw new Error(`Could not load test attempts: ${attemptsResponse.error.code}`)
   }
   const teacherId = uuidSchema.parse(classroomResponse.data.teacher_id)
   const studentId = uuidSchema.parse(enrollmentResponse.data.student_id)
-  const submittedAssignmentIds = new Set(
-    (submittedDocsResponse.data || []).map((row) => uuidSchema.parse(row.assignment_id)),
-  )
-  const assignmentId = assignmentIds.find((id) => !submittedAssignmentIds.has(id))
-  if (!assignmentId) {
-    throw new Error('The local fixture needs an assignment without submitted documents')
-  }
   const attemptedTestIds = new Set(
     (attemptsResponse.data || []).map((row) => uuidSchema.parse(row.test_id)),
   )
@@ -509,6 +573,30 @@ async function insertSourceFixtures(args: {
     ...source.reusable.surveys,
   ])
 
+  const fixtureStart = source.settings.startDate && isValid(parseISO(source.settings.startDate))
+    ? parseISO(source.settings.startDate)
+    : parseISO('2026-01-05')
+  const fixtureDueDate = addDays(fixtureStart, 4)
+  fixtureDueDate.setHours(14, 35, 0, 0)
+  const assignmentResponse = await supabase.from('assignments').insert({
+    id: fixtureIds.assignment,
+    classroom_id: classroomId,
+    title: `${token} Assignment`,
+    description: 'Reusable assignment body',
+    instructions_markdown: 'Reusable assignment body',
+    due_at: fromZonedTime(fixtureDueDate, 'America/Toronto').toISOString(),
+    created_by: teacherId,
+    points_possible: 17,
+    gradebook_weight: 13,
+    include_in_final: false,
+    is_draft: true,
+    track_authenticity: true,
+    position: classworkPosition,
+  }).select('id').single()
+  if (assignmentResponse.error || !assignmentResponse.data) {
+    throw new Error(`Could not create assignment fixture: ${assignmentResponse.error?.code || 'missing'}`)
+  }
+
   const materialResponse = await supabase.from('classwork_materials').insert({
     id: fixtureIds.material,
     classroom_id: classroomId,
@@ -518,7 +606,7 @@ async function insertSourceFixtures(args: {
       content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Reusable material body' }] }],
     },
     is_draft: true,
-    position: classworkPosition,
+    position: classworkPosition + 1,
     created_by: teacherId,
   }).select('id').single()
   if (materialResponse.error || !materialResponse.data) {
@@ -531,7 +619,7 @@ async function insertSourceFixtures(args: {
     status: 'draft',
     show_results: false,
     dynamic_responses: true,
-    position: classworkPosition + 1,
+    position: classworkPosition + 2,
     created_by: teacherId,
   }).select('id').single()
   if (surveyResponse.error || !surveyResponse.data) {
@@ -550,7 +638,7 @@ async function insertSourceFixtures(args: {
   }
   const requirementResponse = await supabase.from('assignment_submission_requirements').insert({
     id: fixtureIds.requirement,
-    assignment_id: assignmentId,
+    assignment_id: fixtureIds.assignment,
     type: 'link',
     label: `${token} Evidence link`,
     instructions: 'Submit the reusable evidence link.',
@@ -677,6 +765,9 @@ function cleanupLocalDrill(
     fixtureIds.requirement
       ? `delete from public.assignment_submission_requirements where id = ${sqlUuid(fixtureIds.requirement)}`
       : null,
+    fixtureIds.assignment
+      ? `delete from public.assignments where id = ${sqlUuid(fixtureIds.assignment)}`
+      : null,
     fixtureIds.surveyQuestion
       ? `delete from public.survey_questions where id = ${sqlUuid(fixtureIds.surveyQuestion)}`
       : null,
@@ -731,6 +822,7 @@ async function localCleanupChecks(args: {
     Promise.resolve(loadLocalInventory(databaseUrl)),
   ])
   const fixtureLocations = [
+    ['assignments', fixtureIds.assignment],
     ['classwork_materials', fixtureIds.material],
     ['surveys', fixtureIds.survey],
     ['survey_questions', fixtureIds.surveyQuestion],
@@ -910,13 +1002,16 @@ function compareReusableStructure(
   )
   addRequiredCheck(
     checks,
-    'Assignment instructions preserved',
+    'Reusable assignment definitions preserved',
     target.reusable.assignments.every((row) => {
       const sourceRow = sourceAssignmentsByIdentity.get(String(row.source_artifact_id || ''))
       if (!sourceRow) return false
-      return String(row.instructions_markdown || '') === getAssignmentInstructionsMarkdown(sourceRow as any).markdown
+      return sameValue(
+        normalizeAssignmentDefinition(row, target.settings.startDate),
+        normalizeAssignmentDefinition(sourceRow, source.settings.startDate),
+      )
     }),
-    'At least one assignment lost or changed its instructions',
+    'At least one assignment lost reusable instructions, timing, grading, authenticity, or position',
   )
 
   const sourceLessonsByIdentity = new Map(
@@ -941,9 +1036,14 @@ function compareReusableStructure(
     'Material content preserved',
     target.reusable.classwork_materials.every((row) => {
       const sourceRow = sourceMaterialsByIdentity.get(String(row.source_artifact_id || ''))
-      return Boolean(sourceRow && sameValue(row.content, sourceRow.content))
+      return Boolean(
+        sourceRow
+          && row.title === sourceRow.title
+          && sameValue(row.content, sourceRow.content)
+          && Number(row.position) === Number(sourceRow.position),
+      )
     }),
-    'At least one material lost or changed its content',
+    'At least one material lost or changed its title, content, or position',
   )
 
   const sourceSurveysByIdentity = new Map(
@@ -956,11 +1056,13 @@ function compareReusableStructure(
       const sourceRow = sourceSurveysByIdentity.get(String(row.source_artifact_id || ''))
       return Boolean(
         sourceRow
+          && row.title === sourceRow.title
           && row.show_results === sourceRow.show_results
-          && row.dynamic_responses === sourceRow.dynamic_responses,
+          && row.dynamic_responses === sourceRow.dynamic_responses
+          && Number(row.position) === Number(sourceRow.position),
       )
     }),
-    'At least one survey lost or changed its reusable settings',
+    'At least one survey lost or changed its title, reusable settings, or position',
   )
 
   addRequiredCheck(
@@ -1041,6 +1143,9 @@ export const blueprintRollover: VerificationScript = {
         fixtureIds,
       })
       const source = await loadClassroomSnapshot(supabase, sourceClassroomId)
+      const fixtureAssignment = source.reusable.assignments.find((row) => row.id === fixtureIds.assignment)
+      const fixtureMaterial = source.reusable.classwork_materials.find((row) => row.id === fixtureIds.material)
+      const fixtureSurvey = source.reusable.surveys.find((row) => row.id === fixtureIds.survey)
       addRequiredCheck(
         checks,
         'Source fixture contains reusable structure',
@@ -1059,11 +1164,30 @@ export const blueprintRollover: VerificationScript = {
       )
       addRequiredCheck(
         checks,
+        'Source fixtures exercise reusable parent configuration',
+        Boolean(
+          fixtureAssignment
+            && fixtureAssignment.due_at
+            && fixtureAssignment.points_possible === 17
+            && fixtureAssignment.gradebook_weight === 13
+            && fixtureAssignment.include_in_final === false
+            && fixtureAssignment.track_authenticity === true
+            && fixtureMaterial
+            && Number(fixtureMaterial.position) > 0
+            && fixtureSurvey
+            && fixtureSurvey.show_results === false
+            && fixtureSurvey.dynamic_responses === true
+            && Number(fixtureSurvey.position) > Number(fixtureMaterial.position),
+        ),
+        'The local fixtures need non-default assignment, material, and survey configuration',
+      )
+      addRequiredCheck(
+        checks,
         'Source fixture contains live student data',
         source.liveCounts.classroom_enrollments > 0
           && source.liveCounts.classroom_roster > 0
           && source.liveCounts.entries > 0
-          && source.liveCounts.assignment_docs > 0
+          && source.liveCounts.submitted_assignment_docs > 0
           && source.liveCounts.test_attempts > 0
           && source.liveCounts.test_responses > 0
           && source.liveCounts.announcements > 0
@@ -1094,6 +1218,27 @@ export const blueprintRollover: VerificationScript = {
       await page.getByRole('button', { name: 'Save as Course Blueprint' }).click()
       await page.getByLabel('Course Blueprint Title').fill(token)
       const captureUrl = `/api/teacher/classrooms/${sourceClassroomId}/blueprint`
+      await installOperationIdentityGuard(page, [captureUrl, '/instantiate'], operationIds)
+      const operationInventoryBeforeProbe = loadLocalInventory(databaseUrl).operationIds
+      const missingIdentityBlocked = await page.evaluate(async (url) => {
+        try {
+          await fetch(url, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ title: 'Must not reach the mutation endpoint' }),
+          })
+          return false
+        } catch {
+          return true
+        }
+      }, captureUrl)
+      addRequiredCheck(
+        checks,
+        'Missing operation identity blocked before mutation',
+        missingIdentityBlocked
+          && sameValue(loadLocalInventory(databaseUrl).operationIds, operationInventoryBeforeProbe),
+        'A browser request without an idempotency key reached the mutation endpoint',
+      )
       const captureRequestPromise = page.waitForRequest((request) => (
         request.method() === 'POST' && request.url().endsWith(captureUrl)
       ))
@@ -1103,7 +1248,9 @@ export const blueprintRollover: VerificationScript = {
       await page.getByRole('button', { name: 'Save Blueprint' }).click()
       const captureRequest = await captureRequestPromise
       const captureOperationId = uuidSchema.parse(captureRequest.headers()['idempotency-key'])
-      operationIds.push(captureOperationId)
+      if (!operationIds.includes(captureOperationId)) {
+        throw new Error('Blueprint capture was dispatched before its operation ID was recorded')
+      }
       const captureResponse = await capturePromise
       const capturePayload = await captureResponse.json()
       const captureEnvelope = operationResponseSchema.parse(capturePayload)
@@ -1153,7 +1300,9 @@ export const blueprintRollover: VerificationScript = {
       const instantiateOperationId = uuidSchema.parse(
         instantiateRequest.headers()['idempotency-key'],
       )
-      operationIds.push(instantiateOperationId)
+      if (!operationIds.includes(instantiateOperationId)) {
+        throw new Error('Blueprint instantiation was dispatched before its operation ID was recorded')
+      }
       const instantiateResponse = await instantiatePromise
       const instantiatePayload = await instantiateResponse.json()
       const instantiateEnvelope = operationResponseSchema.parse(instantiatePayload)

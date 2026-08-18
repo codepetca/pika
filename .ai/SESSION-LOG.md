@@ -1214,3 +1214,16 @@ application behavior, schema, migration, or production state changed.
   columns, and verifies reusable test documents/settings. The browser drill now
   passes 44 checks and restores the temporary source test document as part of
   its baseline.
+- An explicitly approved fourth remediation batch now records each valid browser
+  operation ID before allowing its request onto the network and includes a real
+  browser failure-path probe proving a missing key creates no ledger result.
+- Submitted-document coverage now filters `assignment_docs.is_submitted = true`
+  so drafts cannot satisfy the live-data precondition. A temporary assignment
+  with non-default due timing, points, weight, final-grade exclusion,
+  authenticity tracking, and position makes the reusable comparison
+  non-vacuous; material and survey positions are also compared.
+- The remediated local browser drill passes all 47 checks and visually shows the
+  four draft assignments followed by the material and survey. Focused unit tests
+  pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
+  TypeScript, lint, architecture boundaries, production build, Pika audit, and
+  diff checks pass.
