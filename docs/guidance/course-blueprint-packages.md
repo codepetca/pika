@@ -47,6 +47,33 @@ legacy versions receive IDs once during import. The package format version is
 independent of both the database migration number and the Blueprint's own
 Version number.
 
+### Supported-Version Evidence
+
+Compatibility is import-only for historical formats. Pika always exports the
+current version and never rewrites a historical package in place.
+
+| Version | Import contract |
+| --- | --- |
+| `2` | Imports the six reusable Markdown files, accepts and discards `quizzes.md`, removes retired planned-site keys, and assigns current-domain Artifact IDs. |
+| `3` | Imports the six reusable Markdown files and ignores unknown retired keys inside the historical planned-site configuration. |
+| `4` | Strictly accepts only its manifest fields and six declared Markdown files; retired Quiz or other undeclared files fail validation. |
+| `5` | Strictly validates all eight Markdown files, grading metadata, Blueprint/Version provenance, unique UUIDv4 Artifact IDs, and Classwork positions. |
+
+For versions `2`-`4`, Artifact IDs are derived from the import operation UUID
+and stable artifact paths before the atomic request hash is computed. Retrying
+unchanged bytes with the same idempotency key therefore rebuilds the exact same
+write plan. A separate import operation receives a separate identity set.
+
+Immutable JSON fixtures for every supported version live in `tests/fixtures/`.
+The compatibility matrix proves direct bundle import and TAR
+encode/decode/import, portable parent and child content, current-domain
+normalization, unique Artifact IDs, v5 identity/grading lineage, and rejection
+of Pika-managed storage references:
+
+```bash
+pnpm test tests/lib/course-blueprint-package-compatibility.test.ts
+```
+
 ## Included
 
 - Course title, subject, grade level, course code, and term template

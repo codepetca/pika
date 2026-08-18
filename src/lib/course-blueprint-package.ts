@@ -534,11 +534,14 @@ function normalizeBundle(input: unknown): CourseBlueprintPackageBundle | null {
       }
   const parsed = coursePackageBundleSchema.safeParse(normalizedInput)
   if (!parsed.success) return null
+  const normalizedFileNames = parsed.data.manifest.version === '5'
+    ? COURSE_BLUEPRINT_PACKAGE_FILE_NAMES
+    : LEGACY_COURSE_BLUEPRINT_PACKAGE_FILE_NAMES
 
   return {
     manifest: parsed.data.manifest,
     files: Object.fromEntries(
-      COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => [
+      normalizedFileNames.map((fileName) => [
         fileName,
         (parsed.data.files as Record<string, string>)[fileName],
       ])

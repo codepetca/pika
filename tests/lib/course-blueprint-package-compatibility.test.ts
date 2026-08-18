@@ -1,0 +1,169 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, it } from 'vitest'
+
+import {
+  decodeCourseBlueprintPackageArchive,
+  encodeCourseBlueprintPackageArchive,
+  parseCourseBlueprintImportArchive,
+  parseCourseBlueprintImportBundle,
+  type CourseBlueprintImportResult,
+  type CourseBlueprintPackageBundle,
+} from '@/lib/course-blueprint-package'
+import {
+  COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS,
+} from '@/lib/contracts/course-blueprint-package'
+
+const fixtureDir = resolve(dirname(fileURLToPath(import.meta.url)), '../fixtures')
+
+function loadFixture(version: string): CourseBlueprintPackageBundle {
+  return JSON.parse(readFileSync(
+    resolve(fixtureDir, `course-blueprint-package-v${version}.json`),
+    'utf8',
+  ))
+}
+
+const fixtures = Object.fromEntries(
+  COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS.map((version) => [version, loadFixture(version)]),
+) as Record<string, CourseBlueprintPackageBundle>
+
+function collectArtifactIds(result: CourseBlueprintImportResult): string[] {
+  return [
+    ...result.assignments.flatMap((assignment) => [
+      assignment.artifact_id,
+      ...(assignment.submission_requirements || []).map((requirement) => requirement.id),
+    ]),
+    ...result.assessments.flatMap((assessment) => [
+      assessment.artifact_id,
+      ...assessment.content.questions.map((question) => question.id),
+      ...assessment.documents.map((document) => document.id),
+    ]),
+    ...result.lesson_templates.map((lesson) => lesson.artifact_id),
+    ...result.materials.map((material) => material.artifact_id),
+    ...result.surveys.flatMap((survey) => [
+      survey.artifact_id,
+      ...survey.questions_json.map((question) => question.id),
+    ]),
+  ].filter((id): id is string => Boolean(id))
+}
+
+function portableContent(result: CourseBlueprintImportResult) {
+  return {
+    blueprint: result.blueprint,
+    assignments: result.assignments.map(({ artifact_id: _artifactId, submission_requirements, ...assignment }) => ({
+      ...assignment,
+      submission_requirements: (submission_requirements || []).map(({ id: _id, ...requirement }) => requirement),
+    })),
+    assessments: result.assessments.map(({ artifact_id: _artifactId, content, documents, ...assessment }) => ({
+      ...assessment,
+      content: {
+        ...content,
+        questions: content.questions.map(({ id: _id, ...question }) => question),
+      },
+      documents: documents.map(({ id: _id, ...document }) => document),
+    })),
+    lessons: result.lesson_templates.map(({ artifact_id: _artifactId, ...lesson }) => lesson),
+    materials: result.materials.map(({ artifact_id: _artifactId, ...material }) => material),
+    surveys: result.surveys.map(({ artifact_id: _artifactId, questions_json, ...survey }) => ({
+      ...survey,
+      questions_json: questions_json.map(({ id: _id, ...question }) => question),
+    })),
+  }
+}
+
+describe('course blueprint package compatibility matrix', () => {
+  it('has one immutable fixture for every supported package version', () => {
+    expect(Object.keys(fixtures)).toEqual([...COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS])
+    expect(Object.entries(fixtures).map(([version, fixture]) => fixture.manifest.version === version))
+      .toEqual([true, true, true, true])
+  })
+
+  it.each([
+    ['2', 'Legacy Computer Science', 0, 0],
+    ['3', 'Version 3 Computer Science', 0, 0],
+    ['4', 'Version 4 Computer Science', 0, 0],
+    ['5', 'Version 5 Computer Science', 1, 1],
+  ] as const)(
+    'imports version %s as reusable current-domain content',
+    (version, title, materialCount, surveyCount) => {
+      const parsed = parseCourseBlueprintImportBundle(fixtures[version])
+      const artifactIds = collectArtifactIds(parsed)
+
+      expect(parsed.errors).toEqual([])
+      expect(parsed.manifest?.version).toBe(version)
+      expect(parsed.blueprint).toEqual(expect.objectContaining({
+        title,
+        planned_site_published: false,
+      }))
+      expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
+      expect(parsed.blueprint.planned_site_config).not.toHaveProperty('retired_navigation')
+      expect(parsed.assignments).toHaveLength(1)
+      expect(parsed.assessments).toHaveLength(1)
+      expect(parsed.assessments[0].assessment_type).toBe('test')
+      expect(parsed.lesson_templates).toHaveLength(1)
+      expect(parsed.materials).toHaveLength(materialCount)
+      expect(parsed.surveys).toHaveLength(surveyCount)
+      expect(artifactIds.every((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)))
+        .toBe(true)
+      expect(new Set(artifactIds).size).toBe(artifactIds.length)
+    },
+  )
+
+  it.each(COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS)(
+    'preserves version %s portable content through a TAR archive',
+    (version) => {
+      const bundleResult = parseCourseBlueprintImportBundle(fixtures[version])
+      const archive = encodeCourseBlueprintPackageArchive(fixtures[version])
+      const decoded = decodeCourseBlueprintPackageArchive(archive)
+      const archiveResult = parseCourseBlueprintImportArchive(archive)
+
+      expect(decoded?.manifest.version).toBe(version)
+      if (version !== '5') {
+        expect(decoded?.files).not.toHaveProperty('classwork-materials.md')
+        expect(decoded?.files).not.toHaveProperty('surveys.md')
+      }
+      expect(archiveResult.errors).toEqual([])
+      expect(portableContent(archiveResult)).toEqual(portableContent(bundleResult))
+    },
+  )
+
+  it('keeps version 5 identity, grading, and reusable child contracts exact', () => {
+    const parsed = parseCourseBlueprintImportBundle(fixtures['5'])
+
+    expect(parsed.manifest).toEqual(expect.objectContaining({
+      version: '5',
+      blueprint_id: '10000000-0000-4000-8000-000000000005',
+      source_draft_revision: 9,
+      blueprint_version_id: '20000000-0000-4000-8000-000000000005',
+      blueprint_version_number: 3,
+    }))
+    expect(parsed.blueprint).toEqual(expect.objectContaining({
+      gradebook_use_weights: true,
+      gradebook_assignments_weight: 60,
+      gradebook_tests_weight: 40,
+    }))
+    expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      artifact_id: '41000000-0000-4000-8000-000000000005',
+      default_due_days: 8,
+      gradebook_weight: 19,
+      track_authenticity: true,
+    }))
+    expect(parsed.assignments[0].submission_requirements?.[0].id)
+      .toBe('42000000-0000-4000-8000-000000000005')
+    expect(parsed.assessments[0].documents).toEqual([
+      expect.objectContaining({ id: '53000000-0000-4000-8000-000000000005', source: 'link' }),
+      expect.objectContaining({ id: '54000000-0000-4000-8000-000000000005', source: 'text' }),
+    ])
+    expect(parsed.surveys[0].questions_json[0].id)
+      .toBe('82000000-0000-4000-8000-000000000005')
+  })
+
+  it('rejects Pika-managed storage identities in an otherwise valid current package', () => {
+    const fixture = structuredClone(fixtures['5'])
+    fixture.files['tests.md'] += '\nmanaged_object_id: 90000000-0000-4000-8000-000000000005'
+
+    expect(parseCourseBlueprintImportBundle(fixture).errors)
+      .toContain('Course packages cannot contain Pika-managed storage references')
+  })
+})

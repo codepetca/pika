@@ -26,6 +26,8 @@ describe('course blueprint package docs', () => {
     expect(docs).toContain('students, submissions, grades, attendance')
     expect(docs).toContain('Edit the Markdown files in a repo, Codex, or Claude')
     expect(docs).toContain('canonical export manifest version is `5`')
+    expect(docs).toContain('Immutable JSON fixtures for every supported version')
+    expect(docs).toContain('same idempotency key')
     expect(docs).toContain('imports versions `2`, `3`,')
     expect(docs).toContain('discarding `quizzes.md`')
     expect(lifecycleDocs).toContain('export manifest is version 5')

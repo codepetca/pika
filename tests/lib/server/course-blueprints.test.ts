@@ -574,6 +574,79 @@ describe('course-blueprints server helpers', () => {
     expect(deleteBuilder.delete).not.toHaveBeenCalled()
   })
 
+  it('builds one stable atomic plan when a legacy package import retries with the same key', async () => {
+    const operationId = '10000000-0000-4000-8000-000000000015'
+    const rpc = vi.fn().mockImplementation((_rpcName, input) => Promise.resolve({
+      data: {
+        ok: false,
+        status: 503,
+        operation_id: input.p_operation_id,
+        operation_type: 'import',
+        error_code: 'temporary_failure',
+        error: 'Retry the same request',
+        retryable: true,
+      },
+      error: null,
+    }))
+    mockSupabase = { rpc }
+    const legacyBundle = {
+      manifest: {
+        version: '4',
+        exported_at: '2026-07-23T12:00:00.000Z',
+        title: 'Legacy retry course',
+        subject: 'Computer Science',
+        grade_level: 'Grade 11',
+        course_code: 'ICS3U',
+        term_template: 'Semester 1',
+      },
+      files: {
+        'course-overview.md': 'Legacy overview',
+        'course-outline.md': 'Legacy outline',
+        'resources.md': 'Legacy resources',
+        'assignments.md': [
+          '## Retry assignment [DRAFT]',
+          'Due Days: 3',
+          'Due Time: 15:30',
+          '',
+          'Complete the retry exercise.',
+        ].join('\n'),
+        'tests.md': [
+          '# Test',
+          'Title: Retry test',
+          'Show Results: false',
+          '',
+          '## Questions',
+          '### Question 1',
+          'Type: open_response',
+          'Points: 2',
+          'Prompt:',
+          'Explain idempotency.',
+          'Answer Key:',
+          'The same request has the same effect.',
+          '',
+          '## Documents',
+          '_None_',
+        ].join('\n'),
+        'lesson-plans.md': '## Retry lesson\n\nReview retry behavior.',
+      },
+    }
+
+    await importCourseBlueprintBundle('teacher-1', legacyBundle, { operationId })
+    await importCourseBlueprintBundle('teacher-1', legacyBundle, { operationId })
+    await importCourseBlueprintBundle('teacher-1', legacyBundle, {
+      operationId: '10000000-0000-4000-8000-000000000016',
+    })
+
+    expect(rpc).toHaveBeenCalledTimes(3)
+    const firstRequest = rpc.mock.calls[0][1]
+    const secondRequest = rpc.mock.calls[1][1]
+    const separateImportRequest = rpc.mock.calls[2][1]
+    expect(secondRequest.p_request_sha256).toBe(firstRequest.p_request_sha256)
+    expect(secondRequest.p_plan).toEqual(firstRequest.p_plan)
+    expect(separateImportRequest.p_plan.assignments[0].artifact_id)
+      .not.toBe(firstRequest.p_plan.assignments[0].artifact_id)
+  })
+
   it('fails classroom instantiation without issuing compensating deletes', async () => {
     const operationId = '10000000-0000-4000-8000-000000000011'
     const managedObjectId = '71000000-0000-4000-8000-000000000011'

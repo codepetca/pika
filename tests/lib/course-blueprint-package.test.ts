@@ -211,6 +211,12 @@ describe('course blueprint package', () => {
       snapshot_path: 'link-docs/teacher/test/doc-1/snapshots/current',
       snapshot_content_type: 'text/html',
       synced_at: '2026-07-23T12:00:00.000Z',
+    }, {
+      id: '61000000-0000-4000-8000-000000000000',
+      title: 'Managed upload',
+      source: 'upload',
+      url: 'https://example.supabase.co/storage/v1/object/sign/test-documents/private',
+      managed_object_id: '62000000-0000-4000-8000-000000000000',
     }]
 
     const parsed = parseCourseBlueprintImportBundle(
@@ -226,6 +232,7 @@ describe('course blueprint package', () => {
       }),
     ])
     expect(parsed.assessments[0].documents[0]).not.toHaveProperty('snapshot_path')
+    expect(parsed.assessments[0].documents).toHaveLength(1)
   })
 
   it('exports and re-imports the tar package archive', () => {
@@ -261,7 +268,8 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Legacy Computer Science')
     expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
-    expect(parsed.assessments).toEqual([])
+    expect(parsed.assessments).toHaveLength(1)
+    expect(parsed.assessments[0].title).toBe('Legacy Foundations Test')
     expect(parsed.assignments.every((assignment) =>
       /^[0-9a-f-]{36}$/.test(assignment.artifact_id ?? '')
     )).toBe(true)
@@ -276,7 +284,8 @@ describe('course blueprint package', () => {
     expect(decoded?.files).not.toHaveProperty('quizzes.md')
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Legacy Computer Science')
-    expect(parsed.assessments).toEqual([])
+    expect(parsed.assessments).toHaveLength(1)
+    expect(parsed.assessments[0].title).toBe('Legacy Foundations Test')
   })
 
   it.each(['1', '6'])('rejects unsupported package version %s', (version) => {
