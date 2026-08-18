@@ -1215,11 +1215,13 @@ compatibility; no UI, schema, migration, production, mobile, or Gradex changes.
   and then rejected themselves.
 - Independent review remediation canonicalized UUID idempotency keys before
   legacy identity derivation and expanded managed-storage rejection from Test
-  Markdown to every direct and TAR package content file.
+  Markdown to every direct and TAR package content file. URL matching is bound
+  to Pika's configured Supabase origin so same-shaped external links remain
+  portable.
 - Documented the supported-version contract and updated Phase 5 evidence and
   continuity. Planned-site verification and preview/version UX remain next.
 
 **Validation:**
-- Full Vitest passes 4,450 tests across 502 files. Production build, TypeScript,
+- Full Vitest passes 4,451 tests across 502 files. Production build, TypeScript,
   lint, architecture boundaries, Pika audit, JSON fixture parsing, focused
   compatibility tests, and diff checks pass.

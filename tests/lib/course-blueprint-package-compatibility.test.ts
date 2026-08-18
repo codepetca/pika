@@ -170,7 +170,7 @@ describe('course blueprint package compatibility matrix', () => {
   it.each([
     [
       'resources.md',
-      '\nhttps://project.supabase.co/storage/v1/object/public/test-documents/teacher/test/file.pdf',
+      '\nhttps://test.supabase.co/storage/v1/object/public/test-documents/teacher/test/file.pdf',
     ],
     [
       'assignments.md',
@@ -185,5 +185,14 @@ describe('course blueprint package compatibility matrix', () => {
       .toContain('Course packages cannot contain Pika-managed storage references')
     expect(parseCourseBlueprintImportArchive(archive).errors)
       .toContain('Course packages cannot contain Pika-managed storage references')
+  })
+
+  it('accepts an external URL that uses the same storage path shape', () => {
+    const fixture = structuredClone(fixtures['5'])
+    fixture.files['resources.md'] += '\nhttps://docs.example.com/storage/v1/object/public/test-documents/reference.pdf'
+    const archive = encodeCourseBlueprintPackageArchive(fixture)
+
+    expect(parseCourseBlueprintImportBundle(fixture).errors).toEqual([])
+    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual([])
   })
 })

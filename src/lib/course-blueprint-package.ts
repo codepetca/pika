@@ -689,10 +689,29 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         return []
       })
     : []
-  const packageStorageErrors = Object.values(files).some((value) => (
-    /managed_object_id|snapshot_managed_object_id/i.test(value)
-    || /storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//i.test(value)
-  ))
+  const managedStoragePath = /^\/storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//i
+  const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const configuredSupabaseOrigin = (() => {
+    if (!configuredSupabaseUrl) return null
+    try {
+      return new URL(configuredSupabaseUrl).origin
+    } catch {
+      return null
+    }
+  })()
+  const packageStorageErrors = Object.values(files).some((value) => {
+    if (/managed_object_id|snapshot_managed_object_id/i.test(value)) return true
+    if (!configuredSupabaseOrigin) return false
+
+    return (value.match(/https?:\/\/[^\s<>"')\]]+/gi) || []).some((candidate) => {
+      try {
+        const url = new URL(candidate)
+        return url.origin === configuredSupabaseOrigin && managedStoragePath.test(url.pathname)
+      } catch {
+        return false
+      }
+    })
+  })
     ? ['Course packages cannot contain Pika-managed storage references']
     : []
 
