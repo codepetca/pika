@@ -1180,10 +1180,12 @@ Current Test reference material.
       )
 
       const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      const saveStatus = screen.getByTestId('teacher-test-authoring-save-status')
       fireEvent.click(addQuestionButton)
 
       await waitFor(() => {
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+        expect(saveStatus).toHaveTextContent('Unsaved test changes')
       })
 
       const onTestUpdateNext = vi.fn()
@@ -1208,6 +1210,7 @@ Current Test reference material.
       await waitFor(() => {
         patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
         expect(patchCalls).toHaveLength(1)
+        expect(saveStatus).toHaveTextContent('Test saved')
       })
 
       const patchBody = JSON.parse(String(patchCalls[0]?.[1]?.body ?? '{}'))
@@ -1215,6 +1218,56 @@ Current Test reference material.
       expect(patchBody.version).toBe(1)
       expect(patchBody.content?.questions).toHaveLength(1)
     }, 10_000)
+
+    it('clears the prior test save announcement when the selected assessment changes', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.endsWith('/draft')) {
+          return Promise.resolve(jsonResponse({
+            draft: {
+              version: 1,
+              content: {
+                title: url.includes('test-next') ? 'Next Test' : 'First Test',
+                show_results: false,
+                questions: [],
+              },
+            },
+          }))
+        }
+        return Promise.resolve(jsonResponse({ test: { documents: [] } }))
+      })
+
+      const { rerender } = render(
+        <TestDetailPanel
+          test={makeTestWithStats({ id: 'test-first', title: 'First Test' })}
+          classroomId="classroom-1"
+          onTestUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      fireEvent.click(await screen.findByRole('button', { name: '+ MC Question' }))
+      const saveStatus = screen.getByTestId('teacher-test-authoring-save-status')
+      expect(saveStatus).toHaveTextContent('Unsaved test changes')
+
+      rerender(
+        <TestDetailPanel
+          test={makeTestWithStats({ id: 'test-next', title: 'Next Test' })}
+          classroomId="classroom-1"
+          onTestUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('teacher-test-authoring-save-status')).toBeEmptyDOMElement()
+      })
+    })
 
     it('does not report saved when an older autosave finishes after a newer edit', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -1280,14 +1333,21 @@ Current Test reference material.
       )
 
       const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      const saveStatus = screen.getByTestId('teacher-test-authoring-save-status')
+      expect(saveStatus).toHaveTextContent('')
+      expect(saveStatus).toHaveAttribute('role', 'status')
+      expect(saveStatus).toHaveAttribute('aria-live', 'polite')
+      expect(saveStatus).toHaveAttribute('aria-atomic', 'true')
       vi.useFakeTimers()
 
       fireEvent.click(addQuestionButton)
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      expect(saveStatus).toHaveTextContent('Unsaved test changes')
 
       await act(async () => {
         vi.advanceTimersByTime(3_100)
       })
+      expect(saveStatus).toHaveTextContent('Saving test')
 
       const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
       expect(patchCalls).toHaveLength(1)
@@ -1295,6 +1355,7 @@ Current Test reference material.
 
       fireEvent.click(addQuestionButton)
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      expect(saveStatus).toHaveTextContent('Unsaved test changes')
       onSaveStatusChange.mockClear()
 
       await act(async () => {
@@ -1316,6 +1377,7 @@ Current Test reference material.
 
       expect(onSaveStatusChange).not.toHaveBeenCalledWith('saved')
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      expect(saveStatus).toHaveTextContent('Unsaved test changes')
     })
 
     it('ignores stale save responses after selected assessment changes', async () => {
@@ -2090,6 +2152,8 @@ _None_
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+        expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-inline-preview-id/draft')
+        expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-inline-preview-id')
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
@@ -2099,7 +2163,7 @@ _None_
           testId: 'test-inline-preview-id',
           title: 'Inline Preview Test',
         })
-      })
+      }, { timeout: 5_000 })
       expect(openSpy).not.toHaveBeenCalled()
 
       const patchCall = fetchMock.mock.calls.find(

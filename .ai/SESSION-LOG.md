@@ -11,455 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-05 — Validate production-reconciliation patch
-
-- Full Vitest passed: 468 files and 4,047 tests. Production build, lint,
-  TypeScript, Pika audit, focused migration/server tests, migration lineage,
-  migration-118 function lint, feature validation, shell syntax, and diff checks
-  also passed.
-- The shared local database currently lacks the managed-storage/purge schema, so
-  database fixtures stopped before mutation on missing migration-117/119
-  objects. No reset or migration application was performed. Disposable CI must
-  replay 001–119 and pass both database fixtures before merge.
-
-## 2026-08-05 — Preserve merged migration 118 during reconciliation
-
-- Independent review found that replacing merged migration version 118 would
-  break databases that had already applied `main`: they would skip the new 118
-  and fail when the non-idempotent purge DDL moved to 119.
-- Restored the merged purge migration 118 byte-for-byte, hash-locked it, and
-  appended archive-binding compatibility as migration 119. Current clean replay
-  therefore exercises the real upgrade order, and the managed-storage database
-  fixture proves the legacy binding after that upgrade.
-- Verified production already has the equivalent final schemas recorded as
-  versions 118 and 119 under its separately authorized reconciliation history;
-  this source correction performed no remote migration or state change.
-
-## 2026-08-05 — Prove post-purge Blueprint reuse in production
-
-**Risk profile:** exact synthetic production create/archive/purge canary; no
-broader rollout, generic cleanup, migration, or Blueprint deletion.
-
-**Completed:**
-- Created Classroom `362b444c-ec43-4f33-bdc5-47d957c4bcc0` named
-  `Post-Purge Blueprint Reuse Canary` from preserved Blueprint
-  `c318ef23-5039-4b64-9977-66bceee54ba0` through the teacher UI.
-- Verified 96 class days, one assignment, one test and document, and distinct
-  ready Classroom-owned managed object
-  `dfffde84-1b21-502e-8b30-167d4fe4de79` (14,760 bytes).
-- Hot archived the Classroom, conditionally retargeted only the existing
-  synthetic canary binding, typed `DELETE`, and completed durable purge
-  operation `c40b3f5d-865f-4997-8046-c780eb77b401` in one tick.
-
-**Validation:**
-- The impact summary reported 0 students, 102 relational rows, and one 15 KB
-  managed file, with no missing file or conflicting operation.
-- The Classroom and its managed object are absent; the audit object is terminal
-  `deleted`, its path is redacted, and the purge resource snapshot is empty.
-- The instantiate operation remains completed with Blueprint lineage preserved
-  and deleted Classroom references reconciled to null.
-- The Blueprint still has one assignment, one assessment, one Version, and its
-  original ready 14,760-byte managed PDF in Storage. Teacher and student
-  accounts remain.
-- Global managed state returned from 141/141 to 140/140, with zero non-ready,
-  missing, or unregistered objects.
-- Teacher/student desktop/mobile light/dark verification passed before and
-  after deletion. The teacher sees the preserved Blueprint test/PDF; the
-  student sees `Classroom unavailable` for the purged Classroom.
-
-**Remaining:**
-- The exact canary row points to the deleted Classroom and enables no remaining
-  Classroom. Global rollout and generic cleanup are still disabled.
-- Durable teacher-owned Blueprint/managed-file deletion remains the next local
-  implementation scope. Production migration or Blueprint deletion needs fresh
-  exact authorization.
-
-## 2026-08-05 — Implement durable Course Blueprint deletion locally
-
-**Contract:**
-- Owning teachers may permanently delete only Pika-managed Course Blueprints.
-  Deletion removes the draft graph, immutable Versions, planned course site,
-  proposals/sessions, audit identifiers, and exact Blueprint-owned
-  `test-documents` objects.
-- Linked Classrooms, their independently copied files and student data, all
-  users, and unrelated Blueprints remain. Linked Classrooms and artifact rows
-  are explicitly unlinked from the deleted Blueprint/Versions.
-
-**Implementation:**
-- Added unapplied migration 120 with an independent disabled rollout gate,
-  durable operation/fence/object ledgers, exact-object leases, retries,
-  storage-absence and reappearance checks, raw-path redaction/reservation,
-  explicit graph finalization, and fail-closed direct root deletion.
-- Added Blueprint/Version-lineage, managed-object, provisional-copy, and
-  Storage fences. Blueprint-to-Classroom copies now establish a source-aware
-  provisional intent before provider work, with a safe pre-120 fallback.
-- Added owner-scoped purge APIs, typed impact/confirmation validation, a
-  resumable worker and cron safety net, and a Blueprint deletion dialog that
-  states the irreversible scope and preserved Classroom/user boundary.
-- Added a transactional database fixture covering authorization, active
-  operation conflicts, concurrency fences, provider failure/retry, exact file
-  cleanup, path reappearance, explicit database finalization, Classroom/user
-  preservation, and durable audit evidence. The fixture is authored but not run
-  because migration 120 has not been authorized for local replay.
-- Documented the contract and staged rollout in
-  `docs/guidance/course-blueprint-purge.md`.
-
-**Validation:**
-- Full Vitest, production build, lint, TypeScript, Pika audit, shell syntax,
-  static migration contracts, focused server/API/UI tests, and diff checks
-  pass after updating the cleanup-cron mocks for the new safety net.
-- Teacher UI verified at 1440×1000 and 390×844 with a read-only intercepted
-  impact response. Confirmation remains disabled until the exact title or
-  `DELETE`; the mobile dialog scrolls to reachable actions. Student purge API
-  access returned 403 and `/teacher/blueprints` redirected to Classrooms.
-- No migration 120 replay, local reset, remote mutation, rollout activation, or
-  Blueprint deletion occurred.
-
-**Remaining:**
-- Obtain exact authorization to reset local Supabase, replay 001–120,
-  regenerate types, reseed, and run the destructive transactional database
-  fixture. Keep all remote rollout gates disabled.
-
-## 2026-08-05 — Verify Course Blueprint purge on clean local replay
-
-**Completed:**
-- Reset local Supabase and replayed migrations 001–120 from the dedicated
-  worktree, regenerated database types, and reseeded against loopback Supabase.
-- Corrected migration-120 PL/pgSQL row selection, made the polymorphic Blueprint
-  trigger use table-safe JSON fields, and removed an unnecessary transaction-
-  scoped begin bypass that could outlive purge initialization.
-- Updated the Blueprint purge fixture to model the Storage API's transaction-
-  local delete capability while retaining exact managed-object authority.
-
-**Validation:**
-- Managed-storage readiness, activation, Blueprint-adoption, and reference/
-  deletion concurrency fixtures pass against `supabase_db_pika`.
-- The Blueprint purge database fixture passes authorization, conflict, fence,
-  retry, exact Storage deletion, reappearance, finalization, Classroom unlinking
-  and preservation, user preservation, and unrelated-Blueprint preservation.
-- Migration history is exactly 001–120, generated database types match, seeded
-  users remain, and diff/static migration checks pass.
-- Local managed Storage is `compatibility`; Classroom purge, Blueprint purge,
-  and generic cleanup remain disabled. No staging or production state changed.
-
-## 2026-08-06 — Harden Blueprint purge recovery boundaries
-
-**Review remediation:**
-- Active purges are rediscovered before fresh inventory, return their persisted
-  impact, and reuse a client-retained operation UUID after a lost start response.
-  Pre-migration APIs now fail closed with an intentional 503 instead of a
-  generic 500.
-- Source-aware Blueprint copies now heartbeat a durable intent and explicitly
-  settle it as adopted or aborted after ownership or cleanup is durable.
-  Expired abandoned intents no longer block purge forever, while a running
-  operation or heartbeat keeps the fence live.
-- The confirmation digest now includes each linked Classroom's Blueprint
-  Version, source revision, and origin identity, and begin locks those lineage
-  rows before sealing inventory.
-- A periodic heartbeat now spans individual provider calls, and finalization
-  uses a separate Blueprint-owned membership digest so preserved Classroom
-  edits cannot strand deletion after Storage cleanup.
-- Expanded unit, API, UI, static migration, and transactional database fixtures
-  for lost responses, partial deletion, pre-120 compatibility, copy failures,
-  intent lifetime, and equal-membership lineage drift.
-
-**Validation and boundary:**
-- Focused remediation tests pass (58/58), with TypeScript, focused ESLint,
-  shell syntax, feature validation, and diff checks also passing.
-- Full Vitest (4,078 tests), lint, and production build pass. Final targeted
-  review still found one P1: after a transient heartbeat failure, the current
-  timer stops renewing while an in-flight provider call can remain stalled.
-  The feature remains failing pending an abortable deadline or durable copy
-  operation ledger; no further review-fix batch was taken in this session.
-- The changed migration 120 has not been replayed after this review batch;
-  fresh exact local-reset authorization is required before database fixture and
-  generated-type verification. No staging or production state changed, and all
-  deletion/cleanup rollout gates remain disabled.
-
-## 2026-08-06 — Make Blueprint copy fences fail closed
-
-**Implementation:**
-- Removed lease expiry from Blueprint purge authorization: every unclosed
-  source-copy intent now blocks purge until durable settlement.
-- Heartbeats continue after transient failures; a later successful heartbeat
-  clears the operational error while the durable intent remains the safety
-  boundary throughout provider I/O.
-- Added a private, service-role-only hard-crash recovery RPC. It requires the
-  exact owner/operation/teacher/source tuple and expiry snapshot, 24 hours of
-  staleness, no running operation, no live provisional files, and explicit
-  confirmation that no worker remains. Recovery is compare-and-swap and
-  idempotent.
-- Expanded static, runtime, privilege, stale-intent, exact-snapshot, running-
-  operation, and provisional-file reconciliation fixtures.
-- Classified heartbeat transport failures as retryable and intent/fence
-  rejection as terminal. A single wrapper now checks authority before and after
-  every asynchronous copy action so no later reservation, read-back, or
-  verification begins after authority is lost.
-- Completed-operation retries return the deterministic owner identity and
-  idempotently repair lost settlement. Migration 120 also binds and closes only
-  legacy adopted owners proven by a matching completed operation and live
-  teacher-owned source Blueprint.
-
-**Boundary:**
-- Full Vitest (4,083 tests), lint, architecture, production build, Pika audit,
-  shell syntax, static migration checks, and final bounded reviews pass.
-  Migration 120 has not been replayed after this change; generated types and
-  the database fixture still require a fresh authorized local reset. No staging
-  or production state changed, and all rollout gates remain disabled.
-
-## 2026-08-06 — Verify revised Blueprint purge on clean local replay
-
-**Risk profile:** runtime-platform — authorized destructive local reset and
-schema/Storage concurrency verification only.
-
-**Completed:**
-- Verified the target was loopback `127.0.0.1:54321` with the healthy
-  `supabase_db_pika` container, then used the one-time authorization to reset
-  local Supabase and replay migrations 001–120 including the revised migration
-  120.
-- Regenerated `database.generated.ts`, reseeded one teacher, two students, one
-  Classroom, assignments, tests, grades, and history, and confirmed generated
-  types match the replayed schema.
-- Passed the managed-storage contract/readiness and multi-session concurrency
-  fixtures plus the transactional Course Blueprint purge fixture, including
-  fail-closed copy intents and guarded recovery.
-
-**Postconditions:**
-- Migration history is exactly 001–120 with no gaps or mismatches. Both purge
-  modes are `disabled`; managed Storage is `compatibility`; cleanup/compaction
-  environment gates are disabled or unset; no purge operation is active.
-- Synthetic fixture users and Storage objects were removed. No staging or
-  production state changed, and migration 120 remains local only.
-
-## 2026-08-06 — Prepare verified Blueprint deletion draft
-
-**Risk profile:** workspace-state — publish the already verified feature only.
-
-**Prepared:**
-- Reconfirmed this dedicated branch matches current `origin/main`, the complete
-  worktree diff is limited to Course Blueprint deletion and its continuity
-  metadata, and the Pika audit and diff checks pass.
-- Prepared migration 120, the disabled-by-default application/API/UI flow,
-  tests, fixtures, and rollout guidance for a separate draft PR. PR #963 and
-  all staging and production state remain untouched.
-
-## 2026-08-06 — Reconcile Blueprint deletion CI contracts
-
-**Risk profile:** runtime-platform — test and CI integration only.
-
-**Fixed:**
-- Updated the versioned Blueprint database fixture to assert that migration
-  120 rejects direct root deletion while preserving the Blueprint and its
-  immutable Version. The independent user-account cascade test remains.
-- Added the transactional Course Blueprint purge fixture to the Architecture
-  Database Contracts job so authorization, fencing, retries, exact Storage
-  cleanup, and Classroom/user preservation run in CI.
-
-**Validation:**
-- Shell syntax, the versioned Blueprint database contract, and the Course
-  Blueprint purge database fixture pass against local `supabase_db_pika`.
-- No migration, application runtime, staging, or production state changed.
-
-## 2026-08-07 — Add workflow-friction guardrails
-
-**Risk profile:** workspace-state.
-
-- Updated the E2E coverage and weekly simplification automations to create their
-  named task branch before edits when Codex starts them on a detached HEAD, and
-  to stop on any unexpected checkout state.
-- Added an explicit fallback for the workflow-friction review memory path while
-  retaining the configured hub project roots and report-only boundary.
-- Made session-log trim and check operations reject empty entries, removed the
-  existing empty duplicate heading, and added focused regression coverage.
-- Validation passed: focused trim/startup tests (51), full Vitest (468 files,
-  4,049 tests), lint, session-log check, TOML parsing, and diff checks.
-
-## 2026-08-07 — Center login password-recovery link
-
-**Risk profile:** none — localized unauthenticated login layout refinement.
-
-**Completed:**
-- Moved “Forgot password?” from the password-field edge to a centered row
-  between the Login button and Sign up link.
-- Preserved the recovery navigation and added the shared minimum target and
-  visible keyboard-focus treatment.
-
-**Validation:**
-- Focused LoginClient tests, lint, design/UI policy checks, Pika audit, and
-  diff checks passed.
-- Regenerated and reviewed the affected Playwright desktop light/dark login
-  visual-regression baselines; their focused snapshot suite passed.
-- Playwright visual verification passed for the unauthenticated desktop/mobile
-  login screen in light and dark themes, including default, hover, and focus
-  states. Teacher/student authenticated variants are not applicable.
-
-## 2026-08-08 — Rebase Blueprint deletion onto current main
-
-**Risk profile:** runtime-platform — migration and durable deletion integration.
-
-**Completed:**
-- Rebased PR #971 onto current `origin/main`, preserving the login recovery and
-  AI-continuity guardrail changes added after the initial review.
-- Resolved only derived continuity-archive conflicts; application code and
-  migration 120 had no merge conflict or numbering collision.
-- Kept Course Blueprint deletion rollout disabled and migration 120 unapplied
-  outside the existing local development database.
-
-**Validation:**
-- Exact-head migration lineage, generated-type parity, shell/workflow syntax,
-  147 focused tests, both Blueprint database contracts, feature validation,
-  TypeScript, lint, production build, and diff checks pass.
-- Fresh cumulative PR review and GitHub CI remain before merge.
-
-## 2026-08-08 — Add immediate Pal event delivery
-
-**Risk profile:** runtime-platform — transactional outbox delivery and learner
-state refresh behavior.
-
-**Completed:**
-- Added a targeted, two-second post-commit delivery attempt for authenticated
-  sessions, classroom joins, qualifying daily logs, first assignment views, and
-  assignment completions while preserving the existing durable outbox,
-  idempotency, leases, retry backoff, and daily recovery worker.
-- Refreshes the mounted Pal provider only after a newly confirmed delivery, so
-  achievements and companion reactions can update without waiting for the
-  60-second polling fallback.
-- Documented the reusable host/provider SaaS boundary and clarified that the
-  daily cron owns weekly configuration reconciliation plus delivery recovery,
-  not the primary user-action response path.
-- Independent review tightened the hard caller deadline across adapter I/O and
-  added atomic recovery of expired immediate-delivery leases.
-
-**Validation:**
-- Full Vitest passed (473 files, 4,093 tests), plus TypeScript, lint,
-  architecture/UI policy checks, production build, and diff checks.
-
-## 2026-08-08 — Harden Pal delivery release readiness
-
-**Risk profile:** runtime-platform — delivery telemetry, PostgreSQL claim
-concurrency, outage recovery, and production release evidence.
-
-**Completed:**
-- Added privacy-safe structured logs for immediate delivery and daily outbox
-  drains, plus protected ready/retry/expired-lease/backlog-age and recent
-  delivery-latency metrics.
-- Added an ephemeral PostgreSQL concurrency harness proving one claim winner
-  for pending and expired batch and targeted claims.
-- Added a loopback-only HTTP recovery smoke that persists a 503 retry, restores
-  the peer, delivers the queued event once with the same idempotency key, and
-  removes its synthetic fixture.
-- Closed independent-review gaps by emitting sanitized error-category drain
-  telemetry, reserving a 60-second cron execution budget, and replacing timing
-  assumptions with database-observed claim and lock contention gates.
-- Bounded the complete drain path across claims, delivery transitions, and the
-  final count, and made ready-backlog age use the actual retry/lease-ready time.
-- Classified both direct and PostgREST-wrapped abort/timeout failures as the
-  sanitized `deadline` drain outcome.
-- Confirmed read-only that the current production adapter is enabled and has
-  delivered events; no Pal code, Pal PR #50, migration, or production data was
-  changed by the readiness implementation.
-
-**Validation:**
-- Full Vitest passed (475 files, 4,101 tests), plus TypeScript, lint,
-  architecture/design/UI policy checks, Pika audit, production build, both
-  real-database/HTTP Pal harnesses, continuity validation, and diff checks.
-
-## 2026-08-08 — Install production Blueprint purge schema
-
-**Risk profile:** irreversible production schema installation; rollout and
-execution remained disabled.
-
-**Completed:**
-- Verified the dedicated worktree at merged `main`, the hub-linked production
-  Pika project, migration history through 119, migration 120 static checks, and
-  the managed-storage lineage.
-- Confirmed the linked dry run contained only
-  `120_course_blueprint_purge_managed_ownership.sql`.
-- Applied migration 120 exactly once through `supabase db push --linked` under
-  exact production authorization.
-
-**Validation:**
-- Production migration history now records 120.
-- `course_blueprint_purge_settings.rollout_mode` is `disabled`; canary teacher
-  and Blueprint IDs are null, and no Blueprint purge operation exists.
-- No purge, managed-storage cleanup, rollout activation, or Storage deletion
-  ran. Enabling a canary remains a separate production decision.
-
-## 2026-08-08 — Complete managed deletion production rollout
-
-**Risk profile:** irreversible production deletion availability with fail-closed
-authorization, ownership, operation-conflict, and managed-storage gates.
-
-**Completed:**
-- Ran successful production canaries for managed Course Blueprint deletion and
-  hot archived Classroom deletion, preserving linked Classrooms, reusable
-  Classroom-owned files, and user accounts where required.
-- Enabled permanent deletion broadly for eligible teacher-owned Pika Course
-  Blueprints and hot archived Classrooms. Cold archives and comprehensive
-  individual-student purging remain separate follow-up scopes.
-- Refreshed the protected synthetic verification credentials after invalidating
-  a diagnostic-output exposure; no real-user credentials were affected.
-
-**Validation:**
-- Production migration history matches local migrations 001–120, and managed
-  storage remains enforced at protocol version 2.
-- All three current hot archived Classrooms and both current Course Blueprints
-  report deletion available, with zero active purge operations or conflicts.
-- Managed Storage reconciles at 140 registered/140 stored objects with no
-  missing, unregistered, interrupted, or active-cleanup objects.
-- Desktop/mobile teacher and student boundaries passed; non-owner teacher
-  access returned 404 and student access returned 403. No purge was started by
-  either broad rollout action.
-
-## 2026-08-08 — Add accessible student test flag toggles
-
-**Risk profile:** exam-mode — student test-taking interaction and lock behavior.
-
-**Completed:**
-- Exposed each `StudentTestForm` question flag heading as a named toggle with
-  `aria-pressed`, plus `aria-disabled` and removed tab stops while interaction
-  is locked.
-- Preserved the existing heading-sized target, visual treatment, localStorage
-  contract, and single-toggle Enter/Space behavior.
-- Added component coverage for pointer round trips, Enter, Space, accessible
-  naming, initial/updated pressed state, persistence, and locked behavior.
-
-**Validation:**
-- Focused `StudentTestForm` component tests, TypeScript, lint, architecture,
-  UI/design policy checks, Pika audit, and `git diff --check` passed.
-- Playwright visual verification passed for the student form in desktop/mobile,
-  light/dark, flagged/unflagged, and keyboard-focus states; teacher was not
-  applicable.
-
-## 2026-08-08 — Audit remaining managed deletion scopes
-
-**Risk profile:** runtime-platform — irreversible cold recovery loss,
-cross-Classroom student lineage, managed Storage, and durable purge recovery.
-
-**Audited:**
-- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
-  session-start workflow, and verified the local read-only schema is exactly at
-  migrations 001–120.
-- Traced cold tombstones, immutable archives, restore/compaction operations,
-  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
-  fences, and the complete Classroom resource graph.
-- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
-  student files, existing partial roster removal, account-level data, Pal
-  ledgers, and cross-Classroom preservation boundaries.
-
-**Recommendation:**
-- Add privacy-safe read-only deletion health monitoring first, then implement
-  cold-Classroom purge and Classroom-scoped individual-student purge as
-  separate migrations and PRs with independent rollout gates.
-- Keep generic orphan cleanup disabled; neither purge scope depends on it.
-- Require cold archives to be restored before individual-student purge; do not
-  rewrite immutable archive bundles or erase user accounts/other Classrooms.
-
-**Boundary:**
-- No implementation, migration application, local reset, rollout change,
-  production query, purge, or Storage deletion was performed. PR #963 remains
-  closed and untouched. Awaiting approval of the scope and sequencing package.
-
 ## 2026-08-08 — Add managed deletion health monitoring baseline
 
 **Risk profile:** runtime-platform — read-only production health aggregation
@@ -1066,3 +617,612 @@ the shared local database only. Production was not modified.
 - Playwright verification passes for the exhausted-save Retry alert in teacher
   light/dark views; the student Calendar remains visually unchanged. Mobile
   redesign remains explicitly deferred.
+
+## 2026-08-16 — Complete Tests save-status accessibility
+
+**Risk profile:** workspace-state — teacher test authoring and grading save
+announcements plus cross-student grading draft retention; no visual styling,
+mobile redesign, API, schema, migration, production data, or Gradex change.
+
+**Completed:**
+- Added one persistent polite atomic live region to teacher test authoring and
+  grading so unsaved, saving, and saved transitions are announced without
+  repeating the existing visual status labels.
+- Kept stale authoring save responses from announcing false success and retained
+  the existing selected-student grading workflow and class-wide table.
+- Updated the product-experience audit: student flag/save accessibility was
+  already complete, and Tests now has only deferred mobile navigation work.
+
+**Validation:**
+- Focused remediation coverage passes: 123 tests across `TestDetailPanel`,
+  `TeacherTestsTab`, and `TestStudentGradingPanel`; TypeScript passes.
+- The full suite passes: 4,318 tests across 498 files, and the production build,
+  lint, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher grading, teacher authoring, and
+  student Tests in desktop/mobile and light/dark. The change is visually neutral.
+- Independent review found that an in-flight save could outlive a student
+  selection change and publish its status under the newly selected student.
+  The grading panel now emits operation-owned test/student scope while the
+  parent gates announcements by classroom, test, and selected student. The
+  shared grading draft map remains mounted across selection changes, and
+  regressions prove stale completion is not announced while an A → B → A draft
+  remains intact and autosaves. The post-fix grading-switch visual matrix also
+  passes.
+
+## 2026-08-16 — Complete Dashboard entry-detail recovery
+
+**Risk profile:** workspace-state and accessibility — teacher Dashboard student
+log detail only; no API, schema, migration, production, Gradex, or mobile
+redesign change.
+
+**Completed:**
+- Replaced the hand-built student-log overlay with the canonical content dialog
+  and explicit loading, ready, successful-empty, and retryable error states.
+- Scoped each request to classroom, student, and date; closing the dialog,
+  changing classrooms, or opening another student invalidates older responses.
+- Preserved the compact detail width and existing attendance table, classroom
+  selection, sorting, resizing, roster, and export workflows.
+
+**Validation:**
+- Focused Dashboard and modal suites pass: 20 tests. The full suite passes:
+  4,323 tests across 498 files. TypeScript, lint, production build, Pika audit,
+  and diff checks pass.
+- Composite-widget checklist reviewed: keyboard behavior covered, semantic
+  state covered by tests, and no manual accessibility follow-up remains.
+- Playwright verification passes for teacher ready/loading/error states at
+  desktop and mobile widths, ready state in dark mode, and the student-role
+  redirect. Captures have no horizontal viewport overflow.
+- Independent review found one non-blocking test gap. Added regressions proving
+  Retry preserves the exact classroom/student/date scope and a pending entry
+  cannot repaint after the selected classroom changes.
+- Post-push UI policy caught the intentionally removed native close button in
+  the exact control registry. The Dashboard debt count is updated from three to
+  two; no exception or policy rule was weakened.
+- Final integration review found Retry could unmount the focused action while
+  leaving the dialog open. Retry now preserves the same button node as a named,
+  aria-disabled in-progress action, keeping focus inside the modal until the
+  request settles; a deterministic regression covers the transition.
+- The exact design-value inventory now removes the retired raw scrim color and
+  reduces the Dashboard raw z-index count from three to two.
+
+## 2026-08-16 — Complete Roster recovery and accessibility
+
+**Risk profile:** workspace-state and accessibility — teacher Roster loading,
+removal, counselor editing, keyboard behavior, and the existing counselor PATCH
+contract; no schema, migration, production, Gradex, or mobile redesign change.
+
+**Completed:**
+- Separated cold roster failures from successful empty classrooms, added
+  focus-preserving Retry, and retained valid roster data during refresh errors.
+- Kept committed removals visible when their follow-up refresh fails and moved
+  removal errors into the confirmation dialog with deterministic retry focus.
+- Replaced counselor-edit native controls with governed primitives, added
+  descriptive field/action semantics and operation-scoped recovery, and fenced
+  stale saves across students and classroom changes.
+- Added optimistic concurrency to counselor updates through each roster row's
+  existing `updated_at` revision, and scoped delayed add/upload completion to
+  the classroom that was actually mutated.
+- Fenced Add Students and CSV Upload internal loading, error, confirmation, and
+  close state by classroom/open generation so an earlier classroom response
+  cannot repaint or submit into the current classroom. Generations advance only
+  in committed layout lifecycles, so an abandoned concurrent render cannot
+  invalidate the still-visible classroom's request.
+- Bound the roster workspace's classroom identity to committed layout lifecycles
+  and refresh stale counselor revisions after conflicts while preserving the
+  teacher's attempted value for retry.
+- Added direct keyboard coverage for table selection and Escape focus return,
+  plus regressions for overlapping loads, counselor saves, removal recovery,
+  modal error semantics, and focus behavior.
+
+**Validation:**
+- Focused roster API, modal, table, and dialog suites pass: 91 tests. The full
+  suite passes: 4,358 tests across 499 files. TypeScript, lint, production build, UI
+  policy, design policy, architecture checks, Pika audit, and diff checks pass.
+- Composite-widget checklist reviewed: direct keyboard behavior and semantic
+  state are covered by tests, with no manual accessibility follow-up remaining.
+- Playwright verification passes for teacher desktop/mobile ready and error
+  states, selected and editing states, light/dark themes, and the student-role
+  redirect. Captures have no horizontal viewport overflow.
+- Mobile row detail for hidden primary and alt email fields remains deliberately
+  deferred with the broader mobile UI/UX work.
+
+## 2026-08-16 — Rename the roster contact slot
+
+**Risk profile:** terminology-only — teacher roster, manual add, CSV upload, and
+conflict copy; no schema, migration, API field, or production data change.
+
+**Completed:**
+- Renamed the user-facing `counselor_email` concept to “Alt email” across
+  roster columns, actions, editing semantics, add/upload guidance, and errors.
+- Retained the legacy database and API field for compatibility, with focused
+  assertions preventing user-facing terminology drift.
+
+**Validation:**
+- Focused roster API and component suites pass: 92 tests. The full suite passes:
+  4,359 tests across 499 files. TypeScript, lint, production build, UI policy,
+  design policy, architecture checks, Pika audit, and diff checks pass.
+
+## 2026-08-16 — Complete Gradebook desktop recovery
+
+**Risk profile:** workspace-state and accessibility — teacher Gradebook reads,
+assessment-weight refreshes, retry focus, and stale classroom ownership; no
+schema, migration, production, Gradex, or mobile redesign change.
+
+**Completed:**
+- Separated cold Gradebook failures from successful empty classrooms with a
+  governed loading/error state and explicit Retry recovery.
+- Preserved the last valid assessment matrix during failed refreshes and kept
+  the class-wide table, selected-student detail, sorting, selection, and column
+  controls intact.
+- Fenced overlapping reads and in-flight assessment-weight saves by committed
+  classroom identity and per-assessment request generation so stale work cannot
+  repaint another classroom and concurrent column saves each trigger a refresh.
+- Restored focus to the named student table after successful cold or retained
+  recovery, preserved Retry focus after another failure, and retained the
+  existing direct keyboard row navigation and Escape behavior.
+
+**Validation:**
+- Focused Gradebook component, API, and architecture suites pass: 47 tests;
+  the component suite now covers cold, empty, retained-refresh, stale-load,
+  stale-save, retry-focus, and direct keyboard behavior.
+- Full suite passes: 4,365 tests across 499 files. TypeScript, lint, production
+  build, architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher loaded light/dark, cold-error
+  light/dark, retained-refresh, and narrow loaded/error states with no viewport
+  overflow. Gradebook is teacher-only; student role coverage is not applicable.
+- Independent review found component-wide save ownership could suppress a
+  concurrent column's final refresh and retained Retry success could lose
+  focus. Per-assessment ownership and success-gated focus restoration resolve
+  both findings; targeted rereview found no blockers, and the noted failed-retry
+  test gap is closed.
+
+## 2026-08-17 — Complete Syllabus iframe reliability
+
+**Risk profile:** workspace-state and accessibility — shared teacher/student
+Syllabus framing, readiness, failure recovery, and keyboard access; no schema,
+migration, production, Gradex, legacy-resource deletion, or mobile redesign.
+
+**Completed:**
+- Replaced the duplicated teacher/student iframe markup with one shared,
+  viewport-bounded `SyllabusPreview` and constrained the classroom Resources
+  workspace to prevent competing desktop document scrolling.
+- Added a compact external-open action, a named focusable iframe with a visible
+  focus boundary, and removed the covered iframe from keyboard order until its
+  document is ready.
+- Added an explicit same-origin readiness handshake emitted only by the
+  successfully hydrated syllabus page. The parent validates origin, source
+  frame, and exact URL, so HTTP error documents remain hidden and outside
+  keyboard order. A bounded timeout exposes Retry, which remounts the iframe
+  with a fresh request while preserving the canonical public syllabus URL.
+- Confirmed the old rich-text resource sidebars are unmounted; retained their
+  APIs and data contract for a focused Phase 6 compatibility-led retirement.
+
+**Validation:**
+- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass.
+  The full bounded suite passes: 4,372 tests across 499 files.
+  Component coverage includes loading, ready, unpublished, timeout, Retry,
+  keyboard eligibility, and viewport ownership states.
+- The durable Chromium matrix now intercepts real iframe navigations with HTTP
+  404 and 500 documents and requires both to remain unavailable and
+  unfocusable. It first proves a real published page completes the handshake
+  and accepts keyboard focus. Local execution was blocked before that case by
+  missing shared seed accounts; CI's seeded browser lane owns the repeatable
+  run.
+- Targeted review found that a settings-driven slug change could inherit the
+  mounted preview's prior ready state. Teacher and student resource tabs now
+  key the preview by syllabus URL, and regression coverage proves a new URL
+  remounts loading, ignores a matching-URL signal from the stale frame, and
+  times out unfocusable for both roles.
+- Playwright verification passes for teacher/student desktop and narrow,
+  light/dark loaded states plus the teacher failed-load state. Desktop outer
+  scroll is `900/900`; focus moves from Open syllabus to the named iframe; no
+  horizontal overflow was observed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, startup-context budget, session-log, and diff checks pass.
+
+## 2026-08-17 — Add session-expiry recovery
+
+**Risk profile:** workspace-state and accessibility — shared teacher/student
+reauthentication routing and the unauthenticated login state; no schema,
+migration, production, Gradex, mobile, or student-history route change.
+
+**Completed:**
+- Added an explicit session-expiry reason to safe login redirects while
+  preserving the interrupted path and query string.
+- Closed backslash-based external redirect variants through one canonical
+  same-origin path parser shared by redirect production and login consumption;
+  canonicalized protocol-relative paths produced by dot segments are rejected
+  after URL normalization as well.
+- Added a persistent polite warning on the existing login card, associated it
+  with the email field, and moved focus there for immediate recovery.
+- Made the session watcher validate both user ID and role, with a distinct
+  account-change recovery message. Ordinary authorization failures remain in
+  place instead of being mislabeled as expired sessions.
+- Added component and unit regressions for announcement, focus, safe redirect
+  fallback, and return-path preservation, plus a seeded Chromium recovery flow
+  that returns a teacher to the interrupted utility route after login.
+
+**Validation:**
+- Focused auth and Daily suites pass after review remediation. The final full
+  suite passes: 4,391 tests across 500 files. TypeScript, lint, production
+  build, architecture, design/UI policy, Pika audit, session-log, and diff
+  checks pass.
+- Desktop Playwright captures pass in light and dark for the shared
+  unauthenticated recovery state. Teacher/student role-specific rendering is
+  not applicable; both role return paths use this same login surface.
+- CI's seeded browser and database-contract lanes pass. A repeated unrelated
+  `TestDetailPanel` coverage-lane race was stabilized by waiting for its mocked
+  initial reads before clicking Preview and allowing the async save assertion
+  the same bounded time it receives under full-suite coverage load.
+- The `/student/history` compatibility decision remains the next independent
+  slice.
+
+## 2026-08-17 — Retain and clarify student attendance utility
+
+**Risk profile:** none — compatibility-preserving student utility cleanup; no
+schema, migration, production, Gradex, or mobile redesign work.
+
+**Completed:**
+- Confirmed `/student/history` is attendance history rather than assignment or
+  test history. It remains the only cross-classroom full class-day summary;
+  classroom Today intentionally loads only the latest submitted logs, so a
+  redirect would lose absent and pending records.
+- Preserved the stable URL, changed its visible navigation label to Attendance,
+  and moved class-day row construction into the tested attendance domain.
+- Removed the unmounted duplicate `StudentHistoryTab` and its isolated tests.
+- Replaced feature-local native controls and the hand-built log modal with
+  shared controls, keyboard-operable rows, and governed dialog focus return.
+
+**Validation:**
+- The full suite passes: 4,390 tests across 499 files. A first run exposed only
+  a 17-character startup-context overage from the continuity update; the
+  summary was tightened and its complete 38-test contract rerun passed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, session-log, and diff checks pass. Six stale native-control and raw
+  design-value exceptions were removed with the legacy implementation.
+- Playwright passes the student utility contract across desktop/mobile and
+  light/dark with no horizontal overflow. Loaded and empty states were visually
+  inspected; the shared dialog passes both desktop themes and returns focus.
+- Independent compatibility review was clean. Accessibility review found that
+  the submitted-log button name hid its visible attendance status; the name now
+  includes date, status, and action, with a focused regression test and targeted
+  rereview.
+
+## 2026-08-17 — Organize Settings and decide student grades/profile scope
+
+**Risk profile:** none — teacher Settings organization and durable product
+decisions; no API, schema, migration, production, Gradex, or mobile redesign.
+
+**Completed:**
+- Split the existing teacher Settings surface into stable URL-backed General,
+  Access, Syllabus, Class Days, and Reuse sections without changing the fields,
+  save behavior, archived read-only behavior, or underlying routes.
+- Kept the shared keyboard-operable segmented control and added narrow-screen
+  containment so section navigation cannot widen the page.
+- Recorded that returned assignment/test feedback remains the student grade
+  surface until aggregate disclosure, weighting, hidden-work, and incomplete-
+  work semantics are defined.
+- Recorded that standalone student profile editing remains declined until one
+  source of truth and synchronization contract exists for global profiles and
+  classroom roster names.
+
+**Validation:**
+- The 26-test Settings component suite passes, including cross-section state
+  reset, stale URL fallback, save/error behavior, archived read-only behavior,
+  syllabus preferences, enrollment, and blueprint capture.
+- The full run passed all 4,390 behavior tests; its only failure was a
+  19-character startup-context overage, then the tightened summary passed the
+  complete 38-test startup contract.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright captures pass for every section at desktop and 390px in light and
+  dark. Each URL selects the intended section, body width equals viewport width,
+  and the teacher surface remains visually consistent. Student is not affected.
+- Independent review found the unpublished-syllabus recovery action still
+  opened bare Settings. It now uses in-app navigation directly to the Syllabus
+  section, with a focused resources regression.
+
+## 2026-08-17 — Blueprint rollover retry and review handoff
+
+**Risk profile:** none — teacher-only blueprint rollover reliability and review
+UX; no schema, migration, production, archive cleanup, or Gradex work.
+
+**Completed:**
+- Classroom capture and blueprint instantiation now retain one UUID operation
+  key while the same semantic request is retried, then clear it after success.
+- Blueprint-created classrooms remain in the create dialog for a focused review
+  handoff that states assignments/tests are unpublished, calls out due-date and
+  release review, lists lesson plans that did not fit the chosen calendar, and
+  opens the new classroom's Assignments tab from every parent surface when the
+  teacher explicitly selects Review Classroom.
+- Blueprint completion refreshes parent classroom state through a non-routing
+  callback. Escape/backdrop dismissal only closes the completed handoff, and
+  dismissal is blocked while instantiation is pending so its operation key
+  cannot be discarded before the request settles.
+- Dashboard and Calendar keep one stable modal instance when the first created
+  classroom replaces their empty state, preserving the completed review
+  handoff until the teacher explicitly reviews or dismisses it.
+- The completed step moves focus to its heading and preserves the existing
+  dialog, progress, and continuation patterns.
+
+**Validation:**
+- Focused component coverage proves both same-key retry paths, delayed success
+  completion, in-flight dismissal blocking, non-routing completion callbacks,
+  empty-state handoff preservation, overflow rendering, and focus transfer. The
+  full suite passes all 4,394 tests across 499 files; TypeScript, lint,
+  production build, Pika audit, and diff checks pass.
+- Playwright verifies the teacher-only overflow handoff at desktop/mobile in
+  light/dark, including a browser-sent UUID operation key and no horizontal
+  overflow. Student rendering is not applicable to this teacher creation flow.
+- Composite checklist reviewed: yes. Keyboard behavior covered: yes. Semantic
+  state covered by tests: yes. Remaining manual follow-up: none.
+
+## 2026-08-17 — Course package import retry identity
+
+**Risk profile:** none — teacher-only client retry behavior; no API, schema,
+migration, production, archive cleanup, Gradex, or student behavior changes.
+
+**Completed:**
+- Added one shared browser-safe package operation helper used by both teacher
+  import entry points. It normalizes JSON, compares exact TAR bytes, retains one
+  caller UUID for unchanged retries, and replaces the key when content changes.
+- Import identity now survives retryable network/server failures and clears
+  after success, wizard cancellation, or component teardown. Synchronous guards
+  prevent concurrent file submissions from creating competing operation IDs.
+- The Blueprints page disables and relabels its import action while a request is
+  pending; the classroom wizard retains its existing busy-state behavior.
+
+**Validation:**
+- Thirty focused component/API tests cover JSON and TAR headers, semantic JSON
+  retries, exact archive retries, changed bytes, success/cancellation clearing,
+  both import entry points, pending-request suppression, and the existing route
+  contract.
+- The full suite passes all 4,405 tests across 499 files.
+- TypeScript, lint, architecture, production build, Pika audit, and diff checks
+  pass.
+- Teacher desktop/mobile light/dark screenshots remain clean. An intercepted,
+  non-mutating request verifies the disabled importing state without layout
+  shift or clipping. Student is not affected by this teacher-only route.
+
+## 2026-08-17 — Blueprint import review-gap coverage
+
+**Risk profile:** none — test-only follow-up; no runtime, UI, API, schema,
+migration, database, production, Gradex, or student behavior changes.
+
+**Completed:**
+- Added dedicated Blueprints-page coverage for normalized JSON retry identity,
+  changed-content key replacement, and operation-key clearing after success.
+- Added classroom-wizard coverage proving a pending package import suppresses a
+  second file submission until the first request settles.
+- Independent review's P3 maintainability finding was fixed by scoping the
+  suppression assertion to package-import requests instead of all global fetches.
+- Targeted re-review's P1 false-positive finding was fixed by also proving the
+  second event never re-enters asynchronous package preparation.
+
+**Validation:**
+- All 27 focused component tests and all 4,407 repository tests pass.
+- TypeScript, lint, architecture, production build, diff checks, and Pika audit
+  pass. Visual verification is not applicable to this test-only patch.
+
+## 2026-08-17 — Blueprint editor dirty-state protection
+
+**Risk profile:** none — teacher-only Blueprint editor reliability and shared
+status/dialog UI; no API contract, schema, migration, production, archive,
+Gradex, or student behavior changes.
+
+**Completed:**
+- Added a normalized saved baseline for every independently editable Blueprint
+  section: course details, planned site, grading, and each Markdown package tab.
+- Saving one section now refreshes accepted server state only for that section,
+  preserving unsaved work elsewhere. Editor writes are locked while a save,
+  import, or proposal application can replace accepted state.
+- Every selected-Blueprint transition invalidates stale detail requests and
+  clears the previous editor before the new detail loads, including successful
+  package import and new-Blueprint creation.
+- Blueprint changes, local route actions, authority changes, imports, and
+  proposal application now require explicit discard confirmation. Export and
+  classroom creation explicitly confirm that they use the last saved version.
+- Permanent deletion also requires the local-discard confirmation before its
+  existing durable purge review. Blueprint-list reloads use request generations
+  so older responses cannot overwrite newer post-mutation state; purge
+  completion starts a fresh authoritative guarded reload.
+- Preparing a classroom update now confirms that it uses the last saved
+  Blueprint and is disabled while a save can replace accepted state. Proposal
+  and classroom-comparison requests use independent generations so returning to
+  the same Blueprint cannot surface an older response. Blueprint selection is
+  locked while that durable proposal is being prepared, and its global lock is
+  cleared defensively when the request settles.
+- The editor exposes shared Saved/Saving/Unsaved status and protects browser
+  refresh or tab closure while any section differs from its saved baseline.
+
+**Validation:**
+- Twenty-eight focused unit/component tests cover per-section comparisons,
+  cross-section save preservation, accepted server values, transition guards,
+  import/create/list/proposal/comparison races, deletion, saved-version actions,
+  unload protection, and in-flight editor locking.
+- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
+  and saved-version dialogs with no horizontal overflow and initial focus on
+  Keep editing. Student rendering is not applicable to this teacher-only route.
+- The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
+  architecture boundaries, production build, Pika audit, and diff checks pass.
+
+## 2026-08-17 — Classroom-to-Blueprint rollover browser drill
+
+**Risk profile:** none — local-only E2E verification and documentation; no
+application behavior, schema, migration, or production state changed.
+
+- Added `pnpm e2e:verify blueprint-rollover`, which drives the seeded `TEST01`
+  classroom through Settings → Reuse, Blueprint review, classroom creation, and
+  the assignment date/release review handoff against the real local stack.
+- The drill compares reusable titles, artifact lineage, nested requirement and
+  question content, assignment instructions, lesson content, syllabus/resources,
+  and grading configuration. It proves that assignments/tests return as drafts
+  while enrollments, roster rows, logs, submissions, and test attempts stay out.
+- Added loopback-only guards for the app, Supabase API, and database; the drill
+  refuses managed-upload source fixtures and removes its generated local records.
+- Captured and visually inspected Blueprint review, classroom-created handoff,
+  and assignment review screenshots. The initial 33 browser checks passed.
+- Verification: the clean full suite passes all 4,432 tests. Production build,
+  lint, typecheck, architecture boundaries, Pika audit, and diff checks pass.
+
+**Independent review remediation:**
+- Added temporary non-empty material, survey/question, assignment-requirement,
+  announcement, and announcement-read fixtures. Announcements are now correctly
+  asserted as excluded live state rather than reusable Blueprint content.
+- Expanded lineage checks to every reusable parent and child plus the immutable
+  Blueprint Version used to create the classroom.
+- Snapshot and restore the shared source classroom's identity, provenance, and
+  revision fields; delete only the drill's exact operation rows; and assert the
+  source, operation ledger, storage inventory, and generated fixture inventory
+  all match their pre-drill state after cleanup.
+- The remediated browser drill passes all 42 checks. Managed-upload rollover is
+  explicitly outside this drill and remains follow-up package compatibility work.
+- Targeted re-review hardened the cleanup coordinator so known records are
+  restored even when fallback discovery fails, with a focused failure-path
+  regression test. It also binds the instantiated Version to the captured
+  Blueprint, checks each nested child's cloned-parent lineage, and requires a
+  non-empty source roster before asserting roster exclusion.
+- Final integration review bound operation cleanup to the browser requests'
+  exact idempotency keys, preallocated every temporary fixture ID before writes,
+  added non-empty test-response exclusion, checks both target artifact identity
+  columns, and verifies reusable test documents/settings. The browser drill now
+  passes 44 checks and restores the temporary source test document as part of
+  its baseline.
+- An explicitly approved fourth remediation batch now records each valid browser
+  operation ID before allowing its request onto the network and includes a real
+  browser failure-path probe proving a missing key creates no ledger result.
+- Submitted-document coverage now filters `assignment_docs.is_submitted = true`
+  so drafts cannot satisfy the live-data precondition. A temporary assignment
+  with non-default due timing, points, weight, final-grade exclusion,
+  authenticity tracking, and position makes the reusable comparison
+  non-vacuous; material and survey positions are also compared.
+- The remediated local browser drill passes all 47 checks and visually shows the
+  four draft assignments followed by the material and survey. Focused unit tests
+  pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
+  TypeScript, lint, architecture boundaries, production build, Pika audit, and
+  diff checks pass.
+
+## 2026-08-17 — Course Package versioned contract core (PR A)
+
+**Risk profile:** high — foundational untrusted package boundary and historical
+compatibility; no schema migration, production operation, dependency, or UI
+change.
+
+**Completed:**
+- Verified the historical v2-v5 file matrix against repository history and the
+  evidence in draft PR #1018: v2 requires the six reusable legacy files and
+  optionally accepts/discards `quizzes.md`; v3/v4 require exactly those six;
+  v5 requires exactly the current eight.
+- Replaced the shared v5-shaped raw record with strict discriminated wire types,
+  per-version manifest schemas, and an explicit required/allowed file registry.
+  Raw schemas no longer synthesize missing files.
+- Added one evidence-preserving verifier shared by direct JSON and TAR inputs.
+  Historical adapters run only after verification and produce one canonical
+  portable course model.
+- Added independently built, SHA-locked JSON and binary TAR fixtures for every
+  supported version plus table-driven parity mutations for required/forbidden/
+  duplicate entries, manifests, UTF-8/checksum failures, and size boundaries.
+- Preserved useful PR #1018 retry evidence by making legacy Artifact identity
+  deterministic per import operation and canonicalizing operation UUIDs.
+
+**Validation:**
+- The focused package contract suite passes 91 cases. The authoritative full
+  verification passes all 4,528 tests across 502 files, lint, architecture
+  boundaries, and the production build. Pika audit and diff checks pass.
+- Visual verification is not applicable because this PR changes no UI.
+
+**Independent review remediation:**
+- Raw JSON now remains bytes until the package boundary, uses fatal UTF-8
+  decoding, rejects duplicate keys at every object depth and leading BOMs,
+  preserves the exact received text, and applies the same 2 MiB manifest-entry
+  limit as TAR.
+- Verified bundles and raw evidence are defensively cloned, deeply frozen, and
+  exposed through a branded verified type so caller mutation cannot rewrite
+  evidence or change what a later adapter sees.
+- TAR verification now requires block alignment, zero entry padding, and two
+  complete zero terminator blocks; truncated and non-aligned zero tails fail.
+- Upload-document and managed-storage semantic policy remains deliberately
+  deferred to PR B, matching the requested phase sequence.
+
+## 2026-08-18 — Tighten the v3 Course Package manifest contract
+
+**Risk profile:** high — strict historical compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Replaced the permissive v3 planned-site catchall with the exact historical
+  seven-key shape, including the retired `quizzes` key.
+- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
+  and TAR fixtures and updated their locked SHA-256 digests.
+- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
+  fail as `invalid_manifest` before adaptation.
+- Full verification passes 4,529 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.
+
+## 2026-08-18 — Preserve both strict v3 planned-site forms
+
+**Risk profile:** high — historical package compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Kept the v3 planned-site schema strict while allowing only the historically
+  evidenced `quizzes` key to be omitted or supplied as a boolean.
+- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
+  proved it adapts to the same portable content as the original seven-key form
+  while preserving distinct raw source manifests.
+- Retained rejection coverage for arbitrary v3 configuration keys and updated
+  the package contract documentation.
+- Full verification passes 4,530 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.
+
+## 2026-08-18 — Emit Pal adaptive term calendars prospectively
+
+**Risk profile:** runtime-platform — additive external contract and
+transactional delivery behavior; no migration, historical backfill,
+dependency, or UI change.
+
+- Updated the vendored Pal v1 contract and fixtures to Pal main commit
+  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
+  term calendar accepted by the guaranteed weekly story scheduler.
+- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
+  tokens. Current open weekly configurations gain one monotonic calendar
+  revision; historical calendar-less catch-up weeks remain calendar-less, while
+  later closures preserve any calendar already emitted.
+- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
+  privacy allow-list, stable idempotency keys, leases, retry classification,
+  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
+  achievement calculations.
+- Added contract, calendar, planner, outbox, vertical integration, and guarded
+  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
+  TypeScript, lint, architecture/UI/design policy, production build, real
+  outbox recovery, and PostgreSQL concurrency checks pass.
+- After the initial registry lookup returned 404, alpha.3 was published and the
+  public `alpha` dist-tag moved to it. Pika now pins
+  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
+  title, and roadmap collectible presentation through the existing Pika hosts.
+  Playwright verification covers student desktop/mobile, light/dark,
+  sketch/full-color roadmap states, and the open story reward dialog; teacher
+  views remain unaffected.
+- Independent review added winter-term and Toronto DST boundary coverage,
+  proved retries preserve the original producer timestamp, and made the real
+  recovery smoke remove and verify every fixture row. Pal main still compares
+  story eligibility with ingestion time instead of the preserved producer
+  timestamp; correcting that cross-service cutoff and proving the delayed
+  boundary case is a rollout blocker outside this Pika-only PR.
+
+## 2026-08-18 — Verify Pal source-timestamp rollout dependency
+
+**Risk profile:** documentation and cross-service verification only; no Pika
+runtime, contract, schema, dependency, privacy, or UI change.
+
+- Verified merged Pal PR #73 at `2c4f71389db978e495af42f9d494b9de2bf8354a`
+  adds append-only migration `0010_story_source_timestamps.sql` and uses
+  producer `learner_facts.occurred_at` for story eligibility, lateness,
+  terminal effective due time, and protection/reconstruction checks.
+- Verified Pal's persisted-ingest test uses Pika's seven-field adaptive calendar,
+  accepts a pre-boundary fact delivered after the boundary, rejects a truly late
+  fact, and proves a retry with the same idempotency key remains a duplicate.
+- Confirmed Pal PR #73 CI is green, the public widget remains exactly
+  `@codepet/pal-widget@0.1.0-alpha.3`, and Pal changed no contract or widget
+  source after Pika's vendored contract commit.
+- Updated the pilot runbook to name the required Pal migration and record that
+  the code-level blocker is cleared. Applying it in a target Pal environment
+  remains Pal-controlled; Pika performs no deployment or historical backfill.

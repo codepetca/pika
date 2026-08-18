@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useLayoutEffect, useRef } from 'react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
 import {
   DataTable,
@@ -16,7 +16,7 @@ interface AddStudentsModalProps {
   isOpen: boolean
   onClose: () => void
   classroomId: string
-  onSuccess: () => void
+  onSuccess: (classroomId: string) => void
 }
 
 export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: AddStudentsModalProps) {
@@ -28,16 +28,32 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   const [showPreview, setShowPreview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const scopeRef = useRef({ classroomId, isOpen, generation: 0 })
+
+  function isCurrentScope(scope: typeof scopeRef.current) {
+    return scopeRef.current.classroomId === scope.classroomId
+      && scopeRef.current.isOpen === scope.isOpen
+      && scopeRef.current.generation === scope.generation
+  }
 
   // Reset state when modal opens/closes
-  useEffect(() => {
-    if (isOpen) {
-      setInput('')
-      setPreview(null)
-      setShowPreview(false)
-      setError('')
+  useLayoutEffect(() => {
+    const generation = scopeRef.current.generation + 1
+    scopeRef.current = { classroomId, isOpen, generation }
+    setInput('')
+    setPreview(null)
+    setShowPreview(false)
+    setIsSubmitting(false)
+    setError('')
+    return () => {
+      if (scopeRef.current.generation === generation) {
+        scopeRef.current = {
+          ...scopeRef.current,
+          generation: generation + 1,
+        }
+      }
     }
-  }, [isOpen])
+  }, [classroomId, isOpen])
 
   // Parse input when textarea loses focus or when toggling preview
   function handleParseInput() {
@@ -57,11 +73,13 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
       return
     }
 
+    const operationScope = { ...scopeRef.current }
+    const operationClassroomId = classroomId
     setIsSubmitting(true)
     setError('')
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/add`, {
+      const res = await fetch(`/api/teacher/classrooms/${operationClassroomId}/roster/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,12 +100,14 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
       }
 
       // Success!
-      onSuccess()
-      onClose()
+      onSuccess(operationClassroomId)
+      if (isCurrentScope(operationScope)) onClose()
     } catch (err: any) {
-      setError(err.message || 'Failed to add students')
+      if (isCurrentScope(operationScope)) {
+        setError(err.message || 'Failed to add students')
+      }
     } finally {
-      setIsSubmitting(false)
+      if (isCurrentScope(operationScope)) setIsSubmitting(false)
     }
   }
 
@@ -121,15 +141,15 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
               rows={8}
               placeholder={`John Doe john@example.com
 Jane Smith jane@example.com 123456
-Bob Lee bob@example.com 789012 counselor@school.com`}
+Bob Lee bob@example.com 789012 alt@example.com`}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onBlur={handleParseInput}
               disabled={isSubmitting}
             />
             <p className="text-xs text-text-muted mt-2">
-              One student per line. StudentNumber and CounselorEmail are optional:<br />
-              <span className="font-mono">First Last Email [StudentNumber] [CounselorEmail]</span>
+              One student per line. Student number and alt email are optional:<br />
+              <span className="font-mono">First Last Email [StudentNumber] [AltEmail]</span>
             </p>
           </div>
 
@@ -187,7 +207,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
                             Student #
                           </DataTableHeaderCell>
                           <DataTableHeaderCell className="text-xs">
-                            Counselor
+                            Alt email
                           </DataTableHeaderCell>
                         </DataTableRow>
                       </DataTableHead>

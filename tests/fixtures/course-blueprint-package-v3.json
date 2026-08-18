@@ -1,0 +1,30 @@
+{
+  "manifest": {
+    "version": "3",
+    "exported_at": "2026-07-20T12:00:00.000Z",
+    "title": "Version 3 Computer Science",
+    "subject": "Computer Science",
+    "grade_level": "Grade 11",
+    "course_code": "ICS3U",
+    "term_template": "Semester 1",
+    "planned_site_slug": "version-3-computer-science",
+    "planned_site_published": true,
+    "planned_site_config": {
+      "overview": true,
+      "outline": true,
+      "resources": false,
+      "assignments": true,
+      "tests": true,
+      "lesson_plans": true,
+      "quizzes": true
+    }
+  },
+  "files": {
+    "course-overview.md": "# Version 3 overview",
+    "course-outline.md": "# Version 3 outline",
+    "resources.md": "# Version 3 resources",
+    "assignments.md": "## Version 3 Reflection [DRAFT]\nDue Days: 4\nDue Time: 15:30\nPoints: 12\nGradebook Weight: 10\nInclude In Final: true\n\nCompare two course concepts.\n\n---",
+    "tests.md": "# Test\nTitle: Version 3 Unit Test\nShow Results: false\n\n## Questions\n### Question 1\nType: multiple_choice\nPoints: 2\nPrompt:\nWhich package version is being imported?\nOptions:\n- Version 2\n- Version 3\nCorrect Option: 2\n\n## Documents\n_None_",
+    "lesson-plans.md": "## Version 3 Lesson\n\nTeach the version 3 compatibility boundary.\n\n---"
+  }
+}

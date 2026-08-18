@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResourcesTab'
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
 import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
+import { SyllabusPreview } from '@/components/SyllabusPreview'
+import { SYLLABUS_PREVIEW_READY } from '@/lib/syllabus-preview-messages'
+import type { Classroom } from '@/types'
+
+const mockPush = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassResourcesSidebar', () => ({
   TeacherClassResourcesSidebar: () => <div>Teacher resources content</div>,
@@ -54,25 +63,179 @@ const classroom = {
   course_outline_markdown: '',
 } as const
 
+const resourceTabCases = [
+  {
+    role: 'teacher',
+    renderTab: (value: Classroom) => <TeacherResourcesTab classroom={value} />,
+  },
+  {
+    role: 'student',
+    renderTab: (value: Classroom) => <StudentResourcesTab classroom={value} />,
+  },
+] as const
+
 describe('ResourcesTab', () => {
   it('renders teacher resources as a syllabus entry point', () => {
     render(<TeacherResourcesTab classroom={classroom} />)
 
-    expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
+    const preview = screen.getByTitle('Test Classroom syllabus preview')
+    expect(preview).toHaveAttribute('src', '/actual/test-classroom')
+    expect(preview).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByRole('heading', { name: 'Syllabus' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open syllabus' })).toHaveAttribute(
+      'href',
+      '/actual/test-classroom',
+    )
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    fireEvent.load(preview)
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: {
+          type: SYLLABUS_PREVIEW_READY,
+          href: `${window.location.origin}/actual/test-classroom`,
+        },
+        origin: window.location.origin,
+        source: (preview as HTMLIFrameElement).contentWindow,
+      }))
+    })
+    expect(screen.queryByText('Loading syllabus')).toBeNull()
+    expect(preview).toHaveAttribute('tabindex', '0')
     expect(screen.queryByText('Public syllabus')).toBeNull()
-    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /syllabus settings/i })).toBeNull()
     expect(screen.queryByRole('link', { name: '/actual/test-classroom' })).toBeNull()
     expect(screen.queryByText('Teacher announcements content')).toBeNull()
+  })
+
+  it('ignores readiness messages from another frame or URL', () => {
+    render(
+      <SyllabusPreview
+        classroomTitle="Test Classroom"
+        siteHref="/actual/test-classroom"
+      />,
+    )
+
+    const preview = screen.getByTitle('Test Classroom syllabus preview')
+    const sendReady = (source: MessageEventSource | null, href: string) => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: SYLLABUS_PREVIEW_READY, href },
+        origin: window.location.origin,
+        source,
+      }))
+    }
+
+    act(() => {
+      sendReady(window, `${window.location.origin}/actual/test-classroom`)
+      sendReady(
+        (preview as HTMLIFrameElement).contentWindow,
+        `${window.location.origin}/actual/another-classroom`,
+      )
+    })
+
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    expect(preview).toHaveAttribute('tabindex', '-1')
+  })
+
+  it.each([
+    ['fragment', `${window.location.origin}/actual/test-classroom#other`],
+    ['trailing query marker', `${window.location.origin}/actual/test-classroom?`],
+  ])('requires the exact syllabus URL and rejects a %s', (_caseName, href) => {
+    render(
+      <SyllabusPreview
+        classroomTitle="Test Classroom"
+        siteHref="/actual/test-classroom"
+      />,
+    )
+
+    const preview = screen.getByTitle('Test Classroom syllabus preview')
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        data: { type: SYLLABUS_PREVIEW_READY, href },
+        origin: window.location.origin,
+        source: (preview as HTMLIFrameElement).contentWindow,
+      }))
+    })
+
+    expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+    expect(preview).toHaveAttribute('tabindex', '-1')
+  })
+
+  it.each(resourceTabCases)('returns a changed syllabus URL to protected loading state for $role resources', ({ renderTab }) => {
+    vi.useFakeTimers()
+    try {
+      const { rerender } = render(renderTab(classroom))
+      const originalPreview = screen.getByTitle('Test Classroom syllabus preview')
+      const originalWindow = (originalPreview as HTMLIFrameElement).contentWindow
+
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: SYLLABUS_PREVIEW_READY,
+            href: `${window.location.origin}/actual/test-classroom`,
+          },
+          origin: window.location.origin,
+          source: originalWindow,
+        }))
+      })
+      expect(originalPreview).toHaveAttribute('tabindex', '0')
+
+      rerender(renderTab({ ...classroom, actual_site_slug: 'replacement-classroom' }))
+      const replacementPreview = screen.getByTitle('Test Classroom syllabus preview')
+      expect(replacementPreview).toHaveAttribute('src', '/actual/replacement-classroom')
+      expect(replacementPreview).toHaveAttribute('tabindex', '-1')
+      expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          data: {
+            type: SYLLABUS_PREVIEW_READY,
+            href: `${window.location.origin}/actual/replacement-classroom`,
+          },
+          origin: window.location.origin,
+          source: originalWindow,
+        }))
+        vi.advanceTimersByTime(15_000)
+      })
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Syllabus unavailable')
+      expect(replacementPreview).toHaveAttribute('tabindex', '-1')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('renders student resources as a syllabus entry point', () => {
     render(<StudentResourcesTab classroom={classroom} />)
 
     expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
+    expect(screen.getByRole('link', { name: 'Open syllabus' })).toHaveAttribute(
+      'target',
+      '_blank',
+    )
     expect(screen.queryByText('Public syllabus')).toBeNull()
-    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByText('Student announcements content')).toBeNull()
+  })
+
+  it('shows a retryable error when the published syllabus cannot load', () => {
+    vi.useFakeTimers()
+    try {
+      render(<TeacherResourcesTab classroom={classroom} />)
+
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Syllabus unavailable')
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+      expect(screen.getByText('Loading syllabus')).toBeInTheDocument()
+      expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute(
+        'src',
+        '/actual/test-classroom?previewAttempt=1',
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows unpublished state for students when the site is private', () => {
@@ -81,6 +244,15 @@ describe('ResourcesTab', () => {
     expect(screen.getByText('No syllabus yet')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByTitle('Test Classroom syllabus preview')).toBeNull()
+  })
+
+  it('opens the syllabus settings section from the unpublished teacher state', () => {
+    mockPush.mockClear()
+    render(<TeacherResourcesTab classroom={{ ...classroom, actual_site_published: false }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Syllabus Settings' }))
+
+    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-1?tab=settings&section=syllabus')
   })
 
   it('renders teacher announcements in the announcements tab', () => {

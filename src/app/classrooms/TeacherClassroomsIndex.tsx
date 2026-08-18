@@ -668,8 +668,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         onSuccess={(created) => {
           setShowCreate(false)
           setReuseBlueprintId(null)
-          setActiveClassrooms((prev) => [created, ...prev])
+          setActiveClassrooms((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
           openClassroom(created)
+        }}
+        onBlueprintCreated={(created) => {
+          setActiveClassrooms((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
         }}
       />
 

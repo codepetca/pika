@@ -36,6 +36,8 @@ describe('Pal outbox real-database concurrency contract', () => {
     expect(script).toContain("status: 503")
     expect(script).toContain('attemptImmediatePalEventDelivery')
     expect(script).toContain('deliverPalOutboxBatch')
+    expect(script).toContain('record_pal_daily_log_week_configuration_atomic')
+    expect(script).toContain('palTermCalendarForPeriodStart')
     expect(script).toContain("deliveredRow.status !== 'delivered'")
     expect(workflow).toContain('pnpm run smoke:pal-delivery-recovery')
   })

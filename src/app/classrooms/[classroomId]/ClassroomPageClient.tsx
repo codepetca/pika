@@ -1129,7 +1129,7 @@ function ClassroomPageContent({
   ])
   const pageDensity = isTeacher ? 'teacher' : 'student'
   const mainContentClassName =
-    activeTab === 'calendar' || activeTab === 'achievements'
+    activeTab === 'calendar' || activeTab === 'achievements' || activeTab === 'resources'
       ? 'px-0 pt-0 pb-0'
       : activeTab === 'tests'
         ? 'pb-0'
@@ -1145,7 +1145,10 @@ function ClassroomPageContent({
     )
   const hasTeacherViewportGrid = isTeacher && activeTab === 'gradebook'
   const hasConstrainedWorkspace =
-    hasActiveTeacherSplitPanes || hasTeacherViewportGrid || (!isTeacher && activeTab === 'today')
+    hasActiveTeacherSplitPanes ||
+    hasTeacherViewportGrid ||
+    activeTab === 'resources' ||
+    (!isTeacher && activeTab === 'today')
 
   async function handleRequestAssessmentDelete() {
     if (!selectedTest) return

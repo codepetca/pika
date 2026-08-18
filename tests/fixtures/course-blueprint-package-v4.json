@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "version": "4",
+    "exported_at": "2026-07-23T12:00:00.000Z",
+    "title": "Version 4 Computer Science",
+    "subject": "Computer Science",
+    "grade_level": "Grade 11",
+    "course_code": "ICS3U",
+    "term_template": "Semester 2",
+    "planned_site_slug": "version-4-computer-science",
+    "planned_site_published": true,
+    "planned_site_config": {
+      "overview": true,
+      "outline": false,
+      "resources": true,
+      "assignments": true,
+      "tests": true,
+      "lesson_plans": true
+    }
+  },
+  "files": {
+    "course-overview.md": "# Version 4 overview",
+    "course-outline.md": "# Version 4 outline",
+    "resources.md": "# Version 4 resources",
+    "assignments.md": "## Version 4 Investigation [DRAFT]\nDue Days: 6\nDue Time: 14:15\nPoints: 20\nGradebook Weight: 17\nInclude In Final: false\nTrack Authenticity: true\n\nInvestigate the retired Quiz boundary.\n\n---",
+    "tests.md": "# Test\nTitle: Version 4 Unit Test\nShow Results: true\nPoints Possible: 25\nGradebook Weight: 23\nInclude In Final: false\n\n## Questions\n### Question 1\nType: open_response\nPoints: 5\nCode: true\nMax Chars: 1200\nPrompt:\nExplain why undeclared files fail closed.\nAnswer Key:\nVersion 4 has a strict file contract.\n\n## Documents\n### Document 1\nSource: text\nTitle: Version 4 Notes\nContent:\nPortable text document content.",
+    "lesson-plans.md": "## Version 4 Lesson\n\nTeach strict post-Quiz package boundaries.\n\n---"
+  }
+}

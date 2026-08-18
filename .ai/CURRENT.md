@@ -1,3 +1,3 @@
-Prod 001–123. Student purge on; cold/generic deletion off. cron-run-ledger remains local-only 124; prod auth required. Surveys, Announcements, and Calendar recovery/semantics complete; select the next Phase 3 slice. Migration-123 retry lint stays separate.
+Prod 001-125. Student purge on; other cleanup off. Phase 3 desktop done; mobile/Gradex deferred; legacy resources wait for Phase 6. Phase 5 rollover browser drill done. Next: package compatibility, planned-site verification, preview/version UX. Migration-123 retry lint separate.
 WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.

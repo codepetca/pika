@@ -16,30 +16,36 @@ import type { VerificationResult, VerificationScript } from './types'
 // Import scenarios
 import { addStudentsModal } from './add-students-modal'
 import { assessmentUxParity } from './assessment-ux-parity'
+import { blueprintRollover } from './blueprint-rollover'
 import { createClassroomWizard } from './create-classroom-wizard'
 
 const scenarios: Record<string, VerificationScript> = {
   'add-students-modal': addStudentsModal,
   'assessment-ux-parity': assessmentUxParity,
+  'blueprint-rollover': blueprintRollover,
   'create-classroom-wizard': createClassroomWizard,
 }
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 const AUTH_DIR = path.join(process.cwd(), '.auth')
 
+function writeLine(value = '') {
+  process.stdout.write(`${value}\n`)
+}
+
 async function main() {
   const scenarioName = process.argv[2]
 
   if (!scenarioName || scenarioName === '--help' || scenarioName === '-h') {
-    console.log('Usage: pnpm e2e:verify <scenario>')
-    console.log('')
-    console.log('Available scenarios:')
+    writeLine('Usage: pnpm e2e:verify <scenario>')
+    writeLine()
+    writeLine('Available scenarios:')
     Object.entries(scenarios).forEach(([name, script]) => {
-      console.log(`  ${name.padEnd(25)} ${script.description}`)
+      writeLine(`  ${name.padEnd(25)} ${script.description}`)
     })
-    console.log('')
-    console.log('Options:')
-    console.log('  --help, -h              Show this help message')
+    writeLine()
+    writeLine('Options:')
+    writeLine('  --help, -h              Show this help message')
     process.exit(0)
   }
 
@@ -52,7 +58,7 @@ async function main() {
       checks: [],
       error: `Unknown scenario: ${scenarioName}. Available: ${Object.keys(scenarios).join(', ')}`,
     }
-    console.log(JSON.stringify(errorResult, null, 2))
+    writeLine(JSON.stringify(errorResult, null, 2))
     process.exit(1)
   }
 
@@ -68,7 +74,7 @@ async function main() {
         checks: [],
         error: `Auth state not found: ${authFile}. Run "pnpm e2e:auth" first.`,
       }
-      console.log(JSON.stringify(errorResult, null, 2))
+      writeLine(JSON.stringify(errorResult, null, 2))
       process.exit(1)
     }
     storageState = authFile
@@ -98,7 +104,7 @@ async function main() {
   }
 
   // Output JSON result
-  console.log(JSON.stringify(result, null, 2))
+  writeLine(JSON.stringify(result, null, 2))
 
   // Exit with appropriate code
   process.exit(result.passed ? 0 : 1)

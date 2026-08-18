@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildSessionStartedEvent } from '@/lib/server/pal-events'
+import {
+  buildDailyLogWeekConfiguredEvent,
+  buildSessionStartedEvent,
+} from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
   deliverPalOutboxBatch,
@@ -17,6 +20,24 @@ const event = buildSessionStartedEvent({
   sessionId: 'session-1',
   occurredAt,
   pseudonymSecret: 'test-pseudonym-secret-32-characters-long',
+})
+const weeklyEvent = buildDailyLogWeekConfiguredEvent({
+  learnerId: studentId,
+  occurredAt,
+  periodKey: 'pika-week-2026-09-14',
+  configVersion: 1,
+  periodStatus: 'open',
+  eligibleDays: 3,
+  pseudonymSecret: 'test-pseudonym-secret-32-characters-long',
+  termCalendar: {
+    termIdentity: 'pika-term:2026-08-31:2027-01-31:America/Toronto',
+    termStartDay: '2026-08-31',
+    termEndDay: '2027-01-31',
+    termTimezone: 'America/Toronto',
+    termWeekCount: 22,
+    weekStartDay: '2026-09-14',
+    weekIndex: 3,
+  },
 })
 
 function buildSupabase(rows: unknown[] = []) {
@@ -187,6 +208,26 @@ describe('Pal outbox adapter', () => {
         p_lease_token: leaseToken,
       },
     })
+  })
+
+  it('delivers the adaptive weekly calendar unchanged from the durable outbox', async () => {
+    const supabase = buildSupabase([claimedRow(weeklyEvent)])
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
+
+    await expect(deliverPalOutboxBatch({
+      supabase: supabase.client,
+      fetchImpl,
+      now: occurredAt,
+    })).resolves.toMatchObject({ delivered: 1, nonRetryable: 0 })
+
+    const request = fetchImpl.mock.calls[0]?.[1]
+    expect(JSON.parse(String(request?.body))).toEqual(weeklyEvent)
+    expect(String(request?.body)).not.toContain(studentId)
+    expect(weeklyEvent.metadata).toEqual(expect.objectContaining({
+      term_token: expect.stringMatching(/^pika-term-/),
+      term_week_count: 22,
+      week_index: 3,
+    }))
   })
 
   it('claims and delivers only the outbox fact committed by the current action', async () => {

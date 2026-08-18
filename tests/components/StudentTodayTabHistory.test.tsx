@@ -1012,6 +1012,36 @@ describe('StudentTodayTab history section', () => {
     expect(redirectToLoginForReauthMock).toHaveBeenCalled()
   })
 
+  it('keeps an authorization save failure in place without claiming the session expired', async () => {
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries: [] })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        return Promise.resolve({
+          ok: false,
+          status: 403,
+          json: () => Promise.resolve({ error: 'You no longer have access to this classroom' }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    const editor = await screen.findByLabelText('Write something...')
+    fireEvent.change(editor, { target: { value: 'Keep this local draft.' } })
+    fireEvent.blur(editor)
+
+    expect(await screen.findByText('You no longer have access to this classroom')).toBeInTheDocument()
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
+  })
+
   it('restores an unsaved daily log draft after an expired-session redirect remount', async () => {
     const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { RichTextViewer } from '@/components/editor/RichTextViewer'
+import { SyllabusPreviewReadySignal } from '@/components/SyllabusPreviewReadySignal'
 import { buildMarkdownSectionContent, getPublishedActualCourseSite } from '@/lib/server/course-sites'
 import type { PublishedCourseSiteGradingItem } from '@/lib/server/course-sites'
 import type { TestDocument } from '@/types'
@@ -150,6 +151,7 @@ export default async function ActualCourseSitePage({ params }: PageProps) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <SyllabusPreviewReadySignal />
       <header className="rounded-card border border-border bg-surface p-6">
         <p className="text-xs font-semibold uppercase text-text-muted">Course Syllabus</p>
         <h1 className="mt-2 text-3xl font-semibold text-text-default">{classroom.title}</h1>

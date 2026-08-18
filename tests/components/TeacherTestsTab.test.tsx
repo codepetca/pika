@@ -9,8 +9,15 @@ import { createMockClassroom, createMockTest } from '../helpers/mocks'
 import { invalidateCachedJSON } from '@/lib/request-cache'
 import type { Classroom, TestAssessmentWithStats } from '@/types'
 
-const { setOpenMock } = vi.hoisted(() => ({
+const { setOpenMock, gradingSaveCallbacks } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
+  gradingSaveCallbacks: new Map<string, ((state: {
+    canSave: boolean
+    isSaving: boolean
+    status: 'idle' | 'unsaved' | 'saving' | 'saved'
+    testId: string
+    studentId: string | null
+  }) => void)>(),
 }))
 const mockInvalidateGradebookForClassroom = vi.hoisted(() => vi.fn())
 
@@ -154,15 +161,66 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
       canSave: boolean
       isSaving: boolean
       status: 'idle' | 'unsaved' | 'saving' | 'saved'
+      testId: string
+      studentId: string | null
     }) => void
   }) => {
     useEffect(() => {
-      onSaveStateChange?.({ canSave: false, isSaving: false, status: 'saved' })
-    }, [onSaveStateChange])
+      if (!selectedStudentId || !onSaveStateChange) return
+      gradingSaveCallbacks.set(selectedStudentId, onSaveStateChange)
+      onSaveStateChange({
+        canSave: false,
+        isSaving: false,
+        status: 'idle',
+        testId,
+        studentId: selectedStudentId,
+      })
+      return () => {
+        if (gradingSaveCallbacks.get(selectedStudentId) === onSaveStateChange) {
+          gradingSaveCallbacks.delete(selectedStudentId)
+        }
+      }
+    }, [onSaveStateChange, selectedStudentId])
 
     return (
       <div data-testid="mock-test-grading-panel">
         Grading panel for {testId}:{selectedStudentId || 'none'}
+        <button
+          type="button"
+          onClick={() => onSaveStateChange?.({
+            canSave: true,
+            isSaving: false,
+            status: 'unsaved',
+            testId,
+            studentId: selectedStudentId,
+          })}
+        >
+          Mark grades unsaved
+        </button>
+        <button
+          type="button"
+          onClick={() => onSaveStateChange?.({
+            canSave: false,
+            isSaving: true,
+            status: 'saving',
+            testId,
+            studentId: selectedStudentId,
+          })}
+        >
+          Mark grades saving
+        </button>
+        <button
+          type="button"
+          onClick={() => onSaveStateChange?.({
+            canSave: false,
+            isSaving: false,
+            status: 'saved',
+            testId,
+            studentId: selectedStudentId,
+          })}
+        >
+          Mark grades saved
+        </button>
       </div>
     )
   },
@@ -275,6 +333,7 @@ describe('TeacherTestsTab', () => {
     vi.stubGlobal('fetch', fetchMock)
     setOpenMock.mockReset()
     mockInvalidateGradebookForClassroom.mockClear()
+    gradingSaveCallbacks.clear()
   })
 
   afterEach(() => {
@@ -690,6 +749,79 @@ describe('TeacherTestsTab', () => {
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
+  })
+
+  it('announces grading save transitions from the selected student workspace', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    const saveStatus = screen.getByTestId('teacher-test-grading-save-status')
+    expect(saveStatus).toHaveAttribute('aria-live', 'polite')
+    expect(saveStatus).toHaveAttribute('aria-atomic', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark grades unsaved' }))
+    expect(saveStatus).toHaveTextContent('Unsaved grade changes')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark grades saving' }))
+    expect(saveStatus).toHaveTextContent('Saving grades')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark grades saved' }))
+    expect(saveStatus).toHaveTextContent('Grades saved')
+  })
+
+  it('does not announce an earlier student save after the grading selection changes', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({
+      students: [
+        makeGradingStudent(),
+        makeGradingStudent({
+          student_id: 'student-2',
+          name: 'Bob Yellow',
+          first_name: 'Bob',
+          last_name: 'Yellow',
+          email: 'bob@example.com',
+        }),
+      ],
+    }))
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+    const aliceSaveState = gradingSaveCallbacks.get('student-1')
+    expect(aliceSaveState).toBeTruthy()
+
+    act(() => {
+      aliceSaveState?.({
+        canSave: false,
+        isSaving: true,
+        status: 'saving',
+        testId: 'test-1',
+        studentId: 'student-1',
+      })
+    })
+    const saveStatus = screen.getByTestId('teacher-test-grading-save-status')
+    expect(saveStatus).toHaveTextContent('Saving grades')
+
+    fireEvent.click(screen.getByText('Bob Yellow'))
+    await waitFor(() => {
+      expect(gradingSaveCallbacks.get('student-2')).toBeTruthy()
+      expect(saveStatus).toBeEmptyDOMElement()
+    })
+
+    act(() => {
+      aliceSaveState?.({
+        canSave: false,
+        isSaving: false,
+        status: 'saved',
+        testId: 'test-1',
+        studentId: 'student-1',
+      })
+    })
+    expect(saveStatus).toBeEmptyDOMElement()
   })
 
   it('opens the edit modal from the selected test edit button', async () => {

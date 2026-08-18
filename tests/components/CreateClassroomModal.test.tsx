@@ -5,6 +5,12 @@ import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
 
+const mockPush = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 vi.mock('@/lib/teacher-blueprints-client', () => ({
   fetchTeacherBlueprints: vi.fn(),
   invalidateTeacherBlueprints: vi.fn(),
@@ -62,6 +68,7 @@ describe('CreateClassroomModal', () => {
     vi.stubGlobal('fetch', fetchMock)
     vi.mocked(fetchTeacherBlueprints).mockClear()
     vi.mocked(invalidateTeacherBlueprints).mockClear()
+    mockPush.mockClear()
   })
 
   afterEach(() => {
@@ -247,21 +254,250 @@ describe('CreateClassroomModal', () => {
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
   })
 
-  it('invalidates blueprint caches after creating a classroom from a blueprint', async () => {
+  it('sends a caller idempotency key when importing a JSON course package', async () => {
+    const bundle = { manifest: { version: '5', title: 'Imported course' }, files: {} }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ blueprint: mockBlueprint }),
+    })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File([JSON.stringify(bundle)], 'course-package.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', {
+      value: async () => JSON.stringify(bundle, null, 2),
+    })
+
+    fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    await waitFor(() => expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id))
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/course-blueprints/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': expect.any(String),
+      },
+      body: JSON.stringify(bundle),
+    })
+  })
+
+  it('reuses the import key for semantically unchanged JSON retries', async () => {
+    const bundle = { manifest: { version: '5', title: 'Imported course' }, files: {} }
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ blueprint: mockBlueprint }),
+      })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const formattedFile = new File([], 'course-package.json', { type: 'application/json' })
+    Object.defineProperty(formattedFile, 'text', {
+      value: async () => JSON.stringify(bundle, null, 2),
+    })
+    const compactFile = new File([], 'course-package.json', { type: 'application/json' })
+    Object.defineProperty(compactFile, 'text', {
+      value: async () => JSON.stringify(bundle),
+    })
+
+    for (const [file, expectedCalls] of [[formattedFile, 1], [compactFile, 2]] as const) {
+      fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(expectedCalls))
+    }
+
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('reuses the import key for unchanged archive retries and replaces it for changed bytes', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ blueprint: mockBlueprint }),
+      })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const originalFile = new File(['original'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(originalFile, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('original').buffer,
+    })
+    const changedFile = new File(['changed'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(changedFile, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('changed').buffer,
+    })
+
+    for (const [file, expectedCalls] of [
+      [originalFile, 1],
+      [originalFile, 2],
+      [changedFile, 3],
+    ] as const) {
+      fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(expectedCalls))
+    }
+
+    await waitFor(() => expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id))
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    const firstKey = (importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']
+    const secondKey = (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key']
+    const changedKey = (importCalls[2][1]?.headers as Record<string, string>)['Idempotency-Key']
+
+    expect(firstKey).toBe(secondKey)
+    expect(changedKey).not.toBe(secondKey)
+  })
+
+  it('clears the import key after a successful package import', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ blueprint: mockBlueprint }),
+    })
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+
+    for (const expectedCalls of [1, 2]) {
+      fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
+      fireEvent.change(fileInput, { target: { files: [file] } })
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(expectedCalls))
+    }
+
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).not.toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('clears the import key when the wizard is cancelled after a failure', async () => {
+    const onClose = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ blueprint: mockBlueprint }),
+      })
+
+    renderModal({ onClose })
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new TextEncoder().encode('bundle').buffer,
+    })
+
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(await screen.findByText('Temporary import failure')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+
+    await openBlueprintSourceStep()
+    fireEvent.change(screen.getByLabelText('Import course package file'), { target: { files: [file] } })
+    await waitFor(() => expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id))
+
+    const importCalls = fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))
+    expect((importCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).not.toBe(
+      (importCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('suppresses concurrent package imports while the current request is pending', async () => {
+    const pendingImport = createDeferred<{
+      ok: boolean
+      json: () => Promise<{ error: string }>
+    }>()
+    fetchMock.mockReturnValueOnce(pendingImport.promise)
+
+    renderModal()
+    await openBlueprintSourceStep()
+
+    const fileInput = screen.getByLabelText('Import course package file')
+    const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
+    const readPackage = vi.fn(async () => new TextEncoder().encode('bundle').buffer)
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: readPackage,
+    })
+
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(await screen.findByRole('option', { name: 'Importing package...' })).toBeInTheDocument()
+
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    expect(readPackage).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls.filter(([url]) => (
+      String(url) === '/api/teacher/course-blueprints/import'
+    ))).toHaveLength(1)
+
+    await act(async () => {
+      pendingImport.resolve({
+        ok: false,
+        json: async () => ({ error: 'Temporary import failure' }),
+      })
+    })
+    expect(await screen.findByText('Temporary import failure')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Import course package...' })).toBeInTheDocument()
+  })
+
+  it('shows the rollover review before completing a classroom created from a blueprint', async () => {
     const onSuccess = vi.fn()
+    const onBlueprintCreated = vi.fn()
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       const method = init?.method || 'GET'
       if (url === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate` && method === 'POST') {
         return {
           ok: true,
-          json: async () => ({ classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' } }),
+          json: async () => ({
+            classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+            lesson_mapping: {
+              applied_lesson_templates: 2,
+              overflow_lesson_templates: ['Final project workshop'],
+            },
+          }),
         }
       }
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    renderModal({ initialBlueprintId: mockBlueprint.id, onSuccess })
+    renderModal({ initialBlueprintId: mockBlueprint.id, onSuccess, onBlueprintCreated })
 
     fireEvent.change(getClassroomNameInput(), {
       target: { value: 'Computer Science 11 - Period 2' },
@@ -278,11 +514,141 @@ describe('CreateClassroomModal', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`,
-        expect.objectContaining({ method: 'POST' }),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Idempotency-Key': expect.any(String),
+          }),
+        }),
       )
     })
     expect(invalidateTeacherBlueprints).toHaveBeenCalledOnce()
-    expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Computer Science 11 - Period 2' })
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onBlueprintCreated).toHaveBeenCalledWith({
+      id: 'classroom-1',
+      title: 'Computer Science 11 - Period 2',
+    })
+    expect(screen.getByRole('heading', { name: 'Classroom Created' })).toHaveFocus()
+    expect(screen.getByText(/assignments and tests are unpublished/i)).toBeInTheDocument()
+    expect(screen.getByText('Final project workshop')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review Classroom' }))
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockPush).toHaveBeenCalledWith('/classrooms/classroom-1?tab=assignments')
+  })
+
+  it('reuses the instantiate idempotency key when an unchanged request is retried', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+          lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+        }),
+      })
+
+    renderModal({ initialBlueprintId: mockBlueprint.id })
+    fireEvent.change(getClassroomNameInput(), {
+      target: { value: 'Computer Science 11 - Period 2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('combobox', { name: /course blueprint/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Choose Calendar')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(await screen.findByText('Temporary failure')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await screen.findByRole('heading', { name: 'Classroom Created' })
+
+    const instantiateCalls = fetchMock.mock.calls.filter(([url, init]) => (
+      String(url) === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`
+      && init?.method === 'POST'
+    ))
+    expect(instantiateCalls).toHaveLength(2)
+    expect((instantiateCalls[0][1]?.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      (instantiateCalls[1][1]?.headers as Record<string, string>)['Idempotency-Key'],
+    )
+  })
+
+  it('commits the created classroom without navigating when the review is dismissed', async () => {
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    const onBlueprintCreated = vi.fn()
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+        lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+      }),
+    })
+
+    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onSuccess, onBlueprintCreated })
+    fireEvent.change(getClassroomNameInput(), {
+      target: { value: 'Computer Science 11 - Period 2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('combobox', { name: /course blueprint/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Choose Calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await screen.findByRole('heading', { name: 'Classroom Created' })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(onBlueprintCreated).toHaveBeenCalledWith({
+      id: 'classroom-1',
+      title: 'Computer Science 11 - Period 2',
+    })
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('cannot dismiss the modal while blueprint instantiation is pending', async () => {
+    const instantiateResponse = createDeferred<{
+      ok: boolean
+      json: () => Promise<{
+        classroom: { id: string; title: string }
+        lesson_mapping: { applied_lesson_templates: number; overflow_lesson_templates: string[] }
+      }>
+    }>()
+    const onClose = vi.fn()
+    const onBlueprintCreated = vi.fn()
+    fetchMock.mockReturnValueOnce(instantiateResponse.promise)
+
+    renderModal({ initialBlueprintId: mockBlueprint.id, onClose, onBlueprintCreated })
+    fireEvent.change(getClassroomNameInput(), {
+      target: { value: 'Computer Science 11 - Period 2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByRole('combobox', { name: /course blueprint/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Choose Calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByRole('button', { name: 'Creating...' })).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Create Classroom' })).toBeInTheDocument()
+
+    await act(async () => {
+      instantiateResponse.resolve({
+        ok: true,
+        json: async () => ({
+          classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' },
+          lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+        }),
+      })
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Classroom Created' })).toBeInTheDocument()
+    expect(onBlueprintCreated).toHaveBeenCalledOnce()
   })
 
   it('preserves the preselected blueprint flow when launched from the blueprints page', async () => {

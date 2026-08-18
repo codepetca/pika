@@ -261,7 +261,8 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Legacy Computer Science')
     expect(parsed.blueprint.planned_site_config).not.toHaveProperty('quizzes')
-    expect(parsed.assessments).toEqual([])
+    expect(parsed.assessments).toHaveLength(1)
+    expect(parsed.assessments[0].title).toBe('Legacy Foundations Test')
     expect(parsed.assignments.every((assignment) =>
       /^[0-9a-f-]{36}$/.test(assignment.artifact_id ?? '')
     )).toBe(true)
@@ -273,10 +274,13 @@ describe('course blueprint package', () => {
     const parsed = parseCourseBlueprintImportArchive(archive)
 
     expect(decoded?.manifest.version).toBe('2')
-    expect(decoded?.files).not.toHaveProperty('quizzes.md')
+    // Decoding preserves raw v2 evidence; adaptation is where retired Quiz
+    // content is discarded.
+    expect(decoded?.files).toHaveProperty('quizzes.md')
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Legacy Computer Science')
-    expect(parsed.assessments).toEqual([])
+    expect(parsed.assessments).toHaveLength(1)
+    expect(parsed.assessments[0].title).toBe('Legacy Foundations Test')
   })
 
   it.each(['1', '6'])('rejects unsupported package version %s', (version) => {
@@ -286,7 +290,7 @@ describe('course blueprint package', () => {
       manifest: { ...bundle.manifest, version },
     })
 
-    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+    expect(parsed.errors).toEqual(['Unsupported course package version'])
   })
 
   it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 5 file %s', (fileName) => {
@@ -296,7 +300,9 @@ describe('course blueprint package', () => {
       files: { ...bundle.files, [fileName]: 'Unexpected content' },
     })
 
-    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+    expect(parsed.errors).toEqual([
+      `Course package contains forbidden file "${fileName}"`,
+    ])
   })
 
   it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 4 file %s', (fileName) => {
@@ -325,7 +331,9 @@ describe('course blueprint package', () => {
       },
     })
 
-    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+    expect(parsed.errors).toEqual([
+      `Course package contains forbidden file "${fileName}"`,
+    ])
   })
 
   it('rejects a version 4 archive containing retired Quiz content', () => {
@@ -344,7 +352,9 @@ describe('course blueprint package', () => {
     archive[markerOffset + versionMarker.length - 2] = '4'.charCodeAt(0)
 
     expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
-    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
+    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual([
+      'Course package contains forbidden file "quizzes.md"',
+    ])
   })
 
   it('rejects an archive with an unsupported manifest version', () => {
@@ -357,7 +367,9 @@ describe('course blueprint package', () => {
     archive[markerOffset + versionMarker.length - 2] = '6'.charCodeAt(0)
 
     expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
-    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
+    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual([
+      'Unsupported course package version',
+    ])
   })
 
   it('rejects a version 5 package when a reusable artifact id is missing', () => {
@@ -422,7 +434,9 @@ describe('course blueprint package', () => {
         'course-overview.md': 'é'.repeat(Math.floor(COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES / 2) + 1),
       },
     })
-    expect(oversizedBundle.errors).toEqual(['Invalid course package bundle'])
+    expect(oversizedBundle.errors).toEqual([
+      'Course package file "course-overview.md" exceeds the 2 MiB limit',
+    ])
 
     const archive = encodeCourseBlueprintPackageArchive(bundle)
     const fileName = new TextEncoder().encode('course-overview.md')
@@ -455,7 +469,7 @@ describe('course blueprint package', () => {
       manifest: { ...bundle.manifest, exported_at: 'not-a-date' },
     })
 
-    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+    expect(parsed.errors).toEqual(['Invalid course package manifest'])
   })
 
   it('analyzes missing blueprint areas', () => {

@@ -37,15 +37,48 @@ teacher-authored course content.
 The canonical export manifest version is `5`. Pika imports versions `2`, `3`,
 `4`, and `5`, and rejects other versions. Version `2` is an import-only compatibility
 boundary: Pika imports its reusable course, assignment, Test, and lesson-plan
-content while discarding `quizzes.md`. Version `3` package manifests are
-normalized to the current planned-site configuration; unknown retired
-configuration keys are ignored. Versions `4` and `5` reject unknown manifest
-fields and undeclared files. Version `5` adds the Blueprint ID, source Draft
-revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
+content while discarding `quizzes.md`. Version `3` package manifests accept the
+two historical planned-site forms: the six current keys, with or without the
+retired `quizzes` key, which the adapter discards. Versions `4` and `5` reject
+unknown manifest fields and undeclared files. Version `5` adds the Blueprint ID,
+source Draft revision, optional immutable Version provenance, and UUIDv4 Artifact IDs.
 Missing, malformed, or duplicate Artifact IDs fail version `5` validation;
 legacy versions receive IDs once during import. The package format version is
 independent of both the database migration number and the Blueprint's own
 Version number.
+
+### Supported-Version Contract
+
+Historical formats are import-only. Every raw package is first checked against
+its exact version contract; only verified packages enter a version adapter.
+Adapters discard retired content and add current-domain defaults before Markdown
+is parsed into one canonical portable course model.
+
+| Version | Required Markdown files | Additional allowed files | Manifest behavior |
+| --- | --- | --- | --- |
+| `2` | `course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`, `tests.md`, `lesson-plans.md` | Optional `quizzes.md`, which is discarded | Strict v2 manifest and planned-site values |
+| `3` | The same six reusable files | None | Strict manifest with six current planned-site keys and only the historical `quizzes` key optionally allowed; the adapter discards it |
+| `4` | The same six reusable files | None | Strict manifest and current planned-site keys |
+| `5` | The six reusable files plus `classwork-materials.md` and `surveys.md` | None | Strict identity-aware manifest, grading, and provenance |
+
+Raw schemas never create missing files or supply defaults. Direct JSON and TAR
+packages feed the same verifier. Raw JSON is decoded as fatal UTF-8, rejects a
+leading byte-order mark instead of silently consuming it, and is parsed without
+duplicate-key normalization. The verifier retains immutable copies of
+the original JSON text or TAR manifest text, manifest, file map, entry names,
+source kind, and received byte length as raw evidence. The branded verified
+value and its nested evidence cannot be changed before adaptation. TAR transport
+checks also require block alignment, two complete zero terminator blocks, zero
+entry padding, valid headers and UTF-8, unique entries, and size limits before
+adaptation. The 2 MiB per-entry limit applies to `manifest.json` in both forms.
+
+Immutable JSON and binary TAR fixtures for every supported version live in
+`tests/fixtures/course-blueprint-package-v*.{json,tar}`. Their SHA-256 digests
+and an independent, production-encoder-free mutation matrix are locked by:
+
+```bash
+pnpm test tests/lib/course-blueprint-package-contract.test.ts
+```
 
 ## Included
 
@@ -89,6 +122,7 @@ Package import, classroom-to-blueprint capture, and blueprint-to-classroom insta
 The invariants are:
 
 - A caller may send a UUID `Idempotency-Key`. Repeating a completed request with the same key returns the original result and creates no duplicate rows.
+- Browser import surfaces retain one caller key while normalized JSON or exact archive bytes are retried, replace it when the package changes, and suppress concurrent import submissions.
 - Generated class codes and default themes are derived deterministically from the operation ID so retries rebuild the same write plan.
 - Reusing a key for a different semantic request returns `idempotency_conflict`.
 - Blueprint and classroom source reads use revision checks before and after loading child rows. The RPC locks and rechecks the same revision before writing.
@@ -117,6 +151,32 @@ For an operation failure:
 Operation rows are retained indefinitely in this first slice. Any future purge policy must preserve the idempotency window and incident-audit requirements and must be shipped as a separate reviewed lifecycle change.
 
 ## Verification
+
+Run the local classroom rollover drill after seeding and generating teacher auth:
+
+```bash
+pnpm seed
+pnpm e2e:auth
+pnpm e2e:verify blueprint-rollover
+```
+
+The drill uses the seeded `TEST01` classroom through the browser and adds
+temporary local-only assignment, material, survey, assignment-requirement,
+announcement, and announcement-read fixtures so every asserted boundary is
+non-empty. It
+captures a Blueprint, creates a new classroom, and verifies reusable parent and
+nested content, test documents/settings, both stable artifact identity columns,
+and immutable Blueprint Version lineage. It verifies that enrollments, roster
+rows, daily logs, submitted assignment documents (not drafts), test
+attempts/responses, live announcements, and announcement reads do not
+cross into the new classroom, and that assignments and tests require teacher
+review before release. It refuses managed-upload fixtures and non-loopback app,
+Supabase, or database targets. Cleanup restores the source classroom's identity,
+provenance, revision, and temporary test-document state. Operation cleanup is
+bound to exact idempotency keys recorded before each browser mutation is allowed
+onto the network. A browser failure-path probe proves missing keys are blocked
+without creating operation results. The operation-ledger and managed-storage
+inventories must match their pre-drill state.
 
 CI starts an ephemeral Supabase database, replays every migration, and runs:
 
