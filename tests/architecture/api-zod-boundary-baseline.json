@@ -18,7 +18,6 @@
   "src/app/api/teacher/classrooms/[id]/materials/[materialId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/materials/route.ts",
   "src/app/api/teacher/classrooms/[id]/resources/route.ts",
-  "src/app/api/teacher/classrooms/[id]/roster/[rosterId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/roster/add/route.ts",
   "src/app/api/teacher/classrooms/[id]/roster/bulk-delete/route.ts",
   "src/app/api/teacher/classrooms/[id]/roster/upload-csv/route.ts",

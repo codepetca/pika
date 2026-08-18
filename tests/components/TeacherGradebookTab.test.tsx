@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherGradebookTab } from '@/app/classrooms/[classroomId]/TeacherGradebookTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
@@ -357,6 +357,266 @@ describe('TeacherGradebookTab', () => {
 
     fireEvent.keyDown(screen.getByRole('row', { name: /Ada Lovelace.*80% 90% 85\.0%/ }), { key: 'Escape' })
     expect(screen.queryByRole('region', { name: 'Ada Lovelace assessment details' })).not.toBeInTheDocument()
+  })
+
+  it('distinguishes a cold failure from an empty gradebook and restores focus after retry', async () => {
+    let attempts = 0
+    let resolveRetry: (() => void) | null = null
+    fetchMock.mockImplementation(() => {
+      attempts += 1
+      if (attempts === 1) {
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: 'Gradebook service unavailable' }),
+        })
+      }
+      return new Promise((resolve) => {
+        resolveRetry = () => resolve({
+          ok: true,
+          json: async () => gradebookResponse(),
+        })
+      })
+    })
+
+    renderGradebook('grades')
+
+    expect(await screen.findByText('Gradebook unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Gradebook service unavailable')
+    expect(screen.queryByText('No students enrolled yet')).not.toBeInTheDocument()
+
+    const retry = screen.getByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+    expect(screen.getByRole('button', { name: 'Retrying gradebook' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Retrying gradebook' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+
+    await act(async () => {
+      resolveRetry?.()
+    })
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()
+  })
+
+  it('renders a successful empty gradebook without an error', async () => {
+    const emptyResponse = gradebookResponse()
+    emptyResponse.students = []
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => emptyResponse,
+    })
+
+    renderGradebook('grades')
+
+    expect(await screen.findByText('No students enrolled yet')).toBeInTheDocument()
+    expect(screen.queryByText('Gradebook unavailable')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('retains the last loaded matrix when a post-save refresh fails', async () => {
+    let gradebookReads = 0
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ assessment: { gradebook_weight: 20 } }),
+        })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        gradebookReads += 1
+        if (gradebookReads !== 2 && gradebookReads !== 3) {
+          return Promise.resolve({ ok: true, json: async () => gradebookResponse() })
+        }
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: 'Refresh failed' }),
+        })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    renderGradebook('settings')
+    const weightInput = await screen.findByRole('spinbutton', { name: 'A1 assessment weight' })
+    fireEvent.change(weightInput, { target: { value: '20' } })
+    fireEvent.blur(weightInput)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Gradebook could not be refreshed. Showing the last loaded grades.',
+    )
+    expect(screen.getByText('Ada')).toBeInTheDocument()
+    expect(screen.getByText('A1')).toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'Retry loading gradebook' })
+    retry.focus()
+    fireEvent.click(retry)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Retry loading gradebook' })).toHaveFocus()
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Gradebook could not be refreshed. Showing the last loaded grades.',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading gradebook' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Gradebook students' })).toHaveFocus()
+    })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('refreshes the matrix after each concurrently saved assessment weight', async () => {
+    let gradebookReads = 0
+    let a1Weight = 10
+    let t1Weight = 10
+    let resolveA1Save: (() => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          assessment_id: string
+          gradebook_weight: number
+        }
+        if (body.assessment_id === 'assignment-1') {
+          return new Promise((resolve) => {
+            resolveA1Save = () => {
+              a1Weight = body.gradebook_weight
+              resolve({ ok: true, json: async () => ({}) })
+            }
+          })
+        }
+        t1Weight = body.gradebook_weight
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        gradebookReads += 1
+        const response = gradebookResponse()
+        response.assessment_columns = response.assessment_columns.map((column) => ({
+          ...column,
+          weight: column.assessment_id === 'assignment-1' ? a1Weight : t1Weight,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    renderGradebook('settings')
+    const a1Input = await screen.findByRole('spinbutton', { name: 'A1 assessment weight' })
+    const t1Input = screen.getByRole('spinbutton', { name: 'T1 assessment weight' })
+    fireEvent.change(a1Input, { target: { value: '20' } })
+    fireEvent.blur(a1Input)
+    await waitFor(() => expect(resolveA1Save).toEqual(expect.any(Function)))
+
+    fireEvent.change(t1Input, { target: { value: '30' } })
+    fireEvent.blur(t1Input)
+    await waitFor(() => expect(gradebookReads).toBe(2))
+    expect(screen.getByRole('spinbutton', { name: 'T1 assessment weight' })).toHaveValue(30)
+
+    await act(async () => {
+      resolveA1Save?.()
+    })
+
+    await waitFor(() => expect(gradebookReads).toBe(3))
+    expect(screen.getByRole('spinbutton', { name: 'A1 assessment weight' })).toHaveValue(20)
+    expect(screen.getByRole('spinbutton', { name: 'T1 assessment weight' })).toHaveValue(30)
+  })
+
+  it('ignores a stale classroom response after the classroom changes', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveFirst: ((value: unknown) => void) | null = null
+    let resolveSecond: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        return new Promise((resolve) => { resolveFirst = resolve })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        return new Promise((resolve) => { resolveSecond = resolve })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+
+    const view = renderGradebook('grades')
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab
+            classroom={secondClassroom}
+            sectionParam="grades"
+            onSectionChange={vi.fn()}
+          />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+
+    const secondResponse = gradebookResponse()
+    secondResponse.students = secondResponse.students.map((student) => ({
+      ...student,
+      student_first_name: `Second ${student.student_first_name}`,
+    }))
+    await act(async () => {
+      resolveSecond?.({ ok: true, json: async () => secondResponse })
+    })
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveFirst?.({ ok: true, json: async () => gradebookResponse() })
+    })
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(screen.queryByText('Ada', { exact: true })).not.toBeInTheDocument()
+  })
+
+  it('does not apply or refresh an assessment save after the classroom changes', async () => {
+    const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second classroom' })
+    let resolveSave: ((value: unknown) => void) | null = null
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        return new Promise((resolve) => { resolveSave = resolve })
+      }
+      if (url.includes(`classroom_id=${classroom.id}`)) {
+        return Promise.resolve({ ok: true, json: async () => gradebookResponse() })
+      }
+      if (url.includes(`classroom_id=${secondClassroom.id}`)) {
+        const response = gradebookResponse()
+        response.students = response.students.map((student) => ({
+          ...student,
+          student_first_name: `Second ${student.student_first_name}`,
+        }))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const view = renderGradebook('settings')
+    const weightInput = await screen.findByRole('spinbutton', { name: 'A1 assessment weight' })
+    fireEvent.change(weightInput, { target: { value: '20' } })
+    fireEvent.blur(weightInput)
+    await waitFor(() => expect(resolveSave).toEqual(expect.any(Function)))
+
+    view.rerender(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab
+            classroom={secondClassroom}
+            sectionParam="settings"
+            onSectionChange={vi.fn()}
+          />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+    expect(await screen.findByText('Second Ada')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveSave?.({ ok: true, json: async () => ({ assessment: { gradebook_weight: 20 } }) })
+    })
+
+    expect(screen.getByText('Second Ada')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) => (
+      String(input) === `/api/teacher/gradebook?classroom_id=${classroom.id}`
+    ))).toHaveLength(1)
   })
 
   it('color codes grade text by percentage band', async () => {

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import CalendarPage from '@/app/teacher/calendar/page'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
@@ -7,7 +8,23 @@ import { fetchJSONWithCache, invalidateCachedJSON, invalidateCachedJSONMatching 
 import type { ClassDay, Classroom } from '@/types'
 
 vi.mock('@/components/CreateClassroomModal', () => ({
-  CreateClassroomModal: () => null,
+  CreateClassroomModal: ({ isOpen, onBlueprintCreated }: any) => {
+    const [blueprintCreated, setBlueprintCreated] = useState(false)
+    return isOpen ? (
+      <div role="dialog">
+        {blueprintCreated ? <h2>Classroom Created</h2> : null}
+        <button
+          type="button"
+          onClick={() => {
+            setBlueprintCreated(true)
+            onBlueprintCreated(createMockClassroom({ id: 'blueprint-created', title: 'Blueprint Class' }))
+          }}
+        >
+          Complete mocked blueprint classroom
+        </button>
+      </div>
+    ) : null
+  },
 }))
 
 vi.mock('@/components/Spinner', () => ({
@@ -154,6 +171,10 @@ function installFetchMock(options?: {
       } as Response)
     }
 
+    if (/^\/api\/classrooms\/[^/]+\/class-days$/.test(url) && method === 'GET') {
+      return Promise.resolve(jsonResponse({ class_days: [] }))
+    }
+
     if (url === '/api/classrooms/c1/class-days' && method === 'POST') {
       return Promise.resolve(jsonResponse({ ok: true }))
     }
@@ -197,6 +218,18 @@ describe('Teacher calendar page', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('preserves the completed blueprint handoff when the first classroom is added', async () => {
+    installFetchMock({ classrooms: [] })
+
+    renderCalendarPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Classroom' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Complete mocked blueprint classroom' }))
+
+    expect(await screen.findAllByText('Blueprint Class')).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: 'Classroom Created' })).toBeInTheDocument()
   })
 
   it('does not expose permanent classroom deletion', async () => {

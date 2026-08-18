@@ -86,6 +86,8 @@ interface SaveState {
   canSave: boolean
   isSaving: boolean
   status: 'idle' | 'unsaved' | 'saving' | 'saved'
+  testId: string
+  studentId: string | null
 }
 
 interface StudentGradingMetrics {
@@ -250,8 +252,9 @@ export function TestStudentGradingPanel({
   const [gradeDrafts, setGradeDrafts] = useState<Record<string, GradeDraft>>({})
   const [persistedDrafts, setPersistedDrafts] = useState<Record<string, GradeDraft>>({})
   const [savingAll, setSavingAll] = useState(false)
+  const [savingStudentId, setSavingStudentId] = useState<string | null>(null)
   const [gradingError, setGradingError] = useState('')
-  const [hasSavedSuccessfully, setHasSavedSuccessfully] = useState(false)
+  const [lastSavedStudentId, setLastSavedStudentId] = useState<string | null>(null)
   const feedbackTextareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
   const conflictRetryCountRef = useRef(0)
 
@@ -270,7 +273,7 @@ export function TestStudentGradingPanel({
       const nextDrafts = buildGradeDrafts(payload)
       setGradeDrafts(nextDrafts)
       setPersistedDrafts(nextDrafts)
-      setHasSavedSuccessfully(false)
+      setLastSavedStudentId(null)
       setGradingError('')
       conflictRetryCountRef.current = 0
     } catch (loadError: any) {
@@ -378,6 +381,8 @@ export function TestStudentGradingPanel({
 
     setGradingError('')
     setSavingAll(true)
+    setSavingStudentId(selectedStudent.student_id)
+    setLastSavedStudentId(null)
     try {
       const canonicalDraftsByResponseId = new Map<string, GradeDraft>()
       const submittedDraftsByResponseId = new Map<string, GradeDraft>()
@@ -480,7 +485,7 @@ export function TestStudentGradingPanel({
           }
           return next
         })
-        setHasSavedSuccessfully(false)
+        setLastSavedStudentId(null)
         setGradingError(
           shouldRetryAutomatically
             ? ''
@@ -580,11 +585,12 @@ export function TestStudentGradingPanel({
         )
       }
       conflictRetryCountRef.current = 0
-      setHasSavedSuccessfully(true)
+      setLastSavedStudentId(selectedStudent.student_id)
     } catch (saveError: any) {
       setGradingError(saveError.message || 'Failed to save grades')
     } finally {
       setSavingAll(false)
+      setSavingStudentId(null)
     }
   }, [
     apiBasePath,
@@ -641,11 +647,16 @@ export function TestStudentGradingPanel({
   }, [onRegisterSaveHandler, saveAllGrades, selectedStudent])
 
   useEffect(() => {
+    const statusStudentId = savingAll && savingStudentId
+      ? savingStudentId
+      : dirtyResponses.length > 0
+        ? selectedStudent?.student_id ?? null
+        : lastSavedStudentId
     const status: SaveState['status'] = savingAll
       ? 'saving'
       : dirtyResponses.length > 0
         ? 'unsaved'
-        : hasSavedSuccessfully
+        : lastSavedStudentId
           ? 'saved'
           : 'idle'
 
@@ -653,14 +664,18 @@ export function TestStudentGradingPanel({
       canSave: !!selectedStudent && dirtyResponses.length > 0 && !dirtyValidationError && !savingAll,
       isSaving: savingAll,
       status,
+      testId,
+      studentId: statusStudentId,
     })
   }, [
     dirtyResponses.length,
     dirtyValidationError,
-    hasSavedSuccessfully,
+    lastSavedStudentId,
     onSaveStateChange,
     savingAll,
+    savingStudentId,
     selectedStudent,
+    testId,
   ])
 
   if (loading) {

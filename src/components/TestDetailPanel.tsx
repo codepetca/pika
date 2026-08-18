@@ -198,6 +198,7 @@ export function TestDetailPanel({
   const [expandedQuestionIds, setExpandedQuestionIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [saveStatusAnnouncement, setSaveStatusAnnouncement] = useState('')
   const [draftShowResults, setDraftShowResults] = useState(testAssessment.show_results)
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownError, setMarkdownError] = useState('')
@@ -257,10 +258,21 @@ export function TestDetailPanel({
   }
 
   const updateSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
+    if (saveStatusRef.current !== status) {
+      setSaveStatusAnnouncement(
+        status === 'saving' ? 'Saving test' : status === 'unsaved' ? 'Unsaved test changes' : 'Test saved'
+      )
+    }
     saveStatusRef.current = status
     setSaveStatus(status)
     onSaveStatusChange?.(status)
   }, [onSaveStatusChange])
+
+  useEffect(() => {
+    saveStatusRef.current = 'saved'
+    setSaveStatus('saved')
+    setSaveStatusAnnouncement('')
+  }, [testAssessment.id])
 
   const markDraftUnsaved = useCallback(() => {
     draftMutationRevisionRef.current += 1
@@ -1915,6 +1927,15 @@ export function TestDetailPanel({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
+      <span
+        data-testid="teacher-test-authoring-save-status"
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {saveStatusAnnouncement}
+      </span>
       {titlePortal}
       {/* Tabs */}
       {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && (

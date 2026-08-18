@@ -3,7 +3,9 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type Ref,
@@ -27,6 +29,8 @@ import {
   EmptyStateRow,
   Input,
   KeyboardNavigableTable,
+  PageState,
+  RefreshingIndicator,
   TableSelectionCheckbox,
   Tooltip,
   useAppMessage,
@@ -35,7 +39,6 @@ import {
   AssessmentStatusIndicator,
   getGradebookAssessmentStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
-import { Spinner } from '@/components/Spinner'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import {
   TeacherWorkSurfaceActionCluster,
@@ -616,7 +619,7 @@ function AssessmentMatrixTable({
   visibleSummaryRows,
   hiddenAssessmentColumnKeys,
   assessmentWeightDrafts,
-  savingAssessmentKey,
+  savingAssessmentKeys,
   isReadOnly,
   onFixedColumnVisibleChange,
   onIdentityColumnWidthChange,
@@ -649,7 +652,7 @@ function AssessmentMatrixTable({
   visibleSummaryRows: Record<GradebookSummaryRow, boolean>
   hiddenAssessmentColumnKeys: Set<string>
   assessmentWeightDrafts: Record<string, string>
-  savingAssessmentKey: string | null
+  savingAssessmentKeys: Set<string>
   isReadOnly: boolean
   onFixedColumnVisibleChange: (column: GradebookFixedColumn, visible: boolean) => void
   onIdentityColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
@@ -805,7 +808,7 @@ function AssessmentMatrixTable({
                   const weightDraft = assessmentWeightDrafts[key] ?? String(column.weight)
                   const weightValue = Number(weightDraft)
                   const weightShare = formatWeightShare(weightValue, assessmentWeightTotal)
-                  const savingWeight = savingAssessmentKey === key
+                  const savingWeight = savingAssessmentKeys.has(key)
                   return (
                     <DataTableHeaderCell
                       key={`weight:${key}`}
@@ -1216,7 +1219,10 @@ export function TeacherGradebookTab({
   const isReadOnly = !!classroom.archived_at
   const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [scoreDisplayMode, setScoreDisplayMode] = useState<ScoreDisplayMode>('percent')
   const [columnEditorOpen, setColumnEditorOpen] = useState(section === 'settings')
   const [visibleColumns, setVisibleColumns] =
@@ -1235,15 +1241,32 @@ export function TeacherGradebookTab({
     useState<Record<GradebookSummaryRow, boolean>>(DEFAULT_VISIBLE_SUMMARY_ROWS)
   const [hiddenAssessmentColumnKeys, setHiddenAssessmentColumnKeys] = useState<Set<string>>(() => new Set())
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
-  const [savingAssessmentKey, setSavingAssessmentKey] = useState<string | null>(null)
+  const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
   const [students, setStudents] = useState<GradebookStudentSummary[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [detailPaneWidth, setDetailPaneWidth] = useState(32)
+  const loadRequestIdRef = useRef(0)
+  const assessmentSaveSequenceRef = useRef(0)
+  const assessmentSaveRequestIdsRef = useRef<Map<string, number>>(new Map())
+  const currentClassroomIdRef = useRef<string | null>(null)
+  const retryFocusIntentRef = useRef(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: GradebookSortColumn
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
+
+  useLayoutEffect(() => {
+    const committedClassroomId = classroom.id
+    currentClassroomIdRef.current = committedClassroomId
+    return () => {
+      if (currentClassroomIdRef.current === committedClassroomId) {
+        currentClassroomIdRef.current = null
+      }
+    }
+  }, [classroom.id])
+
+  const hasCurrentSnapshot = loadedClassroomId === classroom.id
 
   const sortedStudents = useMemo(() => {
     const rows = [...students]
@@ -1308,21 +1331,31 @@ export function TeacherGradebookTab({
     setSortState((previous) => toggleSort(previous, column))
   }
 
-  const loadGradebook = useCallback(async (options?: { showLoading?: boolean }) => {
-    const showLoading = options?.showLoading !== false
-    if (showLoading) setLoading(true)
-    setError('')
+  const loadGradebook = useCallback(async (options?: {
+    preserveSnapshot?: boolean
+    isRetry?: boolean
+  }) => {
+    const classroomId = classroom.id
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+    setLoading(true)
+    setIsRetrying(options?.isRetry === true)
+    if (!options?.isRetry) setLoadError('')
     try {
       const data = await fetchJSONWithCache<GradebookPayload>(
-        `gradebook:${classroom.id}:class`,
+        `gradebook:${classroomId}:class`,
         async () => {
-          const response = await fetch(`/api/teacher/gradebook?classroom_id=${classroom.id}`)
+          const response = await fetch(`/api/teacher/gradebook?classroom_id=${classroomId}`)
           const json = await response.json()
           if (!response.ok) throw new Error(json.error || 'Failed to load gradebook')
           return json
         },
         60_000,
       )
+      if (
+        loadRequestIdRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
 
       const columnsWithWeights = (data.assessment_columns || []).map((column) => ({
         ...column,
@@ -1338,17 +1371,63 @@ export function TeacherGradebookTab({
         return next
       })
       setStudents(data.students || [])
+      setLoadedClassroomId(classroomId)
+      setLoadError('')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load gradebook')
-      setAssessmentColumns([])
+      if (
+        loadRequestIdRef.current !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
+      if (!options?.preserveSnapshot) {
+        setAssessmentColumns([])
+        setAssessmentWeightDrafts({})
+        setStudents([])
+        setLoadedClassroomId(null)
+      }
+      setLoadError(err instanceof Error ? err.message : 'Failed to load gradebook')
     } finally {
-      if (showLoading) setLoading(false)
+      if (
+        loadRequestIdRef.current === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) {
+        setLoading(false)
+        setIsRetrying(false)
+      }
     }
   }, [classroom.id])
 
   useEffect(() => {
+    loadRequestIdRef.current += 1
+    assessmentSaveSequenceRef.current += 1
+    assessmentSaveRequestIdsRef.current = new Map()
+    setAssessmentColumns([])
+    setAssessmentWeightDrafts({})
+    setStudents([])
+    setLoadedClassroomId(null)
+    setLoadError('')
+    setActionError('')
+    setIsRetrying(false)
+    setSavingAssessmentKeys(new Set())
+    setSelectedStudentId(null)
+    retryFocusIntentRef.current = false
     void loadGradebook()
-  }, [loadGradebook])
+    // The classroom transition owns the reset and initial request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroom.id])
+
+  function retryGradebookLoad() {
+    if (loading) return
+    retryFocusIntentRef.current = true
+    invalidateCachedJSONMatching(`gradebook:${classroom.id}:`)
+    void loadGradebook({ preserveSnapshot: hasCurrentSnapshot, isRetry: true })
+  }
+
+  useEffect(() => {
+    if (!loading && !loadError && hasCurrentSnapshot && retryFocusIntentRef.current) {
+      retryFocusIntentRef.current = false
+      gradebookTableScrollRef.current?.focus()
+    }
+  }, [gradebookTableScrollRef, hasCurrentSnapshot, loadError, loading])
 
   useEffect(() => {
     setColumnEditorOpen(section === 'settings')
@@ -1478,6 +1557,7 @@ export function TeacherGradebookTab({
     if (isReadOnly) return
 
     const key = getAssessmentColumnKey(column)
+    if (savingAssessmentKeys.has(key)) return
     const rawValue = assessmentWeightDrafts[key] ?? String(column.weight)
     const nextWeight = Number(rawValue)
 
@@ -1487,20 +1567,24 @@ export function TeacherGradebookTab({
       nextWeight > ASSESSMENT_WEIGHT_MAX
     ) {
       setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
-      setError(`Assessment weight must be an integer ${ASSESSMENT_WEIGHT_MIN}-${ASSESSMENT_WEIGHT_MAX}`)
+      setActionError(`Assessment weight must be an integer ${ASSESSMENT_WEIGHT_MIN}-${ASSESSMENT_WEIGHT_MAX}`)
       return
     }
 
     if (nextWeight === column.weight) return
 
-    setSavingAssessmentKey(key)
-    setError('')
+    const classroomId = classroom.id
+    const requestId = assessmentSaveSequenceRef.current + 1
+    assessmentSaveSequenceRef.current = requestId
+    assessmentSaveRequestIdsRef.current.set(key, requestId)
+    setSavingAssessmentKeys((previous) => new Set(previous).add(key))
+    setActionError('')
     try {
       const response = await fetch('/api/teacher/gradebook', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          classroom_id: classroom.id,
+          classroom_id: classroomId,
           assessment_type: column.assessment_type,
           assessment_id: column.assessment_id,
           gradebook_weight: nextWeight,
@@ -1510,6 +1594,10 @@ export function TeacherGradebookTab({
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save assessment weight')
       }
+      if (
+        assessmentSaveRequestIdsRef.current.get(key) !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
 
       setAssessmentColumns((previous) => previous.map((assessmentColumn) => (
         getAssessmentColumnKey(assessmentColumn) === key
@@ -1517,13 +1605,27 @@ export function TeacherGradebookTab({
           : assessmentColumn
       )))
       setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(nextWeight) }))
-      invalidateCachedJSONMatching(`gradebook:${classroom.id}:`)
-      await loadGradebook({ showLoading: false })
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      await loadGradebook({ preserveSnapshot: true })
     } catch (err: unknown) {
+      if (
+        assessmentSaveRequestIdsRef.current.get(key) !== requestId
+        || currentClassroomIdRef.current !== classroomId
+      ) return
       setAssessmentWeightDrafts((previous) => ({ ...previous, [key]: String(column.weight) }))
-      setError(err instanceof Error ? err.message : 'Failed to save assessment weight')
+      setActionError(err instanceof Error ? err.message : 'Failed to save assessment weight')
     } finally {
-      setSavingAssessmentKey(null)
+      if (
+        assessmentSaveRequestIdsRef.current.get(key) === requestId
+        && currentClassroomIdRef.current === classroomId
+      ) {
+        assessmentSaveRequestIdsRef.current.delete(key)
+        setSavingAssessmentKeys((previous) => {
+          const next = new Set(previous)
+          next.delete(key)
+          return next
+        })
+      }
     }
   }
 
@@ -1643,7 +1745,7 @@ export function TeacherGradebookTab({
         visibleSummaryRows={visibleSummaryRows}
         hiddenAssessmentColumnKeys={hiddenAssessmentColumnKeys}
         assessmentWeightDrafts={assessmentWeightDrafts}
-        savingAssessmentKey={savingAssessmentKey}
+        savingAssessmentKeys={savingAssessmentKeys}
         isReadOnly={isReadOnly}
         onFixedColumnVisibleChange={handleFixedColumnVisibleChange}
         onIdentityColumnWidthChange={handleIdentityColumnWidthChange}
@@ -1678,27 +1780,57 @@ export function TeacherGradebookTab({
     />
   ) : undefined
 
-  const gradesWorkspace = loading ? (
-    <div className="flex flex-1 justify-center py-12">
-      <Spinner size="lg" />
-    </div>
-  ) : (
-    <TeacherWorkspaceSplit
-      className="h-full flex-1"
-      splitVariant="gapped"
-      primary={gradebookTable}
-      inspector={studentAssessmentPanel}
-      inspectorWidth={detailPaneWidth}
-      onInspectorWidthChange={setDetailPaneWidth}
-      inspectorCollapsed={false}
-      inspectorClassName="min-h-[280px] rounded-lg border border-border bg-surface"
-      dividerLabel="Resize gradebook details"
-      defaultInspectorWidth={32}
-      minInspectorPx={300}
-      minPrimaryPx={420}
-      minInspectorPercent={24}
-      maxInspectorPercent={45}
+  const retryAction = loadError || isRetrying ? (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      aria-label={isRetrying ? 'Retrying gradebook' : 'Retry loading gradebook'}
+      aria-disabled={isRetrying || undefined}
+      className={isRetrying ? 'cursor-not-allowed opacity-50' : undefined}
+      onClick={isRetrying ? undefined : retryGradebookLoad}
+    >
+      {isRetrying ? 'Retrying...' : 'Retry'}
+    </Button>
+  ) : null
+
+  const gradesWorkspace = !hasCurrentSnapshot ? (
+    <PageState
+      kind={loading ? 'loading' : 'error'}
+      title={loading ? 'Loading gradebook' : 'Gradebook unavailable'}
+      description={loading ? 'Loading this classroom\'s grades.' : loadError}
+      action={retryAction}
+      compact
     />
+  ) : (
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
+      {loading ? <RefreshingIndicator label="Refreshing gradebook" /> : null}
+      {loadError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+        >
+          <span>Gradebook could not be refreshed. Showing the last loaded grades.</span>
+          {retryAction}
+        </div>
+      ) : null}
+      <TeacherWorkspaceSplit
+        className="h-full flex-1"
+        splitVariant="gapped"
+        primary={gradebookTable}
+        inspector={studentAssessmentPanel}
+        inspectorWidth={detailPaneWidth}
+        onInspectorWidthChange={setDetailPaneWidth}
+        inspectorCollapsed={false}
+        inspectorClassName="min-h-[280px] rounded-lg border border-border bg-surface"
+        dividerLabel="Resize gradebook details"
+        defaultInspectorWidth={32}
+        minInspectorPx={300}
+        minPrimaryPx={420}
+        minInspectorPercent={24}
+        maxInspectorPercent={45}
+      />
+    </div>
   )
 
   return (
@@ -1707,9 +1839,9 @@ export function TeacherGradebookTab({
       workspaceFrame="standalone"
       primary={actionBar}
       feedback={
-        error ? (
+        actionError ? (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
+            {actionError}
           </div>
         ) : null
       }

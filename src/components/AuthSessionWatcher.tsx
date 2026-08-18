@@ -2,13 +2,14 @@
 
 import { useEffect } from 'react'
 import {
-  isAuthFailureStatus,
   redirectToLoginForReauth,
-  sessionMatchesExpectedRole,
+  SESSION_CHANGED_REASON,
+  sessionMatchesExpectedUser,
 } from '@/lib/client-auth'
 import type { UserRole } from '@/types'
 
 type AuthSessionWatcherProps = {
+  expectedUserId?: string
   expectedRole?: UserRole
   intervalMs?: number
 }
@@ -16,6 +17,7 @@ type AuthSessionWatcherProps = {
 const DEFAULT_INTERVAL_MS = 60_000
 
 export function AuthSessionWatcher({
+  expectedUserId,
   expectedRole,
   intervalMs = DEFAULT_INTERVAL_MS,
 }: AuthSessionWatcherProps) {
@@ -28,16 +30,17 @@ export function AuthSessionWatcher({
       checking = true
 
       try {
+        // Bypass fetchJSONWithCache so account and cookie changes are observed immediately.
         const response = await fetch('/api/auth/me', { cache: 'no-store' })
         const data = await response.json().catch(() => ({}))
 
-        if (!cancelled && isAuthFailureStatus(response.status)) {
+        if (!cancelled && response.status === 401) {
           redirectToLoginForReauth()
           return
         }
 
-        if (!cancelled && response.ok && !sessionMatchesExpectedRole(data.user, expectedRole)) {
-          redirectToLoginForReauth()
+        if (!cancelled && response.ok && !sessionMatchesExpectedUser(data.user, expectedUserId, expectedRole)) {
+          redirectToLoginForReauth(undefined, SESSION_CHANGED_REASON)
         }
       } catch {
         // Network hiccups should not log users out. The next focus/timer check will retry.
@@ -70,7 +73,7 @@ export function AuthSessionWatcher({
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [expectedRole, intervalMs])
+  }, [expectedRole, expectedUserId, intervalMs])
 
   return null
 }

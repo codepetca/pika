@@ -4,6 +4,10 @@ import {
   palPeriodKeyForActivityDay,
 } from '@/lib/server/pal-events'
 import { isPalEnabled } from '@/lib/server/pal-config'
+import {
+  palTermCalendarForPeriodStart,
+  type PalTermCalendar,
+} from '@/lib/server/pal-term-calendar'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 
@@ -29,6 +33,7 @@ export type PalWeeklyConfiguration = {
   configVersion: number
   periodStatus: 'open' | 'closed'
   eligibleDays: number
+  hasTermCalendar?: boolean
 }
 
 export type PalDailyLogCompletion = {
@@ -36,7 +41,9 @@ export type PalDailyLogCompletion = {
   activityDay: string
 }
 
-export type PalWeeklyConfigurationRevision = PalWeeklyConfiguration
+export type PalWeeklyConfigurationRevision = PalWeeklyConfiguration & {
+  termCalendar?: PalTermCalendar
+}
 
 const PAGE_SIZE = 500
 export const MAX_PAL_WEEKLY_CATCH_UP_PERIODS = 12
@@ -121,6 +128,8 @@ export function planPalWeeklyConfigurationRevisions(input: {
   classDays: PalClassDay[]
   existing: PalWeeklyConfiguration[]
   completions: PalDailyLogCompletion[]
+  termCalendar?: PalTermCalendar
+  allowTermCalendarUpgrade?: boolean
 }): PalWeeklyConfigurationRevision[] {
   const periodKey = palPeriodKeyForActivityDay(input.periodStart)
   const periodEnd = addCalendarDays(input.periodStart, 4)
@@ -179,10 +188,22 @@ export function planPalWeeklyConfigurationRevisions(input: {
       throw new Error('Pal v1 weekly configuration cannot exceed five eligible days')
     }
 
+    const termCalendar = input.termCalendar && (
+      !previous
+      || previous.hasTermCalendar
+      || input.allowTermCalendarUpgrade
+    )
+      ? input.termCalendar
+      : undefined
+    const needsTermCalendarUpgrade = Boolean(
+      termCalendar && previous && !previous.hasTermCalendar,
+    )
+
     if (
       previous
       && previous.eligibleDays === eligibleDays
       && previous.periodStatus === input.periodStatus
+      && !needsTermCalendarUpgrade
     ) {
       continue
     }
@@ -193,6 +214,7 @@ export function planPalWeeklyConfigurationRevisions(input: {
       configVersion: (previous?.configVersion ?? 0) + 1,
       periodStatus: input.periodStatus,
       eligibleDays,
+      ...(termCalendar ? { termCalendar } : {}),
     })
   }
 
@@ -230,9 +252,23 @@ type ConfigurationRow = {
   eligible_days: number
 }
 
-type CompletionRow = {
+type PeriodOutboxRow = {
   student_id: string
-  payload: { metadata?: { activity_day?: unknown } }
+  event_type: 'daily_log.completed' | 'daily_log_week.configured'
+  payload: { metadata?: Record<string, unknown> }
+}
+
+function hasAdaptiveTermCalendar(metadata: Record<string, unknown> | undefined): boolean {
+  return Boolean(
+    metadata
+    && typeof metadata.term_token === 'string'
+    && typeof metadata.term_start_day === 'string'
+    && typeof metadata.term_end_day === 'string'
+    && typeof metadata.term_timezone === 'string'
+    && Number.isInteger(metadata.term_week_count)
+    && typeof metadata.week_start_day === 'string'
+    && Number.isInteger(metadata.week_index),
+  )
 }
 
 async function loadPeriodInputs(
@@ -247,7 +283,11 @@ async function loadPeriodInputs(
   const periodKey = palPeriodKeyForActivityDay(periodStart)
   const periodEnd = addCalendarDays(periodStart, 4)
 
-  const [enrollmentResult, configurationResult, completionResult] = await Promise.all([
+  const [
+    enrollmentResult,
+    configurationResult,
+    periodOutboxResult,
+  ] = await Promise.all([
     loadPagedRows<EnrollmentRow>(() =>
       supabase
         .from('classroom_enrollments')
@@ -261,18 +301,18 @@ async function loadPeriodInputs(
         .select('id, student_id, period_key, config_version, period_status, eligible_days')
         .eq('period_key', periodKey),
     PAGE_SIZE),
-    loadPagedRows<CompletionRow>(() =>
+    loadPagedRows<PeriodOutboxRow>(() =>
       supabase
         .from('pal_event_outbox')
-        .select('id, student_id, payload')
-        .eq('event_type', 'daily_log.completed')
+        .select('id, student_id, event_type, payload')
+        .in('event_type', ['daily_log.completed', 'daily_log_week.configured'])
         .contains('payload', { metadata: { period_key: periodKey } }),
     PAGE_SIZE),
   ])
 
   const firstError = enrollmentResult.error
     ?? configurationResult.error
-    ?? completionResult.error
+    ?? periodOutboxResult.error
   if (firstError) {
     throw new Error(`Failed to load Pal weekly configuration inputs: ${firstError.message}`)
   }
@@ -310,6 +350,17 @@ async function loadPeriodInputs(
     classDayRows.push(...classDayResult.rows)
   }
 
+  const calendarConfigurations = new Set(
+    periodOutboxResult.rows.flatMap((row) => {
+      const metadata = row.payload?.metadata
+      return row.event_type === 'daily_log_week.configured'
+        && hasAdaptiveTermCalendar(metadata)
+        && Number.isInteger(metadata?.config_version)
+        ? [`${row.student_id}:${String(metadata?.config_version)}`]
+        : []
+    }),
+  )
+
   return {
     schedules,
     classDays: classDayRows
@@ -320,10 +371,13 @@ async function loadPeriodInputs(
       configVersion: row.config_version,
       periodStatus: row.period_status,
       eligibleDays: row.eligible_days,
+      hasTermCalendar: calendarConfigurations.has(
+        `${row.student_id}:${row.config_version}`,
+      ),
     })),
-    completions: completionResult.rows.flatMap((row) => {
+    completions: periodOutboxResult.rows.flatMap((row) => {
       const activityDay = row.payload?.metadata?.activity_day
-      return typeof activityDay === 'string'
+      return row.event_type === 'daily_log.completed' && typeof activityDay === 'string'
         ? [{ studentId: row.student_id, activityDay }]
         : []
     }),
@@ -336,6 +390,8 @@ async function syncPeriod(input: {
   periodStatus: 'open' | 'closed'
   createIfMissing: boolean
   configuredAt: Date
+  termCalendar?: PalTermCalendar
+  allowTermCalendarUpgrade?: boolean
 }): Promise<number> {
   const periodInputs = await loadPeriodInputs(input.supabase, input.periodStart)
   const revisions = planPalWeeklyConfigurationRevisions({
@@ -343,6 +399,8 @@ async function syncPeriod(input: {
     periodStatus: input.periodStatus,
     createIfMissing: input.createIfMissing,
     ...periodInputs,
+    termCalendar: input.termCalendar,
+    allowTermCalendarUpgrade: input.allowTermCalendarUpgrade,
   })
 
   for (const revision of revisions) {
@@ -353,6 +411,7 @@ async function syncPeriod(input: {
       configVersion: revision.configVersion,
       periodStatus: revision.periodStatus,
       eligibleDays: revision.eligibleDays,
+      termCalendar: revision.termCalendar,
     })
     const { error } = await input.supabase.rpc(
       'record_pal_daily_log_week_configuration_atomic',
@@ -428,6 +487,8 @@ export async function syncPalWeeklyConfigurations(input: {
       periodStatus: 'closed',
       createIfMissing: false,
       configuredAt: now,
+      termCalendar: palTermCalendarForPeriodStart(periodStart),
+      allowTermCalendarUpgrade: false,
     })
   }
   const configured = await syncPeriod({
@@ -436,6 +497,8 @@ export async function syncPalWeeklyConfigurations(input: {
     periodStatus: 'open',
     createIfMissing: true,
     configuredAt: now,
+    termCalendar: palTermCalendarForPeriodStart(currentPeriodStart),
+    allowTermCalendarUpgrade: true,
   })
 
   return {

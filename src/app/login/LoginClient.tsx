@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
 import { navigateTo } from '@/lib/client-navigation'
-
-function isSafeNextPath(next: string): boolean {
-  if (!next.startsWith('/')) return false
-  if (next.startsWith('//')) return false
-  return true
-}
+import {
+  getSafeInternalPath,
+  SESSION_CHANGED_MESSAGE,
+  SESSION_CHANGED_REASON,
+  SESSION_EXPIRED_MESSAGE,
+  SESSION_EXPIRED_REASON,
+} from '@/lib/client-auth'
 
 const DEV_CREDENTIALS = {
   teacher: { email: 'teacher@example.com', password: 'test1234' },
@@ -24,7 +25,21 @@ export function LoginClient() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const emailInputRef = useRef<HTMLInputElement | null>(null)
+  const sessionMessageId = useId()
   const isDev = process.env.NODE_ENV === 'development'
+  const sessionReason = searchParams.get('reason')
+  const sessionMessage = sessionReason === SESSION_EXPIRED_REASON
+    ? SESSION_EXPIRED_MESSAGE
+    : sessionReason === SESSION_CHANGED_REASON
+      ? SESSION_CHANGED_MESSAGE
+      : null
+
+  useEffect(() => {
+    if (sessionMessage) {
+      emailInputRef.current?.focus()
+    }
+  }, [sessionMessage])
 
   function fillCredentials(creds: { email: string; password: string }) {
     setEmail(creds.email)
@@ -49,8 +64,8 @@ export function LoginClient() {
         throw new Error(data.error || 'Login failed')
       }
 
-      const next = searchParams.get('next')
-      if (next && isSafeNextPath(next)) {
+      const next = getSafeInternalPath(searchParams.get('next'))
+      if (next) {
         navigateTo(next)
         return
       }
@@ -68,6 +83,17 @@ export function LoginClient() {
         <h1 className="text-2xl font-bold text-text-default mb-6">
           Login to Pika
         </h1>
+
+        {sessionMessage ? (
+          <div
+            id={sessionMessageId}
+            role="status"
+            aria-live="polite"
+            className="mb-6 rounded-control border border-warning bg-warning-bg px-4 py-3 text-sm text-text-default"
+          >
+            {sessionMessage}
+          </div>
+        ) : null}
 
         {isDev && (
           <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
@@ -103,9 +129,11 @@ export function LoginClient() {
         <form onSubmit={handleSubmit}>
           <FormField label="School Email" required className="mb-4">
             <Input
+              ref={emailInputRef}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-describedby={sessionMessage ? sessionMessageId : undefined}
               required
               disabled={loading}
             />

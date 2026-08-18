@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useEffect, useRef, useState } from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel } from '@/ui'
 
 describe('AlertDialog', () => {
@@ -115,6 +115,14 @@ describe('ConfirmDialog', () => {
   it('shows description', () => {
     render(<ConfirmDialog {...defaultProps} description="Are you sure?" />)
     expect(screen.getByText('Are you sure?')).toBeInTheDocument()
+  })
+
+  it('announces a confirmation error inside the dialog and focuses its retry action', async () => {
+    render(<ConfirmDialog {...defaultProps} errorMessage="Could not complete the action" />)
+
+    const dialog = screen.getByRole('dialog', { name: 'Confirm Title' })
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not complete the action')
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Confirm' })).toHaveFocus())
   })
 
   it('calls onConfirm on confirm click', () => {

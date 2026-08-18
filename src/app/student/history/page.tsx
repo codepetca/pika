@@ -1,11 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef, FormEvent } from 'react'
-import { Button, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
+import { Button, ContentDialog, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
-import type { Entry, ClassDay, AttendanceStatus, Classroom } from '@/types'
-import { entryHasContent, getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
+import type { Entry, Classroom } from '@/types'
+import {
+  buildStudentAttendanceHistory,
+  getAttendanceIcon,
+  getAttendanceLabel,
+  type StudentAttendanceHistoryRow,
+} from '@/lib/attendance'
 import {
   fetchClassDaysForClassroom,
   invalidateClassDaysForClassroom,
@@ -17,12 +22,6 @@ import {
 import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 import { getTodayInToronto } from '@/lib/timezone'
 
-interface HistoryEntry {
-  date: string
-  entry: Entry | null
-  status: AttendanceStatus
-}
-
 export default function HistoryPage() {
   const pageRegionRef = useRef<HTMLDivElement>(null)
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
@@ -33,7 +32,7 @@ export default function HistoryPage() {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [historyError, setHistoryError] = useState('')
   const [historyAttempt, setHistoryAttempt] = useState(0)
-  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [history, setHistory] = useState<StudentAttendanceHistoryRow[]>([])
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [error, setError] = useState('')
 
@@ -90,35 +89,11 @@ export default function HistoryPage() {
           fetchClassDaysForClassroom(selectedClassroom.id),
           fetchStudentEntriesForClassroom(selectedClassroom.id),
         ])
-        const classDays: ClassDay[] = classDaysData.filter(
-          (day: ClassDay) => day.is_class_day
+        const historyData = buildStudentAttendanceHistory(
+          classDaysData,
+          entries,
+          getTodayInToronto(),
         )
-
-        // Build history
-        const entryMap = new Map<string, Entry>()
-        entries.forEach(entry => entryMap.set(entry.date, entry))
-        const today = getTodayInToronto()
-
-        const historyData: HistoryEntry[] = classDays.map(classDay => {
-          const entry = entryMap.get(classDay.date) || null
-          let status: AttendanceStatus
-          if (entry && entryHasContent(entry)) {
-            status = 'present'
-          } else if (classDay.date >= today) {
-            status = 'pending'
-          } else {
-            status = 'absent'
-          }
-
-          return {
-            date: classDay.date,
-            entry,
-            status,
-          }
-        })
-
-        // Sort by date descending
-        historyData.sort((a, b) => b.date.localeCompare(a.date))
 
         if (cancelled) return
         setHistory(historyData)
@@ -176,7 +151,7 @@ export default function HistoryPage() {
       <div
         ref={pageRegionRef}
         role="region"
-        aria-label="Student history"
+        aria-label="Student attendance"
         tabIndex={-1}
         className="focus:outline-none"
       >
@@ -185,8 +160,8 @@ export default function HistoryPage() {
             <PageState
               kind="loading"
               headingLevel="h1"
-              title="Loading history"
-              description="Getting your classrooms and attendance history."
+              title="Loading attendance"
+              description="Getting your classrooms and attendance records."
             />
           </PageContent>
         </PageLayout>
@@ -199,7 +174,7 @@ export default function HistoryPage() {
       <div
         ref={pageRegionRef}
         role="region"
-        aria-label="Student history"
+        aria-label="Student attendance"
         tabIndex={-1}
         className="focus:outline-none"
       >
@@ -209,7 +184,7 @@ export default function HistoryPage() {
               kind="error"
               headingLevel="h1"
               title="Could not load your classrooms"
-              description="Your saved history has not been changed, but it could not be retrieved right now."
+              description="Your saved attendance records have not been changed, but they could not be retrieved right now."
               action={
                 <Button
                   type="button"
@@ -235,7 +210,7 @@ export default function HistoryPage() {
       <div
         ref={pageRegionRef}
         role="region"
-        aria-label="Student history"
+        aria-label="Student attendance"
         tabIndex={-1}
         className="focus:outline-none"
       >
@@ -245,7 +220,7 @@ export default function HistoryPage() {
               kind="empty"
               headingLevel="h1"
               title="No Classes Yet"
-              description="Join a class to view your history."
+              description="Join a class to view your attendance."
               action={
                 <form onSubmit={handleJoinClassroom} className="w-full space-y-4 text-left">
                   <FormField label="Class Code" error={error} required>
@@ -280,7 +255,7 @@ export default function HistoryPage() {
     <div
       ref={pageRegionRef}
       role="region"
-      aria-label="Student history"
+      aria-label="Student attendance"
       tabIndex={-1}
       className="flex flex-col gap-4 focus:outline-none md:flex-row md:gap-6"
     >
@@ -289,12 +264,16 @@ export default function HistoryPage() {
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">My Classes</h3>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setShowJoinFlow(!showJoinFlow)}
-              className="text-primary hover:text-primary-hover text-sm font-medium"
+              aria-expanded={showJoinFlow}
+              className="text-primary hover:text-primary-hover"
             >
               + Join
-            </button>
+            </Button>
           </div>
 
           {showJoinFlow && (
@@ -317,22 +296,24 @@ export default function HistoryPage() {
 
           <div className="space-y-2">
             {classrooms.map((classroom) => (
-              <button
+              <Button
                 key={classroom.id}
+                type="button"
+                variant={selectedClassroom?.id === classroom.id ? 'subtle' : 'ghost'}
+                fullWidth
                 onClick={() => setSelectedClassroom(classroom)}
-                className={`w-full text-left p-3 rounded transition ${
-                  selectedClassroom?.id === classroom.id
-                    ? 'bg-info-bg border border-primary'
-                    : 'hover:bg-surface-hover border border-transparent'
-                }`}
+                aria-pressed={selectedClassroom?.id === classroom.id}
+                className="h-auto justify-start p-3 text-left"
               >
-                <div className="font-medium text-text-default text-sm">
-                  {classroom.title}
-                </div>
-                <div className="text-xs text-text-muted mt-1">
-                  {classroom.class_code}
-                </div>
-              </button>
+                  <span className="block min-w-0">
+                    <span className="block text-sm font-medium text-text-default">
+                      {classroom.title}
+                    </span>
+                  <span className="mt-1 block text-xs text-text-muted">
+                    {classroom.class_code}
+                  </span>
+                </span>
+              </Button>
             ))}
           </div>
         </div>
@@ -368,7 +349,7 @@ export default function HistoryPage() {
               <h2 className="text-2xl font-bold text-text-default mb-1">
                 {selectedClassroom.title}
               </h2>
-              <p className="text-text-muted mb-4">Attendance History</p>
+              <p className="text-text-muted mb-4">Attendance</p>
 
               {loadingHistory ? (
                 <div className="flex justify-center py-8">
@@ -407,31 +388,37 @@ export default function HistoryPage() {
               ) : (
                 history.map(({ date, entry, status }) => {
                   const formattedDate = format(parse(date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')
-                  return (
-                    <div
-                      key={date}
-                      className={`p-4 transition-colors ${
-                        entry ? 'cursor-pointer hover:bg-surface-hover' : ''
-                      }`}
-                      onClick={() => entry && setSelectedEntry(entry)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <span className="text-2xl">{getAttendanceIcon(status)}</span>
-                          <div>
-                            <div className="font-medium text-text-default">{formattedDate}</div>
-                            <div className="text-sm text-text-muted">
-                              {getAttendanceLabel(status)}
-                            </div>
+                  const rowContent = (
+                    <>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-2xl" aria-hidden="true">{getAttendanceIcon(status)}</span>
+                        <div>
+                          <div className="font-medium text-text-default">{formattedDate}</div>
+                          <div className="text-sm text-text-muted">
+                            {getAttendanceLabel(status)}
                           </div>
                         </div>
-
-                        {entry && (
-                          <button className="text-sm text-primary hover:text-primary-hover">
-                            View Entry →
-                          </button>
-                        )}
                       </div>
+
+                      {entry && <span className="text-sm text-primary">View log</span>}
+                    </>
+                  )
+
+                  return entry ? (
+                    <Button
+                      key={date}
+                      type="button"
+                      variant="ghost"
+                      fullWidth
+                      onClick={() => setSelectedEntry(entry)}
+                      aria-label={`${formattedDate}: ${getAttendanceLabel(status)}. View log`}
+                      className="h-auto justify-between rounded-none p-4 text-left"
+                    >
+                      {rowContent}
+                    </Button>
+                  ) : (
+                    <div key={date} className="flex items-center justify-between p-4">
+                      {rowContent}
                     </div>
                   )
                 })
@@ -440,46 +427,31 @@ export default function HistoryPage() {
           </div>
         ) : (
           <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
-            Select a class to view your history
+            Select a class to view your attendance
           </div>
         )}
       </div>
 
-      {/* Entry Modal */}
-      {selectedEntry && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedEntry(null)}
-        >
-          <div
-            className="bg-surface rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-text-default">
-                {format(parse(selectedEntry.date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')}
-              </h3>
-              <button
-                onClick={() => setSelectedEntry(null)}
-                className="text-text-muted hover:text-text-default text-2xl"
-              >
-                ×
-              </button>
+      <ContentDialog
+        isOpen={!!selectedEntry}
+        onClose={() => setSelectedEntry(null)}
+        title={selectedEntry
+          ? format(parse(selectedEntry.date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')
+          : 'Daily log'}
+        showFooterClose={false}
+      >
+        {selectedEntry && (
+          <div className="space-y-4">
+            <div>
+              <div className="mb-1 text-sm font-medium text-text-muted">Log</div>
+              <div className="whitespace-pre-wrap text-text-default">{selectedEntry.text}</div>
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-medium text-text-muted mb-1">Entry</div>
-                <div className="text-text-default whitespace-pre-wrap">{selectedEntry.text}</div>
-              </div>
-
-              <div className="text-sm text-text-muted pt-4 border-t border-border">
-                <div>Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}</div>
-              </div>
+            <div className="border-t border-border pt-4 text-sm text-text-muted">
+              Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ContentDialog>
     </div>
   )
 }

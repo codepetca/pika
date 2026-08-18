@@ -24,6 +24,11 @@ It replaces older prompt/spec history artifacts (which are intentionally not kep
 - Attendance status is derived from data: a student is “present” when an entry exists for a class day; otherwise “absent”.
 - Non-class days (`is_class_day = false`) are excluded from required attendance calculations.
 
+## Student Grades and Profile
+- Returned assignment and test results remain the student-facing grade surfaces. Pika will not add an aggregate student gradebook until the product contract defines returned-only disclosure, weighting, incomplete and hidden work, and how those totals relate to the teacher gradebook.
+- Student names continue to be collected during classroom joining and read from `student_profiles`. Pika will not add standalone profile editing until one source of truth and synchronization behavior are defined for the global profile and classroom roster records.
+- These are deliberate no-build decisions for the current product phase, not missing screens to infer from the teacher experience.
+
 ## Assignments and Online Editor
 - Assignments belong to a classroom; student work is stored per (assignment, student) doc.
 - Student docs are created lazily (on first open/save) to avoid pre-creating rows for every student.

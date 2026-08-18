@@ -4,7 +4,7 @@ import { POST } from '@/app/api/teacher/course-blueprints/import/route'
 import { COURSE_BLUEPRINT_PACKAGE_MAX_BYTES } from '@/lib/contracts/course-blueprint-package'
 
 const operationId = '10000000-0000-4000-8000-000000000030'
-const mockImportBundle = vi.fn()
+const mockImportJson = vi.fn()
 const mockImportArchive = vi.fn()
 
 vi.mock('@/lib/auth', () => ({
@@ -12,7 +12,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/course-blueprints', () => ({
-  importCourseBlueprintBundle: (...args: any[]) => mockImportBundle(...args),
+  importCourseBlueprintJson: (...args: any[]) => mockImportJson(...args),
   importCourseBlueprintArchive: (...args: any[]) => mockImportArchive(...args),
 }))
 
@@ -22,7 +22,7 @@ describe('POST /api/teacher/course-blueprints/import', () => {
   })
 
   it('forwards a caller idempotency key and returns operation metadata', async () => {
-    mockImportBundle.mockResolvedValue({
+    mockImportJson.mockResolvedValue({
       ok: true,
       blueprint: { id: 'blueprint-1', title: 'Imported' },
       operation_id: operationId,
@@ -38,7 +38,11 @@ describe('POST /api/teacher/course-blueprints/import', () => {
       body: JSON.stringify(bundle),
     }))
 
-    expect(mockImportBundle).toHaveBeenCalledWith('teacher-1', bundle, { operationId })
+    expect(mockImportJson).toHaveBeenCalledWith(
+      'teacher-1',
+      new TextEncoder().encode(JSON.stringify(bundle)),
+      { operationId },
+    )
     expect(response.status).toBe(201)
     expect(await response.json()).toEqual({
       blueprint: { id: 'blueprint-1', title: 'Imported' },
@@ -58,11 +62,11 @@ describe('POST /api/teacher/course-blueprints/import', () => {
     }))
 
     expect(response.status).toBe(400)
-    expect(mockImportBundle).not.toHaveBeenCalled()
+    expect(mockImportJson).not.toHaveBeenCalled()
   })
 
   it('returns durable operation metadata for an atomic import failure', async () => {
-    mockImportBundle.mockResolvedValue({
+    mockImportJson.mockResolvedValue({
       ok: false,
       status: 500,
       error: 'Atomic blueprint creation failed',
@@ -99,11 +103,17 @@ describe('POST /api/teacher/course-blueprints/import', () => {
     }))
 
     expect(response.status).toBe(413)
-    expect(mockImportBundle).not.toHaveBeenCalled()
+    expect(mockImportJson).not.toHaveBeenCalled()
     expect(mockImportArchive).not.toHaveBeenCalled()
   })
 
   it('maps malformed bounded JSON to a client error', async () => {
+    mockImportJson.mockResolvedValue({
+      ok: false,
+      status: 400,
+      error: 'Invalid course package',
+      errors: ['Invalid course package bundle'],
+    })
     const response = await POST(new NextRequest('http://localhost/api/teacher/course-blueprints/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -111,6 +121,10 @@ describe('POST /api/teacher/course-blueprints/import', () => {
     }))
 
     expect(response.status).toBe(400)
-    expect(mockImportBundle).not.toHaveBeenCalled()
+    expect(mockImportJson).toHaveBeenCalledWith(
+      'teacher-1',
+      new TextEncoder().encode('{'),
+      expect.objectContaining({ operationId: expect.any(String) }),
+    )
   })
 })

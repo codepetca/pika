@@ -26,7 +26,7 @@ export default async function TeacherLayout({
 
   return (
     <AppShell
-      user={{ email: user.email, role: user.role }}
+      user={{ id: user.id, email: user.email, role: user.role }}
       mainClassName="max-w-7xl mx-auto px-4 pt-0 pb-8"
       navigation={
         <AppNavigation

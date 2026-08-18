@@ -36,17 +36,38 @@ describe('PATCH /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
       body: JSON.stringify({ first_name: 'Ignored' }),
     }), { params: { id: 'c-1', rosterId: 'r-1' } })
     expect(noFields.status).toBe(400)
+
+    const invalidRevision = await PATCH(new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        counselor_email: 'counselor@example.com',
+        expected_updated_at: 'not-a-timestamp',
+      }),
+    }), { params: { id: 'c-1', rosterId: 'r-1' } })
+    expect(invalidRevision.status).toBe(400)
+
+    const postgresInvalidRevision = await PATCH(new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        counselor_email: 'counselor@example.com',
+        expected_updated_at: '0',
+      }),
+    }), { params: { id: 'c-1', rosterId: 'r-1' } })
+    expect(postgresInvalidRevision.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('trims counselor_email, persists null for blanks, and returns the updated row', async () => {
     const update = vi.fn((payload: unknown) => ({
       eq: vi.fn(() => ({
         eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'r-1', counselor_email: null },
-              error: null,
-            }),
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: 'r-1', counselor_email: null, updated_at: '2026-08-16T12:01:00.000Z' },
+                error: null,
+              }),
+            })),
           })),
         })),
       })),
@@ -58,34 +79,97 @@ describe('PATCH /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
 
     const response = await PATCH(new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', {
       method: 'PATCH',
-      body: JSON.stringify({ counselor_email: '   ' }),
+      body: JSON.stringify({
+        counselor_email: '   ',
+        expected_updated_at: '2026-08-16T12:00:00.000Z',
+      }),
     }), { params: { id: 'c-1', rosterId: 'r-1' } })
     const data = await response.json()
 
     expect(response.status).toBe(200)
     expect(update).toHaveBeenCalledWith({ counselor_email: null })
-    expect(data).toEqual({ success: true, roster: { id: 'r-1', counselor_email: null } })
+    expect(data).toEqual({
+      success: true,
+      roster: {
+        id: 'r-1',
+        counselor_email: null,
+        updated_at: '2026-08-16T12:01:00.000Z',
+      },
+    })
   })
 
   it('returns 404 when the update completes without a row', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
+    ;(mockSupabaseClient.from as any) = vi.fn()
+      .mockReturnValueOnce({
+        update: vi.fn(() => ({
           eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
             })),
           })),
         })),
-      })),
-    }))
+      })
+      .mockReturnValueOnce({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          })),
+        })),
+      })
 
     const response = await PATCH(new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', {
       method: 'PATCH',
-      body: JSON.stringify({ counselor_email: 'counselor@example.com' }),
+      body: JSON.stringify({
+        counselor_email: 'counselor@example.com',
+        expected_updated_at: '2026-08-16T12:00:00.000Z',
+      }),
     }), { params: { id: 'c-1', rosterId: 'r-1' } })
 
     expect(response.status).toBe(404)
+  })
+
+  it('returns 409 when the roster entry revision is stale', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn()
+      .mockReturnValueOnce({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'r-1' }, error: null }),
+            })),
+          })),
+        })),
+      })
+
+    const response = await PATCH(new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/r-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        counselor_email: 'new@example.com',
+        expected_updated_at: '2026-08-16T12:00:00.000Z',
+      }),
+    }), { params: { id: 'c-1', rosterId: 'r-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(data.error).toBe('Alt email changed elsewhere. Review the latest roster and try again.')
   })
 })
 

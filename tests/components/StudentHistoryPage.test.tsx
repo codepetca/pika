@@ -98,7 +98,7 @@ describe('HistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
     await waitFor(() => expect(screen.getAllByText('History Class')).toHaveLength(2))
-    expect(screen.getByRole('region', { name: 'Student history' })).toHaveFocus()
+    expect(screen.getByRole('region', { name: 'Student attendance' })).toHaveFocus()
     expect(invalidateStudentClassrooms).toHaveBeenCalledOnce()
     expect(consoleError).toHaveBeenCalled()
   })
@@ -118,7 +118,7 @@ describe('HistoryPage', () => {
 
     expect(await screen.findByText('Fri May 9')).toBeInTheDocument()
     expect(screen.queryByText('Could not load attendance history')).not.toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Student history' })).toHaveFocus()
+    expect(screen.getByRole('region', { name: 'Student attendance' })).toHaveFocus()
     expect(invalidateClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
     expect(invalidateStudentEntriesForClassroom).toHaveBeenCalledWith(classroom.id)
     expect(consoleError).toHaveBeenCalled()
@@ -153,5 +153,37 @@ describe('HistoryPage', () => {
     await waitFor(() => {
       expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(joinedClassroom.id)
     })
+  })
+
+  it('opens a submitted log in the shared dialog and returns focus on close', async () => {
+    vi.mocked(fetchStudentEntriesForClassroom).mockResolvedValue([
+      {
+        id: 'entry-1',
+        student_id: 'student-1',
+        classroom_id: classroom.id,
+        date: '2025-05-09',
+        text: 'Completed the lesson.',
+        rich_content: null,
+        version: 1,
+        minutes_reported: null,
+        mood: null,
+        created_at: '2025-05-09T12:00:00Z',
+        updated_at: '2025-05-09T12:00:00Z',
+        on_time: true,
+      },
+    ])
+
+    render(<HistoryPage />)
+
+    const logButton = await screen.findByRole('button', {
+      name: 'Fri May 9: Present. View log',
+    })
+    logButton.focus()
+    fireEvent.click(logButton)
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Completed the lesson.')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(logButton).toHaveFocus())
   })
 })

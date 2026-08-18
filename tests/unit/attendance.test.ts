@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeAttendanceStatusForStudent,
   computeAttendanceRecords,
+  buildStudentAttendanceHistory,
   entryHasContent,
   hasQualifyingDailyLogContent,
   getAttendanceIcon,
@@ -226,6 +227,31 @@ describe('attendance utilities', () => {
       const result = computeAttendanceStatusForStudent(classDays, entries, today)
 
       expect(result['2024-09-02']).toBe('pending')
+    })
+  })
+
+  describe('buildStudentAttendanceHistory', () => {
+    it('builds descending attendance rows for class days only', () => {
+      const entries: Entry[] = [
+        {
+          id: 'entry-1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: 'Completed the lesson.',
+          minutes_reported: 30,
+          mood: null,
+          created_at: '2024-09-01T15:00:00Z',
+          updated_at: '2024-09-01T15:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      expect(buildStudentAttendanceHistory(classDays, entries, '2024-09-03')).toEqual([
+        { date: '2024-09-03', entry: null, status: 'pending' },
+        { date: '2024-09-02', entry: null, status: 'absent' },
+        { date: '2024-09-01', entry: entries[0], status: 'present' },
+      ])
     })
   })
 

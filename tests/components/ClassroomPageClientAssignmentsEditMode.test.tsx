@@ -50,10 +50,10 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
 }))
 
 vi.mock('@/components/AppShell', () => ({
-  AppShell: ({ children, classrooms, currentClassroomId, pageTitle }: any) => {
+  AppShell: ({ children, classrooms, constrainToViewport, currentClassroomId, pageTitle }: any) => {
     const currentClassroom = classrooms?.find((c: any) => c.id === currentClassroomId)
     return (
-      <div>
+      <div data-testid="app-shell" data-constrain-to-viewport={constrainToViewport || undefined}>
         <div data-testid="app-shell-page-title">{pageTitle}</div>
         <div data-testid="app-shell-classroom-theme">{currentClassroom?.themeColor}</div>
         {children}
@@ -94,7 +94,7 @@ vi.mock('@/components/layout', async () => {
     },
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
     LeftSidebar: ({ children }: any) => <div>{children}</div>,
-    MainContent: ({ children }: any) => <main>{children}</main>,
+    MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
     NavItems: ({ onTabChange, palEnabled }: any) => (
       <nav>
         <button type="button" onClick={() => onTabChange('attendance')}>
@@ -479,6 +479,14 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(replaceStateSpy).toHaveBeenCalled()
     const lastReplaceCall = replaceStateSpy.mock.calls.at(-1)
     expect(lastReplaceCall?.[2]).toBe('/classrooms/classroom-1?tab=resources')
+  })
+
+  it('constrains the syllabus workspace to the viewport without content padding', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=resources')
+    renderClient({ initialTab: 'resources', initialSearchParams: { tab: 'resources' } })
+
+    expect(screen.getByTestId('app-shell')).toHaveAttribute('data-constrain-to-viewport', 'true')
+    expect(screen.getByTestId('main-content')).toHaveClass('px-0', 'pt-0', 'pb-0')
   })
 
   it('opens assignment markdown from the assignments FAB dropdown and closes it from the modal', async () => {

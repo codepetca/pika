@@ -24,7 +24,6 @@ import {
   invalidateStudentEntriesForClassroom,
 } from '@/lib/student-entries-client'
 import {
-  isAuthFailureStatus,
   redirectToLoginForReauth,
   SESSION_EXPIRED_MESSAGE,
 } from '@/lib/client-auth'
@@ -407,7 +406,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
       const data = await response.json()
 
-      if (isAuthFailureStatus(response.status)) {
+      if (response.status === 401) {
         setSaveStatus('unsaved')
         setSaveError(SESSION_EXPIRED_MESSAGE)
         redirectToLoginForReauth()
