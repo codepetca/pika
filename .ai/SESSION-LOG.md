@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-10 — Compact teacher Daily log table
-
-**Risk profile:** none — presentation and client-side table ordering only.
-
-**Completed:**
-- Reduced the First, Last, and ID column widths in the teacher Daily table so
-  the log preview receives more horizontal space.
-- Removed the standalone attendance-status column and combined its row marker,
-  Complete/Incomplete counts, and sortable behavior into the Log column.
-- Added accessible completion labels and preserved Log sorting in both the
-  full-width table and selected-student workspace.
-- Independent PR review caught that the Complete/Incomplete count badges were
-  hidden after selecting a student; restored them in the selected workspace
-  and added a regression assertion for the accessible count label.
-- Removed the stale arbitrary-spacing exception for the deleted status-column
-  width.
-
-**Validation:**
-- Focused component coverage passes (17 tests), including Enter/Space
-  activation, ascending and descending Complete/Incomplete sorting, focus, and
-  sortable-header semantics.
-- Lint, architecture, design policy, UI policy, and diff checks pass.
-- Playwright experience matrix passes (18 tests) across teacher/student,
-  desktop/mobile, and light/dark; screenshots of the teacher default and sorted
-  states show no page overflow or broken layout.
-- The selected-student remediation was visually rechecked in teacher
-  desktop/mobile and light/dark states with no horizontal page overflow.
-
 ## 2026-08-10 — Standardize resizable Daily columns
 
 **Risk profile:** none — shared client-side table layout behavior only.
@@ -1274,3 +1246,60 @@ dependency, deletion endpoint, or archive-lifecycle change.
 **Model recommendation:** Sol with high reasoning for final atomic creation,
 lineage, and student-visibility review; Terra with high reasoning for broad
 compatibility, test, UX, and documentation review.
+
+## 2026-08-20 — Productize hot archive recovery copies
+
+**Risk profile:** data-security — authenticated archive status, revision-fenced
+export, and the existing gated archive operation. Migration 126 adds the atomic
+expected-source-revision fence. Its final reviewed definition is applied to
+shared local only. Nothing was applied to production.
+
+**Completed:**
+- Added a strict teacher-scoped recovery summary for hot archived Classrooms.
+  It exposes only export availability, latest operation state, verified date,
+  compressed size, and retention policy; private paths, checksums, identities,
+  and Classroom content remain server-only.
+- Archived Classroom rows now distinguish database-only, rollout-unavailable,
+  interrupted/retryable, failed, and verified recovery-copy states. Eligible
+  teachers explicitly confirm creation, and retries preserve the durable
+  operation UUID across browser failures and page reloads.
+- Verified recovery copies suppress duplicate creation and show their size and
+  retention policy. Export still retains every hot row and source object; this
+  slice does not compact a Classroom or free database space.
+- Independent review hardened the slice so verified evidence must match the
+  Classroom's current source revision, resumable exports replay their original
+  retention contract, same-lifecycle tabs derive one operation UUID, successful
+  exports retain that UUID until status reconciliation, and a status-only outage
+  cannot hide unarchive, reuse, restore, or purge actions.
+- Targeted review found that an old tab could submit its prior lifecycle UUID
+  after another tab rearchived the Classroom. Migration 126 now locks the
+  Classroom and revision rows, rejects a mismatched expected revision before
+  operation creation, and leaves the existing archive-v2 writer unchanged.
+- Narrowed remaining Phase 5 archive work to hot-to-cold eligibility/progress,
+  followed by cold-restore progress and quota/retention policy.
+
+**Validation:**
+- Focused client, API, component, deterministic-ID, retry, stale-revision,
+  malformed-data, and missing-migration coverage passes 59 tests.
+- Full verification passes 4,638 tests across 509 files, lint, type checking,
+  and the production build. Architecture, design/UI policy, Pika audit, and
+  diff checks pass.
+- The focused CI Playwright matrix passes with teacher rollout-unavailable,
+  status-outage, available, confirmation, stale, and verified states at
+  desktop/mobile in light/dark, plus the student absence boundary. Screenshots
+  were visually reviewed with no overflow, overlap, contrast, wrapping, or
+  hierarchy findings.
+- Composite-widget checklist reviewed: existing segmented-control and dialog
+  keyboard/semantic contracts are unchanged and covered; recovery state is
+  text-plus-icon, confirmation uses the canonical dialog, and no manual
+  follow-up remains.
+- Shared local Supabase was reset on this branch and replayed migrations
+  001-126. Review then found and fixed prior-revision operation replay; the final
+  migration replays and passes the live contract in both disposable and shared
+  local 001-126 databases. The concurrent
+  Bara migration must be resequenced to 127 after this PR merges.
+- The migration-126 assertions now run only when its RPC exists, so the legacy
+  migration-108 Quiz compatibility database contract continues to pass.
+
+**Model recommendation:** Sol with high reasoning for the final archive
+authorization, idempotency, privacy, and lifecycle-state review.

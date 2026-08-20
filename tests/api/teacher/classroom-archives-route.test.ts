@@ -71,7 +71,11 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
   it('starts a teacher-managed export with a caller idempotency key', async () => {
     const request = new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
       method: 'POST',
-      headers: { 'Idempotency-Key': OPERATION_ID },
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': OPERATION_ID,
+      },
+      body: JSON.stringify({ expected_source_revision: 7 }),
     })
     const response = await POST(request, context())
 
@@ -81,6 +85,7 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
       operationId: OPERATION_ID,
       teacherId: 'teacher-1',
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -95,7 +100,10 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
         'Content-Type': 'application/json',
         'Idempotency-Key': OPERATION_ID,
       },
-      body: JSON.stringify({ retention: { mode: 'scheduled', delete_after: deleteAfter } }),
+      body: JSON.stringify({
+        retention: { mode: 'scheduled', delete_after: deleteAfter },
+        expected_source_revision: 7,
+      }),
     })
     await POST(request, context())
 
@@ -113,7 +121,18 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
       },
       body: JSON.stringify({
         retention: { mode: 'scheduled', delete_after: '2020-01-01T00:00:00.000Z' },
+        expected_source_revision: 7,
       }),
+    })
+
+    expect((await POST(request, context())).status).toBe(400)
+    expect(mocks.exportClassroomArchive).not.toHaveBeenCalled()
+  })
+
+  it('requires the source revision shown to the teacher', async () => {
+    const request = new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': OPERATION_ID },
     })
 
     expect((await POST(request, context())).status).toBe(400)
@@ -142,7 +161,11 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
     })
     const request = new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
       method: 'POST',
-      headers: { 'Idempotency-Key': OPERATION_ID },
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': OPERATION_ID,
+      },
+      body: JSON.stringify({ expected_source_revision: 7 }),
     })
     const response = await POST(request, context())
 
@@ -159,7 +182,11 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
     mocks.isExportAllowed.mockReturnValue(false)
     const request = new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
       method: 'POST',
-      headers: { 'Idempotency-Key': OPERATION_ID },
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': OPERATION_ID,
+      },
+      body: JSON.stringify({ expected_source_revision: 7 }),
     })
     const response = await POST(request, context())
 

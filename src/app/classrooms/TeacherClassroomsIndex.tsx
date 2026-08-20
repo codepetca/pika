@@ -19,7 +19,16 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useRouter, usePathname } from 'next/navigation'
-import { Archive, CircleDot, LoaderCircle, Plus, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  CircleDot,
+  DatabaseBackup,
+  LoaderCircle,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ClassroomPurgeDialog } from '@/components/ClassroomPurgeDialog'
 import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
@@ -30,7 +39,10 @@ import { Button, ConfirmDialog, PageContent, PageLayout, SegmentedControl } from
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
-import type { ClassroomColdArchiveSummary } from '@/lib/contracts/classroom-lifecycle'
+import type {
+  ClassroomColdArchiveSummary,
+  ClassroomHotArchiveRecoverySummary,
+} from '@/lib/contracts/classroom-lifecycle'
 import {
   fetchTeacherArchivedClassroomState,
   fetchTeacherClassrooms,
@@ -39,6 +51,7 @@ import {
 import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
+import { classroomArchiveOperationId } from '@/lib/classroom-archive-operation-id'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -48,6 +61,11 @@ type ViewMode = 'active' | 'archived'
 
 type PendingAction =
   | { mode: 'archive'; classroom: Classroom }
+  | {
+      mode: 'export-hot'
+      classroom: Classroom
+      recovery: ClassroomHotArchiveRecoverySummary
+    }
   | { mode: 'restore-hot'; classroom: Classroom }
   | { mode: 'restore-cold'; archive: ClassroomColdArchiveSummary }
   | null
@@ -57,16 +75,54 @@ type ReuseReview = {
   reviewUrl: string
 } | null
 
+function formatArchiveSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function hotArchiveRecoveryActionLabel(
+  recovery: ClassroomHotArchiveRecoverySummary | undefined,
+): string {
+  if (recovery?.latest_operation?.status === 'snapshot_ready') return 'Resume recovery copy'
+  if (
+    recovery?.latest_operation?.status === 'failed'
+    && recovery.latest_operation.retryable
+  ) return 'Retry recovery copy'
+  return 'Create recovery copy'
+}
+
+function isResumableHotArchiveOperation(
+  recovery: ClassroomHotArchiveRecoverySummary | undefined,
+): boolean {
+  const operation = recovery?.latest_operation
+  if (!operation) return false
+  if (
+    recovery.current_revision === null
+    || operation.source_revision !== recovery.current_revision
+  ) return false
+  const canRetry = operation.status === 'snapshot_ready'
+    || (operation.status === 'failed' && operation.retryable)
+  if (!canRetry) return false
+  return operation.retention.mode === 'teacher_managed'
+    || Date.parse(operation.retention.delete_after) > Date.now()
+}
+
 export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
   const coldRestoreOperationIdsRef = useRef(new Map<string, string>())
+  const hotArchiveOperationIdsRef = useRef(new Map<
+    string,
+    { operationId: string; sourceRevision: number }
+  >())
   const reuseOperationIdsRef = useRef(new Map<string, string>())
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
   const [coldArchives, setColdArchives] = useState<ClassroomColdArchiveSummary[]>([])
   const [coldArchiveRestoreEnabled, setColdArchiveRestoreEnabled] = useState(false)
+  const [hotArchiveRecovery, setHotArchiveRecovery] = useState<ClassroomHotArchiveRecoverySummary[]>([])
+  const [hotArchiveRecoveryStatusAvailable, setHotArchiveRecoveryStatusAvailable] = useState(true)
   const [hotClassroomPurgeEnabledIds, setHotClassroomPurgeEnabledIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -109,6 +165,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   const visibleClassrooms = view === 'active' ? activeClassrooms : sortedArchived
   const hasArchivedItems = sortedArchived.length > 0 || coldArchives.length > 0
+  const hotArchiveRecoveryByClassroom = useMemo(
+    () => new Map(hotArchiveRecovery.map((recovery) => [recovery.classroom_id, recovery])),
+    [hotArchiveRecovery],
+  )
   const draggingClassroom = useMemo(
     () => activeClassrooms.find((classroom) => classroom.id === draggingClassroomId) ?? null,
     [activeClassrooms, draggingClassroomId]
@@ -122,12 +182,25 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setArchivedClassrooms(state.classrooms)
       setColdArchives(state.coldArchives)
       setColdArchiveRestoreEnabled(state.coldArchiveRestoreEnabled)
+      setHotArchiveRecovery(state.hotArchiveRecovery ?? [])
+      setHotArchiveRecoveryStatusAvailable(state.hotArchiveRecoveryStatusAvailable ?? true)
+      for (const recovery of state.hotArchiveRecovery ?? []) {
+        const retainedOperation = hotArchiveOperationIdsRef.current.get(recovery.classroom_id)
+        if (
+          recovery.current_revision !== null && (
+            retainedOperation?.sourceRevision !== recovery.current_revision
+            || recovery.latest_archive?.source_revision === recovery.current_revision
+          )
+        ) {
+          hotArchiveOperationIdsRef.current.delete(recovery.classroom_id)
+        }
+      }
       setHotClassroomPurgeEnabledIds(new Set(state.hotClassroomPurgeEnabledIds ?? []))
       setColdClassroomPurgeEnabledIds(new Set(state.coldClassroomPurgeEnabledIds ?? []))
-      return true
+      return state
     } catch (err: any) {
       setError(err.message || 'Failed to load archived classrooms')
-      return false
+      return null
     } finally {
       setIsLoadingArchived(false)
     }
@@ -281,6 +354,100 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }
 
+  async function openHotArchiveExport(
+    classroom: Classroom,
+    recovery: ClassroomHotArchiveRecoverySummary,
+  ) {
+    const resumableOperation = recovery?.latest_operation
+    if (resumableOperation && isResumableHotArchiveOperation(recovery)) {
+      hotArchiveOperationIdsRef.current.set(classroom.id, {
+        operationId: resumableOperation.operation_id,
+        sourceRevision: resumableOperation.source_revision,
+      })
+    } else if (
+      recovery.current_revision !== null
+      && !hotArchiveOperationIdsRef.current.has(classroom.id)
+    ) {
+      hotArchiveOperationIdsRef.current.set(classroom.id, {
+        operationId: await classroomArchiveOperationId({
+          classroomId: classroom.id,
+          archivedAt: classroom.archived_at || classroom.updated_at,
+        }),
+        sourceRevision: recovery.current_revision,
+      })
+    }
+    setPendingAction({ mode: 'export-hot', classroom, recovery })
+  }
+
+  async function exportHotArchive(
+    classroom: Classroom,
+    recovery: ClassroomHotArchiveRecoverySummary,
+  ) {
+    const retainedOperation = hotArchiveOperationIdsRef.current.get(classroom.id)
+    if (!retainedOperation) return
+    const expectedSourceRevision = recovery.current_revision
+    if (expectedSourceRevision === null) {
+      setError('Recovery-copy status must be refreshed before creating a copy')
+      return
+    }
+    if (retainedOperation.sourceRevision !== expectedSourceRevision) {
+      hotArchiveOperationIdsRef.current.delete(classroom.id)
+      setError('Recovery-copy status changed; create the copy again')
+      return
+    }
+    const operationId = retainedOperation.operationId
+    const retention = isResumableHotArchiveOperation(recovery)
+      ? recovery.latest_operation!.retention
+      : { mode: 'teacher_managed' as const, delete_after: null }
+
+    setIsProcessing(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/archives`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': operationId,
+        },
+        body: JSON.stringify({
+          retention,
+          expected_source_revision: expectedSourceRevision,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        if (data.error_code === 'classroom_archive_source_revision_changed') {
+          hotArchiveOperationIdsRef.current.delete(classroom.id)
+          invalidateTeacherClassrooms()
+          await loadArchived()
+        }
+        if (data.retryable === false) {
+          hotArchiveOperationIdsRef.current.delete(classroom.id)
+        }
+        throw new Error(data.error || 'Failed to create recovery copy')
+      }
+
+      invalidateTeacherClassrooms()
+      const refreshed = await loadArchived()
+      const refreshedRecovery = refreshed?.hotArchiveRecovery?.find(
+        (entry) => entry.classroom_id === classroom.id,
+      )
+      if (
+        refreshed?.hotArchiveRecoveryStatusAvailable !== false
+        && refreshedRecovery
+        && refreshedRecovery.current_revision !== null
+        && refreshedRecovery.latest_archive?.source_revision === refreshedRecovery.current_revision
+      ) {
+        hotArchiveOperationIdsRef.current.delete(classroom.id)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create recovery copy')
+    } finally {
+      setIsProcessing(false)
+      setPendingAction(null)
+    }
+  }
+
   function openColdRestore(archive: ClassroomColdArchiveSummary) {
     if (!coldRestoreOperationIdsRef.current.has(archive.archive_id)) {
       coldRestoreOperationIdsRef.current.set(archive.archive_id, crypto.randomUUID())
@@ -370,6 +537,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       return
     }
 
+    if (pendingAction.mode === 'export-hot') {
+      await exportHotArchive(pendingAction.classroom, pendingAction.recovery)
+      return
+    }
+
     if (pendingAction.mode === 'restore-hot') {
       await restoreHotClassroom(pendingAction.classroom)
       return
@@ -383,6 +555,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogTitle = pendingAction
     ? pendingAction.mode === 'archive'
       ? `Archive ${pendingAction.classroom.title}?`
+      : pendingAction.mode === 'export-hot'
+        ? `Create a recovery copy of ${pendingAction.classroom.title}?`
       : pendingAction.mode === 'restore-hot'
         ? `Unarchive ${pendingAction.classroom.title}?`
         : `Restore ${pendingAction.archive.title}?`
@@ -391,6 +565,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogDescription = pendingAction
     ? pendingAction.mode === 'archive'
       ? 'Students will lose access until the classroom is unarchived.'
+      : pendingAction.mode === 'export-hot'
+        ? 'Creates a private, verified recovery copy in Supabase Storage. The classroom remains archived in the database and no classroom data is removed.'
       : pendingAction.mode === 'restore-hot'
         ? 'Students will regain access to this classroom.'
         : 'The classroom will return to Archived with its submissions and files available.'
@@ -399,6 +575,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogConfirmLabel = pendingAction
     ? pendingAction.mode === 'archive'
       ? 'Archive'
+      : pendingAction.mode === 'export-hot'
+        ? 'Create recovery copy'
       : pendingAction.mode === 'restore-hot'
         ? 'Unarchive'
         : 'Restore'
@@ -415,7 +593,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     <PageLayout density="teacher" width="reading">
       <PageContent className="pb-24">
         {error && (
-          <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <div role="alert" className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
@@ -499,9 +677,33 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               </DndContext>
             ) : (
               <>
+                {!hotArchiveRecoveryStatusAvailable ? (
+                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
+                    <span>Recovery-copy status is temporarily unavailable.</span>
+                    <Button
+                      type="button"
+                      variant="surface"
+                      size="xs"
+                      onClick={() => void loadArchived()}
+                      disabled={isLoadingArchived}
+                    >
+                      Retry status
+                    </Button>
+                  </div>
+                ) : null}
                 {sortedArchived.map((c) => {
                   const theme = getClassroomThemeDefinition(c.theme_color)
                   const dateRange = formatClassroomDateRange(c.start_date, c.end_date)
+                  const recovery = hotArchiveRecoveryByClassroom.get(c.id)
+                  const latestArchive = recovery?.latest_archive
+                  const verifiedArchive = latestArchive?.source_revision === recovery?.current_revision
+                    ? latestArchive
+                    : null
+                  const staleArchive = latestArchive && !verifiedArchive ? latestArchive : null
+                  const latestOperation = recovery?.latest_operation
+                  const hasRetryableOperation = isResumableHotArchiveOperation(recovery)
+                  const exportCanStart = recovery?.export_available
+                    && !(latestOperation?.status === 'failed' && latestOperation.retryable === false)
                   return (
                     <div
                       key={c.id}
@@ -529,6 +731,46 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                         <div className="mt-1 text-sm text-text-muted">
                           {dateRange ?? 'Semester dates not set'}
                         </div>
+                        {verifiedArchive ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+                            <span className="inline-flex items-center gap-1 font-medium text-success">
+                              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                              Recovery copy verified
+                            </span>
+                            <span aria-hidden="true">&middot;</span>
+                            <span>{formatArchiveSize(verifiedArchive.compressed_byte_size)}</span>
+                            <span aria-hidden="true">&middot;</span>
+                            <span>
+                              {verifiedArchive.retention.mode === 'teacher_managed'
+                                ? 'Kept until you delete it'
+                                : `Retention date ${new Intl.DateTimeFormat('en-CA', {
+                                    timeZone: 'America/Toronto',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  }).format(new Date(verifiedArchive.retention.delete_after))}`}
+                            </span>
+                          </div>
+                        ) : staleArchive ? (
+                          <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warning">
+                            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                            Recovery copy out of date
+                          </div>
+                        ) : latestOperation?.status === 'failed' ? (
+                          <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger">
+                            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                            Recovery copy needs attention
+                          </div>
+                        ) : (
+                          <div className="mt-2 inline-flex items-center gap-1 text-xs text-text-muted">
+                            <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
+                            {latestOperation?.status === 'snapshot_ready'
+                              ? 'Recovery copy interrupted'
+                              : recovery && !recovery.export_available
+                                ? 'Database archive only · Recovery copy unavailable'
+                                : 'Database archive only'}
+                          </div>
+                        )}
                         {openingClassroomId === c.id && (
                           <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
                             <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -559,6 +801,20 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                         >
                           Unarchive
                         </Button>
+                        {!verifiedArchive && recovery && exportCanStart ? (
+                          <Button
+                            type="button"
+                            variant="surface"
+                            size="xs"
+                            onClick={() => void openHotArchiveExport(c, recovery)}
+                            disabled={openingClassroomId !== null || reusingClassroomId !== null || isProcessing}
+                          >
+                            <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />
+                            {hasRetryableOperation
+                              ? hotArchiveRecoveryActionLabel(recovery)
+                              : 'Create recovery copy'}
+                          </Button>
+                        ) : null}
                         {hotClassroomPurgeEnabledIds.has(c.id) ? (
                           <Button
                             type="button"

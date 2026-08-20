@@ -6248,6 +6248,21 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_classroom_archive_export_v2_expected_revision: {
+        Args: {
+          p_archive_format_version: number
+          p_classroom_id: string
+          p_expected_source_revision: number
+          p_operation_id: string
+          p_request_sha256: string
+          p_retention: Json
+          p_source_app_commit: string
+          p_source_contract_version: number
+          p_source_schema_migration: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       begin_classroom_archive_restore: {
         Args: {
           p_adapter_chain: Json

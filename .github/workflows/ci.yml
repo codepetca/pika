@@ -280,6 +280,9 @@ jobs:
       - name: Run individual-student purge browser matrix
         run: pnpm e2e:student-purge
 
+      - name: Run archive recovery browser matrix
+        run: pnpm e2e:archive-recovery
+
       - name: Upload browser diagnostics
         if: always()
         uses: actions/upload-artifact@v7

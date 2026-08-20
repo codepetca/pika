@@ -13,6 +13,22 @@ const coldArchive = {
   compacted_at: '2026-07-10T12:00:00.000Z',
 }
 
+const hotArchiveRecovery = {
+  classroom_id: '00000000-0000-4000-8000-000000000003',
+  current_revision: 7,
+  export_available: true,
+  latest_archive: {
+    archive_id: '00000000-0000-4000-8000-000000000004',
+    operation_id: '00000000-0000-4000-8000-000000000005',
+    source_revision: 7,
+    created_at: '2026-07-11T12:00:00.000Z',
+    verified_at: '2026-07-11T12:01:00.000Z',
+    compressed_byte_size: 2_489_962,
+    retention: { mode: 'teacher_managed', delete_after: null },
+  },
+  latest_operation: null,
+}
+
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
@@ -80,6 +96,8 @@ describe('teacher classrooms client', () => {
           '00000000-0000-4000-8000-000000000003',
         ],
         cold_classroom_purge_enabled_ids: [coldArchive.classroom_id],
+        hot_archive_recovery: [hotArchiveRecovery],
+        hot_archive_recovery_status_available: true,
       }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -91,6 +109,8 @@ describe('teacher classrooms client', () => {
         '00000000-0000-4000-8000-000000000003',
       ],
       coldClassroomPurgeEnabledIds: [coldArchive.classroom_id],
+      hotArchiveRecovery: [hotArchiveRecovery],
+      hotArchiveRecoveryStatusAvailable: true,
     })
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/classrooms?archived=true')
   })
@@ -102,6 +122,26 @@ describe('teacher classrooms client', () => {
         classrooms: [],
         cold_archives: [{ ...coldArchive, archive_id: 'not-a-uuid' }],
         cold_archive_restore_enabled: true,
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchTeacherArchivedClassroomState()).rejects.toThrow()
+  })
+
+  it('rejects invalid hot archive recovery evidence at the client boundary', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ user: { id: 'teacher-1' } }))
+      .mockResolvedValueOnce(jsonResponse({
+        classrooms: [],
+        cold_archives: [],
+        cold_archive_restore_enabled: false,
+        hot_archive_recovery: [{
+          ...hotArchiveRecovery,
+          latest_archive: {
+            ...hotArchiveRecovery.latest_archive,
+            compressed_byte_size: -1,
+          },
+        }],
       }))
     vi.stubGlobal('fetch', fetchMock)
 
