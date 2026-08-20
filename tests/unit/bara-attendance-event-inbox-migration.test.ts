@@ -133,6 +133,12 @@ describe('Bara attendance event inbox migration', () => {
     expect(migration).toContain('create trigger reject_attendance_classroom_delete_v1')
     expect(migration).toContain('create trigger reject_attendance_archive_compaction_v1')
     expect(migration).toContain('create trigger reject_attendance_classroom_purge_v1')
+    expect(migration).toMatch(
+      /create function public\.reject_attendance_classroom_delete_v1\(\)[\s\S]*?language plpgsql\s+security definer\s+set search_path = ''/,
+    )
+    expect(migration).toMatch(
+      /create function public\.reject_attendance_destructive_operation_v1\(\)[\s\S]*?language plpgsql\s+security definer\s+set search_path = ''/,
+    )
     expect(migration).toContain("message = 'attendance_classroom_decommission_required'")
     expect(migration).not.toContain(
       'grant select, insert, update, delete on table public.attendance_roster_mappings',

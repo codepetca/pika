@@ -2049,6 +2049,9 @@ Supabase database was reset; no hosted or production state changed.
 - Classified every attendance FK as provider-owned blocking state so the live
   schema audit does not treat inbox/projections as portable or rebuildable.
 - Mapped classroom decommission fences to stable 409/non-retryable outcomes.
+- Kept the private classroom-state helper unexposed while making its two
+  fully-qualified, empty-search-path trigger callers security-definer; this
+  preserves the fence for restricted database roles used by existing flows.
 - Split permanent session/mark delivery failures from retryable pending work;
   teachers see a sanitized previous-failure state and may issue a fresh command.
 - Corrected both repositories' identity documentation to state that WorkOS is
@@ -2060,6 +2063,8 @@ Supabase database was reset; no hosted or production state changed.
   begin/finalize privacy fences, two-session concurrency serialization,
   in-flight write rejection, deletion guards, privileges, and dependency
   ordering.
+- The existing Gradex extract/retention database contract passes with the
+  classroom decommission trigger active under its restricted fixture role.
 - All 4,829 tests across 552 files pass, along with TypeScript, production
   build, architecture, design-policy, UI-policy, database type parity, feature
   metadata, shell syntax, and diff checks.

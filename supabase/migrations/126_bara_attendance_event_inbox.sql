@@ -1871,6 +1871,7 @@ $$;
 create function public.reject_attendance_classroom_delete_v1()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 begin
@@ -1890,6 +1891,7 @@ for each row execute function public.reject_attendance_classroom_delete_v1();
 create function public.reject_attendance_destructive_operation_v1()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 begin
