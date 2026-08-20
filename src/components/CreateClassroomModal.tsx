@@ -138,6 +138,8 @@ export function CreateClassroomModal({
     if (nextMode === 'blank' && !initialBlueprintId) {
       setSelectedBlueprintId('')
       setStep('calendar')
+    } else if (initialBlueprintId) {
+      setStep('calendar')
     } else {
       setStep('blueprint')
     }
@@ -300,8 +302,9 @@ export function CreateClassroomModal({
   }
 
   const { semester1Year, semester2Year } = getSemesterYears()
+  const requiresBlueprintSelection = creationMode === 'blueprint' && !initialBlueprintId
   const progressSteps: WizardStep[] =
-    creationMode === 'blueprint' || step === 'blueprint'
+    requiresBlueprintSelection || step === 'blueprint'
       ? ['name', 'blueprint', 'calendar']
       : ['name', 'calendar']
   const currentProgressIndex = step === 'review' ? progressSteps.length : progressSteps.indexOf(step)
@@ -569,7 +572,7 @@ export function CreateClassroomModal({
                 ? handleClose
                 : () => {
                     if (step === 'calendar') {
-                      setStep(creationMode === 'blueprint' ? 'blueprint' : 'name')
+                      setStep(requiresBlueprintSelection ? 'blueprint' : 'name')
                     } else {
                       setStep('name')
                     }

@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-10 — Add Student Tests live-status accessibility
-
-**Risk profile:** exam-mode, workspace-state — student test announcements and
-autosave error feedback while preserving the mounted attempt and exam owner.
-
-**Completed:**
-- Added action-only polite flag/unflag announcements without announcing loaded
-  localStorage state or duplicating pointer/keyboard toggles.
-- Added polite autosave transition announcements for unsaved, saving, and saved
-  states while keeping the visible status layout and teacher preview unchanged.
-- Exposed save and submission errors as assertive alerts without changing API,
-  draft, retry, availability, locking, or submission behavior.
-- Added controlled timer/promise coverage for announcements, save failure draft
-  preservation, preview isolation, and existing pressed/locking/storage rules.
-
-**Validation:**
-- Focused StudentTestForm tests pass (17 tests), including controlled stale
-  success/failure races so an older save cannot overwrite newer live state.
-- TypeScript, lint,
-  architecture, UI policy, Pika audit, and diff checks.
-- Playwright verified real student flagged/unflagged, saving/error, response
-  preservation, and keyboard-focus states plus teacher preview at desktop/mobile
-  and light/dark; no layout regression or overflow was found.
-- The temporary local test fixture was deleted after capture; no API, database,
-  migration, Gradex, exam-mode ownership, or dependency changes were made.
-- Independent review identified one P1 stale-autosave completion race; the
-  accepted remediation guards UI completion by the latest pending draft and
-  monotonic successful-save sequence without changing persistence requests.
-
 ## 2026-08-10 — Compact teacher Daily log table
 
 **Risk profile:** none — presentation and client-side table ordering only.
@@ -1265,3 +1236,41 @@ exposure boundary and cross-route publication lifecycle.
 - Remediated full verification passes 4,616 tests across 507 files, lint, type
   checking, and the production build. The final browser matrix remains 36
   passing with 14 intentional skips.
+
+## 2026-08-20 — Streamline Blueprint-to-Classroom creation
+
+**Risk profile:** runtime-platform — Blueprint materialization, immutable
+lineage, and student-visibility defaults; no migration, production operation,
+dependency, deletion endpoint, or archive-lifecycle change.
+
+**Completed:**
+- A Blueprint preselected from `/teacher/blueprints` now moves directly from
+  classroom name to calendar. Dashboard/classroom entry paths without a
+  preselection still require choosing a Blueprint. Back navigation, unsaved
+  editor confirmation, retry idempotency, the post-create handoff, overflow
+  reporting, and assignments-tab navigation remain covered.
+- The real rollover drill now verifies draft/unreleased assignments, Tests,
+  materials, and surveys; an unpublished actual classroom site; authenticated
+  student API denial; immutable Version lineage; complete reusable content;
+  live-data exclusion; and cleanup.
+- The drill exposed a pre-existing nested Test-question lineage defect when a
+  source had no assessment-draft row. Blueprint source loading now normalizes
+  saved-draft and fallback question IDs to portable artifact identities.
+- Current/audit/evidence docs record the reviewed decision: no pre-create
+  preview or teacher-facing Version picker, and no immediate active-classroom
+  deletion. Remaining Phase 5 work is the existing archive/purge lifecycle UI.
+
+**Validation:**
+- Focused component/server/verification coverage passes 64 tests; the real
+  browser/API/database rollover drill passes all 54 checks with clean rollback.
+- Full verification passes 4,620 tests across 507 files, lint, type checking,
+  and the production build. Architecture/UI/design policy checks, Pika audit,
+  and diff checks pass.
+- Teacher desktop/mobile light/dark calendar-step captures were visually
+  reviewed with no picker, overflow, overlap, or legibility findings. Student
+  UI did not change; non-visibility is verified through browser/API/database
+  coverage. Composite-widget checklist reviewed with no remaining follow-up.
+
+**Model recommendation:** Sol with high reasoning for final atomic creation,
+lineage, and student-visibility review; Terra with high reasoning for broad
+compatibility, test, UX, and documentation review.
