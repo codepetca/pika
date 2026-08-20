@@ -50,7 +50,7 @@ function createSupabaseMock(options: {
   const removed: string[] = []
   const queriedTables: string[] = []
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === 'begin_classroom_archive_export_v2') {
+    if (name === 'begin_classroom_archive_export_v2_expected_revision') {
       if (options.v2Unavailable) {
         return { data: null, error: { code: 'PGRST202', message: 'missing v2 function' } }
       }
@@ -243,6 +243,7 @@ describe('classroom archive export coordinator', () => {
       operationId: OPERATION_ID,
       teacherId: TEACHER_ID,
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -254,11 +255,14 @@ describe('classroom archive export coordinator', () => {
     expect(result.verification.read_back_verified).toBe(true)
     expect(result.compressed_byte_size).toBeGreaterThan(0)
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export_v2',
+      'begin_classroom_archive_export_v2_expected_revision',
       'begin_managed_storage_upload',
       'stage_classroom_archive_object_upload',
       'complete_classroom_archive_export_v2',
     ])
+    expect(mock.rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
+      p_expected_source_revision: 7,
+    }))
     expect([...mock.stored.keys()]).toEqual([
       `${CLASSROOM_ARCHIVE_BUCKET}/${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/classroom-v2.tar.gz`,
     ])
@@ -271,13 +275,14 @@ describe('classroom archive export coordinator', () => {
     expect(verification.ok && verification.manifest.version).toBe(2)
   })
 
-  it('fails closed instead of falling back when migration 107 is unavailable', async () => {
+  it('fails closed instead of falling back when migration 126 is unavailable', async () => {
     const mock = createSupabaseMock({ v2Unavailable: true })
     const result = await exportClassroomArchive({
       supabase: mock.client,
       operationId: OPERATION_ID,
       teacherId: TEACHER_ID,
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -285,10 +290,10 @@ describe('classroom archive export coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({
       ok: false,
-      error_code: 'classroom_archive_migration_required',
+      error_code: 'classroom_archive_expected_revision_migration_required',
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export_v2',
+      'begin_classroom_archive_export_v2_expected_revision',
       'fail_classroom_archive_export',
     ])
   })
@@ -302,6 +307,7 @@ describe('classroom archive export coordinator', () => {
       operationId: OPERATION_ID,
       teacherId: TEACHER_ID,
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -312,7 +318,7 @@ describe('classroom archive export coordinator', () => {
       error_code: 'archive_snapshot_begin_failed',
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export_v2',
+      'begin_classroom_archive_export_v2_expected_revision',
       'fail_classroom_archive_export',
     ])
   })
@@ -324,6 +330,7 @@ describe('classroom archive export coordinator', () => {
       operationId: OPERATION_ID,
       teacherId: TEACHER_ID,
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -377,6 +384,7 @@ describe('classroom archive export coordinator', () => {
       operationId: OPERATION_ID,
       teacherId: TEACHER_ID,
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -408,6 +416,7 @@ describe('classroom archive export coordinator', () => {
       operationId: OPERATION_ID,
       teacherId: TEACHER_ID,
       classroomId: CLASSROOM_ID,
+      expectedSourceRevision: 7,
       retention: { mode: 'teacher_managed', delete_after: null },
       sourceAppCommit: 'abcdef1234567890',
       supabaseUrl: 'https://project.supabase.co',
@@ -417,12 +426,12 @@ describe('classroom archive export coordinator', () => {
       ok: false,
       status: 503,
       operation_id: OPERATION_ID,
-      error_code: 'classroom_archive_migration_required',
-      error: 'Classroom archive export requires migration 107',
+      error_code: 'classroom_archive_expected_revision_migration_required',
+      error: 'Classroom archive export requires migration 126',
       retryable: true,
     })
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
-      'begin_classroom_archive_export_v2',
+      'begin_classroom_archive_export_v2_expected_revision',
       'fail_classroom_archive_export',
     ])
   })

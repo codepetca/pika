@@ -620,6 +620,7 @@ async function beginArchiveExport(args: {
   operationId: string
   teacherId: string
   classroomId: string
+  expectedSourceRevision: number
   retention: ArchiveRetention
   sourceAppCommit: string
 }): Promise<z.infer<typeof beginOperationV2ResultSchema>> {
@@ -629,7 +630,7 @@ async function beginArchiveExport(args: {
     classroom_id: args.classroomId,
     retention: args.retention,
   })
-  const v2Response = await args.supabase.rpc('begin_classroom_archive_export_v2', {
+  const v2Response = await args.supabase.rpc('begin_classroom_archive_export_v2_expected_revision', {
     p_operation_id: args.operationId,
     p_teacher_id: args.teacherId,
     p_classroom_id: args.classroomId,
@@ -639,15 +640,16 @@ async function beginArchiveExport(args: {
     p_retention: args.retention,
     p_source_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
     p_archive_format_version: CLASSROOM_ARCHIVE_V2_VERSION,
+    p_expected_source_revision: args.expectedSourceRevision,
   })
   if (v2Response.error) {
     const missingMigration = isMissingArchiveV2Rpc(v2Response.error)
     throw new ClassroomArchiveExportError(
       missingMigration
-        ? 'classroom_archive_migration_required'
+        ? 'classroom_archive_expected_revision_migration_required'
         : 'archive_snapshot_begin_failed',
       missingMigration
-        ? 'Classroom archive export requires migration 107'
+        ? 'Classroom archive export requires migration 126'
         : 'Failed to start classroom archive-v2 snapshot',
       503,
       true,
@@ -670,6 +672,7 @@ export async function exportClassroomArchive(args: {
   operationId: string
   teacherId: string
   classroomId: string
+  expectedSourceRevision?: number
   retention: ArchiveRetention
   sourceAppCommit: string
   supabaseUrl: string
@@ -678,8 +681,30 @@ export async function exportClassroomArchive(args: {
   const retention = classroomArchiveRetentionSchema.parse(args.retention)
 
   try {
+    let expectedSourceRevision = args.expectedSourceRevision
+    if (expectedSourceRevision === undefined) {
+      const revisionResponse = await args.supabase
+        .from('classroom_archive_revisions')
+        .select('revision')
+        .eq('classroom_id', args.classroomId)
+        .single()
+      const parsedRevision = z.object({
+        revision: z.number().int().nonnegative(),
+      }).strict().safeParse(revisionResponse.data)
+      if (revisionResponse.error || !parsedRevision.success) {
+        throw new ClassroomArchiveExportError(
+          'classroom_archive_revision_unavailable',
+          'Classroom archive source revision is unavailable',
+          503,
+          true,
+        )
+      }
+      expectedSourceRevision = parsedRevision.data.revision
+    }
+    expectedSourceRevision = z.number().int().nonnegative().parse(expectedSourceRevision)
     const begun = await beginArchiveExport({
       ...args,
+      expectedSourceRevision,
       retention,
     })
     if (!begun.ok) {

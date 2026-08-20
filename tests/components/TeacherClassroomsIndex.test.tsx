@@ -269,6 +269,7 @@ describe('TeacherClassroomsIndex', () => {
       })
       expect(JSON.parse(String(init?.body))).toEqual({
         retention: { mode: 'teacher_managed', delete_after: null },
+        expected_source_revision: 7,
       })
     }
   })
@@ -443,6 +444,70 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.getByRole('button', { name: 'Create recovery copy' })).toBeInTheDocument()
   })
 
+  it('refreshes a stale tab before retrying against a newer archive revision', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000055'
+    const oldOperationId = '00000000-0000-5000-8000-000000000056'
+    const newOperationId = '00000000-0000-5000-8000-000000000057'
+    const recovery = (revision: number, archivedAt: string) => ({
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived Economics',
+        archived_at: archivedAt,
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        current_revision: revision,
+        export_available: true,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState)
+      .mockResolvedValueOnce(recovery(7, '2026-04-01T12:00:00Z'))
+      .mockResolvedValueOnce(recovery(8, '2026-04-02T12:00:00Z'))
+    archiveOperationId
+      .mockResolvedValueOnce(oldOperationId)
+      .mockResolvedValueOnce(newOperationId)
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error_code: 'classroom_archive_source_revision_changed',
+          error: 'Classroom archive status changed; refresh before creating a recovery copy',
+          retryable: false,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Still processing', retryable: true }),
+      })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Create recovery copy' }))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+
+    expect(await screen.findByText(/status changed; refresh/)).toBeInTheDocument()
+    await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(2))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create recovery copy' }))
+    dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+
+    expect(fetchMock.mock.calls.map(([, init]) => ({
+      key: (init?.headers as Record<string, string>)['Idempotency-Key'],
+      revision: JSON.parse(String(init?.body)).expected_source_revision,
+    }))).toEqual([
+      { key: oldOperationId, revision: 7 },
+      { key: newOperationId, revision: 8 },
+    ])
+  })
+
   it('replays the exact retention contract for a resumable operation', async () => {
     const classroomId = '00000000-0000-4000-8000-000000000060'
     const operationId = '00000000-0000-4000-8000-000000000061'
@@ -484,7 +549,9 @@ describe('TeacherClassroomsIndex', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       `/api/teacher/classrooms/${classroomId}/archives`,
-      expect.objectContaining({ body: JSON.stringify({ retention }) }),
+      expect.objectContaining({
+        body: JSON.stringify({ retention, expected_source_revision: 7 }),
+      }),
     ))
   })
 

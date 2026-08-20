@@ -1249,9 +1249,9 @@ compatibility, test, UX, and documentation review.
 
 ## 2026-08-20 — Productize hot archive recovery copies
 
-**Risk profile:** runtime-platform — authenticated archive status and the
-existing gated export operation; no migration, compaction, cleanup, production
-operation, dependency, or rollout change.
+**Risk profile:** data-security — authenticated archive status, revision-fenced
+export, and the existing gated archive operation. Migration 126 adds the atomic
+expected-source-revision fence; it is applied to shared local only, not production.
 
 **Completed:**
 - Added a strict teacher-scoped recovery summary for hot archived Classrooms.
@@ -1270,6 +1270,10 @@ operation, dependency, or rollout change.
   retention contract, same-lifecycle tabs derive one operation UUID, successful
   exports retain that UUID until status reconciliation, and a status-only outage
   cannot hide unarchive, reuse, restore, or purge actions.
+- Targeted review found that an old tab could submit its prior lifecycle UUID
+  after another tab rearchived the Classroom. Migration 126 now locks the
+  Classroom and revision rows, rejects a mismatched expected revision before
+  operation creation, and leaves the existing archive-v2 writer unchanged.
 - Narrowed remaining Phase 5 archive work to hot-to-cold eligibility/progress,
   followed by cold-restore progress and quota/retention policy.
 
@@ -1288,6 +1292,9 @@ operation, dependency, or rollout change.
   keyboard/semantic contracts are unchanged and covered; recovery state is
   text-plus-icon, confirmation uses the canonical dialog, and no manual
   follow-up remains.
+- Shared local Supabase was reset on this branch and replayed migrations
+  001-126. Generated types match, and the live archive database contract passes.
+  The concurrent Bara migration must be resequenced to 127 after this PR merges.
 
 **Model recommendation:** Sol with high reasoning for the final archive
 authorization, idempotency, privacy, and lifecycle-state review.

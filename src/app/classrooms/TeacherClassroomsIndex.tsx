@@ -366,6 +366,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   ) {
     const operationId = hotArchiveOperationIdsRef.current.get(classroom.id)
     if (!operationId) return
+    const expectedSourceRevision = recovery.current_revision
+    if (expectedSourceRevision === null) {
+      setError('Recovery-copy status must be refreshed before creating a copy')
+      return
+    }
     const retention = isResumableHotArchiveOperation(recovery)
       ? recovery.latest_operation!.retention
       : { mode: 'teacher_managed' as const, delete_after: null }
@@ -379,10 +384,18 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           'Content-Type': 'application/json',
           'Idempotency-Key': operationId,
         },
-        body: JSON.stringify({ retention }),
+        body: JSON.stringify({
+          retention,
+          expected_source_revision: expectedSourceRevision,
+        }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
+        if (data.error_code === 'classroom_archive_source_revision_changed') {
+          hotArchiveOperationIdsRef.current.delete(classroom.id)
+          invalidateTeacherClassrooms()
+          await loadArchived()
+        }
         if (data.retryable === false) {
           hotArchiveOperationIdsRef.current.delete(classroom.id)
         }
