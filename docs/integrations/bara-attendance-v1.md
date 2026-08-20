@@ -10,7 +10,7 @@ retrying outbox. Bounded staff marks/corrections and signed authoritative
 snapshot reconciliation are also implemented. Pika now exposes owner-authorized
 manual session and bounded bulk-mark routes that translate only inside the
 server from Pika IDs to private contract references, use request-scoped
-idempotency, require a linked WorkOS actor, and return no service identifiers.
+idempotency, require a linked Pika actor, and return no service identifiers.
 Those teacher commands are now staged in a private leased outbox before the
 signed request; retryable failures remain recoverable through a bounded,
 cron-secret-protected drain route. Every automated or operator drain now ends
@@ -22,9 +22,9 @@ presentation from Bara through the signed adapter, encrypts it into a Pika-owned
 entry URL, and keeps the raw Bara token out of Pika persistence and logs. The
 student stays in Pika, which derives the actor from its verified server session
 and renders Bara's synchronous authoritative result.
-The additive Supabase migration
-has not been applied to a live environment, and no production rollout is
-enabled yet.
+The additive Supabase migration has been replayed from scratch and exercised
+only against the disposable local Supabase stack. It has not been applied to a
+hosted environment, and no production rollout is enabled.
 
 Automatic schedule materialization is now wired locally: a daily,
 secret-protected Pika worker advances a rolling 90-day class-day horizon for
@@ -39,13 +39,13 @@ snapshots with bounded concurrency. Failed or truncated work returns HTTP 503
 with aggregate counts only. Keeping this job separate prevents reconciliation
 from consuming the schedule/outbox worker's serverless time budget.
 
-The unapplied migration now also defines Pika-private durable mappings from
+Migration 126 also defines Pika-private durable mappings from
 classrooms, enrolled students, and class dates to random contract references,
 plus a teacher-local Toronto attendance-window policy. The authenticated
 read-only teacher route joins authoritative projections through those mappings
 and strips all opaque service references before returning browser-facing state.
 It returns a disabled view without touching the unapplied integration tables;
-configured database reads remain gated on applying migration 126.
+hosted configured reads remain gated on applying migration 126 there.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -77,7 +77,7 @@ The useful Pal pattern is retained:
   non-retryable retention;
 - privacy-safe operational telemetry and an authoritative reconciliation path.
 
-The unapplied migration now provides the Pal-style Pika outbound transport:
+Migration 126 provides the Pal-style Pika outbound transport:
 contract-validated payload staging, idempotency conflict detection, leases,
 bounded exponential retry, explicit non-retryable retention, cached closed
 responses, a recovery drain, and service-role-only aggregate backlog health.
@@ -85,8 +85,9 @@ Manual session and mark commands use it.
 Roster and schedule producers now use the same transport through source-token
 preparation and locked staging RPCs: each source revision and its outbox message
 commit atomically, and a concurrent source change returns a stable retry
-conflict. The RPCs remain unapplied and therefore are not yet database-tested.
-An adequately frequent production worker is also deliberately unconfigured;
+conflict. Local reset/replay and the attendance database regression now prove
+the RPC privileges, dependency ordering, and destructive-operation fences.
+An adequately frequent hosted worker is still deliberately unconfigured;
 the current no-charge Vercel cron policy cannot be assumed to meet live
 attendance latency. Those items remain rollout gates.
 
@@ -97,20 +98,19 @@ they need; Bara is not a derived-statistics cache.
 
 ## Pika adapter responsibilities
 
-1. Generate durable random `roster_ref`, `participant_ref`, and
-   `occurrence_ref` mappings. Never transmit Supabase IDs.
+1. Generate durable random `roster_ref`, `participant_ref`, `occurrence_ref`,
+   and `principal_ref` mappings. Never transmit Supabase IDs or WorkOS subjects.
 2. Keep a minimal operational roster replica in Bara: display name and active
    state, with no school email by default.
-3. Link a verified student by a separate WorkOS-subject assertion. Bara must
-   resolve it through its own `auth_identities`; it is never an ownership ID.
-   Each roster snapshot also includes the owning staff user's verified WorkOS
-   subject so Bara can resolve the corresponding Bara `app_user` before
-   assigning ownership.
+3. Verify WorkOS only inside Pika, then translate the linked Pika user to a
+   random `principal_ref`. Bara provisions or resolves that opaque principal
+   only inside the signed installation. Standalone Bara WorkOS identities are
+   never searched or reused by the Pika adapter.
 4. Materialize explicit UTC occurrence windows from Pika class days and a
    teacher-owned local attendance-window policy.
 5. Authorize every browser action in Pika, then call Bara from the server with
-   the installation credential and verified WorkOS actor subject. Bara performs
-   its own access check.
+   the installation credential and opaque Pika actor principal. Bara performs
+   its own installation, tenant, roster, role, and lifecycle checks.
 6. Commit received Bara events to an inbox and update the Supabase attendance
    projection in the same transaction. Reject roster/occurrence or participant
    references that do not resolve to the same local classroom. Use
@@ -170,6 +170,14 @@ roster/schedule/session/mark/event/snapshot/QR round trip. The Attendance UI
 remains disabled by configuration until that gate passes. Its teacher flow,
 state family, and Pika-owned view-model boundary are maintained in
 `docs/guidance/pika-attendance-teacher-surface-v1.md`.
+
+Attendance integration state is intentionally nonportable in archive-v2.
+Ordinary soft archive/restore retains it, while archive compaction, hot purge,
+and the final classroom delete fail with
+`attendance_classroom_decommission_required` until a versioned Bara
+decommission/reseed protocol exists. Migration 126 links inbox and projections
+to their local classroom (and record projections to the local student), removes
+service-role delete authority, and tests every guarded row family.
 
 ## Hosted rollout preflight
 

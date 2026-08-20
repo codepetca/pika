@@ -22,7 +22,7 @@ const prepared = {
   classroom_id: classroomId,
   roster_ref: 'roster_11111111111111111111111111111111',
   title: 'Evening Science',
-  owner_workos_subject: 'user_teacher',
+  owner_principal_ref: 'principal_teacher',
   roster_source_token: 'a'.repeat(32),
   roster_revision: 2,
   schedule_source_token: 'b'.repeat(32),
@@ -41,14 +41,14 @@ const prepared = {
       participant_ref: 'participant_22222222222222222222222222222222',
       display_name: 'Alex Morgan',
       active: true,
-      workos_subject: 'user_student',
+      principal_ref: 'principal_student',
     },
     {
       student_id: '10000000-0000-4000-8000-000000000002',
       participant_ref: 'participant_33333333333333333333333333333333',
       display_name: 'Former Student',
       active: false,
-      workos_subject: null,
+      principal_ref: null,
     },
   ],
   class_days: [
@@ -159,8 +159,11 @@ describe('Pika attendance source snapshot sync', () => {
     ])
   })
 
-  it('rejects a manual sync when the live WorkOS actor differs from the stored owner link', async () => {
-    const rpc = vi.fn(async () => ({ data: prepared, error: null }))
+  it('rejects a provider-shaped subject in place of an opaque principal mapping', async () => {
+    const rpc = vi.fn(async () => ({
+      data: { ...prepared, owner_principal_ref: 'user_teacher' },
+      error: null,
+    }))
 
     await expect(syncTeacherAttendanceSources({
       supabase: { rpc },
@@ -169,8 +172,8 @@ describe('Pika attendance source snapshot sync', () => {
       windowStart: '2026-11-02',
       windowEnd: '2026-11-03',
       integrationState: 'ready',
-      verifiedActor: { workosSubject: 'user_other', displayName: 'Other Teacher' },
-    })).rejects.toMatchObject<BaraAttendanceSyncError>({ code: 'identity_not_linked' })
+      verifiedActor: { workosSubject: 'user_teacher', displayName: 'Teacher One' },
+    })).rejects.toMatchObject<BaraAttendanceSyncError>({ code: 'invalid_source' })
     expect(rpc).toHaveBeenCalledTimes(1)
     expect(deliverBaraAttendanceMessage).not.toHaveBeenCalled()
   })

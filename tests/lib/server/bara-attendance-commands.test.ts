@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  createSupabaseAttendanceCommandStore,
   executeTeacherAttendanceMarks,
   executeTeacherAttendanceSessionCommand,
   type AttendanceCommandStore,
 } from '@/lib/server/bara-attendance-commands'
 import { BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
+import { BaraAttendanceOutboxError } from '@/lib/server/bara-attendance-outbox'
 
 const teacherId = '30000000-0000-4000-8000-000000000003'
 const classroomId = '20000000-0000-4000-8000-000000000002'
@@ -18,7 +20,7 @@ function store(): AttendanceCommandStore {
       installationRef: 'installation_staging',
       rosterRef: 'roster_private',
       occurrenceRef: 'occurrence_private',
-      actorWorkosSubject: 'user_teacher',
+      actorPrincipalRef: 'principal_teacher',
       actorDisplayName: 'Teacher One',
     }),
     loadParticipantRefs: vi.fn().mockResolvedValue(new Map([
@@ -29,6 +31,43 @@ function store(): AttendanceCommandStore {
 }
 
 describe('teacher Bara attendance commands', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('keeps local WorkOS verification separate from the outbound Pika principal', async () => {
+    vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'installation_staging')
+    const rows: Record<string, unknown> = {
+      users: { workos_user_id: 'user_teacher' },
+      attendance_principal_mappings: { principal_ref: 'principal_teacher' },
+      attendance_roster_mappings: { roster_ref: 'roster_private' },
+      attendance_occurrence_mappings: {
+        occurrence_ref: 'occurrence_private',
+        opens_at: '2026-09-08T12:45:00.000Z',
+        closes_at: '2026-09-08T14:15:00.000Z',
+      },
+    }
+    const supabase = {
+      from: vi.fn((table: string) => {
+        const result = Promise.resolve({ data: rows[table] ?? null, error: null })
+        const query: any = {
+          select: vi.fn(() => query),
+          eq: vi.fn(() => query),
+          maybeSingle: vi.fn(() => result),
+        }
+        return query
+      }),
+    }
+
+    await expect(createSupabaseAttendanceCommandStore(supabase).loadContext({
+      teacherId,
+      classroomId,
+      classDate: '2026-09-08',
+      actor: { workosSubject: 'user_teacher', displayName: 'Teacher One' },
+    })).resolves.toMatchObject({
+      actorPrincipalRef: 'principal_teacher',
+      actorDisplayName: 'Teacher One',
+    })
+  })
+
   it('translates a Pika session command and returns no service reference', async () => {
     const send = vi.fn().mockResolvedValue({
       outcome: 'applied',
@@ -57,7 +96,7 @@ describe('teacher Bara attendance commands', () => {
       roster_ref: 'roster_private',
       occurrence_ref: 'occurrence_private',
       command: 'open',
-      actor_workos_subject: 'user_teacher',
+      actor_principal_ref: 'principal_teacher',
       actor_display_name: 'Teacher One',
     })
     expect(result).toEqual({ outcome: 'applied', state: 'open', revision: 3 })
@@ -142,6 +181,24 @@ describe('teacher Bara attendance commands', () => {
         'remote detail', 'network_error', true,
       )),
     })).rejects.toMatchObject({ code: 'upstream_unavailable' })
+  })
+
+  it('returns a durable pending outcome after a retryable delivery timeout', async () => {
+    await expect(executeTeacherAttendanceSessionCommand({
+      supabase: {},
+      teacherId,
+      classroomId,
+      classDate: '2026-09-08',
+      requestId,
+      command: 'open',
+      integrationState: 'ready',
+      store: store(),
+      send: vi.fn().mockRejectedValue(new BaraAttendanceOutboxError(
+        'queued after timeout',
+        'delivery_pending',
+        true,
+      )),
+    })).resolves.toEqual({ outcome: 'pending' })
   })
 
   it('does not resolve mappings while the integration flag is disabled', async () => {

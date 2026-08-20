@@ -10,7 +10,7 @@ function input() {
     revision: 3,
     idempotencyKey: 'roster:roster_11111111111111111111111111111111:3',
     correlationRef: 'correlation_roster_3',
-    ownerWorkosSubject: 'user_teacher',
+    ownerPrincipalRef: 'principal_teacher',
     ownerDisplayName: 'Teacher One',
     displayName: '  Period 2 Science  ',
     participants: [
@@ -18,7 +18,7 @@ function input() {
         participantRef: 'participant_22222222222222222222222222222222',
         displayName: '  Alex Morgan  ',
         active: true,
-        workosSubject: 'user_student',
+        principalRef: 'principal_student',
       },
       {
         participantRef: 'participant_33333333333333333333333333333333',
@@ -42,7 +42,7 @@ describe('Bara attendance roster materialization', () => {
       roster_ref: 'roster_11111111111111111111111111111111',
       tenant_ref: 'tenant_staging',
       revision: 3,
-      owner_workos_subject: 'user_teacher',
+      owner_principal_ref: 'principal_teacher',
       owner_display_name: 'Teacher One',
       display_name: 'Period 2 Science',
       participants: [
@@ -50,7 +50,7 @@ describe('Bara attendance roster materialization', () => {
           participant_ref: 'participant_22222222222222222222222222222222',
           display_name: 'Alex Morgan',
           active: true,
-          workos_subject: 'user_student',
+          principal_ref: 'principal_student',
         },
         {
           participant_ref: 'participant_33333333333333333333333333333333',
@@ -80,7 +80,7 @@ describe('Bara attendance roster materialization', () => {
     })).toThrow('opaque roster reference')
     expect(() => buildBaraRosterSnapshot({
       ...input(),
-      ownerWorkosSubject: 'teacher@example.com',
-    })).toThrow('opaque user reference')
+      ownerPrincipalRef: 'teacher@example.com',
+    })).toThrow('opaque principal reference')
   })
 })

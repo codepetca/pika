@@ -19533,3 +19533,52 @@ canary where fail-closed behavior matters.
 - Review and publish the pilot separately. Before Production rollout, select a
   shared environment-wide email-delivery design that keeps Bara Hosted UI and
   Pika's self-hosted login working without duplicate messages.
+
+<!-- pika-session-log-archive-batch:0ead5437a41412844dcd3db9be0e3c16a7c06e088cffb3954f446765454ebfce -->
+## 2026-08-16 — Establish silent Bara handoff and attendance contract v1
+
+**Risk profile:** runtime-platform — cross-application authorization-code
+exchange, independent session establishment, external identity boundaries, and
+a new bidirectional attendance contract. All behavior remains disabled by
+default; no deployment, migration, or production configuration changed.
+
+**Model recommendation:** GPT-5.6 — the slice combines authentication protocol
+behavior, replay/CSRF controls, privacy minimization, cross-repository contract
+versioning, and a live provider gate.
+
+**Completed:**
+- Added a short-lived, single-use WorkOS authorization-code handoff so one Pika
+  passcode login can establish a separate Bara AuthKit session without sharing
+  cookies, refresh tokens, database IDs, or authorization state.
+- Bound the redirect chain to exact configured origins, HttpOnly state/code
+  cookies, fixed versioned routes, safe Pika return paths, no-store/no-referrer
+  responses, and fail-closed state/replay checks. A handoff failure no longer
+  invalidates an already successful Pika login or presents another login.
+- Replaced the provider-named Pika callback path with the provider-neutral
+  `/api/auth/attendance/v1/authorize` boundary.
+- Documented the Pika/Bara ownership, duplicated-data/privacy, scheduling,
+  event-delivery, identity, versioning, and standalone-operation architecture.
+- Added byte-identical, dependency-free v1 types and validators in Bara and
+  Pika for roster/schedule snapshots, staff session commands, batch marks, and
+  the initial session/record event stream. Closed allow-lists reject extra PII,
+  invalid references/revisions/times, duplicates, unsupported versions, and
+  impossible UTC dates.
+
+**Validation:**
+- Pika full suite passes: 4,343 tests across 507 files. TypeScript, lint,
+  architecture/design/UI guards, environment verification, production build,
+  and diff checks pass.
+- Bara full suite passes: 97 tests across 22 files. TypeScript, changed-file
+  lint, brand guard, production build, and diff checks pass. Bara's full-repo
+  lint still reports the unchanged `session-display-screen.tsx` effect issue.
+- The two contract source copies compare byte-for-byte and their mirrored
+  focused suites pass 12/12 in each repository.
+
+**Open gates:**
+- The real same-browser Pika-to-Bara provider exchange remains unproven because
+  the local login tab was closed without submitting an email/code. Do not enable
+  or publish the handoff until Bara receives its own session, Convex authenticates,
+  and identity bootstrap is verified without a second prompt.
+- Pika `class_days` contains dates but no attendance start/close times. Automatic
+  sessions require a teacher-owned attendance-window policy that Pika turns into
+  concrete UTC occurrence windows before schedule sync is enabled.

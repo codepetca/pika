@@ -19,6 +19,7 @@ import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance
 const opaqueRefSchema = z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/)
 const contextRowSchemas = {
   user: z.object({ workos_user_id: opaqueRefSchema.nullable() }).strict().nullable(),
+  principal: z.object({ principal_ref: opaqueRefSchema }).strict().nullable(),
   roster: z.object({ roster_ref: opaqueRefSchema }).strict().nullable(),
   occurrence: z.object({
     occurrence_ref: opaqueRefSchema,
@@ -35,7 +36,7 @@ export interface AttendanceCommandContext {
   installationRef: string
   rosterRef: string
   occurrenceRef: string
-  actorWorkosSubject: string
+  actorPrincipalRef: string
   actorDisplayName: string
 }
 
@@ -90,8 +91,14 @@ export function createSupabaseAttendanceCommandStore(supabase: any): AttendanceC
       if (!opaqueRefSchema.safeParse(installationRef).success) {
         throw new TeacherAttendanceCommandError('not_configured')
       }
-      const [userResult, rosterResult, occurrenceResult] = await Promise.all([
+      const [userResult, principalResult, rosterResult, occurrenceResult] = await Promise.all([
         queryMaybeOne(supabase, 'users', 'workos_user_id', [['id', teacherId]]),
+        queryMaybeOne(
+          supabase,
+          'attendance_principal_mappings',
+          'principal_ref',
+          [['user_id', teacherId]],
+        ),
         queryMaybeOne(
           supabase,
           'attendance_roster_mappings',
@@ -105,7 +112,7 @@ export function createSupabaseAttendanceCommandStore(supabase: any): AttendanceC
           [['classroom_id', classroomId], ['class_date', classDate]],
         ),
       ])
-      for (const result of [userResult, rosterResult, occurrenceResult]) {
+      for (const result of [userResult, principalResult, rosterResult, occurrenceResult]) {
         if (result.error) {
           throw new TeacherAttendanceCommandError(
             isMigrationError(result.error) ? 'migration_required' : 'upstream_unavailable',
@@ -113,22 +120,23 @@ export function createSupabaseAttendanceCommandStore(supabase: any): AttendanceC
         }
       }
       const user = contextRowSchemas.user.safeParse(userResult.data ?? null)
+      const principal = contextRowSchemas.principal.safeParse(principalResult.data ?? null)
       const roster = contextRowSchemas.roster.safeParse(rosterResult.data ?? null)
       const occurrence = contextRowSchemas.occurrence.safeParse(occurrenceResult.data ?? null)
-      if (!user.success || !roster.success || !occurrence.success) {
+      if (!user.success || !principal.success || !roster.success || !occurrence.success) {
         throw new TeacherAttendanceCommandError('upstream_unavailable')
       }
       if (!user.data?.workos_user_id || user.data.workos_user_id !== actor.workosSubject) {
         throw new TeacherAttendanceCommandError('identity_not_linked')
       }
-      if (!roster.data || !occurrence.data) {
+      if (!principal.data || !roster.data || !occurrence.data) {
         throw new TeacherAttendanceCommandError('mapping_missing')
       }
       return {
         installationRef,
         rosterRef: roster.data.roster_ref,
         occurrenceRef: occurrence.data.occurrence_ref,
-        actorWorkosSubject: actor.workosSubject,
+        actorPrincipalRef: principal.data.principal_ref,
         actorDisplayName: actor.displayName,
       }
     },
@@ -164,7 +172,10 @@ function requestRefs(requestId: string) {
   }
 }
 
-function mapClientError(error: unknown): never {
+function mapClientError(
+  error: unknown,
+  options: { durableClientFailure: boolean },
+): { outcome: 'pending' } {
   if (error instanceof BaraAttendanceOutboxError) {
     if (error.code === 'migration_required') {
       throw new TeacherAttendanceCommandError('migration_required')
@@ -172,6 +183,10 @@ function mapClientError(error: unknown): never {
     if (error.code === 'idempotency_conflict') {
       throw new TeacherAttendanceCommandError('conflict')
     }
+    if (
+      error.retryable
+      && (error.code === 'delivery_pending' || error.code === 'lease_lost')
+    ) return { outcome: 'pending' }
     throw new TeacherAttendanceCommandError('upstream_unavailable')
   }
   if (error instanceof BaraAttendanceClientError) {
@@ -180,6 +195,7 @@ function mapClientError(error: unknown): never {
     if (error.status === 409 || error.code === 'stale_revision') {
       throw new TeacherAttendanceCommandError('conflict')
     }
+    if (options.durableClientFailure && error.retryable) return { outcome: 'pending' }
     throw new TeacherAttendanceCommandError('upstream_unavailable')
   }
   throw error
@@ -213,7 +229,7 @@ export async function executeTeacherAttendanceSessionCommand(input: {
     roster_ref: context.rosterRef,
     occurrence_ref: context.occurrenceRef,
     command: input.command,
-    actor_workos_subject: context.actorWorkosSubject,
+    actor_principal_ref: context.actorPrincipalRef,
     actor_display_name: context.actorDisplayName,
   }
   try {
@@ -226,7 +242,7 @@ export async function executeTeacherAttendanceSessionCommand(input: {
         }))
     return { outcome: result.outcome, state: result.status, revision: result.sessionRevision }
   } catch (error) {
-    mapClientError(error)
+    return mapClientError(error, { durableClientFailure: !input.send })
   }
 }
 
@@ -267,7 +283,7 @@ export async function executeTeacherAttendanceMarks(input: {
     installation_ref: context.installationRef,
     roster_ref: context.rosterRef,
     occurrence_ref: context.occurrenceRef,
-    actor_workos_subject: context.actorWorkosSubject,
+    actor_principal_ref: context.actorPrincipalRef,
     actor_display_name: context.actorDisplayName,
     marks: input.marks.map((mark, index) => ({
       command_ref: `mark_${refs.compact}_${index + 1}`,
@@ -291,6 +307,6 @@ export async function executeTeacherAttendanceMarks(input: {
       unchangedCount: result.unchangedCount,
     }
   } catch (error) {
-    mapClientError(error)
+    return mapClientError(error, { durableClientFailure: !input.send })
   }
 }

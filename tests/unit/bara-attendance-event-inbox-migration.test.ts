@@ -11,11 +11,13 @@ describe('Bara attendance event inbox migration', () => {
   it('creates private durable local-to-opaque mappings and a Toronto attendance policy', () => {
     expect(migration).toContain('create table public.attendance_roster_mappings')
     expect(migration).toContain('create table public.attendance_participant_mappings')
+    expect(migration).toContain('create table public.attendance_principal_mappings')
     expect(migration).toContain('create table public.attendance_occurrence_mappings')
     expect(migration).toContain('last_reconciled_at timestamptz')
     expect(migration).toContain('create table public.attendance_window_policies')
     expect(migration).toContain("default ('roster_' || replace(gen_random_uuid()::text, '-', ''))")
     expect(migration).toContain("default ('participant_' || replace(gen_random_uuid()::text, '-', ''))")
+    expect(migration).toContain("default ('principal_' || replace(gen_random_uuid()::text, '-', ''))")
     expect(migration).toContain("default ('occurrence_' || replace(gen_random_uuid()::text, '-', ''))")
     expect(migration).toContain("check (timezone = 'America/Toronto')")
     expect(migration).toContain('foreign key (student_id) references public.users (id) on delete cascade')
@@ -68,6 +70,8 @@ describe('Bara attendance event inbox migration', () => {
     expect(migration).toContain("message = 'attendance_outbox_idempotency_conflict'")
     expect(migration).toContain('create function public.claim_attendance_outbound_message_v1(')
     expect(migration).toContain('create function public.claim_attendance_outbox_batch_v1(')
+    expect(migration).toContain('create function public.attendance_outbox_dependencies_ready_v1(')
+    expect(migration).toContain("dependency.message_type in ('roster.snapshot', 'schedule.snapshot')")
     expect(migration).toContain('for update skip locked')
     expect(migration).toContain('create function public.complete_attendance_outbox_v1(')
     expect(migration).toContain('create function public.retry_attendance_outbox_v1(')
@@ -108,6 +112,12 @@ describe('Bara attendance event inbox migration', () => {
     expect(migration).toContain("message = 'attendance_event_participant_mismatch'")
     expect(migration).toContain('on conflict (installation_ref, occurrence_ref) do update')
     expect(migration).toContain(
+      'classroom_id uuid not null references public.classrooms (id) on delete cascade',
+    )
+    expect(migration).toContain(
+      'student_id uuid not null references public.users (id) on delete cascade',
+    )
+    expect(migration).toContain(
       'where excluded.session_revision > public.attendance_session_projection.session_revision',
     )
     expect(migration).toContain(
@@ -115,6 +125,17 @@ describe('Bara attendance event inbox migration', () => {
     )
     expect(migration).toContain(
       'grant execute on function public.apply_attendance_event_v1(jsonb, text)\n  to service_role',
+    )
+  })
+
+  it('blocks destructive classroom operations until attendance is decommissioned', () => {
+    expect(migration).toContain('create function public.attendance_classroom_has_state_v1(')
+    expect(migration).toContain('create trigger reject_attendance_classroom_delete_v1')
+    expect(migration).toContain('create trigger reject_attendance_archive_compaction_v1')
+    expect(migration).toContain('create trigger reject_attendance_classroom_purge_v1')
+    expect(migration).toContain("message = 'attendance_classroom_decommission_required'")
+    expect(migration).not.toContain(
+      'grant select, insert, update, delete on table public.attendance_roster_mappings',
     )
   })
 

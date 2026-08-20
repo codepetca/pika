@@ -29,9 +29,9 @@ frontend, rosters, sessions, check-in flow, corrections, and audit tools.
 
 Pika and Bara remain separate WorkOS Applications. No cross-application
 browser session, cookie, authorization-code handoff, shared WorkOS client, or
-second Bara login is part of native Pika attendance. A verified WorkOS subject
-is an external identity assertion only; each app maps it into its own internal
-identity model before authorization.
+second Bara login is part of native Pika attendance. Pika verifies WorkOS
+locally, maps the user to a random Pika attendance principal, and sends only
+that principal through the installation-scoped adapter.
 
 ## Implemented local flows
 
@@ -57,10 +57,11 @@ identity model before authorization.
    subject and email against the linked local Pika UUID.
 4. Pika calls Bara's signed v1 `student_check_in` command. No client-supplied
    identity is accepted.
-5. The command idempotency key is stable for the student, occurrence, and QR
-   token. A timeout is retried once with the same body/key and a fresh transport
-   nonce. An uncertain second failure is never shown as success or queued for
-   delayed application.
+5. Each logical scan has a fresh browser-generated attempt ID. Its command key
+   is stable only across transport retries of that attempt; a later independent
+   scan gets a different key. A timeout is retried once with the same body/key
+   and a fresh transport nonce. An uncertain second failure is never shown as
+   success or queued for delayed application.
 6. Pika renders Bara's synchronous authoritative result, while normal events
    and snapshots reconcile the monotonic Supabase projection.
 
@@ -70,6 +71,8 @@ identity model before authorization.
 - Roster requests include a deployment-scoped `tenant_ref`; Pika internal IDs
   never cross the boundary.
 - Commands/events contain only opaque references and bounded operational data.
+- Outbox claims enforce roster-before-schedule and
+  roster/schedule-before-command dependencies under concurrent workers.
 - Event receipt and projection updates commit atomically. Session and record
   revisions ignore duplicates and stale/reordered events.
 - A separate reconciliation worker repairs webhook loss from authoritative
@@ -80,8 +83,9 @@ identity model before authorization.
 
 ## Remaining gates
 
-1. Obtain one-time permission for a named isolated Pika Supabase target and
-   apply only migration 126. No migration has been applied by this work.
+1. If a hosted pilot is desired, first provision and authorize a named isolated
+   Pika Supabase target; none exists today. Migration 126 has only been replayed
+   and tested against the disposable local stack.
 2. Deploy matching Bara and Pika previews with distinct WorkOS Applications,
    cookie/session secrets, transport/event/entry-token secrets, and exact API
    origins. Keep the legacy browser-handoff flag false.
@@ -97,6 +101,10 @@ identity model before authorization.
    closed, and unavailable states.
 6. Run one allowlisted classroom canary with rollback flags. Do not promote or
    enable production attendance until the teacher and student flows pass.
+
+Archive-v2 does not yet know how to decommission Bara authority. Soft
+archive/restore preserves attendance rows, but compaction and permanent purge
+are deliberately blocked until a versioned decommission/reseed protocol ships.
 
 The requirement-by-requirement local evidence and hosted gate ledger is in
 `docs/integrations/pika-bara-attendance-completion-audit.md`.

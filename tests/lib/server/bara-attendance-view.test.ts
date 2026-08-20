@@ -212,6 +212,7 @@ function projectionClient(results: Record<string, { data: unknown; error: any }>
         const result = Promise.resolve(results[table] ?? { data: [], error: null })
         const query: any = {
           eq: vi.fn(() => query),
+          in: vi.fn(() => query),
           maybeSingle: vi.fn(() => result),
           then: result.then.bind(result),
         }
@@ -255,7 +256,7 @@ describe('loadTeacherAttendanceView', () => {
     expect(supabase.from).not.toHaveBeenCalled()
   })
 
-  it('loads and strips the private mapping/projection rows when configured', async () => {
+  it('reloads durable pending marks with the private mapping/projection rows', async () => {
     const supabase = projectionClient({
       attendance_participant_mappings: {
         data: [{
@@ -294,6 +295,29 @@ describe('loadTeacherAttendanceView', () => {
         }],
         error: null,
       },
+      attendance_integration_outbox: {
+        data: [{
+          message_type: 'attendance.marks',
+          status: 'pending',
+          payload: {
+            schema_version: 1,
+            message_type: 'attendance.marks',
+            idempotency_key: 'marks:occurrence:reload',
+            correlation_ref: 'correlation_reload',
+            installation_ref: 'installation_test',
+            roster_ref: 'roster_test',
+            occurrence_ref: 'occurrence_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            actor_principal_ref: 'principal_teacher',
+            actor_display_name: 'Teacher One',
+            marks: [{
+              command_ref: 'mark_reload',
+              participant_ref: 'participant_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              status: 'late',
+            }],
+          },
+        }],
+        error: null,
+      },
     })
 
     const view = await loadTeacherAttendanceView({
@@ -307,8 +331,8 @@ describe('loadTeacherAttendanceView', () => {
     expect(view).toMatchObject({
       integration: 'ready',
       session: { state: 'open', revision: 3 },
-      sync: { state: 'current', confirmedAt: '2026-09-08T13:01:00.000Z' },
-      students: [{ status: 'present', source: 'student_qr', revision: 2 }],
+      sync: { state: 'pending', confirmedAt: '2026-09-08T13:01:00.000Z' },
+      students: [{ status: 'present', source: 'student_qr', revision: 2, pendingCommand: true }],
     })
     expect(JSON.stringify(view)).not.toMatch(/participant_|occurrence_|installation_/)
   })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, CheckCircle2, Clock3 } from 'lucide-react'
 import { Button, Card } from '@/ui'
@@ -32,21 +32,24 @@ export function StudentAttendanceCheckIn({
           description: 'Sign in with a student account or ask the teacher for help.',
         },
       })
+  const attemptIdRef = useRef<string | null>(null)
 
   const checkIn = useCallback(async (signal?: AbortSignal) => {
     if (!canCheckIn) return
+    attemptIdRef.current ??= crypto.randomUUID()
     setView({ kind: 'loading' })
     try {
       const response = await fetch('/api/student/attendance/check-in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryToken }),
+        body: JSON.stringify({ entryToken, attemptId: attemptIdRef.current }),
         cache: 'no-store',
         signal,
       })
       const body = await response.json() as unknown
       const parsed = studentAttendanceCheckInViewSchema.safeParse(body)
       if (!response.ok || !parsed.success) throw new Error('unavailable')
+      attemptIdRef.current = null
       setView({ kind: 'result', result: parsed.data })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return

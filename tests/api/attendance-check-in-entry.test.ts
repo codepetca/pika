@@ -20,6 +20,7 @@ import { POST } from '@/app/api/student/attendance/check-in/route'
 
 const user = { id: 'student-one', email: 'student@example.com', role: 'student' }
 const entryToken = 'A'.repeat(100)
+const attemptId = '11111111-1111-4111-8111-111111111111'
 
 function request(body: unknown) {
   return new NextRequest('https://pika.codepet.ca/api/student/attendance/check-in', {
@@ -42,7 +43,7 @@ describe('POST /api/student/attendance/check-in', () => {
   })
 
   it('derives the actor from the verified student session and accepts no client identity', async () => {
-    const response = await POST(request({ entryToken }))
+    const response = await POST(request({ entryToken, attemptId }))
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({ state: 'checked_in' })
     expect(mocks.requireRole).toHaveBeenCalledWith('student')
@@ -50,6 +51,7 @@ describe('POST /api/student/attendance/check-in', () => {
       supabase: { kind: 'service-role' },
       pikaUser: user,
       entryToken,
+      attemptId,
     })
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
@@ -57,6 +59,7 @@ describe('POST /api/student/attendance/check-in', () => {
   it('rejects client-supplied identity fields before calling Bara', async () => {
     const response = await POST(request({
       entryToken,
+      attemptId,
       actorWorkosSubject: 'user_attacker',
     }))
     expect(response.status).toBe(400)

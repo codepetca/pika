@@ -1950,3 +1950,42 @@ roles, standalone regression, and concurrent authoritative writes.
   backfill, tenant-isolation/canary proof, and real teacher/student approval
   remain blocked on provisioning an isolated Preview or explicitly approving a
   different non-production target. Production remains disabled.
+
+## 2026-08-20 — Isolate Pika principals and harden attendance recovery
+
+**Risk profile:** high — cross-service identity, idempotency, durable delivery,
+Supabase migration, archive/purge containment, and native attendance behavior.
+The user explicitly authorized discarding and resetting only Pika's local
+Supabase data. No hosted database, dashboard, deployment, flag, or production
+state changed.
+
+**Completed:**
+- Replaced WorkOS subjects in the v1 boundary with random Pika principal refs.
+  Pika still verifies WorkOS locally; Bara namespaces each principal by signed
+  installation and cannot reuse a standalone WorkOS identity or organization.
+- Gave each logical student scan a fresh attempt ID while preserving one stable
+  idempotency key across uncertain transport retries of that attempt.
+- Made retryable teacher delivery uncertainty return durable `pending`, and
+  rebuilt pending session/mark state from the private outbox after reload.
+- Made outbox claims enforce roster-before-schedule and
+  roster/schedule-before-command dependencies rather than creation order.
+- Added classroom/student lineage to the event inbox and projections. Removed
+  service-role delete authority and fail-closed archive compaction, hot purge,
+  and final classroom deletion until a versioned Bara decommission/reseed
+  protocol exists; ordinary soft archive/restore remains intact.
+- Added a CI database regression that proves privileges, all eight delete-guard
+  row families, no-state deletion, early compaction/purge rejection, and
+  reversed-order delivery dependencies on local Supabase.
+
+**Verification:**
+- Local Supabase reset replayed migrations 001–126 cleanly; generated database
+  types match; `pnpm run check:bara-attendance-db` passes.
+- Pika passes 548 files and 4,818 tests, TypeScript, production build,
+  architecture, design-policy, UI-policy, database type, shell, and diff checks.
+- The four vendored Pika v1 contract files are byte-identical to Bara.
+
+**Remaining gates:**
+- No hosted staging database exists. Provisioning one, applying migration 126,
+  configuring a frequent hosted recovery trigger, running cross-service
+  teacher/student/tenant-isolation flows, measuring hosted p50/p95/p99, and a
+  canary all remain explicit rollout work. Production stays disabled.

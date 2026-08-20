@@ -21,8 +21,10 @@ describe('StudentAttendanceCheckIn', () => {
     expect(screen.getByText('Your attendance was recorded.')).toBeInTheDocument()
     expect(fetcher).toHaveBeenCalledWith('/api/student/attendance/check-in', expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ entryToken: 'sealed-entry-token' }),
     }))
+    const body = JSON.parse(fetcher.mock.calls[0][1].body)
+    expect(body).toMatchObject({ entryToken: 'sealed-entry-token' })
+    expect(body.attemptId).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('never claims success for an uncertain response and allows an explicit retry', async () => {
@@ -45,5 +47,8 @@ describe('StudentAttendanceCheckIn', () => {
     expect(await screen.findByRole('heading', { name: 'You are already checked in' }))
       .toBeInTheDocument()
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    const firstBody = JSON.parse(fetcher.mock.calls[0][1].body)
+    const retryBody = JSON.parse(fetcher.mock.calls[1][1].body)
+    expect(retryBody.attemptId).toBe(firstBody.attemptId)
   })
 })

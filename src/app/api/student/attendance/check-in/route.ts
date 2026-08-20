@@ -13,12 +13,13 @@ export const revalidate = 0
 
 export const POST = withErrorHandler('PostStudentAttendanceCheckIn', async (request) => {
   const user = await requireRole('student')
-  const { entryToken } = studentAttendanceCheckInSchema.parse(await request.json())
+  const { entryToken, attemptId } = studentAttendanceCheckInSchema.parse(await request.json())
   try {
     const result = await executeStudentAttendanceCheckIn({
       supabase: getServiceRoleClient(),
       pikaUser: user,
       entryToken,
+      attemptId,
     })
     return NextResponse.json(result, {
       headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },

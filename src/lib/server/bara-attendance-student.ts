@@ -21,9 +21,12 @@ const actorProfileSchema = z.object({
   first_name: z.string().min(1).max(100),
   last_name: z.string().min(1).max(100),
 }).strict()
+const principalMappingSchema = z.object({
+  principal_ref: z.string().regex(/^principal_[A-Za-z0-9._~-]+$/),
+}).strict()
 
 export interface VerifiedPikaAttendanceStudent {
-  workosSubject: string
+  principalRef: string
   displayName: string
 }
 
@@ -59,7 +62,7 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
     throw new StudentAttendanceCheckInError('identity_not_linked')
   }
 
-  const [userResult, profileResult] = await Promise.all([
+  const [userResult, profileResult, principalResult] = await Promise.all([
     input.supabase
       .from('users')
       .select('email, role, workos_user_id')
@@ -70,13 +73,19 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
       .select('first_name, last_name')
       .eq('user_id', input.pikaUser.id)
       .maybeSingle(),
+    input.supabase
+      .from('attendance_principal_mappings')
+      .select('principal_ref')
+      .eq('user_id', input.pikaUser.id)
+      .maybeSingle(),
   ])
-  if (userResult.error || profileResult.error) {
+  if (userResult.error || profileResult.error || principalResult.error) {
     throw new StudentAttendanceCheckInError('upstream_unavailable')
   }
   const user = actorUserSchema.safeParse(userResult.data)
   const profile = actorProfileSchema.safeParse(profileResult.data)
-  if (!user.success || !profile.success) {
+  const principal = principalMappingSchema.safeParse(principalResult.data)
+  if (!user.success || !profile.success || !principal.success) {
     throw new StudentAttendanceCheckInError('identity_not_linked')
   }
   if (
@@ -87,7 +96,7 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
     throw new StudentAttendanceCheckInError('identity_not_linked')
   }
   return {
-    workosSubject: workOSUser.id,
+    principalRef: principal.data.principal_ref,
     displayName: `${profile.data.first_name.trim()} ${profile.data.last_name.trim()}`,
   }
 }
@@ -138,6 +147,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   supabase: any
   pikaUser: { id: string; email: string; role: string }
   entryToken: string
+  attemptId: string
   integrationState?: 'disabled' | 'not_configured' | 'ready'
   resolveActor?: typeof resolveVerifiedPikaAttendanceStudent
   send?: (payload: V1StudentCheckIn) => Promise<BaraStudentCheckInResult>
@@ -167,8 +177,13 @@ export async function executeStudentAttendanceCheckIn(input: {
   if (!/^[A-Za-z0-9._~-]{1,128}$/.test(installationRef)) {
     throw new StudentAttendanceCheckInError('not_configured')
   }
+  if (!z.string().uuid().safeParse(input.attemptId).success) {
+    throw new StudentAttendanceCheckInError('invalid_entry')
+  }
   const digest = createHash('sha256')
-    .update(`${entry.occurrenceRef}\0${entry.checkInToken}\0${actor.workosSubject}`)
+    .update(
+      `${entry.occurrenceRef}\0${entry.checkInToken}\0${actor.principalRef}\0${input.attemptId}`,
+    )
     .digest('hex')
     .slice(0, 40)
   const payload: V1StudentCheckIn = {
@@ -180,7 +195,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     roster_ref: entry.rosterRef,
     occurrence_ref: entry.occurrenceRef,
     check_in_token: entry.checkInToken,
-    actor_workos_subject: actor.workosSubject,
+    actor_principal_ref: actor.principalRef,
     actor_display_name: actor.displayName,
   }
 

@@ -1135,6 +1135,7 @@ export type Database = {
       }
       attendance_integration_inbox: {
         Row: {
+          classroom_id: string
           correlation_ref: string
           event_id: string
           event_type: string
@@ -1151,6 +1152,7 @@ export type Database = {
           transport_nonce: string
         }
         Insert: {
+          classroom_id: string
           correlation_ref: string
           event_id: string
           event_type: string
@@ -1167,6 +1169,7 @@ export type Database = {
           transport_nonce: string
         }
         Update: {
+          classroom_id?: string
           correlation_ref?: string
           event_id?: string
           event_type?: string
@@ -1182,7 +1185,15 @@ export type Database = {
           session_revision?: number
           transport_nonce?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_integration_inbox_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance_integration_outbox: {
         Row: {
@@ -1344,9 +1355,36 @@ export type Database = {
           },
         ]
       }
+      attendance_principal_mappings: {
+        Row: {
+          created_at: string
+          principal_ref: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          principal_ref?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          principal_ref?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_principal_mappings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_record_projection: {
         Row: {
           actor_type: string
+          classroom_id: string
           id: string
           installation_ref: string
           last_event_at: string
@@ -1358,10 +1396,12 @@ export type Database = {
           roster_ref: string
           source: string
           status: string
+          student_id: string
           updated_at: string
         }
         Insert: {
           actor_type: string
+          classroom_id: string
           id?: string
           installation_ref: string
           last_event_at: string
@@ -1373,10 +1413,12 @@ export type Database = {
           roster_ref: string
           source: string
           status: string
+          student_id: string
           updated_at?: string
         }
         Update: {
           actor_type?: string
+          classroom_id?: string
           id?: string
           installation_ref?: string
           last_event_at?: string
@@ -1388,9 +1430,25 @@ export type Database = {
           roster_ref?: string
           source?: string
           status?: string
+          student_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_record_projection_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_record_projection_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance_roster_mappings: {
         Row: {
@@ -1447,6 +1505,7 @@ export type Database = {
       }
       attendance_session_projection: {
         Row: {
+          classroom_id: string
           closes_at: string | null
           id: string
           installation_ref: string
@@ -1460,6 +1519,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          classroom_id: string
           closes_at?: string | null
           id?: string
           installation_ref: string
@@ -1473,6 +1533,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          classroom_id?: string
           closes_at?: string | null
           id?: string
           installation_ref?: string
@@ -1485,7 +1546,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_session_projection_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance_window_policies: {
         Row: {
@@ -6619,7 +6688,17 @@ export type Database = {
         Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
         Returns: Json
       }
+      attendance_classroom_has_state_v1: {
+        Args: { p_classroom_id: string }
+        Returns: boolean
+      }
       attendance_event_v1_valid: { Args: { p_event: Json }; Returns: boolean }
+      attendance_outbox_dependencies_ready_v1: {
+        Args: {
+          p_row: Database["public"]["Tables"]["attendance_integration_outbox"]["Row"]
+        }
+        Returns: boolean
+      }
       attendance_outbox_health_v1: { Args: never; Returns: Json }
       attendance_roster_source_document_v1: {
         Args: { p_classroom_id: string }

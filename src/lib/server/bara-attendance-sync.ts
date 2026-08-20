@@ -10,7 +10,7 @@ const preparationSchema = z.object({
   classroom_id: z.string().uuid(),
   roster_ref: z.string().regex(/^roster_[A-Za-z0-9._~-]+$/),
   title: z.string().min(1).max(200),
-  owner_workos_subject: z.string().regex(/^user_[A-Za-z0-9._~-]+$/),
+  owner_principal_ref: z.string().regex(/^principal_[A-Za-z0-9._~-]+$/),
   roster_source_token: z.string().regex(/^[a-f0-9]{32}$/),
   roster_revision: z.number().int().safe().positive(),
   schedule_source_token: z.string().regex(/^[a-f0-9]{32}$/),
@@ -28,7 +28,7 @@ const preparationSchema = z.object({
     participant_ref: z.string().regex(/^participant_[A-Za-z0-9._~-]+$/),
     display_name: z.string().min(1).max(200),
     active: z.boolean(),
-    workos_subject: z.string().regex(/^user_[A-Za-z0-9._~-]+$/).nullable(),
+    principal_ref: z.string().regex(/^principal_[A-Za-z0-9._~-]+$/).nullable(),
   }).strict()).max(500),
   class_days: z.array(z.object({
     date: z.string().date(),
@@ -115,13 +115,6 @@ export async function syncTeacherAttendanceSources(input: {
   if (!prepared.success || prepared.data.classroom_id !== input.classroomId) {
     throw new BaraAttendanceSyncError('invalid_source')
   }
-  if (
-    input.verifiedActor
-    && prepared.data.owner_workos_subject !== input.verifiedActor.workosSubject
-  ) {
-    throw new BaraAttendanceSyncError('identity_not_linked')
-  }
-
   const rosterRefs = refs(
     prepared.data.roster_ref,
     'roster',
@@ -133,15 +126,15 @@ export async function syncTeacherAttendanceSources(input: {
     rosterRef: prepared.data.roster_ref,
     revision: prepared.data.roster_revision,
     ...rosterRefs,
-    ownerWorkosSubject: prepared.data.owner_workos_subject,
+    ownerPrincipalRef: prepared.data.owner_principal_ref,
     ownerDisplayName: input.verifiedActor?.displayName ?? 'Pika teacher',
     displayName: prepared.data.title,
     participants: prepared.data.participants.map((participant) => ({
       participantRef: participant.participant_ref,
       displayName: participant.display_name,
       active: participant.active,
-      ...(participant.workos_subject
-        ? { workosSubject: participant.workos_subject }
+      ...(participant.principal_ref
+        ? { principalRef: participant.principal_ref }
         : {}),
     })),
   })

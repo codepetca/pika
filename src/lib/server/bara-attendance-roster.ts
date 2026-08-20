@@ -7,7 +7,7 @@ export interface BaraAttendanceRosterParticipant {
   participantRef: string
   displayName: string
   active: boolean
-  workosSubject?: string
+  principalRef?: string
 }
 
 export interface BuildBaraRosterSnapshotInput {
@@ -17,13 +17,13 @@ export interface BuildBaraRosterSnapshotInput {
   revision: number
   idempotencyKey: string
   correlationRef: string
-  ownerWorkosSubject: string
+  ownerPrincipalRef: string
   ownerDisplayName: string
   displayName: string
   participants: BaraAttendanceRosterParticipant[]
 }
 
-function requireOpaqueRef(value: string, prefix?: 'pika' | 'roster' | 'participant' | 'user') {
+function requireOpaqueRef(value: string, prefix?: 'pika' | 'roster' | 'participant' | 'principal') {
   const prefixPattern = prefix ? `${prefix}_` : ''
   const pattern = new RegExp(`^${prefixPattern}[A-Za-z0-9._~-]{1,128}$`)
   if (!pattern.test(value) || UUID.test(value)) {
@@ -37,7 +37,7 @@ export function buildBaraRosterSnapshot(
   requireOpaqueRef(input.installationRef, 'pika')
   requireOpaqueRef(input.tenantRef)
   requireOpaqueRef(input.rosterRef, 'roster')
-  requireOpaqueRef(input.ownerWorkosSubject, 'user')
+  requireOpaqueRef(input.ownerPrincipalRef, 'principal')
 
   const participantRefs = new Set<string>()
   const participants = input.participants.map((participant) => {
@@ -46,13 +46,13 @@ export function buildBaraRosterSnapshot(
       throw new Error('Attendance participant mappings must be unique')
     }
     participantRefs.add(participant.participantRef)
-    if (participant.workosSubject) requireOpaqueRef(participant.workosSubject, 'user')
+    if (participant.principalRef) requireOpaqueRef(participant.principalRef, 'principal')
     return {
       participant_ref: participant.participantRef,
       display_name: participant.displayName,
       active: participant.active,
-      ...(participant.workosSubject
-        ? { workos_subject: participant.workosSubject }
+      ...(participant.principalRef
+        ? { principal_ref: participant.principalRef }
         : {}),
     }
   })
@@ -66,7 +66,7 @@ export function buildBaraRosterSnapshot(
     roster_ref: input.rosterRef,
     tenant_ref: input.tenantRef,
     revision: input.revision,
-    owner_workos_subject: input.ownerWorkosSubject,
+    owner_principal_ref: input.ownerPrincipalRef,
     owner_display_name: input.ownerDisplayName,
     display_name: input.displayName,
     participants,

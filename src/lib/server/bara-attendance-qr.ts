@@ -89,7 +89,7 @@ export async function loadTeacherAttendanceQrPresentation(input: {
       installation_ref: context.installationRef,
       roster_ref: context.rosterRef,
       occurrence_ref: context.occurrenceRef,
-      actor_workos_subject: context.actorWorkosSubject,
+      actor_principal_ref: context.actorPrincipalRef,
       actor_display_name: context.actorDisplayName,
     }
     const result = await (input.send

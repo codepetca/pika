@@ -6,6 +6,7 @@ import type {
   TeacherAttendanceStatus,
   TeacherAttendanceView,
 } from '@/lib/teacher-attendance'
+import { validateV1Message } from '@/vendor/attendance-contract/v1/validate'
 
 export type {
   TeacherAttendanceSessionState,
@@ -93,6 +94,12 @@ const recordProjectionRowsSchema = z.array(z.object({
   source: z.enum(['student_qr', 'staff_manual', 'system_finalize']),
   record_revision: positiveRevisionSchema,
   updated_at: instantSchema,
+}).strict())
+
+const unresolvedOutboxRowsSchema = z.array(z.object({
+  message_type: z.enum(['roster.snapshot', 'schedule.snapshot', 'session.command', 'attendance.marks']),
+  payload: z.unknown(),
+  status: z.enum(['pending', 'processing', 'non_retryable']),
 }).strict())
 
 export class TeacherAttendanceViewReadError extends Error {
@@ -215,7 +222,7 @@ export async function loadTeacherAttendanceView(input: {
     })
   }
 
-  const [sessionResult, recordResult] = await Promise.all([
+  const [sessionResult, recordResult, outboxResult] = await Promise.all([
     selectMaybeOne(
       input.supabase,
       'attendance_session_projection',
@@ -228,14 +235,44 @@ export async function loadTeacherAttendanceView(input: {
       'participant_ref, status, source, record_revision, updated_at',
       [['installation_ref', installationRef], ['occurrence_ref', occurrence.occurrence_ref]],
     ),
+    input.supabase
+      .from('attendance_integration_outbox')
+      .select('message_type, payload, status')
+      .eq('classroom_id', input.classroomId)
+      .in('status', ['pending', 'processing', 'non_retryable']),
   ])
   if (sessionResult.error) readError(sessionResult.error)
   if (recordResult.error) readError(recordResult.error)
+  if (outboxResult.error) readError(outboxResult.error)
 
   const sessionParsed = sessionProjectionRowSchema.safeParse(sessionResult.data ?? null)
   const recordsParsed = recordProjectionRowsSchema.safeParse(recordResult.data ?? [])
-  if (!sessionParsed.success || !recordsParsed.success) {
+  const outboxParsed = unresolvedOutboxRowsSchema.safeParse(outboxResult.data ?? [])
+  if (!sessionParsed.success || !recordsParsed.success || !outboxParsed.success) {
     throw new TeacherAttendanceViewReadError('invalid_projection')
+  }
+
+  const studentIdByParticipantRef = new Map(
+    participantParsed.data.map((row) => [row.participant_ref, row.student_id]),
+  )
+  const pendingStudentIds = new Set<string>()
+  let pendingSessionCommand = false
+  for (const row of outboxParsed.data) {
+    const validation = validateV1Message(row.payload)
+    if (!validation.ok || validation.value.message_type !== row.message_type) {
+      throw new TeacherAttendanceViewReadError('invalid_projection')
+    }
+    const message = validation.value
+    if (!('occurrence_ref' in message) || message.occurrence_ref !== occurrence.occurrence_ref) {
+      continue
+    }
+    if (message.message_type === 'session.command') pendingSessionCommand = true
+    if (message.message_type === 'attendance.marks') {
+      for (const mark of message.marks) {
+        const studentId = studentIdByParticipantRef.get(mark.participant_ref)
+        if (studentId) pendingStudentIds.add(studentId)
+      }
+    }
   }
 
   return buildTeacherAttendanceView({
@@ -269,7 +306,8 @@ export async function loadTeacherAttendanceView(input: {
       revision: row.record_revision,
       updatedAt: row.updated_at,
     })),
-    pendingStudentIds: [],
+    pendingStudentIds: [...pendingStudentIds],
+    pendingSessionCommand,
   })
 }
 

@@ -30,7 +30,7 @@ const payload: V1RosterSnapshot = {
   roster_ref: 'roster_one',
   tenant_ref: 'tenant_one',
   revision: 1,
-  owner_workos_subject: 'user_teacher_owner',
+  owner_principal_ref: 'principal_teacher_owner',
   owner_display_name: 'Teacher Owner',
   display_name: 'Period 1',
   participants: [],
@@ -65,7 +65,7 @@ const commandPayload: V1SessionCommand = {
   roster_ref: 'roster_one',
   occurrence_ref: 'occurrence_one',
   command: 'open',
-  actor_workos_subject: 'user_teacher_owner',
+  actor_principal_ref: 'principal_teacher_owner',
   actor_display_name: 'Teacher Owner',
 }
 
@@ -77,7 +77,7 @@ const marksPayload: V1AttendanceMarks = {
   installation_ref: 'pika_test_installation',
   roster_ref: 'roster_one',
   occurrence_ref: 'occurrence_one',
-  actor_workos_subject: 'user_teacher_owner',
+  actor_principal_ref: 'principal_teacher_owner',
   actor_display_name: 'Teacher Owner',
   marks: [{
     command_ref: 'mark_participant_one',
@@ -94,7 +94,7 @@ const checkInPresentationPayload: V1CheckInPresentationRequest = {
   installation_ref: 'pika_test_installation',
   roster_ref: 'roster_one',
   occurrence_ref: 'occurrence_one',
-  actor_workos_subject: 'user_teacher_owner',
+  actor_principal_ref: 'principal_teacher_owner',
   actor_display_name: 'Teacher Owner',
 }
 
@@ -107,7 +107,7 @@ const studentCheckInPayload: V1StudentCheckIn = {
   roster_ref: 'roster_one',
   occurrence_ref: 'occurrence_one',
   check_in_token: 'check_in_token_1234567890',
-  actor_workos_subject: 'user_student_one',
+  actor_principal_ref: 'principal_student_one',
   actor_display_name: 'Student One',
 }
 

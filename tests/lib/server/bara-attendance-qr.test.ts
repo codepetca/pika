@@ -9,7 +9,7 @@ const context = {
   installationRef: 'pika_test_installation',
   rosterRef: 'roster_one',
   occurrenceRef: 'occurrence_one',
-  actorWorkosSubject: 'user_teacher_one',
+  actorPrincipalRef: 'principal_teacher_one',
   actorDisplayName: 'Teacher One',
 }
 
@@ -53,7 +53,7 @@ describe('teacher attendance QR presentation boundary', () => {
       installation_ref: 'pika_test_installation',
       roster_ref: 'roster_one',
       occurrence_ref: 'occurrence_one',
-      actor_workos_subject: 'user_teacher_one',
+      actor_principal_ref: 'principal_teacher_one',
       actor_display_name: 'Teacher One',
     })
   })

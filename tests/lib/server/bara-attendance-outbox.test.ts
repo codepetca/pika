@@ -22,7 +22,7 @@ const message: V1SessionCommand = {
   roster_ref: 'roster_private',
   occurrence_ref: 'occurrence_private',
   command: 'open',
-  actor_workos_subject: 'user_teacher',
+  actor_principal_ref: 'principal_teacher',
   actor_display_name: 'Teacher One',
 }
 const result = {

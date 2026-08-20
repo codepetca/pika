@@ -46,6 +46,17 @@ create table public.attendance_participant_mappings (
   check (participant_ref ~ '^participant_[a-f0-9]{32}$')
 );
 
+-- Pika authenticates people locally, then exposes only this random reference
+-- to integrated services. WorkOS subjects and Pika user UUIDs never cross the
+-- service boundary.
+create table public.attendance_principal_mappings (
+  user_id uuid primary key references public.users (id) on delete cascade,
+  principal_ref text not null unique
+    default ('principal_' || replace(gen_random_uuid()::text, '-', '')),
+  created_at timestamptz not null default clock_timestamp(),
+  check (principal_ref ~ '^principal_[a-f0-9]{32}$')
+);
+
 -- Occurrences intentionally survive a class-day row being toggled or removed:
 -- their cancellation and historical attendance remain reviewable until the
 -- classroom itself is deleted.
@@ -99,6 +110,7 @@ create table public.attendance_window_policies (
 
 alter table public.attendance_roster_mappings enable row level security;
 alter table public.attendance_participant_mappings enable row level security;
+alter table public.attendance_principal_mappings enable row level security;
 alter table public.attendance_occurrence_mappings enable row level security;
 alter table public.attendance_window_policies enable row level security;
 
@@ -106,17 +118,21 @@ revoke all on table public.attendance_roster_mappings
   from public, anon, authenticated, service_role;
 revoke all on table public.attendance_participant_mappings
   from public, anon, authenticated, service_role;
+revoke all on table public.attendance_principal_mappings
+  from public, anon, authenticated, service_role;
 revoke all on table public.attendance_occurrence_mappings
   from public, anon, authenticated, service_role;
 revoke all on table public.attendance_window_policies
   from public, anon, authenticated, service_role;
-grant select, insert, update, delete on table public.attendance_roster_mappings
+grant select, insert, update on table public.attendance_roster_mappings
   to service_role;
-grant select, insert, update, delete on table public.attendance_participant_mappings
+grant select, insert, update on table public.attendance_participant_mappings
   to service_role;
-grant select, insert, update, delete on table public.attendance_occurrence_mappings
+grant select, insert on table public.attendance_principal_mappings
   to service_role;
-grant select, insert, update, delete on table public.attendance_window_policies
+grant select, insert, update on table public.attendance_occurrence_mappings
+  to service_role;
+grant select, insert, update on table public.attendance_window_policies
   to service_role;
 
 create function public.upsert_attendance_window_policy_v1(
@@ -297,7 +313,7 @@ set search_path = ''
 as $$
   select jsonb_build_object(
     'title', classroom.title,
-    'owner_workos_subject', owner_user.workos_user_id,
+    'owner_principal_ref', owner_principal.principal_ref,
     'enrolled_student_ids', coalesce((
       select jsonb_agg(enrollment.student_id order by enrollment.student_id)
       from public.classroom_enrollments enrollment
@@ -314,16 +330,20 @@ as $$
         ),
         'first_name', profile.first_name,
         'last_name', profile.last_name,
-        'workos_subject', student_user.workos_user_id
+        'principal_ref', student_principal.principal_ref
       ) order by mapping.student_id)
       from public.attendance_participant_mappings mapping
       join public.student_profiles profile on profile.user_id = mapping.student_id
       join public.users student_user on student_user.id = mapping.student_id
+      left join public.attendance_principal_mappings student_principal
+        on student_principal.user_id = student_user.id
       where mapping.classroom_id = classroom.id
     ), '[]'::jsonb)
   )
   from public.classrooms classroom
   join public.users owner_user on owner_user.id = classroom.teacher_id
+  join public.attendance_principal_mappings owner_principal
+    on owner_principal.user_id = owner_user.id
   where classroom.id = p_classroom_id;
 $$;
 
@@ -379,7 +399,7 @@ as $$
 declare
   v_classroom public.classrooms%rowtype;
   v_roster public.attendance_roster_mappings%rowtype;
-  v_owner_workos_subject text;
+  v_owner_principal_ref text;
   v_roster_document jsonb;
   v_schedule_document jsonb;
   v_roster_token text;
@@ -407,9 +427,10 @@ begin
     raise exception using errcode = '42501', message = 'attendance_classroom_archived';
   end if;
 
-  select workos_user_id into v_owner_workos_subject
-  from public.users where id = v_classroom.teacher_id;
-  if v_owner_workos_subject is null then
+  if not exists (
+    select 1 from public.users
+    where id = v_classroom.teacher_id and workos_user_id is not null
+  ) then
     raise exception using errcode = '23514', message = 'attendance_owner_identity_not_linked';
   end if;
 
@@ -448,6 +469,26 @@ begin
   on conflict (classroom_id, student_id) do update
     set active = true, updated_at = clock_timestamp();
 
+  insert into public.attendance_principal_mappings (user_id)
+  select candidate.user_id
+  from (
+    select v_classroom.teacher_id as user_id
+    union
+    select enrollment.student_id
+    from public.classroom_enrollments enrollment
+    join public.users student_user on student_user.id = enrollment.student_id
+    where enrollment.classroom_id = p_classroom_id
+      and student_user.workos_user_id is not null
+  ) candidate
+  on conflict (user_id) do nothing;
+
+  select principal_ref into v_owner_principal_ref
+  from public.attendance_principal_mappings
+  where user_id = v_classroom.teacher_id;
+  if v_owner_principal_ref is null then
+    raise exception using errcode = '23514', message = 'attendance_owner_principal_missing';
+  end if;
+
   insert into public.attendance_occurrence_mappings (
     classroom_id, class_date, opens_at, closes_at
   )
@@ -477,7 +518,7 @@ begin
     'classroom_id', p_classroom_id,
     'roster_ref', v_roster.roster_ref,
     'title', v_classroom.title,
-    'owner_workos_subject', v_owner_workos_subject,
+    'owner_principal_ref', v_owner_principal_ref,
     'roster_source_token', v_roster_token,
     'roster_revision', case
       when v_roster.source_token = v_roster_token then greatest(v_roster.source_revision, 1)
@@ -496,11 +537,13 @@ begin
         'participant_ref', mapping.participant_ref,
         'display_name', btrim(profile.first_name || ' ' || profile.last_name),
         'active', mapping.active,
-        'workos_subject', student_user.workos_user_id
+        'principal_ref', student_principal.principal_ref
       ) order by profile.last_name, profile.first_name, mapping.student_id)
       from public.attendance_participant_mappings mapping
       join public.student_profiles profile on profile.user_id = mapping.student_id
       join public.users student_user on student_user.id = mapping.student_id
+      left join public.attendance_principal_mappings student_principal
+        on student_principal.user_id = student_user.id
       where mapping.classroom_id = p_classroom_id
     ), '[]'::jsonb),
     'class_days', coalesce((
@@ -575,6 +618,8 @@ create table public.attendance_integration_outbox (
 create index attendance_integration_outbox_delivery
   on public.attendance_integration_outbox (next_attempt_at, created_at)
   where status in ('pending', 'processing');
+create index attendance_integration_outbox_classroom_status
+  on public.attendance_integration_outbox (classroom_id, status, created_at);
 
 alter table public.attendance_integration_outbox enable row level security;
 revoke all on table public.attendance_integration_outbox
@@ -692,8 +737,9 @@ begin
 
   if p_message->>'roster_ref' <> v_roster.roster_ref
     or (p_message->>'revision')::bigint <> v_revision
-    or p_message->>'owner_workos_subject' <> (
-      select workos_user_id from public.users where id = v_classroom.teacher_id
+    or p_message->>'owner_principal_ref' <> (
+      select principal_ref from public.attendance_principal_mappings
+      where user_id = v_classroom.teacher_id
     )
     or p_message->>'display_name' <> v_classroom.title
     or jsonb_array_length(p_message->'participants') <> (
@@ -705,6 +751,8 @@ begin
       from public.attendance_participant_mappings mapping
       join public.student_profiles profile on profile.user_id = mapping.student_id
       join public.users student_user on student_user.id = mapping.student_id
+      left join public.attendance_principal_mappings student_principal
+        on student_principal.user_id = student_user.id
       where mapping.classroom_id = p_classroom_id
         and not exists (
           select 1 from jsonb_array_elements(p_message->'participants') participant
@@ -712,7 +760,7 @@ begin
             and participant->>'display_name' = btrim(profile.first_name || ' ' || profile.last_name)
             and jsonb_typeof(participant->'active') = 'boolean'
             and (participant->>'active')::boolean = mapping.active
-            and coalesce(participant->>'workos_subject', '') = coalesce(student_user.workos_user_id, '')
+            and coalesce(participant->>'principal_ref', '') = coalesce(student_principal.principal_ref, '')
         )
     ) then
     raise exception using errcode = '22023', message = 'attendance_roster_message_mismatch';
@@ -866,6 +914,67 @@ begin
 end;
 $$;
 
+-- Delivery dependencies are data-driven rather than creation-order driven.
+-- This keeps concurrent workers from sending a schedule before its roster, or
+-- a teacher command before both provider-side snapshots are authoritative.
+create function public.attendance_outbox_dependencies_ready_v1(
+  p_row public.attendance_integration_outbox
+)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select case p_row.message_type
+    when 'roster.snapshot' then true
+    when 'schedule.snapshot' then
+      exists (
+        select 1
+        from public.attendance_roster_mappings roster
+        where roster.classroom_id = p_row.classroom_id
+          and roster.synced_revision is not null
+      )
+      and not exists (
+        select 1
+        from public.attendance_integration_outbox dependency
+        where dependency.classroom_id = p_row.classroom_id
+          and dependency.message_type = 'roster.snapshot'
+          and dependency.status in ('pending', 'processing', 'non_retryable')
+      )
+    when 'session.command' then
+      exists (
+        select 1
+        from public.attendance_roster_mappings roster
+        where roster.classroom_id = p_row.classroom_id
+          and roster.synced_revision is not null
+          and roster.schedule_synced_revision is not null
+      )
+      and not exists (
+        select 1
+        from public.attendance_integration_outbox dependency
+        where dependency.classroom_id = p_row.classroom_id
+          and dependency.message_type in ('roster.snapshot', 'schedule.snapshot')
+          and dependency.status in ('pending', 'processing', 'non_retryable')
+      )
+    when 'attendance.marks' then
+      exists (
+        select 1
+        from public.attendance_roster_mappings roster
+        where roster.classroom_id = p_row.classroom_id
+          and roster.synced_revision is not null
+          and roster.schedule_synced_revision is not null
+      )
+      and not exists (
+        select 1
+        from public.attendance_integration_outbox dependency
+        where dependency.classroom_id = p_row.classroom_id
+          and dependency.message_type in ('roster.snapshot', 'schedule.snapshot')
+          and dependency.status in ('pending', 'processing', 'non_retryable')
+      )
+    else false
+  end
+$$;
+
 create function public.claim_attendance_outbound_message_v1(
   p_idempotency_key text,
   p_lease_seconds integer default 60
@@ -883,19 +992,20 @@ begin
     raise exception using errcode = '22023', message = 'attendance_outbox_claim_invalid';
   end if;
 
-  update public.attendance_integration_outbox
+  update public.attendance_integration_outbox outbox
   set status = 'processing',
-      attempts = attempts + 1,
+      attempts = outbox.attempts + 1,
       lease_token = gen_random_uuid(),
       lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
       last_attempt_at = clock_timestamp(),
       updated_at = clock_timestamp()
   where idempotency_key = p_idempotency_key
+    and public.attendance_outbox_dependencies_ready_v1(outbox)
     and (
       (status = 'pending' and next_attempt_at <= clock_timestamp())
       or (status = 'processing' and lease_expires_at <= clock_timestamp())
     )
-  returning * into v_row;
+  returning outbox.* into v_row;
 
   return v_row;
 end;
@@ -918,9 +1028,12 @@ begin
   return query
   with candidates as (
     select id
-    from public.attendance_integration_outbox
-    where (status = 'pending' and next_attempt_at <= clock_timestamp())
-       or (status = 'processing' and lease_expires_at <= clock_timestamp())
+    from public.attendance_integration_outbox candidate
+    where public.attendance_outbox_dependencies_ready_v1(candidate)
+      and (
+        (status = 'pending' and next_attempt_at <= clock_timestamp())
+        or (status = 'processing' and lease_expires_at <= clock_timestamp())
+      )
     order by next_attempt_at, created_at
     limit p_limit
     for update skip locked
@@ -1066,6 +1179,9 @@ $$;
 
 revoke all on function public.enqueue_attendance_outbound_message_v1(uuid, jsonb)
   from public, anon, authenticated;
+revoke all on function public.attendance_outbox_dependencies_ready_v1(
+  public.attendance_integration_outbox
+) from public, anon, authenticated, service_role;
 revoke all on function public.stage_attendance_roster_snapshot_v1(uuid, uuid, text, jsonb)
   from public, anon, authenticated;
 revoke all on function public.stage_attendance_schedule_snapshot_v1(uuid, uuid, text, jsonb)
@@ -1215,6 +1331,7 @@ $$;
 
 create table public.attendance_integration_inbox (
   id uuid primary key default gen_random_uuid(),
+  classroom_id uuid not null references public.classrooms (id) on delete cascade,
   installation_ref text not null,
   transport_nonce text not null,
   event_id text not null,
@@ -1235,6 +1352,7 @@ create table public.attendance_integration_inbox (
 
 create table public.attendance_session_projection (
   id uuid primary key default gen_random_uuid(),
+  classroom_id uuid not null references public.classrooms (id) on delete cascade,
   installation_ref text not null,
   roster_ref text not null,
   occurrence_ref text not null,
@@ -1250,6 +1368,8 @@ create table public.attendance_session_projection (
 
 create table public.attendance_record_projection (
   id uuid primary key default gen_random_uuid(),
+  classroom_id uuid not null references public.classrooms (id) on delete cascade,
+  student_id uuid not null references public.users (id) on delete cascade,
   installation_ref text not null,
   roster_ref text not null,
   occurrence_ref text not null,
@@ -1267,10 +1387,16 @@ create table public.attendance_record_projection (
 
 create index attendance_integration_inbox_received
   on public.attendance_integration_inbox (received_at desc);
+create index attendance_integration_inbox_classroom
+  on public.attendance_integration_inbox (classroom_id, received_at desc);
 create index attendance_session_projection_roster
   on public.attendance_session_projection (installation_ref, roster_ref, updated_at desc);
+create index attendance_session_projection_classroom
+  on public.attendance_session_projection (classroom_id, updated_at desc);
 create index attendance_record_projection_occurrence
   on public.attendance_record_projection (installation_ref, occurrence_ref, updated_at desc);
+create index attendance_record_projection_classroom_student
+  on public.attendance_record_projection (classroom_id, student_id, updated_at desc);
 
 alter table public.attendance_integration_inbox enable row level security;
 alter table public.attendance_session_projection enable row level security;
@@ -1299,6 +1425,8 @@ set search_path = ''
 as $$
 declare
   v_inbox_id uuid;
+  v_classroom_id uuid;
+  v_student_id uuid;
   v_projection_rows integer := 0;
 begin
   if not public.attendance_event_v1_valid(p_event)
@@ -1306,30 +1434,30 @@ begin
     raise exception using errcode = '22023', message = 'attendance_event_invalid';
   end if;
 
-  if not exists (
-    select 1
+  select occurrence.classroom_id into v_classroom_id
     from public.attendance_occurrence_mappings occurrence
     join public.attendance_roster_mappings roster
       on roster.classroom_id = occurrence.classroom_id
     where occurrence.occurrence_ref = p_event->>'occurrence_ref'
-      and roster.roster_ref = p_event->>'roster_ref'
-  ) then
+      and roster.roster_ref = p_event->>'roster_ref';
+  if v_classroom_id is null then
     raise exception using errcode = '23514', message = 'attendance_event_mapping_mismatch';
   end if;
 
-  if p_event->>'event_type' = 'attendance.record.changed'
-    and not exists (
-      select 1
+  if p_event->>'event_type' = 'attendance.record.changed' then
+    select participant.student_id into v_student_id
       from public.attendance_participant_mappings participant
       join public.attendance_occurrence_mappings occurrence
         on occurrence.classroom_id = participant.classroom_id
       where occurrence.occurrence_ref = p_event->>'occurrence_ref'
-        and participant.participant_ref = p_event->'metadata'->>'participant_ref'
-    ) then
+        and participant.participant_ref = p_event->'metadata'->>'participant_ref';
+    if v_student_id is null then
     raise exception using errcode = '23514', message = 'attendance_event_participant_mismatch';
+    end if;
   end if;
 
   insert into public.attendance_integration_inbox (
+    classroom_id,
     installation_ref,
     transport_nonce,
     event_id,
@@ -1342,6 +1470,7 @@ begin
     session_revision,
     payload
   ) values (
+    v_classroom_id,
     p_event->>'installation_ref',
     p_transport_nonce,
     p_event->>'event_id',
@@ -1380,6 +1509,7 @@ begin
     'attendance.session.cancelled'
   ) then
     insert into public.attendance_session_projection (
+      classroom_id,
       installation_ref,
       roster_ref,
       occurrence_ref,
@@ -1390,6 +1520,7 @@ begin
       last_event_id,
       last_event_at
     ) values (
+      v_classroom_id,
       p_event->>'installation_ref',
       p_event->>'roster_ref',
       p_event->>'occurrence_ref',
@@ -1409,6 +1540,7 @@ begin
     )
     on conflict (installation_ref, occurrence_ref) do update
       set roster_ref = excluded.roster_ref,
+          classroom_id = excluded.classroom_id,
           session_revision = excluded.session_revision,
           status = excluded.status,
           opens_at = coalesce(excluded.opens_at, public.attendance_session_projection.opens_at),
@@ -1420,6 +1552,8 @@ begin
     get diagnostics v_projection_rows = row_count;
   elsif p_event->>'event_type' = 'attendance.record.changed' then
     insert into public.attendance_record_projection (
+      classroom_id,
+      student_id,
       installation_ref,
       roster_ref,
       occurrence_ref,
@@ -1432,6 +1566,8 @@ begin
       last_event_id,
       last_event_at
     ) values (
+      v_classroom_id,
+      v_student_id,
       p_event->>'installation_ref',
       p_event->>'roster_ref',
       p_event->>'occurrence_ref',
@@ -1446,6 +1582,8 @@ begin
     )
     on conflict (installation_ref, occurrence_ref, participant_ref) do update
       set roster_ref = excluded.roster_ref,
+          classroom_id = excluded.classroom_id,
+          student_id = excluded.student_id,
           record_revision = excluded.record_revision,
           status = excluded.status,
           source = excluded.source,
@@ -1559,6 +1697,8 @@ set search_path = ''
 as $$
 declare
   v_record jsonb;
+  v_classroom_id uuid;
+  v_student_id uuid;
   v_session_rows integer := 0;
   v_record_rows integer := 0;
   v_current_rows integer := 0;
@@ -1568,8 +1708,7 @@ begin
     raise exception using errcode = '22023', message = 'attendance_snapshot_invalid';
   end if;
 
-  if not exists (
-    select 1
+  select occurrence.classroom_id into v_classroom_id
     from public.attendance_occurrence_mappings occurrence
     join public.attendance_roster_mappings roster
       on roster.classroom_id = occurrence.classroom_id
@@ -1577,8 +1716,8 @@ begin
       and roster.roster_ref = p_snapshot->>'roster_ref'
       and occurrence.desired_state = 'scheduled'
       and occurrence.opens_at = (p_snapshot->>'opens_at')::timestamptz
-      and occurrence.closes_at = (p_snapshot->>'closes_at')::timestamptz
-  ) then
+      and occurrence.closes_at = (p_snapshot->>'closes_at')::timestamptz;
+  if v_classroom_id is null then
     raise exception using errcode = '23514', message = 'attendance_snapshot_mapping_mismatch';
   end if;
 
@@ -1598,6 +1737,7 @@ begin
   end if;
 
   insert into public.attendance_session_projection (
+    classroom_id,
     installation_ref,
     roster_ref,
     occurrence_ref,
@@ -1608,6 +1748,7 @@ begin
     last_event_id,
     last_event_at
   ) values (
+    v_classroom_id,
     p_installation_ref,
     p_snapshot->>'roster_ref',
     p_snapshot->>'occurrence_ref',
@@ -1621,6 +1762,7 @@ begin
   )
   on conflict (installation_ref, occurrence_ref) do update
     set roster_ref = excluded.roster_ref,
+        classroom_id = excluded.classroom_id,
         session_revision = excluded.session_revision,
         status = excluded.status,
         opens_at = excluded.opens_at,
@@ -1632,7 +1774,16 @@ begin
   get diagnostics v_session_rows = row_count;
 
   for v_record in select value from jsonb_array_elements(p_snapshot->'records') loop
+    select participant.student_id into v_student_id
+    from public.attendance_participant_mappings participant
+    where participant.classroom_id = v_classroom_id
+      and participant.participant_ref = v_record->>'participant_ref';
+    if v_student_id is null then
+      raise exception using errcode = '23514', message = 'attendance_snapshot_participant_mismatch';
+    end if;
     insert into public.attendance_record_projection (
+      classroom_id,
+      student_id,
       installation_ref,
       roster_ref,
       occurrence_ref,
@@ -1645,6 +1796,8 @@ begin
       last_event_id,
       last_event_at
     ) values (
+      v_classroom_id,
+      v_student_id,
       p_installation_ref,
       p_snapshot->>'roster_ref',
       p_snapshot->>'occurrence_ref',
@@ -1660,6 +1813,8 @@ begin
     )
     on conflict (installation_ref, occurrence_ref, participant_ref) do update
       set roster_ref = excluded.roster_ref,
+          classroom_id = excluded.classroom_id,
+          student_id = excluded.student_id,
           record_revision = excluded.record_revision,
           status = excluded.status,
           source = excluded.source,
@@ -1691,3 +1846,81 @@ revoke all on function public.apply_attendance_session_snapshot_v1(text, jsonb)
   from public, anon, authenticated;
 grant execute on function public.apply_attendance_session_snapshot_v1(text, jsonb)
   to service_role;
+
+-- Attendance contains provider-owned authority and opaque integration state
+-- that archive-v2 cannot export or reconstruct. Preserve ordinary soft
+-- archive/restore, but stop compaction and permanent deletion until an
+-- explicit versioned Bara decommission/reseed protocol exists.
+create function public.attendance_classroom_has_state_v1(p_classroom_id uuid)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select
+    exists (select 1 from public.attendance_roster_mappings where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_participant_mappings where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_occurrence_mappings where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_window_policies where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_integration_outbox where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_integration_inbox where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_session_projection where classroom_id = p_classroom_id)
+    or exists (select 1 from public.attendance_record_projection where classroom_id = p_classroom_id)
+$$;
+
+create function public.reject_attendance_classroom_delete_v1()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if public.attendance_classroom_has_state_v1(old.id) then
+    raise exception using
+      errcode = '55000',
+      message = 'attendance_classroom_decommission_required';
+  end if;
+  return old;
+end;
+$$;
+
+create trigger reject_attendance_classroom_delete_v1
+before delete on public.classrooms
+for each row execute function public.reject_attendance_classroom_delete_v1();
+
+create function public.reject_attendance_destructive_operation_v1()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if tg_table_name = 'classroom_archive_operations' then
+    if new.operation_type = 'compact'
+      and public.attendance_classroom_has_state_v1(new.classroom_id) then
+      raise exception using
+        errcode = '55000',
+        message = 'attendance_classroom_decommission_required';
+    end if;
+  elsif tg_table_name = 'classroom_purge_operations'
+    and public.attendance_classroom_has_state_v1(new.classroom_id) then
+      raise exception using
+        errcode = '55000',
+        message = 'attendance_classroom_decommission_required';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger reject_attendance_archive_compaction_v1
+before insert on public.classroom_archive_operations
+for each row execute function public.reject_attendance_destructive_operation_v1();
+
+create trigger reject_attendance_classroom_purge_v1
+before insert on public.classroom_purge_operations
+for each row execute function public.reject_attendance_destructive_operation_v1();
+
+revoke all on function public.attendance_classroom_has_state_v1(uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.reject_attendance_classroom_delete_v1()
+  from public, anon, authenticated, service_role;
+revoke all on function public.reject_attendance_destructive_operation_v1()
+  from public, anon, authenticated, service_role;
