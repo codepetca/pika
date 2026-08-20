@@ -84,7 +84,7 @@ that principal through the installation-scoped adapter.
 ## Remaining gates
 
 1. If a hosted pilot is desired, first provision and authorize a named isolated
-   Pika Supabase target; none exists today. Migration 126 has only been replayed
+   Pika Supabase target; none exists today. Migration 127 has only been replayed
    and tested against the disposable local stack.
 2. Deploy matching Bara and Pika previews with distinct WorkOS Applications,
    cookie/session secrets, transport/event/entry-token secrets, and exact API

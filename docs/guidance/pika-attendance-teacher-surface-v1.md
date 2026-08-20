@@ -133,7 +133,7 @@ happy path:
 
 ## Implementation gates and slices
 
-1. **Development boundary gate:** apply migration 126 to an explicitly
+1. **Development boundary gate:** apply migration 127 to an explicitly
    authorized target; run roster, schedule, automatic session, staff mark,
    event, and snapshot reconciliation through the real signed adapter.
 2. **Native teacher slice:** completed locally. The authenticated,

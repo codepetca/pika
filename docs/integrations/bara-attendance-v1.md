@@ -39,13 +39,13 @@ snapshots with bounded concurrency. Failed or truncated work returns HTTP 503
 with aggregate counts only. Keeping this job separate prevents reconciliation
 from consuming the schedule/outbox worker's serverless time budget.
 
-Migration 126 also defines Pika-private durable mappings from
+Migration 127 also defines Pika-private durable mappings from
 classrooms, enrolled students, and class dates to random contract references,
 plus a teacher-local Toronto attendance-window policy. The authenticated
 read-only teacher route joins authoritative projections through those mappings
 and strips all opaque service references before returning browser-facing state.
 It returns a disabled view without touching the unapplied integration tables;
-hosted configured reads remain gated on applying migration 126 there.
+hosted configured reads remain gated on applying migration 127 there.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -77,7 +77,7 @@ The useful Pal pattern is retained:
   non-retryable retention;
 - privacy-safe operational telemetry and an authoritative reconciliation path.
 
-Migration 126 provides the Pal-style Pika outbound transport:
+Migration 127 provides the Pal-style Pika outbound transport:
 contract-validated payload staging, idempotency conflict detection, leases,
 bounded exponential retry, explicit non-retryable retention, cached closed
 responses, a recovery drain, and service-role-only aggregate backlog health.
@@ -175,7 +175,7 @@ Attendance integration state is intentionally nonportable in archive-v2.
 Ordinary soft archive/restore retains it, while archive compaction, hot purge,
 and the final classroom delete fail with
 `attendance_classroom_decommission_required` until a versioned Bara
-decommission/reseed protocol exists. Migration 126 links inbox and projections
+decommission/reseed protocol exists. Migration 127 links inbox and projections
 to their local classroom (and record projections to the local student), removes
 service-role delete authority, and tests every guarded row family.
 Individual-student purge is likewise blocked at begin and finalization whenever
@@ -208,7 +208,7 @@ pnpm attendance:rollout:preflight -- \
 ```
 
 This environment preflight does not replace the database gate. Before applying
-migration 126, separately prove the expected preview hostname resolves, bind a
+migration 127, separately prove the expected preview hostname resolves, bind a
 non-persisted database credential to that exact ref, inspect remote migration
 history, and dry-run the additive migration. After applying it, run the full
 signed cross-app smoke before enabling a pilot classroom.
@@ -223,7 +223,7 @@ deleted Supabase project whose hostname no longer resolves, while Production
 uses the healthy `Pika` project. WorkOS and Bara integration variables were not
 present in Preview, and its existing `SESSION_SECRET` value was empty. Do not
 reuse the production Supabase project, enable the integration, or apply
-migration 126 until an isolated preview target exists.
+migration 127 until an isolated preview target exists.
 
 A same-day Supabase CLI recheck found two active healthy Free projects (`Pika`
 and `Codepet HQ`) plus an inactive project named `Attend`. Supabase currently
@@ -233,7 +233,7 @@ count toward that limit or incur compute charges. Do not resume or repurpose
 no-charge route is to obtain explicit permission to pause one named active
 project, provision a fresh Pika Preview target, and then obtain the separate
 one-time authorization required by the schema rollout checklist to apply only
-migration 126 to that staging target.
+migration 127 to that staging target.
 
 References: [Supabase Free Plan billing](https://supabase.com/docs/guides/platform/billing-on-supabase)
 and [project pausing](https://supabase.com/docs/guides/platform/free-project-pausing).

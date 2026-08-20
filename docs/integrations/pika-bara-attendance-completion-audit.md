@@ -34,7 +34,7 @@ Bara worktree.
    target (none exists today), then obtain explicit authorization for that
    target and for the narrowly scoped Bara roster-owner backfill.
 2. Verify target identities and migration history, dry-run, then apply only Pika
-   migration 126 and the named Bara backfill to their approved environments.
+   migration 127 and the named Bara backfill to their approved environments.
 3. Deploy matching previews with separate WorkOS Applications and distinct
    secrets; run the aggregate-only rollout preflight.
 4. Prove real teacher and student roster/schedule/lifecycle/mark/correction/QR,

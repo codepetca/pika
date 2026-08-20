@@ -39,7 +39,7 @@ measure the student's camera and login time.
 Run this only after all of these are true:
 
 1. The target is an explicitly authorized, isolated Pika Preview deployment.
-2. Supabase migration 126 is applied only to that preview database.
+2. Supabase migration 127 is applied only to that preview database.
 3. Matching Pika and Bara previews pass `attendance:rollout:preflight` and the
    signed roster, schedule, session, event, and reconciliation smoke.
 4. A test attendance occurrence is open and allowlisted for the exercise.

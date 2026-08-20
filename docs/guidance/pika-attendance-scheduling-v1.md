@@ -14,7 +14,7 @@ window, Pika combines the local open/close times with the class date and emits
 concrete UTC instants through the versioned Bara schedule snapshot. Bara never
 reads `class_days` or infers the timetable.
 
-This slice implements and tests the pure materializer first. Migration 126 now
+This slice implements and tests the pure materializer first. Migration 127 now
 defines private durable `roster_…`, `participant_…`, and `occurrence_…`
 mappings plus the teacher-local window policy it consumes. The materializer accepts only
 stored opaque `roster_…` and `occurrence_…` mappings, sorts occurrences
@@ -27,7 +27,7 @@ private RPC with optimistic revisions; same-day windows must close after they
 open, while a one-day offset explicitly supports evening classes. No default
 time is guessed. The native Attendance pane exposes this through an Attendance
 Hours dialog and requests an immediate 90-day sync after save. The policy API
-remains dormant until migration 126 is applied.
+remains dormant until migration 127 is applied.
 
 The local rollout slice now also includes a daily Pika automation worker. It
 selects the least-recently staged eligible classrooms through a
@@ -85,7 +85,7 @@ Toronto calendar date rather than rejected or guessed.
   authorized development database.
 - Database-test the implemented preparation/staging RPCs, source-token conflict
   path, inactive-participant retention, and delivery-revision acknowledgements.
-- Apply migration 126 to development and run the real cross-app round trip.
+- Apply migration 127 to development and run the real cross-app round trip.
 - Prove the hosted daily worker stages and delivers a changed class day before
   enabling it for a pilot classroom. Higher-frequency retry or a larger worker
   capacity is an institutional-readiness decision, not required for the first
