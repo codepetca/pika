@@ -31,138 +31,215 @@ function assertSeedResult(
   }
 }
 
+function matchesExpected(actual: unknown, expected: unknown): boolean {
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual)
+      && actual.length === expected.length
+      && expected.every((value, index) => matchesExpected(actual[index], value))
+  }
+  if (expected && typeof expected === 'object') {
+    if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false
+    return Object.entries(expected).every(([key, value]) => (
+      matchesExpected((actual as Record<string, unknown>)[key], value)
+    ))
+  }
+  return actual === expected
+}
+
+async function loadFixtureRows(
+  supabase: SupabaseClient,
+  table: string,
+  column: string,
+  values: readonly string[],
+) {
+  const result = await supabase.from(table).select('*').in(column, [...values])
+  assertSeedResult(result, `Load ${table}`)
+  return (result.data ?? []) as Array<Record<string, unknown>>
+}
+
+function hasExactRows(
+  actual: Array<Record<string, unknown>>,
+  expected: Array<Record<string, unknown>>,
+) {
+  return actual.length === expected.length
+    && expected.every((expectedRow) => actual.some((row) => (
+      row.id === expectedRow.id && matchesExpected(row, expectedRow)
+    )))
+}
+
 export async function seedPlannedCourseFixtures(
   supabase: SupabaseClient,
   teacherId: string,
 ) {
   const fixture = PLANNED_COURSE_FIXTURE
+  const publicBlueprint = {
+    id: fixture.blueprintId,
+    teacher_id: teacherId,
+    title: 'Computer Science 11',
+    subject: 'Computer Science',
+    grade_level: 'Grade 11',
+    course_code: 'ICS3U',
+    term_template: 'Semester 1',
+    overview_markdown: [
+      'Build a strong foundation in programming, algorithms, and collaborative problem solving.',
+      '',
+      '[Ontario curriculum](https://www.dcp.edu.gov.on.ca/en/curriculum/secondary-computer-science)',
+    ].join('\n'),
+    outline_markdown: [
+      '## Unit 1: Programming foundations',
+      '',
+      '- Variables and control flow',
+      '- Functions and testing',
+      '',
+      '## Unit 2: Data structures',
+      '',
+      '- Lists and maps',
+    ].join('\n'),
+    resources_markdown: [
+      '- [Python documentation](https://docs.python.org/3/)',
+      '- Course coding standards',
+    ].join('\n'),
+    planned_site_slug: fixture.publicSlug,
+    planned_site_published: true,
+    planned_site_config: {
+      overview: true,
+      outline: true,
+      resources: true,
+      assignments: true,
+      tests: true,
+      lesson_plans: true,
+    },
+    position: 80,
+  }
+  const privateBlueprint = {
+    id: fixture.privateBlueprintId,
+    teacher_id: teacherId,
+    title: 'Private Course Plan',
+    planned_site_slug: fixture.privateSlug,
+    planned_site_published: false,
+    position: 81,
+  }
+  const assignment = {
+    id: fixture.assignmentId,
+    artifact_id: fixture.assignmentArtifactId,
+    course_blueprint_id: fixture.blueprintId,
+    title: 'Algorithm Design Brief',
+    instructions_markdown: 'Compare two approaches and explain the tradeoffs using pseudocode.',
+    default_due_days: 7,
+    default_due_time: '23:59',
+    points_possible: 20,
+    include_in_final: true,
+    is_draft: true,
+    position: 0,
+  }
+  const assessment = {
+    id: fixture.assessmentId,
+    artifact_id: fixture.assessmentArtifactId,
+    course_blueprint_id: fixture.blueprintId,
+    assessment_type: 'test',
+    title: 'Programming Foundations Test',
+    content: {
+      title: 'Programming Foundations Test',
+      show_results: false,
+      questions: [{
+        id: fixture.questionId,
+        question_type: 'open_response',
+        question_text: fixture.privateQuestion,
+        answer_key: fixture.privateAnswer,
+        points: 10,
+      }],
+    },
+    documents: [{
+      id: fixture.documentId,
+      source: 'link',
+      title: fixture.privateDocumentTitle,
+      url: fixture.privateDocumentUrl,
+    }],
+    position: 0,
+  }
+  const lessonTemplate = {
+    id: fixture.lessonTemplateId,
+    artifact_id: fixture.lessonTemplateArtifactId,
+    course_blueprint_id: fixture.blueprintId,
+    title: 'Tracing and Debugging',
+    content_markdown: 'Model a trace table, diagnose one defect, and record the correction.',
+    position: 0,
+  }
+  const childFixtures = [
+    { table: 'course_blueprint_assignments', rows: [assignment] },
+    { table: 'course_blueprint_assessments', rows: [assessment] },
+    { table: 'course_blueprint_lesson_templates', rows: [lessonTemplate] },
+    { table: 'course_blueprint_materials', rows: [] },
+    { table: 'course_blueprint_surveys', rows: [] },
+  ] as const
+
+  const blueprintIds = [fixture.blueprintId, fixture.privateBlueprintId]
+  const existingBlueprints = await loadFixtureRows(
+    supabase,
+    'course_blueprints',
+    'id',
+    blueprintIds,
+  )
+  let fixtureIsExact = hasExactRows(existingBlueprints, [publicBlueprint, privateBlueprint])
+  for (const child of childFixtures) {
+    const existingRows = await loadFixtureRows(
+      supabase,
+      child.table,
+      'course_blueprint_id',
+      blueprintIds,
+    )
+    fixtureIsExact = fixtureIsExact && hasExactRows(
+      existingRows,
+      child.rows as unknown as Array<Record<string, unknown>>,
+    )
+  }
+
+  if (fixtureIsExact) return { changed: false }
 
   assertSeedResult(
     await supabase.from('course_blueprints').upsert({
-      id: fixture.blueprintId,
-      teacher_id: teacherId,
-      title: 'Computer Science 11',
-      subject: 'Computer Science',
-      grade_level: 'Grade 11',
-      course_code: 'ICS3U',
-      term_template: 'Semester 1',
-      overview_markdown: [
-        'Build a strong foundation in programming, algorithms, and collaborative problem solving.',
-        '',
-        '[Ontario curriculum](https://www.dcp.edu.gov.on.ca/en/curriculum/secondary-computer-science)',
-      ].join('\n'),
-      outline_markdown: [
-        '## Unit 1: Programming foundations',
-        '',
-        '- Variables and control flow',
-        '- Functions and testing',
-        '',
-        '## Unit 2: Data structures',
-        '',
-        '- Lists and maps',
-      ].join('\n'),
-      resources_markdown: [
-        '- [Python documentation](https://docs.python.org/3/)',
-        '- Course coding standards',
-      ].join('\n'),
-      planned_site_slug: fixture.publicSlug,
-      planned_site_published: true,
-      planned_site_config: {
-        overview: true,
-        outline: true,
-        resources: true,
-        assignments: true,
-        tests: true,
-        lesson_plans: true,
-      },
-      position: 80,
+      ...publicBlueprint,
+      planned_site_published: false,
     }, { onConflict: 'id' }),
-    'Seed published planned course Blueprint',
+    'Stage unpublished planned course Blueprint',
   )
 
   assertSeedResult(
-    await supabase.from('course_blueprints').upsert({
-      id: fixture.privateBlueprintId,
-      teacher_id: teacherId,
-      title: 'Private Course Plan',
-      planned_site_slug: fixture.privateSlug,
-      planned_site_published: false,
-      position: 81,
-    }, { onConflict: 'id' }),
+    await supabase.from('course_blueprints').upsert(privateBlueprint, { onConflict: 'id' }),
     'Seed unpublished planned course Blueprint',
   )
 
-  const childTables = [
-    'course_blueprint_assignments',
-    'course_blueprint_assessments',
-    'course_blueprint_lesson_templates',
-    'course_blueprint_materials',
-    'course_blueprint_surveys',
-  ] as const
-  for (const table of childTables) {
-    for (const blueprintId of [fixture.blueprintId, fixture.privateBlueprintId]) {
+  for (const child of childFixtures) {
+    assertSeedResult(
+      await supabase.from(child.table).delete().eq(
+        'course_blueprint_id',
+        fixture.privateBlueprintId,
+      ),
+      `Reset private ${child.table}`,
+    )
+
+    const canonicalRow = child.rows[0]
+    const deleteDrift = supabase.from(child.table).delete()
+      .eq('course_blueprint_id', fixture.blueprintId)
+    assertSeedResult(
+      await (canonicalRow ? deleteDrift.neq('id', canonicalRow.id) : deleteDrift),
+      `Remove drift from ${child.table}`,
+    )
+
+    if (canonicalRow) {
       assertSeedResult(
-        await supabase.from(table).delete().eq('course_blueprint_id', blueprintId),
-        `Reset ${table} for ${blueprintId}`,
+        await supabase.from(child.table).upsert(canonicalRow, { onConflict: 'id' }),
+        `Seed canonical ${child.table}`,
       )
     }
   }
 
   assertSeedResult(
-    await supabase.from('course_blueprint_assignments').insert({
-      id: fixture.assignmentId,
-      artifact_id: fixture.assignmentArtifactId,
-      course_blueprint_id: fixture.blueprintId,
-      title: 'Algorithm Design Brief',
-      instructions_markdown: 'Compare two approaches and explain the tradeoffs using pseudocode.',
-      default_due_days: 7,
-      default_due_time: '23:59',
-      points_possible: 20,
-      include_in_final: true,
-      is_draft: true,
-      position: 0,
-    }),
-    'Seed planned course assignment',
+    await supabase.from('course_blueprints')
+      .update({ planned_site_published: true })
+      .eq('id', fixture.blueprintId),
+    'Publish planned course Blueprint',
   )
 
-  assertSeedResult(
-    await supabase.from('course_blueprint_assessments').insert({
-      id: fixture.assessmentId,
-      artifact_id: fixture.assessmentArtifactId,
-      course_blueprint_id: fixture.blueprintId,
-      assessment_type: 'test',
-      title: 'Programming Foundations Test',
-      content: {
-        title: 'Programming Foundations Test',
-        show_results: false,
-        questions: [{
-          id: fixture.questionId,
-          question_type: 'open_response',
-          question_text: fixture.privateQuestion,
-          answer_key: fixture.privateAnswer,
-          points: 10,
-        }],
-      },
-      documents: [{
-        id: fixture.documentId,
-        source: 'link',
-        title: fixture.privateDocumentTitle,
-        url: fixture.privateDocumentUrl,
-      }],
-      position: 0,
-    }),
-    'Seed planned course Test',
-  )
-
-  assertSeedResult(
-    await supabase.from('course_blueprint_lesson_templates').insert({
-      id: fixture.lessonTemplateId,
-      artifact_id: fixture.lessonTemplateArtifactId,
-      course_blueprint_id: fixture.blueprintId,
-      title: 'Tracing and Debugging',
-      content_markdown: 'Model a trace table, diagnose one defect, and record the correction.',
-      position: 0,
-    }),
-    'Seed planned course lesson template',
-  )
+  return { changed: true }
 }

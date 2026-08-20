@@ -8,13 +8,23 @@ type SeedRow = Record<string, unknown> & { id: string }
 
 class FixtureSupabase {
   readonly rows = new Map<string, SeedRow[]>()
+  failUpsertTable: string | null = null
 
   from(table: string) {
     const getRows = () => this.rows.get(table) ?? []
     const setRows = (rows: SeedRow[]) => this.rows.set(table, rows)
 
     return {
+      select: () => ({
+        in: async (column: string, values: unknown[]) => ({
+          data: structuredClone(getRows().filter((row) => values.includes(row[column]))),
+          error: null,
+        }),
+      }),
       upsert: async (row: SeedRow) => {
+        if (this.failUpsertTable === table) {
+          return { error: new Error(`injected ${table} failure`) }
+        }
         const existing = getRows()
         const index = existing.findIndex((candidate) => candidate.id === row.id)
         if (index === -1) {
@@ -26,19 +36,37 @@ class FixtureSupabase {
         }
         return { error: null }
       },
-      insert: async (row: SeedRow) => {
-        if (getRows().some((candidate) => candidate.id === row.id)) {
-          return { error: new Error(`duplicate row ${row.id}`) }
-        }
-        setRows([...getRows(), structuredClone(row)])
-        return { error: null }
-      },
-      delete: () => ({
+      update: (values: Record<string, unknown>) => ({
         eq: async (column: string, value: unknown) => {
-          setRows(getRows().filter((row) => row[column] !== value))
+          setRows(getRows().map((row) => (
+            row[column] === value ? { ...row, ...structuredClone(values) } : row
+          )))
           return { error: null }
         },
       }),
+      delete: () => {
+        const filters: Array<(row: SeedRow) => boolean> = []
+        const builder = {
+          eq(column: string, value: unknown) {
+            filters.push((row) => row[column] === value)
+            return builder
+          },
+          neq(column: string, value: unknown) {
+            filters.push((row) => row[column] !== value)
+            return builder
+          },
+          then(
+            resolve: (result: { error: null }) => unknown,
+            reject: (error: unknown) => unknown,
+          ) {
+            return Promise.resolve().then(() => {
+              setRows(getRows().filter((row) => !filters.every((filter) => filter(row))))
+              return { error: null as null }
+            }).then(resolve, reject)
+          },
+        }
+        return builder
+      },
     }
   }
 
@@ -71,7 +99,7 @@ describe('seedPlannedCourseFixtures', () => {
       title: 'Drift row',
     }])
 
-    await seedPlannedCourseFixtures(supabase as never, 'teacher-1')
+    expect(await seedPlannedCourseFixtures(supabase as never, 'teacher-1')).toEqual({ changed: true })
     const first = supabase.fixtureSnapshot()
 
     const assignments = first.course_blueprint_assignments
@@ -95,8 +123,29 @@ describe('seedPlannedCourseFixtures', () => {
       course_blueprint_id: PLANNED_COURSE_FIXTURE.blueprintId,
       title: 'Later drift row',
     })
-    await seedPlannedCourseFixtures(supabase as never, 'teacher-1')
+    expect(await seedPlannedCourseFixtures(supabase as never, 'teacher-1')).toEqual({ changed: true })
 
     expect(supabase.fixtureSnapshot()).toEqual(first)
+
+    expect(await seedPlannedCourseFixtures(supabase as never, 'teacher-1')).toEqual({ changed: false })
+    expect(supabase.fixtureSnapshot()).toEqual(first)
+  })
+
+  it('leaves a drifted public fixture unpublished when child reconciliation fails', async () => {
+    const supabase = new FixtureSupabase()
+    await seedPlannedCourseFixtures(supabase as never, 'teacher-1')
+    supabase.rows.get('course_blueprint_assignments')!.push({
+      id: '90000000-0000-4000-8000-000000000295',
+      course_blueprint_id: PLANNED_COURSE_FIXTURE.blueprintId,
+      title: 'Drift row',
+    })
+    supabase.failUpsertTable = 'course_blueprint_assignments'
+
+    await expect(seedPlannedCourseFixtures(supabase as never, 'teacher-1'))
+      .rejects.toThrow('injected course_blueprint_assignments failure')
+
+    const publicBlueprint = supabase.rows.get('course_blueprints')!
+      .find((row) => row.id === PLANNED_COURSE_FIXTURE.blueprintId)
+    expect(publicBlueprint?.planned_site_published).toBe(false)
   })
 })

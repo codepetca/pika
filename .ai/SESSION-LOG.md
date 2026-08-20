@@ -1227,7 +1227,7 @@ cleanup, or Gradex change.
 
 **Validation:**
 - `pnpm seed` passes with the isolated planned-course fixture runner.
-- Full verification passes 4,615 tests across 507 files, lint, type checking,
+- Full verification passes 4,616 tests across 507 files, lint, type checking,
   and the production build. Architecture, UI policy, design policy, Pika audit,
   and diff checks pass.
 - The final Playwright experience matrix passes 36 tests with 14 intentional
@@ -1250,6 +1250,13 @@ exposure boundary and cross-route publication lifecycle.
 - Added drift-injection idempotency coverage, verified two consecutive real
   local seeds, and brought `seed:fresh` onto the same planned-course fixture
   path as `seed`.
-- Remediated full verification passes 4,615 tests across 507 files, lint, type
-  checking, and the production build. The browser matrix remains 36 passing
-  with 14 intentional skips.
+- Changed fixture reconciliation to read the complete canonical state first and
+  perform no writes when it is already exact, preventing unchanged seeds from
+  incrementing Blueprint content revisions. A real-database replay preserved
+  the complete fixture fingerprint and content revision 23.
+- Made drift repair fail closed: the public Blueprint is unpublished before
+  child reconciliation and published only after every canonical write succeeds.
+  An injected child-write failure verifies that the public site remains private.
+- Remediated full verification passes 4,616 tests across 507 files, lint, type
+  checking, and the production build. The final browser matrix remains 36
+  passing with 14 intentional skips.

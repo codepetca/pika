@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { resolve } from 'path'
-import { seedPlannedCourseFixtures } from './seed-planned-course-fixtures'
+import {
+  PLANNED_COURSE_FIXTURE,
+  seedPlannedCourseFixtures,
+} from './seed-planned-course-fixtures'
 
 const envFile = process.env.ENV_FILE || '.env.local'
 config({ path: resolve(process.cwd(), envFile) })
@@ -27,6 +30,25 @@ async function seedPlannedCourse() {
   }
 
   await seedPlannedCourseFixtures(supabase, teacher.id)
+
+  const loadRevision = async () => {
+    const { data, error: revisionError } = await supabase
+      .from('course_blueprints')
+      .select('content_revision')
+      .eq('id', PLANNED_COURSE_FIXTURE.blueprintId)
+      .single()
+    if (revisionError || !data) {
+      throw new Error(`Fixture revision lookup failed: ${revisionError?.message || 'not found'}`)
+    }
+    return data.content_revision
+  }
+
+  const revisionBeforeReplay = await loadRevision()
+  const replay = await seedPlannedCourseFixtures(supabase, teacher.id)
+  const revisionAfterReplay = await loadRevision()
+  if (replay.changed || revisionAfterReplay !== revisionBeforeReplay) {
+    throw new Error('Planned course fixture replay changed canonical database state')
+  }
 }
 
 seedPlannedCourse().catch((error) => {
