@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -306,6 +307,55 @@ test.describe('teacher experience matrix', () => {
       expect(restoreResponse.ok()).toBe(true)
     }
   })
+
+  test('publishes and unpublishes the planned course through the Blueprint editor', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'One publication lifecycle pass is sufficient')
+
+    await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
+    await page.locator('aside').getByRole('button', { name: /Computer Science 11/ }).click()
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+
+    const publishCheckbox = page.getByRole('checkbox', {
+      name: 'Publish this planned course site',
+    })
+    const saveButton = page.getByRole('button', { name: 'Save Planned Site' })
+    await expect(publishCheckbox).toBeChecked()
+
+    try {
+      await publishCheckbox.uncheck()
+      await saveButton.click()
+      await expect(saveButton).toBeEnabled()
+      await expect.poll(async () => (
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+      ).status()).toBe(404)
+
+      await publishCheckbox.check()
+      await saveButton.click()
+      await expect(saveButton).toBeEnabled()
+      await expect.poll(async () => (
+        await page.request.get(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`)
+      ).status()).toBe(200)
+    } finally {
+      const restore = await page.request.patch(
+        `/api/teacher/course-blueprints/${PLANNED_COURSE_FIXTURE.blueprintId}`,
+        {
+          data: {
+            planned_site_slug: PLANNED_COURSE_FIXTURE.publicSlug,
+            planned_site_published: true,
+            planned_site_config: {
+              overview: true,
+              outline: true,
+              resources: true,
+              assignments: true,
+              tests: true,
+              lesson_plans: true,
+            },
+          },
+        },
+      )
+      expect(restore.ok()).toBe(true)
+    }
+  })
 })
 
 test.describe('student experience matrix', () => {
@@ -329,5 +379,92 @@ test.describe('student experience matrix', () => {
     const navigation = page.getByRole('navigation', { name: 'Student tools' })
     await expect(navigation.getByRole('link', { name: 'Attendance' })).toHaveAttribute('aria-current', 'page')
     await verifyProjectContract(page, testInfo)
+  })
+})
+
+test.describe('public planned course experience matrix', () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    await applyProjectTheme(page, testInfo)
+  })
+
+  test('shows only publishable course-plan content', async ({ page }, testInfo) => {
+    const response = await page.goto(`/planned/${PLANNED_COURSE_FIXTURE.publicSlug}`, {
+      waitUntil: 'domcontentloaded',
+    })
+    expect(response?.status()).toBe(200)
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Computer Science 11' })).toBeVisible()
+    for (const heading of ['Overview', 'Outline', 'Resources', 'Assignments', 'Tests', 'Lesson Sequence']) {
+      await expect(page.getByRole('heading', { level: 2, name: heading })).toBeVisible()
+    }
+    await expect(page.getByRole('heading', { level: 3, name: 'Algorithm Design Brief' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 3, name: 'Programming Foundations Test' })).toBeVisible()
+    await expect(page.getByText('1 question', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 3, name: 'Tracing and Debugging' })).toBeVisible()
+
+    const pageSource = `${await response!.text()}\n${await page.content()}`
+    for (const privateValue of [
+      PLANNED_COURSE_FIXTURE.blueprintId,
+      PLANNED_COURSE_FIXTURE.assignmentId,
+      PLANNED_COURSE_FIXTURE.assessmentId,
+      PLANNED_COURSE_FIXTURE.lessonTemplateId,
+      PLANNED_COURSE_FIXTURE.privateQuestion,
+      PLANNED_COURSE_FIXTURE.privateAnswer,
+      PLANNED_COURSE_FIXTURE.privateDocumentTitle,
+      PLANNED_COURSE_FIXTURE.privateDocumentUrl,
+      PLANNED_COURSE_FIXTURE.questionId,
+      PLANNED_COURSE_FIXTURE.documentId,
+      PLANNED_COURSE_FIXTURE.assignmentArtifactId,
+      PLANNED_COURSE_FIXTURE.assessmentArtifactId,
+      PLANNED_COURSE_FIXTURE.lessonTemplateArtifactId,
+    ]) {
+      expect(pageSource).not.toContain(privateValue)
+    }
+
+    const resourceLink = page.getByRole('link', { name: 'Python documentation' })
+    await expect(resourceLink).toHaveAttribute('href', 'https://docs.python.org/3/')
+    await expect(resourceLink).toHaveAttribute('target', '_blank')
+    await expect(resourceLink).toHaveAttribute('rel', /noopener/)
+
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Overview', exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Outline', exact: true })).toBeFocused()
+
+    await verifyProjectContract(page, testInfo)
+    await page.evaluate(() => document.fonts.ready)
+    await page.screenshot({
+      path: testInfo.outputPath('planned-course-public.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
+  })
+
+  test('uses the same private not-found boundary for unpublished sites', async ({ page }, testInfo) => {
+    const response = await page.goto(`/planned/${PLANNED_COURSE_FIXTURE.privateSlug}`, {
+      waitUntil: 'domcontentloaded',
+    })
+    expect(response?.status()).toBe(404)
+    await expect(page.getByRole('heading', { level: 1, name: 'Course site not found' })).toBeVisible()
+    await expect(page.getByText('Private Course Plan')).toHaveCount(0)
+    await expect(page.getByText(/unavailable or has not been published/i)).toBeVisible()
+
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('link', { name: 'Return to Pika' })).toBeFocused()
+    await verifyProjectContract(page, testInfo)
+
+    if (testInfo.project.name === 'chromium-desktop') {
+      const missingResponse = await page.goto('/planned/e2e-course-that-does-not-exist', {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(missingResponse?.status()).toBe(404)
+      await expect(page.getByRole('heading', { level: 1, name: 'Course site not found' })).toBeVisible()
+    }
+
+    await page.screenshot({
+      path: testInfo.outputPath('planned-course-not-found.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
   })
 })
