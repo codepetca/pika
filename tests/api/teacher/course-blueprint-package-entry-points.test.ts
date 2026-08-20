@@ -78,6 +78,10 @@ describe('course package application entry points', () => {
       bundle.files['course-overview.md'] =
         '%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf'
     }],
+    ['over-encoded leading slash managed URL', (bundle: any) => {
+      bundle.files['course-overview.md'] =
+        '%2525252Fstorage%2525252Fv1%2525252Fobject%2525252Fpublic%2525252Ftest-documents%2525252Freference.pdf'
+    }],
     ['managed inline URL with object-key parentheses', (bundle: any) => {
       bundle.files['course-overview.md'] =
         '[Reference](https://test.supabase.co/storage/v1/object/public/test-documents/(reference).pdf)'

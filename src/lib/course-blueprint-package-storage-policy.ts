@@ -107,6 +107,13 @@ function isUrlCandidateBoundary(markdown: string, index: number): boolean {
   return !isAsciiAlphaNumeric && !'%._~/-'.includes(previous)
 }
 
+function encodedSlashPrefixLength(lower: string, index: number): number {
+  if (lower[index] !== '%') return 0
+  let cursor = index + 1
+  while (lower.startsWith('25', cursor)) cursor += 2
+  return lower.startsWith('2f', cursor) ? cursor + 2 - index : 0
+}
+
 function urlCandidatePrefixLength(markdown: string, lower: string, index: number): number {
   if (!isUrlCandidateBoundary(markdown, index)) return 0
   if (lower.startsWith('https://', index)) return 'https://'.length
@@ -115,9 +122,8 @@ function urlCandidatePrefixLength(markdown: string, lower: string, index: number
   const followsHttpScheme = lower.slice(Math.max(0, index - 'https:'.length), index) === 'https:'
     || lower.slice(Math.max(0, index - 'http:'.length), index) === 'http:'
   if (followsHttpScheme) return 0
-  if (lower.startsWith('%25252f', index)) return '%25252f'.length
-  if (lower.startsWith('%252f', index)) return '%252f'.length
-  if (lower.startsWith('%2f', index)) return '%2f'.length
+  const encodedSlashLength = encodedSlashPrefixLength(lower, index)
+  if (encodedSlashLength > 0) return encodedSlashLength
   return lower[index] === '/' ? 1 : 0
 }
 

@@ -11,96 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Audit remaining managed deletion scopes
-
-**Risk profile:** runtime-platform — irreversible cold recovery loss,
-cross-Classroom student lineage, managed Storage, and durable purge recovery.
-
-**Audited:**
-- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
-  session-start workflow, and verified the local read-only schema is exactly at
-  migrations 001–120.
-- Traced cold tombstones, immutable archives, restore/compaction operations,
-  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
-  fences, and the complete Classroom resource graph.
-- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
-  student files, existing partial roster removal, account-level data, Pal
-  ledgers, and cross-Classroom preservation boundaries.
-
-**Recommendation:**
-- Add privacy-safe read-only deletion health monitoring first, then implement
-  cold-Classroom purge and Classroom-scoped individual-student purge as
-  separate migrations and PRs with independent rollout gates.
-- Keep generic orphan cleanup disabled; neither purge scope depends on it.
-- Require cold archives to be restored before individual-student purge; do not
-  rewrite immutable archive bundles or erase user accounts/other Classrooms.
-
-**Boundary:**
-- No implementation, migration application, local reset, rollout change,
-  production query, purge, or Storage deletion was performed. PR #963 remains
-  closed and untouched. Awaiting approval of the scope and sequencing package.
-
-## 2026-08-08 — Add managed deletion health monitoring baseline
-
-**Risk profile:** runtime-platform — read-only production health aggregation
-across irreversible purge ledgers and managed-storage ownership.
-
-**Completed:**
-- Added migration 121 with a service-role-only, aggregate RPC for hot
-  Classroom and Course Blueprint purge failures/stalls, fence/lease drift,
-  deleted-object reappearance, and managed-storage ownership/reference drift.
-- Added an exact Zod response boundary, code-first missing-schema compatibility,
-  privacy-safe structured counts, and sanitized probe failures.
-- Integrated the probe after successful work in the existing authenticated
-  daily cleanup cron. Critical findings return 503; warning-only findings remain
-  observable without granting cleanup authority.
-- After the initial independent review of PR #980, moved recursive JSON/history
-  reconciliation out of the daily path into a separate unscheduled,
-  service-role-only diagnostic; added payload UUID/digest mismatch detection and
-  made every dependency error except the exact missing-RPC signal fail closed.
-  A targeted follow-up made evidence reconciliation registry-driven so removing
-  a payload's final managed reference cannot hide the stale registry row.
-- Documented operator response and staged rollout. Generic orphan cleanup stays
-  disabled, and no additional cron schedule or deletion capability was added.
-
-**Validation:**
-- Full Vitest passed (478 files, 4,128 tests), plus focused monitoring/migration
-  tests, TypeScript, lint, architecture boundaries, managed-storage
-  lineage, hot-Classroom purge SQL lint, production build, and diff checks.
-- After separate exact authorization, the dry run previewed only migration 121
-  and it was applied once to the dedicated local Supabase database. Rollback-only
-  database fixtures proved read-only/service-role/privacy boundaries, warning
-  and critical findings, partial/lease/reappearance detection, eight concurrent
-  readers, and a 1,000-object runtime of 9–34 ms with 6,265 shared-buffer hits.
-- The originally authorized local application predates the review correction;
-  that one-time permission was not reused. Final generated types and the revised
-  rollback fixture are gated on PR CI's fresh ephemeral migration replay. No reset, remote migration,
-  rollout change, production query, purge, or persistent Storage deletion was
-  performed; the temporary helper and all fixtures were removed. No UI changed,
-  so visual verification was not applicable.
-
-## 2026-08-09 — Deploy managed deletion health monitoring
-
-**Risk profile:** runtime-platform — production schema activation, daily cron
-monitoring, and managed-storage health visibility.
-
-**Completed:**
-- Merged `main` into protected `production` through PR #981 after the full CI,
-  database-contract, build, and browser matrix passed; Vercel confirmed
-  production commit `64e8a22a` deployed.
-- Verified the linked production Supabase project had migrations 001–120 and
-  that the dry run contained only `121_managed_deletion_health_monitoring.sql`,
-  then applied migration 121 once under exact production authorization.
-- Kept generic orphan cleanup disabled and did not invoke a purge, retry,
-  cleanup route, rollout gate, Storage deletion, or the deep JSON diagnostic.
-
-**Validation:**
-- Production migration history now records 001–121.
-- The lightweight service-role aggregate RPC returned HTTP 200 with
-  `healthy: true`, zero critical findings, zero warnings, and zero managed
-  storage or purge-protocol drift; anonymous invocation was denied with 401.
-- The production worktree is clean and synchronized with `origin/production`.
-
 ## 2026-08-09 — Implement cold-archived Classroom permanent deletion
 
 **Risk profile:** runtime-platform — irreversible cold recovery loss, teacher
@@ -1255,6 +1165,7 @@ runtime, contract, schema, dependency, privacy, or UI change.
 - Updated the pilot runbook to name the required Pal migration and record that
   the code-level blocker is cleared. Applying it in a target Pal environment
   remains Pal-controlled; Pika performs no deployment or historical backfill.
+
 ## 2026-08-18 — Course Package portable policy and integration (PR B)
 
 **Risk profile:** high — application-layer untrusted package semantics and
@@ -1313,3 +1224,26 @@ dependency, or UI change.
   `,`, and `|` userinfo plus external-origin, protocol, port, and labeled-relative
   negatives. The fourth remediated full verification passes 4,595 tests across
   503 files, lint, type checking, and the production build.
+
+## 2026-08-19 — Close unbounded encoded-path package bypass
+
+**Risk profile:** high — untrusted package semantic boundary and write-path
+authorization; no schema migration, production operation, dependency, or UI
+change.
+
+- Rebased PR B onto `origin/main` at `370750d7`; the only conflict was historical
+  continuity archive content, resolved in favor of current `main`. No migrations
+  were added or renamed and no task stash remains.
+- Replaced fixed encoded-slash depth enumeration with a grammar-based candidate
+  recognizer: a boundary-leading percent sign, any number of encoded-percent
+  `25` layers, and a final encoded slash `2f` are handed to the centralized
+  bounded decoder. Over-depth values therefore reach its fail-closed policy.
+- Added direct bundle/JSON/TAR parity and import/proposal no-write coverage for a
+  four-times-encoded managed path, while proving ordinary percent text remains
+  portable.
+- Refreshed this worktree from the already-committed frozen lockfile after the
+  rebase so current `main`'s Pal alpha.3 tests used alpha.3 instead of stale
+  alpha.2 installation state; this PR changes no dependency declarations.
+- Full verification passes 4,611 tests across 505 files, lint, type checking,
+  and the production build. Visual verification is not applicable because this
+  change has no UI surface.

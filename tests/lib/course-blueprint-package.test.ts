@@ -396,6 +396,7 @@ describe('course blueprint package', () => {
     'Reference:/%73torage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     '%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf',
     '%252Fstorage%252Fv1%252Fobject%252Fpublic%252Ftest-documents%252Freference.pdf',
+    '%2525252Fstorage%2525252Fv1%2525252Fobject%2525252Fpublic%2525252Ftest-documents%2525252Freference.pdf',
     '[Reference](%2Fstorage%2Fv1%2Fobject%2Fpublic%2Ftest-documents%2Freference.pdf)',
     '[Reference](https://test.supabase.co/storage/v1/object/public/test-documents/(reference).pdf)',
     'https://test.supabase.co/storage/v1/object/public/test-documents/,reference.pdf',
@@ -438,7 +439,7 @@ describe('course blueprint package', () => {
 
   it('does not treat managed field names in freeform content as runtime state', () => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
-    bundle.files['course-overview.md'] = 'Explain what managed_object_id means in this API.'
+    bundle.files['course-overview.md'] = 'Explain what managed_object_id means in this API. Completion: %25.'
 
     expect(parseCourseBlueprintImportBundle(bundle).errors).toEqual([])
   })
