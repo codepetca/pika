@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
 import { navigateTo } from '@/lib/client-navigation'
+import { MagicAuthForm } from '@/components/auth/MagicAuthForm'
 import {
   getSafeInternalPath,
   SESSION_CHANGED_MESSAGE,
@@ -18,7 +19,13 @@ const DEV_CREDENTIALS = {
   student2: { email: 'student2@example.com', password: 'test1234' },
 }
 
-export function LoginClient() {
+export function LoginClient({
+  magicAuthEnabled = false,
+  hasPendingMagicAuthChallenge = false,
+}: {
+  magicAuthEnabled?: boolean
+  hasPendingMagicAuthChallenge?: boolean
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -95,7 +102,13 @@ export function LoginClient() {
           </div>
         ) : null}
 
-        {isDev && (
+        {magicAuthEnabled && (
+          <p className="-mt-4 mb-6 text-text-muted">
+            Enter your school email. We&apos;ll send a six-digit sign-in code.
+          </p>
+        )}
+
+        {!magicAuthEnabled && isDev && (
           <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
             <p className="text-sm font-medium text-text-default mb-3">
               Dev Quick Login
@@ -126,52 +139,61 @@ export function LoginClient() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <FormField label="School Email" required className="mb-4">
-            <Input
-              ref={emailInputRef}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              aria-describedby={sessionMessage ? sessionMessageId : undefined}
-              required
-              disabled={loading}
-            />
-          </FormField>
+        {magicAuthEnabled ? (
+          <MagicAuthForm
+            intent="sign-in"
+            hasPendingChallenge={hasPendingMagicAuthChallenge}
+            nextPath={searchParams.get('next')}
+          />
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <FormField label="School Email" required className="mb-4">
+              <Input
+                ref={emailInputRef}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-describedby={sessionMessage ? sessionMessageId : undefined}
+                required
+                disabled={loading}
+              />
+            </FormField>
 
-          <FormField label="Password" error={error} required>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </FormField>
+            <FormField label="Password" error={error} required>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </FormField>
 
-          <Button
-            type="submit"
-            className="w-full mt-6"
-            disabled={loading || !email || !password}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </Button>
-
-          <div className="mt-2 text-center">
-            <button
-              type="button"
-              onClick={() => router.push('/forgot-password')}
-              className="inline-flex min-h-control items-center justify-center rounded-control px-2 text-sm text-primary outline-none hover:underline focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
+            <Button
+              type="submit"
+              className="w-full mt-6"
+              disabled={loading || !email || !password}
             >
-              Forgot password?
-            </button>
-          </div>
-        </form>
+              {loading ? 'Logging in...' : 'Login'}
+            </Button>
+
+            <div className="mt-2 text-center">
+              <button
+                type="button"
+                onClick={() => router.push('/forgot-password')}
+                className="inline-flex min-h-control items-center justify-center rounded-control px-2 text-sm text-primary outline-none hover:underline focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
+              >
+                Forgot password?
+              </button>
+            </div>
+          </form>
+        )}
 
         <div className="mt-2 text-center">
           <p className="text-sm text-text-muted">
             Don&apos;t have an account?{' '}
             <button
+              type="button"
               onClick={() => router.push(`/signup${email ? `?email=${encodeURIComponent(email)}` : ''}`)}
               className="text-primary hover:underline font-medium"
             >

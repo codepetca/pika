@@ -488,115 +488,384 @@ redesign change.
 **Validation:**
 - Focused Dashboard and modal suites pass: 20 tests. The full suite passes:
   4,323 tests across 498 files. TypeScript, lint, production build, Pika audit,
+## 2026-08-16 — Establish silent Bara handoff and attendance contract v1
+
+**Risk profile:** runtime-platform — cross-application authorization-code
+exchange, independent session establishment, external identity boundaries, and
+a new bidirectional attendance contract. All behavior remains disabled by
+default; no deployment, migration, or production configuration changed.
+
+**Model recommendation:** GPT-5.6 — the slice combines authentication protocol
+behavior, replay/CSRF controls, privacy minimization, cross-repository contract
+versioning, and a live provider gate.
+
+**Completed:**
+- Added a short-lived, single-use WorkOS authorization-code handoff so one Pika
+  passcode login can establish a separate Bara AuthKit session without sharing
+  cookies, refresh tokens, database IDs, or authorization state.
+- Bound the redirect chain to exact configured origins, HttpOnly state/code
+  cookies, fixed versioned routes, safe Pika return paths, no-store/no-referrer
+  responses, and fail-closed state/replay checks. A handoff failure no longer
+  invalidates an already successful Pika login or presents another login.
+- Replaced the provider-named Pika callback path with the provider-neutral
+  `/api/auth/attendance/v1/authorize` boundary.
+- Documented the Pika/Bara ownership, duplicated-data/privacy, scheduling,
+  event-delivery, identity, versioning, and standalone-operation architecture.
+- Added byte-identical, dependency-free v1 types and validators in Bara and
+  Pika for roster/schedule snapshots, staff session commands, batch marks, and
+  the initial session/record event stream. Closed allow-lists reject extra PII,
+  invalid references/revisions/times, duplicates, unsupported versions, and
+  impossible UTC dates.
+
+**Validation:**
+- Pika full suite passes: 4,343 tests across 507 files. TypeScript, lint,
+  architecture/design/UI guards, environment verification, production build,
   and diff checks pass.
-- Composite-widget checklist reviewed: keyboard behavior covered, semantic
-  state covered by tests, and no manual accessibility follow-up remains.
-- Playwright verification passes for teacher ready/loading/error states at
-  desktop and mobile widths, ready state in dark mode, and the student-role
-  redirect. Captures have no horizontal viewport overflow.
-- Independent review found one non-blocking test gap. Added regressions proving
-  Retry preserves the exact classroom/student/date scope and a pending entry
-  cannot repaint after the selected classroom changes.
-- Post-push UI policy caught the intentionally removed native close button in
-  the exact control registry. The Dashboard debt count is updated from three to
-  two; no exception or policy rule was weakened.
-- Final integration review found Retry could unmount the focused action while
-  leaving the dialog open. Retry now preserves the same button node as a named,
-  aria-disabled in-progress action, keeping focus inside the modal until the
-  request settles; a deterministic regression covers the transition.
-- The exact design-value inventory now removes the retired raw scrim color and
-  reduces the Dashboard raw z-index count from three to two.
+- Bara full suite passes: 97 tests across 22 files. TypeScript, changed-file
+  lint, brand guard, production build, and diff checks pass. Bara's full-repo
+  lint still reports the unchanged `session-display-screen.tsx` effect issue.
+- The two contract source copies compare byte-for-byte and their mirrored
+  focused suites pass 12/12 in each repository.
 
-## 2026-08-16 — Complete Roster recovery and accessibility
+**Open gates:**
+- The real same-browser Pika-to-Bara provider exchange remains unproven because
+  the local login tab was closed without submitting an email/code. Do not enable
+  or publish the handoff until Bara receives its own session, Convex authenticates,
+  and identity bootstrap is verified without a second prompt.
+- Pika `class_days` contains dates but no attendance start/close times. Automatic
+  sessions require a teacher-owned attendance-window policy that Pika turns into
+  concrete UTC occurrence windows before schedule sync is enabled.
 
-**Risk profile:** workspace-state and accessibility — teacher Roster loading,
-removal, counselor editing, keyboard behavior, and the existing counselor PATCH
-contract; no schema, migration, production, Gradex, or mobile redesign change.
+## 2026-08-16 — Complete attendance execution contract and schedule materializer
+
+**Risk profile:** runtime-platform and schema mismatch. The integration and all
+new transport behavior remain disabled by default.
 
 **Completed:**
-- Separated cold roster failures from successful empty classrooms, added
-  focus-preserving Retry, and retained valid roster data during refresh errors.
-- Kept committed removals visible when their follow-up refresh fails and moved
-  removal errors into the confirmation dialog with deterministic retry focus.
-- Replaced counselor-edit native controls with governed primitives, added
-  descriptive field/action semantics and operation-scoped recovery, and fenced
-  stale saves across students and classroom changes.
-- Added optimistic concurrency to counselor updates through each roster row's
-  existing `updated_at` revision, and scoped delayed add/upload completion to
-  the classroom that was actually mutated.
-- Fenced Add Students and CSV Upload internal loading, error, confirmation, and
-  close state by classroom/open generation so an earlier classroom response
-  cannot repaint or submit into the current classroom. Generations advance only
-  in committed layout lifecycles, so an abandoned concurrent render cannot
-  invalidate the still-visible classroom's request.
-- Bound the roster workspace's classroom identity to committed layout lifecycles
-  and refresh stale counselor revisions after conflicts while preserving the
-  teacher's attempted value for retry.
-- Added direct keyboard coverage for table selection and Escape focus return,
-  plus regressions for overlapping loads, counselor saves, removal recovery,
-  modal error semantics, and focus behavior.
+- Added signed roster/schedule/session/mark adapters, Bara automatic open/close,
+  manual and post-close corrections, record revisions, atomic privacy-safe
+  events, a leased retrying Bara outbox, Pika transactional inbox/projections,
+  and authoritative snapshot reconciliation.
+- Added the pure Pika class-day materializer. It accepts only stored opaque
+  mappings, deterministically converts Toronto local windows to UTC across DST,
+  skips non-class days, and rejects nonexistent wall times before producing a
+  closed v1 schedule snapshot.
+- Renumbered the unapplied attendance inbox migration from 125 to 126 after
+  `origin/main` acquired migration 125. No rebase or migration application was
+  performed over the dirty WorkOS pilot worktree.
 
 **Validation:**
-- Focused roster API, modal, table, and dialog suites pass: 91 tests. The full
-  suite passes: 4,358 tests across 499 files. TypeScript, lint, production build, UI
-  policy, design policy, architecture checks, Pika audit, and diff checks pass.
-- Composite-widget checklist reviewed: direct keyboard behavior and semantic
-  state are covered by tests, with no manual accessibility follow-up remaining.
-- Playwright verification passes for teacher desktop/mobile ready and error
-  states, selected and editing states, light/dark themes, and the student-role
-  redirect. Captures have no horizontal viewport overflow.
-- Mobile row detail for hidden primary and alt email fields remains deliberately
-  deferred with the broader mobile UI/UX work.
+- Bara passes 124 tests across 26 files, TypeScript, production build, brand
+  guard, and diff checks. Pika passes 4,365 tests across 512 files, TypeScript,
+  production build, architecture guard, and diff checks.
+- The new class-day/DST materializer passes its focused four-test suite and
+  TypeScript, and the shared contract copies remain byte-identical.
 
-## 2026-08-16 — Rename the roster contact slot
+**Next gate:**
+- Obtain one-time authorization naming Pika development and migration 126,
+  dry-run/apply it, then prove a real roster/schedule/session/mark/event/snapshot
+  round trip. The real Pika-to-Bara WorkOS/Convex handoff smoke also remains
+  required before connecting the Attendance UI.
 
-**Risk profile:** terminology-only — teacher roster, manual add, CSV upload, and
-conflict copy; no schema, migration, API field, or production data change.
+## 2026-08-16 — Verify migration lineage and Phase 2 local gate
+
+**Risk profile:** runtime-platform and schema mismatch. No database, hosted
+environment, or feature flag was changed.
 
 **Completed:**
-- Renamed the user-facing `counselor_email` concept to “Alt email” across
-  roster columns, actions, editing semantics, add/upload guidance, and errors.
-- Retained the legacy database and API field for compatibility, with focused
-  assertions preventing user-facing terminology drift.
+- Copied `125_ordered_lesson_plan_mutations.sql` exactly from `origin/main` into
+  the behind/dirty worktree so the local migration lineage remains contiguous;
+  the local and upstream Git blob hashes match. The attendance migration remains
+  the additive, unapplied `126_bara_attendance_event_inbox.sql`.
+- Audited the Supabase CLI target state. This worktree is not linked, and no
+  Pika checkout contains a project-ref marker, so there is no discoverable
+  remote development target to migrate safely.
 
 **Validation:**
-- Focused roster API and component suites pass: 92 tests. The full suite passes:
-  4,359 tests across 499 files. TypeScript, lint, production build, UI policy,
-  design policy, architecture checks, Pika audit, and diff checks pass.
+- Pika passes 4,369 tests across 513 files, TypeScript, production build,
+  architecture boundaries across 724 modules, migration filename checks, and
+  diff hygiene. The focused schedule/inbox/migration suite passes 10/10.
 
-## 2026-08-16 — Complete Gradebook desktop recovery
+**Next gate:**
+- Choose and link the exact Pika target, then obtain fresh one-time authorization
+  naming that target and migration `126_bara_attendance_event_inbox.sql`. Stop if
+  the required dry run shows anything other than migration 126. Only then run
+  the real signed cross-app round trip and WorkOS-to-Convex no-prompt smoke.
 
-**Risk profile:** workspace-state and accessibility — teacher Gradebook reads,
-assessment-weight refreshes, retry focus, and stale classroom ownership; no
-schema, migration, production, Gradex, or mobile redesign change.
+## 2026-08-16 — Audit multi-application WorkOS boundary
+
+**Risk profile:** runtime-platform and authentication. Dashboard inspection and
+provider API checks were read-only; no hosted configuration or feature flag was
+changed.
 
 **Completed:**
-- Separated cold Gradebook failures from successful empty classrooms with a
-  governed loading/error state and explicit Retry recovery.
-- Preserved the last valid assessment matrix during failed refreshes and kept
-  the class-wide table, selected-student detail, sorting, selection, and column
-  controls intact.
-- Fenced overlapping reads and in-flight assessment-weight saves by committed
-  classroom identity and per-assessment request generation so stale work cannot
-  repaint another classroom and concurrent column saves each trigger a refresh.
-- Restored focus to the named student table after successful cold or retained
-  recovery, preserved Retry focus after another failure, and retained the
-  existing direct keyboard row navigation and Escape behavior.
+- Confirmed Codepet Platform has isolated Staging and Production environments,
+  each with Bara as the default WorkOS application and Pika as a separate
+  application. Local Pika and Bara credentials both target their matching
+  Staging applications and expose the same WorkOS user IDs while retaining
+  distinct client IDs and credentials.
+- Hardened Bara's Convex authorization boundary to require the JWT `client_id`
+  claim to match Bara's application client ID. A Pika-scoped token can no longer
+  be used directly against Bara even though both applications share identities.
+- Added the missing schema-valid Bara `convex.json` for local, preview, and
+  production AuthKit callback/homepage/CORS lifecycle management. No Convex push
+  was run because it would update the matching WorkOS application.
+- Added distinct Pika/Bara `WORKOS_COOKIE_NAME` examples so parallel localhost
+  apps do not overwrite each other's host-scoped AuthKit cookies.
 
 **Validation:**
-- Focused Gradebook component, API, and architecture suites pass: 47 tests;
-  the component suite now covers cold, empty, retained-refresh, stale-load,
-  stale-save, retry-focus, and direct keyboard behavior.
-- Full suite passes: 4,365 tests across 499 files. TypeScript, lint, production
-  build, architecture, design/UI policy, Pika audit, and diff checks pass.
-- Playwright verification passes for teacher loaded light/dark, cold-error
-  light/dark, retained-refresh, and narrow loaded/error states with no viewport
-  overflow. Gradebook is teacher-only; student role coverage is not applicable.
-- Independent review found component-wide save ownership could suppress a
-  concurrent column's final refresh and retained Retry success could lose
-  focus. Per-assessment ownership and success-gated focus restoration resolve
-  both findings; targeted rereview found no blockers, and the noted failed-retry
-  test gap is closed.
+- Bara passes 125 tests across 26 files, TypeScript, production build, brand
+  guard, and diff hygiene. Focused multi-application auth and attendance suites
+  pass 35/35, including rejection of a valid identity for the wrong WorkOS
+  application. The Convex development deployment client ID matches local Bara
+  Staging and attendance remains disabled.
+
+**Next gate:**
+- Run the real Staging Pika passcode -> Bara session -> Convex bootstrap smoke
+  with ephemeral per-app cookie names and disabled-by-default flags. Pika's
+  persistent local pilot/Brevo configuration remains disabled, so the smoke
+  still requires an explicit interactive run and code entry.
+
+## 2026-08-16 — Define the native teacher attendance slice
+
+**Risk profile:** product boundary and UI workflow. No application code,
+database, hosted configuration, or feature flag was changed.
+
+**Completed:**
+- Audited the current Attendance tab and confirmed that it is still the Daily
+  log work surface backed by `/api/teacher/logs`; Daily completion must not be
+  treated as Bara attendance.
+- Added `docs/guidance/pika-attendance-teacher-surface-v1.md`, defining the
+  automatic teacher flow, full UI state family, Pika-owned provider-neutral
+  view model, adapter-only commands, accessibility scope, and staged
+  implementation gates.
+- Kept the browser isolated from Bara/Convex types and IDs: the future tab reads
+  Pika's projection and sends Pika-authorized commands, while events and
+  snapshot reconciliation establish authoritative state.
+
+**Validation:**
+- Documentation links and diff hygiene pass. No behavior changed, so the
+  existing test/build evidence remains applicable.
+
+**Next gate:**
+- Obtain explicit authorization for the Bara Convex development configuration
+  smoke and, separately, for Pika migration 126 on a named target. Only after
+  the real boundary passes should the read-only teacher view-model slice be
+  connected to the UI.
+
+## 2026-08-16 — Implement the private mapping and teacher read boundary
+
+**Risk profile:** runtime-platform and schema mismatch. Migration 126 remains
+unapplied and the attendance integration remains disabled by default.
+
+**Completed:**
+- Extended the unapplied migration with private durable random roster,
+  participant, and occurrence mappings plus a teacher-local Toronto attendance
+  window policy. Local Pika IDs remain outside the Pika/Bara contract, and the
+  mappings stay independently removable from the projection tables.
+- Added a provider-neutral teacher attendance view builder and loader. It joins
+  Pika roster rows to authoritative projections internally, normalizes sources,
+  represents disabled/not-configured/scheduled/open/closed/cancelled and sync
+  states, and strips every opaque integration reference before browser output.
+- Added authenticated `GET /api/teacher/attendance/session`, with strict query
+  validation, teacher ownership, no integration-table reads while disabled,
+  and a privacy-safe 503 for missing or invalid projection storage.
+- Corrected stale-state semantics: a quiet open session is not declared stale
+  from event age alone; stale requires a missing projection or explicit future
+  reconciliation evidence.
+
+**Validation:**
+- Focused attendance/schema/API suites pass 28/28. The full Pika suite passes
+  4,383 tests across 515 files. TypeScript, architecture boundaries across 727
+  modules, production build, route-boundary ratchet, and diff hygiene pass.
+
+**Next gate:**
+- Obtain one-time authorization for migration 126 on an exact Pika target and
+  for the Bara Convex development auth smoke. Then exercise the real signed
+  round trip before connecting this read model to the teacher table.
+
+## 2026-08-16 — Add the teacher-owned automatic attendance window
+
+**Risk profile:** runtime-platform and schema mismatch. The new RPC remains in
+unapplied migration 126; no database or hosted environment was changed.
+
+**Completed:**
+- Added owner-only GET/PUT policy routes for Toronto-local attendance windows.
+  Pika now has an explicit source for schedule-driven automatic open/close
+  instead of a guessed universal school-day window.
+- Added strict `HH:mm` input, same-day ordering, explicit next-day close support,
+  enabled state, and expected-revision writes. Archived or non-owned classrooms
+  cannot mutate the policy.
+- Added a private security-definer RPC that re-checks classroom ownership,
+  serializes policy writes, increments revisions, and returns only a closed
+  policy result. Missing schema and conflicts map to stable privacy-safe 503/409
+  responses.
+
+**Validation:**
+- Focused policy/schema/API suites pass 15/15. The full Pika suite passes 4,391
+  tests across 517 files. TypeScript, architecture boundaries across 730
+  modules, production build, route-boundary ratchet, and diff hygiene pass.
+
+**Next gate:**
+- Apply migration 126 only after exact target authorization, then validate the
+  policy RPC and DST-safe occurrence materialization against the real
+  development database before enabling schedule delivery.
+
+## 2026-08-16 — Add owner-authorized teacher attendance commands
+
+**Risk profile:** runtime-platform and schema mismatch. Migration 126 remains
+unapplied, and no database or hosted environment was changed.
+
+**Completed:**
+- Added authenticated teacher routes for manual open/close and bounded bulk
+  attendance marks, with classroom ownership and archive checks at the Pika
+  boundary.
+- Resolved classrooms, occurrences, roster participants, and the linked WorkOS
+  actor through private server-side mappings. Bara/Convex identifiers and
+  opaque integration references never enter browser requests or responses.
+- Added request-scoped idempotency and correlation identifiers for the signed
+  v1 commands. Bulk marking accepts only explicit attendance states and a
+  small enumerated correction-reason vocabulary; free-form notes are rejected
+  to avoid unnecessary student information crossing the service boundary.
+- Kept the integration fail-closed before mapping reads while disabled and
+  documented that these immediate idempotent calls do not yet provide a
+  durable Pika outbound outbox guarantee.
+
+**Validation:**
+- The full Pika suite passes 4,401 tests across 519 files. TypeScript,
+  architecture boundaries across 732 modules, production build, focused
+  command/API tests, and diff hygiene pass.
+
+**Next gate:**
+- Add a durable Pika outbound command/snapshot outbox before production. The
+  real environment gate remains explicit authorization for the Bara Convex
+  development deploy and Staging Pika-to-Bara authentication smoke; migration
+  126 requires separate authorization for an exact Pika target.
+
+## 2026-08-16 — Persist teacher attendance commands before delivery
+
+**Risk profile:** runtime-platform, privacy, and schema mismatch. Migration 126
+remains unapplied; no database, WorkOS, Convex, or hosted configuration changed.
+
+**Completed:**
+- Added a private service-role-only Pika-to-Bara outbox for all v1 outbound
+  message types, with contract-envelope checks, payload-size bounds,
+  idempotency conflict detection, leases, retry timing, cached closed
+  responses, and explicit non-retryable retention.
+- Routed manual teacher session and bulk-mark commands through persist-before-
+  send delivery. A retry of an already delivered request returns the stored
+  provider-neutral result without a second Bara write.
+- Added a cron-secret-protected bounded drain route. Error state stores only a
+  normalized code and generic detail; it does not copy remote responses,
+  secrets, or contract payloads into telemetry fields.
+- Preserved the adapter boundary: the outbox stores pinned contract messages,
+  not Convex types or IDs. Roster names are acknowledged as standard protected
+  attendance data when the future roster producer uses this transport.
+- Documented remaining gates accurately: roster/schedule source revisions are
+  not yet committed atomically with outbox messages, and a sufficiently
+  frequent no-charge recovery worker is not configured.
+
+**Validation:**
+- The full Pika suite passes 4,409 tests across 521 files. Focused outbox,
+  command, migration, teacher-route, and cron tests pass 27/27. TypeScript,
+  architecture boundaries across 734 modules, production build, and diff
+  hygiene pass.
+
+**Next gate:**
+- Wire roster and schedule producers to the outbox with atomic source-revision
+  staging, then exercise migration 126 and the real signed boundary only after
+  exact environment authorization. The external authentication gate remains a
+  Bara Convex development deploy plus Staging Pika-to-Bara smoke.
+
+## 2026-08-16 — Pin roster snapshot materialization and revision design
+
+**Risk profile:** privacy and cross-database consistency. No database or hosted
+state changed; migration 126 remains unapplied.
+
+**Completed:**
+- Added the pure Pika roster-snapshot builder that accepts only opaque roster,
+  participant, installation, and WorkOS subjects; emits only names, active
+  state, and optional linked identity; and delegates the final closed shape to
+  the vendored v1 validator.
+- Added evidence that raw UUID ownership/membership IDs, email-shaped identity
+  subjects, and duplicate participant mappings are rejected before delivery.
+- Defined the source-revision transaction without timestamp guesses: a future
+  preparation RPC returns database-computed source tokens and opaque mappings;
+  a staging RPC recomputes the token under lock, rejects concurrent source
+  changes, advances the contract revision, and enqueues the message atomically.
+
+**Validation:**
+- Focused roster, schedule, and outbox suites pass 12/12. TypeScript,
+  architecture boundaries across 735 modules, and diff hygiene pass. The prior
+  full-suite and production-build evidence remains green for the outbox slice.
+
+**Next gate:**
+- Implement and database-test the preparation/staging RPC pair, then connect
+  its closed result to the roster and DST-safe schedule builders. Applying the
+  migration still requires exact target authorization.
+
+## 2026-08-16 — Atomically stage roster and schedule source revisions
+
+**Risk profile:** schema, privacy, and cross-service consistency. Migration 126
+remains unapplied, so SQL behavior is locally specified but not database-proven.
+
+**Completed:**
+- Added server-only preparation that creates stable opaque roster, participant,
+  and occurrence mappings, retains former participants as inactive for audit
+  resolution, and returns no emails or raw IDs to the outbound contract.
+- Added database-computed roster and schedule source documents/tokens. Locked
+  staging recomputes each token, rejects concurrent changes, advances the v1
+  revision, and inserts that exact message into the outbox in one transaction.
+- Connected the closed preparation result to the roster and DST-safe schedule
+  builders and exposed an owner-authorized bounded sync route. Roster stages and
+  delivers before schedule; the recovery queue preserves creation order.
+- Added explicit next-day close materialization for evening classes. Prepared
+  but unstaged occurrence mappings have null windows and cannot be treated as
+  scheduled or used by staff commands.
+- Delivery completion advances separate roster and schedule acknowledged
+  revisions; the adapter remains independent of Convex types and IDs.
+
+**Validation:**
+- The full suite passes 4,420 tests across 524 files. Focused source-sync,
+  roster, schedule, route, command, view, outbox, and migration suites pass.
+  TypeScript, architecture boundaries across 737 modules, production build,
+  and diff hygiene pass.
+
+**Next gate:**
+- Apply migration 126 only to an explicitly authorized Pika target and run the
+  real preparation/conflict/staging/delivery/event/reconciliation sequence.
+  Separately authorize the Bara Convex development deploy and Staging no-second-
+  login smoke before enabling the integration.
+
+## 2026-08-16 — Make Bara attendance automation operationally fail-visible
+
+**Risk profile:** runtime-platform and schema. Only the loopback Supabase stack
+was reset; no hosted database, deployment, or external configuration changed.
+
+**Completed:**
+- Added a service-role-only aggregate outbox-health RPC with pending,
+  processing, due, non-retryable, and oldest-unresolved signals. It exposes no
+  identities, contract references, payloads, or provider error details.
+- Made a drain with retry or permanent failures report `partial`, and made both
+  the daily attendance worker and operator drain return HTTP 503 whenever
+  schedule sync or durable delivery remains unhealthy.
+- Kept disabled integration paths table-free and HTTP 200, retained failed
+  messages for recovery/review, and documented the operator boundary.
+
+**Validation:**
+- The full suite passes 4,448 tests across 531 files; production build,
+  TypeScript, generated database types, design/UI policies, architecture
+  boundaries, and diff hygiene pass.
+- Focused outbox, cron, and migration suites pass 19/19.
+- Migration 126 replayed from zero against loopback Supabase; the health RPC
+  exists, is executable by `service_role` but not `anon`/`authenticated`, and a
+  rollback-only pending-row fixture produced only the expected aggregate
+  unhealthy result. The local seed was restored afterward.
+
+**Next gate:**
+- Complete the repository-wide checks, then apply migration 126 only to an
+  explicitly confirmed non-production hosted target and run the real no-second-
+  login plus teacher/student attendance round trip.
 
 ## 2026-08-17 — Complete Syllabus iframe reliability
 
@@ -966,6 +1235,264 @@ change.
 - Upload-document and managed-storage semantic policy remains deliberately
   deferred to PR B, matching the requested phase sequence.
 
+## 2026-08-17 — Add authoritative attendance projection reconciliation
+
+**Risk profile:** runtime-platform, privacy, and schema. Only the loopback
+Supabase stack was reset; no hosted database, deployment, or external
+configuration changed.
+
+**Completed:**
+- Added a separate daily reconciliation worker for up to 50 active or recently
+  closed occurrences from a 48-hour window, ordered least-recently reconciled
+  first and fetched with bounded concurrency.
+- Applied signed Bara snapshots monotonically to Pika's private session and
+  record projections, recording reconciliation progress even when revisions
+  are already current so eligible sessions rotate fairly.
+- Made event and snapshot ingress reject roster/occurrence and participant
+  references that do not resolve to the same Pika classroom. Browser and cron
+  responses remain closed and aggregate-only.
+- Kept reconciliation separate from schedule/outbox automation so neither job
+  consumes the other's serverless execution budget. Failed or truncated work
+  returns HTTP 503 for operator visibility.
+
+**Validation:**
+- Focused event, reconciliation, cron, configuration, and migration tests pass
+  22/22; TypeScript passes.
+- Migration 126 replayed from zero against loopback Supabase. A rollback-only
+  database smoke proved service-role-only target selection, valid event and
+  snapshot application, last-reconciled rotation, and fail-closed participant
+  mapping checks.
+- The clean full-suite rerun passes 4,453 tests across 532 files. Production
+  build, TypeScript, generated database types, design/UI policies, architecture
+  boundaries across 746 modules, and diff hygiene pass. One unrelated
+  asynchronous purge-dialog test failed during the first run, passed in
+  isolation, and passed in the clean full rerun.
+
+**Next gate:**
+- Apply migration 126 only to an explicitly confirmed non-production hosted
+  target and exercise the real no-second-login plus teacher/student attendance
+  round trip.
+
+## 2026-08-17 — Bind attendance rollout to an exact isolated environment
+
+**Risk profile:** runtime-platform, authentication, and hosted target safety.
+No Supabase project, Vercel variable, WorkOS resource, deployment, or DNS record
+was changed.
+
+**Completed:**
+- Audited Vercel and Supabase target metadata without exposing values. Preview
+  references Supabase `ykyikhblwvtqigwmtrkf`, whose hostname no longer
+  resolves; Production uses the healthy Pika project
+  `zhioqbapgfcrronyuidm`.
+- Confirmed the Supabase account already has two active Free projects, so a
+  third no-charge active development project is unavailable and paid preview
+  branching is not an acceptable implicit fallback.
+- Added an aggregate-only rollout preflight for exact Supabase refs and
+  Pika/Bara origins, Staging WorkOS credentials, Brevo-only Magic Auth,
+  no-prompt handoff, attendance transport/event ingress, and distinct secrets.
+  Preview cannot pass while sharing the production ref.
+- Exercised the preflight against the current Vercel Preview environment. It
+  reports 7/20 checks passing; WorkOS and Bara configuration is absent, the
+  existing Preview `SESSION_SECRET` is empty, and no value was printed.
+
+**Validation:**
+- Focused rollout, WorkOS delivery/session, Bara handoff, and signed-client
+  tests pass 25/25. TypeScript, architecture boundaries across 747 modules,
+  synthetic CLI success, and diff hygiene pass.
+
+**Next gate:**
+- Provision or explicitly designate an isolated non-production Supabase target
+  without disrupting Pika, Codepet HQ, or production billing. Then load the
+  preview WorkOS/Brevo/Bara environment, rerun the preflight, inspect remote
+  migration history, and apply migration 126 only after the exact target is
+  confirmed.
+
+## 2026-08-17 — Harden the teacher attendance pilot surface
+
+**Risk profile:** teacher UX and local test data only. No hosted database,
+deployment, credential, or rollout state changed.
+
+**Completed:**
+- Audited the native Attendance tab at desktop and 390×844 mobile widths with
+  an open session, projected roster, QR/manual controls, status counts, and QR
+  failure recovery. Core controls retain programmatic names, the table remains
+  usable at the mobile breakpoint, and the source column collapses without
+  hiding attendance status.
+- Replaced the internal “identity is not linked” QR response with a bounded
+  teacher-facing setup/sync message while preserving the 409 recovery contract
+  and provider-detail boundary.
+- Removed the temporary local attendance projection fixture by explicitly
+  resetting loopback Supabase and replaying migrations 001–126. Stopped the
+  temporary development server and reset the browser viewport.
+
+**Validation:**
+- Focused rollout, teacher attendance component, and QR API suites pass 15/15;
+  TypeScript passes. The prior clean full suite, production build, migration
+  replay, generated types, and architecture evidence remain green.
+
+**Next gate:**
+- The rollout is locally ready but hosted verification remains blocked on one
+  exact isolated non-production Supabase target. Do not repoint Preview at
+  production or enable paid branching without an explicit environment choice.
+
+## 2026-08-17 — Expose automatic attendance hours in the native teacher flow
+
+**Risk profile:** teacher UX and schedule materialization. No hosted database,
+deployment, credential, or external configuration changed.
+
+**Completed:**
+- Added an Attendance Hours action and accessible dialog to the native Pika
+  Attendance pane so a teacher can explicitly set Toronto opening/closing
+  times, same-day or overnight close, and automatic operation.
+- Kept the no-guess boundary: a new policy starts with blank required times and
+  same-day closing is validated before any write.
+- Sent the existing optimistic policy revision on save, then requested the same
+  bounded 90-day roster/schedule sync used by automation. If immediate delivery
+  fails, Pika reports that the saved policy will retry rather than claiming the
+  schedule is current.
+- Reused Pika-owned routes and primitives; the browser receives no Bara,
+  Convex, WorkOS, or integration identifiers.
+- Made WorkOS the effective browser-session authority whenever the pilot flag
+  is on: `pika_session` is accepted only with a verified WorkOS session whose
+  normalized email matches the Pika user. Legacy, missing, unverified, and
+  mismatched WorkOS pairings fail closed, while flag-off rollback is unchanged.
+- Rebased the dirty feature worktree safely onto current `origin/main`
+  (`d19286d9`), retained main's migration 125 and timezone-safe calendar date
+  parsing, and kept attendance migration 126 as the only new schema version.
+- Rechecked Supabase read-only after the sync: `Pika` and `Codepet HQ` occupy
+  the two active Free slots, while an unverified `Attend` project is inactive.
+  No project was resumed, paused, created, linked, reset, or otherwise changed.
+
+**Validation:**
+- The post-sync full suite passes 4,551 tests across 538 files. Production
+  build, TypeScript, generated database types, architecture boundaries across
+  751 modules, design/UI policies, session-log validation, and diff hygiene
+  pass.
+- Focused WorkOS/Pika session, handoff, QR-entry, Magic Auth verification,
+  attendance UI/contract, and migration coverage passes 97/97.
+
+**Next gate:**
+- Apply migration 126 to one explicitly authorized isolated non-production
+  Supabase target, then prove policy save, immediate materialization, automatic
+  Bara open/close, and teacher/student attendance in the real cross-app smoke.
+
+## 2026-08-17 — Isolate the Pika-to-Bara WorkOS handoff blocker
+
+**Risk profile:** authentication provider diagnostic only. No hosted setting,
+credential, database, redirect, or rollout flag was changed.
+
+**Observed:**
+- A fresh Chrome smoke completed Pika self-hosted Magic Auth and landed on
+  `/classrooms`; WorkOS recorded `authentication.magic_auth_succeeded` and
+  `session.created` for the Pika client.
+- Codepet Platform Staging contains separate Bara (default) and Pika
+  applications in one environment. Pika's local client ID and masked
+  application-scoped staging API key matched the Pika application.
+- WorkOS's successful Magic Auth response omitted the documented optional
+  `authkit_authorization_code`. Pika logged
+  `crossApplicationCodeReturned: false` and `status: unavailable`; Bara
+  received no request. The silent redirect/callback flow therefore never ran.
+- WorkOS's API reference describes that field as an authorization code that a
+  different application can exchange, so the remaining issue is the provider
+  response/entitlement or an undocumented issuance condition, not a Bara
+  callback failure.
+
+**Next gate:**
+- Ask WorkOS to explain or enable cross-application authorization-code issuance
+  for this same-environment, application-scoped Magic Auth flow. Do not weaken
+  the boundary by sharing cookies, refresh tokens, Pika UUIDs, or database
+  access. If WorkOS cannot support the documented exchange, explicitly design
+  and approve a versioned Pika-to-Bara identity federation fallback before
+  implementation.
+
+## 2026-08-17 — Prove the approved shared Codepet Platform session
+
+**Risk profile:** local authentication and documentation only. No hosted
+WorkOS, Vercel, Convex production, or Supabase configuration changed.
+
+**Decision and evidence:**
+- Superseded the separate-application handoff blocker above after explicit
+  product approval: Pika and Bara use one Codepet Platform AuthKit application
+  and one environment-specific browser session, while Codepet Labs remains
+  separate. Pika/Supabase and Bara/Convex still own separate internal users,
+  authorization, data, and versioned integration contracts.
+- Completed a Chrome smoke using Pika's six-digit passcode login and landed on
+  `/classrooms`. Opening protected Bara on the same host required no second
+  login; Bara resolved the WorkOS session and JWT, Convex reached authenticated
+  state, and the Bara dashboard rendered.
+- Repeated Bara reloads left the development deployment at three historical
+  `app_users` and three linked WorkOS `auth_identities`; no duplicate bootstrap
+  row was added for the current user.
+- Isolated the apparent Convex failure to a local Next.js 16 origin mismatch:
+  Bara was initialized as `localhost` while Chrome used `127.0.0.1`, so Next
+  blocked its own development client runtime. Bara now explicitly allows the
+  loopback development origin, and the normal dev command hydrates correctly.
+- Kept the session cookie host-only for the local proof. No parent-domain cookie
+  was enabled, and the versioned Pika/Bara API and event boundaries remain the
+  production integration boundary.
+
+**Next gate:**
+- Configure and verify the same model in isolated Preview, then prove logout,
+  exact QR return-path preservation, second-account tenant isolation, and the
+  first native attendance contract slice before enabling pilot flags.
+
+## 2026-08-17 — Harden Bara's eager-auth browser boundary
+
+**Risk profile:** local Bara security headers and documentation only. No hosted
+WorkOS, Vercel, Convex, or Supabase configuration changed.
+
+**Completed:**
+- Added a per-request nonce Content Security Policy around Bara's AuthKit eager
+  auth path. Scripts require the nonce, inline event handlers and framing are
+  blocked, and browser connections are limited to Bara plus the exact configured
+  Convex cloud/site HTTP and WebSocket origins.
+- Kept only the development exceptions required by React debugging and local
+  HMR. The production policy contains no `unsafe-eval` and upgrades insecure
+  subresource requests.
+- Re-smoked the signed-in Bara dashboard, roster import, and public unavailable
+  attendance state in Chrome with no CSP violations; production-mode Bara also
+  retained the shared WorkOS session and authenticated Convex UI.
+
+**Validation:**
+- Bara passes 136 tests across 29 files, TypeScript, production build, brand
+  guard, diff hygiene, and lint with only existing generated Convex warnings.
+
+**Next gate:**
+- Configure isolated hosted Preview, verify the emitted policy there, then run
+  logout, exact QR return-path, second-account isolation, and bounded classroom
+  contract smokes before enabling rollout flags.
+
+## 2026-08-17 — Reaffirm separate WorkOS application boundaries
+
+**Risk profile:** read-only hosted audit and documentation correction. No
+WorkOS, Vercel, Convex, Supabase, DNS, or production configuration changed.
+
+**Model recommendation:** frontier reasoning model — this phase spans WorkOS,
+Vercel, Convex, Supabase, and two application security boundaries.
+
+**Findings and decision:**
+- Codepet Platform Staging and Production each contain separate Bara and Pika
+  AuthKit Applications. Codepet Labs remains a separate WorkOS project.
+- The boundary-preserving target is Pika authentication under its Application,
+  a one-time WorkOS cross-application code, and exchange into Bara's own
+  Application session before Convex resolves the subject locally.
+- The same-client/shared-cookie local proof remains useful fallback evidence,
+  but it is not the production architecture. Pika and Bara keep distinct client
+  IDs, API keys, cookies, refresh tokens, token audiences, internal users,
+  databases, and authorization.
+- Bara Vercel Preview currently reuses development Convex and an obsolete
+  callback. Pika Preview has no WorkOS/Bara variables and points at the only
+  hosted Pika Supabase project. Deploying the attendance migration there would
+  violate the isolated-preview gate.
+- Pika Staging has a short-lived pilot key; Pika Production has no active key.
+  No hosted settings were changed.
+
+**Next gate:**
+- Obtain WorkOS's exact issuance conditions for
+  `authkit_authorization_code`, provision an explicitly isolated Pika Preview
+  data target, then create Preview-only deploy credentials and run the complete
+  no-prompt/auth/attendance smoke. Keep all rollout flags disabled meanwhile.
+
 ## 2026-08-18 — Tighten the v3 Course Package manifest contract
 
 **Risk profile:** high — strict historical compatibility boundary; no schema,
@@ -1107,6 +1634,85 @@ dependency, or UI change.
   `,`, and `|` userinfo plus external-origin, protocol, port, and labeled-relative
   negatives. The fourth remediated full verification passes 4,595 tests across
   503 files, lint, type checking, and the production build.
+
+## 2026-08-18 — Complete local headless Bara attendance boundary
+
+**Risk profile:** runtime-platform. No Supabase migration, Convex migration,
+hosted configuration, rollout flag, production write, merge, or promotion.
+
+**Completed:**
+- Retired the cross-application Bara browser-session handoff. Pika now keeps
+  student QR entry and authoritative result rendering on Pika, derives the
+  actor from the verified Pika server session, and calls Bara's signed v1
+  `student_check_in` command directly.
+- Synchronized the closed Bara v1 contract and fixtures; added tenant/display
+  identity fields, encrypted short-lived Pika entry tokens, stable command
+  idempotency, one identical retry for uncertain outcomes, and no durable
+  student-scan outbox.
+- Kept teacher commands recoverable through the durable outbox and student
+  success dependent on Bara's synchronous authoritative result. Invalid,
+  closed, unmatched, duplicate, and unavailable states are explicit.
+- Updated rollout guards and guidance so separate WorkOS Applications,
+  databases, sessions, and internal IDs remain mandatory. The retired browser
+  handoff flag must be false.
+- Fixed the teacher QR validator/test to accept the encrypted entry-token shape
+  and removed its fixed-date expiry flake. Consolidated duplicated startup
+  guidance so the enforced 16,000-character startup budget passes.
+
+**Verification:**
+- Full Vitest run: 540 files and 4,557 tests pass after the focused startup-doc
+  rerun; attendance-focused suites pass, including contract fixtures, retries,
+  lost outcomes, closed/invalid QR, identity boundaries, event ordering, and
+  teacher projection behavior.
+- ESLint, `pnpm exec tsc --noEmit`, production build, architecture guard,
+  design-policy guard, and diff hygiene pass.
+- Playwright CLI verified desktop/mobile native success and mobile dark
+  uncertain-outcome states with a local intercepted API. The browser remained
+  on Pika and never sent a real Bara attendance command.
+
+**Remaining gates:**
+- Migration 126 is still unapplied and all attendance rollout flags remain
+  disabled. An explicitly isolated hosted Preview and one-time migration
+  authorization are required before real teacher/student flows.
+- Hosted p50/p95/p99 latency and roughly 30–100 concurrent scan load evidence,
+  tenant-isolation smoke, and pilot approval remain outstanding. Keep this
+  feature marked failing until those gates pass.
+
+## 2026-08-18 — Harden native attendance actors and make the hosted load gate runnable
+
+**Risk profile:** runtime-platform and preview test tooling. No Supabase or
+Convex migration, hosted setting, rollout flag, production write, deployment,
+commit, merge, or promotion.
+
+**Completed:**
+- Made every Pika teacher-originated Bara command derive its actor from the
+  live verified WorkOS server session. The server now exact-matches the stored
+  Pika WorkOS subject and normalized email before session, mark, QR, or manual
+  sync operations; mismatch fails closed before a Bara request or outbox write.
+- Added a preview-only native scan measurement harness. It requires 30–100
+  distinct authenticated student sessions in a mode-0600 gitignored manifest,
+  exact matching HTTPS Preview origins, and a case count equal to concurrency.
+  It refuses production and prints only aggregate closed-state counts,
+  throughput, and min/p50/p95/p99/max latency.
+- Added the hosted measurement runbook and a requirement-by-requirement
+  completion ledger. Updated Bara's roadmap so the engine and native-student
+  slices are accurately marked complete locally while hosted proof stays open.
+
+**Verification:**
+- Pika focused identity/load coverage passes 28/28. The complete Vitest run
+  passes 542 files and 4,566 tests; ESLint, TypeScript, production build,
+  architecture, design, UI-policy, session-log, and diff checks pass.
+- Bara passes 32 files and 148 tests, TypeScript, production build, brand and
+  12/12 synthetic Preview rollout guards, and diff hygiene. ESLint has only
+  four generated Convex warnings after correcting a test-helper false positive.
+
+**Remaining gates:**
+- Pika migration 126 and Bara's roster-owner backfill remain unapplied. No
+  isolated Preview, real cross-service teacher/student round trip, executable
+  Supabase event-reordering proof, or hosted latency/load result exists yet.
+- Obtain explicit target and migration authorization, then follow the ordered
+  release sequence in the completion audit. Keep native attendance failing and
+  all production flags off until those gates and a canary pass.
 
 ## 2026-08-19 — Close unbounded encoded-path package bypass
 
@@ -1303,3 +1909,44 @@ shared local only. Nothing was applied to production.
 
 **Model recommendation:** Sol with high reasoning for the final archive
 authorization, idempotency, privacy, and lifecycle-state review.
+## 2026-08-19 — Verify native attendance against disposable local databases
+
+**Risk profile:** runtime-platform and disposable local data. The user
+explicitly authorized resetting and discarding the shared local Pika database.
+No hosted database, WorkOS dashboard, deployment, rollout flag, production
+write, commit, merge, or promotion changed.
+
+**Model recommendation:** frontier reasoning model — this verification spans
+real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
+roles, standalone regression, and concurrent authoritative writes.
+
+**Completed:**
+- Replayed Pika migrations 001–126 on shared local Supabase, ran local Convex,
+  and used distinct staging WorkOS Applications with localhost callbacks.
+- Signed in a real teacher and student through Pika, created and joined a
+  rostered classroom, configured attendance hours, opened automatically,
+  checked in through the native Pika QR path, reconciled the projection,
+  corrected the student to Late, and closed the session without leaving Pika.
+- Signed into standalone Bara through its own WorkOS Application, opened an
+  independent ad-hoc session on the mapped roster, marked the student through
+  Bara's tap UI, and closed it.
+- Added a guarded loopback-only signed-adapter/engine load runner and recorded
+  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
+  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
+  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
+
+**Verification:**
+- Pika passes 542 files and 4,567 tests, TypeScript, production build,
+  architecture, design-policy, UI-policy, and diff checks.
+- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
+  diff checks. The hosted rollout command correctly refuses to run without a
+  named Preview/Production stage and exact HTTPS origins; no staging target
+  exists to satisfy that gate.
+- Browser screenshots were visually checked for native student success,
+  teacher correction and closed state, and standalone Bara attendance.
+
+**Remaining gates:**
+- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
+  backfill, tenant-isolation/canary proof, and real teacher/student approval
+  remain blocked on provisioning an isolated Preview or explicitly approving a
+  different non-production target. Production remains disabled.

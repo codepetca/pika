@@ -6,6 +6,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/logout/route'
 
+const mockDeleteCookie = vi.hoisted(() => vi.fn())
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(async () => ({ delete: mockDeleteCookie })),
+}))
+
 // Mock modules
 vi.mock('@/lib/auth', () => ({
   destroySession: vi.fn(async () => {}),
@@ -17,6 +23,7 @@ import { destroySession } from '@/lib/auth'
 describe('POST /api/auth/logout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
   })
 
   // ==========================================================================
@@ -39,6 +46,16 @@ describe('POST /api/auth/logout', () => {
         success: true,
         message: 'Logged out successfully',
       })
+    })
+
+    it('clears WorkOS and pending-challenge cookies when the pilot is enabled', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+
+      const response = await POST()
+
+      expect(response.status).toBe(200)
+      expect(mockDeleteCookie).toHaveBeenCalledWith('wos-session')
+      expect(mockDeleteCookie).toHaveBeenCalledWith('pika_workos_magic')
     })
   })
 

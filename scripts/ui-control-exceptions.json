@@ -241,17 +241,6 @@
       ]
     },
     {
-      "file": "src/app/signup/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/app/snapshots-gallery/SnapshotGallery.tsx",
       "reviewBy": "phase-2-shared-foundation-debt",
       "controls": [

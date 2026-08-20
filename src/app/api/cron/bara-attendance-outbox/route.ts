@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from 'next/server'
+
+import { withErrorHandler } from '@/lib/api-handler'
+import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import {
+  deliverBaraAttendanceOutboxBatch,
+  getBaraAttendanceOutboxHealth,
+} from '@/lib/server/bara-attendance-outbox'
+import { getServiceRoleClient } from '@/lib/supabase'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const maxDuration = 60
+
+export const POST = withErrorHandler(
+  'PostBaraAttendanceOutboxDelivery',
+  async (request: NextRequest) => {
+    const cronSecret = process.env.CRON_SECRET
+    if (!cronSecret) {
+      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+    }
+    if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const supabase = getServiceRoleClient()
+    const enabled = getBaraAttendanceIntegrationState() === 'ready'
+    const delivery = await deliverBaraAttendanceOutboxBatch({ supabase, enabled })
+    const health = await getBaraAttendanceOutboxHealth({ supabase, enabled })
+    const status = delivery.status === 'partial' || health.status === 'degraded'
+      ? 'partial'
+      : delivery.status
+
+    return NextResponse.json({ status, delivery, health }, {
+      status: status === 'partial' ? 503 : 200,
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  },
+)

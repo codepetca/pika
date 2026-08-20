@@ -1,0 +1,46 @@
+# Pika–Bara native attendance completion audit
+
+Status: all requested local architecture and behavior slices are implemented;
+hosted database, cross-service, latency, and pilot proof remains intentionally
+open.
+
+This ledger prevents local test evidence from being mistaken for a rollout.
+Paths are relative to the owning repository: this Pika worktree or the sibling
+Bara worktree.
+
+## Requirement evidence
+
+| Requested outcome | Local status and evidence | Hosted status |
+|---|---|---|
+| Audit, brief, and retire cross-application browser handoff | Complete for native attendance. Bara `docs/features/briefs/bara-attendance-engine-boundary.md` and both native-attendance roadmaps define one Pika login and separate WorkOS Applications. Pika's runtime handoff routes are removed. Historical Bara handoff endpoints remain gated off, and both rollout checks require the legacy flag to stay false. | No hosted mutation required. |
+| Provider-neutral authoritative Bara engine | Complete. Bara `convex/attendanceEngine.ts` owns lifecycle, marks/corrections, and student check-in with explicit actors. `convex/attendance-engine-equivalence.test.ts` proves standalone and signed-integration adapters use the same rules. | Standalone hosted regression remains part of pilot proof. |
+| Transport/auth outside engine | Complete. Bara separates signed request authentication, tenant/installation mapping, identity linking, roster/schedule mapping, commands, event translation, outbox, and retention. Standalone AuthKit resolves Bara `app_users`; Pika requests map verified external principals before engine calls. | Matching preview credentials/origins are not configured. |
+| Preserve Bara internal identity and roster ownership | Complete in code. Bara retains `app_users` + `auth_identities`; `rosters.ownerAppUserId` is the domain owner and WorkOS subjects remain external links. The widened schema and backfill runner are defined in `convex/migrations.ts`. | The Bara roster-owner backfill has not been run against a hosted deployment. |
+| Controlled Pika-only provisioning/linking | Complete. Tenant-bound staff/student provisioning is narrow, cannot create integration admins, and rejects tenant moves, role conflict, participant relinking, and identity relinking. Bara integration tests cover these fences. | Real unmatched and newly provisioned teacher/student flows remain unproved. |
+| Versioned idempotent student check-in | Complete. The closed v1 `student_check_in` response is synchronous and includes authoritative revisions. Pika uses a stable key, retries one uncertain response with the same body/key and a fresh nonce, and never queues student scans. Invalid, closed, duplicate, unmatched, lost-response, and contract cases have local tests. | Real timeout/lost-response behavior remains unproved. |
+| Immediate events plus recovery | Complete. Bara attempts delivery after commit and keeps leased cron/outbox recovery. Pika commits inbox receipt and monotonic projection atomically and reconciles from authoritative snapshots. | Migration 126 is unapplied, so database execution and event reordering are not yet proved against Supabase. |
+| Exact-time schedule jobs plus recovery | Complete. Bara owns exact open/close jobs and a recovery sweep; Pika sends concrete UTC intent generated from its class days and teacher policy. Schedule revision/removal tests preserve opened/closed history. | Hosted scheduler timing and schedule-change round trips remain unproved. |
+| Timeout and retention policy | Complete and documented in the v1 contract. Bara retains request nonces for 24 hours and idempotency results for 30 days with bounded cleanup. Pika distinguishes definitive results from uncertain transport outcomes. | Operational cron cadence/alerting remains a pilot gate. |
+| Native Pika teacher client | Complete locally. The Attendance surface, policy, sync, QR, session, marks, corrections, pending outbox state, projection, and recovery workers are Pika-owned. Outbound teacher actors now come from the live verified WorkOS session and must exactly match the stored Pika link. | Real teacher correction and lifecycle flows remain unproved. |
+| Native Pika student client | Complete locally. The QR opens a Pika URL; the raw Bara token is encrypted in a Pika-owned entry token and is not persisted. The server derives the student only from the verified Pika session and renders Bara's authoritative success/duplicate/invalid/closed/needs-help/unavailable state. | Real student mobile/login/scan flows remain unproved. |
+| Versioned contract fixtures and isolation | Complete. Bara is the v1 source and Pika vendors byte-identical closed types, validators, signing, and fixtures. Tests cover replay, idempotency conflicts, revision ordering, opaque mappings, tenant fences, and forbidden internal identifiers. | Provider/consumer requests still need a deployed cross-service smoke. |
+| Local verification and UI evidence | Complete at the last recorded gate: both repositories passed their complete tests, type checks, builds, and prescribed guards. Pika Playwright evidence covers native success and uncertain student states on desktop/mobile without leaving Pika. | Hosted full state-family browser evidence remains open. |
+| Hosted scan latency/load | Harness complete at `scripts/measure-bara-attendance-scans.ts`, with validation tests and the runbook in `docs/integrations/bara-attendance-scan-load.md`. It requires 30–100 distinct sessions, refuses production, and emits only aggregate p50/p95/p99 metrics. | No hosted p50/p95/p99 measurement has been run. |
+
+## Remaining release sequence
+
+1. Obtain explicit authorization for a named isolated Pika Supabase Preview
+   target and for the narrowly scoped Bara roster-owner backfill.
+2. Verify target identities and migration history, dry-run, then apply only Pika
+   migration 126 and the named Bara backfill to their approved environments.
+3. Deploy matching previews with separate WorkOS Applications and distinct
+   secrets; run the aggregate-only rollout preflight.
+4. Prove real teacher and student roster/schedule/lifecycle/mark/correction/QR,
+   duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
+   flows while all production flags remain off.
+5. Run the preview-only 30–100 scan measurement and retain p50/p95/p99 evidence.
+6. Verify the complete UI state family, then run one allowlisted classroom
+   canary with rollback. Production enablement remains a separate decision.
+
+No item in this document authorizes a migration, deployment, dashboard change,
+pilot, or production enablement.

@@ -1,0 +1,71 @@
+import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
+import { ApiError, withErrorHandler } from '@/lib/api-handler'
+import { getServiceRoleClient } from '@/lib/supabase'
+import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import {
+  loadTeacherAttendancePolicy,
+  saveTeacherAttendancePolicy,
+  TeacherAttendancePolicyError,
+} from '@/lib/server/bara-attendance-policy'
+import {
+  teacherAttendancePolicyQuerySchema,
+  teacherAttendancePolicyUpdateSchema,
+} from '@/lib/validations/teacher-attendance-policy'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+function mapPolicyError(error: unknown): never {
+  if (error instanceof TeacherAttendancePolicyError) {
+    if (error.code === 'conflict') {
+      throw new ApiError(409, 'Attendance settings changed; refresh and try again')
+    }
+    throw new ApiError(503, 'Attendance settings are temporarily unavailable')
+  }
+  throw error
+}
+
+export const GET = withErrorHandler('GetTeacherAttendancePolicy', async (request) => {
+  const user = await requireRole('teacher')
+  const input = teacherAttendancePolicyQuerySchema.parse(
+    Object.fromEntries(new URL(request.url).searchParams),
+  )
+  const supabase = getServiceRoleClient()
+  const ownership = await assertTeacherOwnsClassroom(user.id, input.classroom_id, { supabase })
+  if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
+
+  try {
+    const policy = await loadTeacherAttendancePolicy({
+      supabase,
+      classroomId: input.classroom_id,
+    })
+    return NextResponse.json({ policy })
+  } catch (error) {
+    mapPolicyError(error)
+  }
+})
+
+export const PUT = withErrorHandler('PutTeacherAttendancePolicy', async (request) => {
+  const user = await requireRole('teacher')
+  const input = teacherAttendancePolicyUpdateSchema.parse(await request.json())
+  const supabase = getServiceRoleClient()
+  const ownership = await assertTeacherCanMutateClassroom(user.id, input.classroom_id, { supabase })
+  if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
+
+  try {
+    const policy = await saveTeacherAttendancePolicy({
+      supabase,
+      teacherId: user.id,
+      classroomId: input.classroom_id,
+      opensLocal: input.opens_local,
+      closesLocal: input.closes_local,
+      closeDayOffset: input.close_day_offset,
+      enabled: input.enabled,
+      expectedRevision: input.expected_revision,
+    })
+    return NextResponse.json({ policy })
+  } catch (error) {
+    mapPolicyError(error)
+  }
+})

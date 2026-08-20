@@ -18875,3 +18875,661 @@ autosave error feedback while preserving the mounted attempt and exam owner.
   states show no page overflow or broken layout.
 - The selected-student remediation was visually rechecked in teacher
   desktop/mobile and light/dark states with no horizontal page overflow.
+
+## 2026-08-10 — Standardize resizable Daily columns
+
+**Risk profile:** none — shared client-side table layout behavior only.
+
+**Completed:**
+- Moved the Complete/Incomplete count chips immediately beside the Daily Log
+  label while preserving its sortable semantics.
+- Added adjustable First, Last, and ID widths to Daily; Log absorbs the
+  remaining space. Narrow values truncate instead of wrapping in the selected
+  workspace.
+- Extracted the assignment table's accessible pointer/keyboard resize behavior
+  into shared `@/ui` table primitives and migrated assignments to the shared
+  owner without sharing domain-specific cells.
+- Removed stale native-control and raw-layer registry entries from the former
+  assignment-local implementation.
+
+**Validation:**
+- Focused DataTable, Daily, and assignment coverage passes (29 tests), including
+  separator semantics, Arrow/Home/End resizing, pointer clamping, sorting, and
+  selected-row truncation.
+- Lint, architecture, UI policy, design policy, and Pika audit pass.
+- Playwright captures were reviewed for teacher desktop/mobile, light/dark,
+  default, sorted, selected, minimum-width resize, and the assignment reference
+  table; the student attendance boundary was also checked.
+- Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
+  state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-11 — Implement hot-Classroom individual-student purge
+
+**Risk profile:** runtime-platform and irreversible-deletion design; local code
+only. Migration 123 was not applied and no purge or rollout ran.
+
+**Completed:**
+- Added disabled/canary/enabled exact-triple rollout settings, stable roster
+  student lineage, durable operation/resource/object ledgers, pair and
+  whole-Classroom fences, exact Storage leases, retries, and explicit
+  finalization for one student in one hot Classroom.
+- Preserved the user and other Classrooms; staged the target's exact managed
+  objects and all retained Classroom archive/Gradex copies. Pal-backed,
+  remote-Gradex, cold, retired-assessment, and conflicting-operation targets
+  fail closed.
+- Added teacher-only impact/start/status/tick routes, cleanup-cron recovery and
+  health signals, Roster action/dialog, route/component/server/migration tests,
+  generated types, and a rollback-only CI database fixture.
+
+**Validation:**
+- Full suite passes (4,210 tests/492 files); focused purge/cron slice, build,
+  TypeScript, lint, architecture/design/UI policy, Pika audit, and diff checks pass.
+- Pika UI verification passed for teacher desktop/mobile light/dark dialog and
+  progress states plus student desktop/mobile light/dark absence boundaries.
+- Rollback-only CI fixture now covers managed-file lease authority, byte absence,
+  update ownership fences, relational deletion, and cross-Class preservation.
+
+**Remaining:**
+- Publish for independent PR review and fresh-database CI replay.
+- Local database replay awaits separate migration authorization.
+- Production migration, rollout, and purge remain separately prohibited.
+
+## 2026-08-11 — Complete production cold-Classroom purge canary
+
+**Risk profile:** runtime-platform — one exact authorized irreversible production
+canary with a disabled-by-default rollout gate.
+
+**Completed:**
+- Merged release PR #991 with the reviewed impact-envelope fix and verified
+  Vercel deployed production commit `47316895`.
+- Activated canary mode only for teacher
+  `34bd4439-e552-483b-b8aa-e3a8f86009af` and synthetic Classroom
+  `58f90ce4-ac21-4e68-bbf4-f1db3ae77f74`, then ran durable purge operation
+  `3a88d39d-5bc4-40f3-8c21-8aa2fa1e6151` for archive
+  `c748ec90-4952-4ec1-8ee7-99be3354b71a`.
+- Deleted the one verified 2,106-byte recovery archive before atomically
+  finalizing six cold resources; restored the rollout gate to disabled.
+
+**Validation:**
+- The completed audit retains aggregate counts for one archive, two archive
+  operations, one cold actor, one tombstone, and one managed Storage object.
+- Exact Storage download now proves the archive absent; the hot Classroom,
+  tombstone, archive, source operations, cold actors, managed registry row,
+  Gradex extracts, and active fence are absent.
+- The teacher account and unrelated active Classroom remain unchanged.
+- Aggregate and deep managed-deletion health are healthy with zero critical
+  findings and zero warnings. Generic cleanup did not run.
+
+**Next:**
+- Keep cold deletion disabled and observe two scheduled healthy monitoring runs
+  before requesting broad rollout authorization. Keep individual-student purge
+  and generic orphan cleanup as separate scopes.
+
+## 2026-08-11 — Prepare cold-deletion canary and repair impact parsing
+
+**Risk profile:** runtime-platform — production cold-archive preparation plus a
+server boundary fix; cold deletion remained disabled.
+
+**Completed:**
+- Created, hot-archived, exported, and cold-compacted the synthetic production
+  Classroom `58f90ce4-ac21-4e68-bbf4-f1db3ae77f74`; immutable archive
+  `c748ec90-4952-4ec1-8ee7-99be3354b71a` remains ready and recoverable.
+- Verified the hot row is absent, the cold tombstone and completed export /
+  compaction operations are present, the archive bytes still match their
+  checksum, the teacher and unrelated Classroom remain, and managed-deletion
+  health is healthy at 0 critical / 0 warnings.
+- Production-shaped verification found that the cold purge inventory RPC's
+  `ok` / `status` envelope was rejected by the strict impact schema. Normalize
+  those two transport fields before strict domain validation, matching the
+  established Blueprint purge boundary.
+
+**Validation:**
+- Focused cold purge, route, dialog, availability, and migration coverage passes
+  (8 files, 65 tests), including the production-shaped RPC regression.
+- TypeScript, lint, architecture, diff checks, and the Pika audit pass.
+- No cold purge, rollout enablement, generic cleanup, or production deployment
+  of the parsing fix ran; each remains separately authorized.
+
+## 2026-08-11 — Deploy cold-archived Classroom deletion foundation
+
+**Risk profile:** production rollout — compatible application deployment plus
+an additive, disabled-by-default irreversible-deletion capability.
+
+**Completed:**
+- Merged release PR #988 from `main` to `production` after the architecture
+  database contracts, full test/build, browser matrix, and Vercel checks passed.
+- Verified Vercel deployed production commit `7108345c` before changing schema.
+- Verified production migration history was exactly 001–121 and the linked dry
+  run contained only `122_cold_archived_classroom_purge.sql`, then used the
+  one authorized production application attempt.
+- Kept `cold_classroom_purge_settings` in `disabled` mode with no canary IDs.
+  No purge, rollout enablement, Storage deletion, or generic cleanup ran.
+
+**Validation:**
+- Production migration history records 001–122.
+- The linked production project has zero active cold purge operations.
+- The read-only managed-deletion health snapshot is version 1 and healthy with
+  zero critical findings and zero warnings at the one-hour stuck threshold.
+- An exact production cold purge canary remains a separate authorization.
+
+## 2026-08-11 — Standardize production table capabilities
+
+**Risk profile:** workspace-state — shared client-side table selection,
+keyboard navigation, sorting, and persisted layout preferences; no API or data
+model changes.
+
+**Completed:**
+- Added generic `useTableSelection`, optional local width persistence, shared
+  mixed-state selection cells, and a reusable left/right resize handle.
+- Migrated the seven production table surfaces to canonical `@/ui` primitives:
+  Assignment students, Daily attendance, Roster, Test grading, Gradebook,
+  dashboard attendance, and Add Students preview.
+- Added sorting/resizing where operationally useful, retained checkbox
+  selection only where real batch actions exist, and kept the Add Students
+  preview intentionally static.
+- Removed the legacy table re-export and student-specific selection hook, and
+  documented the composable table ownership boundary.
+
+**Validation:**
+- Focused table coverage passes (127 tests), TeacherClassroomView passes (50
+  tests), TypeScript and lint pass, and the Pika audit reports no violations.
+- The full 4,181-test run had one unrelated transient ColdClassroomPurgeDialog
+  timing failure while its inventory was still loading; its isolated suite
+  passed immediately afterward (3/3).
+- Playwright verified teacher desktop/mobile, light/dark, default, sorted,
+  mixed-selection, focused-resize, selected-row/inspector, Test grading,
+  Assignment students, Dashboard, and Add Students preview states; the student
+  mobile boundary was also checked. No overflow or visual regression remained.
+- Composite checklist reviewed: yes; keyboard behavior covered: yes; semantic
+  state covered by tests: yes; remaining manual follow-up: none.
+
+## 2026-08-12 — Harden individual-student purge after independent review
+
+**Risk profile:** runtime-platform — destructive deletion protocol remains
+disabled and unapplied; this pass changes only reviewed code, migration source,
+tests, and documentation.
+
+**Completed:**
+- Replaced the archive-contract-breaking roster user column with a derived,
+  non-archive roster/student binding that is rebuilt from enrollment lineage.
+- Added authoritative account-email confirmation, operation-scoped completed
+  replay binding, stable client idempotency across lost start responses,
+  permanent purged-path reservations, and non-student-derived grading-run
+  selection hashes.
+- Expanded the rollback-only database fixture across assignment, test, survey,
+  report-card, announcement, archive, Gradex, target/classmate, replay, fence,
+  exact-object, and delayed-write cases.
+- Added a focused runbook, corrected hot/cold scope docs, and made the visual
+  teacher/student matrix a named CI gate with retained failure artifacts.
+
+**Validation:**
+- Full suite passes: 4,216 tests across 492 files. Focused remediation tests,
+  TypeScript, architecture, lint, production build, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright passed teacher default/progress and student-boundary verification
+  across desktop/mobile and light/dark on an isolated local port; screenshots
+  were visually inspected with no overflow or contrast regression.
+- Migration 123 was not applied locally or remotely, no rollout setting changed,
+  no purge ran, and no Storage object was deleted. Ephemeral CI replay remains
+  the next database validation gate.
+
+## 2026-08-13 — Show semester ranges on Classroom cards
+
+**Risk profile:** none — presentation and classroom-list read fields only.
+
+**Completed:**
+- Replaced join codes on teacher active, teacher archived, and student Classroom
+  cards with Toronto-safe abbreviated semester ranges such as
+  `Sept 2025 - Jan 2026`.
+- Added the required `start_date` and `end_date` fields to narrow teacher and
+  student Classroom list reads, with a non-sensitive fallback when dates are
+  unavailable.
+- Added shared formatter and direct component/API regression coverage, and
+  updated the archived-Classroom Playwright fixture to assert the date range is
+  visible while the join code is absent.
+
+**Validation:**
+- Focused unit, component, and API coverage passes: 46 tests across 6 files.
+- Lint, architecture, design policy, production build, diff checks, and the Pika
+  audit pass.
+- Playwright and visual inspection pass for teacher active/archived and student
+  active cards across desktop/mobile and light/dark, with no overflow or layout
+  regression. Composite-widget checklist is not applicable because interaction
+  semantics and keyboard behavior were unchanged.
+
+## 2026-08-14 — Add durable cleanup-history cron evidence
+
+**Risk profile:** runtime-platform — additive service-only observability and
+overlap serialization around the existing cleanup-history safety-net route.
+
+**Completed:**
+- Added migration 124 with a privacy-safe run ledger, scheduled/manual source
+  attribution, exact aggregate metric allowlist, overlap records, stale-run
+  supersession, one-way finalization, and an identity-free health snapshot.
+- Integrated the cron route with pre-124 compatibility and fail-closed ledger
+  errors, plus focused tests, a rollback-only database fixture, CI coverage,
+  generated types, operator guidance, and rollout instructions.
+- With explicit local authorization, applied migrations 123–124, then reset the
+  disposable database without seeds and replayed migrations 001–124 to remove
+  stale migration-121 schema state.
+
+**Validation:**
+- Full suite passes: 4,239 tests across 494 files; focused ledger coverage passes
+  43 tests. TypeScript, lint, production build, Pika audit, shell syntax, and
+  diff checks pass.
+- Fresh migration replay, migration-123 and migration-124 rollback-only
+  fixtures, generated-type drift check, and preservation of the migration-121
+  deep-health RPC all pass.
+- Database lint identified an inherited ambiguous `attempt_count` reference in
+  migration 123's storage-failure retry function. Keep that correction separate
+  from migration 124. No production migration, deploy, cron run, rollout change,
+  purge, or Storage deletion occurred.
+- Initial PR review found a false-green scheduled-health path. Remediation now
+  requires exact Vercel GET metadata, keeps POST manual, and requires a fresh
+  successful scheduled run within 26 hours; empty, expired, or failed scheduled
+  evidence stays unhealthy even after manual success. The revised fresh replay,
+  database fixture, generated types, and 44 focused tests pass.
+- Final integration review caught an over-budget `.ai/CURRENT.md` that omitted
+  canonical app-managed worktree and collaborator env forms. The compressed
+  handoff restores both contracts; startup-doc coverage and the full 4,240-test
+  suite pass.
+
+## 2026-08-15 — Make student Surveys recoverable and keyboard-native
+
+**Risk profile:** workspace-state — student-only survey presentation and local
+request state; no API, schema, migration, production, or Gradex change.
+
+**Completed:**
+- Replaced the ambiguous results `null` state with survey-scoped loading,
+  success, and announced error states plus an explicit Retry action.
+- Replaced styled answer buttons with native radios in a named radio group,
+  retaining the existing card treatment while adding checked state, focus, and
+  browser keyboard behavior.
+- Updated the exact native-control policy entry and added component regression
+  coverage for semantic selection and failed-results recovery.
+
+**Validation:**
+- Full suite passes: 4,242 tests across 494 files. Lint, production build,
+  architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright and visual inspection pass for student results, edit/selected,
+  focus, error/retry, desktop, mobile, light, and dark states. Arrow-key radio
+  movement passed in Chromium; mobile body width remained within 390px.
+- Teacher verification is not applicable because no teacher-owned surface
+  changed. Composite semantics and keyboard behavior are covered; no manual
+  follow-up remains.
+
+## 2026-08-15 — Make teacher Survey results recoverable
+
+**Risk profile:** none — teacher-only results presentation and local request
+state; no API, schema, migration, production, or Gradex change.
+
+**Completed:**
+- Replaced false empty-result fallback data with survey-scoped loading, ready,
+  and announced failure states plus explicit Retry actions.
+- Preserved the last valid result snapshot during failed roster/response-count
+  refreshes and kept stale Survey responses out of the selected workspace.
+- Recorded the completed teacher/student Surveys slice in the product audit.
+
+**Validation:**
+- Full suite passes: 4,244 tests across 494 files. Production build, lint,
+  architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright and visual inspection pass for teacher results and cold errors at
+  desktop/mobile in light/dark, with no horizontal overflow. Unit interaction
+  coverage proves retained-result failure and successful retry replacement.
+- Composite-widget checklist is not applicable because no composite control or
+  keyboard model changed; alert/status semantics and Retry are role-tested.
+
+## 2026-08-16 — Make Announcement tabs recoverable and Toronto-safe
+
+**Risk profile:** workspace-state — teacher/student Announcement presentation,
+request ownership, and read acknowledgement; no API, schema, migration,
+production, Calendar, mobile redesign, or Gradex change.
+
+**Completed:**
+- Added explicit loading, successful empty, cold-error, and Retry states while
+  preserving valid classroom-scoped data and rejecting stale responses.
+- Made failed student read acknowledgement visible and retryable without
+  prematurely clearing notification state.
+- Centralized Announcement timestamps in `America/Toronto` for teacher and
+  student display and scheduling labels.
+- Fenced teacher create/edit/delete and student read completions by committed
+  classroom generation, including abandoned concurrent renders.
+
+**Validation:**
+- Full suite passes: 4,258 tests across 494 files. Focused component/domain
+  tests, lint, TypeScript, Pika audit, and diff checks pass.
+- Independent review findings for provider-driven automatic read retry,
+  cross-classroom mutation repainting, and render-phase ownership leakage were
+  remediated with provider-settlement, committed-switch, and suspended-transition
+  regression coverage.
+- Visual verification passes for teacher/student desktop/mobile and light/dark
+  loaded/error states, plus the student read-error state. No composite keyboard
+  behavior changed; semantic alert/status and Retry coverage passes.
+
+## 2026-08-16 — Make Calendar sources independently recoverable
+
+**Risk profile:** none — teacher/student Calendar presentation and local
+request ownership; no API, schema, migration, production, mobile redesign, or
+Gradex change.
+
+**Completed:**
+- Replaced false-empty Calendar fallbacks with independent lesson-plan,
+  assignment, announcement, and class-day loading/error/snapshot contracts.
+- Preserved successful data during partial failures, added source-specific
+  Retry actions, and fenced stale classroom and overlapping teacher assignment
+  refresh responses.
+- Corrected date-only term parsing and made initial/today navigation explicitly
+  Toronto-based.
+
+**Validation:**
+- Full suite passes: 4,289 tests across 495 files. Production build, lint,
+  TypeScript, architecture, design/UI policy, Pika audit, and diff checks pass.
+- Independent review found that background lesson refreshes could discard
+  edits and successful Retry actions could strand keyboard focus. Pending
+  edits now remain authoritative during refreshes, Retry controls stay mounted
+  while requests run, and successful recovery focuses the named Calendar
+  workspace. Targeted re-review additionally caught a GET/autosave ordering
+  gap and retry intent crossing classroom boundaries; per-edit acknowledgments
+  and classroom-scoped retry state now fence both cases. A final ABA review
+  found that returning to a classroom could make an earlier visit's save look
+  current; queued saves now carry a monotonically increasing classroom epoch.
+  Focused teacher/student regressions cover all corrections.
+- Playwright verification passes for teacher/student desktop loaded and partial
+  error states in light mode, loaded states in dark mode, and the existing
+  mobile layout. Retry controls retain valid lesson data with no overflow.
+- No composite control behavior changed; existing Calendar navigation semantics
+  remain covered, and new alert/Retry behavior has focused role tests.
+
+## 2026-08-16 — Serialize Calendar writes and retained retries
+
+**Risk profile:** workspace-state — teacher lesson-plan mutation ordering and
+teacher/student Calendar retry state; no API, schema, migration, production,
+mobile redesign, or Gradex change.
+
+**Completed:**
+- Serialized inline, bulk, and unload lesson-plan writes per classroom across
+  component remounts so older requests cannot commit after newer edits.
+- Retained failed inline saves with bounded automatic retries, scoped pending
+  edits by classroom, and blocked bulk markdown saves until inline drains
+  succeed.
+- Replaced unload beacons with explicit keepalive `PUT` requests and exposed
+  retained class-day refreshes as pending without clearing their prior error.
+
+**Validation:**
+- Full suite passes: 4,295 tests across 495 files. Production build, lint,
+  TypeScript, architecture, Pika audit, and diff checks pass.
+- Focused regressions cover server commit order, inline-before-bulk order,
+  failed-write retry, unload method/payload, and teacher/student class-day
+  retry focus through failure and recovery.
+- Playwright verification passes for teacher/student desktop/mobile and
+  light/dark Calendar views plus the retained `Retrying class days` state.
+
+## 2026-08-16 — Make Calendar mutations durable across unload and classroom switches
+
+**Risk profile:** schema-and-workspace-state — teacher lesson-plan ordering,
+bulk draft ownership, and visible save recovery; migration 125 was applied to
+the shared local database only. Production was not modified.
+
+**Completed:**
+- Added a durable per-browser-session ordering head and atomic lesson-plan
+  mutation function so reversed save/delete completion cannot overwrite newer
+  teacher intent, including direct keepalive requests during unload.
+- Retained queued and in-flight inline saves through page unload, with database
+  sequence fencing making repeated keepalive delivery idempotent.
+- Fenced bulk-save completion by classroom epoch, retained failed classroom
+  drafts by revision, and prevented delayed or identical-payload responses from
+  closing or clearing newer work.
+- Added bounded inline retries with an explicit manual Retry action after
+  exhaustion, preserving the exact unsaved lesson content.
+- Migrated the date and bulk request bodies to feature-owned Zod schemas and
+  removed both routes from the API validation debt baseline. Calendar dates
+  are now validated as real dates before any bulk write begins.
+- Registered the durable mutation-head table as purge-only operational data and
+  included its exact PostgreSQL count in the purge stability digest and durable
+  operation inventory without archiving it. Mutation-head writes now obey the
+  classroom purge fence.
+
+**Validation:**
+- Full suite passes: 4,314 tests across 498 files. Production build, lint,
+  TypeScript, generated Supabase type drift, Pika audit, and diff checks pass.
+- Local PostgreSQL rollback tests prove newer-save/stale-save,
+  newer-delete/stale-save, and newer-save/stale-delete ordering. RPC execution
+  is denied to `anon` and `authenticated` and granted only to `service_role`.
+- Independent review findings covering queue-blocked unload writes,
+  identical-payload draft ownership, impossible calendar dates, and schema
+  ownership were remediated with focused regressions. Rereview additionally
+  found paginated, unfenced mutation-head purge accounting; migration 125 now
+  computes and fences that count inside the database inventory. The local
+  classroom schema audit passes across 198 foreign-key relationships.
+- Playwright verification passes for the exhausted-save Retry alert in teacher
+  light/dark views; the student Calendar remains visually unchanged. Mobile
+  redesign remains explicitly deferred.
+
+## 2026-08-16 — Complete Tests save-status accessibility
+
+**Risk profile:** workspace-state — teacher test authoring and grading save
+announcements plus cross-student grading draft retention; no visual styling,
+mobile redesign, API, schema, migration, production data, or Gradex change.
+
+**Completed:**
+- Added one persistent polite atomic live region to teacher test authoring and
+  grading so unsaved, saving, and saved transitions are announced without
+  repeating the existing visual status labels.
+- Kept stale authoring save responses from announcing false success and retained
+  the existing selected-student grading workflow and class-wide table.
+- Updated the product-experience audit: student flag/save accessibility was
+  already complete, and Tests now has only deferred mobile navigation work.
+
+**Validation:**
+- Focused remediation coverage passes: 123 tests across `TestDetailPanel`,
+  `TeacherTestsTab`, and `TestStudentGradingPanel`; TypeScript passes.
+- The full suite passes: 4,318 tests across 498 files, and the production build,
+  lint, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher grading, teacher authoring, and
+  student Tests in desktop/mobile and light/dark. The change is visually neutral.
+- Independent review found that an in-flight save could outlive a student
+  selection change and publish its status under the newly selected student.
+  The grading panel now emits operation-owned test/student scope while the
+  parent gates announcements by classroom, test, and selected student. The
+  shared grading draft map remains mounted across selection changes, and
+  regressions prove stale completion is not announced while an A → B → A draft
+  remains intact and autosaves. The post-fix grading-switch visual matrix also
+  passes.
+
+## 2026-08-16 — Complete Dashboard entry-detail recovery
+
+**Risk profile:** workspace-state and accessibility — teacher Dashboard student
+log detail only; no API, schema, migration, production, Gradex, or mobile
+redesign change.
+
+**Completed:**
+- Replaced the hand-built student-log overlay with the canonical content dialog
+  and explicit loading, ready, successful-empty, and retryable error states.
+- Scoped each request to classroom, student, and date; closing the dialog,
+  changing classrooms, or opening another student invalidates older responses.
+- Preserved the compact detail width and existing attendance table, classroom
+  selection, sorting, resizing, roster, and export workflows.
+
+**Validation:**
+- Focused Dashboard and modal suites pass: 20 tests. The full suite passes:
+  4,323 tests across 498 files. TypeScript, lint, production build, Pika audit,
+  and diff checks pass.
+- Composite-widget checklist reviewed: keyboard behavior covered, semantic
+  state covered by tests, and no manual accessibility follow-up remains.
+- Playwright verification passes for teacher ready/loading/error states at
+  desktop and mobile widths, ready state in dark mode, and the student-role
+  redirect. Captures have no horizontal viewport overflow.
+- Independent review found one non-blocking test gap. Added regressions proving
+  Retry preserves the exact classroom/student/date scope and a pending entry
+  cannot repaint after the selected classroom changes.
+- Post-push UI policy caught the intentionally removed native close button in
+  the exact control registry. The Dashboard debt count is updated from three to
+  two; no exception or policy rule was weakened.
+- Final integration review found Retry could unmount the focused action while
+  leaving the dialog open. Retry now preserves the same button node as a named,
+  aria-disabled in-progress action, keeping focus inside the modal until the
+  request settles; a deterministic regression covers the transition.
+- The exact design-value inventory now removes the retired raw scrim color and
+  reduces the Dashboard raw z-index count from three to two.
+
+## 2026-08-16 — Complete Roster recovery and accessibility
+
+**Risk profile:** workspace-state and accessibility — teacher Roster loading,
+removal, counselor editing, keyboard behavior, and the existing counselor PATCH
+contract; no schema, migration, production, Gradex, or mobile redesign change.
+
+**Completed:**
+- Separated cold roster failures from successful empty classrooms, added
+  focus-preserving Retry, and retained valid roster data during refresh errors.
+- Kept committed removals visible when their follow-up refresh fails and moved
+  removal errors into the confirmation dialog with deterministic retry focus.
+- Replaced counselor-edit native controls with governed primitives, added
+  descriptive field/action semantics and operation-scoped recovery, and fenced
+  stale saves across students and classroom changes.
+- Added optimistic concurrency to counselor updates through each roster row's
+  existing `updated_at` revision, and scoped delayed add/upload completion to
+  the classroom that was actually mutated.
+- Fenced Add Students and CSV Upload internal loading, error, confirmation, and
+  close state by classroom/open generation so an earlier classroom response
+  cannot repaint or submit into the current classroom. Generations advance only
+  in committed layout lifecycles, so an abandoned concurrent render cannot
+  invalidate the still-visible classroom's request.
+- Bound the roster workspace's classroom identity to committed layout lifecycles
+  and refresh stale counselor revisions after conflicts while preserving the
+  teacher's attempted value for retry.
+- Added direct keyboard coverage for table selection and Escape focus return,
+  plus regressions for overlapping loads, counselor saves, removal recovery,
+  modal error semantics, and focus behavior.
+
+**Validation:**
+- Focused roster API, modal, table, and dialog suites pass: 91 tests. The full
+  suite passes: 4,358 tests across 499 files. TypeScript, lint, production build, UI
+  policy, design policy, architecture checks, Pika audit, and diff checks pass.
+- Composite-widget checklist reviewed: direct keyboard behavior and semantic
+  state are covered by tests, with no manual accessibility follow-up remaining.
+- Playwright verification passes for teacher desktop/mobile ready and error
+  states, selected and editing states, light/dark themes, and the student-role
+  redirect. Captures have no horizontal viewport overflow.
+- Mobile row detail for hidden primary and alt email fields remains deliberately
+  deferred with the broader mobile UI/UX work.
+
+## 2026-08-16 — Rename the roster contact slot
+
+**Risk profile:** terminology-only — teacher roster, manual add, CSV upload, and
+conflict copy; no schema, migration, API field, or production data change.
+
+**Completed:**
+- Renamed the user-facing `counselor_email` concept to “Alt email” across
+  roster columns, actions, editing semantics, add/upload guidance, and errors.
+- Retained the legacy database and API field for compatibility, with focused
+  assertions preventing user-facing terminology drift.
+
+**Validation:**
+- Focused roster API and component suites pass: 92 tests. The full suite passes:
+  4,359 tests across 499 files. TypeScript, lint, production build, UI policy,
+  design policy, architecture checks, Pika audit, and diff checks pass.
+
+## 2026-08-16 — Complete Gradebook desktop recovery
+
+**Risk profile:** workspace-state and accessibility — teacher Gradebook reads,
+assessment-weight refreshes, retry focus, and stale classroom ownership; no
+schema, migration, production, Gradex, or mobile redesign change.
+
+**Completed:**
+- Separated cold Gradebook failures from successful empty classrooms with a
+  governed loading/error state and explicit Retry recovery.
+- Preserved the last valid assessment matrix during failed refreshes and kept
+  the class-wide table, selected-student detail, sorting, selection, and column
+  controls intact.
+- Fenced overlapping reads and in-flight assessment-weight saves by committed
+  classroom identity and per-assessment request generation so stale work cannot
+  repaint another classroom and concurrent column saves each trigger a refresh.
+- Restored focus to the named student table after successful cold or retained
+  recovery, preserved Retry focus after another failure, and retained the
+  existing direct keyboard row navigation and Escape behavior.
+
+**Validation:**
+- Focused Gradebook component, API, and architecture suites pass: 47 tests;
+  the component suite now covers cold, empty, retained-refresh, stale-load,
+  stale-save, retry-focus, and direct keyboard behavior.
+- Full suite passes: 4,365 tests across 499 files. TypeScript, lint, production
+  build, architecture, design/UI policy, Pika audit, and diff checks pass.
+- Playwright verification passes for teacher loaded light/dark, cold-error
+  light/dark, retained-refresh, and narrow loaded/error states with no viewport
+  overflow. Gradebook is teacher-only; student role coverage is not applicable.
+- Independent review found component-wide save ownership could suppress a
+  concurrent column's final refresh and retained Retry success could lose
+  focus. Per-assessment ownership and success-gated focus restoration resolve
+  both findings; targeted rereview found no blockers, and the noted failed-retry
+  test gap is closed.
+
+## 2026-08-16 — Prepare self-hosted WorkOS Magic Auth pilot
+
+**Risk profile:** staging configuration and disabled-by-default local auth code;
+no production rollout, database migration, or Pika/Bara integration.
+
+**Completed:**
+- Added a feature-gated `/login` and `/signup` email plus six-digit passcode
+  flow that keeps the existing Pika URLs and never redirects to Hosted UI.
+- Preserved Pika UUIDs and roles through the existing `users.workos_user_id`
+  link while WorkOS owns external identity, code verification, and its encrypted
+  session. A 12-hour Pika session remains as an explicit pilot bridge.
+- Added signed pending-challenge state, safe return paths, conflict-safe identity
+  linking, generic provider errors, logout cleanup, and focused API/domain/UI
+  coverage.
+- Created the Pika application in Codepet Platform Staging, enabled Magic Auth,
+  and verified that WorkOS-managed Magic Auth email delivery is enabled.
+
+**Validation:**
+- Full suite passes: 4,308 tests across 502 files. Lint, TypeScript, production
+  build with the pilot disabled, architecture, design/UI policy, and diff checks
+  pass.
+- Playwright visual evidence passes for login/signup, email/code, desktop/mobile,
+  and light/dark states. The real provider flow remains intentionally unproven.
+
+**Remaining:**
+- The prepared WorkOS form needs explicit approval to create a seven-day,
+  Pika-scoped staging API key. Securely wire the key and disabled local config,
+  then run a real school-board-account email/passcode smoke test before declaring
+  the pilot viable.
+
+## 2026-08-16 — Prove WorkOS Magic Auth with Brevo board-mail delivery
+
+**Risk profile:** runtime-platform — authentication, transactional email,
+external identity linking, and session establishment across WorkOS, Brevo, and
+Pika; disabled by default with no production deployment.
+
+**Model recommendation:** GPT-5.6 — the work crosses provider configuration,
+secret handling, identity/session boundaries, rollback, and a live delivery
+canary where fail-closed behavior matters.
+
+**Completed:**
+- Added a disabled-by-default Brevo transport for WorkOS-generated six-digit
+  Magic Auth codes. WorkOS remains responsible for code generation, expiry,
+  verification, external identity, and its encrypted session.
+- Required an explicit acknowledgement that WorkOS default Magic Auth email is
+  disabled before Brevo mode can run, preventing duplicate messages and failing
+  before challenge creation when configuration is unsafe.
+- Preserved Pika UUIDs and roles through `users.workos_user_id`, kept provider
+  details and codes out of browser responses/logs, and added refresh-safe pending
+  challenge restoration plus an explicit change-email cleanup route.
+- Proved the flow with a school-board account: Brevo delivered immediately, the
+  user entered the code, WorkOS verified it, Pika saved both sessions, and the
+  browser reached `/classrooms`. Local evidence showed one linked user, one
+  WorkOS identity, and no duplicate links.
+- Stopped the local canary, deleted temporary environment files, and restored
+  WorkOS Staging default Magic Auth email so the undeployed adapter cannot affect
+  Bara. Production systems and configuration were not changed by this slice.
+
+**Validation:**
+- Full suite passes: 4,321 tests across 504 files. Focused auth coverage (30
+  tests), TypeScript, lint, environment verification, production build, and
+  diff checks pass.
+- The disabled Preview Brevo API key produced a generic `503` and no pending
+  state; this validates failure containment but must be fixed before a hosted
+  Preview canary.
+
+**Next gate:**
+- Review and publish the pilot separately. Before Production rollout, select a
+  shared environment-wide email-delivery design that keeps Bara Hosted UI and
+  Pika's self-hosted login working without duplicate messages.

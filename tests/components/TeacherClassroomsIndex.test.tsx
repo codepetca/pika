@@ -864,7 +864,7 @@ describe('TeacherClassroomsIndex', () => {
     const openButton = screen.getByRole('button', { name: /^Math 101/ })
     fireEvent.click(openButton)
 
-    expect(push).toHaveBeenCalledWith('/classrooms/c1?tab=attendance')
+    expect(push).toHaveBeenCalledWith('/classrooms/c1?tab=daily')
     expect(openButton).toBeDisabled()
     expect(screen.getByText('Opening classroom...')).toBeInTheDocument()
   })
