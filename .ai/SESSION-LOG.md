@@ -11,106 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-08 — Add managed deletion health monitoring baseline
-
-**Risk profile:** runtime-platform — read-only production health aggregation
-across irreversible purge ledgers and managed-storage ownership.
-
-**Completed:**
-- Added migration 121 with a service-role-only, aggregate RPC for hot
-  Classroom and Course Blueprint purge failures/stalls, fence/lease drift,
-  deleted-object reappearance, and managed-storage ownership/reference drift.
-- Added an exact Zod response boundary, code-first missing-schema compatibility,
-  privacy-safe structured counts, and sanitized probe failures.
-- Integrated the probe after successful work in the existing authenticated
-  daily cleanup cron. Critical findings return 503; warning-only findings remain
-  observable without granting cleanup authority.
-- After the initial independent review of PR #980, moved recursive JSON/history
-  reconciliation out of the daily path into a separate unscheduled,
-  service-role-only diagnostic; added payload UUID/digest mismatch detection and
-  made every dependency error except the exact missing-RPC signal fail closed.
-  A targeted follow-up made evidence reconciliation registry-driven so removing
-  a payload's final managed reference cannot hide the stale registry row.
-- Documented operator response and staged rollout. Generic orphan cleanup stays
-  disabled, and no additional cron schedule or deletion capability was added.
-
-**Validation:**
-- Full Vitest passed (478 files, 4,128 tests), plus focused monitoring/migration
-  tests, TypeScript, lint, architecture boundaries, managed-storage
-  lineage, hot-Classroom purge SQL lint, production build, and diff checks.
-- After separate exact authorization, the dry run previewed only migration 121
-  and it was applied once to the dedicated local Supabase database. Rollback-only
-  database fixtures proved read-only/service-role/privacy boundaries, warning
-  and critical findings, partial/lease/reappearance detection, eight concurrent
-  readers, and a 1,000-object runtime of 9–34 ms with 6,265 shared-buffer hits.
-- The originally authorized local application predates the review correction;
-  that one-time permission was not reused. Final generated types and the revised
-  rollback fixture are gated on PR CI's fresh ephemeral migration replay. No reset, remote migration,
-  rollout change, production query, purge, or persistent Storage deletion was
-  performed; the temporary helper and all fixtures were removed. No UI changed,
-  so visual verification was not applicable.
-
-## 2026-08-09 — Deploy managed deletion health monitoring
-
-**Risk profile:** runtime-platform — production schema activation, daily cron
-monitoring, and managed-storage health visibility.
-
-**Completed:**
-- Merged `main` into protected `production` through PR #981 after the full CI,
-  database-contract, build, and browser matrix passed; Vercel confirmed
-  production commit `64e8a22a` deployed.
-- Verified the linked production Supabase project had migrations 001–120 and
-  that the dry run contained only `121_managed_deletion_health_monitoring.sql`,
-  then applied migration 121 once under exact production authorization.
-- Kept generic orphan cleanup disabled and did not invoke a purge, retry,
-  cleanup route, rollout gate, Storage deletion, or the deep JSON diagnostic.
-
-**Validation:**
-- Production migration history now records 001–121.
-- The lightweight service-role aggregate RPC returned HTTP 200 with
-  `healthy: true`, zero critical findings, zero warnings, and zero managed
-  storage or purge-protocol drift; anonymous invocation was denied with 401.
-- The production worktree is clean and synchronized with `origin/production`.
-
-## 2026-08-09 — Implement cold-archived Classroom permanent deletion
-
-**Risk profile:** runtime-platform — irreversible cold recovery loss, teacher
-authorization, exact managed Storage ownership, concurrency, and resumability.
-
-**Completed:**
-- Added independent, disabled-by-default cold-Classroom deletion using the
-  existing managed-deletion operation ledger, fences, leases, retries, and
-  monitoring; hot-Classroom and Blueprint purge behavior remains separate.
-- Bound every operation to one teacher-owned cold archive, prioritizing the
-  authoritative recovery bundle last, and preserved user accounts, reusable
-  Blueprints, other Classrooms/archives, and their managed files.
-- Added fail-closed teacher APIs, conflict/readiness checks, resumable cron
-  ticking without a new schedule, audit-safe resource hashes, and irreversible
-  confirmation UX. Generic orphan cleanup remains disabled.
-- Independent high-risk review caught and fixed two cross-scope regressions:
-  migration 122 now preserves Blueprint purge Storage-lease authority, and the
-  hot/cold safety nets filter scope and terminal failures before limiting work.
-  Regression coverage exercises both worker-starvation cases, while fresh CI
-  replay runs the existing Blueprint purge fixture and the new cold purge fixture.
-- Documented contracts, recovery-loss consequences, rollout gates, operations,
-  and tests. Added desktop/mobile teacher and student-boundary visual coverage.
-
-**Validation:**
-- Under exact local-only authorization, previewed migration history 001–121,
-  applied only `122_cold_archived_classroom_purge.sql` to the dedicated local
-  Supabase database, regenerated types, and confirmed the gate remains
-  `disabled`.
-- The rollback-only database harness passed authorization, restore-conflict,
-  tombstone fence, live-lease, retry, exact-object ordering, cleanup, audit, and
-  preservation checks, then rolled back all fixtures.
-- Full Vitest passed (483 files, 4,159 tests), plus TypeScript, lint, generated
-  type parity, production build, architecture/design/storage checks, Pika audit,
-  diff checks, and Playwright visual verification across desktop/mobile and
-  light/dark teacher states plus the student boundary.
-- No staging/production migration, rollout, purge, object deletion, or generic
-  cleanup was performed. Migration 122 and its rollout still require separate,
-  exact production authorization after merge.
-
 ## 2026-08-10 — Refine archived Classroom action terminology
 
 **Risk profile:** low — presentation-only labels, accessible icon treatment,
@@ -1226,3 +1126,104 @@ runtime, contract, schema, dependency, privacy, or UI change.
 - Updated the pilot runbook to name the required Pal migration and record that
   the code-level blocker is cleared. Applying it in a target Pal environment
   remains Pal-controlled; Pika performs no deployment or historical backfill.
+
+## 2026-08-18 — Course Package portable policy and integration (PR B)
+
+**Risk profile:** high — application-layer untrusted package semantics and
+write-path authorization; no schema migration, production operation,
+dependency, or UI change.
+
+- Added a strict package-owned Test document union. Portable packages admit
+  exact link and embedded-text records only; uploads and runtime storage or
+  snapshot fields fail before a canonical plan is produced.
+- Export construction selects portable fields explicitly and omits upload
+  documents, managed-origin URLs, and all runtime storage state.
+- Centralized origin-aware managed URL classification, including encoded paths,
+  while allowing matching paths on external origins. Parsed structured URLs are
+  authoritative; freeform Markdown scanning is defense in depth.
+- Import and repository-proposal routes now share the same bounded JSON package
+  planner once and pass only a branded verified canonical plan to server write
+  operations. Invalid input never reaches import/proposal RPC or managed-storage
+  work.
+- Added source, runtime-field, origin/encoding, direct/JSON/TAR, route parity,
+  byte-limit, and no-side-effect matrices.
+- Full verification passes 4,555 tests across 503 files, lint, type checking,
+  and the production build. Pika audit and diff checks pass. Visual verification
+  is not applicable because this change has no UI surface.
+
+**Independent review remediation:**
+- Expanded the managed-storage abstraction to cover Supabase image-render
+  routes, encoded relative paths, and trailing DNS-root aliases (including
+  encoded dots) while preserving exact scheme and port checks.
+- Added structured/freeform bundle, JSON, TAR, export-filter, import-route, and
+  proposal-route regressions for every bypass. Invalid inputs are rejected
+  before any server write-capable operation is called.
+- Remediated full verification passes 4,566 tests across 503 files, lint, type
+  checking, and the production build.
+- A targeted re-review found fully encoded leading slashes still escaped the
+  representation-specific freeform extractor. Replaced URL-shape matching with
+  bounded Markdown tokenization so literal, encoded, double-encoded, inline-link,
+  absolute, and protocol-relative candidates all reach the one classifier.
+- The second remediated full verification passes 4,573 tests across 503 files,
+  lint, type checking, and the production build.
+- After the same freeform extraction category recurred around valid object-key
+  punctuation, the human-approved third remediation moved the policy boundary:
+  any recognized managed route through a managed bucket is rejected at the
+  bucket boundary, without depending on successful object-key tokenization.
+- Added structured, freeform, JSON/TAR, import, and proposal regressions for
+  parenthesized and comma-prefixed object keys plus bucket-root object and image-
+  render routes. The third remediated full verification passes 4,583 tests
+  across 503 files, lint, type checking, and the production build.
+- A targeted security re-review found the same extraction category in URL
+  userinfo containing delimiter characters. At the required human checkpoint,
+  the owner approved a fourth remediation and extended review budget.
+- Replaced delimiter tokenization with a bounded, single-pass URL/Markdown
+  candidate scanner. It preserves complete non-whitespace destinations and
+  authorities, recognizes absolute, protocol-relative, literal-relative, and
+  encoded-relative starts, and fails closed on excessive candidate spans/counts.
+- Added bundle/JSON/TAR and import/proposal no-write regressions for `=`, `;`,
+  `,`, and `|` userinfo plus external-origin, protocol, port, and labeled-relative
+  negatives. The fourth remediated full verification passes 4,595 tests across
+  503 files, lint, type checking, and the production build.
+
+## 2026-08-19 — Close unbounded encoded-path package bypass
+
+**Risk profile:** high — untrusted package semantic boundary and write-path
+authorization; no schema migration, production operation, dependency, or UI
+change.
+
+- Rebased PR B onto `origin/main` at `370750d7`; the only conflict was historical
+  continuity archive content, resolved in favor of current `main`. No migrations
+  were added or renamed and no task stash remains.
+- Replaced fixed encoded-slash depth enumeration with a grammar-based candidate
+  recognizer: a boundary-leading percent sign, any number of encoded-percent
+  `25` layers, and a final encoded slash `2f` are handed to the centralized
+  bounded decoder. Over-depth values therefore reach its fail-closed policy.
+- Added direct bundle/JSON/TAR parity and import/proposal no-write coverage for a
+  four-times-encoded managed path, while proving ordinary percent text remains
+  portable.
+- Refreshed this worktree from the already-committed frozen lockfile after the
+  rebase so current `main`'s Pal alpha.3 tests used alpha.3 instead of stale
+  alpha.2 installation state; this PR changes no dependency declarations.
+- Full verification passes 4,611 tests across 505 files, lint, type checking,
+  and the production build. Visual verification is not applicable because this
+  change has no UI surface.
+
+## 2026-08-19 — Close proposal TAR transport parity gap
+
+**Risk profile:** high — untrusted package transport dispatch at both
+application entry points; no schema migration, production operation,
+dependency, or UI change.
+
+- Centralized content-type-aware JSON/TAR planning in the bounded package
+  request module and made both import and repository-proposal routes call it.
+  Valid exported TAR packages can now reach proposal construction through the
+  same verified canonical plan as direct JSON packages.
+- Expanded entry-point coverage so every portable semantic rejection case runs
+  through JSON and an independently encoded TAR at both routes, remains
+  response-identical, and cannot reach server or managed-storage operations.
+- Added valid JSON/TAR assertions proving import and proposal entry points pass
+  the same canonical plan downstream.
+- Full verification passes 4,613 tests across 505 files, lint, type checking,
+  and the production build. Pika audit and diff checks pass. Visual verification
+  is not applicable because this change has no UI surface.

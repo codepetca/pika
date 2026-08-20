@@ -10,7 +10,10 @@ import {
   submitClassroomBlueprintProposal,
   submitCourseBlueprintProposal,
 } from '@/lib/server/course-blueprint-proposals'
-import { buildCourseBlueprintExportBundle } from '@/lib/course-blueprint-package'
+import {
+  buildCourseBlueprintExportBundle,
+  planCourseBlueprintPackageBundle,
+} from '@/lib/course-blueprint-package'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import { hashCourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import type { CourseBlueprintDetail } from '@/types'
@@ -191,8 +194,11 @@ describe('persisted course blueprint proposals', () => {
     } satisfies CourseBlueprintDetail
     const bundle = buildCourseBlueprintExportBundle(detail)
     bundle.manifest.planned_site_published = false
+    const planned = planCourseBlueprintPackageBundle(bundle)
+    expect(planned.ok).toBe(true)
+    if (!planned.ok) return
 
-    const result = buildCourseBlueprintPackageCandidate(detail, bundle)
+    const result = buildCourseBlueprintPackageCandidate(detail, planned.plan)
 
     expect(result).toEqual(expect.objectContaining({ ok: true }))
     if (result.ok) {

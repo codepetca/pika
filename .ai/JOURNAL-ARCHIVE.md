@@ -18663,3 +18663,134 @@ cross-Classroom student lineage, managed Storage, and durable purge recovery.
 - No implementation, migration application, local reset, rollout change,
   production query, purge, or Storage deletion was performed. PR #963 remains
   closed and untouched. Awaiting approval of the scope and sequencing package.
+
+<!-- pika-session-log-archive-batch:180ef4bc467a3d8fdaeb1ed7fae60cbd007eda87ab0853bed986153b688e22b6 -->
+## 2026-08-08 — Audit remaining managed deletion scopes
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss,
+cross-Classroom student lineage, managed Storage, and durable purge recovery.
+
+**Audited:**
+- Created dedicated worktree `codex/remaining-deletion-scopes`, completed the
+  session-start workflow, and verified the local read-only schema is exactly at
+  migrations 001–120.
+- Traced cold tombstones, immutable archives, restore/compaction operations,
+  Gradex extracts, managed ownership/cleanup leases, hot/Blueprint purge
+  fences, and the complete Classroom resource graph.
+- Traced Classroom-scoped student rows, embedded JSON/provenance, managed
+  student files, existing partial roster removal, account-level data, Pal
+  ledgers, and cross-Classroom preservation boundaries.
+
+**Recommendation:**
+- Add privacy-safe read-only deletion health monitoring first, then implement
+  cold-Classroom purge and Classroom-scoped individual-student purge as
+  separate migrations and PRs with independent rollout gates.
+- Keep generic orphan cleanup disabled; neither purge scope depends on it.
+- Require cold archives to be restored before individual-student purge; do not
+  rewrite immutable archive bundles or erase user accounts/other Classrooms.
+
+**Boundary:**
+- No implementation, migration application, local reset, rollout change,
+  production query, purge, or Storage deletion was performed. PR #963 remains
+  closed and untouched. Awaiting approval of the scope and sequencing package.
+
+## 2026-08-08 — Add managed deletion health monitoring baseline
+
+**Risk profile:** runtime-platform — read-only production health aggregation
+across irreversible purge ledgers and managed-storage ownership.
+
+**Completed:**
+- Added migration 121 with a service-role-only, aggregate RPC for hot
+  Classroom and Course Blueprint purge failures/stalls, fence/lease drift,
+  deleted-object reappearance, and managed-storage ownership/reference drift.
+- Added an exact Zod response boundary, code-first missing-schema compatibility,
+  privacy-safe structured counts, and sanitized probe failures.
+- Integrated the probe after successful work in the existing authenticated
+  daily cleanup cron. Critical findings return 503; warning-only findings remain
+  observable without granting cleanup authority.
+- After the initial independent review of PR #980, moved recursive JSON/history
+  reconciliation out of the daily path into a separate unscheduled,
+  service-role-only diagnostic; added payload UUID/digest mismatch detection and
+  made every dependency error except the exact missing-RPC signal fail closed.
+  A targeted follow-up made evidence reconciliation registry-driven so removing
+  a payload's final managed reference cannot hide the stale registry row.
+- Documented operator response and staged rollout. Generic orphan cleanup stays
+  disabled, and no additional cron schedule or deletion capability was added.
+
+**Validation:**
+- Full Vitest passed (478 files, 4,128 tests), plus focused monitoring/migration
+  tests, TypeScript, lint, architecture boundaries, managed-storage
+  lineage, hot-Classroom purge SQL lint, production build, and diff checks.
+- After separate exact authorization, the dry run previewed only migration 121
+  and it was applied once to the dedicated local Supabase database. Rollback-only
+  database fixtures proved read-only/service-role/privacy boundaries, warning
+  and critical findings, partial/lease/reappearance detection, eight concurrent
+  readers, and a 1,000-object runtime of 9–34 ms with 6,265 shared-buffer hits.
+- The originally authorized local application predates the review correction;
+  that one-time permission was not reused. Final generated types and the revised
+  rollback fixture are gated on PR CI's fresh ephemeral migration replay. No reset, remote migration,
+  rollout change, production query, purge, or persistent Storage deletion was
+  performed; the temporary helper and all fixtures were removed. No UI changed,
+  so visual verification was not applicable.
+
+## 2026-08-09 — Deploy managed deletion health monitoring
+
+**Risk profile:** runtime-platform — production schema activation, daily cron
+monitoring, and managed-storage health visibility.
+
+**Completed:**
+- Merged `main` into protected `production` through PR #981 after the full CI,
+  database-contract, build, and browser matrix passed; Vercel confirmed
+  production commit `64e8a22a` deployed.
+- Verified the linked production Supabase project had migrations 001–120 and
+  that the dry run contained only `121_managed_deletion_health_monitoring.sql`,
+  then applied migration 121 once under exact production authorization.
+- Kept generic orphan cleanup disabled and did not invoke a purge, retry,
+  cleanup route, rollout gate, Storage deletion, or the deep JSON diagnostic.
+
+**Validation:**
+- Production migration history now records 001–121.
+- The lightweight service-role aggregate RPC returned HTTP 200 with
+  `healthy: true`, zero critical findings, zero warnings, and zero managed
+  storage or purge-protocol drift; anonymous invocation was denied with 401.
+- The production worktree is clean and synchronized with `origin/production`.
+
+<!-- pika-session-log-archive-batch:ae3efa0600f31350c79052bf0ba27430a4c848a8323ccabb3d55ce2dfba94615 -->
+## 2026-08-09 — Implement cold-archived Classroom permanent deletion
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss, teacher
+authorization, exact managed Storage ownership, concurrency, and resumability.
+
+**Completed:**
+- Added independent, disabled-by-default cold-Classroom deletion using the
+  existing managed-deletion operation ledger, fences, leases, retries, and
+  monitoring; hot-Classroom and Blueprint purge behavior remains separate.
+- Bound every operation to one teacher-owned cold archive, prioritizing the
+  authoritative recovery bundle last, and preserved user accounts, reusable
+  Blueprints, other Classrooms/archives, and their managed files.
+- Added fail-closed teacher APIs, conflict/readiness checks, resumable cron
+  ticking without a new schedule, audit-safe resource hashes, and irreversible
+  confirmation UX. Generic orphan cleanup remains disabled.
+- Independent high-risk review caught and fixed two cross-scope regressions:
+  migration 122 now preserves Blueprint purge Storage-lease authority, and the
+  hot/cold safety nets filter scope and terminal failures before limiting work.
+  Regression coverage exercises both worker-starvation cases, while fresh CI
+  replay runs the existing Blueprint purge fixture and the new cold purge fixture.
+- Documented contracts, recovery-loss consequences, rollout gates, operations,
+  and tests. Added desktop/mobile teacher and student-boundary visual coverage.
+
+**Validation:**
+- Under exact local-only authorization, previewed migration history 001–121,
+  applied only `122_cold_archived_classroom_purge.sql` to the dedicated local
+  Supabase database, regenerated types, and confirmed the gate remains
+  `disabled`.
+- The rollback-only database harness passed authorization, restore-conflict,
+  tombstone fence, live-lease, retry, exact-object ordering, cleanup, audit, and
+  preservation checks, then rolled back all fixtures.
+- Full Vitest passed (483 files, 4,159 tests), plus TypeScript, lint, generated
+  type parity, production build, architecture/design/storage checks, Pika audit,
+  diff checks, and Playwright visual verification across desktop/mobile and
+  light/dark teacher states plus the student boundary.
+- No staging/production migration, rollout, purge, object deletion, or generic
+  cleanup was performed. Migration 122 and its rollout still require separate,
+  exact production authorization after merge.
