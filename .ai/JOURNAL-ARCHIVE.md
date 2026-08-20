@@ -18794,3 +18794,25 @@ authorization, exact managed Storage ownership, concurrency, and resumability.
 - No staging/production migration, rollout, purge, object deletion, or generic
   cleanup was performed. Migration 122 and its rollout still require separate,
   exact production authorization after merge.
+
+<!-- pika-session-log-archive-batch:9e1d59e534fc5b02c45a55e0ba0c18508d8cbee08ee7b3442c853caf09c67d06 -->
+## 2026-08-10 — Refine archived Classroom action terminology
+
+**Risk profile:** low — presentation-only labels, accessible icon treatment,
+and focused regression coverage; no lifecycle behavior or rollout gates changed.
+
+**Completed:**
+- Renamed the hot-archive actions from “Use again” to “Reuse” and from
+  “Restore” to “Unarchive,” including the confirmation dialog and supporting
+  copy. Cold-archive recovery remains “Restore.”
+- Replaced the permanent-delete text action with the standard trash icon while
+  retaining the accessible “Delete permanently” name and tooltip.
+- Added component assertions and a focused teacher/student visual matrix for
+  desktop/mobile and light/dark modes.
+
+**Validation:**
+- Focused Vitest passed (2 files, 23 tests), lint passed, and the isolated
+  Playwright matrix passed (3 tests, including auth setup).
+- Screenshots were visually reviewed for all teacher matrices and the student
+  boundary. No database, migration, API behavior, feature gate, or destructive
+  operation changed.

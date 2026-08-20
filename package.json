@@ -45,7 +45,7 @@
     "e2e:verify": "tsx e2e/verify/run.ts",
     "e2e:snapshots": "playwright test e2e/ui-snapshots.spec.ts",
     "e2e:snapshots:update": "playwright test e2e/ui-snapshots.spec.ts --update-snapshots",
-    "seed": "tsx scripts/seed.ts",
+    "seed": "tsx scripts/seed.ts && tsx scripts/seed-planned-course.ts",
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "seed:gld2o": "tsx scripts/seed-gld2o.ts",
     "smoke:gradex:assignment": "tsx scripts/gradex-assignment-smoke.ts",

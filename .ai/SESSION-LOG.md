@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-10 — Refine archived Classroom action terminology
-
-**Risk profile:** low — presentation-only labels, accessible icon treatment,
-and focused regression coverage; no lifecycle behavior or rollout gates changed.
-
-**Completed:**
-- Renamed the hot-archive actions from “Use again” to “Reuse” and from
-  “Restore” to “Unarchive,” including the confirmation dialog and supporting
-  copy. Cold-archive recovery remains “Restore.”
-- Replaced the permanent-delete text action with the standard trash icon while
-  retaining the accessible “Delete permanently” name and tooltip.
-- Added component assertions and a focused teacher/student visual matrix for
-  desktop/mobile and light/dark modes.
-
-**Validation:**
-- Focused Vitest passed (2 files, 23 tests), lint passed, and the isolated
-  Playwright matrix passed (3 tests, including auth setup).
-- Screenshots were visually reviewed for all teacher matrices and the student
-  boundary. No database, migration, API behavior, feature gate, or destructive
-  operation changed.
-
 ## 2026-08-10 — Add Student Tests live-status accessibility
 
 **Risk profile:** exam-mode, workspace-state — student test announcements and
@@ -1227,3 +1206,35 @@ dependency, or UI change.
 - Full verification passes 4,613 tests across 505 files, lint, type checking,
   and the production build. Pika audit and diff checks pass. Visual verification
   is not applicable because this change has no UI surface.
+
+## 2026-08-20 — Verify public planned-course sites
+
+**Risk profile:** runtime-platform — public content-exposure and publication
+lifecycle behavior; no migration, production operation, dependency, archive
+cleanup, or Gradex change.
+
+**Completed:**
+- Added deterministic published and unpublished planned-course fixtures to the
+  standard local/CI seed path without coupling them to the legacy seed runner.
+- Reworked `/planned/[slug]` into a scan-friendly section layout with semantic
+  headings, keyboard-visible section navigation, responsive containment, and
+  consistent Tests terminology.
+- Added a route-specific generic not-found state so unpublished and unknown
+  slugs share the same privacy-preserving response.
+- Added component and Playwright coverage for publish/unpublish behavior,
+  desktop/mobile light/dark rendering, keyboard focus, overflow, safe resource
+  links, and exclusion of private prompts, answer keys, documents, and IDs.
+
+**Validation:**
+- `pnpm seed` passes with the isolated planned-course fixture runner.
+- Full verification passes 4,614 tests across 506 files, lint, type checking,
+  and the production build. Architecture, UI policy, design policy, Pika audit,
+  and diff checks pass.
+- The final Playwright experience matrix passes 36 tests with 14 intentional
+  project skips. All eight published/not-found desktop/mobile light/dark
+  screenshots were visually reviewed with no overflow or overlap findings.
+- Composite-widget checklist reviewed: keyboard behavior and semantic section
+  navigation are covered; no manual follow-up remains.
+
+**Model recommendation:** Sol with high reasoning for the public content-
+exposure boundary and cross-route publication lifecycle.
