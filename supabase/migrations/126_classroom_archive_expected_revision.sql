@@ -21,11 +21,14 @@ declare
   v_teacher_id uuid;
   v_archived_at timestamptz;
   v_revision bigint;
+  v_operation_source_revision bigint;
 begin
   if p_expected_source_revision is null or p_expected_source_revision < 0 then
     raise exception 'Invalid expected classroom archive source revision'
       using errcode = '22023';
   end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
 
   select classroom.teacher_id, classroom.archived_at, revision.revision
   into v_teacher_id, v_archived_at, v_revision
@@ -66,6 +69,25 @@ begin
     );
   end if;
   if v_revision <> p_expected_source_revision then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'classroom_archive_source_revision_changed',
+      'error', 'Classroom archive status changed; refresh before creating a recovery copy',
+      'retryable', false
+    );
+  end if;
+
+  select operation.source_revision
+  into v_operation_source_revision
+  from public.classroom_archive_operations operation
+  where operation.id = p_operation_id
+    and operation.teacher_id = p_teacher_id
+    and operation.classroom_id = p_classroom_id
+    and operation.operation_type = 'export';
+
+  if found and v_operation_source_revision <> p_expected_source_revision then
     return jsonb_build_object(
       'ok', false,
       'status', 409,

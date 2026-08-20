@@ -124,39 +124,59 @@ begin
   select revision into v_revision
   from public.classroom_archive_revisions
   where classroom_id = v_classroom_id;
-  v_result := public.begin_classroom_archive_export_v2_expected_revision(
-    v_rejected_operation_id,
-    v_teacher_id,
-    v_classroom_id,
-    repeat('a', 64),
-    '107_classroom_archive_v2_direct_source',
-    'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
-    2,
-    2,
-    v_revision - 1
-  );
-  if v_result->>'error_code' <> 'classroom_archive_source_revision_changed'
-    or exists (
-      select 1 from public.classroom_archive_operations
-      where id = v_rejected_operation_id
-    )
-  then
-    raise exception 'Stale archive lifecycle was not rejected before operation creation: %', v_result;
+  if to_regprocedure(
+    'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)'
+  ) is not null then
+    v_result := public.begin_classroom_archive_export_v2_expected_revision(
+      v_rejected_operation_id,
+      v_teacher_id,
+      v_classroom_id,
+      repeat('a', 64),
+      '107_classroom_archive_v2_direct_source',
+      'abcdef1',
+      '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+      2,
+      2,
+      v_revision - 1
+    );
+    if v_result->>'error_code' <> 'classroom_archive_source_revision_changed'
+      or exists (
+        select 1 from public.classroom_archive_operations
+        where id = v_rejected_operation_id
+      )
+    then
+      raise exception 'Stale archive lifecycle was not rejected before operation creation: %', v_result;
+    end if;
   end if;
 
-  v_result := public.begin_classroom_archive_export_v2_expected_revision(
-    v_stale_operation_id,
-    v_teacher_id,
-    v_classroom_id,
-    repeat('a', 64),
-    '107_classroom_archive_v2_direct_source',
-    'abcdef1',
-    '{"mode":"teacher_managed","delete_after":null}'::jsonb,
-    2,
-    2,
-    v_revision
-  );
+  if to_regprocedure(
+    'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)'
+  ) is not null then
+    v_result := public.begin_classroom_archive_export_v2_expected_revision(
+      v_stale_operation_id,
+      v_teacher_id,
+      v_classroom_id,
+      repeat('a', 64),
+      '107_classroom_archive_v2_direct_source',
+      'abcdef1',
+      '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+      2,
+      2,
+      v_revision
+    );
+  else
+    v_result := public.begin_classroom_archive_export_v2(
+      v_stale_operation_id,
+      v_teacher_id,
+      v_classroom_id,
+      repeat('a', 64),
+      '107_classroom_archive_v2_direct_source',
+      'abcdef1',
+      '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+      2,
+      2
+    );
+  end if;
   if not coalesce((v_result->>'ok')::boolean, false) then
     raise exception 'Archived classroom snapshot failed: %', v_result;
   end if;
@@ -190,6 +210,32 @@ begin
       and key in ('password_hash', 'workos_user_id', 'session', 'token')
   ) then
     raise exception 'Actor snapshot contains a forbidden credential field';
+  end if;
+
+  if to_regprocedure(
+    'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)'
+  ) is not null then
+    update public.classrooms
+    set title = 'Archive contract classroom revised'
+    where id = v_classroom_id;
+    select revision into v_revision
+    from public.classroom_archive_revisions
+    where classroom_id = v_classroom_id;
+    v_result := public.begin_classroom_archive_export_v2_expected_revision(
+      v_stale_operation_id,
+      v_teacher_id,
+      v_classroom_id,
+      repeat('a', 64),
+      '107_classroom_archive_v2_direct_source',
+      'abcdef1',
+      '{"mode":"teacher_managed","delete_after":null}'::jsonb,
+      2,
+      2,
+      v_revision
+    );
+    if v_result->>'error_code' <> 'classroom_archive_source_revision_changed' then
+      raise exception 'Prior-revision operation unexpectedly replayed after source revision changed: %', v_result;
+    end if;
   end if;
 
   v_replay := public.begin_classroom_archive_export_v2(
@@ -440,19 +486,23 @@ begin
   ) then
     raise exception 'Service role cannot execute archive begin RPC';
   end if;
-  if has_function_privilege(
-    'authenticated',
-    'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)',
-    'EXECUTE'
-  ) then
-    raise exception 'Authenticated role can execute expected-revision archive begin RPC';
-  end if;
-  if not has_function_privilege(
-    'service_role',
-    'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)',
-    'EXECUTE'
-  ) then
-    raise exception 'Service role cannot execute expected-revision archive begin RPC';
+  if to_regprocedure(
+    'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)'
+  ) is not null then
+    if has_function_privilege(
+      'authenticated',
+      'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)',
+      'EXECUTE'
+    ) then
+      raise exception 'Authenticated role can execute expected-revision archive begin RPC';
+    end if;
+    if not has_function_privilege(
+      'service_role',
+      'public.begin_classroom_archive_export_v2_expected_revision(uuid,uuid,uuid,text,text,text,jsonb,integer,integer,bigint)',
+      'EXECUTE'
+    ) then
+      raise exception 'Service role cannot execute expected-revision archive begin RPC';
+    end if;
   end if;
 end;
 $security$;

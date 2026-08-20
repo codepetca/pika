@@ -1251,7 +1251,8 @@ compatibility, test, UX, and documentation review.
 
 **Risk profile:** data-security — authenticated archive status, revision-fenced
 export, and the existing gated archive operation. Migration 126 adds the atomic
-expected-source-revision fence; it is applied to shared local only, not production.
+expected-source-revision fence. Its first definition was applied to shared local;
+the final reviewed definition needs reapplication. Nothing was applied to production.
 
 **Completed:**
 - Added a strict teacher-scoped recovery summary for hot archived Classrooms.
@@ -1293,8 +1294,12 @@ expected-source-revision fence; it is applied to shared local only, not producti
   text-plus-icon, confirmation uses the canonical dialog, and no manual
   follow-up remains.
 - Shared local Supabase was reset on this branch and replayed migrations
-  001-126. Generated types match, and the live archive database contract passes.
-  The concurrent Bara migration must be resequenced to 127 after this PR merges.
+  001-126. Review then found and fixed prior-revision operation replay; the final
+  migration replays and passes the live contract in a disposable 001-126 database,
+  while shared local awaits exact reapplication authorization. The concurrent
+  Bara migration must be resequenced to 127 after this PR merges.
+- The migration-126 assertions now run only when its RPC exists, so the legacy
+  migration-108 Quiz compatibility database contract continues to pass.
 
 **Model recommendation:** Sol with high reasoning for the final archive
 authorization, idempotency, privacy, and lifecycle-state review.

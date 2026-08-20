@@ -96,6 +96,10 @@ function isResumableHotArchiveOperation(
 ): boolean {
   const operation = recovery?.latest_operation
   if (!operation) return false
+  if (
+    recovery.current_revision === null
+    || operation.source_revision !== recovery.current_revision
+  ) return false
   const canRetry = operation.status === 'snapshot_ready'
     || (operation.status === 'failed' && operation.retryable)
   if (!canRetry) return false
@@ -108,7 +112,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
   const coldRestoreOperationIdsRef = useRef(new Map<string, string>())
-  const hotArchiveOperationIdsRef = useRef(new Map<string, string>())
+  const hotArchiveOperationIdsRef = useRef(new Map<
+    string,
+    { operationId: string; sourceRevision: number }
+  >())
   const reuseOperationIdsRef = useRef(new Map<string, string>())
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
@@ -178,9 +185,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setHotArchiveRecovery(state.hotArchiveRecovery ?? [])
       setHotArchiveRecoveryStatusAvailable(state.hotArchiveRecoveryStatusAvailable ?? true)
       for (const recovery of state.hotArchiveRecovery ?? []) {
+        const retainedOperation = hotArchiveOperationIdsRef.current.get(recovery.classroom_id)
         if (
-          recovery.current_revision !== null
-          && recovery.latest_archive?.source_revision === recovery.current_revision
+          recovery.current_revision !== null && (
+            retainedOperation?.sourceRevision !== recovery.current_revision
+            || recovery.latest_archive?.source_revision === recovery.current_revision
+          )
         ) {
           hotArchiveOperationIdsRef.current.delete(recovery.classroom_id)
         }
@@ -350,12 +360,21 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   ) {
     const resumableOperation = recovery?.latest_operation
     if (resumableOperation && isResumableHotArchiveOperation(recovery)) {
-      hotArchiveOperationIdsRef.current.set(classroom.id, resumableOperation.operation_id)
-    } else if (!hotArchiveOperationIdsRef.current.has(classroom.id)) {
-      hotArchiveOperationIdsRef.current.set(classroom.id, await classroomArchiveOperationId({
-        classroomId: classroom.id,
-        archivedAt: classroom.archived_at || classroom.updated_at,
-      }))
+      hotArchiveOperationIdsRef.current.set(classroom.id, {
+        operationId: resumableOperation.operation_id,
+        sourceRevision: resumableOperation.source_revision,
+      })
+    } else if (
+      recovery.current_revision !== null
+      && !hotArchiveOperationIdsRef.current.has(classroom.id)
+    ) {
+      hotArchiveOperationIdsRef.current.set(classroom.id, {
+        operationId: await classroomArchiveOperationId({
+          classroomId: classroom.id,
+          archivedAt: classroom.archived_at || classroom.updated_at,
+        }),
+        sourceRevision: recovery.current_revision,
+      })
     }
     setPendingAction({ mode: 'export-hot', classroom, recovery })
   }
@@ -364,13 +383,19 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     classroom: Classroom,
     recovery: ClassroomHotArchiveRecoverySummary,
   ) {
-    const operationId = hotArchiveOperationIdsRef.current.get(classroom.id)
-    if (!operationId) return
+    const retainedOperation = hotArchiveOperationIdsRef.current.get(classroom.id)
+    if (!retainedOperation) return
     const expectedSourceRevision = recovery.current_revision
     if (expectedSourceRevision === null) {
       setError('Recovery-copy status must be refreshed before creating a copy')
       return
     }
+    if (retainedOperation.sourceRevision !== expectedSourceRevision) {
+      hotArchiveOperationIdsRef.current.delete(classroom.id)
+      setError('Recovery-copy status changed; create the copy again')
+      return
+    }
+    const operationId = retainedOperation.operationId
     const retention = isResumableHotArchiveOperation(recovery)
       ? recovery.latest_operation!.retention
       : { mode: 'teacher_managed' as const, delete_after: null }

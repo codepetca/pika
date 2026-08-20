@@ -409,6 +409,68 @@ describe('TeacherClassroomsIndex', () => {
     expect(archiveOperationId).toHaveBeenCalledTimes(1)
   })
 
+  it('drops a retained operation id when refreshed recovery state advances revision', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000042'
+    const oldOperationId = '00000000-0000-5000-8000-000000000043'
+    const newOperationId = '00000000-0000-5000-8000-000000000044'
+    const recovery = (revision: number, archivedAt: string) => ({
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived Geography',
+        archived_at: archivedAt,
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        current_revision: revision,
+        export_available: true,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState)
+      .mockResolvedValueOnce(recovery(7, '2026-04-01T12:00:00Z'))
+      .mockRejectedValueOnce(new Error('Status refresh failed'))
+      .mockResolvedValueOnce(recovery(8, '2026-04-02T12:00:00Z'))
+    archiveOperationId
+      .mockResolvedValueOnce(oldOperationId)
+      .mockResolvedValueOnce(newOperationId)
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true, operation_id: oldOperationId }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Still processing', retryable: true }),
+      })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Create recovery copy' }))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+    expect(await screen.findByText('Status refresh failed')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Active' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(3))
+    fireEvent.click(screen.getByRole('button', { name: 'Create recovery copy' }))
+    dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+
+    expect(fetchMock.mock.calls.map(([, init]) => ({
+      key: (init?.headers as Record<string, string>)['Idempotency-Key'],
+      revision: JSON.parse(String(init?.body)).expected_source_revision,
+    }))).toEqual([
+      { key: oldOperationId, revision: 7 },
+      { key: newOperationId, revision: 8 },
+    ])
+  })
+
   it('shows a stale verified copy and offers a current recovery copy', async () => {
     const classroomId = '00000000-0000-4000-8000-000000000050'
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
