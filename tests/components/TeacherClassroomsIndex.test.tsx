@@ -206,6 +206,147 @@ describe('TeacherClassroomsIndex', () => {
     expect(within(dialog).getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
   })
 
+  it('creates a verified recovery copy with one stable idempotency key across retries', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000010'
+    const operationId = '00000000-0000-4000-8000-000000000011'
+    const archived = createMockClassroom({
+      id: classroomId,
+      title: 'Archived Biology',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
+      coldClassroomPurgeEnabledIds: [],
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        export_available: true,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    })
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(operationId)
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error: 'Archive service is temporarily unavailable',
+        retryable: true,
+      }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    const createButton = await screen.findByRole('button', { name: 'Create recovery copy' })
+    fireEvent.click(createButton)
+    let dialog = screen.getByRole('dialog', { name: 'Create a recovery copy of Archived Biology?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+    expect(await screen.findByText('Archive service is temporarily unavailable')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create recovery copy' }))
+    dialog = screen.getByRole('dialog', { name: 'Create a recovery copy of Archived Biology?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+
+    for (const [url, init] of fetchMock.mock.calls) {
+      expect(url).toBe(`/api/teacher/classrooms/${classroomId}/archives`)
+      expect(init).toMatchObject({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': operationId,
+        },
+      })
+      expect(JSON.parse(String(init?.body))).toEqual({
+        retention: { mode: 'teacher_managed', delete_after: null },
+      })
+    }
+  })
+
+  it('shows verified recovery evidence without offering a duplicate export', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000020'
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived Physics',
+        archived_at: '2026-04-01T12:00:00Z',
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotClassroomPurgeEnabledIds: [],
+      coldClassroomPurgeEnabledIds: [],
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        export_available: true,
+        latest_archive: {
+          archive_id: '00000000-0000-4000-8000-000000000021',
+          created_at: '2026-08-19T14:00:00.000Z',
+          verified_at: '2026-08-19T14:01:00.000Z',
+          compressed_byte_size: 2_489_962,
+          retention: { mode: 'teacher_managed', delete_after: null },
+        },
+        latest_operation: null,
+      }],
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByText('Recovery copy verified')).toBeInTheDocument()
+    expect(screen.getByText(/2\.4 MB/)).toBeInTheDocument()
+    expect(screen.getByText(/Kept until you delete it/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create recovery copy' })).not.toBeInTheDocument()
+  })
+
+  it('resumes an interrupted recovery copy with its server operation id after reload', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000030'
+    const operationId = '00000000-0000-4000-8000-000000000031'
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived Chemistry',
+        archived_at: '2026-04-01T12:00:00Z',
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        export_available: true,
+        latest_archive: null,
+        latest_operation: {
+          operation_id: operationId,
+          status: 'snapshot_ready',
+          retryable: null,
+          updated_at: '2026-08-19T14:01:00.000Z',
+        },
+      }],
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Still processing', retryable: true }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume recovery copy' }))
+    const dialog = screen.getByRole('dialog', {
+      name: 'Create a recovery copy of Archived Chemistry?',
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${classroomId}/archives`,
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Idempotency-Key': operationId }),
+      }),
+    ))
+  })
+
   it('prepares an archived classroom and opens creation with its Blueprint selected', async () => {
     const archived = createMockClassroom({
       id: 'archived-1',

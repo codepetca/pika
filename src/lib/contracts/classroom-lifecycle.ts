@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { classroomArchiveRetentionSchema } from '@/lib/contracts/classroom-artifacts'
 
 export const classroomLifecycleStateSchema = z.enum([
   'active',
@@ -16,16 +17,42 @@ export const classroomColdArchiveSummarySchema = z.object({
   compacted_at: z.string().datetime({ offset: true }),
 }).strict()
 
+export const classroomHotArchiveVerifiedCopySchema = z.object({
+  archive_id: z.string().uuid(),
+  created_at: z.string().datetime({ offset: true }),
+  verified_at: z.string().datetime({ offset: true }),
+  compressed_byte_size: z.number().int().positive(),
+  retention: classroomArchiveRetentionSchema,
+}).strict()
+
+export const classroomHotArchiveOperationSummarySchema = z.object({
+  operation_id: z.string().uuid(),
+  status: z.enum(['snapshot_ready', 'completed', 'failed']),
+  retryable: z.boolean().nullable(),
+  updated_at: z.string().datetime({ offset: true }),
+}).strict()
+
+export const classroomHotArchiveRecoverySummarySchema = z.object({
+  classroom_id: z.string().uuid(),
+  export_available: z.boolean(),
+  latest_archive: classroomHotArchiveVerifiedCopySchema.nullable(),
+  latest_operation: classroomHotArchiveOperationSummarySchema.nullable(),
+}).strict()
+
 export const teacherArchivedClassroomRecoverySchema = z.object({
   cold_archives: z.array(classroomColdArchiveSummarySchema),
   cold_archive_restore_enabled: z.boolean(),
   hot_classroom_purge_enabled_ids: z.array(z.string().uuid()).default([]),
   cold_classroom_purge_enabled_ids: z.array(z.string().uuid()).default([]),
+  hot_archive_recovery: z.array(classroomHotArchiveRecoverySummarySchema).default([]),
 }).strict()
 
 export type ClassroomColdArchiveSummary = z.infer<typeof classroomColdArchiveSummarySchema>
 export type TeacherArchivedClassroomRecovery = z.infer<
   typeof teacherArchivedClassroomRecoverySchema
+>
+export type ClassroomHotArchiveRecoverySummary = z.infer<
+  typeof classroomHotArchiveRecoverySummarySchema
 >
 
 export const classroomArchiveReadBackVerificationSchema = z.object({

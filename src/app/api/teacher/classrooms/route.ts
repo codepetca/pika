@@ -7,6 +7,7 @@ import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
+import { listTeacherHotArchiveRecovery } from '@/lib/server/classroom-archive-status'
 import {
   listColdClassroomPurgeEnabledIds,
   listHotClassroomPurgeEnabledIds,
@@ -41,20 +42,30 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       throw new ApiError(status, 'Failed to fetch classroom archives')
     }
 
-    const [hotClassroomPurgeEnabledIds, coldClassroomPurgeEnabledIds] = await Promise.all([
+    const hotClassroomIds = archived.hot_classrooms.flatMap((classroom) =>
+      typeof classroom.id === 'string' ? [classroom.id] : [],
+    )
+    const [hotClassroomPurgeEnabledIds, coldClassroomPurgeEnabledIds, hotArchiveRecovery] = await Promise.all([
       listHotClassroomPurgeEnabledIds({
         supabase,
         teacherId: user.id,
-        hotClassroomIds: archived.hot_classrooms.flatMap((classroom) =>
-          typeof classroom.id === 'string' ? [classroom.id] : [],
-        ),
+        hotClassroomIds,
       }),
       listColdClassroomPurgeEnabledIds({
         supabase,
         teacherId: user.id,
         coldClassroomIds: archived.cold_archives.map((archive) => archive.classroom_id),
       }),
+      listTeacherHotArchiveRecovery({
+        supabase,
+        teacherId: user.id,
+        classroomIds: hotClassroomIds,
+      }),
     ])
+    if (!hotArchiveRecovery.ok) {
+      console.error('Error fetching hot classroom archive recovery state:', hotArchiveRecovery.error_code)
+      throw new ApiError(500, 'Failed to fetch classroom archive recovery status')
+    }
 
     return NextResponse.json({
       classrooms: hydrateClassroomRecords(archived.hot_classrooms as Record<string, any>[]),
@@ -62,6 +73,7 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       cold_archive_restore_enabled: archived.cold_archive_restore_enabled,
       hot_classroom_purge_enabled_ids: hotClassroomPurgeEnabledIds,
       cold_classroom_purge_enabled_ids: coldClassroomPurgeEnabledIds,
+      hot_archive_recovery: hotArchiveRecovery.summaries,
     })
   }
 

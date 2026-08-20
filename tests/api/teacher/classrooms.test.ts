@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
+import { listTeacherHotArchiveRecovery } from '@/lib/server/classroom-archive-status'
 import {
   listColdClassroomPurgeEnabledIds,
   listHotClassroomPurgeEnabledIds,
@@ -31,6 +32,9 @@ vi.mock('@/lib/server/classroom-order', () => ({
 vi.mock('@/lib/server/classroom-archive-recovery-list', () => ({
   listTeacherArchivedClassrooms: vi.fn(),
 }))
+vi.mock('@/lib/server/classroom-archive-status', () => ({
+  listTeacherHotArchiveRecovery: vi.fn(),
+}))
 vi.mock('@/lib/server/classroom-purge-availability', () => ({
   listColdClassroomPurgeEnabledIds: vi.fn(),
   listHotClassroomPurgeEnabledIds: vi.fn(),
@@ -53,6 +57,7 @@ describe('GET /api/teacher/classrooms', () => {
     })
     vi.mocked(listHotClassroomPurgeEnabledIds).mockResolvedValue([])
     vi.mocked(listColdClassroomPurgeEnabledIds).mockResolvedValue([])
+    vi.mocked(listTeacherHotArchiveRecovery).mockResolvedValue({ ok: true, summaries: [] })
   })
 
   it('should return list of active teacher classrooms', async () => {
@@ -69,7 +74,10 @@ describe('GET /api/teacher/classrooms', () => {
   it('should return archived classrooms when requested', async () => {
     vi.mocked(listTeacherArchivedClassrooms).mockResolvedValueOnce({
       ok: true,
-      hot_classrooms: [{ id: 'classroom-archived', title: 'History 101' }],
+      hot_classrooms: [{
+        id: '00000000-0000-4000-8000-000000000010',
+        title: 'History 101',
+      }],
       cold_archives: [{
         classroom_id: '00000000-0000-4000-8000-000000000001',
         archive_id: '00000000-0000-4000-8000-000000000002',
@@ -79,10 +87,21 @@ describe('GET /api/teacher/classrooms', () => {
       }],
       cold_archive_restore_enabled: true,
     })
-    vi.mocked(listHotClassroomPurgeEnabledIds).mockResolvedValueOnce(['classroom-archived'])
+    vi.mocked(listHotClassroomPurgeEnabledIds).mockResolvedValueOnce([
+      '00000000-0000-4000-8000-000000000010',
+    ])
     vi.mocked(listColdClassroomPurgeEnabledIds).mockResolvedValueOnce([
       '00000000-0000-4000-8000-000000000001',
     ])
+    vi.mocked(listTeacherHotArchiveRecovery).mockResolvedValueOnce({
+      ok: true,
+      summaries: [{
+        classroom_id: '00000000-0000-4000-8000-000000000010',
+        export_available: false,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms?archived=true')
     const response = await GET(request)
@@ -92,9 +111,16 @@ describe('GET /api/teacher/classrooms', () => {
     expect(data.classrooms).toHaveLength(1)
     expect(data.cold_archives).toHaveLength(1)
     expect(data.cold_archive_restore_enabled).toBe(true)
-    expect(data.hot_classroom_purge_enabled_ids).toEqual(['classroom-archived'])
+    expect(data.hot_classroom_purge_enabled_ids).toEqual([
+      '00000000-0000-4000-8000-000000000010',
+    ])
     expect(data.cold_classroom_purge_enabled_ids).toEqual([
       '00000000-0000-4000-8000-000000000001',
+    ])
+    expect(data.hot_archive_recovery).toEqual([
+      expect.objectContaining({
+        classroom_id: '00000000-0000-4000-8000-000000000010',
+      }),
     ])
     expect(listTeacherArchivedClassrooms).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
@@ -103,12 +129,17 @@ describe('GET /api/teacher/classrooms', () => {
     expect(listHotClassroomPurgeEnabledIds).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
       teacherId: 'teacher-1',
-      hotClassroomIds: ['classroom-archived'],
+      hotClassroomIds: ['00000000-0000-4000-8000-000000000010'],
     })
     expect(listColdClassroomPurgeEnabledIds).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
       teacherId: 'teacher-1',
       coldClassroomIds: ['00000000-0000-4000-8000-000000000001'],
+    })
+    expect(listTeacherHotArchiveRecovery).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      teacherId: 'teacher-1',
+      classroomIds: ['00000000-0000-4000-8000-000000000010'],
     })
   })
 
@@ -141,6 +172,31 @@ describe('GET /api/teacher/classrooms', () => {
     expect(response.status).toBe(503)
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
       error: 'Failed to fetch classroom archives',
+    }))
+  })
+
+  it('fails closed when hot archive recovery status cannot be loaded', async () => {
+    vi.mocked(listTeacherArchivedClassrooms).mockResolvedValueOnce({
+      ok: true,
+      hot_classrooms: [{
+        id: '00000000-0000-4000-8000-000000000010',
+        title: 'Archived Biology',
+      }],
+      cold_archives: [],
+      cold_archive_restore_enabled: false,
+    })
+    vi.mocked(listTeacherHotArchiveRecovery).mockResolvedValueOnce({
+      ok: false,
+      error_code: 'hot_archive_recovery_list_failed',
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms?archived=true',
+    ))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error: 'Failed to fetch classroom archive recovery status',
     }))
   })
 })

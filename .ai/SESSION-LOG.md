@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-10 — Compact teacher Daily log table
-
-**Risk profile:** none — presentation and client-side table ordering only.
-
-**Completed:**
-- Reduced the First, Last, and ID column widths in the teacher Daily table so
-  the log preview receives more horizontal space.
-- Removed the standalone attendance-status column and combined its row marker,
-  Complete/Incomplete counts, and sortable behavior into the Log column.
-- Added accessible completion labels and preserved Log sorting in both the
-  full-width table and selected-student workspace.
-- Independent PR review caught that the Complete/Incomplete count badges were
-  hidden after selecting a student; restored them in the selected workspace
-  and added a regression assertion for the accessible count label.
-- Removed the stale arbitrary-spacing exception for the deleted status-column
-  width.
-
-**Validation:**
-- Focused component coverage passes (17 tests), including Enter/Space
-  activation, ascending and descending Complete/Incomplete sorting, focus, and
-  sortable-header semantics.
-- Lint, architecture, design policy, UI policy, and diff checks pass.
-- Playwright experience matrix passes (18 tests) across teacher/student,
-  desktop/mobile, and light/dark; screenshots of the teacher default and sorted
-  states show no page overflow or broken layout.
-- The selected-student remediation was visually rechecked in teacher
-  desktop/mobile and light/dark states with no horizontal page overflow.
-
 ## 2026-08-10 — Standardize resizable Daily columns
 
 **Risk profile:** none — shared client-side table layout behavior only.
@@ -1274,3 +1246,42 @@ dependency, deletion endpoint, or archive-lifecycle change.
 **Model recommendation:** Sol with high reasoning for final atomic creation,
 lineage, and student-visibility review; Terra with high reasoning for broad
 compatibility, test, UX, and documentation review.
+
+## 2026-08-20 — Productize hot archive recovery copies
+
+**Risk profile:** runtime-platform — authenticated archive status and the
+existing gated export operation; no migration, compaction, cleanup, production
+operation, dependency, or rollout change.
+
+**Completed:**
+- Added a strict teacher-scoped recovery summary for hot archived Classrooms.
+  It exposes only export availability, latest operation state, verified date,
+  compressed size, and retention policy; private paths, checksums, identities,
+  and Classroom content remain server-only.
+- Archived Classroom rows now distinguish database-only, rollout-unavailable,
+  interrupted/retryable, failed, and verified recovery-copy states. Eligible
+  teachers explicitly confirm creation, and retries preserve the durable
+  operation UUID across browser failures and page reloads.
+- Verified recovery copies suppress duplicate creation and show their size and
+  retention policy. Export still retains every hot row and source object; this
+  slice does not compact a Classroom or free database space.
+- Narrowed remaining Phase 5 archive work to hot-to-cold eligibility/progress,
+  followed by cold-restore progress and quota/retention policy.
+
+**Validation:**
+- Focused client, API, component, server-contract, retry, malformed-data, and
+  missing-migration coverage passes 52 tests.
+- Full verification passes 4,630 tests across 508 files, lint, type checking,
+  and the production build. Architecture, design/UI policy, Pika audit, and
+  diff checks pass.
+- The focused Playwright matrix passes with teacher unavailable, available,
+  confirmation, and verified states at desktop/mobile in light/dark, plus the
+  student absence boundary. Screenshots were visually reviewed with no
+  overflow, overlap, contrast, wrapping, or hierarchy findings.
+- Composite-widget checklist reviewed: existing segmented-control and dialog
+  keyboard/semantic contracts are unchanged and covered; recovery state is
+  text-plus-icon, confirmation uses the canonical dialog, and no manual
+  follow-up remains.
+
+**Model recommendation:** Sol with high reasoning for the final archive
+authorization, idempotency, privacy, and lifecycle-state review.
