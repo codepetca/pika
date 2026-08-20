@@ -136,11 +136,26 @@ async function main() {
     classroomId: classroom.id,
     windowStart: classDate,
     windowEnd: classDate,
-    actor,
+    verifiedActor: actor,
     integrationState: 'ready',
   })
   assert(synced.roster.outcome === 'applied', 'Roster snapshot was not applied')
   assert(synced.schedule.outcome === 'applied', 'Schedule snapshot was not applied')
+
+  const { data: principalMappings, error: principalMappingsError } = await supabase
+    .from('attendance_principal_mappings')
+    .select('user_id, principal_ref')
+    .in('user_id', students.map((student) => student.id))
+  if (principalMappingsError || !principalMappings || principalMappings.length !== students.length) {
+    throw principalMappingsError ?? new Error('Student principal mappings missing')
+  }
+  const principalRefByStudentId = new Map(
+    principalMappings.map((mapping) => [mapping.user_id, mapping.principal_ref]),
+  )
+  assert(
+    students.every((student) => principalRefByStudentId.has(student.id)),
+    'Student principal mappings incomplete',
+  )
 
   const opened = await executeTeacherAttendanceSessionCommand({
     supabase,
@@ -172,9 +187,10 @@ async function main() {
         supabase,
         pikaUser: { id: student.id, email: student.email, role: 'student' },
         entryToken,
+        attemptId: randomUUID(),
         integrationState: 'ready',
         resolveActor: async () => ({
-          workosSubject: studentSubjects[index]!,
+          principalRef: principalRefByStudentId.get(student.id)!,
           displayName: `Load${index + 1} Student`,
         }),
       })

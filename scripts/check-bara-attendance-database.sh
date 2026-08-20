@@ -343,6 +343,148 @@ begin
 end;
 $dependency_order$;
 
+do $canonical_retry$
+declare
+  v_first public.attendance_integration_outbox;
+  v_second public.attendance_integration_outbox;
+  v_payload jsonb := jsonb_build_object(
+    'schema_version', 1, 'message_type', 'roster.snapshot',
+    'idempotency_key', 'roster:canonical-retry:1',
+    'correlation_ref', 'canonical_retry_1',
+    'installation_ref', 'installation_dependency',
+    'roster_ref', 'roster_12600000000000000000000000000020',
+    'revision', 2, 'owner_display_name', 'Pika teacher'
+  );
+begin
+  select * into v_first from public.enqueue_attendance_outbound_message_v1(
+    'a1260000-0000-4000-8000-000000000020', v_payload
+  );
+  select * into v_second from public.enqueue_attendance_outbound_message_v1(
+    'a1260000-0000-4000-8000-000000000020', v_payload
+  );
+  if v_first.id <> v_second.id or v_first.payload <> v_second.payload then
+    raise exception 'Byte-identical roster retry was not accepted idempotently';
+  end if;
+  delete from public.attendance_integration_outbox where id = v_first.id;
+end;
+$canonical_retry$;
+
+update public.attendance_roster_mappings
+set schedule_source_revision = 3, schedule_staged_revision = 3
+where classroom_id = 'a1260000-0000-4000-8000-000000000020';
+
+insert into public.attendance_integration_outbox (
+  classroom_id, idempotency_key, message_type, payload, created_at
+) values
+  (
+    'a1260000-0000-4000-8000-000000000020', 'schedule:ordered:2',
+    'schedule.snapshot', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'schedule.snapshot',
+      'idempotency_key', 'schedule:ordered:2', 'correlation_ref', 'schedule_ordered_2',
+      'installation_ref', 'installation_dependency',
+      'roster_ref', 'roster_12600000000000000000000000000020', 'revision', 2
+    ), clock_timestamp() - interval '6 seconds'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', 'schedule:ordered:3',
+    'schedule.snapshot', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'schedule.snapshot',
+      'idempotency_key', 'schedule:ordered:3', 'correlation_ref', 'schedule_ordered_3',
+      'installation_ref', 'installation_dependency',
+      'roster_ref', 'roster_12600000000000000000000000000020', 'revision', 3
+    ), clock_timestamp() - interval '5 seconds'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', 'session:ordered:open',
+    'session.command', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:ordered:open', 'correlation_ref', 'session_ordered_open',
+      'installation_ref', 'installation_dependency',
+      'roster_ref', 'roster_12600000000000000000000000000020',
+      'occurrence_ref', 'occurrence_ordered', 'command', 'open'
+    ), clock_timestamp() - interval '4 seconds'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', 'session:ordered:close',
+    'session.command', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:ordered:close', 'correlation_ref', 'session_ordered_close',
+      'installation_ref', 'installation_dependency',
+      'roster_ref', 'roster_12600000000000000000000000000020',
+      'occurrence_ref', 'occurrence_ordered', 'command', 'close'
+    ), clock_timestamp() - interval '3 seconds'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', 'marks:ordered:1',
+    'attendance.marks', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'attendance.marks',
+      'idempotency_key', 'marks:ordered:1', 'correlation_ref', 'marks_ordered_1',
+      'installation_ref', 'installation_dependency',
+      'roster_ref', 'roster_12600000000000000000000000000020',
+      'occurrence_ref', 'occurrence_ordered', 'marks', '[]'::jsonb
+    ), clock_timestamp() - interval '2 seconds'
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000020', 'marks:ordered:2',
+    'attendance.marks', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'attendance.marks',
+      'idempotency_key', 'marks:ordered:2', 'correlation_ref', 'marks_ordered_2',
+      'installation_ref', 'installation_dependency',
+      'roster_ref', 'roster_12600000000000000000000000000020',
+      'occurrence_ref', 'occurrence_ordered', 'marks', '[]'::jsonb
+    ), clock_timestamp() - interval '1 second'
+  );
+
+do $same_aggregate_order$
+declare
+  v_claimed text[];
+  v_row public.attendance_integration_outbox;
+begin
+  select array_agg(claim.idempotency_key order by claim.idempotency_key)
+  into v_claimed
+  from public.claim_attendance_outbox_batch_v1(20, 60) claim;
+  if v_claimed <> array['schedule:ordered:2']::text[] then
+    raise exception 'First schedule claim reordered messages: %', v_claimed;
+  end if;
+  for v_row in select * from public.attendance_integration_outbox where status = 'processing' loop
+    if not public.complete_attendance_outbox_v1(v_row.id, v_row.lease_token, '{}'::jsonb) then
+      raise exception 'First aggregate completion failed';
+    end if;
+  end loop;
+
+  select array_agg(claim.idempotency_key order by claim.idempotency_key)
+  into v_claimed
+  from public.claim_attendance_outbox_batch_v1(20, 60) claim;
+  if v_claimed <> array['schedule:ordered:3']::text[] then
+    raise exception 'Second schedule claim did not preserve order: %', v_claimed;
+  end if;
+  for v_row in select * from public.attendance_integration_outbox where status = 'processing' loop
+    if not public.complete_attendance_outbox_v1(v_row.id, v_row.lease_token, '{}'::jsonb) then
+      raise exception 'Second schedule completion failed';
+    end if;
+  end loop;
+
+  select array_agg(claim.idempotency_key order by claim.idempotency_key)
+  into v_claimed
+  from public.claim_attendance_outbox_batch_v1(20, 60) claim;
+  if v_claimed <> array['marks:ordered:1', 'session:ordered:open']::text[] then
+    raise exception 'First command claim reordered messages: %', v_claimed;
+  end if;
+  for v_row in select * from public.attendance_integration_outbox where status = 'processing' loop
+    if not public.complete_attendance_outbox_v1(v_row.id, v_row.lease_token, '{}'::jsonb) then
+      raise exception 'First command completion failed';
+    end if;
+  end loop;
+
+  select array_agg(claim.idempotency_key order by claim.idempotency_key)
+  into v_claimed
+  from public.claim_attendance_outbox_batch_v1(20, 60) claim;
+  if v_claimed <> array['marks:ordered:2', 'session:ordered:close']::text[] then
+    raise exception 'Second command claim did not preserve order: %', v_claimed;
+  end if;
+end;
+$same_aggregate_order$;
+
 rollback;
 SQL
 

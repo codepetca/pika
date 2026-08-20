@@ -6,6 +6,7 @@ import {
   runAttendanceScanLoad,
   validateAttendanceScanLoadTarget,
 } from '@/lib/server/bara-attendance-load'
+import { studentAttendanceCheckInSchema } from '@/lib/validations/student-attendance'
 
 const entryToken = 'a'.repeat(80)
 
@@ -91,6 +92,10 @@ describe('Bara attendance scan load measurement', () => {
     })
 
     expect(fetchImpl).toHaveBeenCalledTimes(30)
+    const requestBodies = fetchImpl.mock.calls.map(([, request]) =>
+      studentAttendanceCheckInSchema.parse(JSON.parse(String(request?.body))))
+    expect(new Set(requestBodies.map(({ attemptId }) => attemptId)).size).toBe(30)
+    expect(requestBodies.every(({ entryToken: postedToken }) => postedToken === entryToken)).toBe(true)
     expect(result).toMatchObject({
       attempted: 30,
       confirmed: 28,

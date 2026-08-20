@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-16 — Pin roster snapshot materialization and revision design
-
-**Risk profile:** privacy and cross-database consistency. No database or hosted
-state changed; migration 127 remains unapplied.
-
-**Completed:**
-- Added the pure Pika roster-snapshot builder that accepts only opaque roster,
-  participant, installation, and WorkOS subjects; emits only names, active
-  state, and optional linked identity; and delegates the final closed shape to
-  the vendored v1 validator.
-- Added evidence that raw UUID ownership/membership IDs, email-shaped identity
-  subjects, and duplicate participant mappings are rejected before delivery.
-- Defined the source-revision transaction without timestamp guesses: a future
-  preparation RPC returns database-computed source tokens and opaque mappings;
-  a staging RPC recomputes the token under lock, rejects concurrent source
-  changes, advances the contract revision, and enqueues the message atomically.
-
-**Validation:**
-- Focused roster, schedule, and outbox suites pass 12/12. TypeScript,
-  architecture boundaries across 735 modules, and diff hygiene pass. The prior
-  full-suite and production-build evidence remains green for the outbox slice.
-
-**Next gate:**
-- Implement and database-test the preparation/staging RPC pair, then connect
-  its closed result to the roster and DST-safe schedule builders. Applying the
-  migration still requires exact target authorization.
-
 ## 2026-08-16 — Atomically stage roster and schedule source revisions
 
 **Risk profile:** schema, privacy, and cross-service consistency. Migration 127
@@ -1381,3 +1354,41 @@ guarding only. No database, environment, or deployment state changed.
 **Verification:**
 - Migration filename and focused attendance-migration tests pass; local dry-run
   identifies only migration 127 as pending.
+
+## 2026-08-20 — Close Pika attendance PR review blockers
+
+**Risk profile:** runtime-platform — durable cross-service ordering, snapshot
+idempotency, migration replay, and scan/load evidence. The user authorized
+discarding Pika's local data. No hosted database, deployment, flag, or secret
+changed; the shared Bara development selectors were restored after local
+Convex startup.
+
+**Completed:**
+- Made roster snapshot retries byte-identical across manual and automated sync
+  by using one persisted-contract display value and enforcing it in migration
+  127.
+- Serialized outbox enqueue commits per classroom and made both exact and batch
+  claims wait for earlier snapshot revisions, session commands, or corrections
+  in the same causal stream.
+- Updated hosted and local load runners for current scan attempt IDs and opaque
+  principal mappings, and corrected the runbook to distinguish the local
+  server-helper path from the hosted HTTP endpoint.
+- Replaced obsolete local load figures with current-contract measurements:
+  30/30 confirmed at p50 91.8 ms, p95 161.8 ms, p99 163.9 ms; 100/100 confirmed
+  at p50 276.7 ms, p95 498.8 ms, p99 513.1 ms.
+
+**Verification:**
+- Reset disposable local Supabase and replayed migrations 001–127; database
+  types, migration dry-run, causal-order/idempotency contract, privacy fences,
+  and two-session purge concurrency checks pass.
+- Guarded loopback rehearsal passed roster/schedule sync, open, student scan and
+  duplicate retry, teacher correction, close, closed scan, duplicate event, and
+  stale reordered event handling.
+- Independent security and architecture re-reviews found no remaining P0–P2
+  issue. Full coverage passes 556 files and 4,862 tests; TypeScript, production
+  build, architecture, design-policy, UI-policy, and diff checks pass.
+
+**Remaining gates:**
+- Hosted preview/database verification, real hosted teacher/student smoke,
+  hosted endpoint latency, scheduler-capacity proof, and canary remain rollout
+  gates. Production integration remains disabled.

@@ -127,7 +127,10 @@ export async function syncTeacherAttendanceSources(input: {
     revision: prepared.data.roster_revision,
     ...rosterRefs,
     ownerPrincipalRef: prepared.data.owner_principal_ref,
-    ownerDisplayName: input.verifiedActor?.displayName ?? 'Pika teacher',
+    // Snapshot retries must be byte-identical for a source revision. The
+    // verified WorkOS actor is request context, not persisted roster source
+    // data, so it cannot safely influence the durable contract payload.
+    ownerDisplayName: 'Pika teacher',
     displayName: prepared.data.title,
     participants: prepared.data.participants.map((participant) => ({
       participantRef: participant.participant_ref,

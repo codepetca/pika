@@ -178,6 +178,75 @@ describe('Pika attendance source snapshot sync', () => {
     expect(deliverBaraAttendanceMessage).not.toHaveBeenCalled()
   })
 
+  it('builds the same durable roster payload for manual and automated retries', async () => {
+    const rosterPayloads: unknown[] = []
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'prepare_attendance_snapshot_v1') return { data: prepared, error: null }
+      if (name === 'stage_attendance_roster_snapshot_v1') {
+        rosterPayloads.push(args.p_message)
+        return {
+          data: {
+            outbox_id: outboxOne,
+            idempotency_key: 'roster:roster_11111111111111111111111111111111:revision:2',
+            revision: 2,
+            status: 'pending',
+          },
+          error: null,
+        }
+      }
+      if (name === 'stage_attendance_schedule_snapshot_v1') {
+        return {
+          data: {
+            outbox_id: outboxTwo,
+            idempotency_key: 'schedule:roster_11111111111111111111111111111111:revision:4',
+            revision: 4,
+            status: 'pending',
+          },
+          error: null,
+        }
+      }
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    deliverBaraAttendanceMessage.mockImplementation(async ({ message }) =>
+      message.message_type === 'roster.snapshot'
+        ? {
+            outcome: 'duplicate',
+            rosterRef: prepared.roster_ref,
+            revision: 2,
+            createdCount: 0,
+            updatedCount: 0,
+            deactivatedCount: 0,
+          }
+        : {
+            outcome: 'duplicate',
+            rosterRef: prepared.roster_ref,
+            revision: 4,
+            scheduledCount: 0,
+            updatedCount: 0,
+            cancelledCount: 0,
+            preservedCount: 0,
+          },
+    )
+
+    const common = {
+      supabase: { rpc },
+      teacherId,
+      classroomId,
+      windowStart: '2026-11-02',
+      windowEnd: '2026-11-03',
+      integrationState: 'ready' as const,
+    }
+    await syncTeacherAttendanceSources({
+      ...common,
+      verifiedActor: { workosSubject: 'user_teacher', displayName: 'Teacher One' },
+    })
+    await syncTeacherAttendanceSources(common)
+
+    expect(rosterPayloads).toHaveLength(2)
+    expect(rosterPayloads[0]).toEqual(rosterPayloads[1])
+    expect(rosterPayloads[0]).toMatchObject({ owner_display_name: 'Pika teacher' })
+  })
+
   it('fails before mapping reads when the integration is disabled', async () => {
     const rpc = vi.fn()
     await expect(syncTeacherAttendanceSources({

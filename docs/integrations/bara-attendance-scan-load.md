@@ -5,20 +5,21 @@ run by this branch.
 
 ## Local signed-adapter evidence
 
-On 2026-08-19, the disposable shared local Supabase stack and local Convex
+On 2026-08-20, the disposable shared local Supabase stack and local Convex
 deployment completed guarded signed-adapter/engine runs at both supported
 boundaries. This is local service evidence, not a hosted or browser-endpoint
 latency claim:
 
 | Concurrent scans | Confirmed | Throughput | p50 | p95 | p99 |
 |---:|---:|---:|---:|---:|---:|
-| 30 | 30 | 131.9/s | 120.4 ms | 223.0 ms | 226.6 ms |
-| 100 | 100 | 163.7/s | 339.7 ms | 589.0 ms | 606.3 ms |
+| 30 | 30 | 182.1/s | 91.8 ms | 161.8 ms | 163.9 ms |
+| 100 | 100 | 193.1/s | 276.7 ms | 498.8 ms | 513.1 ms |
 
 The local-only runner seeds distinct Pika students, syncs one roster and class
-day, opens a Bara session, sends one signed `student_check_in` per student in
-parallel, requires every synchronous result to be authoritative, and closes the
-session. It rejects non-loopback Supabase or Bara targets and requires the
+day, resolves each student's opaque principal mapping, opens a Bara session,
+sends one signed `student_check_in` with a fresh attempt UUID per student in
+parallel, requires every synchronous result to be authoritative, and closes
+the session. It rejects non-loopback Supabase or Bara targets and requires the
 explicit `LOCAL_ATTENDANCE_LOAD=shared-local-disposable` acknowledgement:
 
 ```bash
@@ -29,10 +30,11 @@ pnpm attendance:load:local-engine -- --concurrency 100
 The operator must still load matching local-only credentials and service URLs
 into the process. The runner prints aggregate results only.
 
-This procedure measures the native Pika student endpoint through Pika's
-server-to-server Bara call. It records closed-result counts and end-to-end HTTP
-latency from the Pika endpoint. It does not replace a browser journey check or
-measure the student's camera and login time.
+The local procedure measures Pika's signed-adapter/server-helper path through
+the server-to-server Bara call. It bypasses the HTTP route, role/session
+middleware, and WorkOS actor resolution, so its timings are engine-path
+evidence only. It does not replace the hosted HTTP harness below or a browser
+journey check.
 
 ## Preconditions
 

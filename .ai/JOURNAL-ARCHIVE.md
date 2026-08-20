@@ -21696,3 +21696,31 @@ remains unapplied; no database, WorkOS, Convex, or hosted configuration changed.
   staging, then exercise migration 127 and the real signed boundary only after
   exact environment authorization. The external authentication gate remains a
   Bara Convex development deploy plus Staging Pika-to-Bara smoke.
+
+<!-- pika-session-log-archive-batch:bf4308e9ad044dbee77110954ce7ec3b84990f9abbb72d13cdfb5afbbb06f837 -->
+## 2026-08-16 — Pin roster snapshot materialization and revision design
+
+**Risk profile:** privacy and cross-database consistency. No database or hosted
+state changed; migration 127 remains unapplied.
+
+**Completed:**
+- Added the pure Pika roster-snapshot builder that accepts only opaque roster,
+  participant, installation, and WorkOS subjects; emits only names, active
+  state, and optional linked identity; and delegates the final closed shape to
+  the vendored v1 validator.
+- Added evidence that raw UUID ownership/membership IDs, email-shaped identity
+  subjects, and duplicate participant mappings are rejected before delivery.
+- Defined the source-revision transaction without timestamp guesses: a future
+  preparation RPC returns database-computed source tokens and opaque mappings;
+  a staging RPC recomputes the token under lock, rejects concurrent source
+  changes, advances the contract revision, and enqueues the message atomically.
+
+**Validation:**
+- Focused roster, schedule, and outbox suites pass 12/12. TypeScript,
+  architecture boundaries across 735 modules, and diff hygiene pass. The prior
+  full-suite and production-build evidence remains green for the outbox slice.
+
+**Next gate:**
+- Implement and database-test the preparation/staging RPC pair, then connect
+  its closed result to the roster and DST-safe schedule builders. Applying the
+  migration still requires exact target authorization.

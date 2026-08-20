@@ -661,6 +661,11 @@ begin
     raise exception using errcode = 'P0002', message = 'attendance_classroom_not_found';
   end if;
 
+  -- Establish a commit-visible enqueue order per classroom. Without this
+  -- lock, a later transaction could stage and deliver a close/correction
+  -- while an earlier transaction's open/correction is still uncommitted.
+  perform pg_advisory_xact_lock(hashtextextended(p_classroom_id::text, 918273645));
+
   insert into public.attendance_integration_outbox (
     classroom_id, idempotency_key, message_type, payload
   ) values (
@@ -742,6 +747,7 @@ begin
       where user_id = v_classroom.teacher_id
     )
     or p_message->>'display_name' <> v_classroom.title
+    or p_message->>'owner_display_name' <> 'Pika teacher'
     or jsonb_array_length(p_message->'participants') <> (
       select count(*) from public.attendance_participant_mappings
       where classroom_id = p_classroom_id
@@ -914,9 +920,10 @@ begin
 end;
 $$;
 
--- Delivery dependencies are data-driven rather than creation-order driven.
--- This keeps concurrent workers from sending a schedule before its roster, or
--- a teacher command before both provider-side snapshots are authoritative.
+-- Delivery dependencies are data-driven. Snapshot types retain their causal
+-- relationship, while messages within one causal stream are serialized by
+-- enqueue order. This prevents two workers from reordering snapshot revisions,
+-- open/close commands, or corrections for one occurrence.
 create function public.attendance_outbox_dependencies_ready_v1(
   p_row public.attendance_integration_outbox
 )
@@ -925,7 +932,18 @@ language sql
 stable
 set search_path = ''
 as $$
-  select case p_row.message_type
+  select not exists (
+    select 1
+    from public.attendance_integration_outbox sibling
+    where sibling.classroom_id = p_row.classroom_id
+      and sibling.status in ('pending', 'processing')
+      and (sibling.created_at, sibling.id) < (p_row.created_at, p_row.id)
+      and sibling.message_type = p_row.message_type
+      and (
+        p_row.message_type in ('roster.snapshot', 'schedule.snapshot')
+        or sibling.payload->>'occurrence_ref' = p_row.payload->>'occurrence_ref'
+      )
+  ) and case p_row.message_type
     when 'roster.snapshot' then true
     when 'schedule.snapshot' then
       exists (

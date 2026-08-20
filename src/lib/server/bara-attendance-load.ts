@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { studentAttendanceCheckInViewSchema } from '@/lib/validations/student-attendance'
 
@@ -158,7 +159,10 @@ export async function runAttendanceScanLoad(input: {
           'Content-Type': 'application/json',
           Cookie: scanCase.cookie,
         },
-        body: JSON.stringify({ entryToken: scanCase.entryToken }),
+        body: JSON.stringify({
+          entryToken: scanCase.entryToken,
+          attemptId: randomUUID(),
+        }),
         redirect: 'error',
         signal: AbortSignal.timeout(timeoutMs),
       })
