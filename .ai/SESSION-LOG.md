@@ -1253,10 +1253,15 @@ exposure boundary and cross-route publication lifecycle.
 - Changed fixture reconciliation to read the complete canonical state first and
   perform no writes when it is already exact, preventing unchanged seeds from
   incrementing Blueprint content revisions. A real-database replay preserved
-  the complete fixture fingerprint and content revision 23.
+  the complete fixture fingerprint and content revision 30.
 - Made drift repair fail closed: the public Blueprint is unpublished before
   child reconciliation and published only after every canonical write succeeds.
   An injected child-write failure verifies that the public site remains private.
+- The final targeted review found that subset comparison could miss same-ID
+  drift in grading, submission, authenticity, or nested JSON fields. Fixture
+  rows now project every teacher-editable canonical field and require exact
+  nested JSON equality; same-ID drift correction and fail-closed failure paths
+  are covered directly.
 - Remediated full verification passes 4,616 tests across 507 files, lint, type
   checking, and the production build. The final browser matrix remains 36
   passing with 14 intentional skips.

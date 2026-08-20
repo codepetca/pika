@@ -80,10 +80,10 @@ class FixtureSupabase {
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([table, rows]) => [
           table,
-          rows.filter((row) => (
+          structuredClone(rows.filter((row) => (
             fixtureIds.has(String(row.id))
             || fixtureIds.has(String(row.course_blueprint_id))
-          )),
+          ))),
         ]),
     )
   }
@@ -117,11 +117,16 @@ describe('seedPlannedCourseFixtures', () => {
       artifact_id: PLANNED_COURSE_FIXTURE.lessonTemplateArtifactId,
     })
 
-    supabase.rows.get('course_blueprint_assessments')!.push({
-      id: '90000000-0000-4000-8000-000000000297',
-      artifact_id: '90000000-0000-4000-8000-000000000296',
-      course_blueprint_id: PLANNED_COURSE_FIXTURE.blueprintId,
-      title: 'Later drift row',
+    Object.assign(supabase.rows.get('course_blueprint_assignments')![0], {
+      submission_requirements_json: [{ type: 'text', label: 'Drift' }],
+      gradebook_weight: 99,
+      track_authenticity: true,
+    })
+    Object.assign(supabase.rows.get('course_blueprint_assessments')![0], {
+      content: { ...first.course_blueprint_assessments[0].content as object, leaked: true },
+      points_possible: 99,
+      gradebook_weight: 99,
+      include_in_final: false,
     })
     expect(await seedPlannedCourseFixtures(supabase as never, 'teacher-1')).toEqual({ changed: true })
 
@@ -134,10 +139,10 @@ describe('seedPlannedCourseFixtures', () => {
   it('leaves a drifted public fixture unpublished when child reconciliation fails', async () => {
     const supabase = new FixtureSupabase()
     await seedPlannedCourseFixtures(supabase as never, 'teacher-1')
-    supabase.rows.get('course_blueprint_assignments')!.push({
-      id: '90000000-0000-4000-8000-000000000295',
-      course_blueprint_id: PLANNED_COURSE_FIXTURE.blueprintId,
-      title: 'Drift row',
+    Object.assign(supabase.rows.get('course_blueprint_assignments')![0], {
+      submission_requirements_json: [{ type: 'file', required: true }],
+      gradebook_weight: 99,
+      track_authenticity: true,
     })
     supabase.failUpsertTable = 'course_blueprint_assignments'
 

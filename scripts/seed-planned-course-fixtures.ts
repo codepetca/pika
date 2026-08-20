@@ -31,17 +31,21 @@ function assertSeedResult(
   }
 }
 
-function matchesExpected(actual: unknown, expected: unknown): boolean {
+function matchesExactly(actual: unknown, expected: unknown): boolean {
   if (Array.isArray(expected)) {
     return Array.isArray(actual)
       && actual.length === expected.length
-      && expected.every((value, index) => matchesExpected(actual[index], value))
+      && expected.every((value, index) => matchesExactly(actual[index], value))
   }
   if (expected && typeof expected === 'object') {
     if (!actual || typeof actual !== 'object' || Array.isArray(actual)) return false
-    return Object.entries(expected).every(([key, value]) => (
-      matchesExpected((actual as Record<string, unknown>)[key], value)
-    ))
+    const actualEntries = Object.entries(actual)
+    const expectedEntries = Object.entries(expected)
+    return actualEntries.length === expectedEntries.length
+      && expectedEntries.every(([key, value]) => (
+        Object.hasOwn(actual, key)
+        && matchesExactly((actual as Record<string, unknown>)[key], value)
+      ))
   }
   return actual === expected
 }
@@ -62,9 +66,13 @@ function hasExactRows(
   expected: Array<Record<string, unknown>>,
 ) {
   return actual.length === expected.length
-    && expected.every((expectedRow) => actual.some((row) => (
-      row.id === expectedRow.id && matchesExpected(row, expectedRow)
-    )))
+    && expected.every((expectedRow) => actual.some((row) => {
+      if (row.id !== expectedRow.id) return false
+      const projectedRow = Object.fromEntries(
+        Object.keys(expectedRow).map((key) => [key, row[key]]),
+      )
+      return matchesExactly(projectedRow, expectedRow)
+    }))
 }
 
 export async function seedPlannedCourseFixtures(
@@ -72,9 +80,18 @@ export async function seedPlannedCourseFixtures(
   teacherId: string,
 ) {
   const fixture = PLANNED_COURSE_FIXTURE
+  const plannedSiteConfig = {
+    overview: true,
+    outline: true,
+    resources: true,
+    assignments: true,
+    tests: true,
+    lesson_plans: true,
+  }
   const publicBlueprint = {
     id: fixture.blueprintId,
     teacher_id: teacherId,
+    authority_mode: 'pika',
     title: 'Computer Science 11',
     subject: 'Computer Science',
     grade_level: 'Grade 11',
@@ -101,22 +118,30 @@ export async function seedPlannedCourseFixtures(
     ].join('\n'),
     planned_site_slug: fixture.publicSlug,
     planned_site_published: true,
-    planned_site_config: {
-      overview: true,
-      outline: true,
-      resources: true,
-      assignments: true,
-      tests: true,
-      lesson_plans: true,
-    },
+    gradebook_use_weights: false,
+    gradebook_assignments_weight: 70,
+    gradebook_tests_weight: 30,
+    planned_site_config: plannedSiteConfig,
     position: 80,
   }
   const privateBlueprint = {
     id: fixture.privateBlueprintId,
     teacher_id: teacherId,
+    authority_mode: 'pika',
     title: 'Private Course Plan',
+    subject: '',
+    grade_level: '',
+    course_code: '',
+    term_template: '',
+    overview_markdown: '',
+    outline_markdown: '',
+    resources_markdown: '',
+    gradebook_use_weights: false,
+    gradebook_assignments_weight: 70,
+    gradebook_tests_weight: 30,
     planned_site_slug: fixture.privateSlug,
     planned_site_published: false,
+    planned_site_config: plannedSiteConfig,
     position: 81,
   }
   const assignment = {
@@ -125,11 +150,14 @@ export async function seedPlannedCourseFixtures(
     course_blueprint_id: fixture.blueprintId,
     title: 'Algorithm Design Brief',
     instructions_markdown: 'Compare two approaches and explain the tradeoffs using pseudocode.',
+    submission_requirements_json: [],
     default_due_days: 7,
     default_due_time: '23:59',
     points_possible: 20,
+    gradebook_weight: 10,
     include_in_final: true,
     is_draft: true,
+    track_authenticity: false,
     position: 0,
   }
   const assessment = {
@@ -155,6 +183,9 @@ export async function seedPlannedCourseFixtures(
       title: fixture.privateDocumentTitle,
       url: fixture.privateDocumentUrl,
     }],
+    points_possible: 10,
+    gradebook_weight: 10,
+    include_in_final: true,
     position: 0,
   }
   const lessonTemplate = {
