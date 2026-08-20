@@ -18816,3 +18816,33 @@ and focused regression coverage; no lifecycle behavior or rollout gates changed.
 - Screenshots were visually reviewed for all teacher matrices and the student
   boundary. No database, migration, API behavior, feature gate, or destructive
   operation changed.
+
+<!-- pika-session-log-archive-batch:417a98fed795debddd978953149f6aebad2348c8f94f9920290fc0628bae4bb9 -->
+## 2026-08-10 — Add Student Tests live-status accessibility
+
+**Risk profile:** exam-mode, workspace-state — student test announcements and
+autosave error feedback while preserving the mounted attempt and exam owner.
+
+**Completed:**
+- Added action-only polite flag/unflag announcements without announcing loaded
+  localStorage state or duplicating pointer/keyboard toggles.
+- Added polite autosave transition announcements for unsaved, saving, and saved
+  states while keeping the visible status layout and teacher preview unchanged.
+- Exposed save and submission errors as assertive alerts without changing API,
+  draft, retry, availability, locking, or submission behavior.
+- Added controlled timer/promise coverage for announcements, save failure draft
+  preservation, preview isolation, and existing pressed/locking/storage rules.
+
+**Validation:**
+- Focused StudentTestForm tests pass (17 tests), including controlled stale
+  success/failure races so an older save cannot overwrite newer live state.
+- TypeScript, lint,
+  architecture, UI policy, Pika audit, and diff checks.
+- Playwright verified real student flagged/unflagged, saving/error, response
+  preservation, and keyboard-focus states plus teacher preview at desktop/mobile
+  and light/dark; no layout regression or overflow was found.
+- The temporary local test fixture was deleted after capture; no API, database,
+  migration, Gradex, exam-mode ownership, or dependency changes were made.
+- Independent review identified one P1 stale-autosave completion race; the
+  accepted remediation guards UI completion by the latest pending draft and
+  monotonic successful-save sequence without changing persistence requests.

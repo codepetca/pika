@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createSourceFixtureIds,
+  getStudentFacingDefaultChecks,
   isLoopbackUrl,
   recordKnownOperationId,
   runBestEffortRolloverCleanup,
@@ -8,6 +9,37 @@ import {
 } from '../../e2e/verify/blueprint-rollover'
 
 describe('Blueprint rollover verification safety', () => {
+  it('accepts only fully draft and unpublished student-facing defaults', () => {
+    const checks = getStudentFacingDefaultChecks({
+      assignments: [{ is_draft: true, released_at: null }],
+      tests: [{ status: 'draft' }],
+      materials: [{ is_draft: true, released_at: null }],
+      surveys: [{ status: 'draft', opens_at: null }],
+      classroom: { actual_site_slug: null, actual_site_published: false },
+    })
+
+    expect(checks).toHaveLength(5)
+    expect(checks.every((check) => check.passed)).toBe(true)
+  })
+
+  it('reports every student-facing publication leak', () => {
+    const checks = getStudentFacingDefaultChecks({
+      assignments: [{ is_draft: false, released_at: '2026-08-20T12:00:00Z' }],
+      tests: [{ status: 'active' }],
+      materials: [{ is_draft: false, released_at: '2026-08-20T12:00:00Z' }],
+      surveys: [{ status: 'active', opens_at: '2026-08-20T12:00:00Z' }],
+      classroom: { actual_site_slug: 'published-classroom', actual_site_published: true },
+    })
+
+    expect(checks.map((check) => [check.name, check.passed])).toEqual([
+      ['Assignments remain unavailable to students', false],
+      ['Tests remain unavailable to students', false],
+      ['Materials remain unavailable to students', false],
+      ['Surveys remain unavailable to students', false],
+      ['Actual classroom site remains unpublished', false],
+    ])
+  })
+
   it.each([
     'http://localhost:3000',
     'http://127.0.0.1:54321',
