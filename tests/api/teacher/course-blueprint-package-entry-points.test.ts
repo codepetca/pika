@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { POST as POST_IMPORT } from '@/app/api/teacher/course-blueprints/import/route'
 import { POST as POST_PROPOSAL } from '@/app/api/teacher/course-blueprints/[id]/proposals/route'
 import { COURSE_BLUEPRINT_PACKAGE_MAX_BYTES } from '@/lib/contracts/course-blueprint-package'
+import { encodeFixtureTar, fixtureBundleEntries } from '../../helpers/course-package-tar'
 
 const mockImportPlan = vi.fn()
 const mockGetDetail = vi.fn()
@@ -17,6 +18,19 @@ const validBundle = JSON.parse(readFileSync(
   resolve(testDir, '../../fixtures/course-blueprint-package-v5.json'),
   'utf8',
 ))
+
+function packageTransports(bundle: typeof validBundle) {
+  return [
+    {
+      contentType: 'application/json',
+      body: JSON.stringify(bundle),
+    },
+    {
+      contentType: 'application/x-tar',
+      body: encodeFixtureTar(fixtureBundleEntries(bundle)),
+    },
+  ] as const
+}
 
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({ id: 'teacher-1' })),
@@ -122,38 +136,85 @@ describe('course package application entry points', () => {
         'https://test.supabase.co%2e/storage/v1/object/public/test-documents/reference.pdf',
       )
     }],
-  ])('rejects %s identically before any write-capable operation', async (_label, mutate) => {
+  ])('rejects %s identically across transports before any write-capable operation', async (_label, mutate) => {
     const bundle = structuredClone(validBundle)
     mutate(bundle)
 
-    const importResponse = await POST_IMPORT(new NextRequest(
-      'http://localhost/api/teacher/course-blueprints/import',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bundle),
-      },
-    ))
-    const proposalResponse = await POST_PROPOSAL(new NextRequest(
-      `http://localhost/api/teacher/course-blueprints/${validBundle.manifest.blueprint_id}/proposals`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bundle),
-      },
-    ), {
-      params: Promise.resolve({ id: validBundle.manifest.blueprint_id }),
-    } as any)
+    for (const transport of packageTransports(bundle)) {
+      const importResponse = await POST_IMPORT(new NextRequest(
+        'http://localhost/api/teacher/course-blueprints/import',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': transport.contentType },
+          body: transport.body,
+        },
+      ))
+      const proposalResponse = await POST_PROPOSAL(new NextRequest(
+        `http://localhost/api/teacher/course-blueprints/${validBundle.manifest.blueprint_id}/proposals`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': transport.contentType },
+          body: transport.body,
+        },
+      ), {
+        params: Promise.resolve({ id: validBundle.manifest.blueprint_id }),
+      } as any)
 
-    expect(importResponse.status).toBe(400)
-    expect(proposalResponse.status).toBe(400)
-    expect(await proposalResponse.json()).toEqual(await importResponse.json())
+      expect(importResponse.status).toBe(400)
+      expect(proposalResponse.status).toBe(400)
+      expect(await proposalResponse.json()).toEqual(await importResponse.json())
+    }
     expect(mockImportPlan).not.toHaveBeenCalled()
     expect(mockGetDetail).not.toHaveBeenCalled()
     expect(mockBuildCandidate).not.toHaveBeenCalled()
     expect(mockSubmitProposal).not.toHaveBeenCalled()
     expect(mockGetServiceRoleClient).not.toHaveBeenCalled()
   })
+
+  it.each(packageTransports(validBundle))(
+    'passes a valid $contentType package to both entry points as the same canonical plan',
+    async ({ contentType, body }) => {
+      mockImportPlan.mockResolvedValue({
+        ok: true,
+        blueprint: { id: 'blueprint-1', title: 'Imported' },
+        operation_id: '10000000-0000-4000-8000-000000000030',
+        replayed: false,
+      })
+      mockBuildCandidate.mockReturnValue({
+        ok: false,
+        status: 409,
+        error: 'Stop after canonical planning',
+        errors: [],
+      })
+
+      const importResponse = await POST_IMPORT(new NextRequest(
+        'http://localhost/api/teacher/course-blueprints/import',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': contentType },
+          body,
+        },
+      ))
+      const proposalResponse = await POST_PROPOSAL(new NextRequest(
+        `http://localhost/api/teacher/course-blueprints/${validBundle.manifest.blueprint_id}/proposals`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': contentType },
+          body,
+        },
+      ), {
+        params: Promise.resolve({ id: validBundle.manifest.blueprint_id }),
+      } as any)
+
+      expect(importResponse.status).toBe(201)
+      expect(proposalResponse.status).toBe(409)
+      expect(mockImportPlan).toHaveBeenCalledTimes(1)
+      expect(mockBuildCandidate).toHaveBeenCalledTimes(1)
+      expect(mockImportPlan.mock.calls[0][1]).toEqual(mockBuildCandidate.mock.calls[0][1])
+      expect(mockSubmitProposal).not.toHaveBeenCalled()
+      expect(mockGetServiceRoleClient).not.toHaveBeenCalled()
+    },
+  )
 
   it('applies the same byte limit before either entry point reaches server operations', async () => {
     const headers = {

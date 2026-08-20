@@ -8,8 +8,10 @@ import {
   submitCourseBlueprintProposal,
 } from '@/lib/server/course-blueprint-proposals'
 import { resolveBlueprintOperationId } from '@/lib/server/course-blueprint-operations'
-import { planCourseBlueprintPackageJson } from '@/lib/course-blueprint-package'
-import { readCourseBlueprintPackageBody } from '@/lib/course-blueprint-package-request'
+import {
+  planCourseBlueprintPackageRequest,
+  readCourseBlueprintPackageBody,
+} from '@/lib/course-blueprint-package-request'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,7 +45,10 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintProposal', async
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await readCourseBlueprintPackageBody(request)
-  const planned = planCourseBlueprintPackageJson(body)
+  const planned = planCourseBlueprintPackageRequest(
+    body,
+    request.headers.get('content-type'),
+  )
   if (!planned.ok) {
     return NextResponse.json({
       error: 'Invalid course package',

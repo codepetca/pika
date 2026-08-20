@@ -1,5 +1,19 @@
 import { ApiError } from '@/lib/api-handler'
 import { COURSE_BLUEPRINT_PACKAGE_MAX_BYTES } from '@/lib/contracts/course-blueprint-package'
+import {
+  planCourseBlueprintPackageArchive,
+  planCourseBlueprintPackageJson,
+} from '@/lib/course-blueprint-package'
+
+export function planCourseBlueprintPackageRequest(
+  body: Uint8Array,
+  contentType: string | null,
+) {
+  const mediaType = contentType?.split(';', 1)[0]?.trim().toLowerCase()
+  return mediaType === 'application/json'
+    ? planCourseBlueprintPackageJson(body)
+    : planCourseBlueprintPackageArchive(body)
+}
 
 export async function readCourseBlueprintPackageBody(request: Request): Promise<Uint8Array> {
   const contentLength = Number(request.headers.get('content-length'))

@@ -18754,3 +18754,43 @@ monitoring, and managed-storage health visibility.
   `healthy: true`, zero critical findings, zero warnings, and zero managed
   storage or purge-protocol drift; anonymous invocation was denied with 401.
 - The production worktree is clean and synchronized with `origin/production`.
+
+<!-- pika-session-log-archive-batch:ae3efa0600f31350c79052bf0ba27430a4c848a8323ccabb3d55ce2dfba94615 -->
+## 2026-08-09 — Implement cold-archived Classroom permanent deletion
+
+**Risk profile:** runtime-platform — irreversible cold recovery loss, teacher
+authorization, exact managed Storage ownership, concurrency, and resumability.
+
+**Completed:**
+- Added independent, disabled-by-default cold-Classroom deletion using the
+  existing managed-deletion operation ledger, fences, leases, retries, and
+  monitoring; hot-Classroom and Blueprint purge behavior remains separate.
+- Bound every operation to one teacher-owned cold archive, prioritizing the
+  authoritative recovery bundle last, and preserved user accounts, reusable
+  Blueprints, other Classrooms/archives, and their managed files.
+- Added fail-closed teacher APIs, conflict/readiness checks, resumable cron
+  ticking without a new schedule, audit-safe resource hashes, and irreversible
+  confirmation UX. Generic orphan cleanup remains disabled.
+- Independent high-risk review caught and fixed two cross-scope regressions:
+  migration 122 now preserves Blueprint purge Storage-lease authority, and the
+  hot/cold safety nets filter scope and terminal failures before limiting work.
+  Regression coverage exercises both worker-starvation cases, while fresh CI
+  replay runs the existing Blueprint purge fixture and the new cold purge fixture.
+- Documented contracts, recovery-loss consequences, rollout gates, operations,
+  and tests. Added desktop/mobile teacher and student-boundary visual coverage.
+
+**Validation:**
+- Under exact local-only authorization, previewed migration history 001–121,
+  applied only `122_cold_archived_classroom_purge.sql` to the dedicated local
+  Supabase database, regenerated types, and confirmed the gate remains
+  `disabled`.
+- The rollback-only database harness passed authorization, restore-conflict,
+  tombstone fence, live-lease, retry, exact-object ordering, cleanup, audit, and
+  preservation checks, then rolled back all fixtures.
+- Full Vitest passed (483 files, 4,159 tests), plus TypeScript, lint, generated
+  type parity, production build, architecture/design/storage checks, Pika audit,
+  diff checks, and Playwright visual verification across desktop/mobile and
+  light/dark teacher states plus the student boundary.
+- No staging/production migration, rollout, purge, object deletion, or generic
+  cleanup was performed. Migration 122 and its rollout still require separate,
+  exact production authorization after merge.
