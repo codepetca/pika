@@ -164,11 +164,25 @@ async function main() {
       classroomId: classroom.id,
       windowStart: classDate,
       windowEnd: classDate,
-      actor,
+      verifiedActor: actor,
       integrationState: 'ready',
     })
     assert(synced.roster.outcome === 'applied', 'Roster snapshot was not applied')
     assert(synced.schedule.outcome === 'applied', 'Schedule snapshot was not applied')
+
+    const { data: principalMappings, error: principalMappingsError } = await supabase
+      .from('attendance_principal_mappings')
+      .select('user_id, principal_ref')
+      .in('user_id', students.map((student) => student.id))
+    if (principalMappingsError || !principalMappings || principalMappings.length !== 2) {
+      throw principalMappingsError ?? new Error('Student principal mappings missing')
+    }
+    const principalRefByStudentId = new Map(
+      principalMappings.map((mapping) => [mapping.user_id, mapping.principal_ref]),
+    )
+    const studentOnePrincipalRef = principalRefByStudentId.get(students[0]!.id)
+    const studentTwoPrincipalRef = principalRefByStudentId.get(students[1]!.id)
+    assert(studentOnePrincipalRef && studentTwoPrincipalRef, 'Student principal mappings incomplete')
 
     const { data: mapping, error: mappingError } = await supabase
       .from('attendance_occurrence_mappings')
@@ -213,13 +227,15 @@ async function main() {
       role: 'student',
     }
     const resolveStudentOne = async () => ({
-      workosSubject: studentSubjects[0]!,
+      principalRef: studentOnePrincipalRef,
       displayName: 'Local1 Student',
     })
+    const studentOneAttemptId = randomUUID()
     const firstCheckIn = await executeStudentAttendanceCheckIn({
       supabase,
       pikaUser: studentOne,
       entryToken,
+      attemptId: studentOneAttemptId,
       integrationState: 'ready',
       resolveActor: resolveStudentOne,
       send: sendCheckIn,
@@ -228,6 +244,7 @@ async function main() {
       supabase,
       pikaUser: studentOne,
       entryToken,
+      attemptId: studentOneAttemptId,
       integrationState: 'ready',
       resolveActor: resolveStudentOne,
       send: sendCheckIn,
@@ -266,8 +283,12 @@ async function main() {
       supabase,
       pikaUser: { id: students[1]!.id, email: students[1]!.email, role: 'student' },
       entryToken,
+      attemptId: randomUUID(),
       integrationState: 'ready',
-      resolveActor: async () => ({ workosSubject: studentSubjects[1]!, displayName: 'Local2 Student' }),
+      resolveActor: async () => ({
+        principalRef: studentTwoPrincipalRef,
+        displayName: 'Local2 Student',
+      }),
     })
     assert(closedStudent.state === 'closed', 'Closed-session scan did not return the authoritative closed state')
 

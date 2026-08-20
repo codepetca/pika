@@ -23,6 +23,15 @@ describe('Bara attendance event inbox migration', () => {
     expect(localRehearsal).toContain("migrationsExercised: '001-127'")
   })
 
+  it('rehearses the opaque principal boundary with stable scan attempts', () => {
+    expect(localRehearsal).toContain('verifiedActor: actor')
+    expect(localRehearsal).toContain(".from('attendance_principal_mappings')")
+    expect(localRehearsal).toContain('principalRef: studentOnePrincipalRef')
+    expect(localRehearsal).toContain('principalRef: studentTwoPrincipalRef')
+    expect(localRehearsal).toContain('attemptId: studentOneAttemptId')
+    expect(localRehearsal).not.toContain('resolveActor: async () => ({ workosSubject:')
+  })
+
   it('creates private durable local-to-opaque mappings and a Toronto attendance policy', () => {
     expect(migration).toContain('create table public.attendance_roster_mappings')
     expect(migration).toContain('create table public.attendance_participant_mappings')
