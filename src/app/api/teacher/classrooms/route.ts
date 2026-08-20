@@ -64,7 +64,6 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
     ])
     if (!hotArchiveRecovery.ok) {
       console.error('Error fetching hot classroom archive recovery state:', hotArchiveRecovery.error_code)
-      throw new ApiError(500, 'Failed to fetch classroom archive recovery status')
     }
 
     return NextResponse.json({
@@ -74,6 +73,7 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       hot_classroom_purge_enabled_ids: hotClassroomPurgeEnabledIds,
       cold_classroom_purge_enabled_ids: coldClassroomPurgeEnabledIds,
       hot_archive_recovery: hotArchiveRecovery.summaries,
+      hot_archive_recovery_status_available: hotArchiveRecovery.ok,
     })
   }
 

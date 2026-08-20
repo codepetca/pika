@@ -11,6 +11,7 @@ import type { Classroom } from '@/types'
 
 const push = vi.hoisted(() => vi.fn())
 const createClassroomModalProps = vi.hoisted(() => ({ current: null as any }))
+const archiveOperationId = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/CreateClassroomModal', () => ({
   CreateClassroomModal: (props: {
@@ -39,6 +40,10 @@ vi.mock('@/lib/teacher-classrooms-client', () => ({
   invalidateTeacherClassrooms: vi.fn(),
 }))
 
+vi.mock('@/lib/classroom-archive-operation-id', () => ({
+  classroomArchiveOperationId: archiveOperationId,
+}))
+
 const coldArchive = {
   classroom_id: '00000000-0000-4000-8000-000000000001',
   archive_id: '00000000-0000-4000-8000-000000000002',
@@ -63,6 +68,7 @@ describe('TeacherClassroomsIndex', () => {
     fetchMock = vi.fn()
     push.mockReset()
     createClassroomModalProps.current = null
+    archiveOperationId.mockResolvedValue('00000000-0000-5000-8000-000000000099')
     vi.mocked(fetchTeacherClassrooms).mockResolvedValue([])
     vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
       classrooms: [],
@@ -222,12 +228,13 @@ describe('TeacherClassroomsIndex', () => {
       coldClassroomPurgeEnabledIds: [],
       hotArchiveRecovery: [{
         classroom_id: classroomId,
+        current_revision: 7,
         export_available: true,
         latest_archive: null,
         latest_operation: null,
       }],
     })
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(operationId)
+    archiveOperationId.mockResolvedValue(operationId)
     fetchMock.mockResolvedValue({
       ok: false,
       json: async () => ({
@@ -242,12 +249,12 @@ describe('TeacherClassroomsIndex', () => {
 
     const createButton = await screen.findByRole('button', { name: 'Create recovery copy' })
     fireEvent.click(createButton)
-    let dialog = screen.getByRole('dialog', { name: 'Create a recovery copy of Archived Biology?' })
+    let dialog = await screen.findByRole('dialog', { name: 'Create a recovery copy of Archived Biology?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
     expect(await screen.findByText('Archive service is temporarily unavailable')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Create recovery copy' }))
-    dialog = screen.getByRole('dialog', { name: 'Create a recovery copy of Archived Biology?' })
+    dialog = await screen.findByRole('dialog', { name: 'Create a recovery copy of Archived Biology?' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
 
@@ -280,9 +287,12 @@ describe('TeacherClassroomsIndex', () => {
       coldClassroomPurgeEnabledIds: [],
       hotArchiveRecovery: [{
         classroom_id: classroomId,
+        current_revision: 7,
         export_available: true,
         latest_archive: {
           archive_id: '00000000-0000-4000-8000-000000000021',
+          operation_id: '00000000-0000-4000-8000-000000000021',
+          source_revision: 7,
           created_at: '2026-08-19T14:00:00.000Z',
           verified_at: '2026-08-19T14:01:00.000Z',
           compressed_byte_size: 2_489_962,
@@ -315,12 +325,15 @@ describe('TeacherClassroomsIndex', () => {
       coldArchiveRestoreEnabled: false,
       hotArchiveRecovery: [{
         classroom_id: classroomId,
+        current_revision: 7,
         export_available: true,
         latest_archive: null,
         latest_operation: {
           operation_id: operationId,
+          source_revision: 7,
           status: 'snapshot_ready',
           retryable: null,
+          retention: { mode: 'teacher_managed', delete_after: null },
           updated_at: '2026-08-19T14:01:00.000Z',
         },
       }],
@@ -334,7 +347,7 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Resume recovery copy' }))
-    const dialog = screen.getByRole('dialog', {
+    const dialog = await screen.findByRole('dialog', {
       name: 'Create a recovery copy of Archived Chemistry?',
     })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
@@ -345,6 +358,166 @@ describe('TeacherClassroomsIndex', () => {
         headers: expect.objectContaining({ 'Idempotency-Key': operationId }),
       }),
     ))
+  })
+
+  it('retains the operation id when export succeeds but status refresh fails', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000040'
+    const operationId = '00000000-0000-5000-8000-000000000041'
+    const recoveryState = {
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived Geography',
+        archived_at: '2026-04-01T12:00:00Z',
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        current_revision: 7,
+        export_available: true,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    }
+    vi.mocked(fetchTeacherArchivedClassroomState)
+      .mockResolvedValueOnce(recoveryState)
+      .mockRejectedValueOnce(new Error('Status refresh failed'))
+    archiveOperationId.mockResolvedValue(operationId)
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, operation_id: operationId }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Create recovery copy' }))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+    expect(await screen.findByText('Status refresh failed')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create recovery copy' }))
+    dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(fetchMock.mock.calls.map(([, init]) => init?.headers)).toEqual([
+      expect.objectContaining({ 'Idempotency-Key': operationId }),
+      expect.objectContaining({ 'Idempotency-Key': operationId }),
+    ])
+    expect(archiveOperationId).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a stale verified copy and offers a current recovery copy', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000050'
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived History',
+        archived_at: '2026-04-01T12:00:00Z',
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        current_revision: 8,
+        export_available: true,
+        latest_archive: {
+          archive_id: '00000000-0000-4000-8000-000000000051',
+          operation_id: '00000000-0000-4000-8000-000000000051',
+          source_revision: 7,
+          created_at: '2026-08-19T14:00:00.000Z',
+          verified_at: '2026-08-19T14:01:00.000Z',
+          compressed_byte_size: 2_489_962,
+          retention: { mode: 'teacher_managed', delete_after: null },
+        },
+        latest_operation: null,
+      }],
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByText('Recovery copy out of date')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create recovery copy' })).toBeInTheDocument()
+  })
+
+  it('replays the exact retention contract for a resumable operation', async () => {
+    const classroomId = '00000000-0000-4000-8000-000000000060'
+    const operationId = '00000000-0000-4000-8000-000000000061'
+    const retention = { mode: 'scheduled' as const, delete_after: '2099-08-22T12:00:00.000Z' }
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
+      classrooms: [createMockClassroom({
+        id: classroomId,
+        title: 'Archived Civics',
+        archived_at: '2026-04-01T12:00:00Z',
+      })],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecovery: [{
+        classroom_id: classroomId,
+        current_revision: 7,
+        export_available: true,
+        latest_archive: null,
+        latest_operation: {
+          operation_id: operationId,
+          source_revision: 7,
+          status: 'snapshot_ready',
+          retryable: null,
+          retention,
+          updated_at: '2026-08-19T14:01:00.000Z',
+        },
+      }],
+    })
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Still processing', retryable: true }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume recovery copy' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create recovery copy' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${classroomId}/archives`,
+      expect.objectContaining({ body: JSON.stringify({ retention }) }),
+    ))
+  })
+
+  it('preserves archive actions and offers status retry when recovery status is unavailable', async () => {
+    const archived = createMockClassroom({
+      id: '00000000-0000-4000-8000-000000000070',
+      title: 'Archived Music',
+      archived_at: '2026-04-01T12:00:00Z',
+    })
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
+      classrooms: [archived],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+      hotArchiveRecoveryStatusAvailable: false,
+      hotArchiveRecovery: [{
+        classroom_id: archived.id,
+        current_revision: null,
+        export_available: false,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByText('Recovery-copy status is temporarily unavailable.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create recovery copy' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry status' }))
+    await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(2))
   })
 
   it('prepares an archived classroom and opens creation with its Blueprint selected', async () => {

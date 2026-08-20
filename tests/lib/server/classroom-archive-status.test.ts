@@ -18,15 +18,23 @@ function createQuery(result: { data: unknown; error: { code?: string } | null },
 function createSupabaseMock(args: {
   archives: { data: unknown; error: { code?: string } | null }
   operations: { data: unknown; error: { code?: string } | null }
+  revisions?: { data: unknown; error: { code?: string } | null }
 }) {
   const archives = createQuery(args.archives)
   const operations = createQuery(args.operations, true)
+  const revisionsResult = args.revisions ?? {
+    data: [{ classroom_id: CLASSROOM_ID, revision: 7 }],
+    error: null,
+  }
+  const revisionsIn = vi.fn().mockResolvedValue(revisionsResult)
+  const revisionsSelect = vi.fn(() => ({ in: revisionsIn }))
   const from = vi.fn((table: string) => {
     if (table === 'classroom_archives') return { select: archives.select }
     if (table === 'classroom_archive_operations') return { select: operations.select }
+    if (table === 'classroom_archive_revisions') return { select: revisionsSelect }
     throw new Error(`Unexpected table: ${table}`)
   })
-  return { client: { from } as any, from, archives, operations }
+  return { client: { from } as any, from, archives, operations, revisionsIn }
 }
 
 describe('teacher hot archive recovery status', () => {
@@ -41,7 +49,9 @@ describe('teacher hot archive recovery status', () => {
       archives: {
         data: [{
           id: '00000000-0000-4000-8000-000000000003',
+          operation_id: '00000000-0000-4000-8000-000000000004',
           classroom_id: CLASSROOM_ID,
+          source_revision: 7,
           created_at: '2026-08-19T12:00:00.000Z',
           verified_at: '2026-08-19T12:01:00.000Z',
           compressed_byte_size: 2_489_962,
@@ -53,8 +63,10 @@ describe('teacher hot archive recovery status', () => {
         data: [{
           id: '00000000-0000-4000-8000-000000000004',
           classroom_id: CLASSROOM_ID,
+          source_revision: 7,
           status: 'completed',
           retryable: null,
+          retention: { mode: 'teacher_managed', delete_after: null },
           updated_at: '2026-08-19T12:01:00.000Z',
         }],
         error: null,
@@ -69,9 +81,12 @@ describe('teacher hot archive recovery status', () => {
       ok: true,
       summaries: [{
         classroom_id: CLASSROOM_ID,
+        current_revision: 7,
         export_available: true,
         latest_archive: {
           archive_id: '00000000-0000-4000-8000-000000000003',
+          operation_id: '00000000-0000-4000-8000-000000000004',
+          source_revision: 7,
           created_at: '2026-08-19T12:00:00.000Z',
           verified_at: '2026-08-19T12:01:00.000Z',
           compressed_byte_size: 2_489_962,
@@ -79,8 +94,10 @@ describe('teacher hot archive recovery status', () => {
         },
         latest_operation: {
           operation_id: '00000000-0000-4000-8000-000000000004',
+          source_revision: 7,
           status: 'completed',
           retryable: null,
+          retention: { mode: 'teacher_managed', delete_after: null },
           updated_at: '2026-08-19T12:01:00.000Z',
         },
       }],
@@ -104,6 +121,7 @@ describe('teacher hot archive recovery status', () => {
       ok: true,
       summaries: [{
         classroom_id: CLASSROOM_ID,
+        current_revision: null,
         export_available: false,
         latest_archive: null,
         latest_operation: null,
@@ -116,7 +134,9 @@ describe('teacher hot archive recovery status', () => {
       archives: {
         data: [{
           id: 'not-a-uuid',
+          operation_id: '00000000-0000-4000-8000-000000000004',
           classroom_id: CLASSROOM_ID,
+          source_revision: 7,
           created_at: '2026-08-19T12:00:00.000Z',
           verified_at: '2026-08-19T12:01:00.000Z',
           compressed_byte_size: 10,
@@ -134,6 +154,13 @@ describe('teacher hot archive recovery status', () => {
     })).resolves.toEqual({
       ok: false,
       error_code: 'hot_archive_recovery_contract_invalid',
+      summaries: [{
+        classroom_id: CLASSROOM_ID,
+        current_revision: null,
+        export_available: false,
+        latest_archive: null,
+        latest_operation: null,
+      }],
     })
   })
 
@@ -144,8 +171,10 @@ describe('teacher hot archive recovery status', () => {
         data: [{
           id: '00000000-0000-4000-8000-000000000004',
           classroom_id: CLASSROOM_ID,
+          source_revision: 7,
           status: 'completed',
           retryable: null,
+          retention: { mode: 'teacher_managed', delete_after: null },
           updated_at: '2026-08-19T12:01:00.000Z',
         }],
         error: null,
@@ -159,6 +188,13 @@ describe('teacher hot archive recovery status', () => {
     })).resolves.toEqual({
       ok: false,
       error_code: 'hot_archive_recovery_contract_invalid',
+      summaries: [{
+        classroom_id: CLASSROOM_ID,
+        current_revision: null,
+        export_available: false,
+        latest_archive: null,
+        latest_operation: null,
+      }],
     })
   })
 
@@ -175,6 +211,47 @@ describe('teacher hot archive recovery status', () => {
     })).resolves.toEqual({
       ok: false,
       error_code: 'hot_archive_recovery_list_failed',
+      summaries: [{
+        classroom_id: CLASSROOM_ID,
+        current_revision: null,
+        export_available: false,
+        latest_archive: null,
+        latest_operation: null,
+      }],
+    })
+  })
+
+  it('marks an older verified copy stale while keeping the current revision exportable', async () => {
+    vi.stubEnv('CLASSROOM_ARCHIVE_EXPORT_ENABLED', 'true')
+    vi.stubEnv('CLASSROOM_ARCHIVE_EXPORT_TEACHER_IDS', TEACHER_ID)
+    const mock = createSupabaseMock({
+      archives: {
+        data: [{
+          id: '00000000-0000-4000-8000-000000000003',
+          operation_id: '00000000-0000-4000-8000-000000000004',
+          classroom_id: CLASSROOM_ID,
+          source_revision: 6,
+          created_at: '2026-08-19T12:00:00.000Z',
+          verified_at: '2026-08-19T12:01:00.000Z',
+          compressed_byte_size: 10,
+          retention: { mode: 'teacher_managed', delete_after: null },
+        }],
+        error: null,
+      },
+      operations: { data: [], error: null },
+    })
+
+    await expect(listTeacherHotArchiveRecovery({
+      supabase: mock.client,
+      teacherId: TEACHER_ID,
+      classroomIds: [CLASSROOM_ID],
+    })).resolves.toEqual({
+      ok: true,
+      summaries: [expect.objectContaining({
+        current_revision: 7,
+        export_available: true,
+        latest_archive: expect.objectContaining({ source_revision: 6 }),
+      })],
     })
   })
 })

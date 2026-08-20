@@ -97,6 +97,7 @@ describe('GET /api/teacher/classrooms', () => {
       ok: true,
       summaries: [{
         classroom_id: '00000000-0000-4000-8000-000000000010',
+        current_revision: null,
         export_available: false,
         latest_archive: null,
         latest_operation: null,
@@ -175,7 +176,7 @@ describe('GET /api/teacher/classrooms', () => {
     }))
   })
 
-  it('fails closed when hot archive recovery status cannot be loaded', async () => {
+  it('preserves archive discovery when hot archive recovery status cannot be loaded', async () => {
     vi.mocked(listTeacherArchivedClassrooms).mockResolvedValueOnce({
       ok: true,
       hot_classrooms: [{
@@ -188,15 +189,24 @@ describe('GET /api/teacher/classrooms', () => {
     vi.mocked(listTeacherHotArchiveRecovery).mockResolvedValueOnce({
       ok: false,
       error_code: 'hot_archive_recovery_list_failed',
+      summaries: [{
+        classroom_id: '00000000-0000-4000-8000-000000000010',
+        current_revision: null,
+        export_available: false,
+        latest_archive: null,
+        latest_operation: null,
+      }],
     })
 
     const response = await GET(new NextRequest(
       'http://localhost:3000/api/teacher/classrooms?archived=true',
     ))
 
-    expect(response.status).toBe(500)
+    expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
-      error: 'Failed to fetch classroom archive recovery status',
+      classrooms: [expect.objectContaining({ title: 'Archived Biology' })],
+      hot_archive_recovery_status_available: false,
+      hot_archive_recovery: [expect.objectContaining({ export_available: false })],
     }))
   })
 })

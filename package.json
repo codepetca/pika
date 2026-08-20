@@ -41,6 +41,7 @@
     "e2e:install": "playwright install",
     "e2e:auth": "playwright test e2e/auth.setup.ts",
     "e2e:matrix": "playwright test e2e/experience-matrix.spec.ts",
+    "e2e:archive-recovery": "playwright test e2e/archive-recovery-status-visual.spec.ts",
     "e2e:student-purge": "playwright test e2e/student-purge-visual.spec.ts",
     "e2e:verify": "tsx e2e/verify/run.ts",
     "e2e:snapshots": "playwright test e2e/ui-snapshots.spec.ts",

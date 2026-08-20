@@ -1265,19 +1265,25 @@ operation, dependency, or rollout change.
 - Verified recovery copies suppress duplicate creation and show their size and
   retention policy. Export still retains every hot row and source object; this
   slice does not compact a Classroom or free database space.
+- Independent review hardened the slice so verified evidence must match the
+  Classroom's current source revision, resumable exports replay their original
+  retention contract, same-lifecycle tabs derive one operation UUID, successful
+  exports retain that UUID until status reconciliation, and a status-only outage
+  cannot hide unarchive, reuse, restore, or purge actions.
 - Narrowed remaining Phase 5 archive work to hot-to-cold eligibility/progress,
   followed by cold-restore progress and quota/retention policy.
 
 **Validation:**
-- Focused client, API, component, server-contract, retry, malformed-data, and
-  missing-migration coverage passes 52 tests.
-- Full verification passes 4,630 tests across 508 files, lint, type checking,
+- Focused client, API, component, deterministic-ID, retry, stale-revision,
+  malformed-data, and missing-migration coverage passes 59 tests.
+- Full verification passes 4,638 tests across 509 files, lint, type checking,
   and the production build. Architecture, design/UI policy, Pika audit, and
   diff checks pass.
-- The focused Playwright matrix passes with teacher unavailable, available,
-  confirmation, and verified states at desktop/mobile in light/dark, plus the
-  student absence boundary. Screenshots were visually reviewed with no
-  overflow, overlap, contrast, wrapping, or hierarchy findings.
+- The focused CI Playwright matrix passes with teacher rollout-unavailable,
+  status-outage, available, confirmation, stale, and verified states at
+  desktop/mobile in light/dark, plus the student absence boundary. Screenshots
+  were visually reviewed with no overflow, overlap, contrast, wrapping, or
+  hierarchy findings.
 - Composite-widget checklist reviewed: existing segmented-control and dialog
   keyboard/semantic contracts are unchanged and covered; recovery state is
   text-plus-icon, confirmation uses the canonical dialog, and no manual

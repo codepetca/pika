@@ -51,6 +51,7 @@ import {
 import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
+import { classroomArchiveOperationId } from '@/lib/classroom-archive-operation-id'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -60,7 +61,11 @@ type ViewMode = 'active' | 'archived'
 
 type PendingAction =
   | { mode: 'archive'; classroom: Classroom }
-  | { mode: 'export-hot'; classroom: Classroom }
+  | {
+      mode: 'export-hot'
+      classroom: Classroom
+      recovery: ClassroomHotArchiveRecoverySummary
+    }
   | { mode: 'restore-hot'; classroom: Classroom }
   | { mode: 'restore-cold'; archive: ClassroomColdArchiveSummary }
   | null
@@ -86,6 +91,18 @@ function hotArchiveRecoveryActionLabel(
   return 'Create recovery copy'
 }
 
+function isResumableHotArchiveOperation(
+  recovery: ClassroomHotArchiveRecoverySummary | undefined,
+): boolean {
+  const operation = recovery?.latest_operation
+  if (!operation) return false
+  const canRetry = operation.status === 'snapshot_ready'
+    || (operation.status === 'failed' && operation.retryable)
+  if (!canRetry) return false
+  return operation.retention.mode === 'teacher_managed'
+    || Date.parse(operation.retention.delete_after) > Date.now()
+}
+
 export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -98,6 +115,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [coldArchives, setColdArchives] = useState<ClassroomColdArchiveSummary[]>([])
   const [coldArchiveRestoreEnabled, setColdArchiveRestoreEnabled] = useState(false)
   const [hotArchiveRecovery, setHotArchiveRecovery] = useState<ClassroomHotArchiveRecoverySummary[]>([])
+  const [hotArchiveRecoveryStatusAvailable, setHotArchiveRecoveryStatusAvailable] = useState(true)
   const [hotClassroomPurgeEnabledIds, setHotClassroomPurgeEnabledIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -158,12 +176,21 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setColdArchives(state.coldArchives)
       setColdArchiveRestoreEnabled(state.coldArchiveRestoreEnabled)
       setHotArchiveRecovery(state.hotArchiveRecovery ?? [])
+      setHotArchiveRecoveryStatusAvailable(state.hotArchiveRecoveryStatusAvailable ?? true)
+      for (const recovery of state.hotArchiveRecovery ?? []) {
+        if (
+          recovery.current_revision !== null
+          && recovery.latest_archive?.source_revision === recovery.current_revision
+        ) {
+          hotArchiveOperationIdsRef.current.delete(recovery.classroom_id)
+        }
+      }
       setHotClassroomPurgeEnabledIds(new Set(state.hotClassroomPurgeEnabledIds ?? []))
       setColdClassroomPurgeEnabledIds(new Set(state.coldClassroomPurgeEnabledIds ?? []))
-      return true
+      return state
     } catch (err: any) {
       setError(err.message || 'Failed to load archived classrooms')
-      return false
+      return null
     } finally {
       setIsLoadingArchived(false)
     }
@@ -317,28 +344,31 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }
 
-  function openHotArchiveExport(
+  async function openHotArchiveExport(
     classroom: Classroom,
-    recovery: ClassroomHotArchiveRecoverySummary | undefined,
+    recovery: ClassroomHotArchiveRecoverySummary,
   ) {
     const resumableOperation = recovery?.latest_operation
-    if (
-      resumableOperation
-      && (
-        resumableOperation.status === 'snapshot_ready'
-        || (resumableOperation.status === 'failed' && resumableOperation.retryable)
-      )
-    ) {
+    if (resumableOperation && isResumableHotArchiveOperation(recovery)) {
       hotArchiveOperationIdsRef.current.set(classroom.id, resumableOperation.operation_id)
     } else if (!hotArchiveOperationIdsRef.current.has(classroom.id)) {
-      hotArchiveOperationIdsRef.current.set(classroom.id, crypto.randomUUID())
+      hotArchiveOperationIdsRef.current.set(classroom.id, await classroomArchiveOperationId({
+        classroomId: classroom.id,
+        archivedAt: classroom.archived_at || classroom.updated_at,
+      }))
     }
-    setPendingAction({ mode: 'export-hot', classroom })
+    setPendingAction({ mode: 'export-hot', classroom, recovery })
   }
 
-  async function exportHotArchive(classroom: Classroom) {
+  async function exportHotArchive(
+    classroom: Classroom,
+    recovery: ClassroomHotArchiveRecoverySummary,
+  ) {
     const operationId = hotArchiveOperationIdsRef.current.get(classroom.id)
     if (!operationId) return
+    const retention = isResumableHotArchiveOperation(recovery)
+      ? recovery.latest_operation!.retention
+      : { mode: 'teacher_managed' as const, delete_after: null }
 
     setIsProcessing(true)
     setError('')
@@ -349,9 +379,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           'Content-Type': 'application/json',
           'Idempotency-Key': operationId,
         },
-        body: JSON.stringify({
-          retention: { mode: 'teacher_managed', delete_after: null },
-        }),
+        body: JSON.stringify({ retention }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -361,9 +389,19 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         throw new Error(data.error || 'Failed to create recovery copy')
       }
 
-      hotArchiveOperationIdsRef.current.delete(classroom.id)
       invalidateTeacherClassrooms()
-      await loadArchived()
+      const refreshed = await loadArchived()
+      const refreshedRecovery = refreshed?.hotArchiveRecovery?.find(
+        (entry) => entry.classroom_id === classroom.id,
+      )
+      if (
+        refreshed?.hotArchiveRecoveryStatusAvailable !== false
+        && refreshedRecovery
+        && refreshedRecovery.current_revision !== null
+        && refreshedRecovery.latest_archive?.source_revision === refreshedRecovery.current_revision
+      ) {
+        hotArchiveOperationIdsRef.current.delete(classroom.id)
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to create recovery copy')
     } finally {
@@ -462,7 +500,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
 
     if (pendingAction.mode === 'export-hot') {
-      await exportHotArchive(pendingAction.classroom)
+      await exportHotArchive(pendingAction.classroom, pendingAction.recovery)
       return
     }
 
@@ -601,14 +639,33 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               </DndContext>
             ) : (
               <>
+                {!hotArchiveRecoveryStatusAvailable ? (
+                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
+                    <span>Recovery-copy status is temporarily unavailable.</span>
+                    <Button
+                      type="button"
+                      variant="surface"
+                      size="xs"
+                      onClick={() => void loadArchived()}
+                      disabled={isLoadingArchived}
+                    >
+                      Retry status
+                    </Button>
+                  </div>
+                ) : null}
                 {sortedArchived.map((c) => {
                   const theme = getClassroomThemeDefinition(c.theme_color)
                   const dateRange = formatClassroomDateRange(c.start_date, c.end_date)
                   const recovery = hotArchiveRecoveryByClassroom.get(c.id)
-                  const verifiedArchive = recovery?.latest_archive
+                  const latestArchive = recovery?.latest_archive
+                  const verifiedArchive = latestArchive?.source_revision === recovery?.current_revision
+                    ? latestArchive
+                    : null
+                  const staleArchive = latestArchive && !verifiedArchive ? latestArchive : null
                   const latestOperation = recovery?.latest_operation
-                  const hasRetryableOperation = latestOperation?.status === 'snapshot_ready'
-                    || (latestOperation?.status === 'failed' && latestOperation.retryable)
+                  const hasRetryableOperation = isResumableHotArchiveOperation(recovery)
+                  const exportCanStart = recovery?.export_available
+                    && !(latestOperation?.status === 'failed' && latestOperation.retryable === false)
                   return (
                     <div
                       key={c.id}
@@ -656,6 +713,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                                   }).format(new Date(verifiedArchive.retention.delete_after))}`}
                             </span>
                           </div>
+                        ) : staleArchive ? (
+                          <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warning">
+                            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                            Recovery copy out of date
+                          </div>
                         ) : latestOperation?.status === 'failed' ? (
                           <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-danger">
                             <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
@@ -701,12 +763,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                         >
                           Unarchive
                         </Button>
-                        {!verifiedArchive && recovery?.export_available ? (
+                        {!verifiedArchive && recovery && exportCanStart ? (
                           <Button
                             type="button"
                             variant="surface"
                             size="xs"
-                            onClick={() => openHotArchiveExport(c, recovery)}
+                            onClick={() => void openHotArchiveExport(c, recovery)}
                             disabled={openingClassroomId !== null || reusingClassroomId !== null || isProcessing}
                           >
                             <DatabaseBackup className="h-3.5 w-3.5" aria-hidden="true" />

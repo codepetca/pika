@@ -15,9 +15,12 @@ const coldArchive = {
 
 const hotArchiveRecovery = {
   classroom_id: '00000000-0000-4000-8000-000000000003',
+  current_revision: 7,
   export_available: true,
   latest_archive: {
     archive_id: '00000000-0000-4000-8000-000000000004',
+    operation_id: '00000000-0000-4000-8000-000000000005',
+    source_revision: 7,
     created_at: '2026-07-11T12:00:00.000Z',
     verified_at: '2026-07-11T12:01:00.000Z',
     compressed_byte_size: 2_489_962,
@@ -94,6 +97,7 @@ describe('teacher classrooms client', () => {
         ],
         cold_classroom_purge_enabled_ids: [coldArchive.classroom_id],
         hot_archive_recovery: [hotArchiveRecovery],
+        hot_archive_recovery_status_available: true,
       }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -106,6 +110,7 @@ describe('teacher classrooms client', () => {
       ],
       coldClassroomPurgeEnabledIds: [coldArchive.classroom_id],
       hotArchiveRecovery: [hotArchiveRecovery],
+      hotArchiveRecoveryStatusAvailable: true,
     })
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/classrooms?archived=true')
   })

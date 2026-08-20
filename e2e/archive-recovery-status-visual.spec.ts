@@ -38,7 +38,10 @@ async function newRolePage(
   return { context, page }
 }
 
-async function mockArchiveState(page: Page, state: 'unavailable' | 'available' | 'verified') {
+async function mockArchiveState(
+  page: Page,
+  state: 'unavailable' | 'available' | 'verified' | 'stale' | 'status-error',
+) {
   await page.route('**/api/teacher/classrooms?archived=true', async (route) => {
     await route.fulfill({
       status: 200,
@@ -51,10 +54,13 @@ async function mockArchiveState(page: Page, state: 'unavailable' | 'available' |
         cold_classroom_purge_enabled_ids: [],
         hot_archive_recovery: [{
           classroom_id: CLASSROOM_ID,
-          export_available: state !== 'unavailable',
-          latest_archive: state === 'verified'
+          current_revision: state === 'status-error' ? null : 7,
+          export_available: !['unavailable', 'status-error'].includes(state),
+          latest_archive: state === 'verified' || state === 'stale'
             ? {
                 archive_id: ARCHIVE_ID,
+                operation_id: ARCHIVE_ID,
+                source_revision: state === 'stale' ? 6 : 7,
                 created_at: '2026-08-19T14:00:00.000Z',
                 verified_at: '2026-08-19T14:01:00.000Z',
                 compressed_byte_size: 2_489_962,
@@ -63,6 +69,7 @@ async function mockArchiveState(page: Page, state: 'unavailable' | 'available' |
             : null,
           latest_operation: null,
         }],
+        hot_archive_recovery_status_available: state !== 'status-error',
       }),
     })
   })
@@ -101,6 +108,26 @@ test('captures hot archive recovery availability, confirmation, and verification
     })
     await unavailable.context.close()
 
+    const statusError = await newRolePage(
+      () => browser.newContext({
+        storageState: '.auth/teacher.json',
+        viewport: entry.viewport,
+      }),
+      entry.theme,
+    )
+    await mockArchiveState(statusError.page, 'status-error')
+    await openArchivedView(statusError.page)
+    await expect(statusError.page.getByText('Recovery-copy status is temporarily unavailable.')).toBeVisible()
+    await expect(statusError.page.getByRole('button', { name: 'Retry status' })).toBeVisible()
+    await expect(statusError.page.getByRole('button', { name: 'Unarchive' })).toBeVisible()
+    await expectNoHorizontalOverflow(statusError.page)
+    await statusError.page.screenshot({
+      path: `/tmp/pika-archive-recovery-status-error-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await statusError.context.close()
+
     const available = await newRolePage(
       () => browser.newContext({
         storageState: '.auth/teacher.json',
@@ -130,6 +157,25 @@ test('captures hot archive recovery availability, confirmation, and verification
       animations: 'disabled',
     })
     await available.context.close()
+
+    const stale = await newRolePage(
+      () => browser.newContext({
+        storageState: '.auth/teacher.json',
+        viewport: entry.viewport,
+      }),
+      entry.theme,
+    )
+    await mockArchiveState(stale.page, 'stale')
+    await openArchivedView(stale.page)
+    await expect(stale.page.getByText('Recovery copy out of date')).toBeVisible()
+    await expect(stale.page.getByRole('button', { name: 'Create recovery copy' })).toBeVisible()
+    await expectNoHorizontalOverflow(stale.page)
+    await stale.page.screenshot({
+      path: `/tmp/pika-archive-recovery-stale-${entry.name}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await stale.context.close()
 
     const verified = await newRolePage(
       () => browser.newContext({

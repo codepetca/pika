@@ -19,6 +19,8 @@ export const classroomColdArchiveSummarySchema = z.object({
 
 export const classroomHotArchiveVerifiedCopySchema = z.object({
   archive_id: z.string().uuid(),
+  operation_id: z.string().uuid(),
+  source_revision: z.number().int().nonnegative(),
   created_at: z.string().datetime({ offset: true }),
   verified_at: z.string().datetime({ offset: true }),
   compressed_byte_size: z.number().int().positive(),
@@ -27,13 +29,16 @@ export const classroomHotArchiveVerifiedCopySchema = z.object({
 
 export const classroomHotArchiveOperationSummarySchema = z.object({
   operation_id: z.string().uuid(),
+  source_revision: z.number().int().nonnegative(),
   status: z.enum(['snapshot_ready', 'completed', 'failed']),
   retryable: z.boolean().nullable(),
+  retention: classroomArchiveRetentionSchema,
   updated_at: z.string().datetime({ offset: true }),
 }).strict()
 
 export const classroomHotArchiveRecoverySummarySchema = z.object({
   classroom_id: z.string().uuid(),
+  current_revision: z.number().int().nonnegative().nullable(),
   export_available: z.boolean(),
   latest_archive: classroomHotArchiveVerifiedCopySchema.nullable(),
   latest_operation: classroomHotArchiveOperationSummarySchema.nullable(),
@@ -45,6 +50,7 @@ export const teacherArchivedClassroomRecoverySchema = z.object({
   hot_classroom_purge_enabled_ids: z.array(z.string().uuid()).default([]),
   cold_classroom_purge_enabled_ids: z.array(z.string().uuid()).default([]),
   hot_archive_recovery: z.array(classroomHotArchiveRecoverySummarySchema).default([]),
+  hot_archive_recovery_status_available: z.boolean().default(true),
 }).strict()
 
 export type ClassroomColdArchiveSummary = z.infer<typeof classroomColdArchiveSummarySchema>
