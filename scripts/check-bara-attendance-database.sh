@@ -346,4 +346,159 @@ $dependency_order$;
 rollback;
 SQL
 
+wait_for_attendance_race_lock() {
+  local application_name="$1"
+  local lock_count
+  for _attempt in $(seq 1 50); do
+    lock_count="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+      "select count(*) from pg_locks locks join pg_stat_activity activity on activity.pid = locks.pid where locks.locktype = 'advisory' and locks.granted and activity.application_name = '$application_name'")"
+    if [[ "$lock_count" -gt 0 ]]; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  return 1
+}
+
+# Commit isolated fixtures so two independent sessions can prove that the
+# attendance writer and student-purge paths serialize on the same subject lock.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+insert into public.users (id, email, role, workos_user_id) values
+  ('b1260000-0000-4000-8000-000000000001', 'attendance-race-teacher@example.test', 'teacher', 'user_attendance_race_teacher'),
+  ('b1260000-0000-4000-8000-000000000002', 'attendance-race-student@example.test', 'student', 'user_attendance_race_student');
+insert into public.classrooms (id, teacher_id, title, class_code) values
+  ('b1260000-0000-4000-8000-000000000021', 'b1260000-0000-4000-8000-000000000001', 'Attendance race 21', 'B12621'),
+  ('b1260000-0000-4000-8000-000000000022', 'b1260000-0000-4000-8000-000000000001', 'Attendance race 22', 'B12622');
+insert into public.student_purge_operations (
+  id, teacher_id, classroom_id, student_id, student_email,
+  student_binding_sha256, request_sha256, source_revision
+) values (
+  'b1260000-0000-4000-8000-000000000122',
+  'b1260000-0000-4000-8000-000000000001',
+  'b1260000-0000-4000-8000-000000000022',
+  'b1260000-0000-4000-8000-000000000002',
+  'attendance-race-student@example.test', repeat('1', 64), repeat('2', 64), 1
+);
+SQL
+
+docker exec -e PGAPPNAME=bara-attendance-race-begin-writer -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL' &
+begin;
+insert into public.attendance_participant_mappings (
+  classroom_id, student_id, participant_ref
+) values (
+  'b1260000-0000-4000-8000-000000000021',
+  'b1260000-0000-4000-8000-000000000002',
+  'participant_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa21'
+);
+select pg_sleep(2);
+commit;
+SQL
+begin_writer_pid=$!
+
+if ! wait_for_attendance_race_lock 'bara-attendance-race-begin-writer'; then
+  echo "Attendance writer did not acquire the student-purge advisory lock." >&2
+  wait "$begin_writer_pid" || true
+  exit 1
+fi
+
+set +e
+begin_race_output="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X \
+  -v ON_ERROR_STOP=1 2>&1 <<'SQL'
+insert into public.student_purge_operations (
+  id, teacher_id, classroom_id, student_id, student_email,
+  student_binding_sha256, request_sha256, source_revision
+) values (
+  'b1260000-0000-4000-8000-000000000121',
+  'b1260000-0000-4000-8000-000000000001',
+  'b1260000-0000-4000-8000-000000000021',
+  'b1260000-0000-4000-8000-000000000002',
+  'attendance-race-student@example.test', repeat('3', 64), repeat('4', 64), 1
+);
+SQL
+)"
+begin_race_status=$?
+set -e
+wait "$begin_writer_pid"
+if [[ "$begin_race_status" -eq 0 ]] \
+  || ! grep -q 'attendance_student_decommission_required' <<<"$begin_race_output"; then
+  echo "Concurrent student purge begin did not wait and fail closed." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=bara-attendance-race-finalize-writer -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL' &
+begin;
+insert into public.attendance_participant_mappings (
+  classroom_id, student_id, participant_ref
+) values (
+  'b1260000-0000-4000-8000-000000000022',
+  'b1260000-0000-4000-8000-000000000002',
+  'participant_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb22'
+);
+select pg_sleep(2);
+commit;
+SQL
+finalize_writer_pid=$!
+
+if ! wait_for_attendance_race_lock 'bara-attendance-race-finalize-writer'; then
+  echo "Attendance writer did not acquire the finalization advisory lock." >&2
+  wait "$finalize_writer_pid" || true
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $finalize_race$
+declare v_result jsonb;
+begin
+  select public.finalize_student_purge(
+    'b1260000-0000-4000-8000-000000000122',
+    'b1260000-0000-4000-8000-000000000001'
+  ) into v_result;
+  if v_result->>'error_code' <> 'attendance_student_decommission_required'
+    or (v_result->>'retryable')::boolean then
+    raise exception 'Concurrent student purge finalization did not fail closed';
+  end if;
+end;
+$finalize_race$;
+SQL
+wait "$finalize_writer_pid"
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $race_result$
+begin
+  if exists (
+    select 1 from public.student_purge_operations
+    where id = 'b1260000-0000-4000-8000-000000000121'
+  ) then
+    raise exception 'Losing concurrent purge operation was persisted';
+  end if;
+  if exists (
+    select 1 from public.student_purge_operations
+    where id = 'b1260000-0000-4000-8000-000000000122' and status = 'completed'
+  ) then
+    raise exception 'Concurrent purge finalization completed over attendance state';
+  end if;
+end;
+$race_result$;
+
+delete from public.attendance_participant_mappings
+where classroom_id in (
+  'b1260000-0000-4000-8000-000000000021',
+  'b1260000-0000-4000-8000-000000000022'
+);
+delete from public.student_purge_operations
+where id = 'b1260000-0000-4000-8000-000000000122';
+delete from public.classrooms
+where id in (
+  'b1260000-0000-4000-8000-000000000021',
+  'b1260000-0000-4000-8000-000000000022'
+);
+delete from public.users
+where id in (
+  'b1260000-0000-4000-8000-000000000001',
+  'b1260000-0000-4000-8000-000000000002'
+);
+SQL
+
 echo "Bara attendance database checks passed."

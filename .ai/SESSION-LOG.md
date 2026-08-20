@@ -2042,6 +2042,10 @@ Supabase database was reset; no hosted or production state changed.
 - Blocked individual-student purge at both begin and finalization whenever the
   target has attendance mappings or projections, and rejected new attendance
   subject state once a student purge fence exists.
+- Serialized attendance writes, purge begin, and purge finalization on the same
+  per-student advisory lock. A two-session database regression proves a writer
+  that started first commits while both competing purge paths wait and then
+  fail closed, eliminating the MVCC check-then-commit race.
 - Classified every attendance FK as provider-owned blocking state so the live
   schema audit does not treat inbox/projections as portable or rebuildable.
 - Mapped classroom decommission fences to stable 409/non-retryable outcomes.
@@ -2053,7 +2057,9 @@ Supabase database was reset; no hosted or production state changed.
 
 **Verification:**
 - Local migrations 001–126 replayed cleanly and the database harness proved
-  begin/finalize privacy fences, in-flight write rejection, deletion guards,
-  privileges, and dependency ordering.
-- Focused migration, archive-contract, view/UI, compaction, and documentation
-  tests pass; full repository verification is the final pre-push gate.
+  begin/finalize privacy fences, two-session concurrency serialization,
+  in-flight write rejection, deletion guards, privileges, and dependency
+  ordering.
+- All 4,829 tests across 552 files pass, along with TypeScript, production
+  build, architecture, design-policy, UI-policy, database type parity, feature
+  metadata, shell syntax, and diff checks.

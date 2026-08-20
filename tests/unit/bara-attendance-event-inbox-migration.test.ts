@@ -149,6 +149,15 @@ describe('Bara attendance event inbox migration', () => {
       'create trigger reject_attendance_record_during_student_purge_v1',
     )
     expect(migration).toContain(
+      'perform public.student_purge_lock(new.classroom_id, new.student_id)',
+    )
+    expect(migration).toContain(
+      'perform public.student_purge_lock(p_classroom_id, p_student_id)',
+    )
+    expect(migration).toContain(
+      'perform public.student_purge_lock(v_classroom_id, v_student_id)',
+    )
+    expect(migration).toContain(
       'rename to begin_student_purge_without_attendance_v1',
     )
     expect(migration).toContain(

@@ -1955,9 +1955,11 @@ $$;
 create function public.reject_attendance_student_purge_operation_v1()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 begin
+  perform public.student_purge_lock(new.classroom_id, new.student_id);
   if public.attendance_student_has_state_v1(new.classroom_id, new.student_id) then
     raise exception using
       errcode = '55000',
@@ -1974,9 +1976,27 @@ for each row execute function public.reject_attendance_student_purge_operation_v
 create function public.reject_attendance_student_state_during_purge_v1()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 begin
+  -- UPDATE can move state between subjects. Lock both keys in a stable order so
+  -- concurrent purge and attendance writers serialize without deadlocking.
+  if tg_op = 'UPDATE'
+    and (old.classroom_id is distinct from new.classroom_id
+      or old.student_id is distinct from new.student_id) then
+    if old.classroom_id::text || ':' || old.student_id::text
+      < new.classroom_id::text || ':' || new.student_id::text then
+      perform public.student_purge_lock(old.classroom_id, old.student_id);
+      perform public.student_purge_lock(new.classroom_id, new.student_id);
+    else
+      perform public.student_purge_lock(new.classroom_id, new.student_id);
+      perform public.student_purge_lock(old.classroom_id, old.student_id);
+    end if;
+  else
+    perform public.student_purge_lock(new.classroom_id, new.student_id);
+  end if;
+
   if exists (
     select 1
     from public.student_purge_fences
@@ -2026,6 +2046,8 @@ security definer
 set search_path = ''
 as $$
 begin
+  perform public.student_purge_lock(p_classroom_id, p_student_id);
+
   if public.attendance_student_has_state_v1(p_classroom_id, p_student_id) then
     return jsonb_build_object(
       'ok', false,
@@ -2078,6 +2100,10 @@ begin
   into v_classroom_id, v_student_id, v_status
   from public.student_purge_operations
   where id = p_operation_id and teacher_id = p_teacher_id;
+
+  if v_student_id is not null then
+    perform public.student_purge_lock(v_classroom_id, v_student_id);
+  end if;
 
   if v_status is distinct from 'completed'
     and v_student_id is not null
