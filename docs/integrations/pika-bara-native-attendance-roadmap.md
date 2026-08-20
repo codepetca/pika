@@ -113,4 +113,8 @@ The requirement-by-requirement local evidence and hosted gate ledger is in
 
 Disable Pika's attendance surface and Bara's integration adapter independently.
 Preserve the Pika inbox/outbox/projection and Bara audit/outbox data for
-diagnosis. Never roll one side back across a breaking contract version.
+diagnosis. A disabled Pika event ingress returns temporary unavailability so
+Bara retains and retries its event, while Pika treats only Bara's generic
+disabled-adapter `404 not_found` as retryable; closed resource and contract
+rejections remain permanent. Never roll one side back across a breaking
+contract version.

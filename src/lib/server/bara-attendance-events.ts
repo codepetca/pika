@@ -36,7 +36,9 @@ function configuration() {
 
 export async function receiveBaraAttendanceEvent(request: Request): Promise<IngressResult> {
   const config = configuration()
-  if (!config) return { ok: false, status: 404, error: 'not_found' }
+  if (!config) {
+    return { ok: false, status: 503, error: 'temporarily_unavailable' }
+  }
 
   const url = new URL(request.url)
   if (

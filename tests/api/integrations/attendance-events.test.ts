@@ -125,11 +125,12 @@ describe('POST /api/integrations/attendance/v1/events', () => {
     await expect(response.json()).resolves.toEqual({ error: 'resource_mismatch' })
   })
 
-  it('is absent while the integration is disabled', async () => {
+  it('asks Bara to retry while event ingress is disabled', async () => {
     vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'false')
     const response = await POST(await request(), { params: Promise.resolve({}) })
 
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'temporarily_unavailable' })
     expect(mocks.rpc).not.toHaveBeenCalled()
   })
 })

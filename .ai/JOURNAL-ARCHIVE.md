@@ -20895,3 +20895,35 @@ database, hosted configuration, or feature flag was changed.
   smoke and, separately, for Pika migration 126 on a named target. Only after
   the real boundary passes should the read-only teacher view-model slice be
   connected to the UI.
+
+<!-- pika-session-log-archive-batch:494c4a4ae16eee27794873207f7893a7890ba97d6c4551a9700ea8fff7c1c33f -->
+## 2026-08-16 — Implement the private mapping and teacher read boundary
+
+**Risk profile:** runtime-platform and schema mismatch. Migration 126 remains
+unapplied and the attendance integration remains disabled by default.
+
+**Completed:**
+- Extended the unapplied migration with private durable random roster,
+  participant, and occurrence mappings plus a teacher-local Toronto attendance
+  window policy. Local Pika IDs remain outside the Pika/Bara contract, and the
+  mappings stay independently removable from the projection tables.
+- Added a provider-neutral teacher attendance view builder and loader. It joins
+  Pika roster rows to authoritative projections internally, normalizes sources,
+  represents disabled/not-configured/scheduled/open/closed/cancelled and sync
+  states, and strips every opaque integration reference before browser output.
+- Added authenticated `GET /api/teacher/attendance/session`, with strict query
+  validation, teacher ownership, no integration-table reads while disabled,
+  and a privacy-safe 503 for missing or invalid projection storage.
+- Corrected stale-state semantics: a quiet open session is not declared stale
+  from event age alone; stale requires a missing projection or explicit future
+  reconciliation evidence.
+
+**Validation:**
+- Focused attendance/schema/API suites pass 28/28. The full Pika suite passes
+  4,383 tests across 515 files. TypeScript, architecture boundaries across 727
+  modules, production build, route-boundary ratchet, and diff hygiene pass.
+
+**Next gate:**
+- Obtain one-time authorization for migration 126 on an exact Pika target and
+  for the Bara Convex development auth smoke. Then exercise the real signed
+  round trip before connecting this read model to the teacher table.

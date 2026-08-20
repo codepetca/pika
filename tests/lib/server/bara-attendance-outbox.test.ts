@@ -168,6 +168,56 @@ describe('Bara attendance outbound outbox', () => {
     })).rejects.toBe(remoteError)
   })
 
+  it('reuses the durable idempotency key after Bara is temporarily disabled', async () => {
+    let attempt = 0
+    const transitions: string[] = []
+    const supabase = rpcClient((name) => {
+      transitions.push(name)
+      if (name === 'enqueue_attendance_outbound_message_v1') return row('pending', { attempts: attempt })
+      if (name === 'claim_attendance_outbound_message_v1') {
+        attempt += 1
+        return row('processing', { attempts: attempt })
+      }
+      if (name === 'retry_attendance_outbox_v1') return true
+      if (name === 'complete_attendance_outbox_v1') return true
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    const disabledError = new BaraAttendanceClientError(
+      'Bara attendance integration is temporarily unavailable',
+      'not_found',
+      true,
+      404,
+    )
+    const deliver = vi.fn()
+      .mockRejectedValueOnce(disabledError)
+      .mockResolvedValueOnce(result)
+
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      classroomId,
+      message,
+      deliver,
+    })).rejects.toBe(disabledError)
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      classroomId,
+      message,
+      deliver,
+    })).resolves.toEqual(result)
+
+    expect(deliver).toHaveBeenCalledTimes(2)
+    expect(deliver.mock.calls.map(([deliveredMessage]) => deliveredMessage.idempotency_key))
+      .toEqual([message.idempotency_key, message.idempotency_key])
+    expect(transitions).toEqual([
+      'enqueue_attendance_outbound_message_v1',
+      'claim_attendance_outbound_message_v1',
+      'retry_attendance_outbox_v1',
+      'enqueue_attendance_outbound_message_v1',
+      'claim_attendance_outbound_message_v1',
+      'complete_attendance_outbox_v1',
+    ])
+  })
+
   it('fails closed when the same idempotency key is reused with different content', async () => {
     const supabase = {
       rpc: vi.fn().mockResolvedValue({

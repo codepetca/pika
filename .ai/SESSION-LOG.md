@@ -2110,3 +2110,25 @@ Supabase database was reset; no hosted or production state changed.
 - All 4,829 tests across 552 files pass, along with TypeScript, production
   build, architecture, design-policy, UI-policy, database type parity, feature
   metadata, shell syntax, and diff checks.
+
+## 2026-08-20 — Keep attendance rollback failures recoverable
+
+**Risk profile:** runtime-platform — cross-service rollback and durable delivery
+classification. No schema, database, environment, or deployment state changed.
+
+**Completed:**
+- Classified Bara's generic disabled-adapter `404 not_found` response as
+  retryable while preserving resource-specific and contract-specific 404s as
+  permanent failures.
+- Made disabled Pika attendance event ingress return a retryable
+  `503 temporarily_unavailable`, so Bara retains and replays authoritative
+  events instead of poisoning its outbox during a rollback.
+- Added regressions for both transport directions and proved Pika can reuse the
+  same durable idempotency key after Bara becomes available again.
+- Documented the asymmetric rollback response rules in the native-attendance
+  roadmap.
+
+**Verification:**
+- Focused client, outbox, and event-ingress coverage passes 27 tests.
+- The full test suite, TypeScript, lint, production build, architecture,
+  design-policy, UI-policy, session-log validation, and diff checks pass.
