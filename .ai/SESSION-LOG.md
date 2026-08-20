@@ -2117,9 +2117,8 @@ Supabase database was reset; no hosted or production state changed.
 classification. No schema, database, environment, or deployment state changed.
 
 **Completed:**
-- Classified Bara's generic disabled-adapter `404 not_found` response as
-  retryable while preserving resource-specific and contract-specific 404s as
-  permanent failures.
+- Standardized disabled adapters on `503 temporarily_unavailable`, keeping
+  resource-specific and contract-specific 404s as permanent failures.
 - Made disabled Pika attendance event ingress return a retryable
   `503 temporarily_unavailable`, so Bara retains and replays authoritative
   events instead of poisoning its outbox during a rollback.

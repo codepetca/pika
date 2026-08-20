@@ -207,18 +207,18 @@ describe('Bara attendance server client', () => {
     await expect(failure).rejects.toMatchObject({ retryable: true, status: 503 })
   })
 
-  it('retries only the generic not-found response used by a disabled Bara adapter', async () => {
-    const disabled = vi.fn(async () =>
+  it('keeps generic and contract-specific resource misses terminal', async () => {
+    const genericMissing = vi.fn(async () =>
       new Response(JSON.stringify({ ok: false, error: 'not_found' }), { status: 404 }),
     )
     await expect(putBaraRosterSnapshot(payload, {
-      fetcher: disabled as typeof fetch,
-    })).rejects.toMatchObject({ code: 'not_found', retryable: true, status: 404 })
+      fetcher: genericMissing as typeof fetch,
+    })).rejects.toMatchObject({ code: 'not_found', retryable: false, status: 404 })
 
     const missingOccurrence = vi.fn(async () =>
       new Response(JSON.stringify({ ok: false, code: 'occurrence_not_found' }), { status: 404 }),
     )
-    await expect(postBaraSessionCommand(commandPayload, {
+    await expect(getBaraSessionSnapshot('occurrence_missing', {
       fetcher: missingOccurrence as typeof fetch,
     })).rejects.toMatchObject({
       code: 'occurrence_not_found',

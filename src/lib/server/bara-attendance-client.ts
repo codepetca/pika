@@ -547,8 +547,7 @@ async function signedRequest(
       remoteCode,
       response.status === 408
         || response.status === 429
-        || response.status >= 500
-        || (response.status === 404 && remoteCode === 'not_found'),
+        || response.status >= 500,
       response.status,
     )
   }

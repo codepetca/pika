@@ -184,9 +184,9 @@ describe('Bara attendance outbound outbox', () => {
     })
     const disabledError = new BaraAttendanceClientError(
       'Bara attendance integration is temporarily unavailable',
-      'not_found',
+      'temporarily_unavailable',
       true,
-      404,
+      503,
     )
     const deliver = vi.fn()
       .mockRejectedValueOnce(disabledError)
