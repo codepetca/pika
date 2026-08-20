@@ -21660,3 +21660,39 @@ unapplied, and no database or hosted environment was changed.
   real environment gate remains explicit authorization for the Bara Convex
   development deploy and Staging Pika-to-Bara authentication smoke; migration
   126 requires separate authorization for an exact Pika target.
+
+<!-- pika-session-log-archive-batch:3e0ee131e8fb34fa68faf53e4a60647a652642cdf10377750bf93a753a3767d1 -->
+## 2026-08-16 — Persist teacher attendance commands before delivery
+
+**Risk profile:** runtime-platform, privacy, and schema mismatch. Migration 127
+remains unapplied; no database, WorkOS, Convex, or hosted configuration changed.
+
+**Completed:**
+- Added a private service-role-only Pika-to-Bara outbox for all v1 outbound
+  message types, with contract-envelope checks, payload-size bounds,
+  idempotency conflict detection, leases, retry timing, cached closed
+  responses, and explicit non-retryable retention.
+- Routed manual teacher session and bulk-mark commands through persist-before-
+  send delivery. A retry of an already delivered request returns the stored
+  provider-neutral result without a second Bara write.
+- Added a cron-secret-protected bounded drain route. Error state stores only a
+  normalized code and generic detail; it does not copy remote responses,
+  secrets, or contract payloads into telemetry fields.
+- Preserved the adapter boundary: the outbox stores pinned contract messages,
+  not Convex types or IDs. Roster names are acknowledged as standard protected
+  attendance data when the future roster producer uses this transport.
+- Documented remaining gates accurately: roster/schedule source revisions are
+  not yet committed atomically with outbox messages, and a sufficiently
+  frequent no-charge recovery worker is not configured.
+
+**Validation:**
+- The full Pika suite passes 4,409 tests across 521 files. Focused outbox,
+  command, migration, teacher-route, and cron tests pass 27/27. TypeScript,
+  architecture boundaries across 734 modules, production build, and diff
+  hygiene pass.
+
+**Next gate:**
+- Wire roster and schedule producers to the outbox with atomic source-revision
+  staging, then exercise migration 127 and the real signed boundary only after
+  exact environment authorization. The external authentication gate remains a
+  Bara Convex development deploy plus Staging Pika-to-Bara smoke.

@@ -343,7 +343,7 @@ async function main() {
 
     console.log(JSON.stringify({
       isolatedTargets: true,
-      migrationsExercised: '001-126',
+      migrationsExercised: '001-127',
       rosterSync: synced.roster.outcome,
       scheduleSync: synced.schedule.outcome,
       sessionOpen: opened.outcome,

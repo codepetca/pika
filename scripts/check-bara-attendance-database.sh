@@ -22,11 +22,11 @@ docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=
 do $migration$
 begin
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '126'
+    select 1 from supabase_migrations.schema_migrations where version = '127'
   ) or to_regprocedure(
     'public.claim_attendance_outbox_batch_v1(integer,integer)'
   ) is null then
-    raise exception 'Migration 126 is not applied to the local database';
+    raise exception 'Migration 127 is not applied to the local database';
   end if;
 end;
 $migration$;

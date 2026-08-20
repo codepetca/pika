@@ -6,8 +6,23 @@ const migration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/127_bara_attendance_event_inbox.sql'),
   'utf8',
 )
+const databaseCheck = readFileSync(
+  resolve(process.cwd(), 'scripts/check-bara-attendance-database.sh'),
+  'utf8',
+)
+const localRehearsal = readFileSync(
+  resolve(process.cwd(), 'scripts/rehearse-local-bara-attendance.ts'),
+  'utf8',
+)
 
 describe('Bara attendance event inbox migration', () => {
+  it('keeps operational verification bound to migration 127', () => {
+    expect(databaseCheck).toContain("version = '127'")
+    expect(databaseCheck).toContain('Migration 127 is not applied to the local database')
+    expect(databaseCheck).not.toContain("version = '126'")
+    expect(localRehearsal).toContain("migrationsExercised: '001-127'")
+  })
+
   it('creates private durable local-to-opaque mappings and a Toronto attendance policy', () => {
     expect(migration).toContain('create table public.attendance_roster_mappings')
     expect(migration).toContain('create table public.attendance_participant_mappings')

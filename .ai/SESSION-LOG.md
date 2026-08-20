@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-16 — Persist teacher attendance commands before delivery
-
-**Risk profile:** runtime-platform, privacy, and schema mismatch. Migration 127
-remains unapplied; no database, WorkOS, Convex, or hosted configuration changed.
-
-**Completed:**
-- Added a private service-role-only Pika-to-Bara outbox for all v1 outbound
-  message types, with contract-envelope checks, payload-size bounds,
-  idempotency conflict detection, leases, retry timing, cached closed
-  responses, and explicit non-retryable retention.
-- Routed manual teacher session and bulk-mark commands through persist-before-
-  send delivery. A retry of an already delivered request returns the stored
-  provider-neutral result without a second Bara write.
-- Added a cron-secret-protected bounded drain route. Error state stores only a
-  normalized code and generic detail; it does not copy remote responses,
-  secrets, or contract payloads into telemetry fields.
-- Preserved the adapter boundary: the outbox stores pinned contract messages,
-  not Convex types or IDs. Roster names are acknowledged as standard protected
-  attendance data when the future roster producer uses this transport.
-- Documented remaining gates accurately: roster/schedule source revisions are
-  not yet committed atomically with outbox messages, and a sufficiently
-  frequent no-charge recovery worker is not configured.
-
-**Validation:**
-- The full Pika suite passes 4,409 tests across 521 files. Focused outbox,
-  command, migration, teacher-route, and cron tests pass 27/27. TypeScript,
-  architecture boundaries across 734 modules, production build, and diff
-  hygiene pass.
-
-**Next gate:**
-- Wire roster and schedule producers to the outbox with atomic source-revision
-  staging, then exercise migration 127 and the real signed boundary only after
-  exact environment authorization. The external authentication gate remains a
-  Bara Convex development deploy plus Staging Pika-to-Bara smoke.
-
 ## 2026-08-16 — Pin roster snapshot materialization and revision design
 
 **Risk profile:** privacy and cross-database consistency. No database or hosted
@@ -1401,3 +1366,18 @@ classification. No schema, database, environment, or deployment state changed.
 - Focused client, outbox, and event-ingress coverage passes 27 tests.
 - The full test suite, TypeScript, lint, production build, architecture,
   design-policy, UI-policy, session-log validation, and diff checks pass.
+
+## 2026-08-20 — Align attendance verifiers with migration 127
+
+**Risk profile:** runtime-platform — migration evidence and local rollout
+guarding only. No database, environment, or deployment state changed.
+
+**Completed:**
+- Updated the Bara attendance database guard to require migration 127 rather
+  than the unrelated archive migration 126.
+- Updated local rehearsal evidence to report the complete 001–127 migration
+  range and added a regression that binds both operational verifiers to 127.
+
+**Verification:**
+- Migration filename and focused attendance-migration tests pass; local dry-run
+  identifies only migration 127 as pending.
