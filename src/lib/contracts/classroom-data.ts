@@ -74,6 +74,35 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
 // records are rebuilt or expired by their owning workflow, and the managed
 // JSON registry is deterministically rebuilt from its persisted host JSON.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
+  // Attendance integration mappings, delivery work, and local policy are
+  // re-established through the attendance sync workflow after a classroom
+  // restore. They must cascade with the live classroom, but are not portable
+  // classroom-archive resources and must not mutate the frozen archive formats.
+  {
+    child_table: 'attendance_integration_outbox',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_occurrence_mappings',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_participant_mappings',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_roster_mappings',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_window_policies',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
   {
     child_table: 'course_blueprint_change_proposals',
     parent_table: 'classrooms',

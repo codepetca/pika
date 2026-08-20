@@ -213,6 +213,11 @@ describe('classroom data inventory', () => {
     expect(audit.untracked_tables).not.toContain('course_blueprint_editing_sessions')
     expect(audit.untracked_tables).not.toContain('classroom_purge_fences')
     expect(audit.untracked_tables).not.toContain('managed_storage_json_references')
+    expect(audit.untracked_tables).not.toContain('attendance_integration_outbox')
+    expect(audit.untracked_tables).not.toContain('attendance_occurrence_mappings')
+    expect(audit.untracked_tables).not.toContain('attendance_participant_mappings')
+    expect(audit.untracked_tables).not.toContain('attendance_roster_mappings')
+    expect(audit.untracked_tables).not.toContain('attendance_window_policies')
 
     const missingReference = contractRelationships().filter((relationship) =>
       !(relationship.child_table === 'course_blueprint_editing_sessions' &&
