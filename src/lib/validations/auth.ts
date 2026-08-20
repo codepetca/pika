@@ -1,9 +1,10 @@
 import { z } from 'zod'
+import { isSafeInternalPath } from '@/lib/navigation-safety'
 
 /**
  * Shared email validation: required string, email format, lowercased and trimmed.
  */
-const emailField = z.string().email('Invalid email format').transform(v => v.toLowerCase().trim())
+const emailField = z.string().trim().toLowerCase().email('Invalid email format')
 const handoffTokenField = z.preprocess(
   value => (typeof value === 'string' ? value.trim() : ''),
   z.string().min(32, 'Verification session is required'),
@@ -43,6 +44,27 @@ export const createPasswordSchema = z.object({
 export const loginSchema = z.object({
   email: emailField,
   password: z.string().min(1, 'Password is required'),
+})
+
+const safeNextPath = z.string().trim().refine(
+  isSafeInternalPath,
+  'Invalid return path',
+)
+
+/**
+ * POST /api/auth/workos/magic/start
+ */
+export const startWorkOSMagicAuthSchema = z.object({
+  email: emailField,
+  intent: z.enum(['sign-in', 'sign-up']).default('sign-in'),
+  next: safeNextPath.optional(),
+})
+
+/**
+ * POST /api/auth/workos/magic/verify
+ */
+export const verifyWorkOSMagicAuthSchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/, 'Enter the six-digit code'),
 })
 
 /**

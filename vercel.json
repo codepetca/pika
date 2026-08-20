@@ -28,6 +28,14 @@
     {
       "path": "/api/cron/test-document-snapshot-storage-cleanup",
       "schedule": "45 7 * * *"
+    },
+    {
+      "path": "/api/cron/bara-attendance-automation",
+      "schedule": "15 8 * * *"
+    },
+    {
+      "path": "/api/cron/bara-attendance-reconciliation",
+      "schedule": "45 8 * * *"
     }
   ]
 }

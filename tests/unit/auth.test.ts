@@ -7,6 +7,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { IronSession } from 'iron-session'
 import type { SessionData } from '@/types'
 
+const workOSMocks = vi.hoisted(() => ({
+  withAuth: vi.fn(),
+}))
+
+vi.mock('@workos-inc/authkit-nextjs', () => ({
+  withAuth: workOSMocks.withAuth,
+}))
+
 // Mock iron-session
 const mockSession: Partial<IronSession<SessionData>> = {
   user: undefined,
@@ -42,11 +50,14 @@ import {
 describe('auth utilities', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    workOSMocks.withAuth.mockResolvedValue({ user: null })
     // Reset session user to undefined before each test
     mockSession.user = undefined
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
@@ -124,6 +135,19 @@ describe('auth utilities', () => {
     it('should save the session after setting user', async () => {
       await createSession('user-1', 'test@student.com', 'student')
       expect(mockSession.save).toHaveBeenCalledTimes(1)
+    })
+
+    it('supports a shorter compatibility-session lifetime for external auth pilots', async () => {
+      await createSession('user-1', 'test@student.com', 'student', {
+        maxAgeSeconds: 12 * 60 * 60,
+      })
+
+      expect(getIronSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          cookieOptions: expect.objectContaining({ maxAge: 12 * 60 * 60 }),
+        }),
+      )
     })
 
     it('should overwrite existing session data', async () => {
@@ -218,6 +242,62 @@ describe('auth utilities', () => {
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
       })
+    })
+
+    it('requires a matching verified WorkOS session when the pilot is enabled', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: ' 123456789@GAPPS.YRDSB.CA ',
+        role: 'student',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_1',
+          email: '123456789@gapps.yrdsb.ca',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toEqual(mockSession.user)
+      expect(workOSMocks.withAuth).toHaveBeenCalledOnce()
+    })
+
+    it('rejects a Pika-only compatibility cookie when the pilot is enabled', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: '123456789@gapps.yrdsb.ca',
+        role: 'student',
+      }
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+    })
+
+    it('rejects mismatched or unverified WorkOS identities when the pilot is enabled', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: '123456789@gapps.yrdsb.ca',
+        role: 'student',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_2',
+          email: 'different@gapps.yrdsb.ca',
+          emailVerified: true,
+        },
+      })
+      await expect(getCurrentUser()).resolves.toBeNull()
+
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_1',
+          email: '123456789@gapps.yrdsb.ca',
+          emailVerified: false,
+        },
+      })
+      await expect(getCurrentUser()).resolves.toBeNull()
     })
   })
 

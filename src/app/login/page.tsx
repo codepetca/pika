@@ -1,8 +1,15 @@
 import { Suspense } from 'react'
 import { LoginClient } from './LoginClient'
 import { Spinner } from '@/components/Spinner'
+import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import { hasActivePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const magicAuthEnabled = isWorkOSMagicAuthPilotEnabled()
+  const hasPendingChallenge = magicAuthEnabled
+    ? await hasActivePendingWorkOSMagicAuth('sign-in')
+    : false
+
   return (
     <Suspense
       fallback={
@@ -11,7 +18,10 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginClient />
+      <LoginClient
+        magicAuthEnabled={magicAuthEnabled}
+        hasPendingMagicAuthChallenge={hasPendingChallenge}
+      />
     </Suspense>
   )
 }

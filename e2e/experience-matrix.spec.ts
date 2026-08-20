@@ -93,7 +93,7 @@ async function enterSeededClassroom(page: Page, role: 'teacher' | 'student') {
     throw new Error(`${role} browser fixture is missing Test Classroom`)
   }
 
-  const tab = role === 'teacher' ? 'attendance' : 'today'
+  const tab = role === 'teacher' ? 'daily' : 'today'
   await page.goto(`/classrooms/${seededClassroom.id}?tab=${tab}`, {
     waitUntil: 'domcontentloaded',
     timeout: 60_000,

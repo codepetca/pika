@@ -586,7 +586,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   const openClassroom = useCallback((classroom: Classroom) => {
     setOpeningClassroomId(classroom.id)
-    router.push(`/classrooms/${classroom.id}?tab=attendance`)
+    router.push(`/classrooms/${classroom.id}?tab=daily`)
   }, [router])
 
   return (

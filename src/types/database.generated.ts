@@ -1133,6 +1133,473 @@ export type Database = {
           },
         ]
       }
+      attendance_integration_inbox: {
+        Row: {
+          classroom_id: string
+          correlation_ref: string
+          event_id: string
+          event_type: string
+          id: string
+          idempotency_key: string
+          installation_ref: string
+          occurred_at: string
+          occurrence_ref: string
+          payload: Json
+          projection_applied: boolean
+          received_at: string
+          roster_ref: string
+          session_revision: number
+          transport_nonce: string
+        }
+        Insert: {
+          classroom_id: string
+          correlation_ref: string
+          event_id: string
+          event_type: string
+          id?: string
+          idempotency_key: string
+          installation_ref: string
+          occurred_at: string
+          occurrence_ref: string
+          payload: Json
+          projection_applied?: boolean
+          received_at?: string
+          roster_ref: string
+          session_revision: number
+          transport_nonce: string
+        }
+        Update: {
+          classroom_id?: string
+          correlation_ref?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          idempotency_key?: string
+          installation_ref?: string
+          occurred_at?: string
+          occurrence_ref?: string
+          payload?: Json
+          projection_applied?: boolean
+          received_at?: string
+          roster_ref?: string
+          session_revision?: number
+          transport_nonce?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_integration_inbox_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_integration_outbox: {
+        Row: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          classroom_id: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_detail?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          message_type: string
+          next_attempt_at?: string
+          payload: Json
+          response_payload?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          classroom_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_detail?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          message_type?: string
+          next_attempt_at?: string
+          payload?: Json
+          response_payload?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_integration_outbox_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_occurrence_mappings: {
+        Row: {
+          class_date: string
+          classroom_id: string
+          closes_at: string | null
+          created_at: string
+          desired_state: string
+          last_reconciled_at: string | null
+          occurrence_ref: string
+          opens_at: string | null
+          source_revision: number
+          synced_revision: number | null
+          updated_at: string
+        }
+        Insert: {
+          class_date: string
+          classroom_id: string
+          closes_at?: string | null
+          created_at?: string
+          desired_state?: string
+          last_reconciled_at?: string | null
+          occurrence_ref?: string
+          opens_at?: string | null
+          source_revision?: number
+          synced_revision?: number | null
+          updated_at?: string
+        }
+        Update: {
+          class_date?: string
+          classroom_id?: string
+          closes_at?: string | null
+          created_at?: string
+          desired_state?: string
+          last_reconciled_at?: string | null
+          occurrence_ref?: string
+          opens_at?: string | null
+          source_revision?: number
+          synced_revision?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_occurrence_mappings_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_participant_mappings: {
+        Row: {
+          active: boolean
+          classroom_id: string
+          created_at: string
+          participant_ref: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          classroom_id: string
+          created_at?: string
+          participant_ref?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          classroom_id?: string
+          created_at?: string
+          participant_ref?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_participant_mappings_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_participant_mappings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_principal_mappings: {
+        Row: {
+          created_at: string
+          principal_ref: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          principal_ref?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          principal_ref?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_principal_mappings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_record_projection: {
+        Row: {
+          actor_type: string
+          classroom_id: string
+          id: string
+          installation_ref: string
+          last_event_at: string
+          last_event_id: string
+          occurrence_ref: string
+          participant_ref: string
+          reason_code: string | null
+          record_revision: number
+          roster_ref: string
+          source: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          actor_type: string
+          classroom_id: string
+          id?: string
+          installation_ref: string
+          last_event_at: string
+          last_event_id: string
+          occurrence_ref: string
+          participant_ref: string
+          reason_code?: string | null
+          record_revision: number
+          roster_ref: string
+          source: string
+          status: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          actor_type?: string
+          classroom_id?: string
+          id?: string
+          installation_ref?: string
+          last_event_at?: string
+          last_event_id?: string
+          occurrence_ref?: string
+          participant_ref?: string
+          reason_code?: string | null
+          record_revision?: number
+          roster_ref?: string
+          source?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_record_projection_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_record_projection_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_roster_mappings: {
+        Row: {
+          classroom_id: string
+          created_at: string
+          roster_ref: string
+          schedule_source_revision: number
+          schedule_source_token: string | null
+          schedule_staged_revision: number | null
+          schedule_synced_revision: number | null
+          source_revision: number
+          source_token: string | null
+          staged_revision: number | null
+          synced_revision: number | null
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          created_at?: string
+          roster_ref?: string
+          schedule_source_revision?: number
+          schedule_source_token?: string | null
+          schedule_staged_revision?: number | null
+          schedule_synced_revision?: number | null
+          source_revision?: number
+          source_token?: string | null
+          staged_revision?: number | null
+          synced_revision?: number | null
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          created_at?: string
+          roster_ref?: string
+          schedule_source_revision?: number
+          schedule_source_token?: string | null
+          schedule_staged_revision?: number | null
+          schedule_synced_revision?: number | null
+          source_revision?: number
+          source_token?: string | null
+          staged_revision?: number | null
+          synced_revision?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_roster_mappings_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_session_projection: {
+        Row: {
+          classroom_id: string
+          closes_at: string | null
+          id: string
+          installation_ref: string
+          last_event_at: string
+          last_event_id: string
+          occurrence_ref: string
+          opens_at: string | null
+          roster_ref: string
+          session_revision: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          closes_at?: string | null
+          id?: string
+          installation_ref: string
+          last_event_at: string
+          last_event_id: string
+          occurrence_ref: string
+          opens_at?: string | null
+          roster_ref: string
+          session_revision: number
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          closes_at?: string | null
+          id?: string
+          installation_ref?: string
+          last_event_at?: string
+          last_event_id?: string
+          occurrence_ref?: string
+          opens_at?: string | null
+          roster_ref?: string
+          session_revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_session_projection_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_window_policies: {
+        Row: {
+          classroom_id: string
+          close_day_offset: number
+          closes_local: string
+          created_at: string
+          enabled: boolean
+          opens_local: string
+          policy_revision: number
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id: string
+          close_day_offset?: number
+          closes_local: string
+          created_at?: string
+          enabled?: boolean
+          opens_local: string
+          policy_revision?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string
+          close_day_offset?: number
+          closes_local?: string
+          created_at?: string
+          enabled?: boolean
+          opens_local?: string
+          policy_revision?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_window_policies_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: true
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_days: {
         Row: {
           classroom_id: string
@@ -6119,6 +6586,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      apply_attendance_event_v1: {
+        Args: { p_event: Json; p_transport_nonce: string }
+        Returns: Json
+      }
+      apply_attendance_session_snapshot_v1: {
+        Args: { p_installation_ref: string; p_snapshot: Json }
+        Returns: Json
+      }
       apply_course_blueprint_classroom_proposal_atomic: {
         Args: {
           p_classroom_plan: Json
@@ -6212,6 +6687,38 @@ export type Database = {
       archived_classroom_blueprint_snapshot_from_plan: {
         Args: { p_blueprint_id: string; p_draft_revision: number; p_plan: Json }
         Returns: Json
+      }
+      attendance_classroom_has_state_v1: {
+        Args: { p_classroom_id: string }
+        Returns: boolean
+      }
+      attendance_event_v1_valid: { Args: { p_event: Json }; Returns: boolean }
+      attendance_outbox_dependencies_ready_v1: {
+        Args: {
+          p_row: Database["public"]["Tables"]["attendance_integration_outbox"]["Row"]
+        }
+        Returns: boolean
+      }
+      attendance_outbox_health_v1: { Args: never; Returns: Json }
+      attendance_roster_source_document_v1: {
+        Args: { p_classroom_id: string }
+        Returns: Json
+      }
+      attendance_schedule_source_document_v1: {
+        Args: {
+          p_classroom_id: string
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: Json
+      }
+      attendance_session_snapshot_v1_valid: {
+        Args: { p_snapshot: Json }
+        Returns: boolean
+      }
+      attendance_student_has_state_v1: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: boolean
       }
       begin_classroom_archive_compaction: {
         Args: {
@@ -6431,6 +6938,19 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_student_purge_without_attendance_v1: {
+        Args: {
+          p_classroom_id: string
+          p_confirmation: string
+          p_expected_relational_inventory_sha256: string
+          p_expected_source_revision: number
+          p_expected_storage_inventory_sha256: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string
@@ -6535,6 +7055,62 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "assignment_artifact_storage_cleanup"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_attendance_outbound_message_v1: {
+        Args: { p_idempotency_key: string; p_lease_seconds?: number }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      claim_attendance_outbox_batch_v1: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -7005,6 +7581,14 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_attendance_outbox_v1: {
+        Args: {
+          p_lease_token: string
+          p_outbox_id: string
+          p_response_payload: Json
+        }
+        Returns: boolean
+      }
       complete_classroom_archive_compaction: {
         Args: {
           p_actors: Json
@@ -7395,6 +7979,34 @@ export type Database = {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean
       }
+      enqueue_attendance_outbound_message_v1: {
+        Args: { p_classroom_id: string; p_message: Json }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       enqueue_pal_event: {
         Args: {
           p_event: Json
@@ -7439,6 +8051,15 @@ export type Database = {
       }
       fail_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
+        Returns: boolean
+      }
+      fail_attendance_outbox_v1: {
+        Args: {
+          p_error_code: string
+          p_error_detail: string
+          p_lease_token: string
+          p_outbox_id: string
+        }
         Returns: boolean
       }
       fail_classroom_archive_compaction: {
@@ -7612,6 +8233,10 @@ export type Database = {
         Returns: Json
       }
       finalize_student_purge: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      finalize_student_purge_without_attendance_v1: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
@@ -7791,6 +8416,14 @@ export type Database = {
         Returns: boolean
       }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
+      list_attendance_reconciliation_targets_v1: {
+        Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }
+        Returns: Json
+      }
+      list_attendance_sync_targets_v1: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }
       managed_storage_blueprint_protocol_ready: {
         Args: never
@@ -7893,6 +8526,15 @@ export type Database = {
         Returns: Json
       }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
+      prepare_attendance_snapshot_v1: {
+        Args: {
+          p_classroom_id: string
+          p_teacher_id: string
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: Json
+      }
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
@@ -8134,6 +8776,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      retry_attendance_outbox_v1: {
+        Args: {
+          p_error_code: string
+          p_error_detail: string
+          p_lease_token: string
+          p_next_attempt_at: string
+          p_outbox_id: string
+        }
+        Returns: boolean
+      }
       retry_pal_event_outbox: {
         Args: {
           p_error_code: string
@@ -8366,6 +9018,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      stage_attendance_roster_snapshot_v1: {
+        Args: {
+          p_classroom_id: string
+          p_message: Json
+          p_source_token: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      stage_attendance_schedule_snapshot_v1: {
+        Args: {
+          p_classroom_id: string
+          p_message: Json
+          p_source_token: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       stage_classroom_archive_compaction_objects: {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -8539,6 +9209,18 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      upsert_attendance_window_policy_v1: {
+        Args: {
+          p_classroom_id: string
+          p_close_day_offset: number
+          p_closes_local: string
+          p_enabled: boolean
+          p_expected_revision?: number
+          p_opens_local: string
+          p_teacher_id: string
         }
         Returns: Json
       }

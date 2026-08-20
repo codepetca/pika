@@ -29,6 +29,12 @@ describe('getLayoutConfig', () => {
     expect(config.mainContent.maxWidth).toBe('full')
   })
 
+  it('should preserve the Daily log as its own full-width workspace', () => {
+    const config = getLayoutConfig('daily')
+    expect(config.rightSidebar.enabled).toBe(false)
+    expect(config.mainContent.maxWidth).toBe('full')
+  })
+
   it('should return disabled right sidebar for classrooms-list', () => {
     const config = getLayoutConfig('classrooms-list')
     expect(config.rightSidebar.enabled).toBe(false)
@@ -171,6 +177,7 @@ describe('getRightSidebarCssWidth', () => {
 
 describe('getRouteKeyFromTab', () => {
   it('should return correct route key for teacher tabs', () => {
+    expect(getRouteKeyFromTab('daily', 'teacher')).toBe('daily')
     expect(getRouteKeyFromTab('attendance', 'teacher')).toBe('attendance')
     expect(getRouteKeyFromTab('gradebook', 'teacher')).toBe('gradebook')
     expect(getRouteKeyFromTab('roster', 'teacher')).toBe('roster')
@@ -203,12 +210,12 @@ describe('getRouteKeyFromTab', () => {
   })
 
   it('should treat the legacy quizzes tab as hidden and fall back by role', () => {
-    expect(getRouteKeyFromTab('quizzes', 'teacher')).toBe('attendance')
+    expect(getRouteKeyFromTab('quizzes', 'teacher')).toBe('daily')
     expect(getRouteKeyFromTab('quizzes', 'student')).toBe('today')
   })
 
   it('should return default for unknown tabs', () => {
-    expect(getRouteKeyFromTab('unknown', 'teacher')).toBe('attendance')
+    expect(getRouteKeyFromTab('unknown', 'teacher')).toBe('daily')
     expect(getRouteKeyFromTab('unknown', 'student')).toBe('today')
   })
 })
@@ -218,6 +225,7 @@ describe('ROUTE_CONFIGS', () => {
     const expectedKeys: RouteKey[] = [
       'classrooms-list',
       'settings',
+      'daily',
       'attendance',
       'gradebook',
       'roster',

@@ -104,7 +104,9 @@ Make sure your Brevo template uses:
 ```
 Failed to send email via Brevo (401): Unauthorized
 ```
-→ API key is incorrect or expired
+→ API key is incorrect, expired, or disabled. For the local Pika/Bara pilot,
+run `pnpm attendance:local:configure`; it verifies the selected key without
+printing it. Restart Next.js after any environment repair.
 
 ```
 Failed to send email via Brevo (400): ...
