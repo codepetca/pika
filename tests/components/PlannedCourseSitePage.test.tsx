@@ -71,7 +71,9 @@ describe('PlannedCourseSitePage', () => {
   })
 
   it('exposes a semantic section index without rendering private Test content', async () => {
-    render(await PlannedCourseSitePage({ params: Promise.resolve({ slug: 'computer-science-11' }) }))
+    const { container } = render(
+      await PlannedCourseSitePage({ params: Promise.resolve({ slug: 'computer-science-11' }) }),
+    )
 
     const sectionNavigation = screen.getByRole('navigation', { name: 'Course sections' })
     expect(sectionNavigation).toBeVisible()
@@ -89,5 +91,8 @@ describe('PlannedCourseSitePage', () => {
     expect(screen.getByText('1 question')).toBeVisible()
     expect(screen.queryByText('Private question')).toBeNull()
     expect(screen.queryByText('Private answer')).toBeNull()
+    expect(container.innerHTML).not.toContain('assignment-1')
+    expect(container.innerHTML).not.toContain('test-1')
+    expect(container.innerHTML).not.toContain('lesson-1')
   })
 })

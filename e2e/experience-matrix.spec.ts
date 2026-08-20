@@ -402,14 +402,21 @@ test.describe('public planned course experience matrix', () => {
     await expect(page.getByText('1 question', { exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { level: 3, name: 'Tracing and Debugging' })).toBeVisible()
 
-    const pageSource = await page.content()
+    const pageSource = `${await response!.text()}\n${await page.content()}`
     for (const privateValue of [
+      PLANNED_COURSE_FIXTURE.blueprintId,
+      PLANNED_COURSE_FIXTURE.assignmentId,
+      PLANNED_COURSE_FIXTURE.assessmentId,
+      PLANNED_COURSE_FIXTURE.lessonTemplateId,
       PLANNED_COURSE_FIXTURE.privateQuestion,
       PLANNED_COURSE_FIXTURE.privateAnswer,
       PLANNED_COURSE_FIXTURE.privateDocumentTitle,
       PLANNED_COURSE_FIXTURE.privateDocumentUrl,
       PLANNED_COURSE_FIXTURE.questionId,
       PLANNED_COURSE_FIXTURE.documentId,
+      PLANNED_COURSE_FIXTURE.assignmentArtifactId,
+      PLANNED_COURSE_FIXTURE.assessmentArtifactId,
+      PLANNED_COURSE_FIXTURE.lessonTemplateArtifactId,
     ]) {
       expect(pageSource).not.toContain(privateValue)
     }

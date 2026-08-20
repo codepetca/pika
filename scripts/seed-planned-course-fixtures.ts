@@ -8,6 +8,9 @@ export const PLANNED_COURSE_FIXTURE = {
   privateBlueprintId: '90000000-0000-4000-8000-000000000205',
   questionId: '90000000-0000-4000-8000-000000000206',
   documentId: '90000000-0000-4000-8000-000000000207',
+  assignmentArtifactId: '90000000-0000-4000-8000-000000000208',
+  assessmentArtifactId: '90000000-0000-4000-8000-000000000209',
+  lessonTemplateArtifactId: '90000000-0000-4000-8000-000000000210',
   publicSlug: 'e2e-planned-computer-science-11',
   privateSlug: 'e2e-private-course-plan',
   privateQuestion: 'Private prompt must not render',
@@ -78,8 +81,37 @@ export async function seedPlannedCourseFixtures(
   )
 
   assertSeedResult(
-    await supabase.from('course_blueprint_assignments').upsert({
+    await supabase.from('course_blueprints').upsert({
+      id: fixture.privateBlueprintId,
+      teacher_id: teacherId,
+      title: 'Private Course Plan',
+      planned_site_slug: fixture.privateSlug,
+      planned_site_published: false,
+      position: 81,
+    }, { onConflict: 'id' }),
+    'Seed unpublished planned course Blueprint',
+  )
+
+  const childTables = [
+    'course_blueprint_assignments',
+    'course_blueprint_assessments',
+    'course_blueprint_lesson_templates',
+    'course_blueprint_materials',
+    'course_blueprint_surveys',
+  ] as const
+  for (const table of childTables) {
+    for (const blueprintId of [fixture.blueprintId, fixture.privateBlueprintId]) {
+      assertSeedResult(
+        await supabase.from(table).delete().eq('course_blueprint_id', blueprintId),
+        `Reset ${table} for ${blueprintId}`,
+      )
+    }
+  }
+
+  assertSeedResult(
+    await supabase.from('course_blueprint_assignments').insert({
       id: fixture.assignmentId,
+      artifact_id: fixture.assignmentArtifactId,
       course_blueprint_id: fixture.blueprintId,
       title: 'Algorithm Design Brief',
       instructions_markdown: 'Compare two approaches and explain the tradeoffs using pseudocode.',
@@ -89,13 +121,14 @@ export async function seedPlannedCourseFixtures(
       include_in_final: true,
       is_draft: true,
       position: 0,
-    }, { onConflict: 'id' }),
+    }),
     'Seed planned course assignment',
   )
 
   assertSeedResult(
-    await supabase.from('course_blueprint_assessments').upsert({
+    await supabase.from('course_blueprint_assessments').insert({
       id: fixture.assessmentId,
+      artifact_id: fixture.assessmentArtifactId,
       course_blueprint_id: fixture.blueprintId,
       assessment_type: 'test',
       title: 'Programming Foundations Test',
@@ -117,30 +150,19 @@ export async function seedPlannedCourseFixtures(
         url: fixture.privateDocumentUrl,
       }],
       position: 0,
-    }, { onConflict: 'id' }),
+    }),
     'Seed planned course Test',
   )
 
   assertSeedResult(
-    await supabase.from('course_blueprint_lesson_templates').upsert({
+    await supabase.from('course_blueprint_lesson_templates').insert({
       id: fixture.lessonTemplateId,
+      artifact_id: fixture.lessonTemplateArtifactId,
       course_blueprint_id: fixture.blueprintId,
       title: 'Tracing and Debugging',
       content_markdown: 'Model a trace table, diagnose one defect, and record the correction.',
       position: 0,
-    }, { onConflict: 'id' }),
+    }),
     'Seed planned course lesson template',
-  )
-
-  assertSeedResult(
-    await supabase.from('course_blueprints').upsert({
-      id: fixture.privateBlueprintId,
-      teacher_id: teacherId,
-      title: 'Private Course Plan',
-      planned_site_slug: fixture.privateSlug,
-      planned_site_published: false,
-      position: 81,
-    }, { onConflict: 'id' }),
-    'Seed unpublished planned course Blueprint',
   )
 }

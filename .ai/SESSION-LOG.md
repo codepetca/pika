@@ -1227,7 +1227,7 @@ cleanup, or Gradex change.
 
 **Validation:**
 - `pnpm seed` passes with the isolated planned-course fixture runner.
-- Full verification passes 4,614 tests across 506 files, lint, type checking,
+- Full verification passes 4,615 tests across 507 files, lint, type checking,
   and the production build. Architecture, UI policy, design policy, Pika audit,
   and diff checks pass.
 - The final Playwright experience matrix passes 36 tests with 14 intentional
@@ -1238,3 +1238,18 @@ cleanup, or Gradex change.
 
 **Model recommendation:** Sol with high reasoning for the public content-
 exposure boundary and cross-route publication lifecycle.
+
+**Independent review remediation:**
+- Replaced private database-row React keys with server-only positional keys and
+  expanded the raw-response denylist to every fixture Blueprint, child,
+  embedded-content, and artifact UUID. Direct response inspection confirms all
+  nine identifiers are absent.
+- Added fixed assignment, Test, and lesson artifact identities. Both reserved
+  Blueprints now reconcile all five child tables before inserting the exact
+  fixture set, so stale local fixture content cannot survive a reseed.
+- Added drift-injection idempotency coverage, verified two consecutive real
+  local seeds, and brought `seed:fresh` onto the same planned-course fixture
+  path as `seed`.
+- Remediated full verification passes 4,615 tests across 507 files, lint, type
+  checking, and the production build. The browser matrix remains 36 passing
+  with 14 intentional skips.

@@ -101,8 +101,8 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
           <section id="assignments" className={sectionClassName}>
             <h2 className="text-lg font-semibold text-text-default">Assignments</h2>
             <div className="mt-4 min-w-0 space-y-3 sm:mt-0">
-              {blueprint.assignments.map((assignment) => (
-                <article key={assignment.id} className={itemClassName}>
+              {blueprint.assignments.map((assignment, index) => (
+                <article key={`assignment-${index}`} className={itemClassName}>
                   <h3 className="text-base font-semibold text-text-default">{assignment.title}</h3>
                   <div className="mt-2">
                     <RichTextViewer content={buildMarkdownSectionContent(assignment.instructions_markdown)} chrome="flush" />
@@ -119,12 +119,12 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
             <div className="mt-4 min-w-0 space-y-3 sm:mt-0">
               {blueprint.assessments
                 .filter((assessment) => assessment.assessment_type === 'test')
-                .map((assessment) => {
+                .map((assessment, index) => {
                   const questions = Array.isArray((assessment.content as any)?.questions)
                     ? (assessment.content as any).questions.length
                     : 0
                   return (
-                    <article key={assessment.id} className={itemClassName}>
+                    <article key={`test-${index}`} className={itemClassName}>
                       <h3 className="text-base font-semibold text-text-default">{assessment.title}</h3>
                       <p className="mt-1 text-sm text-text-muted">
                         {questions} question{questions === 1 ? '' : 's'}
@@ -140,8 +140,8 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
           <section id="lesson-sequence" className={sectionClassName}>
             <h2 className="text-lg font-semibold text-text-default">Lesson Sequence</h2>
             <div className="mt-4 min-w-0 space-y-3 sm:mt-0">
-              {blueprint.lesson_templates.map((lesson) => (
-                <article key={lesson.id} className={itemClassName}>
+              {blueprint.lesson_templates.map((lesson, index) => (
+                <article key={`lesson-${index}`} className={itemClassName}>
                   <h3 className="text-base font-semibold text-text-default">
                     {lesson.title || 'Lesson template'}
                   </h3>
