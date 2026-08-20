@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
+import { classifyAttendanceDecommissionError } from '@/lib/server/attendance-decommission'
 import {
   CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
   CLASSROOM_RELATIONAL_RESOURCES,
@@ -126,11 +127,12 @@ async function rpc(
 ): Promise<unknown> {
   const { data, error } = await untyped(supabase).rpc(name, args)
   if (error) {
+    const decommission = classifyAttendanceDecommissionError(error)
     throw new ClassroomPurgeError(
-      error.code || 'purge_rpc_failed',
-      error.message || 'Permanent deletion operation failed',
-      error.code === 'P0002' ? 404 : 500,
-      true,
+      decommission?.code || error.code || 'purge_rpc_failed',
+      decommission?.message || error.message || 'Permanent deletion operation failed',
+      decommission?.status || (error.code === 'P0002' ? 404 : 500),
+      decommission?.retryable ?? true,
     )
   }
   return data

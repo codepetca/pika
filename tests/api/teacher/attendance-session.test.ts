@@ -73,7 +73,9 @@ describe('GET /api/teacher/attendance/session', () => {
       classroomId,
       classDate: '2026-09-08',
       integration: 'disabled',
-      session: { state: 'not_scheduled', opensAt: null, closesAt: null, revision: null },
+      session: {
+        state: 'not_scheduled', opensAt: null, closesAt: null, revision: null, commandFailed: false,
+      },
       sync: { state: 'unavailable', confirmedAt: null },
       students: [],
     })

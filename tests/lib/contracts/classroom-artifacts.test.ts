@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES,
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
   CLASSROOM_NON_OWNING_REFERENCES,
   CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
@@ -218,6 +219,33 @@ describe('classroom data inventory', () => {
     expect(audit.untracked_tables).not.toContain('attendance_participant_mappings')
     expect(audit.untracked_tables).not.toContain('attendance_roster_mappings')
     expect(audit.untracked_tables).not.toContain('attendance_window_policies')
+    expect(audit.untracked_tables).not.toContain('attendance_integration_inbox')
+    expect(audit.untracked_tables).not.toContain('attendance_session_projection')
+    expect(audit.untracked_tables).not.toContain('attendance_record_projection')
+    expect(ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES).toEqual(
+      expect.arrayContaining([
+        {
+          child_table: 'attendance_integration_inbox',
+          parent_table: 'classrooms',
+          child_columns: ['classroom_id'],
+        },
+        {
+          child_table: 'attendance_session_projection',
+          parent_table: 'classrooms',
+          child_columns: ['classroom_id'],
+        },
+        {
+          child_table: 'attendance_record_projection',
+          parent_table: 'classrooms',
+          child_columns: ['classroom_id'],
+        },
+        {
+          child_table: 'attendance_record_projection',
+          parent_table: 'users',
+          child_columns: ['student_id'],
+        },
+      ]),
+    )
 
     const missingReference = contractRelationships().filter((relationship) =>
       !(relationship.child_table === 'course_blueprint_editing_sessions' &&

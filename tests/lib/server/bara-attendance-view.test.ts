@@ -39,6 +39,7 @@ describe('buildTeacherAttendanceView', () => {
         opensAt: null,
         closesAt: null,
         revision: null,
+        commandFailed: false,
       },
       sync: { state: 'unavailable', confirmedAt: null },
       students: [
@@ -50,6 +51,7 @@ describe('buildTeacherAttendanceView', () => {
           source: null,
           revision: null,
           pendingCommand: false,
+          commandFailed: false,
         },
         {
           studentId: 'student-1',
@@ -59,6 +61,7 @@ describe('buildTeacherAttendanceView', () => {
           source: null,
           revision: null,
           pendingCommand: false,
+          commandFailed: false,
         },
       ],
     })
@@ -112,6 +115,7 @@ describe('buildTeacherAttendanceView', () => {
       opensAt: '2026-09-08T12:45:00.000Z',
       closesAt: '2026-09-08T14:15:00.000Z',
       revision: 4,
+      commandFailed: false,
     })
     expect(view.sync).toEqual({
       state: 'pending',
@@ -120,9 +124,11 @@ describe('buildTeacherAttendanceView', () => {
     expect(view.students).toEqual([
       expect.objectContaining({
         studentId: 'student-2', status: 'late', source: 'staff', pendingCommand: true,
+        commandFailed: false,
       }),
       expect.objectContaining({
         studentId: 'student-1', status: 'present', source: 'student_qr', pendingCommand: false,
+        commandFailed: false,
       }),
     ])
     expect(JSON.stringify(view)).not.toContain('participant_')
@@ -299,6 +305,8 @@ describe('loadTeacherAttendanceView', () => {
         data: [{
           message_type: 'attendance.marks',
           status: 'pending',
+          lease_expires_at: null,
+          updated_at: '2026-09-08T13:02:00.000Z',
           payload: {
             schema_version: 1,
             message_type: 'attendance.marks',
@@ -335,6 +343,107 @@ describe('loadTeacherAttendanceView', () => {
       students: [{ status: 'present', source: 'student_qr', revision: 2, pendingCommand: true }],
     })
     expect(JSON.stringify(view)).not.toMatch(/participant_|occurrence_|installation_/)
+  })
+
+  it('surfaces permanent session and mark failures without leaving commands pending', async () => {
+    const occurrenceRef = 'occurrence_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const participantRef = 'participant_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const sharedMessage = {
+      schema_version: 1 as const,
+      correlation_ref: 'correlation_failure',
+      installation_ref: 'installation_test',
+      roster_ref: 'roster_test',
+      occurrence_ref: occurrenceRef,
+      actor_principal_ref: 'principal_teacher',
+      actor_display_name: 'Teacher One',
+    }
+    const supabase = projectionClient({
+      attendance_participant_mappings: {
+        data: [{
+          student_id: '10000000-0000-4000-8000-000000000001',
+          participant_ref: participantRef,
+        }],
+        error: null,
+      },
+      attendance_occurrence_mappings: {
+        data: {
+          occurrence_ref: occurrenceRef,
+          opens_at: '2026-09-08T12:45:00.000Z',
+          closes_at: '2026-09-08T14:15:00.000Z',
+        },
+        error: null,
+      },
+      attendance_window_policies: { data: { enabled: true }, error: null },
+      attendance_session_projection: {
+        data: {
+          occurrence_ref: occurrenceRef,
+          status: 'open',
+          opens_at: '2026-09-08T12:45:00.000Z',
+          closes_at: '2026-09-08T14:15:00.000Z',
+          session_revision: 3,
+          updated_at: '2026-09-08T13:00:00.000Z',
+        },
+        error: null,
+      },
+      attendance_record_projection: {
+        data: [{
+          participant_ref: participantRef,
+          status: 'present',
+          source: 'student_qr',
+          record_revision: 2,
+          updated_at: '2026-09-08T13:01:00.000Z',
+        }],
+        error: null,
+      },
+      attendance_integration_outbox: {
+        data: [
+          {
+            message_type: 'session.command',
+            status: 'non_retryable',
+            lease_expires_at: null,
+            updated_at: '2026-09-08T13:03:00.000Z',
+            payload: {
+              ...sharedMessage,
+              message_type: 'session.command',
+              idempotency_key: 'session:occurrence:failure',
+              command: 'close',
+            },
+          },
+          {
+            message_type: 'attendance.marks',
+            status: 'non_retryable',
+            lease_expires_at: null,
+            updated_at: '2026-09-08T13:02:00.000Z',
+            payload: {
+              ...sharedMessage,
+              message_type: 'attendance.marks',
+              idempotency_key: 'marks:occurrence:failure',
+              marks: [{
+                command_ref: 'mark_failure',
+                participant_ref: participantRef,
+                status: 'late',
+              }],
+            },
+          },
+        ],
+        error: null,
+      },
+    })
+
+    const view = await loadTeacherAttendanceView({
+      supabase,
+      classroomId: '20000000-0000-4000-8000-000000000002',
+      classDate: '2026-09-08',
+      integration: 'ready',
+      installationRef: 'installation_test',
+    })
+
+    expect(view.sync.state).toBe('current')
+    expect(view.session.commandFailed).toBe(true)
+    expect(view.students[0]).toMatchObject({
+      pendingCommand: false,
+      commandFailed: true,
+    })
   })
 
   it('fails with a migration-specific error when the projection tables are absent', async () => {

@@ -139,6 +139,28 @@ describe('Bara attendance event inbox migration', () => {
     )
   })
 
+  it('blocks individual-student purge until provider attendance is decommissioned', () => {
+    expect(migration).toContain('create function public.attendance_student_has_state_v1(')
+    expect(migration).toContain('create trigger reject_attendance_student_purge_operation_v1')
+    expect(migration).toContain(
+      'create trigger reject_attendance_participant_during_student_purge_v1',
+    )
+    expect(migration).toContain(
+      'create trigger reject_attendance_record_during_student_purge_v1',
+    )
+    expect(migration).toContain(
+      'rename to begin_student_purge_without_attendance_v1',
+    )
+    expect(migration).toContain(
+      'rename to finalize_student_purge_without_attendance_v1',
+    )
+    expect(migration).toContain("'error_code', 'attendance_student_decommission_required'")
+    expect(migration).toContain("message = 'attendance_student_purge_in_progress'")
+    expect(migration).toContain(
+      'revoke all on function public.begin_student_purge_without_attendance_v1(',
+    )
+  })
+
   it('defensively validates event revisions, timestamps, and optional reason codes', () => {
     expect(migration).toContain(
       "jsonb_typeof(p_event->'metadata'->'record_revision') = 'number'",

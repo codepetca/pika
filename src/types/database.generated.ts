@@ -6716,6 +6716,10 @@ export type Database = {
         Args: { p_snapshot: Json }
         Returns: boolean
       }
+      attendance_student_has_state_v1: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: boolean
+      }
       begin_classroom_archive_compaction: {
         Args: {
           p_archive_id: string
@@ -6922,6 +6926,19 @@ export type Database = {
         }
       }
       begin_student_purge: {
+        Args: {
+          p_classroom_id: string
+          p_confirmation: string
+          p_expected_relational_inventory_sha256: string
+          p_expected_source_revision: number
+          p_expected_storage_inventory_sha256: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      begin_student_purge_without_attendance_v1: {
         Args: {
           p_classroom_id: string
           p_confirmation: string
@@ -8216,6 +8233,10 @@ export type Database = {
         Returns: Json
       }
       finalize_student_purge: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      finalize_student_purge_without_attendance_v1: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }

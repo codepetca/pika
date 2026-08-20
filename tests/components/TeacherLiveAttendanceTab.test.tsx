@@ -44,6 +44,7 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
       opensAt: '2026-08-17T12:45:00.000Z',
       closesAt: '2026-08-17T13:15:00.000Z',
       revision: 1,
+      commandFailed: false,
     },
     sync: { state: 'current', confirmedAt: '2026-08-17T12:45:00.000Z' },
     students: [
@@ -55,6 +56,7 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
         source: null,
         revision: null,
         pendingCommand: false,
+        commandFailed: false,
       },
       {
         studentId: '20000000-0000-4000-8000-000000000002',
@@ -64,6 +66,7 @@ function attendanceView(overrides: Partial<TeacherAttendanceView> = {}): Teacher
         source: 'student_qr',
         revision: 1,
         pendingCommand: false,
+        commandFailed: false,
       },
     ],
     ...overrides,
@@ -255,6 +258,7 @@ describe('TeacherLiveAttendanceTab', () => {
         opensAt: '2026-08-17T12:45:00.000Z',
         closesAt: '2026-08-17T13:15:00.000Z',
         revision: 2,
+        commandFailed: false,
       },
     })))
 
@@ -264,6 +268,23 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.queryByRole('button', { name: /reopen attendance/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     expect(screen.getByRole('toolbar', { name: 'Bulk attendance actions' })).toBeInTheDocument()
+  })
+
+  it('shows permanent command failures while allowing a fresh correction', async () => {
+    const base = attendanceView()
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      session: { ...base.session, commandFailed: true },
+      students: base.students.map((student) => student.firstName === 'Ada'
+        ? { ...student, commandFailed: true }
+        : student),
+    })))
+
+    renderTab()
+    await screen.findByText('Lovelace, Ada')
+
+    expect(screen.getAllByText(/previous session update failed/i)).toHaveLength(2)
+    expect(screen.getByText('Previous update failed')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeEnabled()
   })
 
   it('does not let a command response for one date replace the newly selected date', async () => {
@@ -278,6 +299,7 @@ describe('TeacherLiveAttendanceTab', () => {
         opensAt: null,
         closesAt: null,
         revision: null,
+        commandFailed: false,
       },
     })
     vi.mocked(fetch).mockImplementation(async (input, init) => {

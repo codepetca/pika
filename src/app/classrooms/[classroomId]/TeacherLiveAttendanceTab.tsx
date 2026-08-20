@@ -277,6 +277,10 @@ export function TeacherLiveAttendanceTab({
     }
     return ids
   }, [localPendingStudentIds, students])
+  const failedStudentCount = useMemo(
+    () => students.filter((student) => student.commandFailed).length,
+    [students],
+  )
 
   async function pollForConfirmation(
     viewKey: string,
@@ -592,6 +596,13 @@ export function TeacherLiveAttendanceTab({
             {error}. Showing the last confirmed attendance.
           </div>
         ) : null}
+        {view.session.commandFailed || failedStudentCount > 0 ? (
+          <div role="alert" className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+            {view.session.commandFailed
+              ? 'A previous session update failed. Review the current state and try again.'
+              : `${failedStudentCount} previous attendance ${failedStudentCount === 1 ? 'update' : 'updates'} failed. Select the affected ${failedStudentCount === 1 ? 'student' : 'students'} to try again.`}
+          </div>
+        ) : null}
         <section aria-label="Attendance session" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-surface px-3 py-2">
           <span className={cn('inline-flex items-center rounded-badge border px-2 py-1 text-sm font-semibold', SESSION_TONE_CLASSES[sessionState])}>
             {SESSION_LABELS[sessionState]}
@@ -599,6 +610,9 @@ export function TeacherLiveAttendanceTab({
           {windowLabel ? <span className="text-sm text-text-muted">{windowLabel}</span> : null}
           {localSessionPending || view.sync.state === 'pending' ? (
             <span className="text-sm text-text-muted">Waiting for confirmation…</span>
+          ) : null}
+          {view.session.commandFailed && !localSessionPending ? (
+            <span className="text-sm text-warning">Previous session update failed</span>
           ) : null}
           {view.sync.state === 'stale' || view.sync.state === 'unavailable' ? (
             <span className="text-sm text-warning">Last confirmed attendance shown</span>
@@ -662,6 +676,9 @@ export function TeacherLiveAttendanceTab({
                           <span className={cn('h-2.5 w-2.5 rounded-full', STATUS_DOT_CLASSES[student.status])} aria-hidden="true" />
                           <span>{STATUS_LABELS[student.status]}</span>
                           {pending ? <span className="text-text-muted">Updating…</span> : null}
+                          {!pending && student.commandFailed ? (
+                            <span className="text-warning">Previous update failed</span>
+                          ) : null}
                         </span>
                       </DataTableCell>
                       <DataTableCell className="hidden text-text-muted sm:table-cell">

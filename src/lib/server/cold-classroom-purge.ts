@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { classifyAttendanceDecommissionError } from '@/lib/server/attendance-decommission'
 import {
   ClassroomPurgeError,
   deleteClassroomPurgeStorageObject,
@@ -69,11 +70,12 @@ async function rpc(
 ): Promise<unknown> {
   const { data, error } = await untyped(supabase).rpc(name, args)
   if (error) {
+    const decommission = classifyAttendanceDecommissionError(error)
     throw new ClassroomPurgeError(
-      error.code || 'cold_classroom_purge_rpc_failed',
-      error.message || 'Stored classroom deletion failed',
-      error.code === 'P0002' ? 404 : 500,
-      true,
+      decommission?.code || error.code || 'cold_classroom_purge_rpc_failed',
+      decommission?.message || error.message || 'Stored classroom deletion failed',
+      decommission?.status || (error.code === 'P0002' ? 404 : 500),
+      decommission?.retryable ?? true,
     )
   }
   return data

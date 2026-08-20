@@ -27,6 +27,7 @@ export interface TeacherAttendanceView {
     opensAt: string | null
     closesAt: string | null
     revision: number | null
+    commandFailed: boolean
   }
   sync: {
     state: 'current' | 'pending' | 'stale' | 'unavailable'
@@ -40,5 +41,6 @@ export interface TeacherAttendanceView {
     source: TeacherAttendanceSource | null
     revision: number | null
     pendingCommand: boolean
+    commandFailed: boolean
   }>
 }

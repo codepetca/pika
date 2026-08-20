@@ -163,9 +163,10 @@ Native Pika attendance does not create a Bara browser session.
 While `WORKOS_MAGIC_AUTH_PILOT=true`, Pika treats its compatibility cookie as
 valid only alongside a verified, email-matched WorkOS session. For student QR
 check-in, Pika additionally verifies that the WorkOS subject matches the local
-student identity before its server sends the signed, versioned command to
-Bara. Bara independently maps that asserted subject into its tenant-bound
-`app_users` and `auth_identities` model. Neither app uses a WorkOS subject as a
+student identity, then resolves an installation-scoped opaque `principal_ref`
+before its server sends the signed, versioned command to Bara. Bara receives
+and maps only that opaque ref into its tenant-bound `app_users` and
+`auth_identities` model. Neither app transmits or uses a WorkOS subject as a
 domain ownership ID.
 
 The legacy `PIKA_BARA_AUTH_HANDOFF` flag must remain false. Do not replace the

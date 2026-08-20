@@ -178,6 +178,11 @@ and the final classroom delete fail with
 decommission/reseed protocol exists. Migration 126 links inbox and projections
 to their local classroom (and record projections to the local student), removes
 service-role delete authority, and tests every guarded row family.
+Individual-student purge is likewise blocked at begin and finalization whenever
+that classroom/student has attendance mappings or records. This prevents Pika
+from reporting privacy deletion complete while Bara still retains the linked
+attendance identity or ledger; a versioned cross-service erase protocol remains
+a rollout prerequisite for that path.
 
 ## Hosted rollout preflight
 

@@ -42,10 +42,12 @@ redesign.
 
 ## Boundary and contract
 
-1. Pika authorizes classroom ownership and resolves its private classroom/date
-   mappings plus the teacher's verified WorkOS subject.
+1. Pika authorizes classroom ownership, verifies the teacher's WorkOS session
+   locally, and resolves its private classroom/date mappings plus an
+   installation-scoped opaque `principal_ref`.
 2. Pika posts a signed, closed `check_in.presentation` v1 request to Bara.
-3. Bara resolves the teacher subject through its tenant-bound identity mapping,
+3. Bara receives only that opaque principal ref, resolves it through its
+   tenant-bound identity mapping,
    verifies staff access to the mapped roster, and returns the occurrence
    reference, revision, close time, and raw check-in token over the signed
    server channel.

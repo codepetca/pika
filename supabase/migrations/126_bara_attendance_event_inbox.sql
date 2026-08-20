@@ -1924,3 +1924,194 @@ revoke all on function public.reject_attendance_classroom_delete_v1()
   from public, anon, authenticated, service_role;
 revoke all on function public.reject_attendance_destructive_operation_v1()
   from public, anon, authenticated, service_role;
+
+-- Individual-student purge cannot remove Bara-owned attendance identity or
+-- history yet. Wrap the existing purge RPCs so they fail closed until a
+-- versioned cross-service deprovision/erase command exists. The table trigger
+-- closes the begin-check/insert race, while the mapping/projection triggers
+-- prevent new subject state after the purge fence has been installed.
+create function public.attendance_student_has_state_v1(
+  p_classroom_id uuid,
+  p_student_id uuid
+)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select
+    exists (
+      select 1
+      from public.attendance_participant_mappings
+      where classroom_id = p_classroom_id and student_id = p_student_id
+    )
+    or exists (
+      select 1
+      from public.attendance_record_projection
+      where classroom_id = p_classroom_id and student_id = p_student_id
+    )
+$$;
+
+create function public.reject_attendance_student_purge_operation_v1()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if public.attendance_student_has_state_v1(new.classroom_id, new.student_id) then
+    raise exception using
+      errcode = '55000',
+      message = 'attendance_student_decommission_required';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger reject_attendance_student_purge_operation_v1
+before insert on public.student_purge_operations
+for each row execute function public.reject_attendance_student_purge_operation_v1();
+
+create function public.reject_attendance_student_state_during_purge_v1()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1
+    from public.student_purge_fences
+    where classroom_id = new.classroom_id and student_id = new.student_id
+  ) then
+    raise exception using
+      errcode = '55000',
+      message = 'attendance_student_purge_in_progress';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger reject_attendance_participant_during_student_purge_v1
+before insert or update on public.attendance_participant_mappings
+for each row execute function public.reject_attendance_student_state_during_purge_v1();
+
+create trigger reject_attendance_record_during_student_purge_v1
+before insert or update on public.attendance_record_projection
+for each row execute function public.reject_attendance_student_state_during_purge_v1();
+
+alter function public.begin_student_purge(
+  uuid, uuid, uuid, uuid, text, bigint, text, text
+) rename to begin_student_purge_without_attendance_v1;
+alter function public.finalize_student_purge(uuid, uuid)
+  rename to finalize_student_purge_without_attendance_v1;
+
+revoke all on function public.begin_student_purge_without_attendance_v1(
+  uuid, uuid, uuid, uuid, text, bigint, text, text
+) from public, anon, authenticated, service_role;
+revoke all on function public.finalize_student_purge_without_attendance_v1(uuid, uuid)
+  from public, anon, authenticated, service_role;
+
+create function public.begin_student_purge(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_student_id uuid,
+  p_confirmation text,
+  p_expected_source_revision bigint,
+  p_expected_storage_inventory_sha256 text,
+  p_expected_relational_inventory_sha256 text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if public.attendance_student_has_state_v1(p_classroom_id, p_student_id) then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'error_code', 'attendance_student_decommission_required',
+      'error', 'Attendance must be decommissioned before student data can be deleted',
+      'retryable', false
+    );
+  end if;
+
+  begin
+    return public.begin_student_purge_without_attendance_v1(
+      p_operation_id,
+      p_teacher_id,
+      p_classroom_id,
+      p_student_id,
+      p_confirmation,
+      p_expected_source_revision,
+      p_expected_storage_inventory_sha256,
+      p_expected_relational_inventory_sha256
+    );
+  exception when sqlstate '55000' then
+    if sqlerrm <> 'attendance_student_decommission_required' then raise; end if;
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'error_code', 'attendance_student_decommission_required',
+      'error', 'Attendance must be decommissioned before student data can be deleted',
+      'retryable', false
+    );
+  end;
+end;
+$$;
+
+create function public.finalize_student_purge(
+  p_operation_id uuid,
+  p_teacher_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_classroom_id uuid;
+  v_student_id uuid;
+  v_status text;
+begin
+  select classroom_id, student_id, status
+  into v_classroom_id, v_student_id, v_status
+  from public.student_purge_operations
+  where id = p_operation_id and teacher_id = p_teacher_id;
+
+  if v_status is distinct from 'completed'
+    and v_student_id is not null
+    and public.attendance_student_has_state_v1(v_classroom_id, v_student_id) then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'error_code', 'attendance_student_decommission_required',
+      'error', 'Attendance must be decommissioned before student data can be deleted',
+      'retryable', false
+    );
+  end if;
+
+  return public.finalize_student_purge_without_attendance_v1(
+    p_operation_id,
+    p_teacher_id
+  );
+end;
+$$;
+
+revoke all on function public.begin_student_purge(
+  uuid, uuid, uuid, uuid, text, bigint, text, text
+) from public, anon, authenticated;
+revoke all on function public.finalize_student_purge(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.begin_student_purge(
+  uuid, uuid, uuid, uuid, text, bigint, text, text
+) to service_role;
+grant execute on function public.finalize_student_purge(uuid, uuid)
+  to service_role;
+
+revoke all on function public.attendance_student_has_state_v1(uuid, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.reject_attendance_student_purge_operation_v1()
+  from public, anon, authenticated, service_role;
+revoke all on function public.reject_attendance_student_state_during_purge_v1()
+  from public, anon, authenticated, service_role;

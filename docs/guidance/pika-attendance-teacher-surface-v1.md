@@ -73,6 +73,7 @@ type TeacherAttendanceView = {
     opensAt: string | null
     closesAt: string | null
     revision: number | null
+    commandFailed: boolean
   }
   sync: {
     state: 'current' | 'pending' | 'stale' | 'unavailable'
@@ -86,6 +87,7 @@ type TeacherAttendanceView = {
     source: 'student_qr' | 'staff' | 'system' | null
     revision: number | null
     pendingCommand: boolean
+    commandFailed: boolean
   }>
 }
 ```
@@ -125,6 +127,9 @@ happy path:
 - Bara temporarily unavailable while the last confirmed projection remains
   visible;
 - authorization or contract-version failure, with no provider detail exposed.
+- permanent command delivery failure, shown as a sanitized previous-failure
+  state rather than pending; the affected student/session remains available for
+  a fresh idempotent command after the teacher reviews current authority.
 
 ## Implementation gates and slices
 

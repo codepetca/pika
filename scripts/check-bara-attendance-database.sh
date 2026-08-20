@@ -142,6 +142,19 @@ insert into public.attendance_session_projection (
   'roster_guard_16', 'occurrence_guard_16', 1, 'open', 'event_guard_16',
   '2026-09-16T13:00:00Z'
 );
+
+-- Simulate a pre-fence operation so finalization is independently checked
+-- against attendance state created after the operation began.
+insert into public.student_purge_operations (
+  id, teacher_id, classroom_id, student_id, student_email,
+  student_binding_sha256, request_sha256, source_revision
+) values (
+  'a1260000-0000-4000-8000-000000000117',
+  'a1260000-0000-4000-8000-000000000001',
+  'a1260000-0000-4000-8000-000000000017',
+  'a1260000-0000-4000-8000-000000000002',
+  'attendance-student@example.test', repeat('d', 64), repeat('e', 64), 1
+);
 insert into public.attendance_record_projection (
   classroom_id, student_id, installation_ref, roster_ref, occurrence_ref,
   participant_ref, record_revision, status, source, actor_type,
@@ -153,6 +166,63 @@ insert into public.attendance_record_projection (
   1, 'present', 'student_qr', 'student', 'event_guard_17',
   '2026-09-17T13:00:00Z'
 );
+
+do $student_purge_guards$
+declare v_result jsonb;
+begin
+  select public.begin_student_purge(
+    'a1260000-0000-4000-8000-000000000111',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000011',
+    'a1260000-0000-4000-8000-000000000002',
+    'attendance-student@example.test', 1, repeat('a', 64), repeat('b', 64)
+  ) into v_result;
+  if v_result->>'error_code' <> 'attendance_student_decommission_required'
+    or (v_result->>'retryable')::boolean then
+    raise exception 'Attendance student purge begin did not fail closed';
+  end if;
+
+  select public.finalize_student_purge(
+    'a1260000-0000-4000-8000-000000000117',
+    'a1260000-0000-4000-8000-000000000001'
+  ) into v_result;
+  if v_result->>'error_code' <> 'attendance_student_decommission_required'
+    or (v_result->>'retryable')::boolean then
+    raise exception 'Attendance student purge finalization did not fail closed';
+  end if;
+
+  insert into public.student_purge_operations (
+    id, teacher_id, classroom_id, student_id, student_email,
+    student_binding_sha256, request_sha256, source_revision
+  ) values (
+    'a1260000-0000-4000-8000-000000000119',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000019',
+    'a1260000-0000-4000-8000-000000000002',
+    'attendance-student@example.test', repeat('f', 64), repeat('0', 64), 1
+  );
+  insert into public.student_purge_fences (
+    classroom_id, student_id, operation_id, teacher_id
+  ) values (
+    'a1260000-0000-4000-8000-000000000019',
+    'a1260000-0000-4000-8000-000000000002',
+    'a1260000-0000-4000-8000-000000000119',
+    'a1260000-0000-4000-8000-000000000001'
+  );
+  begin
+    insert into public.attendance_participant_mappings (
+      classroom_id, student_id, participant_ref
+    ) values (
+      'a1260000-0000-4000-8000-000000000019',
+      'a1260000-0000-4000-8000-000000000002',
+      'participant_12600000000000000000000000000019'
+    );
+    raise exception 'Attendance state was added during student purge';
+  exception when sqlstate '55000' then
+    if sqlerrm <> 'attendance_student_purge_in_progress' then raise; end if;
+  end;
+end;
+$student_purge_guards$;
 
 do $delete_guards$
 declare v_classroom_id uuid;

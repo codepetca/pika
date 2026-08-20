@@ -70,14 +70,12 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   tests: ['created_by'],
 } as const satisfies Record<string, readonly string[]>
 
-// These references do not extend classroom-owned archive state. Workflow
-// records are rebuilt or expired by their owning workflow, and the managed
-// JSON registry is deterministically rebuilt from its persisted host JSON.
-export const CLASSROOM_NON_OWNING_REFERENCES = [
-  // Attendance integration mappings, delivery work, and local policy are
-  // re-established through the attendance sync workflow after a classroom
-  // restore. They must cascade with the live classroom, but are not portable
-  // classroom-archive resources and must not mutate the frozen archive formats.
+// Provider-owned attendance state is deliberately not portable classroom data.
+// Soft archive/restore retains it in place, while compaction and destructive
+// purge are blocked until a versioned Bara decommission/reseed protocol exists.
+// Keeping every live FK explicit prevents schema audit from misclassifying
+// opaque provider state as an exportable or silently rebuildable resource.
+export const ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES = [
   {
     child_table: 'attendance_integration_outbox',
     parent_table: 'classrooms',
@@ -94,6 +92,16 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     child_columns: ['classroom_id'],
   },
   {
+    child_table: 'attendance_participant_mappings',
+    parent_table: 'users',
+    child_columns: ['student_id'],
+  },
+  {
+    child_table: 'attendance_principal_mappings',
+    parent_table: 'users',
+    child_columns: ['user_id'],
+  },
+  {
     child_table: 'attendance_roster_mappings',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
@@ -103,6 +111,33 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
   },
+  {
+    child_table: 'attendance_integration_inbox',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_session_projection',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_record_projection',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_record_projection',
+    parent_table: 'users',
+    child_columns: ['student_id'],
+  },
+] as const satisfies readonly ClassroomSchemaRelationship[]
+
+// These references do not extend classroom-owned archive state. Their owning
+// workflow either retains/blocks them explicitly or rebuilds/expires them under
+// its own documented contract.
+export const CLASSROOM_NON_OWNING_REFERENCES = [
+  ...ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES,
   {
     child_table: 'course_blueprint_change_proposals',
     parent_table: 'classrooms',

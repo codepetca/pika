@@ -57,6 +57,8 @@ export interface BuildTeacherAttendanceViewInput {
   recordProjections: RecordProjectionInput[]
   pendingStudentIds: string[]
   pendingSessionCommand?: boolean
+  failedStudentIds?: string[]
+  failedSessionCommand?: boolean
   projectionKnownStale?: boolean
 }
 
@@ -100,6 +102,8 @@ const unresolvedOutboxRowsSchema = z.array(z.object({
   message_type: z.enum(['roster.snapshot', 'schedule.snapshot', 'session.command', 'attendance.marks']),
   payload: z.unknown(),
   status: z.enum(['pending', 'processing', 'non_retryable']),
+  lease_expires_at: instantSchema.nullable(),
+  updated_at: instantSchema,
 }).strict())
 
 export class TeacherAttendanceViewReadError extends Error {
@@ -237,7 +241,7 @@ export async function loadTeacherAttendanceView(input: {
     ),
     input.supabase
       .from('attendance_integration_outbox')
-      .select('message_type, payload, status')
+      .select('message_type, payload, status, lease_expires_at, updated_at')
       .eq('classroom_id', input.classroomId)
       .in('status', ['pending', 'processing', 'non_retryable']),
   ])
@@ -256,7 +260,19 @@ export async function loadTeacherAttendanceView(input: {
     participantParsed.data.map((row) => [row.participant_ref, row.student_id]),
   )
   const pendingStudentIds = new Set<string>()
+  const failedStudentIds = new Set<string>()
   let pendingSessionCommand = false
+  let failedSessionCommand = false
+  const recordByParticipantRef = new Map(
+    recordsParsed.data.map((record) => [record.participant_ref, record]),
+  )
+  const isPending = (row: z.infer<typeof unresolvedOutboxRowsSchema>[number]) =>
+    row.status === 'pending'
+      || (
+        row.status === 'processing'
+        && row.lease_expires_at !== null
+        && Date.parse(row.lease_expires_at) > Date.now()
+      )
   for (const row of outboxParsed.data) {
     const validation = validateV1Message(row.payload)
     if (!validation.ok || validation.value.message_type !== row.message_type) {
@@ -266,14 +282,36 @@ export async function loadTeacherAttendanceView(input: {
     if (!('occurrence_ref' in message) || message.occurrence_ref !== occurrence.occurrence_ref) {
       continue
     }
-    if (message.message_type === 'session.command') pendingSessionCommand = true
+    if (message.message_type === 'session.command') {
+      if (isPending(row)) {
+        pendingSessionCommand = true
+      } else if (
+        row.status === 'non_retryable'
+        && (
+          !sessionParsed.data
+          || Date.parse(row.updated_at) > Date.parse(sessionParsed.data.updated_at)
+        )
+      ) {
+        failedSessionCommand = true
+      }
+    }
     if (message.message_type === 'attendance.marks') {
       for (const mark of message.marks) {
         const studentId = studentIdByParticipantRef.get(mark.participant_ref)
-        if (studentId) pendingStudentIds.add(studentId)
+        if (!studentId) continue
+        if (isPending(row)) {
+          pendingStudentIds.add(studentId)
+        } else if (row.status === 'non_retryable') {
+          const projection = recordByParticipantRef.get(mark.participant_ref)
+          if (!projection || Date.parse(row.updated_at) > Date.parse(projection.updated_at)) {
+            failedStudentIds.add(studentId)
+          }
+        }
       }
     }
   }
+  if (pendingSessionCommand) failedSessionCommand = false
+  for (const studentId of pendingStudentIds) failedStudentIds.delete(studentId)
 
   return buildTeacherAttendanceView({
     classroomId: input.classroomId,
@@ -308,6 +346,8 @@ export async function loadTeacherAttendanceView(input: {
     })),
     pendingStudentIds: [...pendingStudentIds],
     pendingSessionCommand,
+    failedStudentIds: [...failedStudentIds],
+    failedSessionCommand,
   })
 }
 
@@ -335,6 +375,7 @@ export function buildTeacherAttendanceView(
   input: BuildTeacherAttendanceViewInput,
 ): TeacherAttendanceView {
   const pendingStudentIds = new Set(input.pendingStudentIds)
+  const failedStudentIds = new Set(input.failedStudentIds ?? [])
   const participantRefByStudentId = new Map(
     input.participantMappings.map((mapping) => [mapping.studentId, mapping.participantRef]),
   )
@@ -373,6 +414,7 @@ export function buildTeacherAttendanceView(
           opensAt: projection.opensAt,
           closesAt: projection.closesAt,
           revision: projection.revision,
+          commandFailed: input.failedSessionCommand ?? false,
         }
       : input.occurrence
         ? {
@@ -380,12 +422,14 @@ export function buildTeacherAttendanceView(
             opensAt: input.occurrence.opensAt,
             closesAt: input.occurrence.closesAt,
             revision: null,
+            commandFailed: input.failedSessionCommand ?? false,
           }
         : {
             state: 'not_scheduled',
             opensAt: null,
             closesAt: null,
             revision: null,
+            commandFailed: input.failedSessionCommand ?? false,
           },
     sync: { state: syncState, confirmedAt },
     students: input.students.map((student) => {
@@ -399,6 +443,7 @@ export function buildTeacherAttendanceView(
         source: record ? normalizeSource(record.source) : null,
         revision: record?.revision ?? null,
         pendingCommand: pendingStudentIds.has(student.studentId),
+        commandFailed: failedStudentIds.has(student.studentId),
       }
     }),
   }
