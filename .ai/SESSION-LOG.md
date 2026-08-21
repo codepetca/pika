@@ -1314,17 +1314,20 @@ submit reconciliation. No schema, hosted environment, or production state change
 database, identity record, environment variable, or attendance flag changed.
 
 **Completed:**
-- Kept exact `favicon.ico`, exact `icon.svg`, and real Next.js static/image
-  segments outside AuthKit so passive assets cannot participate in WorkOS
-  session refreshes, while malformed prefix collisions remain covered.
-- Added a self-contained, transparent SVG favicon from the existing
-  `/pika.png` mark. It stays black in light browser chrome and inverts to white
-  in dark chrome without a generated badge or background.
+- Kept exact `favicon.ico`, both exact theme-specific SVG icons, and real
+  Next.js static/image segments outside AuthKit so passive assets cannot
+  participate in WorkOS session refreshes, while malformed prefix collisions
+  remain covered.
+- Added self-contained, transparent light and dark SVG favicons from the
+  existing `/pika.png` mark. Media-qualified metadata selects black for light
+  browser chrome and white for dark chrome without relying on SVG-internal
+  color-scheme queries, which Safari 26 does not honor for favicons.
 - Added an unadvertised transparent ICO fallback in `public/` so conventional
-  `/favicon.ico` requests remain static even when the SVG is the only icon in
-  page metadata.
-- Added regressions for both exact icon exclusions, malformed prefix
-  collisions, adaptive SVG structure, its embedded PNG, and the ICO fallback.
+  `/favicon.ico` requests remain static even though only the SVG variants are
+  advertised in page metadata.
+- Added regressions for all exact icon exclusions, malformed prefix collisions,
+  both media-qualified metadata entries, both embedded PNGs, and the ICO
+  fallback.
 
 **Verification:**
 - The boundary regression fails against the unbounded matcher and passes with
@@ -1332,9 +1335,10 @@ database, identity record, environment variable, or attendance flag changed.
 - Focused middleware/auth coverage passes 50 tests; the full suite passes 561
   files and 4,903 tests after syncing current `main`. TypeScript, lint, and the
   production build pass.
-- Page metadata advertises only the hashed `icon.svg` route. Playwright confirms
-  the original mark renders black/white at both 64px and tab-sized 16px under
-  emulated light/dark color schemes.
+- Page metadata advertises separate light/dark SVG routes with matching media
+  queries. Browser verification confirms the original mark renders black/white
+  at both 64px and tab-sized 16px; Safari selects the white mark in actual dark
+  tab chrome.
 - A pilot-enabled production smoke returns static `200` responses for both
   icons with no session cookie; `/classrooms` still redirects to `/login`,
   collision paths return normal 404 responses, and server logs stay clean.
