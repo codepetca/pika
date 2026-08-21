@@ -1271,6 +1271,40 @@ submit reconciliation. No schema, hosted environment, or production state change
 - Playwright visual verification passed for student submitted-detail and teacher
   assignment-summary states on desktop/mobile in light/dark themes.
 
+## 2026-08-21 — Serve favicon outside AuthKit middleware
+
+**Risk profile:** runtime-platform — production AuthKit middleware routing. No
+database, identity record, environment variable, or attendance flag changed.
+
+**Completed:**
+- Kept exact `favicon.ico`, both exact theme-specific SVG icons, and real
+  Next.js static/image segments outside AuthKit so passive assets cannot
+  participate in WorkOS session refreshes, while malformed prefix collisions
+  remain covered.
+- Added self-contained, transparent light and dark SVG favicons from the
+  existing `/pika.png` mark. Media-qualified metadata selects black for light
+  browser chrome and white for dark chrome without relying on SVG-internal
+  color-scheme queries, which Safari 26 does not honor for favicons.
+- Added an unadvertised transparent ICO fallback in `public/` so conventional
+  `/favicon.ico` requests remain static even though only the SVG variants are
+  advertised in page metadata.
+- Added regressions for all exact icon exclusions, malformed prefix collisions,
+  both media-qualified metadata entries, both embedded PNGs, and the ICO
+  fallback.
+
+**Verification:**
+- The boundary regression fails against the unbounded matcher and passes with
+  exact/segment exclusions. The compiled Next matcher has the same behavior.
+- Focused middleware/auth coverage passes 50 tests; the full suite passes 562
+  files and 4,911 tests after syncing current `main`. TypeScript, lint, and the
+  production build pass.
+- Page metadata advertises separate light/dark SVG routes with matching media
+  queries. Browser verification confirms the original mark renders black/white
+  at both 64px and tab-sized 16px; Safari selects the white mark in actual dark
+  tab chrome.
+- A pilot-enabled production smoke returns static `200` responses for both
+  icons with no session cookie; `/classrooms` still redirects to `/login`,
+  collision paths return normal 404 responses, and server logs stay clean.
 ## 2026-08-21 — Add classroom-scoped feature visibility
 
 **Risk profile:** workspace-state + exam-mode — per-classroom navigation,
