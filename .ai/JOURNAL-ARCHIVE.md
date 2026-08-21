@@ -21724,3 +21724,113 @@ state changed; migration 127 remains unapplied.
 - Implement and database-test the preparation/staging RPC pair, then connect
   its closed result to the roster and DST-safe schedule builders. Applying the
   migration still requires exact target authorization.
+
+<!-- pika-session-log-archive-batch:6fc5a43a64a1a9a5276abb3f4655e2852a886da38d8fa99af79565f5fd6327ea -->
+## 2026-08-16 — Atomically stage roster and schedule source revisions
+
+**Risk profile:** schema, privacy, and cross-service consistency. Migration 127
+remains unapplied, so SQL behavior is locally specified but not database-proven.
+
+**Completed:**
+- Added server-only preparation that creates stable opaque roster, participant,
+  and occurrence mappings, retains former participants as inactive for audit
+  resolution, and returns no emails or raw IDs to the outbound contract.
+- Added database-computed roster and schedule source documents/tokens. Locked
+  staging recomputes each token, rejects concurrent changes, advances the v1
+  revision, and inserts that exact message into the outbox in one transaction.
+- Connected the closed preparation result to the roster and DST-safe schedule
+  builders and exposed an owner-authorized bounded sync route. Roster stages and
+  delivers before schedule; the recovery queue preserves creation order.
+- Added explicit next-day close materialization for evening classes. Prepared
+  but unstaged occurrence mappings have null windows and cannot be treated as
+  scheduled or used by staff commands.
+- Delivery completion advances separate roster and schedule acknowledged
+  revisions; the adapter remains independent of Convex types and IDs.
+
+**Validation:**
+- The full suite passes 4,420 tests across 524 files. Focused source-sync,
+  roster, schedule, route, command, view, outbox, and migration suites pass.
+  TypeScript, architecture boundaries across 737 modules, production build,
+  and diff hygiene pass.
+
+**Next gate:**
+- Apply migration 127 only to an explicitly authorized Pika target and run the
+  real preparation/conflict/staging/delivery/event/reconciliation sequence.
+  Separately authorize the Bara Convex development deploy and Staging no-second-
+  login smoke before enabling the integration.
+
+<!-- pika-session-log-archive-batch:7d23069915ea3f516db3597174d3c19295453c57cbae94f9eb8e65fe9cd4c22c -->
+## 2026-08-16 — Make Bara attendance automation operationally fail-visible
+
+**Risk profile:** runtime-platform and schema. Only the loopback Supabase stack
+was reset; no hosted database, deployment, or external configuration changed.
+
+**Completed:**
+- Added a service-role-only aggregate outbox-health RPC with pending,
+  processing, due, non-retryable, and oldest-unresolved signals. It exposes no
+  identities, contract references, payloads, or provider error details.
+- Made a drain with retry or permanent failures report `partial`, and made both
+  the daily attendance worker and operator drain return HTTP 503 whenever
+  schedule sync or durable delivery remains unhealthy.
+- Kept disabled integration paths table-free and HTTP 200, retained failed
+  messages for recovery/review, and documented the operator boundary.
+
+**Validation:**
+- The full suite passes 4,448 tests across 531 files; production build,
+  TypeScript, generated database types, design/UI policies, architecture
+  boundaries, and diff hygiene pass.
+- Focused outbox, cron, and migration suites pass 19/19.
+- Migration 127 replayed from zero against loopback Supabase; the health RPC
+  exists, is executable by `service_role` but not `anon`/`authenticated`, and a
+  rollback-only pending-row fixture produced only the expected aggregate
+  unhealthy result. The local seed was restored afterward.
+
+**Next gate:**
+- Complete the repository-wide checks, then apply migration 127 only to an
+  explicitly confirmed non-production hosted target and run the real no-second-
+  login plus teacher/student attendance round trip.
+
+<!-- pika-session-log-archive-batch:90b3a997103cadf66a30ab385d82794404f20b4abe67ee69ce7578e0c3562367 -->
+## 2026-08-17 — Complete Syllabus iframe reliability
+
+**Risk profile:** workspace-state and accessibility — shared teacher/student
+Syllabus framing, readiness, failure recovery, and keyboard access; no schema,
+migration, production, Gradex, legacy-resource deletion, or mobile redesign.
+
+**Completed:**
+- Replaced the duplicated teacher/student iframe markup with one shared,
+  viewport-bounded `SyllabusPreview` and constrained the classroom Resources
+  workspace to prevent competing desktop document scrolling.
+- Added a compact external-open action, a named focusable iframe with a visible
+  focus boundary, and removed the covered iframe from keyboard order until its
+  document is ready.
+- Added an explicit same-origin readiness handshake emitted only by the
+  successfully hydrated syllabus page. The parent validates origin, source
+  frame, and exact URL, so HTTP error documents remain hidden and outside
+  keyboard order. A bounded timeout exposes Retry, which remounts the iframe
+  with a fresh request while preserving the canonical public syllabus URL.
+- Confirmed the old rich-text resource sidebars are unmounted; retained their
+  APIs and data contract for a focused Phase 6 compatibility-led retirement.
+
+**Validation:**
+- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass.
+  The full bounded suite passes: 4,372 tests across 499 files.
+  Component coverage includes loading, ready, unpublished, timeout, Retry,
+  keyboard eligibility, and viewport ownership states.
+- The durable Chromium matrix now intercepts real iframe navigations with HTTP
+  404 and 500 documents and requires both to remain unavailable and
+  unfocusable. It first proves a real published page completes the handshake
+  and accepts keyboard focus. Local execution was blocked before that case by
+  missing shared seed accounts; CI's seeded browser lane owns the repeatable
+  run.
+- Targeted review found that a settings-driven slug change could inherit the
+  mounted preview's prior ready state. Teacher and student resource tabs now
+  key the preview by syllabus URL, and regression coverage proves a new URL
+  remounts loading, ignores a matching-URL signal from the stale frame, and
+  times out unfocusable for both roles.
+- Playwright verification passes for teacher/student desktop and narrow,
+  light/dark loaded states plus the teacher failed-load state. Desktop outer
+  scroll is `900/900`; focus moves from Open syllabus to the named iframe; no
+  horizontal overflow was observed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, startup-context budget, session-log, and diff checks pass.

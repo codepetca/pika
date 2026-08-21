@@ -11,113 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-16 — Atomically stage roster and schedule source revisions
-
-**Risk profile:** schema, privacy, and cross-service consistency. Migration 127
-remains unapplied, so SQL behavior is locally specified but not database-proven.
-
-**Completed:**
-- Added server-only preparation that creates stable opaque roster, participant,
-  and occurrence mappings, retains former participants as inactive for audit
-  resolution, and returns no emails or raw IDs to the outbound contract.
-- Added database-computed roster and schedule source documents/tokens. Locked
-  staging recomputes each token, rejects concurrent changes, advances the v1
-  revision, and inserts that exact message into the outbox in one transaction.
-- Connected the closed preparation result to the roster and DST-safe schedule
-  builders and exposed an owner-authorized bounded sync route. Roster stages and
-  delivers before schedule; the recovery queue preserves creation order.
-- Added explicit next-day close materialization for evening classes. Prepared
-  but unstaged occurrence mappings have null windows and cannot be treated as
-  scheduled or used by staff commands.
-- Delivery completion advances separate roster and schedule acknowledged
-  revisions; the adapter remains independent of Convex types and IDs.
-
-**Validation:**
-- The full suite passes 4,420 tests across 524 files. Focused source-sync,
-  roster, schedule, route, command, view, outbox, and migration suites pass.
-  TypeScript, architecture boundaries across 737 modules, production build,
-  and diff hygiene pass.
-
-**Next gate:**
-- Apply migration 127 only to an explicitly authorized Pika target and run the
-  real preparation/conflict/staging/delivery/event/reconciliation sequence.
-  Separately authorize the Bara Convex development deploy and Staging no-second-
-  login smoke before enabling the integration.
-
-## 2026-08-16 — Make Bara attendance automation operationally fail-visible
-
-**Risk profile:** runtime-platform and schema. Only the loopback Supabase stack
-was reset; no hosted database, deployment, or external configuration changed.
-
-**Completed:**
-- Added a service-role-only aggregate outbox-health RPC with pending,
-  processing, due, non-retryable, and oldest-unresolved signals. It exposes no
-  identities, contract references, payloads, or provider error details.
-- Made a drain with retry or permanent failures report `partial`, and made both
-  the daily attendance worker and operator drain return HTTP 503 whenever
-  schedule sync or durable delivery remains unhealthy.
-- Kept disabled integration paths table-free and HTTP 200, retained failed
-  messages for recovery/review, and documented the operator boundary.
-
-**Validation:**
-- The full suite passes 4,448 tests across 531 files; production build,
-  TypeScript, generated database types, design/UI policies, architecture
-  boundaries, and diff hygiene pass.
-- Focused outbox, cron, and migration suites pass 19/19.
-- Migration 127 replayed from zero against loopback Supabase; the health RPC
-  exists, is executable by `service_role` but not `anon`/`authenticated`, and a
-  rollback-only pending-row fixture produced only the expected aggregate
-  unhealthy result. The local seed was restored afterward.
-
-**Next gate:**
-- Complete the repository-wide checks, then apply migration 127 only to an
-  explicitly confirmed non-production hosted target and run the real no-second-
-  login plus teacher/student attendance round trip.
-
-## 2026-08-17 — Complete Syllabus iframe reliability
-
-**Risk profile:** workspace-state and accessibility — shared teacher/student
-Syllabus framing, readiness, failure recovery, and keyboard access; no schema,
-migration, production, Gradex, legacy-resource deletion, or mobile redesign.
-
-**Completed:**
-- Replaced the duplicated teacher/student iframe markup with one shared,
-  viewport-bounded `SyllabusPreview` and constrained the classroom Resources
-  workspace to prevent competing desktop document scrolling.
-- Added a compact external-open action, a named focusable iframe with a visible
-  focus boundary, and removed the covered iframe from keyboard order until its
-  document is ready.
-- Added an explicit same-origin readiness handshake emitted only by the
-  successfully hydrated syllabus page. The parent validates origin, source
-  frame, and exact URL, so HTTP error documents remain hidden and outside
-  keyboard order. A bounded timeout exposes Retry, which remounts the iframe
-  with a fresh request while preserving the canonical public syllabus URL.
-- Confirmed the old rich-text resource sidebars are unmounted; retained their
-  APIs and data contract for a focused Phase 6 compatibility-led retirement.
-
-**Validation:**
-- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass.
-  The full bounded suite passes: 4,372 tests across 499 files.
-  Component coverage includes loading, ready, unpublished, timeout, Retry,
-  keyboard eligibility, and viewport ownership states.
-- The durable Chromium matrix now intercepts real iframe navigations with HTTP
-  404 and 500 documents and requires both to remain unavailable and
-  unfocusable. It first proves a real published page completes the handshake
-  and accepts keyboard focus. Local execution was blocked before that case by
-  missing shared seed accounts; CI's seeded browser lane owns the repeatable
-  run.
-- Targeted review found that a settings-driven slug change could inherit the
-  mounted preview's prior ready state. Teacher and student resource tabs now
-  key the preview by syllabus URL, and regression coverage proves a new URL
-  remounts loading, ignores a matching-URL signal from the stale frame, and
-  times out unfocusable for both roles.
-- Playwright verification passes for teacher/student desktop and narrow,
-  light/dark loaded states plus the teacher failed-load state. Desktop outer
-  scroll is `900/900`; focus moves from Open syllabus to the named iframe; no
-  horizontal overflow was observed.
-- TypeScript, lint, production build, architecture, design/UI policy, Pika
-  audit, startup-context budget, session-log, and diff checks pass.
-
 ## 2026-08-17 — Add session-expiry recovery
 
 **Risk profile:** workspace-state and accessibility — shared teacher/student
@@ -1392,3 +1285,86 @@ Convex startup.
 - Hosted preview/database verification, real hosted teacher/student smoke,
   hosted endpoint latency, scheduler-capacity proof, and canary remain rollout
   gates. Production integration remains disabled.
+
+## 2026-08-21 — Stop false local-edit warnings after assignment submission
+
+**Risk profile:** workspace-state — student assignment autosave, recovery, and
+submit reconciliation. No schema, hosted environment, or production state changed.
+
+**Completed:**
+- Replaced order-sensitive `JSON.stringify` equality in the student assignment
+  editor with structural JSON document equality across save, recovery, conflict,
+  page-hide, restore, submit, and unsubmit boundaries.
+- Added a regression proving a Pal achievement delivery plus PostgreSQL JSONB
+  key reordering does not produce the false “newer local edits” warning or retain
+  a recovery draft, while existing real submit-race preservation remains intact.
+- Confirmed through a local seeded browser submission that Postgres returned
+  reordered nested Tiptap keys, the student saw `Submitted`/`Saved` with no
+  warning, and the teacher summary updated to `1/2`.
+
+**Verification:**
+- Focused JSON patch and assignment-editor suites pass 57 tests; TypeScript,
+  lint, architecture, design policy, and diff checks pass.
+- Playwright visual verification passed for student submitted-detail and teacher
+  assignment-summary states on desktop/mobile in light/dark themes.
+
+## 2026-08-21 — Add classroom-scoped feature visibility
+
+**Risk profile:** workspace-state + exam-mode — per-classroom navigation,
+student notifications, direct-link routing, assessment visibility, and one
+additive schema migration. Migration 128 was explicitly authorized and applied
+only to the local Supabase database; no hosted environment was changed.
+
+**Implemented:**
+- Added one default-on classroom feature contract for Attendance, Classwork,
+  Tests, Gradebook, Calendar, Syllabus, Announcements, and Pal-gated
+  Achievements; Daily/Today, Roster, and Settings remain permanent.
+- Added teacher Settings switches with complete-record validation, optimistic
+  persistence, rollback, archived read-only behavior, and a Gradebook dependency
+  on Classwork or Tests.
+- Centralized teacher/student sidebar filtering, workspace mounting, stale URL
+  fallback, prefetch suppression, notification counts, and Calendar-embedded
+  assignment/announcement visibility.
+- Authored migration 128 with a constrained JSON default and cold-archive row
+  normalization so pre-128 archives restore with all features enabled.
+- Documented the teacher/student tab mapping and rollout contract in
+  `docs/guidance/classroom-feature-visibility.md`.
+
+**Verification completed:**
+- All 4,901 tests across 560 files, TypeScript, lint, production build,
+  architecture, design policy,
+  UI policy, generated database contract, diff checks, and the Pika pre-commit
+  audit pass.
+- Composite-widget accessibility review passes: labeled group, semantic pressed
+  and switch state, roving keyboard focus, arrow/Home/End behavior, and tests.
+- Local migration history, column/default/constraint shape, existing rows, and
+  cold-archive normalization were checked after applying migration 128; generated
+  database types now include `feature_visibility`.
+- Playwright verification passed for teacher and student desktop/mobile views in
+  light/dark themes, including enabled/hidden Settings states, filtered nav,
+  direct-link fallbacks, hidden notification counts, and restoration to defaults.
+
+## 2026-08-21 — Adopt the minimal Pal level-up celebration
+
+**Risk profile:** none — student-only presentation and reward-modal dismissal;
+no schema, grading, assessment, workspace persistence, or hosted state changed.
+
+**Implemented:**
+- Pinned the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` release.
+- Enabled Pal's opt-in fireworks/brightness effect in Pika's existing
+  host-managed reward modal and removed the normal Continue action.
+- Preserved Pika ownership of dialog semantics, focus containment, Escape,
+  backdrop dismissal, scroll lock, and reward acknowledgement. A failed
+  acknowledgement keeps the modal visible and restores Pal's Retry action.
+- Updated the Pal pilot integration contract and minimal title-presentation
+  expectations.
+
+**Verification:**
+- Focused student Pal experience and widget theme-contract suites pass 17 tests;
+  TypeScript, lint, architecture, design policy, UI policy, and diff checks pass.
+- Playwright verification passed for the student modal on desktop/mobile in
+  light/dark themes, including launch/linger visuals, Escape and backdrop
+  acknowledgement, failure/retry, and reduced-motion suppression. Teacher view
+  is not applicable because Pal reward layers mount only for students.
+- Composite-widget accessibility checklist reviewed: keyboard behavior covered
+  yes; semantic state covered by tests yes; remaining manual follow-up none.

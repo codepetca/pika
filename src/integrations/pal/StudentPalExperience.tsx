@@ -105,11 +105,15 @@ function StudentPalHostLayers() {
         onClose={closeReward}
         ariaLabel="Reward earned"
         closeOnEscape={!rewardPending}
-        closeOnBackdrop={false}
+        closeOnBackdrop={!rewardPending}
         panelClassName="w-full max-w-lg"
       >
         <PalWidgetThemeBoundary>
-          <PalRewardCelebration hostManaged />
+          <PalRewardCelebration
+            effect="fireworks"
+            hostManaged
+            showDismissAction={false}
+          />
         </PalWidgetThemeBoundary>
       </ModalLayer>
     </>

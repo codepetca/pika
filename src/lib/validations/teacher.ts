@@ -4,6 +4,7 @@ import {
   actualCourseSiteConfigSchema,
   courseSiteSlugSchema,
 } from '@/lib/validations/course-publishing'
+import { classroomFeatureVisibilitySchema } from '@/lib/validations/classroom-feature-visibility'
 
 const classroomThemeColorSchema = z.enum(CLASSROOM_THEME_COLORS)
 
@@ -27,6 +28,7 @@ export const updateClassroomPublishingSchema = z.object({
   archived: z.boolean().optional(),
   themeColor: classroomThemeColorSchema.optional(),
   lessonPlanVisibility: z.enum(['current_week', 'one_week_ahead', 'all']).optional(),
+  featureVisibility: classroomFeatureVisibilitySchema.optional(),
   actualSiteSlug: courseSiteSlugSchema.nullable().optional(),
   actualSitePublished: z.boolean().optional(),
   actualSiteConfig: actualCourseSiteConfigSchema.optional(),

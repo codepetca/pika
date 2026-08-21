@@ -14,6 +14,13 @@ export function createJsonPatch<TContent extends JsonObject>(
   return compare(before, after) as JsonPatchOperation[]
 }
 
+export function areJsonDocumentsEqual<TContent extends JsonObject>(
+  left: TContent,
+  right: TContent
+): boolean {
+  return compare(left, right).length === 0
+}
+
 export function applyJsonPatch<TContent extends JsonObject>(
   base: TContent,
   patch: JsonPatchOperation[]

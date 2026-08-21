@@ -3079,6 +3079,7 @@ export type Database = {
           course_overview_markdown: string
           created_at: string
           end_date: string | null
+          feature_visibility: Json
           id: string
           join_policy: string
           lesson_plan_visibility: string
@@ -3105,6 +3106,7 @@ export type Database = {
           course_overview_markdown?: string
           created_at?: string
           end_date?: string | null
+          feature_visibility?: Json
           id?: string
           join_policy?: string
           lesson_plan_visibility?: string
@@ -3131,6 +3133,7 @@ export type Database = {
           course_overview_markdown?: string
           created_at?: string
           end_date?: string | null
+          feature_visibility?: Json
           id?: string
           join_policy?: string
           lesson_plan_visibility?: string

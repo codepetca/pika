@@ -1,8 +1,27 @@
 import { describe, it, expect, vi } from 'vitest'
-import { applyJsonPatch, tryApplyJsonPatch, createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import {
+  applyJsonPatch,
+  areJsonDocumentsEqual,
+  tryApplyJsonPatch,
+  createJsonPatch,
+  shouldStoreSnapshot,
+} from '@/lib/json-patch'
 import type { JsonPatchOperation, TiptapContent } from '@/types'
 
 describe('json-patch utilities', () => {
+  it('treats equivalent JSON documents with reordered object keys as equal', () => {
+    const left = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
+    }
+    const right = {
+      content: [{ content: [{ text: 'Hello', type: 'text' }], type: 'paragraph' }],
+      type: 'doc',
+    }
+
+    expect(areJsonDocumentsEqual(left, right)).toBe(true)
+  })
+
   it('creates and applies patches to reach the target content', () => {
     const before: TiptapContent = {
       type: 'doc',

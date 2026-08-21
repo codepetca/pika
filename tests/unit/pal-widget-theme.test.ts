@@ -25,7 +25,7 @@ const tailwindConfig = readFileSync(
 )
 
 describe('Pika to Pal widget theme adapter', () => {
-  it('pins the published story-capable widget release exactly', () => {
+  it('pins the published level-up widget release exactly', () => {
     const pikaPackage = JSON.parse(readFileSync(
       resolve(process.cwd(), 'package.json'),
       'utf8',
@@ -35,8 +35,8 @@ describe('Pika to Pal widget theme adapter', () => {
       'utf8',
     )) as { version?: string }
 
-    expect(pikaPackage.dependencies?.['@codepet/pal-widget']).toBe('0.1.0-alpha.3')
-    expect(widgetPackage.version).toBe('0.1.0-alpha.3')
+    expect(pikaPackage.dependencies?.['@codepet/pal-widget']).toBe('0.1.0-alpha.4')
+    expect(widgetPackage.version).toBe('0.1.0-alpha.4')
   })
 
   it('uses the package contract without retaining a second vendored authority', () => {
