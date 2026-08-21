@@ -121,11 +121,32 @@ describe('StudentPalExperience', () => {
     )
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    expect(document.querySelector('[data-pal-effect="fireworks"]')).not.toBeNull()
     expect(document.querySelector('iframe')).toBeNull()
     expect(mockCreatePikaPalClient).toHaveBeenCalledWith('https://pal.example.test')
   })
 
-  it('hosts Pal story finish and title presentation in the Pika-owned reward modal', async () => {
+  it('acknowledges a backdrop close and removes the modal only after success', async () => {
+    const snapshot = withReward()
+    let resolveAcknowledgement: (() => void) | undefined
+    const markRewardSeen = vi.fn(() => new Promise<void>((resolve) => {
+      resolveAcknowledgement = resolve
+    }))
+    renderExperience({ getSnapshot: async () => snapshot, markRewardSeen })
+
+    expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    expect(markRewardSeen).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+
+    await act(async () => resolveAcknowledgement?.())
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Reward earned' })).toBeNull()
+    })
+  })
+
+  it('hosts Pal minimal title presentation in the Pika-owned reward modal', async () => {
     const snapshot = withStoryReward()
     renderExperience({
       getSnapshot: async () => snapshot,
@@ -133,11 +154,10 @@ describe('StudentPalExperience', () => {
     })
 
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
-    expect(screen.getByText('Story unlocked')).toBeVisible()
-    expect(screen.getByText('The Clockwork Lantern')).toBeVisible()
-    expect(screen.getByText('Storybook sketch')).toBeVisible()
     expect(screen.getByText('Story Keeper')).toBeVisible()
-    expect(document.querySelector('[data-collectible-finish="sketch"]')).not.toBeNull()
+    expect(screen.queryByText('Story unlocked')).toBeNull()
+    expect(screen.queryByText('The Clockwork Lantern')).toBeNull()
+    expect(document.querySelector('[data-collectible-finish="sketch"]')).toBeNull()
   })
 
   it('acknowledges an Escape close and removes the modal only after success', async () => {
@@ -161,9 +181,8 @@ describe('StudentPalExperience', () => {
 
   it('keeps the reward retryable and academic work usable when acknowledgement fails', async () => {
     const snapshot = withReward()
-    const markRewardSeen = vi.fn(async () => {
-      throw new Error('Pal unavailable')
-    })
+    const markRewardSeen = vi.fn(async () => undefined)
+    markRewardSeen.mockRejectedValueOnce(new Error('Pal unavailable'))
     renderExperience({ getSnapshot: async () => snapshot, markRewardSeen })
 
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
@@ -172,6 +191,12 @@ describe('StudentPalExperience', () => {
     expect(await screen.findByText('We could not save that yet. Try again.')).toBeVisible()
     expect(screen.getByRole('dialog', { name: 'Reward earned' })).toBeVisible()
     expect(screen.getByText('Academic work remains available')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => {
+      expect(markRewardSeen).toHaveBeenCalledTimes(2)
+      expect(screen.queryByRole('dialog', { name: 'Reward earned' })).toBeNull()
+    })
   })
 
   it('contains a snapshot failure to Pal while leaving Pika content usable', async () => {
