@@ -1360,8 +1360,8 @@ no schema, grading, assessment, workspace persistence, or hosted state changed.
   expectations.
 
 **Verification:**
-- Focused student Pal experience suite passes 12 tests; TypeScript, lint,
-  architecture, design policy, UI policy, and diff checks pass.
+- Focused student Pal experience and widget theme-contract suites pass 17 tests;
+  TypeScript, lint, architecture, design policy, UI policy, and diff checks pass.
 - Playwright verification passed for the student modal on desktop/mobile in
   light/dark themes, including launch/linger visuals, Escape and backdrop
   acknowledgement, failure/retry, and reduced-motion suppression. Teacher view

@@ -181,9 +181,8 @@ describe('StudentPalExperience', () => {
 
   it('keeps the reward retryable and academic work usable when acknowledgement fails', async () => {
     const snapshot = withReward()
-    const markRewardSeen = vi.fn(async () => {
-      throw new Error('Pal unavailable')
-    })
+    const markRewardSeen = vi.fn(async () => undefined)
+    markRewardSeen.mockRejectedValueOnce(new Error('Pal unavailable'))
     renderExperience({ getSnapshot: async () => snapshot, markRewardSeen })
 
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
@@ -192,6 +191,12 @@ describe('StudentPalExperience', () => {
     expect(await screen.findByText('We could not save that yet. Try again.')).toBeVisible()
     expect(screen.getByRole('dialog', { name: 'Reward earned' })).toBeVisible()
     expect(screen.getByText('Academic work remains available')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => {
+      expect(markRewardSeen).toHaveBeenCalledTimes(2)
+      expect(screen.queryByRole('dialog', { name: 'Reward earned' })).toBeNull()
+    })
   })
 
   it('contains a snapshot failure to Pal while leaving Pika content usable', async () => {
