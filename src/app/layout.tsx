@@ -12,6 +12,20 @@ import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 export const metadata: Metadata = {
   title: 'Pika',
   description: 'Classroom management for online high schools — journals, attendance, and assignments',
+  icons: {
+    icon: [
+      {
+        url: '/pika-icon-light.svg',
+        type: 'image/svg+xml',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/pika-icon-dark.svg',
+        type: 'image/svg+xml',
+        media: '(prefers-color-scheme: dark)',
+      },
+    ],
+  },
 }
 
 const themeInitScript = `
