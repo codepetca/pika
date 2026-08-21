@@ -1352,19 +1352,25 @@ submit reconciliation. No schema, hosted environment, or production state change
 - Playwright visual verification passed for student submitted-detail and teacher
   assignment-summary states on desktop/mobile in light/dark themes.
 
-## 2026-08-21 — Cover favicon fallback with AuthKit middleware
+## 2026-08-21 — Serve favicon outside AuthKit middleware
 
 **Risk profile:** runtime-platform — production AuthKit middleware routing. No
 database, identity record, environment variable, or attendance flag changed.
 
 **Completed:**
-- Removed the `favicon.ico` exception from the AuthKit matcher. Pika has no
-  favicon asset, so `/favicon.ico` renders the app 404 layout, which calls
-  `withAuth()` and therefore requires the trusted middleware headers.
-- Added a regression proving favicon and application routes are covered while
-  Next.js static and image internals remain excluded.
+- Preserved the `favicon.ico` AuthKit matcher exclusion so passive asset
+  requests cannot participate in WorkOS session refreshes.
+- Added a real 64x64 Pika favicon through Next.js's static metadata convention,
+  preventing `/favicon.ico` from rendering the authenticated root layout.
+- Added a regression proving the favicon is excluded, application routes remain
+  covered, Next.js internals remain excluded, and the asset has a valid ICO
+  signature.
 
 **Verification:**
-- The regression fails against the old matcher and passes with the fix.
+- The revised regression fails against the unsafe matcher and passes with the
+  restored exclusion and static asset.
 - Focused middleware/auth coverage passes 50 tests; the full suite passes 557
   files and 4,865 tests. TypeScript and the production build pass.
+- A pilot-enabled production-mode smoke test returns `200 image/x-icon` for
+  `/favicon.ico` with no session cookie, while `/classrooms` still redirects to
+  `/login`.
