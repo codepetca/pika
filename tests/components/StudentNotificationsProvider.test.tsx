@@ -5,6 +5,7 @@ import {
   useStudentNotifications,
 } from '@/components/StudentNotificationsProvider'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 function notificationFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(
@@ -233,6 +234,32 @@ describe('StudentNotificationsProvider', () => {
     })
 
     expect(document.body).toHaveTextContent('tests:1')
+  })
+
+  it('suppresses counts for features hidden by the classroom', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 4,
+        activeTestsCount: 3,
+        unreadAnnouncementsCount: 2,
+      }),
+    })
+
+    render(
+      <StudentNotificationsProvider
+        classroomId="c1"
+        featureVisibility={{ ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, tests: false }}
+      >
+        <NotificationProbe />
+      </StudentNotificationsProvider>,
+    )
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent('tests:0')
+      expect(notificationFetchCalls(fetchMock)).toHaveLength(1)
+    })
   })
 
   it('invalidates cached notifications after local count updates', async () => {

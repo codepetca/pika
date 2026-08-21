@@ -5,6 +5,7 @@ import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom } from '@/types'
 import type { ReactNode } from 'react'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 // Mock next/navigation
 const mockRefresh = vi.fn()
@@ -29,6 +30,7 @@ const mockClassroom: Classroom = {
   start_date: '2026-01-01',
   end_date: '2026-06-01',
   lesson_plan_visibility: 'current_week',
+  feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
   source_blueprint_id: null,
   source_blueprint_origin: null,
   actual_site_slug: null,
@@ -242,6 +244,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     const sectionSwitcher = screen.getByRole('group', { name: 'Settings section' })
     expect(within(sectionSwitcher).getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(sectionSwitcher).getByRole('button', { name: 'Access' })).toBeInTheDocument()
+    expect(within(sectionSwitcher).getByRole('button', { name: 'Features' })).toBeInTheDocument()
     expect(within(sectionSwitcher).getByRole('button', { name: 'Syllabus' })).toBeInTheDocument()
     expect(within(sectionSwitcher).getByRole('button', { name: 'Reuse' })).toBeInTheDocument()
 
@@ -255,6 +258,138 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
 
     expect(screen.getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Classroom name')).toBeInTheDocument()
+  })
+
+  it('shows the optional classroom features and explains the non-destructive core', () => {
+    render(
+      <TeacherSettingsTab classroom={mockClassroom} sectionParam="features" palEnabled />,
+      { wrapper: Wrapper },
+    )
+
+    expect(screen.getByText(/Hiding a feature does not delete its content/)).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Show Attendance' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: 'Show Classwork' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: 'Show Achievements' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('saves a complete visibility record and reports the updated classroom', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const onClassroomUpdated = vi.fn()
+    const savedVisibility = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, tests: false }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        classroom: { ...mockClassroom, feature_visibility: savedVisibility },
+      }),
+    })
+
+    render(
+      <TeacherSettingsTab
+        classroom={mockClassroom}
+        sectionParam="features"
+        onClassroomUpdated={onClassroomUpdated}
+      />,
+      { wrapper: Wrapper },
+    )
+    fireEvent.click(screen.getByRole('switch', { name: 'Show Tests' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      featureVisibility: savedVisibility,
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('switch', { name: 'Show Tests' })).toHaveAttribute('aria-checked', 'false')
+      expect(onClassroomUpdated).toHaveBeenCalledWith(
+        expect.objectContaining({ feature_visibility: savedVisibility }),
+      )
+    })
+  })
+
+  it('can re-enable a hidden feature without changing the rest of the record', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const hiddenTests = { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, tests: false }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        classroom: {
+          ...mockClassroom,
+          feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+        },
+      }),
+    })
+
+    render(
+      <TeacherSettingsTab
+        classroom={{ ...mockClassroom, feature_visibility: hiddenTests }}
+        sectionParam="features"
+      />,
+      { wrapper: Wrapper },
+    )
+    const tests = screen.getByRole('switch', { name: 'Show Tests' })
+    expect(tests).toHaveAttribute('aria-checked', 'false')
+
+    fireEvent.click(tests)
+
+    await waitFor(() => expect(tests).toHaveAttribute('aria-checked', 'true'))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      featureVisibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+    })
+  })
+
+  it('preserves the Gradebook preference but disables its switch without grade sources', () => {
+    render(
+      <TeacherSettingsTab
+        classroom={{
+          ...mockClassroom,
+          feature_visibility: {
+            ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+            classwork: false,
+            tests: false,
+            gradebook: true,
+          },
+        }}
+        sectionParam="features"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const gradebook = screen.getByRole('switch', { name: 'Show Gradebook' })
+    expect(gradebook).toHaveAttribute('aria-checked', 'false')
+    expect(gradebook).toBeDisabled()
+    expect(screen.getByText('Teacher only · Hidden until Classwork or Tests is enabled')).toBeInTheDocument()
+  })
+
+  it('restores the prior feature state when saving fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Feature update failed' }),
+    })
+    render(
+      <TeacherSettingsTab classroom={mockClassroom} sectionParam="features" />,
+      { wrapper: Wrapper },
+    )
+
+    const tests = screen.getByRole('switch', { name: 'Show Tests' })
+    fireEvent.click(tests)
+
+    await waitFor(() => {
+      expect(screen.getByText('Feature update failed')).toBeInTheDocument()
+      expect(tests).toHaveAttribute('aria-checked', 'true')
+    })
+  })
+
+  it('keeps feature switches read-only for archived classrooms', () => {
+    render(
+      <TeacherSettingsTab
+        classroom={{ ...mockClassroom, archived_at: '2026-08-20T00:00:00.000Z' }}
+        sectionParam="features"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(screen.getByRole('switch', { name: 'Show Tests' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'Show Attendance' })).toBeDisabled()
   })
 
   it('saves on blur when value has changed', async () => {

@@ -6,6 +6,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 import { updateClassroomPublishingSchema } from '@/lib/validations/teacher'
 import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
+import { isMissingClassroomFeatureVisibilityColumnError } from '@/lib/classroom-feature-visibility'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -55,6 +56,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     archived,
     themeColor,
     lessonPlanVisibility,
+    featureVisibility,
     actualSiteSlug,
     actualSitePublished,
     actualSiteConfig,
@@ -71,6 +73,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     archived === undefined &&
     themeColor === undefined &&
     lessonPlanVisibility === undefined &&
+    featureVisibility === undefined &&
     actualSiteSlug === undefined &&
     actualSitePublished === undefined &&
     actualSiteConfig === undefined &&
@@ -103,6 +106,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     joinPolicy !== undefined ||
     themeColor !== undefined ||
     lessonPlanVisibility !== undefined ||
+    featureVisibility !== undefined ||
     actualSiteSlug !== undefined ||
     actualSitePublished !== undefined ||
     actualSiteConfig !== undefined ||
@@ -143,6 +147,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   if (joinPolicy !== undefined) updates.join_policy = joinPolicy
   if (themeColor !== undefined) updates.theme_color = themeColor
   if (lessonPlanVisibility !== undefined) updates.lesson_plan_visibility = lessonPlanVisibility
+  if (featureVisibility !== undefined) updates.feature_visibility = featureVisibility
   if (actualSiteSlug !== undefined) updates.actual_site_slug = actualSiteSlug
   if (actualSitePublished !== undefined) updates.actual_site_published = actualSitePublished
   if (actualSiteConfig !== undefined) updates.actual_site_config = normalizeActualCourseSiteConfig(actualSiteConfig)
@@ -202,6 +207,12 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     .single()
 
   if (updateError) {
+    if (isMissingClassroomFeatureVisibilityColumnError(updateError)) {
+      return NextResponse.json(
+        { error: 'Classroom feature controls are not available until migration 128 is applied' },
+        { status: 503 }
+      )
+    }
     console.error('Error updating classroom:', updateError)
     return NextResponse.json(
       { error: 'Failed to update classroom' },

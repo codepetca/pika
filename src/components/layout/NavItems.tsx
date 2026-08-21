@@ -21,24 +21,18 @@ import { useStudentNotifications } from '@/components/StudentNotificationsProvid
 import { Tooltip } from '@/ui'
 import { writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
+import {
+  DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+  getAvailableClassroomTabs,
+  type ClassroomFeatureVisibility,
+  type ClassroomTabId,
+} from '@/lib/classroom-feature-visibility'
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type ClassroomNavItemId =
-  | 'daily'
-  | 'attendance'
-  | 'gradebook'
-  | 'assignments'
-  | 'tests'
-  | 'calendar'
-  | 'resources'
-  | 'announcements'
-  | 'roster'
-  | 'settings'
-  | 'today'
-  | 'achievements'
+export type ClassroomNavItemId = ClassroomTabId
 
 type NavItem = {
   id: ClassroomNavItemId
@@ -77,11 +71,16 @@ const studentItems: NavItem[] = [
 // Utilities
 // ============================================================================
 
-function getItems(role: 'student' | 'teacher', palEnabled: boolean) {
-  if (role === 'teacher') return teacherItems
-  return palEnabled
-    ? studentItems
-    : studentItems.filter((item) => item.id !== 'achievements')
+function getItems(
+  role: 'student' | 'teacher',
+  palEnabled: boolean,
+  featureVisibility: ClassroomFeatureVisibility,
+) {
+  const availableTabs = new Set(
+    getAvailableClassroomTabs(role, featureVisibility, palEnabled),
+  )
+  return (role === 'teacher' ? teacherItems : studentItems)
+    .filter((item) => availableTabs.has(item.id))
 }
 
 function tabHref(classroomId: string, tabId: ClassroomNavItemId) {
@@ -120,6 +119,7 @@ export interface NavItemsProps {
   onTabIntent?: (tab: ClassroomNavItemId) => void
   updateSearchParams: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
   palEnabled?: boolean
+  featureVisibility?: ClassroomFeatureVisibility
 }
 
 export function NavItems({
@@ -130,6 +130,7 @@ export function NavItems({
   onTabIntent = () => {},
   updateSearchParams,
   palEnabled = false,
+  featureVisibility = DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
 }: NavItemsProps) {
   const { isExpanded } = useLeftSidebar()
   const { isLeftOpen, close: closeMobileDrawer } = useMobileDrawer()
@@ -152,7 +153,10 @@ export function NavItems({
     !notifications?.loading &&
     (notifications?.unreadAnnouncementsCount ?? 0) > 0
 
-  const items = useMemo(() => getItems(role, palEnabled), [palEnabled, role])
+  const items = useMemo(
+    () => getItems(role, palEnabled, featureVisibility),
+    [featureVisibility, palEnabled, role],
+  )
   const handleTabIntent = useCallback((tab: ClassroomNavItemId) => {
     onTabIntent(tab)
   }, [onTabIntent])

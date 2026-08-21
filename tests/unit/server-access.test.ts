@@ -11,6 +11,7 @@ import {
   isMissingTestAttemptReturnColumnsError,
   isMissingTestResponseAiColumnsError,
 } from '@/lib/server/tests'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 const mockSupabaseClient = {
   from: vi.fn(),
@@ -155,7 +156,11 @@ describe('server access helpers', () => {
 
       await expect(assertStudentCanAccessClassroom('student-1', 'classroom-1')).resolves.toEqual({
         ok: true,
-        classroom: { id: 'classroom-1', archived_at: null },
+        classroom: {
+          id: 'classroom-1',
+          archived_at: null,
+          feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+        },
       })
     })
 
