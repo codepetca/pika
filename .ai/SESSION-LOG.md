@@ -1370,8 +1370,9 @@ database, identity record, environment variable, or attendance flag changed.
 **Verification:**
 - The boundary regression fails against the unbounded matcher and passes with
   exact/segment exclusions. The compiled Next matcher has the same behavior.
-- Focused middleware/auth coverage passes 50 tests; the full suite passes 557
-  files and 4,865 tests. TypeScript and the production build pass.
+- Focused middleware/auth coverage passes 50 tests; after syncing latest main,
+  the full suite passes 561 files and 4,902 tests. TypeScript and the production
+  build pass.
 - A pilot-enabled production-mode smoke test returns `200 image/x-icon` for
   `/favicon.ico` with no session cookie, while `/classrooms` still redirects to
   `/login`; collision paths return normal 404/400 responses without AuthKit
