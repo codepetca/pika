@@ -142,6 +142,30 @@ describe('StudentLessonCalendarTab', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it('does not fetch or display classroom features hidden from students', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ lesson_plans: [], max_date: null }),
+    })
+
+    render(
+      <StudentLessonCalendarTab
+        classroom={classroom}
+        showClasswork={false}
+        showAnnouncements={false}
+      />,
+      { wrapper: Wrapper },
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toBeInTheDocument()
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/lesson-plans')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '0')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '0')
+  })
+
   it('reuses calendar data cache keys on remount', async () => {
     fetchMock.mockImplementation(async (url: string) => ({
       ok: true,

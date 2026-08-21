@@ -12,6 +12,7 @@ import {
   isMissingTestAttemptClosureColumnsError,
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
+import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -319,6 +320,9 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
       { status: access.status }
     )
   }
+  const featureVisibility = normalizeClassroomFeatureVisibility(
+    access.classroom.feature_visibility,
+  )
 
   const today = getTodayInToronto()
 
@@ -363,10 +367,9 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     hasTodayEntry = todayEntry !== null
   }
 
-  const { ids: assignmentIds, error: assignmentsError } = await loadVisibleAssignmentIds(
-    supabase,
-    scopedClassroomId
-  )
+  const { ids: assignmentIds, error: assignmentsError } = featureVisibility.classwork
+    ? await loadVisibleAssignmentIds(supabase, scopedClassroomId)
+    : { ids: [], error: null }
 
   if (assignmentsError) {
     console.error('Error fetching assignments:', assignmentsError)
@@ -523,9 +526,9 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     }
   }
 
-  const activeTestsResult = await countActiveUnansweredTests(
-    { tolerateMissingTable: true }
-  )
+  const activeTestsResult = featureVisibility.tests
+    ? await countActiveUnansweredTests({ tolerateMissingTable: true })
+    : { count: 0, error: false }
   if (activeTestsResult.error) {
     return NextResponse.json(
       { error: 'Failed to check notifications' },
@@ -536,10 +539,9 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
   // Count unread announcements for this classroom (only published ones)
   let unreadAnnouncementsCount = 0
 
-  const { ids: announcementIds, error: announcementsError } = await loadAnnouncementIds(
-    supabase,
-    scopedClassroomId
-  )
+  const { ids: announcementIds, error: announcementsError } = featureVisibility.announcements
+    ? await loadAnnouncementIds(supabase, scopedClassroomId)
+    : { ids: [], error: null }
 
   if (announcementsError) {
     console.error('Error fetching announcements:', announcementsError)

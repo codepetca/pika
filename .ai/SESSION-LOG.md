@@ -1376,3 +1376,38 @@ database, identity record, environment variable, or attendance flag changed.
   `/favicon.ico` with no session cookie, while `/classrooms` still redirects to
   `/login`; collision paths return normal 404/400 responses without AuthKit
   exceptions.
+## 2026-08-21 — Add classroom-scoped feature visibility
+
+**Risk profile:** workspace-state + exam-mode — per-classroom navigation,
+student notifications, direct-link routing, assessment visibility, and one
+additive schema migration. Migration 128 was explicitly authorized and applied
+only to the local Supabase database; no hosted environment was changed.
+
+**Implemented:**
+- Added one default-on classroom feature contract for Attendance, Classwork,
+  Tests, Gradebook, Calendar, Syllabus, Announcements, and Pal-gated
+  Achievements; Daily/Today, Roster, and Settings remain permanent.
+- Added teacher Settings switches with complete-record validation, optimistic
+  persistence, rollback, archived read-only behavior, and a Gradebook dependency
+  on Classwork or Tests.
+- Centralized teacher/student sidebar filtering, workspace mounting, stale URL
+  fallback, prefetch suppression, notification counts, and Calendar-embedded
+  assignment/announcement visibility.
+- Authored migration 128 with a constrained JSON default and cold-archive row
+  normalization so pre-128 archives restore with all features enabled.
+- Documented the teacher/student tab mapping and rollout contract in
+  `docs/guidance/classroom-feature-visibility.md`.
+
+**Verification completed:**
+- All 4,901 tests across 560 files, TypeScript, lint, production build,
+  architecture, design policy,
+  UI policy, generated database contract, diff checks, and the Pika pre-commit
+  audit pass.
+- Composite-widget accessibility review passes: labeled group, semantic pressed
+  and switch state, roving keyboard focus, arrow/Home/End behavior, and tests.
+- Local migration history, column/default/constraint shape, existing rows, and
+  cold-archive normalization were checked after applying migration 128; generated
+  database types now include `feature_visibility`.
+- Playwright verification passed for teacher and student desktop/mobile views in
+  light/dark themes, including enabled/hidden Settings states, filtered nav,
+  direct-link fallbacks, hidden notification counts, and restoration to defaults.

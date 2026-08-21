@@ -8,6 +8,8 @@ import {
   isClassroomThemeColor,
   normalizeClassroomThemeColor,
 } from '@/lib/classroom-theme'
+import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
+import type { ClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import type { Classroom } from '@/types'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
@@ -33,6 +35,7 @@ export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
     actual_site_config: normalizeActualCourseSiteConfig(
       row.actual_site_config ?? DEFAULT_ACTUAL_COURSE_SITE_CONFIG
     ),
+    feature_visibility: normalizeClassroomFeatureVisibility(row.feature_visibility),
     join_policy: row.join_policy === 'open_join' ? 'open_join' : 'roster',
     course_overview_markdown: row.course_overview_markdown ?? '',
     course_outline_markdown: row.course_outline_markdown ?? '',
@@ -102,11 +105,17 @@ export async function assertTeacherCanMutateClassroom(
 export async function assertStudentCanAccessClassroom(
   studentId: string,
   classroomId: string
-): Promise<AccessResult<{ id: string; archived_at: string | null }>> {
+): Promise<AccessResult<{
+  id: string
+  archived_at: string | null
+  feature_visibility: ClassroomFeatureVisibility
+}>> {
   const supabase = getServiceRoleClient()
   const { data: classroom, error: classroomError } = await supabase
     .from('classrooms')
-    .select('id, archived_at')
+    // select('*') intentionally tolerates the pre-migration schema; hydration defaults missing
+    // feature_visibility to enabled during the migration 128 compatibility window.
+    .select('*')
     .eq('id', classroomId)
     .single()
 
@@ -129,7 +138,14 @@ export async function assertStudentCanAccessClassroom(
     return { ok: false, status: 403, error: 'Not enrolled in this classroom' }
   }
 
-  return { ok: true, classroom }
+  return {
+    ok: true,
+    classroom: {
+      id: classroom.id,
+      archived_at: classroom.archived_at,
+      feature_visibility: normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+    },
+  }
 }
 
 export async function getClassroomStudentIds(

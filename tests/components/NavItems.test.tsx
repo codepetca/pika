@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { NavItems } from '@/components/layout/NavItems'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 type MockNotifications = {
   hasTodayEntry: boolean
@@ -194,6 +195,48 @@ describe('NavItems notification dots', () => {
     expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
     expect(container.querySelector('[data-new-activity-dot="true"]')).toBeNull()
     expect(screen.queryByRole('link', { name: /new activity/i })).toBeNull()
+  })
+
+  it('hides disabled features while preserving role-specific core tabs', () => {
+    const featureVisibility = {
+      ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+      attendance: false,
+      classwork: false,
+      tests: false,
+      calendar: false,
+      syllabus: false,
+      announcements: false,
+    }
+    const { rerender } = render(
+      <NavItems
+        classroomId="classroom-1"
+        role="teacher"
+        activeTab="daily"
+        onTabChange={vi.fn()}
+        updateSearchParams={vi.fn()}
+        featureVisibility={featureVisibility}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Daily' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Roster' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Attendance' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Classwork' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Tests' })).toBeNull()
+
+    rerender(
+      <NavItems
+        classroomId="classroom-1"
+        role="student"
+        activeTab="today"
+        onTabChange={vi.fn()}
+        updateSearchParams={vi.fn()}
+        featureVisibility={featureVisibility}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Today' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Classwork' })).toBeNull()
   })
 
   it('clears classwork selection with replace when the sidebar tab is clicked', () => {

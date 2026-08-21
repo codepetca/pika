@@ -21759,7 +21759,7 @@ remains unapplied, so SQL behavior is locally specified but not database-proven.
   Separately authorize the Bara Convex development deploy and Staging no-second-
   login smoke before enabling the integration.
 
-<!-- pika-session-log-archive-batch:1f6f9c04acf6c62dbf384adfdb6cdcaac190c02c0f413694f19f20da9069f312 -->
+<!-- pika-session-log-archive-batch:7d23069915ea3f516db3597174d3c19295453c57cbae94f9eb8e65fe9cd4c22c -->
 ## 2026-08-16 — Make Bara attendance automation operationally fail-visible
 
 **Risk profile:** runtime-platform and schema. Only the loopback Supabase stack
