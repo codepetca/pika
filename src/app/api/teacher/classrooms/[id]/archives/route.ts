@@ -17,6 +17,7 @@ export const maxDuration = 60
 
 const requestSchema = z.object({
   retention: classroomArchiveRetentionSchema.optional(),
+  expected_source_revision: z.number().int().nonnegative(),
 }).strict().superRefine((body, context) => {
   if (
     body.retention?.mode === 'scheduled' &&
@@ -78,6 +79,7 @@ export const POST = withErrorHandler('ExportClassroomArchive', async (request, c
     operationId,
     teacherId: user.id,
     classroomId,
+    expectedSourceRevision: body.expected_source_revision,
     retention: body.retention || { mode: 'teacher_managed', delete_after: null },
     sourceAppCommit,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',

@@ -11,7 +11,7 @@ import {
   type CourseBlueprintSnapshot,
 } from '@/lib/server/course-blueprint-versions'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
-import { parseCourseBlueprintImportBundle } from '@/lib/course-blueprint-package'
+import type { VerifiedCourseBlueprintPackagePlan } from '@/lib/course-blueprint-package'
 import { buildCourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
 import { markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
 import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
@@ -705,7 +705,7 @@ export function serializeCourseBlueprintProposalCandidate(
 
 export function buildCourseBlueprintPackageCandidate(
   baseDetail: CourseBlueprintDetail,
-  bundle: unknown
+  parsed: VerifiedCourseBlueprintPackagePlan,
 ):
   | {
       ok: true
@@ -716,15 +716,6 @@ export function buildCourseBlueprintPackageCandidate(
       editingSessionId: string | null
     }
   | { ok: false; status: number; error: string; errors?: string[] } {
-  const parsed = parseCourseBlueprintImportBundle(bundle)
-  if (parsed.errors.length > 0 || !parsed.manifest) {
-    return {
-      ok: false,
-      status: 400,
-      error: 'Invalid course package',
-      errors: parsed.errors,
-    }
-  }
   if (parsed.manifest.version !== '5') {
     return {
       ok: false,

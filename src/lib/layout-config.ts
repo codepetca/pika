@@ -39,6 +39,7 @@ export type LayoutConfig = {
 export type RouteKey =
   | 'classrooms-list'
   | 'settings'
+  | 'daily'
   | 'attendance'
   | 'roster'
   | 'gradebook'
@@ -91,6 +92,10 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
   },
   settings: {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
+    mainContent: { maxWidth: 'full' },
+  },
+  daily: {
+    rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: '50%' },
     mainContent: { maxWidth: 'full' },
   },
   attendance: {
@@ -220,6 +225,7 @@ export function getRouteKeyFromTab(
   isViewingWork?: boolean
 ): RouteKey {
   if (tab === 'settings') return 'settings'
+  if (tab === 'daily') return 'daily'
   if (tab === 'attendance') return 'attendance'
   if (tab === 'roster') return 'roster'
   if (tab === 'gradebook') return 'gradebook'
@@ -249,5 +255,5 @@ export function getRouteKeyFromTab(
   }
 
   // Default fallback
-  return role === 'teacher' ? 'attendance' : 'today'
+  return role === 'teacher' ? 'daily' : 'today'
 }

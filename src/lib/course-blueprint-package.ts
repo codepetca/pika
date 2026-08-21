@@ -49,7 +49,11 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
 } from '@/lib/course-site-publishing'
-import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import type { PortableCoursePackageTestDocument } from '@/lib/contracts/course-blueprint-portable-test-documents'
+import {
+  containsPikaManagedStorageUrl,
+  isPikaManagedStorageUrl,
+} from '@/lib/course-blueprint-package-storage-policy'
 import {
   createCourseBlueprintArtifactId,
   isCourseBlueprintArtifactId,
@@ -66,6 +70,13 @@ export type CourseBlueprintPackageFileName =
   (typeof COURSE_BLUEPRINT_PACKAGE_FILE_NAMES)[number]
 
 export type CourseBlueprintPackageBundle = CoursePackageRawBundle
+
+export type PortableCourseBlueprintAssessment = Omit<
+  CourseBlueprintAssessmentMarkdownRecord,
+  'documents'
+> & {
+  documents: PortableCoursePackageTestDocument[]
+}
 
 export type CourseBlueprintImportResult = {
   manifest: CoursePackageManifest | null
@@ -100,7 +111,7 @@ export type CourseBlueprintImportResult = {
     track_authenticity?: boolean
     position: number
   }>
-  assessments: CourseBlueprintAssessmentMarkdownRecord[]
+  assessments: PortableCourseBlueprintAssessment[]
   lesson_templates: Array<{
     artifact_id?: string
     title: string
@@ -116,6 +127,21 @@ export type CourseBlueprintImportResult = {
   surveys: CourseBlueprintSurveyMarkdownRecord[]
   errors: string[]
 }
+
+declare const verifiedCourseBlueprintPackagePlanBrand: unique symbol
+
+export type VerifiedCourseBlueprintPackagePlan = Omit<
+  CourseBlueprintImportResult,
+  'manifest' | 'errors'
+> & {
+  manifest: CoursePackageManifest
+  errors: []
+  readonly [verifiedCourseBlueprintPackagePlanBrand]: true
+}
+
+export type CourseBlueprintPackagePlanResult =
+  | { ok: true; plan: VerifiedCourseBlueprintPackagePlan }
+  | { ok: false; errors: string[] }
 
 type PortableArtifact = { id?: string; artifact_id?: string }
 
@@ -376,13 +402,31 @@ export function buildCourseBlueprintExportBundle(
       assessment_type: 'test' as const,
       title: assessment.title,
       content: assessment.content as any,
-      // Course packages contain portable definitions, never Pika-internal
-      // Storage identities or URLs. Managed upload bytes remain owned by the
-      // Blueprint inside Pika and are copied on instantiation.
-      documents: stripTestDocumentSnapshots(assessment.documents)
-        .filter((document) => document.source !== 'upload')
-        .map(({ managed_object_id: _managedObjectId,
-          snapshot_managed_object_id: _snapshotManagedObjectId, ...document }) => document),
+      // Course packages contain exact portable definitions. Runtime storage
+      // fields and managed URLs remain owned by Pika and never cross this edge.
+      documents: assessment.documents.flatMap((document): PortableCoursePackageTestDocument[] => {
+        if (
+          document.source === 'link'
+          && document.url
+          && !isPikaManagedStorageUrl(document.url)
+        ) {
+          return [{
+            id: document.id,
+            title: document.title,
+            source: 'link',
+            url: document.url,
+          }]
+        }
+        if (document.source === 'text' && document.content) {
+          return [{
+            id: document.id,
+            title: document.title,
+            source: 'text',
+            content: document.content,
+          }]
+        }
+        return []
+      }),
       points_possible: assessment.points_possible,
       gradebook_weight: assessment.gradebook_weight,
       include_in_final: assessment.include_in_final,
@@ -547,7 +591,7 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
     files['tests.md'],
     [],
     'test',
-    parseOptions
+    { ...parseOptions, portableDocuments: true }
   )
   const lessonResult = markdownToCourseBlueprintLessonTemplates(
     files['lesson-plans.md'],
@@ -572,6 +616,7 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
     assessments: testResult.assessments
       .map((assessment) => ({
         ...assessment,
+        documents: assessment.documents as PortableCoursePackageTestDocument[],
         points_possible: assessment.points_possible ?? null,
         gradebook_weight: assessment.gradebook_weight ?? 10,
         include_in_final: assessment.include_in_final ?? true,
@@ -606,12 +651,15 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
         return []
       })
     : []
-  const packageStorageErrors = [
-    files['tests.md'],
-  ].some((value) => (
-    /managed_object_id|snapshot_managed_object_id/.test(value)
-    || /storage\/v1\/object\/(?:public|sign|authenticated)\/(?:assignment-artifacts|submission-images|test-documents)\//.test(value)
+  const structuredManagedUrl = parsedContent.assessments.some((assessment) => (
+    assessment.documents.some((document) => (
+      document.source === 'link'
+      && Boolean(document.url)
+      && isPikaManagedStorageUrl(document.url!)
+    ))
   ))
+  const packageStorageErrors = structuredManagedUrl
+    || Object.values(files).some((value) => containsPikaManagedStorageUrl(value))
     ? ['Course packages cannot contain Pika-managed storage references']
     : []
 
@@ -674,6 +722,38 @@ export function parseCourseBlueprintImportJson(
   return verification.success
     ? parseVerifiedCoursePackage(verification.value)
     : invalidImportResult(verification)
+}
+
+function buildVerifiedCourseBlueprintPackagePlan(
+  parsed: CourseBlueprintImportResult,
+): CourseBlueprintPackagePlanResult {
+  if (parsed.errors.length > 0 || !parsed.manifest) {
+    return { ok: false, errors: parsed.errors }
+  }
+  return {
+    ok: true,
+    plan: {
+      ...parsed,
+      manifest: parsed.manifest,
+      errors: [],
+    } as VerifiedCourseBlueprintPackagePlan,
+  }
+}
+
+export function planCourseBlueprintPackageBundle(input: unknown): CourseBlueprintPackagePlanResult {
+  return buildVerifiedCourseBlueprintPackagePlan(parseCourseBlueprintImportBundle(input))
+}
+
+export function planCourseBlueprintPackageJson(
+  input: string | ArrayBuffer | Uint8Array,
+): CourseBlueprintPackagePlanResult {
+  return buildVerifiedCourseBlueprintPackagePlan(parseCourseBlueprintImportJson(input))
+}
+
+export function planCourseBlueprintPackageArchive(
+  input: ArrayBuffer | Uint8Array,
+): CourseBlueprintPackagePlanResult {
+  return buildVerifiedCourseBlueprintPackagePlan(parseCourseBlueprintImportArchive(input))
 }
 
 export function analyzeCourseBlueprintCompleteness(detail: CourseBlueprintDetail) {

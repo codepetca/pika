@@ -776,6 +776,29 @@ describe('classroom archive cold-compaction coordinator', () => {
     ])
   })
 
+  it('treats the attendance decommission fence as a permanent conflict', async () => {
+    const mock = createSupabaseMock({
+      beginError: {
+        code: '55000',
+        message: 'attendance_classroom_decommission_required',
+      },
+    })
+
+    const result = await compactClassroomArchive(operationArgs(mock))
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      operation_id: OPERATION_ID,
+      error_code: 'attendance_classroom_decommission_required',
+      error: 'Attendance must be decommissioned before this classroom can be permanently removed',
+      retryable: false,
+    })
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_classroom_archive_compaction_v2',
+    ])
+  })
+
   it('validates caller-provided idempotency keys and generates one when absent', () => {
     expect(resolveClassroomArchiveCompactionOperationId(` ${OPERATION_ID} `)).toBe(OPERATION_ID)
     expect(resolveClassroomArchiveCompactionOperationId()).toMatch(

@@ -15,6 +15,7 @@ import {
 } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
+import { classifyAttendanceDecommissionError } from '@/lib/server/attendance-decommission'
 
 const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
 const CLASSROOM_ARCHIVE_COMPACTION_MAX_BATCH_BYTES = 512 * 1024
@@ -747,6 +748,16 @@ export async function compactClassroomArchive(args: {
       p_restore_contract_version: CLASSROOM_ARCHIVE_V2_VERSION,
     })
     if (beginResponse.error) {
+      const decommission = classifyAttendanceDecommissionError(beginResponse.error)
+      if (decommission) {
+        throw new ClassroomArchiveCompactionError(
+          decommission.code,
+          decommission.message,
+          decommission.status,
+          decommission.retryable,
+          false,
+        )
+      }
       const missingMigration = isMissingCompactionRpc(beginResponse.error)
       throw new ClassroomArchiveCompactionError(
         missingMigration

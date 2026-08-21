@@ -10,6 +10,7 @@ import {
   Megaphone,
   Settings,
   PenSquare,
+  ScanLine,
   SquarePercent,
   Trophy,
   Users,
@@ -26,6 +27,7 @@ import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 // ============================================================================
 
 export type ClassroomNavItemId =
+  | 'daily'
   | 'attendance'
   | 'gradebook'
   | 'assignments'
@@ -49,7 +51,8 @@ type NavItem = {
 // ============================================================================
 
 const teacherItems: NavItem[] = [
-  { id: 'attendance', label: 'Daily', icon: ClipboardCheck },
+  { id: 'daily', label: 'Daily', icon: ClipboardCheck },
+  { id: 'attendance', label: 'Attendance', icon: ScanLine },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },

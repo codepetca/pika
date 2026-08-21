@@ -1,3 +1,3 @@
-Prod 001-125. Student purge on; other cleanup off. Phase 3 desktop done; mobile/Gradex deferred; legacy resources wait for Phase 6. Phase 5 rollover browser drill done. Next: package compatibility, planned-site verification, preview/version UX. Migration-123 retry lint separate.
+Prod 001-125; local archive M126. Bara M127 pending. Student purge on; other cleanup off. P3 mobile/Gradex deferred; legacy P6. Blueprint done. P5 recovery UI done; M126 prod pending. Next: compaction eligibility/progress, then cold-restore/quota policy.
 WT: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators use .env.example.

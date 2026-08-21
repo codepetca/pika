@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { randomUUID } from 'node:crypto'
 import type { SessionData, UserRole } from '@/types'
 import { recordPalAuthenticatedSession } from '@/lib/server/pal-signals'
+import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 
 /**
  * Custom error class for authentication failures (401)
@@ -24,7 +25,9 @@ export class AuthorizationError extends Error {
   }
 }
 
-function getSessionOptions() {
+const DEFAULT_SESSION_MAX_AGE_SECONDS = 180 * 24 * 60 * 60
+
+function getSessionOptions(maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS) {
   const password = process.env.SESSION_SECRET
 
   if (!password || password.length < 32) {
@@ -38,7 +41,7 @@ function getSessionOptions() {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'lax' as const,
-      maxAge: 180 * 24 * 60 * 60, // 6 months
+      maxAge: maxAgeSeconds,
     },
   }
 }
@@ -46,16 +49,21 @@ function getSessionOptions() {
 /**
  * Gets the current session
  */
-export async function getSession(): Promise<IronSession<SessionData>> {
+export async function getSession(maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies()
-  return getIronSession<SessionData>(cookieStore, getSessionOptions())
+  return getIronSession<SessionData>(cookieStore, getSessionOptions(maxAgeSeconds))
 }
 
 /**
  * Creates a new session for a user
  */
-export async function createSession(userId: string, email: string, role: UserRole) {
-  const session = await getSession()
+export async function createSession(
+  userId: string,
+  email: string,
+  role: UserRole,
+  options: { maxAgeSeconds?: number } = {},
+) {
+  const session = await getSession(options.maxAgeSeconds)
   const sessionId = randomUUID()
   session.user = {
     id: userId,
@@ -85,7 +93,25 @@ export async function destroySession() {
  */
 export async function getCurrentUser(): Promise<SessionData['user'] | null> {
   const session = await getSession()
-  return session.user || null
+  const pikaUser = session.user || null
+
+  if (!pikaUser || !isWorkOSMagicAuthPilotEnabled()) {
+    return pikaUser
+  }
+
+  // During the pilot, the Pika cookie is only an internal identity/role
+  // mapping. WorkOS remains the credential and browser-session authority.
+  // Requiring both prevents an older Pika-only cookie from authorizing native
+  // attendance commands after its WorkOS credential is gone.
+  const { withAuth } = await import('@workos-inc/authkit-nextjs')
+  const { user: workOSUser } = await withAuth()
+  if (!workOSUser || !workOSUser.emailVerified) {
+    return null
+  }
+
+  const pikaEmail = pikaUser.email.trim().toLowerCase()
+  const workOSEmail = workOSUser.email.trim().toLowerCase()
+  return pikaEmail === workOSEmail ? pikaUser : null
 }
 
 /**

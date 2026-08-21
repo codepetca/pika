@@ -8,10 +8,10 @@ import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   buildCourseBlueprintExportBundle,
   encodeCourseBlueprintPackageArchive,
-  parseCourseBlueprintImportBundle,
-  parseCourseBlueprintImportArchive,
-  parseCourseBlueprintImportJson,
-  type CourseBlueprintImportResult,
+  planCourseBlueprintPackageArchive,
+  planCourseBlueprintPackageBundle,
+  planCourseBlueprintPackageJson,
+  type VerifiedCourseBlueprintPackagePlan,
 } from '@/lib/course-blueprint-package'
 import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
@@ -79,7 +79,7 @@ function createLegacyImportArtifactId(operationId: string, artifactPath: string)
 }
 
 function stabilizeLegacyImportArtifactIds(
-  parsed: ReturnType<typeof parseCourseBlueprintImportBundle>,
+  parsed: VerifiedCourseBlueprintPackagePlan,
   operationId: string,
 ) {
   if (parsed.manifest?.version === '5') return
@@ -1103,14 +1103,11 @@ export async function importCourseBlueprintBundle(
   options: BlueprintOperationOptions = {},
 ) {
   const operationId = resolveBlueprintOperationId(options.operationId)
-  const parsed = parseCourseBlueprintImportBundle(bundle)
-  if (parsed.errors.length > 0 || !parsed.manifest) {
-    return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
+  const planned = planCourseBlueprintPackageBundle(bundle)
+  if (!planned.ok) {
+    return { ok: false as const, status: 400, error: 'Invalid course package', errors: planned.errors }
   }
-  return importParsedCourseBlueprint(teacherId, {
-    ...parsed,
-    manifest: parsed.manifest,
-  }, operationId)
+  return importCourseBlueprintPlan(teacherId, planned.plan, { operationId })
 }
 
 export async function importCourseBlueprintJson(
@@ -1119,21 +1116,19 @@ export async function importCourseBlueprintJson(
   options: BlueprintOperationOptions = {},
 ) {
   const operationId = resolveBlueprintOperationId(options.operationId)
-  const parsed = parseCourseBlueprintImportJson(json)
-  if (parsed.errors.length > 0 || !parsed.manifest) {
-    return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
+  const planned = planCourseBlueprintPackageJson(json)
+  if (!planned.ok) {
+    return { ok: false as const, status: 400, error: 'Invalid course package', errors: planned.errors }
   }
-  return importParsedCourseBlueprint(teacherId, {
-    ...parsed,
-    manifest: parsed.manifest,
-  }, operationId)
+  return importCourseBlueprintPlan(teacherId, planned.plan, { operationId })
 }
 
-async function importParsedCourseBlueprint(
+export async function importCourseBlueprintPlan(
   teacherId: string,
-  parsed: CourseBlueprintImportResult & { manifest: NonNullable<CourseBlueprintImportResult['manifest']> },
-  operationId: string,
+  parsed: VerifiedCourseBlueprintPackagePlan,
+  options: BlueprintOperationOptions = {},
 ) {
+  const operationId = resolveBlueprintOperationId(options.operationId)
   stabilizeLegacyImportArtifactIds(parsed, operationId)
 
   const supabase = getSupabase()
@@ -1329,14 +1324,11 @@ export async function importCourseBlueprintArchive(
   options: BlueprintOperationOptions = {},
 ) {
   const operationId = resolveBlueprintOperationId(options.operationId)
-  const parsed = parseCourseBlueprintImportArchive(archive)
-  if (parsed.errors.length > 0 || !parsed.manifest) {
-    return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
+  const planned = planCourseBlueprintPackageArchive(archive)
+  if (!planned.ok) {
+    return { ok: false as const, status: 400, error: 'Invalid course package', errors: planned.errors }
   }
-  return importParsedCourseBlueprint(teacherId, {
-    ...parsed,
-    manifest: parsed.manifest,
-  }, operationId)
+  return importCourseBlueprintPlan(teacherId, planned.plan, { operationId })
 }
 
 export async function createClassroomFromBlueprint(

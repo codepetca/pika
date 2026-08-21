@@ -5,6 +5,9 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
+import { AuthKitProvider } from '@workos-inc/authkit-nextjs/components'
+import { withAuth } from '@workos-inc/authkit-nextjs'
+import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 
 export const metadata: Metadata = {
   title: 'Pika',
@@ -26,28 +29,38 @@ const themeInitScript = `
 })();
 `
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const workOSInitialAuth = isWorkOSMagicAuthPilotEnabled()
+    ? await withAuth().then(({ accessToken: _accessToken, ...auth }) => auth)
+    : null
+
+  const providers = (
+    <ThemeProvider>
+      <MarkdownPreferenceProvider>
+        <TooltipProvider>
+          <AppMessageProvider>
+            <ProgressBarProvider>
+              {children}
+            </ProgressBarProvider>
+          </AppMessageProvider>
+        </TooltipProvider>
+      </MarkdownPreferenceProvider>
+    </ThemeProvider>
+  )
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-page font-sans">
-        <ThemeProvider>
-          <MarkdownPreferenceProvider>
-            <TooltipProvider>
-              <AppMessageProvider>
-                <ProgressBarProvider>
-                  {children}
-                </ProgressBarProvider>
-              </AppMessageProvider>
-            </TooltipProvider>
-          </MarkdownPreferenceProvider>
-        </ThemeProvider>
+        {workOSInitialAuth
+          ? <AuthKitProvider initialAuth={workOSInitialAuth} onSessionExpired={false}>{providers}</AuthKitProvider>
+          : providers}
       </body>
     </html>
   )
