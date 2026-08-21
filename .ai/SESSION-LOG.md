@@ -1358,19 +1358,21 @@ submit reconciliation. No schema, hosted environment, or production state change
 database, identity record, environment variable, or attendance flag changed.
 
 **Completed:**
-- Preserved the `favicon.ico` AuthKit matcher exclusion so passive asset
-  requests cannot participate in WorkOS session refreshes.
-- Added a real 64x64 Pika favicon through Next.js's static metadata convention,
-  preventing `/favicon.ico` from rendering the authenticated root layout.
-- Added a regression proving the favicon is excluded, application routes remain
-  covered, Next.js internals remain excluded, and the asset has a valid ICO
-  signature.
+- Kept exact `favicon.ico` and real Next.js static/image segments outside
+  AuthKit so passive assets cannot participate in WorkOS session refreshes,
+  while malformed prefix collisions remain covered by middleware.
+- Added a real 64x64 Pika favicon through Next.js's static metadata convention.
+  It preserves the existing Pika silhouette on a neutral outlined badge that
+  remains visible against both light and dark browser chrome.
+- Added regressions for exact/static exclusions, malformed prefix collisions,
+  the ICO signature, and an opaque light region in the favicon.
 
 **Verification:**
-- The revised regression fails against the unsafe matcher and passes with the
-  restored exclusion and static asset.
+- The boundary regression fails against the unbounded matcher and passes with
+  exact/segment exclusions. The compiled Next matcher has the same behavior.
 - Focused middleware/auth coverage passes 50 tests; the full suite passes 557
   files and 4,865 tests. TypeScript and the production build pass.
 - A pilot-enabled production-mode smoke test returns `200 image/x-icon` for
   `/favicon.ico` with no session cookie, while `/classrooms` still redirects to
-  `/login`.
+  `/login`; collision paths return normal 404/400 responses without AuthKit
+  exceptions.
