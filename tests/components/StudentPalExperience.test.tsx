@@ -119,7 +119,9 @@ describe('StudentPalExperience', () => {
       'aria-label',
       expect.stringContaining(snapshot.companion.name),
     )
-    expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+    const rewardDialog = await screen.findByRole('dialog', { name: 'Reward earned' })
+    expect(rewardDialog).toBeVisible()
+    expect(rewardDialog).toHaveClass('justify-center')
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
     expect(document.querySelector('[data-pal-effect="fireworks"]')).not.toBeNull()

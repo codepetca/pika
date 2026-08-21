@@ -11,71 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Retain and clarify student attendance utility
-
-**Risk profile:** none — compatibility-preserving student utility cleanup; no
-schema, migration, production, Gradex, or mobile redesign work.
-
-**Completed:**
-- Confirmed `/student/history` is attendance history rather than assignment or
-  test history. It remains the only cross-classroom full class-day summary;
-  classroom Today intentionally loads only the latest submitted logs, so a
-  redirect would lose absent and pending records.
-- Preserved the stable URL, changed its visible navigation label to Attendance,
-  and moved class-day row construction into the tested attendance domain.
-- Removed the unmounted duplicate `StudentHistoryTab` and its isolated tests.
-- Replaced feature-local native controls and the hand-built log modal with
-  shared controls, keyboard-operable rows, and governed dialog focus return.
-
-**Validation:**
-- The full suite passes: 4,390 tests across 499 files. A first run exposed only
-  a 17-character startup-context overage from the continuity update; the
-  summary was tightened and its complete 38-test contract rerun passed.
-- TypeScript, lint, production build, architecture, design/UI policy, Pika
-  audit, session-log, and diff checks pass. Six stale native-control and raw
-  design-value exceptions were removed with the legacy implementation.
-- Playwright passes the student utility contract across desktop/mobile and
-  light/dark with no horizontal overflow. Loaded and empty states were visually
-  inspected; the shared dialog passes both desktop themes and returns focus.
-- Independent compatibility review was clean. Accessibility review found that
-  the submitted-log button name hid its visible attendance status; the name now
-  includes date, status, and action, with a focused regression test and targeted
-  rereview.
-
-## 2026-08-17 — Organize Settings and decide student grades/profile scope
-
-**Risk profile:** none — teacher Settings organization and durable product
-decisions; no API, schema, migration, production, Gradex, or mobile redesign.
-
-**Completed:**
-- Split the existing teacher Settings surface into stable URL-backed General,
-  Access, Syllabus, Class Days, and Reuse sections without changing the fields,
-  save behavior, archived read-only behavior, or underlying routes.
-- Kept the shared keyboard-operable segmented control and added narrow-screen
-  containment so section navigation cannot widen the page.
-- Recorded that returned assignment/test feedback remains the student grade
-  surface until aggregate disclosure, weighting, hidden-work, and incomplete-
-  work semantics are defined.
-- Recorded that standalone student profile editing remains declined until one
-  source of truth and synchronization contract exists for global profiles and
-  classroom roster names.
-
-**Validation:**
-- The 26-test Settings component suite passes, including cross-section state
-  reset, stale URL fallback, save/error behavior, archived read-only behavior,
-  syllabus preferences, enrollment, and blueprint capture.
-- The full run passed all 4,390 behavior tests; its only failure was a
-  19-character startup-context overage, then the tightened summary passed the
-  complete 38-test startup contract.
-- TypeScript, lint, production build, architecture, design/UI policy, Pika
-  audit, and diff checks pass.
-- Playwright captures pass for every section at desktop and 390px in light and
-  dark. Each URL selects the intended section, body width equals viewport width,
-  and the teacher surface remains visually consistent. Student is not affected.
-- Independent review found the unpublished-syllabus recovery action still
-  opened bare Settings. It now uses in-app navigation directly to the Syllabus
-  section, with a focused resources regression.
-
 ## 2026-08-17 — Blueprint rollover retry and review handoff
 
 **Risk profile:** none — teacher-only blueprint rollover reliability and review
@@ -1305,6 +1240,7 @@ database, identity record, environment variable, or attendance flag changed.
 - A pilot-enabled production smoke returns static `200` responses for both
   icons with no session cookie; `/classrooms` still redirects to `/login`,
   collision paths return normal 404 responses, and server logs stay clean.
+
 ## 2026-08-21 — Add classroom-scoped feature visibility
 
 **Risk profile:** workspace-state + exam-mode — per-classroom navigation,
@@ -1385,3 +1321,20 @@ runtime, schema, hosted environment, deployment, or database state changed.
 **Verification:**
 - Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
 - Lint, production build, architecture boundaries, and Pika pre-commit audit pass.
+
+## 2026-08-21 — Center the first-login Pal reward
+
+**Risk profile:** none — student-only reward-modal layout and regression coverage;
+no reward timing, acknowledgement behavior, schema, hosted state, or auth changed.
+
+**Completed:**
+- Centered Pal's narrower celebration card inside Pika's wider modal panel while
+  preserving the shared modal root, backdrop, focus, and dismissal behavior.
+- Added a component regression assertion for the centering layout contract.
+
+**Verification:**
+- Full suite passes 4,911 tests across 562 files; TypeScript, lint, production
+  build, design policy, and UI policy pass.
+- Matched Playwright evidence passes on desktop/mobile in light/dark themes:
+  the card moved from 112 px left of center on desktop and 35 px left on mobile
+  to exactly centered in all four variants.
