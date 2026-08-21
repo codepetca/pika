@@ -1295,8 +1295,8 @@ database, identity record, environment variable, or attendance flag changed.
 **Verification:**
 - The boundary regression fails against the unbounded matcher and passes with
   exact/segment exclusions. The compiled Next matcher has the same behavior.
-- Focused middleware/auth coverage passes 50 tests; the full suite passes 561
-  files and 4,903 tests after syncing current `main`. TypeScript, lint, and the
+- Focused middleware/auth coverage passes 50 tests; the full suite passes 562
+  files and 4,911 tests after syncing current `main`. TypeScript, lint, and the
   production build pass.
 - Page metadata advertises separate light/dark SVG routes with matching media
   queries. Browser verification confirms the original mark renders black/white
