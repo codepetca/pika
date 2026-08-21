@@ -1352,11 +1352,12 @@ submit reconciliation. No schema, hosted environment, or production state change
 - Playwright visual verification passed for student submitted-detail and teacher
   assignment-summary states on desktop/mobile in light/dark themes.
 
-## 2026-08-21 — Add classroom-scoped feature visibility (in progress)
+## 2026-08-21 — Add classroom-scoped feature visibility
 
 **Risk profile:** workspace-state + exam-mode — per-classroom navigation,
 student notifications, direct-link routing, assessment visibility, and one
-additive schema migration. No migration or hosted environment has been changed.
+additive schema migration. Migration 128 was explicitly authorized and applied
+only to the local Supabase database; no hosted environment was changed.
 
 **Implemented:**
 - Added one default-on classroom feature contract for Attendance, Classwork,
@@ -1374,16 +1375,15 @@ additive schema migration. No migration or hosted environment has been changed.
   `docs/guidance/classroom-feature-visibility.md`.
 
 **Verification completed:**
-- All 4,895 tests across 559 files pass. TypeScript, lint, production build,
-  architecture, design policy, UI policy, diff checks, and the Pika pre-commit
+- All 4,901 tests across 560 files, TypeScript, lint, production build,
+  architecture, design policy,
+  UI policy, generated database contract, diff checks, and the Pika pre-commit
   audit pass.
 - Composite-widget accessibility review passes: labeled group, semantic pressed
   and switch state, roving keyboard focus, arrow/Home/End behavior, and tests.
-
-**Remaining authorized gates:**
-- Migration 128 has not been applied because the schema workflow requires a
-  direct one-time instruction naming the local target and exact migration.
-- After authorization: dry-run and apply only migration 128 locally, regenerate
-  database types, run the database contract check, and complete Playwright
-  teacher/student desktop/mobile light/dark verification of enabled and hidden
-  states.
+- Local migration history, column/default/constraint shape, existing rows, and
+  cold-archive normalization were checked after applying migration 128; generated
+  database types now include `feature_visibility`.
+- Playwright verification passed for teacher and student desktop/mobile views in
+  light/dark themes, including enabled/hidden Settings states, filtered nav,
+  direct-link fallbacks, hidden notification counts, and restoration to defaults.
