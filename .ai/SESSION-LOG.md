@@ -1330,7 +1330,8 @@ database, identity record, environment variable, or attendance flag changed.
 - The boundary regression fails against the unbounded matcher and passes with
   exact/segment exclusions. The compiled Next matcher has the same behavior.
 - Focused middleware/auth coverage passes 50 tests; the full suite passes 561
-  files and 4,902 tests. TypeScript, lint, and the production build pass.
+  files and 4,903 tests after syncing current `main`. TypeScript, lint, and the
+  production build pass.
 - Page metadata advertises only the hashed `icon.svg` route. Playwright confirms
   the original mark renders black/white at both 64px and tab-sized 16px under
   emulated light/dark color schemes.
