@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-16 — Make Bara attendance automation operationally fail-visible
-
-**Risk profile:** runtime-platform and schema. Only the loopback Supabase stack
-was reset; no hosted database, deployment, or external configuration changed.
-
-**Completed:**
-- Added a service-role-only aggregate outbox-health RPC with pending,
-  processing, due, non-retryable, and oldest-unresolved signals. It exposes no
-  identities, contract references, payloads, or provider error details.
-- Made a drain with retry or permanent failures report `partial`, and made both
-  the daily attendance worker and operator drain return HTTP 503 whenever
-  schedule sync or durable delivery remains unhealthy.
-- Kept disabled integration paths table-free and HTTP 200, retained failed
-  messages for recovery/review, and documented the operator boundary.
-
-**Validation:**
-- The full suite passes 4,448 tests across 531 files; production build,
-  TypeScript, generated database types, design/UI policies, architecture
-  boundaries, and diff hygiene pass.
-- Focused outbox, cron, and migration suites pass 19/19.
-- Migration 127 replayed from zero against loopback Supabase; the health RPC
-  exists, is executable by `service_role` but not `anon`/`authenticated`, and a
-  rollback-only pending-row fixture produced only the expected aggregate
-  unhealthy result. The local seed was restored afterward.
-
-**Next gate:**
-- Complete the repository-wide checks, then apply migration 127 only to an
-  explicitly confirmed non-production hosted target and run the real no-second-
-  login plus teacher/student attendance round trip.
-
 ## 2026-08-17 — Complete Syllabus iframe reliability
 
 **Risk profile:** workspace-state and accessibility — shared teacher/student
@@ -1381,3 +1351,20 @@ submit reconciliation. No schema, hosted environment, or production state change
   lint, architecture, design policy, and diff checks pass.
 - Playwright visual verification passed for student submitted-detail and teacher
   assignment-summary states on desktop/mobile in light/dark themes.
+
+## 2026-08-21 — Cover favicon fallback with AuthKit middleware
+
+**Risk profile:** runtime-platform — production AuthKit middleware routing. No
+database, identity record, environment variable, or attendance flag changed.
+
+**Completed:**
+- Removed the `favicon.ico` exception from the AuthKit matcher. Pika has no
+  favicon asset, so `/favicon.ico` renders the app 404 layout, which calls
+  `withAuth()` and therefore requires the trusted middleware headers.
+- Added a regression proving favicon and application routes are covered while
+  Next.js static and image internals remain excluded.
+
+**Verification:**
+- The regression fails against the old matcher and passes with the fix.
+- Focused middleware/auth coverage passes 50 tests; the full suite passes 557
+  files and 4,865 tests. TypeScript and the production build pass.

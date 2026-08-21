@@ -21758,3 +21758,34 @@ remains unapplied, so SQL behavior is locally specified but not database-proven.
   real preparation/conflict/staging/delivery/event/reconciliation sequence.
   Separately authorize the Bara Convex development deploy and Staging no-second-
   login smoke before enabling the integration.
+
+<!-- pika-session-log-archive-batch:1f6f9c04acf6c62dbf384adfdb6cdcaac190c02c0f413694f19f20da9069f312 -->
+## 2026-08-16 — Make Bara attendance automation operationally fail-visible
+
+**Risk profile:** runtime-platform and schema. Only the loopback Supabase stack
+was reset; no hosted database, deployment, or external configuration changed.
+
+**Completed:**
+- Added a service-role-only aggregate outbox-health RPC with pending,
+  processing, due, non-retryable, and oldest-unresolved signals. It exposes no
+  identities, contract references, payloads, or provider error details.
+- Made a drain with retry or permanent failures report `partial`, and made both
+  the daily attendance worker and operator drain return HTTP 503 whenever
+  schedule sync or durable delivery remains unhealthy.
+- Kept disabled integration paths table-free and HTTP 200, retained failed
+  messages for recovery/review, and documented the operator boundary.
+
+**Validation:**
+- The full suite passes 4,448 tests across 531 files; production build,
+  TypeScript, generated database types, design/UI policies, architecture
+  boundaries, and diff hygiene pass.
+- Focused outbox, cron, and migration suites pass 19/19.
+- Migration 127 replayed from zero against loopback Supabase; the health RPC
+  exists, is executable by `service_role` but not `anon`/`authenticated`, and a
+  rollback-only pending-row fixture produced only the expected aggregate
+  unhealthy result. The local seed was restored afterward.
+
+**Next gate:**
+- Complete the repository-wide checks, then apply migration 127 only to an
+  explicitly confirmed non-production hosted target and run the real no-second-
+  login plus teacher/student attendance round trip.
