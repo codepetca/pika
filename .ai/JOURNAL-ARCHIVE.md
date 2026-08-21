@@ -21724,3 +21724,37 @@ state changed; migration 127 remains unapplied.
 - Implement and database-test the preparation/staging RPC pair, then connect
   its closed result to the roster and DST-safe schedule builders. Applying the
   migration still requires exact target authorization.
+
+<!-- pika-session-log-archive-batch:6fc5a43a64a1a9a5276abb3f4655e2852a886da38d8fa99af79565f5fd6327ea -->
+## 2026-08-16 — Atomically stage roster and schedule source revisions
+
+**Risk profile:** schema, privacy, and cross-service consistency. Migration 127
+remains unapplied, so SQL behavior is locally specified but not database-proven.
+
+**Completed:**
+- Added server-only preparation that creates stable opaque roster, participant,
+  and occurrence mappings, retains former participants as inactive for audit
+  resolution, and returns no emails or raw IDs to the outbound contract.
+- Added database-computed roster and schedule source documents/tokens. Locked
+  staging recomputes each token, rejects concurrent changes, advances the v1
+  revision, and inserts that exact message into the outbox in one transaction.
+- Connected the closed preparation result to the roster and DST-safe schedule
+  builders and exposed an owner-authorized bounded sync route. Roster stages and
+  delivers before schedule; the recovery queue preserves creation order.
+- Added explicit next-day close materialization for evening classes. Prepared
+  but unstaged occurrence mappings have null windows and cannot be treated as
+  scheduled or used by staff commands.
+- Delivery completion advances separate roster and schedule acknowledged
+  revisions; the adapter remains independent of Convex types and IDs.
+
+**Validation:**
+- The full suite passes 4,420 tests across 524 files. Focused source-sync,
+  roster, schedule, route, command, view, outbox, and migration suites pass.
+  TypeScript, architecture boundaries across 737 modules, production build,
+  and diff hygiene pass.
+
+**Next gate:**
+- Apply migration 127 only to an explicitly authorized Pika target and run the
+  real preparation/conflict/staging/delivery/event/reconciliation sequence.
+  Separately authorize the Bara Convex development deploy and Staging no-second-
+  login smoke before enabling the integration.
