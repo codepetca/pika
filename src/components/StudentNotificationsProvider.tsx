@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from 'react'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
+import {
+  normalizeClassroomFeatureVisibility,
+  type ClassroomFeatureVisibility,
+} from '@/lib/classroom-feature-visibility'
 
 type NotificationState = {
   hasTodayEntry: boolean
@@ -41,11 +45,17 @@ function getStudentNotificationsCacheKey(classroomId: string): string {
 
 export function StudentNotificationsProvider({
   classroomId,
+  featureVisibility,
   children,
 }: {
   classroomId: string
+  featureVisibility?: ClassroomFeatureVisibility
   children: ReactNode
 }) {
+  const normalizedFeatureVisibility = useMemo(
+    () => normalizeClassroomFeatureVisibility(featureVisibility),
+    [featureVisibility],
+  )
   const [hasTodayEntry, setHasTodayEntry] = useState(true) // Assume complete to avoid flash
   const [unviewedAssignmentsCount, setUnviewedAssignmentsCount] = useState(0)
   const [activeTestsCount, setActiveTestsCount] = useState(0)
@@ -65,16 +75,20 @@ export function StudentNotificationsProvider({
         },
       )
       setHasTodayEntry(data.hasTodayEntry)
-      setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)
-      setActiveTestsCount(data.activeTestsCount ?? 0)
-      setUnreadAnnouncementsCount(data.unreadAnnouncementsCount ?? 0)
+      setUnviewedAssignmentsCount(
+        normalizedFeatureVisibility.classwork ? data.unviewedAssignmentsCount : 0,
+      )
+      setActiveTestsCount(normalizedFeatureVisibility.tests ? (data.activeTestsCount ?? 0) : 0)
+      setUnreadAnnouncementsCount(
+        normalizedFeatureVisibility.announcements ? (data.unreadAnnouncementsCount ?? 0) : 0,
+      )
       lastFetchRef.current = Date.now()
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
       setLoading(false)
     }
-  }, [classroomId])
+  }, [classroomId, normalizedFeatureVisibility])
 
   useEffect(() => {
     fetchNotifications()

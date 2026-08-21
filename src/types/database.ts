@@ -4,6 +4,7 @@ import type {
 } from '@/lib/assignment-submission-requirements'
 import type { GradingProvenance, TestGradingProvenance } from '@/lib/grading/contracts'
 import type { GradingReviewSnapshot } from '@/lib/grading/evals'
+import type { ClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import type { Database as GeneratedDatabase, Json } from '@/types/database.generated'
 import type {
   ActualCourseSiteConfig,
@@ -151,8 +152,14 @@ type TableOverrides = {
   >
   classrooms: TableContract<
     'classrooms',
-    { actual_site_config: ActualCourseSiteConfig },
-    { actual_site_config?: ActualCourseSiteConfig }
+    {
+      actual_site_config: ActualCourseSiteConfig
+      feature_visibility: ClassroomFeatureVisibility
+    },
+    {
+      actual_site_config?: ActualCourseSiteConfig
+      feature_visibility?: ClassroomFeatureVisibility
+    }
   >
   classroom_resources: TableContract<
     'classroom_resources',

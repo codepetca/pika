@@ -7,6 +7,10 @@ import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/cl
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 import { getPalApiUrl } from '@/lib/server/pal-config'
+import {
+  isClassroomTabAvailable,
+  normalizeClassroomFeatureVisibility,
+} from '@/lib/classroom-feature-visibility'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -55,6 +59,18 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     }
 
     const classroom = hydrateClassroomRecord(classroomResult.data as Record<string, any>)
+    const palEnabled = getPalApiUrl() !== null
+    if (
+      tab &&
+      !isClassroomTabAvailable(
+        'teacher',
+        tab,
+        normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+        palEnabled,
+      )
+    ) {
+      redirect(`/classrooms/${classroomId}?tab=daily`)
+    }
     const allClassrooms = hydrateClassroomRecords((classroomsResult.data || []) as Record<string, any>[]) as Classroom[]
 
     // If viewing archived classroom, only show that one in sidebar
@@ -75,7 +91,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         teacherClassrooms={teacherClassrooms}
         initialTab={tab}
         initialSearchParams={initialSearchParams}
-        palEnabled={false}
+        palEnabled={palEnabled}
       />
     )
   }
@@ -109,10 +125,22 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   }
 
   const palEnabled = getPalApiUrl() !== null
+  const hydratedClassroom = hydrateClassroomRecord(classroom as Record<string, any>)
+  if (
+    tab &&
+    !isClassroomTabAvailable(
+      'student',
+      tab,
+      normalizeClassroomFeatureVisibility(hydratedClassroom.feature_visibility),
+      palEnabled,
+    )
+  ) {
+    redirect(`/classrooms/${classroomId}?tab=today`)
+  }
 
   return (
     <ClassroomPageClient
-      classroom={hydrateClassroomRecord(classroom as Record<string, any>)}
+      classroom={hydratedClassroom}
       user={{
         id: user.id,
         email: user.email,
