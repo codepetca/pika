@@ -49,6 +49,10 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
   ),
 }))
 
+vi.mock('@/app/classrooms/[classroomId]/TeacherLiveAttendanceTab', () => ({
+  TeacherLiveAttendanceTab: () => <div>Live attendance</div>,
+}))
+
 vi.mock('@/components/AppShell', () => ({
   AppShell: ({ children, classrooms, constrainToViewport, currentClassroomId, pageTitle }: any) => {
     const currentClassroom = classrooms?.find((c: any) => c.id === currentClassroomId)
@@ -97,8 +101,11 @@ vi.mock('@/components/layout', async () => {
     MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
     NavItems: ({ onTabChange, palEnabled }: any) => (
       <nav>
-        <button type="button" onClick={() => onTabChange('attendance')}>
+        <button type="button" onClick={() => onTabChange('daily')}>
           Go Daily
+        </button>
+        <button type="button" onClick={() => onTabChange('attendance')}>
+          Go Attendance
         </button>
         {palEnabled ? (
           <button type="button" onClick={() => onTabChange('achievements')}>
@@ -540,9 +547,9 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   })
 
   it('does not pin the daily label in the app shell title slot', () => {
-    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=attendance')
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=daily')
 
-    renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
+    renderClient({ initialTab: 'daily', initialSearchParams: { tab: 'daily' } })
 
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
@@ -633,7 +640,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     await waitFor(() => {
       const params = new URLSearchParams(window.location.search)
-      expect(params.get('tab')).toBe('attendance')
+      expect(params.get('tab')).toBe('daily')
       expect(params.has('quizId')).toBe(false)
     })
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()

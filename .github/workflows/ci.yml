@@ -45,6 +45,9 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify Bara attendance tenancy, ordering, and deletion guards
+        run: pnpm run check:bara-attendance-db
+
       - name: Verify Pal outbox claim concurrency and lease recovery
         run: bash scripts/check-pal-outbox-concurrency.sh
 
@@ -279,6 +282,9 @@ jobs:
 
       - name: Run individual-student purge browser matrix
         run: pnpm e2e:student-purge
+
+      - name: Run archive recovery browser matrix
+        run: pnpm e2e:archive-recovery
 
       - name: Upload browser diagnostics
         if: always()

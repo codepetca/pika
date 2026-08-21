@@ -39,6 +39,10 @@
   --color-text-muted: #4b5563;
   --color-text-inverse: #ffffff;
 
+  /* Machine-readable codes stay dark-on-light in both themes. */
+  --color-qr-background: #ffffff;
+  --color-qr-foreground: #111827;
+
   /* Brand assets */
   --pika-logo-filter: none;
 

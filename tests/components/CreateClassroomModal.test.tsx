@@ -504,10 +504,8 @@ describe('CreateClassroomModal', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(await screen.findByRole('combobox', { name: /course blueprint/i })).toHaveValue(mockBlueprint.id)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
@@ -556,8 +554,6 @@ describe('CreateClassroomModal', () => {
       target: { value: 'Computer Science 11 - Period 2' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByRole('combobox', { name: /course blueprint/i })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     await screen.findByText('Choose Calendar')
 
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
@@ -592,8 +588,6 @@ describe('CreateClassroomModal', () => {
       target: { value: 'Computer Science 11 - Period 2' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByRole('combobox', { name: /course blueprint/i })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     await screen.findByText('Choose Calendar')
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     await screen.findByRole('heading', { name: 'Classroom Created' })
@@ -626,8 +620,6 @@ describe('CreateClassroomModal', () => {
       target: { value: 'Computer Science 11 - Period 2' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByRole('combobox', { name: /course blueprint/i })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     await screen.findByText('Choose Calendar')
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
@@ -651,7 +643,7 @@ describe('CreateClassroomModal', () => {
     expect(onBlueprintCreated).toHaveBeenCalledOnce()
   })
 
-  it('preserves the preselected blueprint flow when launched from the blueprints page', async () => {
+  it('moves a preselected blueprint directly from classroom name to calendar', async () => {
     renderModal({ initialBlueprintId: mockBlueprint.id })
 
     fireEvent.change(getClassroomNameInput(), {
@@ -660,8 +652,12 @@ describe('CreateClassroomModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    const blueprintSelect = await screen.findByRole('combobox', { name: /course blueprint/i })
-    expect(blueprintSelect).toHaveValue(mockBlueprint.id)
-    expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
+    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create' })).not.toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(getClassroomNameInput()).toHaveValue('Computer Science 11 - Period 2')
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
   })
 })

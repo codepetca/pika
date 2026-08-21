@@ -235,6 +235,77 @@ describe('classroom blueprint source loader', () => {
     expect(mockSupabase.from.mock.calls.filter(([table]: [string]) => table === 'assessment_drafts')).toHaveLength(1)
   })
 
+  it('uses portable question identity when a Test has no assessment draft row', async () => {
+    seedSourceSupabase({
+      tests: [{
+        id: 't-1',
+        artifact_id: '10000000-0000-4000-8000-000000000001',
+        title: 'Published test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+      }],
+      testQuestions: [{
+        id: 'question-row-1',
+        artifact_id: '20000000-0000-4000-8000-000000000001',
+        test_id: 't-1',
+        question_type: 'open_response',
+        question_text: 'Explain portable identity.',
+        position: 0,
+      }],
+      assessmentDrafts: [],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests[0].content.questions).toEqual([
+      expect.objectContaining({ id: '20000000-0000-4000-8000-000000000001' }),
+    ])
+  })
+
+  it('uses portable question identity from a saved assessment draft', async () => {
+    seedSourceSupabase({
+      tests: [{
+        id: 't-1',
+        artifact_id: '10000000-0000-4000-8000-000000000001',
+        title: 'Draft-backed test',
+        status: 'draft',
+        show_results: false,
+        position: 0,
+      }],
+      testQuestions: [{
+        id: 'question-row-1',
+        artifact_id: '20000000-0000-4000-8000-000000000001',
+        test_id: 't-1',
+        question_type: 'open_response',
+        question_text: 'Explain portable identity.',
+        position: 0,
+      }],
+      assessmentDrafts: [{
+        assessment_id: 't-1',
+        content: {
+          title: 'Draft-backed test',
+          questions: [{
+            id: 'question-row-1',
+            question_type: 'open_response',
+            question_text: 'Explain portable identity.',
+            position: 0,
+          }],
+        },
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests[0].content.questions).toEqual([
+      expect.objectContaining({ id: '20000000-0000-4000-8000-000000000001' }),
+    ])
+  })
+
   it('does not carry classroom snapshot ownership into a reusable blueprint', async () => {
     seedSourceSupabase({
       tests: [{

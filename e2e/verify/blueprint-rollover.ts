@@ -12,7 +12,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { addDays, differenceInCalendarDays, isValid, parseISO } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { config as loadEnvironment } from 'dotenv'
-import { expect, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { z } from 'zod'
 
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
@@ -99,6 +99,8 @@ type ClassroomSnapshot = {
     grading: Record<string, unknown> | null
     startDate: string | null
     sourceBlueprintVersionId: string | null
+    actualSiteSlug: string | null
+    actualSitePublished: boolean
   }
   liveCounts: Record<
     LiveTable | 'announcement_reads' | 'assignment_docs' | 'submitted_assignment_docs' | 'test_attempts' | 'test_responses',
@@ -129,6 +131,42 @@ function addRequiredCheck(
 ) {
   checks.push({ name, passed, message: passed ? undefined : message })
   if (!passed) throw new Error(message)
+}
+
+export function getStudentFacingDefaultChecks(input: {
+  assignments: Array<Record<string, unknown>>
+  tests: Array<Record<string, unknown>>
+  materials: Array<Record<string, unknown>>
+  surveys: Array<Record<string, unknown>>
+  classroom: { actual_site_slug: string | null; actual_site_published: boolean }
+}): VerificationCheck[] {
+  return [
+    {
+      name: 'Assignments remain unavailable to students',
+      passed: input.assignments.every((row) => row.is_draft === true && row.released_at === null),
+      message: 'At least one rollover assignment was released or not a draft',
+    },
+    {
+      name: 'Tests remain unavailable to students',
+      passed: input.tests.every((row) => row.status === 'draft'),
+      message: 'At least one rollover Test was not a draft',
+    },
+    {
+      name: 'Materials remain unavailable to students',
+      passed: input.materials.every((row) => row.is_draft === true && row.released_at === null),
+      message: 'At least one rollover material was released or not a draft',
+    },
+    {
+      name: 'Surveys remain unavailable to students',
+      passed: input.surveys.every((row) => row.status === 'draft' && row.opens_at === null),
+      message: 'At least one rollover survey was opened or not a draft',
+    },
+    {
+      name: 'Actual classroom site remains unpublished',
+      passed: input.classroom.actual_site_published === false && input.classroom.actual_site_slug === null,
+      message: 'The rollover classroom created a published or addressable actual course site',
+    },
+  ]
 }
 
 function normalizeTitles(rows: Array<Record<string, unknown>>) {
@@ -301,7 +339,7 @@ async function loadClassroomSnapshot(
   const [classroomResponse, resourcesResponse, gradingResponse] = await Promise.all([
     supabase
       .from('classrooms')
-      .select('course_overview_markdown, course_outline_markdown, start_date, source_blueprint_version_id')
+      .select('course_overview_markdown, course_outline_markdown, start_date, source_blueprint_version_id, actual_site_slug, actual_site_published')
       .eq('id', classroomId)
       .single(),
     supabase.from('classroom_resources').select('content').eq('classroom_id', classroomId).maybeSingle(),
@@ -384,6 +422,8 @@ async function loadClassroomSnapshot(
       sourceBlueprintVersionId: classroomResponse.data.source_blueprint_version_id
         ? uuidSchema.parse(classroomResponse.data.source_blueprint_version_id)
         : null,
+      actualSiteSlug: classroomResponse.data.actual_site_slug || null,
+      actualSitePublished: classroomResponse.data.actual_site_published === true,
     },
     liveCounts: {
       ...Object.fromEntries(liveEntries) as Record<LiveTable, number>,
@@ -398,6 +438,43 @@ async function loadClassroomSnapshot(
         announcementIds,
       ),
     },
+  }
+}
+
+async function probeStudentApiNonVisibility(
+  page: Page,
+  baseUrl: string,
+  classroomId: string,
+): Promise<VerificationCheck[]> {
+  const studentAuthPath = path.join(process.cwd(), '.auth', 'student.json')
+  if (!fs.existsSync(studentAuthPath)) {
+    throw new Error(`Student auth state not found: ${studentAuthPath}. Run "pnpm e2e:auth" first.`)
+  }
+  const browser = page.context().browser()
+  if (!browser) throw new Error('Browser instance unavailable for the student visibility probe')
+
+  const studentContext = await browser.newContext({ storageState: studentAuthPath })
+  try {
+    const endpoints = [
+      ['assignments', `/api/student/assignments?classroom_id=${classroomId}`],
+      ['Tests', `/api/student/tests?classroom_id=${classroomId}`],
+      ['materials', `/api/student/classrooms/${classroomId}/materials`],
+      ['surveys', `/api/student/surveys?classroom_id=${classroomId}`],
+    ] as const
+    const responses = await Promise.all(endpoints.map(async ([label, endpoint]) => ({
+      label,
+      status: (await studentContext.request.get(`${baseUrl}${endpoint}`)).status(),
+    })))
+
+    return responses.map(({ label, status }) => ({
+      name: `Student ${label} API cannot expose the rollover classroom`,
+      passed: status === 403,
+      message: status === 403
+        ? undefined
+        : `Expected the unenrolled student ${label} request to return 403, received ${status}`,
+    }))
+  } finally {
+    await studentContext.close()
   }
 }
 
@@ -958,7 +1035,7 @@ function compareReusableStructure(
       `${table} lineage preserved`,
       sameValue(targetLineagePairs, sourceLineagePairs)
         && target.nested[table].every((row) => row.source_blueprint_version_id === versionId),
-      `${table} did not preserve parent, source artifact, or Blueprint Version identity`,
+      `${table} did not preserve parent, source artifact, or Blueprint Version identity: source=${JSON.stringify(sourceLineagePairs)} target=${JSON.stringify(targetLineagePairs)} version=${versionId}`,
     )
   }
 
@@ -1065,18 +1142,18 @@ function compareReusableStructure(
     'At least one survey lost or changed its title, reusable settings, or position',
   )
 
-  addRequiredCheck(
-    checks,
-    'Assignments require teacher release',
-    target.reusable.assignments.every((row) => row.is_draft === true && row.released_at === null),
-    'At least one rollover assignment was released or not a draft',
-  )
-  addRequiredCheck(
-    checks,
-    'Tests require teacher release',
-    target.reusable.tests.every((row) => row.status === 'draft'),
-    'At least one rollover test was not a draft',
-  )
+  for (const check of getStudentFacingDefaultChecks({
+    assignments: target.reusable.assignments,
+    tests: target.reusable.tests,
+    materials: target.reusable.classwork_materials,
+    surveys: target.reusable.surveys,
+    classroom: {
+      actual_site_slug: target.settings.actualSiteSlug,
+      actual_site_published: target.settings.actualSitePublished,
+    },
+  })) {
+    addRequiredCheck(checks, check.name, check.passed, check.message || `${check.name} failed`)
+  }
 
   for (const [table, count] of Object.entries(target.liveCounts)) {
     addRequiredCheck(
@@ -1275,19 +1352,14 @@ export const blueprintRollover: VerificationScript = {
       classroomTitle = `${token} Classroom`
       await page.getByLabel('Classroom Name').fill(classroomTitle)
       await page.getByRole('button', { name: 'Next' }).click()
-      await page.getByRole('combobox', { name: 'Course Blueprint' })
+      await page.getByText('Choose Calendar', { exact: true })
         .waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE })
-      await page.getByRole('option', { name: token })
-        .waitFor({ state: 'attached', timeout: TIMEOUTS.ELEMENT_VISIBLE })
-      await expect(page.getByRole('combobox', { name: 'Course Blueprint' }))
-        .toHaveValue(blueprintId, { timeout: TIMEOUTS.ELEMENT_VISIBLE })
       addRequiredCheck(
         checks,
-        'Captured Blueprint preselected',
-        await page.getByRole('combobox', { name: 'Course Blueprint' }).inputValue() === blueprintId,
-        'The captured Blueprint was not selected in the classroom wizard',
+        'Preselected Blueprint skips redundant source selection',
+        await page.getByRole('combobox', { name: 'Course Blueprint' }).count() === 0,
+        'The direct Blueprint entry path still exposed a redundant source picker',
       )
-      await page.getByRole('button', { name: 'Next' }).click()
       const instantiateUrl = `/api/teacher/course-blueprints/${blueprintId}/instantiate`
       const instantiateRequestPromise = page.waitForRequest((request) => (
         request.method() === 'POST' && request.url().endsWith(instantiateUrl)
@@ -1342,6 +1414,10 @@ export const blueprintRollover: VerificationScript = {
       artifacts.push(reviewScreenshot)
 
       const target = await loadClassroomSnapshot(supabase, classroomId)
+      const studentVisibilityChecks = await probeStudentApiNonVisibility(page, baseUrl, classroomId)
+      for (const check of studentVisibilityChecks) {
+        addRequiredCheck(checks, check.name, check.passed, check.message || `${check.name} failed`)
+      }
       let versionBlueprintId: string | null = null
       if (target.settings.sourceBlueprintVersionId) {
         const versionResponse = await supabase

@@ -2,6 +2,7 @@ import type { Classroom } from '@/types'
 import {
   teacherArchivedClassroomRecoverySchema,
   type ClassroomColdArchiveSummary,
+  type ClassroomHotArchiveRecoverySummary,
 } from '@/lib/contracts/classroom-lifecycle'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 
@@ -11,6 +12,8 @@ type TeacherClassroomsResponse = {
   cold_archive_restore_enabled?: unknown
   hot_classroom_purge_enabled_ids?: unknown
   cold_classroom_purge_enabled_ids?: unknown
+  hot_archive_recovery?: unknown
+  hot_archive_recovery_status_available?: unknown
 }
 
 type TeacherClassroomsOptions = {
@@ -26,6 +29,8 @@ export type TeacherArchivedClassroomState = {
   coldArchiveRestoreEnabled: boolean
   hotClassroomPurgeEnabledIds?: string[]
   coldClassroomPurgeEnabledIds?: string[]
+  hotArchiveRecovery?: ClassroomHotArchiveRecoverySummary[]
+  hotArchiveRecoveryStatusAvailable?: boolean
 }
 
 function getTeacherClassroomsListSegment(options: TeacherClassroomsOptions = {}) {
@@ -80,6 +85,8 @@ export async function fetchTeacherArchivedClassroomState(): Promise<TeacherArchi
     cold_archive_restore_enabled: data.cold_archive_restore_enabled ?? false,
     hot_classroom_purge_enabled_ids: data.hot_classroom_purge_enabled_ids ?? [],
     cold_classroom_purge_enabled_ids: data.cold_classroom_purge_enabled_ids ?? [],
+    hot_archive_recovery: data.hot_archive_recovery ?? [],
+    hot_archive_recovery_status_available: data.hot_archive_recovery_status_available ?? true,
   })
   return {
     classrooms: data.classrooms || [],
@@ -87,6 +94,8 @@ export async function fetchTeacherArchivedClassroomState(): Promise<TeacherArchi
     coldArchiveRestoreEnabled: recovery.cold_archive_restore_enabled,
     hotClassroomPurgeEnabledIds: recovery.hot_classroom_purge_enabled_ids,
     coldClassroomPurgeEnabledIds: recovery.cold_classroom_purge_enabled_ids,
+    hotArchiveRecovery: recovery.hot_archive_recovery,
+    hotArchiveRecoveryStatusAvailable: recovery.hot_archive_recovery_status_available,
   }
 }
 

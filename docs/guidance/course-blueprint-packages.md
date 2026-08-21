@@ -72,6 +72,33 @@ checks also require block alignment, two complete zero terminator blocks, zero
 entry padding, valid headers and UTF-8, unique entries, and size limits before
 adaptation. The 2 MiB per-entry limit applies to `manifest.json` in both forms.
 
+After adaptation, package Markdown is parsed into a branded, canonical plan
+before application code may perform an import or build a Change Proposal. Both
+API entry points use this boundary exactly once and accept only the resulting
+plan. Invalid package bytes therefore cannot reach proposal RPCs, import RPCs,
+or managed-storage operations.
+
+### Portable Test Documents
+
+Course packages own a smaller Test document model than Pika's runtime model:
+
+- `link` documents contain exactly `id`, `title`, `source`, and an HTTP(S) `url`.
+- `text` documents contain exactly `id`, `title`, `source`, and embedded `content`.
+- `upload` documents are not portable.
+
+Runtime fields such as `managed_object_id`, `snapshot_path`,
+`snapshot_managed_object_id`, `snapshot_content_type`, and `synced_at` are not
+part of this schema and fail structural parsing. Exports construct documents by
+selecting the portable fields; they never spread runtime document state.
+
+Pika also rejects managed-storage URLs from the configured Supabase origin,
+including object-delivery and image-render routes, encoded path variants, and
+equivalent DNS-root aliases. Normalized scheme, host, and port checks prevent a
+matching path on an external host from being mistaken for Pika-owned storage.
+Structured Test documents are checked by their parsed URL. A centralized scan of freeform
+Markdown provides defense in depth, but raw text matching is not the policy for
+structured document state.
+
 Immutable JSON and binary TAR fixtures for every supported version live in
 `tests/fixtures/course-blueprint-package-v*.{json,tar}`. Their SHA-256 digests
 and an independent, production-encoder-free mutation matrix are locked by:
@@ -88,7 +115,7 @@ pnpm test tests/lib/course-blueprint-package-contract.test.ts
 - Assignment plans, default due offsets, default due times, authenticity
   tracking, points, gradebook weights, final-grade inclusion, and draft state
 - Test definitions, point scales, gradebook weights, and final-grade inclusion represented in Markdown
-- Test document metadata/content when represented by the test Markdown format; classroom-specific link snapshot paths and sync timestamps are removed
+- Portable link and embedded-text Test documents represented by the Test Markdown format
 - Lesson plan templates
 - Ungraded classwork materials
 - Survey definitions and questions
@@ -96,7 +123,7 @@ pnpm test tests/lib/course-blueprint-package-contract.test.ts
 
 ## Excluded
 
-Course packages are reusable planning files, not classroom backups. They exclude students, submissions, grades, attendance, rosters, join codes, class days, classroom calendar overrides, live announcements, actual course website settings, and runtime storage objects.
+Course packages are reusable planning files, not classroom backups. They exclude students, submissions, grades, attendance, rosters, join codes, class days, classroom calendar overrides, live announcements, actual course website settings, upload Test documents, managed URLs, storage identities, snapshot fields, and runtime storage objects.
 
 Imported, captured, and instantiated link documents retain their reusable source URL and metadata but do not retain a classroom snapshot reference. A teacher must sync the link document in the new classroom to create a snapshot owned by that classroom.
 

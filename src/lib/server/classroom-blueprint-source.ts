@@ -268,14 +268,31 @@ export async function loadClassroomBlueprintSource(
   for (const draft of draftRows) {
     draftsByTestId.set(String(draft.assessment_id), draft.content as TestDraftContent)
   }
-  const tests: Array<Record<string, any> & { content: TestDraftContent }> = testRows.map((test) => ({
-    ...test,
-    content: draftsByTestId.get(String(test.id)) ?? {
+  const tests: Array<Record<string, any> & { content: TestDraftContent }> = testRows.map((test) => {
+    const questions = questionsByTestId.get(String(test.id)) || []
+    const portableQuestionIds = new Map(
+      questions.map((question) => [
+        String(question.id),
+        question.source_artifact_id ?? question.artifact_id ?? question.id,
+      ])
+    )
+    const content = draftsByTestId.get(String(test.id)) ?? {
       title: test.title,
       show_results: !!test.show_results,
-      questions: (questionsByTestId.get(String(test.id)) || []) as TestDraftContent['questions'],
-    },
-  }))
+      questions: questions as TestDraftContent['questions'],
+    }
+
+    return {
+      ...test,
+      content: {
+        ...content,
+        questions: content.questions.map((question) => ({
+          ...question,
+          id: portableQuestionIds.get(String(question.id)) ?? question.id,
+        })),
+      },
+    }
+  })
 
   const surveyRows = (surveysResult.data || []) as Array<Record<string, any>>
   const surveyIds = surveyRows.map((survey) => String(survey.id))

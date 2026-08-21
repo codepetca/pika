@@ -69,6 +69,11 @@ it from enrollment plus roster identity.
 - Pal rows, remote Gradex runs, retired assessment actor records, incomplete
   storage subject ownership, cleanup work, and active grading fail closed. These
   require a separately designed provider-erasure or reconciliation path.
+- Bara attendance participant mappings, projections, and authoritative identity
+  also fail closed with `attendance_student_decommission_required`. Begin and
+  finalization are both guarded, and new attendance subject state is rejected
+  while a purge fence exists, until a versioned Bara erase/deprovision command
+  can remove both services' data coherently.
 - A retryable partial failure keeps its exact ledgers and fence. Terminal drift
   requires operator investigation and separately authorized repair. Generic
   orphan cleanup is not a recovery mechanism and remains disabled.

@@ -1,0 +1,288 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { addDays, format, parseISO } from 'date-fns'
+import { fetchJSON } from '@/lib/request-cache'
+import { getTodayInToronto } from '@/lib/timezone'
+import {
+  Button,
+  ContentDialog,
+  FormField,
+  Input,
+  PageState,
+  Select,
+  TableSelectionCheckbox,
+  useAppMessage,
+} from '@/ui'
+
+interface AttendanceWindowPolicy {
+  classroomId: string
+  timezone: 'America/Toronto'
+  opensLocal: string
+  closesLocal: string
+  closeDayOffset: 0 | 1
+  enabled: boolean
+  revision: number
+  updatedAt: string
+}
+
+interface AttendanceWindowDialogProps {
+  classroomId: string
+  isOpen: boolean
+  onClose: () => void
+  onSaved: () => void
+}
+
+function policyUrl(classroomId: string) {
+  const params = new URLSearchParams({ classroom_id: classroomId })
+  return `/api/teacher/attendance/policy?${params.toString()}`
+}
+
+const POLICY_KEYS = [
+  'classroomId',
+  'timezone',
+  'opensLocal',
+  'closesLocal',
+  'closeDayOffset',
+  'enabled',
+  'revision',
+  'updatedAt',
+].sort()
+
+function isPolicy(value: unknown, expectedClassroomId: string): value is AttendanceWindowPolicy {
+  if (!value || typeof value !== 'object') return false
+  const policy = value as Record<string, unknown>
+  return (
+    Object.keys(policy).sort().every((key, index) => key === POLICY_KEYS[index]) &&
+    Object.keys(policy).length === POLICY_KEYS.length &&
+    policy.classroomId === expectedClassroomId &&
+    policy.timezone === 'America/Toronto' &&
+    typeof policy.opensLocal === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.opensLocal) &&
+    typeof policy.closesLocal === 'string' &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(policy.closesLocal) &&
+    (policy.closeDayOffset === 0 || policy.closeDayOffset === 1) &&
+    typeof policy.enabled === 'boolean' &&
+    Number.isSafeInteger(policy.revision) &&
+    Number(policy.revision) > 0 &&
+    typeof policy.updatedAt === 'string' &&
+    Number.isFinite(Date.parse(policy.updatedAt))
+  )
+}
+
+function parsePolicyResponse(value: unknown, expectedClassroomId: string): AttendanceWindowPolicy | null {
+  if (!value || typeof value !== 'object' || !('policy' in value)) {
+    throw new Error('Attendance settings are temporarily unavailable')
+  }
+  const policy = (value as { policy: unknown }).policy
+  if (policy === null) return null
+  if (!isPolicy(policy, expectedClassroomId)) {
+    throw new Error('Attendance settings are temporarily unavailable')
+  }
+  return policy
+}
+
+export function AttendanceWindowDialog({
+  classroomId,
+  isOpen,
+  onClose,
+  onSaved,
+}: AttendanceWindowDialogProps) {
+  const { showMessage } = useAppMessage()
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [revision, setRevision] = useState<number | null>(null)
+  const [opensLocal, setOpensLocal] = useState('')
+  const [closesLocal, setClosesLocal] = useState('')
+  const [closeDayOffset, setCloseDayOffset] = useState<0 | 1>(0)
+  const [enabled, setEnabled] = useState(true)
+
+  const loadPolicy = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await fetchJSON<unknown>(policyUrl(classroomId), {
+        errorMessage: 'Attendance settings are temporarily unavailable',
+      })
+      const policy = parsePolicyResponse(response, classroomId)
+      setRevision(policy?.revision ?? null)
+      setOpensLocal(policy?.opensLocal ?? '')
+      setClosesLocal(policy?.closesLocal ?? '')
+      setCloseDayOffset(policy?.closeDayOffset ?? 0)
+      setEnabled(policy?.enabled ?? true)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
+    } finally {
+      setLoading(false)
+    }
+  }, [classroomId])
+
+  useEffect(() => {
+    if (isOpen) void loadPolicy()
+  }, [isOpen, loadPolicy])
+
+  const validationError = !opensLocal || !closesLocal
+    ? 'Choose both opening and closing times.'
+    : closeDayOffset === 0 && opensLocal >= closesLocal
+      ? 'Closing time must be after opening time.'
+      : ''
+
+  async function savePolicy() {
+    if (saving || validationError) return
+    setSaving(true)
+    setError('')
+    try {
+      const response = await fetchJSON<unknown>('/api/teacher/attendance/policy', {
+        init: {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classroom_id: classroomId,
+            opens_local: opensLocal,
+            closes_local: closesLocal,
+            close_day_offset: closeDayOffset,
+            enabled,
+            expected_revision: revision,
+          }),
+        },
+        errorMessage: 'Attendance settings are temporarily unavailable',
+      })
+      const savedPolicy = parsePolicyResponse(response, classroomId)
+      if (!savedPolicy) throw new Error('Attendance settings are temporarily unavailable')
+      setRevision(savedPolicy.revision)
+
+      const windowStart = getTodayInToronto()
+      const windowEnd = format(addDays(parseISO(windowStart), 90), 'yyyy-MM-dd')
+      let scheduleSynced = true
+      try {
+        await fetchJSON('/api/teacher/attendance/sync', {
+          init: {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              classroom_id: classroomId,
+              window_start: windowStart,
+              window_end: windowEnd,
+            }),
+          },
+          errorMessage: 'Attendance schedule is temporarily unavailable',
+        })
+      } catch {
+        scheduleSynced = false
+      }
+
+      showMessage({
+        text: scheduleSynced
+          ? 'Attendance hours saved'
+          : 'Hours saved; automatic schedule sync will retry',
+        tone: scheduleSynced ? 'success' : 'warning',
+      })
+      onSaved()
+      onClose()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ContentDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Attendance hours"
+      subtitle="Applied automatically on scheduled class days"
+      maxWidth="max-w-md"
+      showHeaderClose={!saving}
+      showFooterClose={false}
+    >
+      {loading ? (
+        <PageState kind="loading" title="Loading attendance hours" compact />
+      ) : error && !opensLocal && !closesLocal ? (
+        <PageState
+          kind="error"
+          title="Attendance hours unavailable"
+          description={error}
+          compact
+          action={<Button type="button" onClick={() => void loadPolicy()}>Try again</Button>}
+        />
+      ) : (
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void savePolicy()
+          }}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="Opens" required>
+              <Input
+                type="time"
+                value={opensLocal}
+                disabled={saving}
+                onChange={(event) => setOpensLocal(event.target.value)}
+              />
+            </FormField>
+            <FormField label="Closes" required>
+              <Input
+                type="time"
+                value={closesLocal}
+                disabled={saving}
+                onChange={(event) => setClosesLocal(event.target.value)}
+              />
+            </FormField>
+          </div>
+
+          <FormField
+            label="Closing day"
+            hint="Use next day only for classes that continue past midnight."
+          >
+            <Select
+              value={String(closeDayOffset)}
+              disabled={saving}
+              options={[
+                { value: '0', label: 'Same class day' },
+                { value: '1', label: 'Next day' },
+              ]}
+              onChange={(event) => setCloseDayOffset(event.target.value === '1' ? 1 : 0)}
+            />
+          </FormField>
+
+          <label className="flex items-start gap-3 rounded-control border border-border bg-surface-2 px-3 py-3 text-sm text-text-default">
+            <TableSelectionCheckbox
+              checked={enabled}
+              disabled={saving}
+              ariaLabel="Open and close automatically"
+              className="mt-0.5"
+              onChange={setEnabled}
+            />
+            <span>
+              <span className="block font-medium">Open and close automatically</span>
+              <span className="mt-1 block text-text-muted">
+                Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.
+              </span>
+            </span>
+          </label>
+
+          <p className="text-xs text-text-muted">Timezone: America/Toronto</p>
+          {validationError && (opensLocal || closesLocal) ? (
+            <p role="alert" className="text-sm text-danger">{validationError}</p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={saving} disabled={Boolean(validationError)}>
+              Save hours
+            </Button>
+          </div>
+        </form>
+      )}
+    </ContentDialog>
+  )
+}

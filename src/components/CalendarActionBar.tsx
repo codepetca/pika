@@ -32,6 +32,7 @@ interface CalendarDateNavigatorProps {
   prevAriaLabel?: string
   nextAriaLabel?: string
   className?: string
+  labelClassName?: string
 }
 
 export function getCalendarHeaderLabel(
@@ -61,6 +62,7 @@ export function CalendarDateNavigator({
   prevAriaLabel = 'Previous',
   nextAriaLabel = 'Next',
   className = '',
+  labelClassName = '',
 }: CalendarDateNavigatorProps) {
   return (
     <div className={`flex min-w-0 items-center gap-1 sm:gap-2 ${className}`}>
@@ -81,13 +83,13 @@ export function CalendarDateNavigator({
         <button
           type="button"
           onClick={onLabelClick}
-          className="min-w-0 truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
+          className={cn('min-w-0 truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base', labelClassName)}
           aria-label={labelAriaLabel}
         >
           {label}
         </button>
       ) : (
-        <span className="min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base">
+        <span className={cn('min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base', labelClassName)}>
           {label}
         </span>
       )}

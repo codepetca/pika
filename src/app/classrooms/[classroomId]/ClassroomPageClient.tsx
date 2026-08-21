@@ -8,6 +8,7 @@ import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-m
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
+import { TeacherLiveAttendanceTab } from './TeacherLiveAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
@@ -138,11 +139,11 @@ export function ClassroomPageClient({
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
   const isArchived = isTeacher && !!effectiveClassroom.archived_at
   const basePath = `/classrooms/${effectiveClassroom.id}`
-  const defaultTab = isTeacher ? 'attendance' : 'today'
+  const defaultTab = isTeacher ? 'daily' : 'today'
   const validTabs = useMemo(
     () =>
       isTeacher
-        ? (['attendance', 'gradebook', 'assignments', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
+        ? (['daily', 'attendance', 'gradebook', 'assignments', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
         : ([
             'today',
             ...(palAvailable ? ['achievements'] as const : []),
@@ -1137,6 +1138,7 @@ function ClassroomPageContent({
   const hasActiveTeacherSplitPanes =
     isTeacher &&
     (
+      activeTab === 'daily' ||
       activeTab === 'attendance' ||
       activeTab === 'roster' ||
       (activeTab === 'gradebook' && gradebookSectionParam !== 'settings') ||
@@ -1266,9 +1268,17 @@ function ClassroomPageContent({
             <div className="flex min-h-0 flex-1 flex-col">
               {isTeacher ? (
                 <>
+                  {mountedTabs.daily && (
+                    <TabContentTransition isActive={activeTab === 'daily'}>
+                      <TeacherAttendanceTab
+                        classroom={classroom}
+                        isActive={activeTab === 'daily'}
+                      />
+                    </TabContentTransition>
+                  )}
                   {mountedTabs.attendance && (
                     <TabContentTransition isActive={activeTab === 'attendance'}>
-                      <TeacherAttendanceTab
+                      <TeacherLiveAttendanceTab
                         classroom={classroom}
                         isActive={activeTab === 'attendance'}
                       />

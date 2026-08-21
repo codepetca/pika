@@ -39,3 +39,6 @@ supabase/.temp/
 /test-results/
 /artifacts/
 /.auth/
+
+# Local authenticated attendance load manifests
+*.attendance-load.json
