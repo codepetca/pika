@@ -1362,8 +1362,9 @@ database, identity record, environment variable, or attendance flag changed.
   AuthKit so passive assets cannot participate in WorkOS session refreshes,
   while malformed prefix collisions remain covered by middleware.
 - Added a real 64x64 Pika favicon through Next.js's static metadata convention.
-  It preserves the existing Pika silhouette on a neutral outlined badge that
-  remains visible against both light and dark browser chrome.
+  It is a direct resize of the existing `/pika.png` asset on a plain white
+  backing, preserving the app logo while remaining visible on dark browser
+  chrome.
 - Added regressions for exact/static exclusions, malformed prefix collisions,
   the ICO signature, and an opaque light region in the favicon.
 
