@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET } from '@/app/api/student/notifications/route'
 import { NextRequest } from 'next/server'
 import { mockAuthenticationError, mockAuthorizationError } from '../setup'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
@@ -257,6 +258,50 @@ describe('GET /api/student/notifications', () => {
   })
 
   describe('notification state', () => {
+    it('does not query or return counts for hidden classroom features', async () => {
+      const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
+      ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({
+        ok: true,
+        classroom: {
+          id: 'classroom-1',
+          archived_at: null,
+          feature_visibility: {
+            ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+            classwork: false,
+            tests: false,
+            announcements: false,
+          },
+        },
+      })
+      const queriedTables: string[] = []
+      ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+        queriedTables.push(table)
+        if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { is_class_day: false }, error: null }),
+            })),
+          }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+
+      const response = await GET(new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1',
+      ))
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).toEqual({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 0,
+        unreadAnnouncementsCount: 0,
+      })
+      expect(queriedTables).toEqual(['class_days'])
+    })
+
     it('should return hasTodayEntry: true when entry exists for today', async () => {
       ;(mockSupabaseClient.from as any) = createTableMock({
         class_days: { data: { is_class_day: true }, error: null },

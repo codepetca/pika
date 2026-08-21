@@ -143,6 +143,30 @@ describe('TeacherLessonCalendarTab', () => {
     vi.restoreAllMocks()
   })
 
+  it('does not fetch or display classroom features hidden from teachers', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ lesson_plans: [] }),
+    })
+
+    render(
+      <TeacherLessonCalendarTab
+        classroom={classroom}
+        showClasswork={false}
+        showAnnouncements={false}
+      />,
+      { wrapper: Wrapper },
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toBeInTheDocument()
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/lesson-plans')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-ids', '')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-classrooms', '')
+  })
+
   it('reuses cached teacher lesson plans on remount', async () => {
     fetchMock.mockImplementation(async (url: string) => ({
       ok: true,

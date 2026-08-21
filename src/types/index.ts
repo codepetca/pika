@@ -1,5 +1,6 @@
 import type { Operation } from 'fast-json-patch'
 import type { ClassroomThemeColor } from '@/lib/classroom-theme'
+import type { ClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 import type { GradingProvenance } from '@/lib/grading/contracts'
 
 export type UserRole = 'student' | 'teacher'
@@ -86,6 +87,7 @@ export interface Classroom {
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
   lesson_plan_visibility: LessonPlanVisibility
+  feature_visibility: ClassroomFeatureVisibility
   blueprint_source_revision: number
   source_blueprint_id: string | null
   source_blueprint_version_id?: string | null

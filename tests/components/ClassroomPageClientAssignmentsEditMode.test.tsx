@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomPageClient } from '@/app/classrooms/[classroomId]/ClassroomPageClient'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom } from '@/types'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
+const mockPrefetchJSON = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
@@ -99,8 +101,11 @@ vi.mock('@/components/layout', async () => {
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
     LeftSidebar: ({ children }: any) => <div>{children}</div>,
     MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
-    NavItems: ({ onTabChange, palEnabled }: any) => (
+    NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility }: any) => (
       <nav>
+        <button type="button" onMouseEnter={() => onTabIntent?.('assignments')}>
+          Emit Classwork Intent
+        </button>
         <button type="button" onClick={() => onTabChange('daily')}>
           Go Daily
         </button>
@@ -112,12 +117,20 @@ vi.mock('@/components/layout', async () => {
             Go Achievements
           </button>
         ) : null}
-        <button type="button" onClick={() => onTabChange('assignments')}>
-          Go Classwork
-        </button>
-        <button type="button" onClick={() => onTabChange('tests')}>
-          Go Tests
-        </button>
+        {featureVisibility?.classwork !== false ? (
+          <button
+            type="button"
+            onMouseEnter={() => onTabIntent?.('assignments')}
+            onClick={() => onTabChange('assignments')}
+          >
+            Go Classwork
+          </button>
+        ) : null}
+        {featureVisibility?.tests !== false ? (
+          <button type="button" onClick={() => onTabChange('tests')}>
+            Go Tests
+          </button>
+        ) : null}
         <button type="button" onClick={() => onTabChange('resources')}>
           Go Syllabus
         </button>
@@ -197,7 +210,7 @@ vi.mock('@/ui', async (importOriginal) => {
 
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
-  prefetchJSON: vi.fn(),
+  prefetchJSON: (...args: any[]) => mockPrefetchJSON(...args),
 }))
 
 vi.mock('@/lib/assignment-markdown', () => ({
@@ -270,12 +283,27 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherGradebookTab', () => ({
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherSettingsTab', () => ({
   TeacherSettingsTab: ({ classroom, onClassroomUpdated }: any) => (
-    <button
-      type="button"
-      onClick={() => onClassroomUpdated?.({ ...classroom, title: 'Physics Updated', theme_color: 'teal' })}
-    >
-      Update classroom theme
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={() => onClassroomUpdated?.({ ...classroom, title: 'Physics Updated', theme_color: 'teal' })}
+      >
+        Update classroom theme
+      </button>
+      <button
+        type="button"
+        onClick={() => onClassroomUpdated?.({
+          ...classroom,
+          feature_visibility: {
+            ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+            ...classroom.feature_visibility,
+            tests: false,
+          },
+        })}
+      >
+        Hide Tests
+      </button>
+    </div>
   ),
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherLessonCalendarTab', async () => {
@@ -418,6 +446,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       writable: true,
     })
     mockFetchJSONWithCache.mockReset()
+    mockPrefetchJSON.mockReset()
     mockAssignmentsToMarkdown.mockReset()
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
@@ -472,6 +501,18 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('app-shell-classroom-theme')).toHaveTextContent('teal')
+    })
+  })
+
+  it('updates the classroom navigation immediately when settings hides a feature', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=settings')
+    renderClient({ initialTab: 'settings', initialSearchParams: { tab: 'settings' } })
+
+    expect(screen.getByRole('button', { name: 'Go Tests' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Tests' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Go Tests' })).not.toBeInTheDocument()
     })
   })
 
@@ -646,6 +687,54 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
+  it('falls back from a hidden teacher feature and never mounts its workspace', async () => {
+    const classroomWithoutTests = {
+      ...classroom,
+      feature_visibility: {
+        ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+        tests: false,
+      },
+    }
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests&testId=test-1')
+
+    renderClient({
+      classroom: classroomWithoutTests,
+      initialTab: 'tests',
+      initialSearchParams: { tab: 'tests', testId: 'test-1' },
+    })
+
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search)
+      expect(params.get('tab')).toBe('daily')
+      expect(params.has('testId')).toBe(false)
+    })
+    expect(mockTeacherTestsTabProps).not.toHaveBeenCalled()
+  })
+
+  it('does not prefetch a hidden feature even when stale intent is emitted', async () => {
+    const classroomWithoutClasswork = {
+      ...classroom,
+      feature_visibility: {
+        ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+        classwork: false,
+      },
+    }
+    renderClient({
+      classroom: classroomWithoutClasswork,
+      initialTab: 'daily',
+      initialSearchParams: { tab: 'daily' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Go Classwork' })).not.toBeInTheDocument()
+    // A stale intent can still arrive from an already-open mobile drawer during the same tick.
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Emit Classwork Intent' }))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    expect(
+      mockPrefetchJSON.mock.calls.some(([key]) => String(key).includes('assignments')),
+    ).toBe(false)
+  })
+
   it('falls back from the legacy quizzes tab to the default student tab', async () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes&quizId=quiz-1')
 
@@ -659,6 +748,30 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(params.get('tab')).toBe('today')
       expect(params.has('quizId')).toBe(false)
     })
+  })
+
+  it('falls back from a hidden student feature and never mounts its workspace', async () => {
+    const classroomWithoutTests = {
+      ...classroom,
+      feature_visibility: {
+        ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
+        tests: false,
+      },
+    }
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests&testId=test-1')
+
+    renderStudentClient({
+      classroom: classroomWithoutTests,
+      initialTab: 'tests',
+      initialSearchParams: { tab: 'tests', testId: 'test-1' },
+    })
+
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search)
+      expect(params.get('tab')).toBe('today')
+      expect(params.has('testId')).toBe(false)
+    })
+    expect(mockStudentTestsTabProps).not.toHaveBeenCalled()
   })
 
   it('does not pin the tests summary label in the app shell title slot', () => {

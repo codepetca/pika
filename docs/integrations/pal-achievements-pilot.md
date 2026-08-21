@@ -66,7 +66,7 @@ Do not enable the switch until all prerequisites are true:
    when an outage delays delivery until after that boundary; one first created
    after the boundary remains ineligible.
 5. Confirm Pal implements `POST /api/v1/integration/read-token`.
-6. Confirm the reviewed public `@codepet/pal-widget@0.1.0-alpha.3` package exposes
+6. Confirm the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` package exposes
    `@codepet/pal-widget/theme-contract`.
 7. Mount the native widget surfaces, import
    `@codepet/pal-widget/styles.css` once, wrap each surface in
@@ -77,7 +77,7 @@ Do not enable the switch until all prerequisites are true:
    learners act on the first day of a pilot week.
 
 Pal must support a contract version before Pika emits it. Pika pins the reviewed
-public `@codepet/pal-widget@0.1.0-alpha.3` release exactly. Keep the switch off
+public `@codepet/pal-widget@0.1.0-alpha.4` release exactly. Keep the switch off
 until steps 3–8 are complete in the target environment.
 
 [Pal PR #73](https://github.com/codepetca/pal/pull/73) landed the source-timestamp
@@ -258,7 +258,8 @@ public `--pal-*` inputs. `PalProvider` receives the active theme plus explicit
 roles, Tailwind breakpoints, theme context, or `@/ui` components. Pika's
 canonical `ModalLayer` owns reward portal/dialog semantics, inertness, focus,
 Escape/backdrop policy, and scroll lock. Pal renders reward content with
-`hostManaged`; every host close path acknowledges the pending reward and a
+`hostManaged`, lets the host omit its Continue action, and supplies the opt-in
+fireworks effect; every host close path acknowledges the pending reward and a
 failed acknowledgement leaves the same reward visible and retryable.
 Pika suppresses ambient companion and reward layers on the student Tests
 surface so Pal cannot interrupt an assessment; pending rewards appear after the

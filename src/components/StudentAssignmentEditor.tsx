@@ -20,6 +20,7 @@ import {
 } from '@/lib/assignments'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { isValidTiptapContent } from '@/lib/tiptap-content'
+import { areJsonDocumentsEqual } from '@/lib/json-patch'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
 import {
@@ -233,7 +234,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [submitting, setSubmitting] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSavedContentRef = useRef('')
+  const lastSavedContentRef = useRef<TiptapContent | null>(null)
   const lastSavedRevisionRef = useRef<string | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
@@ -391,12 +392,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       setGithubIdentity(data.github_identity || null)
       studentIdRef.current = data.doc?.student_id ?? data.student_id ?? null
       const serverContent = data.doc?.content || { type: 'doc', content: [] }
-      const serverContentStr = JSON.stringify(serverContent)
       lastSavedRevisionRef.current = data.doc?.updated_at ?? null
-      lastSavedContentRef.current = serverContentStr
+      lastSavedContentRef.current = serverContent
       const localDraft = readRecoveryDraft()
       const recoveredContent = localDraft?.content
-      const recoveredContentStr = recoveredContent ? JSON.stringify(recoveredContent) : null
       pasteWordCountRef.current = Math.max(0, localDraft?.paste_word_count ?? 0)
       keystrokeCountRef.current = Math.max(0, localDraft?.keystroke_count ?? 0)
       const recoveredPendingSave = isSaveAttempt(localDraft?.pending_save)
@@ -404,7 +403,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         : null
       uncertainSaveRef.current = recoveredPendingSave
       shouldReplayRecoveredSaveRef.current = false
-      if (!data.doc?.is_submitted && recoveredContent && recoveredContentStr !== serverContentStr) {
+      if (!data.doc?.is_submitted && recoveredContent && !areJsonDocumentsEqual(recoveredContent, serverContent)) {
         updatePreservedRecoveryContent(null)
         setContent(recoveredContent)
         pendingContentRef.current = recoveredContent
@@ -412,7 +411,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         if (localDraft.base_revision !== lastSavedRevisionRef.current) {
           setSaveError('A local draft was recovered after the saved version changed. Review it before continuing.')
         }
-      } else if (data.doc?.is_submitted && recoveredContent && recoveredContentStr !== serverContentStr) {
+      } else if (data.doc?.is_submitted && recoveredContent && !areJsonDocumentsEqual(recoveredContent, serverContent)) {
         updatePreservedRecoveryContent(recoveredContent)
         setContent(serverContent)
         pendingContentRef.current = serverContent
@@ -449,14 +448,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const applyUnsubmittedDoc = useCallback((nextDoc: AssignmentDoc) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }
-    const serverContentStr = JSON.stringify(serverContent)
     setDoc(nextDoc)
     updatePreservedRecoveryContent(null)
-    lastSavedContentRef.current = serverContentStr
+    lastSavedContentRef.current = serverContent
     lastSavedRevisionRef.current = nextDoc.updated_at ?? null
 
     const recoveryDraft = readRecoveryDraft()
-    if (recoveryDraft?.content && JSON.stringify(recoveryDraft.content) !== serverContentStr) {
+    if (recoveryDraft?.content && !areJsonDocumentsEqual(recoveryDraft.content, serverContent)) {
       setContent(recoveryDraft.content)
       pendingContentRef.current = recoveryDraft.content
       setSaveStatus('unsaved')
@@ -477,9 +475,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     source: 'current-tab' | 'other-tab',
   ) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }
-    const serverContentStr = JSON.stringify(serverContent)
     const localContentToPreserve = preservedRecoveryContentRef.current ?? latestLocalContent
-    const hasNewerLocalContent = JSON.stringify(localContentToPreserve) !== serverContentStr
+    const hasNewerLocalContent = !areJsonDocumentsEqual(localContentToPreserve, serverContent)
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -493,7 +490,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     setDoc(nextDoc)
     setContent(serverContent)
     pendingContentRef.current = serverContent
-    lastSavedContentRef.current = serverContentStr
+    lastSavedContentRef.current = serverContent
     lastSavedRevisionRef.current = nextDoc.updated_at ?? lastSavedRevisionRef.current
     setSaveStatus('saved')
 
@@ -573,15 +570,16 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         ?? pendingContentRef.current
         ?? localDraft
       setDoc(data.doc)
-      lastSavedContentRef.current = JSON.stringify(serverContent)
+      lastSavedContentRef.current = serverContent
       lastSavedRevisionRef.current = data.doc.updated_at ?? null
-      const draftMatchesServer = JSON.stringify(draftToPreserve) === lastSavedContentRef.current
+      const draftMatchesServer = areJsonDocumentsEqual(draftToPreserve, serverContent)
       const claimedDraft = claimedRecoveryDraftRef.current
       if (
         options?.definitiveConflict
         && draftMatchesServer
         && claimedDraft
-        && JSON.stringify(claimedDraft.content) === lastSavedContentRef.current
+        && claimedDraft.content
+        && areJsonDocumentsEqual(claimedDraft.content, serverContent)
       ) {
         if (
           lastSavedRevisionRef.current
@@ -666,13 +664,16 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   ) => {
     const savePromise = saveQueueRef.current.then(async () => {
       if (pageHiddenRef.current) return
-      const newContentStr = JSON.stringify(newContent)
       const hasPendingMetrics = pasteWordCountRef.current > 0 || keystrokeCountRef.current > 0
-      if (newContentStr === lastSavedContentRef.current && !hasPendingMetrics) {
+      if (
+        lastSavedContentRef.current
+        && areJsonDocumentsEqual(newContent, lastSavedContentRef.current)
+        && !hasPendingMetrics
+      ) {
         if (isMountedRef.current) {
           const pendingContent = pendingContentRef.current
           const hasNewerPendingContent = Boolean(
-            pendingContent && JSON.stringify(pendingContent) !== newContentStr
+            pendingContent && !areJsonDocumentsEqual(pendingContent, newContent)
           )
           setSaveStatus(hasNewerPendingContent ? 'unsaved' : 'saved')
           if (!hasNewerPendingContent) setSaveError('')
@@ -690,7 +691,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       const uncertainSave = uncertainSaveRef.current
       const isExactUncertainRetry = Boolean(
         uncertainSave
-        && JSON.stringify(uncertainSave.content) === newContentStr
+        && areJsonDocumentsEqual(uncertainSave.content, newContent)
         && uncertainSave.pasteWordCount === pasteWordCount
         && uncertainSave.keystrokeCount === keystrokeCount
       )
@@ -755,7 +756,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               throw new Error('The saved version could not be reloaded. Reload this assignment before retrying.')
             }
             reconciledAfterConflict = true
-            if (JSON.stringify(newContent) !== lastSavedContentRef.current) {
+            if (
+              !lastSavedContentRef.current
+              || !areJsonDocumentsEqual(newContent, lastSavedContentRef.current)
+            ) {
               throw new Error('A newer saved version exists. Review your preserved draft before retrying.')
             }
             clearLocalDraft(attemptRecoveryDraft)
@@ -802,12 +806,12 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
           }
           const pendingContent = pendingContentRef.current
           setSaveStatus(
-            pendingContent && JSON.stringify(pendingContent) !== newContentStr
+            pendingContent && !areJsonDocumentsEqual(pendingContent, newContent)
               ? 'unsaved'
               : 'saved'
           )
         }
-        lastSavedContentRef.current = newContentStr
+        lastSavedContentRef.current = newContent
         lastSavedRevisionRef.current = data.doc?.updated_at ?? lastSavedRevisionRef.current
         if (
           uncertainSaveRef.current?.sessionId === uncertainSave?.sessionId
@@ -818,7 +822,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         pasteWordCountRef.current = Math.max(0, pasteWordCountRef.current - saveAttempt.pasteWordCount)
         keystrokeCountRef.current = Math.max(0, keystrokeCountRef.current - saveAttempt.keystrokeCount)
         metricSessionIdRef.current = globalThis.crypto.randomUUID()
-        if (pendingContentRef.current && JSON.stringify(pendingContentRef.current) === newContentStr) {
+        if (pendingContentRef.current && areJsonDocumentsEqual(pendingContentRef.current, newContent)) {
           clearLocalDraft(attemptRecoveryDraft)
         }
       } catch (err: any) {
@@ -900,7 +904,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         latest
         && !isSubmittedRef.current
         && (
-          JSON.stringify(latest) !== lastSavedContentRef.current
+          !lastSavedContentRef.current
+          || !areJsonDocumentsEqual(latest, lastSavedContentRef.current)
           || pasteWordCountRef.current > 0
           || keystrokeCountRef.current > 0
         )
@@ -916,14 +921,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       const latest = pendingContentRef.current
       const inFlightSave = inFlightSaveRef.current
       const saveToSupersede = inFlightSave ?? uncertainSaveRef.current
-      const latestStr = latest ? JSON.stringify(latest) : null
-      const inFlightStr = inFlightSave ? JSON.stringify(inFlightSave.content) : null
       if (
         !latest
         || isSubmittedRef.current
         || (
-          latestStr === lastSavedContentRef.current
-          && (!inFlightSave || inFlightStr === latestStr)
+          lastSavedContentRef.current
+          && areJsonDocumentsEqual(latest, lastSavedContentRef.current)
+          && (!inFlightSave || areJsonDocumentsEqual(inFlightSave.content, latest))
           && pasteWordCountRef.current === 0
           && keystrokeCountRef.current === 0
         )
@@ -990,11 +994,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
           || responseRevision >= lastSavedRevisionRef.current
         ) {
           lastSavedRevisionRef.current = responseRevision
-          lastSavedContentRef.current = latestStr ?? lastSavedContentRef.current
+          lastSavedContentRef.current = latest
         }
         if (
           pendingContentRef.current
-          && JSON.stringify(pendingContentRef.current) === latestStr
+          && areJsonDocumentsEqual(pendingContentRef.current, latest)
         ) {
           clearLocalDraft(attemptRecoveryDraft)
         }
@@ -1077,7 +1081,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   function flushAutosave() {
     const latest = pendingContentRef.current ?? content
     if (
-      JSON.stringify(latest) !== lastSavedContentRef.current
+      !lastSavedContentRef.current
+      || !areJsonDocumentsEqual(latest, lastSavedContentRef.current)
       || pasteWordCountRef.current > 0
       || keystrokeCountRef.current > 0
     ) {
@@ -1243,8 +1248,12 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       const restoredDraft = draftBeforePreviewRef.current
       setContent(restoredDraft)
       pendingContentRef.current = restoredDraft
-      const restoredStr = JSON.stringify(restoredDraft)
-      setSaveStatus(restoredStr === lastSavedContentRef.current ? 'saved' : 'unsaved')
+      setSaveStatus(
+        lastSavedContentRef.current
+        && areJsonDocumentsEqual(restoredDraft, lastSavedContentRef.current)
+          ? 'saved'
+          : 'unsaved'
+      )
     }
     setPreviewEntry(null)
     setPreviewContent(null)
@@ -1276,7 +1285,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       if (
         pendingDraft
         && (
-          JSON.stringify(pendingDraft) !== lastSavedContentRef.current
+          !lastSavedContentRef.current
+          || !areJsonDocumentsEqual(pendingDraft, lastSavedContentRef.current)
           || pasteWordCountRef.current > 0
           || keystrokeCountRef.current > 0
         )
@@ -1297,7 +1307,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       setDoc(data.doc)
       setContent(data.doc?.content || { type: 'doc', content: [] })
       pendingContentRef.current = data.doc?.content || { type: 'doc', content: [] }
-      lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
+      lastSavedContentRef.current = data.doc?.content || { type: 'doc', content: [] }
       lastSavedRevisionRef.current = data.doc?.updated_at ?? null
       pasteWordCountRef.current = 0
       keystrokeCountRef.current = 0

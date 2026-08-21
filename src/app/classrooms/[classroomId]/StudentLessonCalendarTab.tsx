@@ -15,6 +15,8 @@ import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 interface Props {
   classroom: Classroom
+  showClasswork?: boolean
+  showAnnouncements?: boolean
   onNavigateToAssignments?: (assignmentId: string) => void
   onNavigateToAnnouncements?: () => void
 }
@@ -40,6 +42,8 @@ const initialSourceStatus = (): Record<CalendarSource, SourceStatus> => ({
 
 export function StudentLessonCalendarTab({
   classroom,
+  showClasswork = true,
+  showAnnouncements = true,
   onNavigateToAssignments = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
@@ -136,6 +140,14 @@ export function StudentLessonCalendarTab({
     const requestedClassroomId = classroom.id
     const requestId = loadRequestIdsRef.current[source] + 1
     loadRequestIdsRef.current[source] = requestId
+    if (!showClasswork) {
+      setAssignments([])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
     const cacheKey = `student-assignments:${requestedClassroomId}`
     if (force) invalidateCachedJSON(cacheKey)
     setSourceStatus((current) => ({
@@ -167,13 +179,21 @@ export function StudentLessonCalendarTab({
         [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
       }))
     }
-  }, [classroom.id])
+  }, [classroom.id, showClasswork])
 
   const loadAnnouncements = useCallback(async (force = false) => {
     const source: CalendarSource = 'announcements'
     const requestedClassroomId = classroom.id
     const requestId = loadRequestIdsRef.current[source] + 1
     loadRequestIdsRef.current[source] = requestId
+    if (!showAnnouncements) {
+      setAnnouncements([])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
     const cacheKey = `student-announcements:${requestedClassroomId}`
     if (force) invalidateCachedJSON(cacheKey)
     setSourceStatus((current) => ({
@@ -205,7 +225,7 @@ export function StudentLessonCalendarTab({
         [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
       }))
     }
-  }, [classroom.id])
+  }, [classroom.id, showAnnouncements])
 
   useEffect(() => {
     void Promise.all([loadLessonPlans(), loadAssignments(), loadAnnouncements()])

@@ -303,6 +303,81 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
   })
 
+  it('does not treat JSONB key reordering as newer local edits after an achievement delivery', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(),
+            doc: makeDoc(),
+            feedback_entries: [],
+            submission_requirements: [],
+            submission_artifacts: [],
+            wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        return {
+          ok: true,
+          json: async () => ({
+            doc: { ...makeDoc(), content: body.content, updated_at: '2026-07-01T12:01:00.000Z' },
+            historyEntry: null,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1/submit')) {
+        return {
+          ok: true,
+          json: async () => ({
+            doc: {
+              ...makeDoc(),
+              content: {
+                content: [{
+                  content: [{ text: 'Latest unsaved answer', type: 'text' }],
+                  type: 'paragraph',
+                }],
+                type: 'doc',
+              },
+              is_submitted: true,
+              submitted_at: '2026-07-01T12:02:00.000Z',
+              updated_at: '2026-07-01T12:02:00.000Z',
+            },
+            pal_delivery: 'delivered',
+          }),
+        }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+    await screen.findByText('Assignment Title')
+    await user.click(screen.getByRole('button', { name: 'Edit response' }))
+
+    await act(async () => {
+      await ref.current?.submit()
+    })
+
+    expect(ref.current?.isSubmitted).toBe(true)
+    expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered')
+    expect(screen.queryByText(/newer local edits/i)).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
+  })
+
   it('preserves an edit made while submit reconciliation is in flight', async () => {
     let docReads = 0
     let rejectSubmit: ((error: Error) => void) | undefined

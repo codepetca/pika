@@ -31,6 +31,11 @@ import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { CLASSROOM_THEME_PALETTE, getClassroomThemeStyle, type ClassroomThemeColor } from '@/lib/classroom-theme'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import {
+  normalizeClassroomFeatureVisibility,
+  type ClassroomFeatureKey,
+  type ClassroomFeatureVisibility,
+} from '@/lib/classroom-feature-visibility'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { ActualCourseSiteConfig, Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
@@ -42,11 +47,12 @@ function generateJoinCode() {
     .join('')
 }
 
-type SettingsSection = 'general' | 'access' | 'syllabus' | 'class-days' | 'reuse'
+type SettingsSection = 'general' | 'access' | 'features' | 'syllabus' | 'class-days' | 'reuse'
 
 const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }> = [
   { value: 'general', label: 'General' },
   { value: 'access', label: 'Access' },
+  { value: 'features', label: 'Features' },
   { value: 'syllabus', label: 'Syllabus' },
   { value: 'class-days', label: 'Class Days' },
   { value: 'reuse', label: 'Reuse' },
@@ -78,6 +84,7 @@ function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefin
 
 interface Props {
   classroom: Classroom
+  palEnabled?: boolean
   sectionParam?: string | null
   onSectionChange?: (section: SettingsSection) => void
   onClassroomUpdated?: (classroom: Classroom) => void
@@ -193,6 +200,7 @@ const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextareaProps>(
 
 export function TeacherSettingsTab({
   classroom,
+  palEnabled = false,
   sectionParam,
   onSectionChange = () => {},
   onClassroomUpdated,
@@ -228,6 +236,11 @@ export function TeacherSettingsTab({
   const [visibilityError, setVisibilityError] = useState<string>('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const visibilityId = useId()
+  const [featureVisibility, setFeatureVisibility] = useState<ClassroomFeatureVisibility>(
+    normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+  )
+  const [featureVisibilitySaving, setFeatureVisibilitySaving] = useState(false)
+  const [featureVisibilityError, setFeatureVisibilityError] = useState('')
   const [themeColor, setThemeColor] = useState<ClassroomThemeColor>(classroom.theme_color)
   const [themeSaving, setThemeSaving] = useState(false)
   const [themeError, setThemeError] = useState('')
@@ -267,6 +280,11 @@ export function TeacherSettingsTab({
     : classroom.lesson_plan_visibility || 'current_week'
   const displayedVisibilitySaving = formStateReady && visibilitySaving
   const displayedVisibilityError = formStateReady ? visibilityError : ''
+  const displayedFeatureVisibility = formStateReady
+    ? featureVisibility
+    : normalizeClassroomFeatureVisibility(classroom.feature_visibility)
+  const displayedFeatureVisibilitySaving = formStateReady && featureVisibilitySaving
+  const displayedFeatureVisibilityError = formStateReady ? featureVisibilityError : ''
   const displayedThemeColor = formStateReady ? themeColor : classroom.theme_color
   const displayedThemeSaving = formStateReady && themeSaving
   const displayedThemeError = formStateReady ? themeError : ''
@@ -308,6 +326,9 @@ export function TeacherSettingsTab({
     setLessonPlanVisibility(classroom.lesson_plan_visibility || 'current_week')
     setVisibilityError('')
     setVisibilitySaving(false)
+    setFeatureVisibility(normalizeClassroomFeatureVisibility(classroom.feature_visibility))
+    setFeatureVisibilitySaving(false)
+    setFeatureVisibilityError('')
     setThemeColor(classroom.theme_color)
     setThemeSaving(false)
     setThemeError('')
@@ -565,6 +586,48 @@ export function TeacherSettingsTab({
     }
   }
 
+  async function saveFeatureVisibility(feature: ClassroomFeatureKey, enabled: boolean) {
+    if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId) || featureVisibilitySaving) return
+    const formGeneration = formGenerationRef.current
+    const previousVisibility = featureVisibility
+    const nextVisibility = { ...featureVisibility, [feature]: enabled }
+
+    setFeatureVisibility(nextVisibility)
+    setFeatureVisibilitySaving(true)
+    setFeatureVisibilityError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ featureVisibility: nextVisibility }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update classroom features')
+      }
+      invalidateTeacherClassrooms()
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      const savedVisibility = normalizeClassroomFeatureVisibility(
+        data.classroom?.feature_visibility ?? nextVisibility,
+      )
+      setFeatureVisibility(savedVisibility)
+      if (data.classroom) {
+        onClassroomUpdated?.({ ...data.classroom, feature_visibility: savedVisibility })
+      }
+      showMessage({ text: 'Classroom features updated', tone: 'success' })
+    } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      setFeatureVisibility(previousVisibility)
+      setFeatureVisibilityError(err.message || 'Failed to update classroom features')
+    } finally {
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setFeatureVisibilitySaving(false)
+      }
+    }
+  }
+
   async function saveActualSiteSettings() {
     if (isReadOnly) return
     const classroomId = classroom.id
@@ -789,6 +852,72 @@ export function TeacherSettingsTab({
 
             {displayedJoinCodeError && <div className="text-sm text-danger">{displayedJoinCodeError}</div>}
             {displayedEnrollmentError && <div className="text-sm text-danger">{displayedEnrollmentError}</div>}
+            </SettingsPanel>
+          ) : null}
+
+          {section === 'features' ? (
+            <SettingsPanel>
+              <SettingsHeading
+                title="Classroom features"
+                tooltip="Choose which optional areas appear in this classroom."
+              />
+
+              <div className="rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
+                Daily/Today, Roster, and Settings are always available. Hiding a feature does not delete its content.
+              </div>
+
+              <div className="divide-y divide-border">
+                {(
+                  [
+                    ['attendance', 'Attendance', 'Teacher only · Live attendance check-in'],
+                    ['classwork', 'Classwork', 'Teacher and students · Assignments, materials, and surveys'],
+                    ['tests', 'Tests', 'Teacher and students · Assessments and responses'],
+                    ['gradebook', 'Gradebook', 'Teacher only · Requires Classwork or Tests'],
+                    ['calendar', 'Calendar', 'Teacher and students · Lesson plans'],
+                    ['syllabus', 'Syllabus', 'Teacher and students · Course information and resources'],
+                    ['announcements', 'Announcements', 'Teacher and students · Classroom updates'],
+                    ...(palEnabled
+                      ? [['achievements', 'Achievements', 'Students only · Pal achievements and progress']]
+                      : []),
+                  ] as Array<[ClassroomFeatureKey, string, string]>
+                ).map(([feature, label, description]) => {
+                  const gradebookUnavailable =
+                    feature === 'gradebook' &&
+                    !displayedFeatureVisibility.classwork &&
+                    !displayedFeatureVisibility.tests
+                  const visibleChecked = gradebookUnavailable
+                    ? false
+                    : displayedFeatureVisibility[feature]
+                  const visibleDescription = gradebookUnavailable
+                    ? 'Teacher only · Hidden until Classwork or Tests is enabled'
+                    : description
+                  return (
+                    <SettingsSwitchRow
+                      key={feature}
+                      checked={visibleChecked}
+                      onChange={(enabled) => saveFeatureVisibility(feature, enabled)}
+                      disabled={
+                        displayedFeatureVisibilitySaving ||
+                        isReadOnly ||
+                        !formStateReady ||
+                        gradebookUnavailable
+                      }
+                      ariaLabel={`Show ${label}`}
+                      className="py-3"
+                    >
+                      <span className="block font-medium">{label}</span>
+                      <span className="block text-xs text-text-muted">{visibleDescription}</span>
+                    </SettingsSwitchRow>
+                  )
+                })}
+              </div>
+
+              {displayedFeatureVisibilitySaving ? (
+                <div className="text-sm text-text-muted">Saving...</div>
+              ) : null}
+              {displayedFeatureVisibilityError ? (
+                <div className="text-sm text-danger">{displayedFeatureVisibilityError}</div>
+              ) : null}
             </SettingsPanel>
           ) : null}
 

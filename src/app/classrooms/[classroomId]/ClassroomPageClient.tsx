@@ -60,6 +60,10 @@ import type {
   Assignment,
   TestAssessmentWithStats,
 } from '@/types'
+import {
+  getAvailableClassroomTabs,
+  normalizeClassroomFeatureVisibility,
+} from '@/lib/classroom-feature-visibility'
 
 interface UserInfo {
   id: string
@@ -135,25 +139,18 @@ export function ClassroomPageClient({
   const [clientTeacherClassrooms, setClientTeacherClassrooms] = useState(teacherClassrooms)
 
   const isTeacher = user.role === 'teacher'
-  const palAvailable = !isTeacher && palEnabled
+  const palAvailable = palEnabled
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
+  const featureVisibility = useMemo(
+    () => normalizeClassroomFeatureVisibility(effectiveClassroom.feature_visibility),
+    [effectiveClassroom.feature_visibility],
+  )
   const isArchived = isTeacher && !!effectiveClassroom.archived_at
   const basePath = `/classrooms/${effectiveClassroom.id}`
   const defaultTab = isTeacher ? 'daily' : 'today'
   const validTabs = useMemo(
-    () =>
-      isTeacher
-        ? (['daily', 'attendance', 'gradebook', 'assignments', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
-        : ([
-            'today',
-            ...(palAvailable ? ['achievements'] as const : []),
-            'assignments',
-            'tests',
-            'calendar',
-            'resources',
-            'announcements',
-          ] as const),
-    [isTeacher, palAvailable]
+    () => getAvailableClassroomTabs(user.role, featureVisibility, palAvailable),
+    [featureVisibility, palAvailable, user.role],
   )
 
   const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
@@ -267,6 +264,7 @@ export function ClassroomPageClient({
           updateSearchParams={updateSearchParams}
           onClassroomUpdated={handleClassroomUpdated}
           palEnabled={palAvailable}
+          availableTabs={validTabs}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -416,6 +414,7 @@ function ClassroomPageContent({
   updateSearchParams,
   onClassroomUpdated,
   palEnabled,
+  availableTabs,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -426,6 +425,7 @@ function ClassroomPageContent({
   updateSearchParams: UpdateSearchParamsFn
   onClassroomUpdated: (classroom: Classroom) => void
   palEnabled: boolean
+  availableTabs: readonly string[]
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -610,10 +610,13 @@ function ClassroomPageContent({
 
   useEffect(() => {
     setMountedTabs((previous) => {
-      if (previous[activeTab]) return previous
-      return { ...previous, [activeTab]: true }
+      const next = Object.fromEntries(
+        Object.entries(previous).filter(([tab]) => availableTabs.includes(tab)),
+      )
+      if (next[activeTab]) return next
+      return { ...next, [activeTab]: true }
     })
-  }, [activeTab])
+  }, [activeTab, availableTabs])
 
   useEffect(() => {
     const previousTab = prevActiveTabRef.current
@@ -964,6 +967,7 @@ function ClassroomPageContent({
   }, [activeTab, setRightSidebarOpen])
 
   const prefetchTabData = useCallback((tab: string) => {
+    if (!availableTabs.includes(tab)) return
     const now = Date.now()
     const lastIntentAt = lastTabIntentRef.current[tab] || 0
     if (now - lastIntentAt < 500) return
@@ -1038,7 +1042,7 @@ function ClassroomPageContent({
     }
 
     runPrefetch()
-  }, [classroom.id, isTeacher])
+  }, [availableTabs, classroom.id, isTeacher])
 
   useEffect(() => {
     const idleCallback = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined
@@ -1252,6 +1256,7 @@ function ClassroomPageContent({
               onTabIntent={prefetchTabData}
               updateSearchParams={navigateInClassroom}
               palEnabled={palEnabled}
+              featureVisibility={classroom.feature_visibility}
             />
           </LeftSidebar>
         )}
@@ -1337,6 +1342,8 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'calendar'}>
                       <TeacherLessonCalendarTab
                         classroom={classroom}
+                        showClasswork={availableTabs.includes('assignments')}
+                        showAnnouncements={availableTabs.includes('announcements')}
                         onSidebarStateChange={setCalendarSidebarState}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
@@ -1383,6 +1390,7 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'settings'}>
                       <TeacherSettingsTab
                         classroom={classroom}
+                        palEnabled={palEnabled}
                         sectionParam={sectionParam}
                         onClassroomUpdated={onClassroomUpdated}
                         onSectionChange={(section) =>
@@ -1435,6 +1443,8 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'calendar'}>
                       <StudentLessonCalendarTab
                         classroom={classroom}
+                        showClasswork={availableTabs.includes('assignments')}
+                        showAnnouncements={availableTabs.includes('announcements')}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'assignments')
@@ -1649,7 +1659,10 @@ function ClassroomPageContent({
 
   if (!isTeacher) {
     return (
-      <StudentNotificationsProvider classroomId={classroom.id}>
+      <StudentNotificationsProvider
+        classroomId={classroom.id}
+        featureVisibility={classroom.feature_visibility}
+      >
         {content}
       </StudentNotificationsProvider>
     )

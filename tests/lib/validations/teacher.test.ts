@@ -3,6 +3,7 @@ import {
   createClassroomSchema,
   updateClassroomPublishingSchema,
 } from '@/lib/validations/teacher'
+import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 
 describe('teacher validations', () => {
   it('rejects publishing a syllabus when the request clears the slug', () => {
@@ -23,5 +24,17 @@ describe('teacher validations', () => {
   it('rejects unsupported classroom theme colors', () => {
     expect(createClassroomSchema.safeParse({ title: 'Math', themeColor: 'magenta' }).success).toBe(false)
     expect(updateClassroomPublishingSchema.safeParse({ themeColor: 'magenta' }).success).toBe(false)
+  })
+
+  it('accepts only the complete classroom feature visibility contract', () => {
+    expect(updateClassroomPublishingSchema.safeParse({
+      featureVisibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, tests: false },
+    }).success).toBe(true)
+    expect(updateClassroomPublishingSchema.safeParse({
+      featureVisibility: { tests: false },
+    }).success).toBe(false)
+    expect(updateClassroomPublishingSchema.safeParse({
+      featureVisibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, unknown: true },
+    }).success).toBe(false)
   })
 })

@@ -114,6 +114,8 @@ export interface CalendarSidebarState {
 
 interface Props {
   classroom: Classroom
+  showClasswork?: boolean
+  showAnnouncements?: boolean
   onSidebarStateChange?: (state: CalendarSidebarState | null) => void
   onNavigateToAssignments?: (assignmentId?: string | null) => void
   onNavigateToAnnouncements?: () => void
@@ -121,6 +123,8 @@ interface Props {
 
 export function TeacherLessonCalendarTab({
   classroom,
+  showClasswork = true,
+  showAnnouncements = true,
   onSidebarStateChange,
   onNavigateToAssignments = () => {},
   onNavigateToAnnouncements = () => {},
@@ -343,6 +347,16 @@ export function TeacherLessonCalendarTab({
     let cancelled = false
     const requestedClassroomId = classroom.id
 
+    if (!showClasswork) {
+      setAssignmentsClassroomId(requestedClassroomId)
+      setAssignments([])
+      setSourceStatus((current) => ({
+        ...current,
+        assignments: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
+
     async function loadAssignments() {
       const requestId = sourceRequestIdsRef.current.assignments + 1
       sourceRequestIdsRef.current.assignments = requestId
@@ -397,12 +411,22 @@ export function TeacherLessonCalendarTab({
       cancelled = true
       window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
     }
-  }, [assignmentsRefreshKey, classroom.id])
+  }, [assignmentsRefreshKey, classroom.id, showClasswork])
 
   // Fetch announcements for the classroom
   useEffect(() => {
     let cancelled = false
     const requestedClassroomId = classroom.id
+
+    if (!showAnnouncements) {
+      setAnnouncementsClassroomId(requestedClassroomId)
+      setAnnouncements([])
+      setSourceStatus((current) => ({
+        ...current,
+        announcements: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
 
     async function loadAnnouncements() {
       const requestId = sourceRequestIdsRef.current.announcements + 1
@@ -448,7 +472,7 @@ export function TeacherLessonCalendarTab({
     return () => {
       cancelled = true
     }
-  }, [announcementsRefreshKey, classroom.id])
+  }, [announcementsRefreshKey, classroom.id, showAnnouncements])
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
