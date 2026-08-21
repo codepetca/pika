@@ -1358,26 +1358,29 @@ submit reconciliation. No schema, hosted environment, or production state change
 database, identity record, environment variable, or attendance flag changed.
 
 **Completed:**
-- Kept exact `favicon.ico` and real Next.js static/image segments outside
-  AuthKit so passive assets cannot participate in WorkOS session refreshes,
-  while malformed prefix collisions remain covered by middleware.
-- Added a real 64x64 Pika favicon through Next.js's static metadata convention.
-  It is a direct resize of the existing `/pika.png` asset on a plain white
-  backing, preserving the app logo while remaining visible on dark browser
-  chrome.
-- Added regressions for exact/static exclusions, malformed prefix collisions,
-  the ICO signature, and an opaque light region in the favicon.
+- Kept exact `favicon.ico`, exact `icon.svg`, and real Next.js static/image
+  segments outside AuthKit so passive assets cannot participate in WorkOS
+  session refreshes, while malformed prefix collisions remain covered.
+- Added a self-contained, transparent SVG favicon from the existing
+  `/pika.png` mark. It stays black in light browser chrome and inverts to white
+  in dark chrome without a generated badge or background.
+- Added an unadvertised transparent ICO fallback in `public/` so conventional
+  `/favicon.ico` requests remain static even when the SVG is the only icon in
+  page metadata.
+- Added regressions for both exact icon exclusions, malformed prefix
+  collisions, adaptive SVG structure, its embedded PNG, and the ICO fallback.
 
 **Verification:**
 - The boundary regression fails against the unbounded matcher and passes with
   exact/segment exclusions. The compiled Next matcher has the same behavior.
-- Focused middleware/auth coverage passes 50 tests; after syncing latest main,
-  the full suite passes 561 files and 4,902 tests. TypeScript and the production
-  build pass.
-- A pilot-enabled production-mode smoke test returns `200 image/x-icon` for
-  `/favicon.ico` with no session cookie, while `/classrooms` still redirects to
-  `/login`; collision paths return normal 404/400 responses without AuthKit
-  exceptions.
+- Focused middleware/auth coverage passes 50 tests; the full suite passes 561
+  files and 4,902 tests. TypeScript, lint, and the production build pass.
+- Page metadata advertises only the hashed `icon.svg` route. Playwright confirms
+  the original mark renders black/white at both 64px and tab-sized 16px under
+  emulated light/dark color schemes.
+- A pilot-enabled production smoke returns static `200` responses for both
+  icons with no session cookie; `/classrooms` still redirects to `/login`,
+  collision paths return normal 404 responses, and server logs stay clean.
 ## 2026-08-21 — Add classroom-scoped feature visibility
 
 **Risk profile:** workspace-state + exam-mode — per-classroom navigation,

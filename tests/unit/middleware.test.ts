@@ -16,6 +16,9 @@ describe('AuthKit middleware matcher', () => {
     expect(matchesPath('/favicon.ico')).toBe(false)
     expect(matchesPath('/faviconXico')).toBe(true)
     expect(matchesPath('/favicon.ico/anything')).toBe(true)
+    expect(matchesPath('/icon.svg')).toBe(false)
+    expect(matchesPath('/iconXsvg')).toBe(true)
+    expect(matchesPath('/icon.svg/anything')).toBe(true)
     expect(matchesPath('/classrooms')).toBe(true)
     expect(matchesPath('/_next/static/chunks/app.js')).toBe(false)
     expect(matchesPath('/_next/static')).toBe(false)
@@ -24,29 +27,18 @@ describe('AuthKit middleware matcher', () => {
     expect(matchesPath('/_next/image/transform')).toBe(false)
     expect(matchesPath('/_next/imageevil')).toBe(true)
 
-    const favicon = readFileSync(resolve(process.cwd(), 'src/app/favicon.ico'))
-    expect([...favicon.subarray(0, 4)]).toEqual([0, 0, 1, 0])
+    const favicon = readFileSync(resolve(process.cwd(), 'src/app/icon.svg'), 'utf8')
+    expect(favicon).toContain('@media (prefers-color-scheme: dark)')
+    expect(favicon).toContain('filter: invert(1)')
+    expect(favicon).not.toContain('<rect')
 
-    const imageOffset = favicon.readUInt32LE(18)
-    const dibHeaderSize = favicon.readUInt32LE(imageOffset)
-    const width = favicon.readInt32LE(imageOffset + 4)
-    const storedHeight = favicon.readInt32LE(imageOffset + 8)
-    const bitsPerPixel = favicon.readUInt16LE(imageOffset + 14)
-    const pixelData = favicon.subarray(
-      imageOffset + dibHeaderSize,
-      imageOffset + dibHeaderSize + width * (storedHeight / 2) * (bitsPerPixel / 8),
-    )
-    const hasOpaqueLightPixel = Array.from(
-      { length: pixelData.length / 4 },
-      (_, pixelIndex) => pixelIndex * 4,
-    ).some((offset) => (
-      pixelData[offset] > 220
-      && pixelData[offset + 1] > 220
-      && pixelData[offset + 2] > 220
-      && pixelData[offset + 3] > 220
-    ))
+    const embeddedPng = favicon.match(/data:image\/png;base64,([^"']+)/)?.[1]
+    expect(embeddedPng).toBeDefined()
+    expect([...Buffer.from(embeddedPng!, 'base64').subarray(0, 8)]).toEqual([
+      137, 80, 78, 71, 13, 10, 26, 10,
+    ])
 
-    expect(bitsPerPixel).toBe(32)
-    expect(hasOpaqueLightPixel).toBe(true)
+    const fallbackFavicon = readFileSync(resolve(process.cwd(), 'public/favicon.ico'))
+    expect([...fallbackFavicon.subarray(0, 4)]).toEqual([0, 0, 1, 0])
   })
 })
