@@ -11,50 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Complete Syllabus iframe reliability
-
-**Risk profile:** workspace-state and accessibility — shared teacher/student
-Syllabus framing, readiness, failure recovery, and keyboard access; no schema,
-migration, production, Gradex, legacy-resource deletion, or mobile redesign.
-
-**Completed:**
-- Replaced the duplicated teacher/student iframe markup with one shared,
-  viewport-bounded `SyllabusPreview` and constrained the classroom Resources
-  workspace to prevent competing desktop document scrolling.
-- Added a compact external-open action, a named focusable iframe with a visible
-  focus boundary, and removed the covered iframe from keyboard order until its
-  document is ready.
-- Added an explicit same-origin readiness handshake emitted only by the
-  successfully hydrated syllabus page. The parent validates origin, source
-  frame, and exact URL, so HTTP error documents remain hidden and outside
-  keyboard order. A bounded timeout exposes Retry, which remounts the iframe
-  with a fresh request while preserving the canonical public syllabus URL.
-- Confirmed the old rich-text resource sidebars are unmounted; retained their
-  APIs and data contract for a focused Phase 6 compatibility-led retirement.
-
-**Validation:**
-- Focused Syllabus, legacy resource-sidebar, and classroom-shell suites pass.
-  The full bounded suite passes: 4,372 tests across 499 files.
-  Component coverage includes loading, ready, unpublished, timeout, Retry,
-  keyboard eligibility, and viewport ownership states.
-- The durable Chromium matrix now intercepts real iframe navigations with HTTP
-  404 and 500 documents and requires both to remain unavailable and
-  unfocusable. It first proves a real published page completes the handshake
-  and accepts keyboard focus. Local execution was blocked before that case by
-  missing shared seed accounts; CI's seeded browser lane owns the repeatable
-  run.
-- Targeted review found that a settings-driven slug change could inherit the
-  mounted preview's prior ready state. Teacher and student resource tabs now
-  key the preview by syllabus URL, and regression coverage proves a new URL
-  remounts loading, ignores a matching-URL signal from the stale frame, and
-  times out unfocusable for both roles.
-- Playwright verification passes for teacher/student desktop and narrow,
-  light/dark loaded states plus the teacher failed-load state. Desktop outer
-  scroll is `900/900`; focus moves from Open syllabus to the named iframe; no
-  horizontal overflow was observed.
-- TypeScript, lint, production build, architecture, design/UI policy, Pika
-  audit, startup-context budget, session-log, and diff checks pass.
-
 ## 2026-08-17 — Add session-expiry recovery
 
 **Risk profile:** workspace-state and accessibility — shared teacher/student
@@ -1387,3 +1343,28 @@ only to the local Supabase database; no hosted environment was changed.
 - Playwright verification passed for teacher and student desktop/mobile views in
   light/dark themes, including enabled/hidden Settings states, filtered nav,
   direct-link fallbacks, hidden notification counts, and restoration to defaults.
+
+## 2026-08-21 — Adopt the minimal Pal level-up celebration
+
+**Risk profile:** none — student-only presentation and reward-modal dismissal;
+no schema, grading, assessment, workspace persistence, or hosted state changed.
+
+**Implemented:**
+- Pinned the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` release.
+- Enabled Pal's opt-in fireworks/brightness effect in Pika's existing
+  host-managed reward modal and removed the normal Continue action.
+- Preserved Pika ownership of dialog semantics, focus containment, Escape,
+  backdrop dismissal, scroll lock, and reward acknowledgement. A failed
+  acknowledgement keeps the modal visible and restores Pal's Retry action.
+- Updated the Pal pilot integration contract and minimal title-presentation
+  expectations.
+
+**Verification:**
+- Focused student Pal experience suite passes 12 tests; TypeScript, lint,
+  architecture, design policy, UI policy, and diff checks pass.
+- Playwright verification passed for the student modal on desktop/mobile in
+  light/dark themes, including launch/linger visuals, Escape and backdrop
+  acknowledgement, failure/retry, and reduced-motion suppression. Teacher view
+  is not applicable because Pal reward layers mount only for students.
+- Composite-widget accessibility checklist reviewed: keyboard behavior covered
+  yes; semantic state covered by tests yes; remaining manual follow-up none.
