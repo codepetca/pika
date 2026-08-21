@@ -11,43 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Add session-expiry recovery
-
-**Risk profile:** workspace-state and accessibility — shared teacher/student
-reauthentication routing and the unauthenticated login state; no schema,
-migration, production, Gradex, mobile, or student-history route change.
-
-**Completed:**
-- Added an explicit session-expiry reason to safe login redirects while
-  preserving the interrupted path and query string.
-- Closed backslash-based external redirect variants through one canonical
-  same-origin path parser shared by redirect production and login consumption;
-  canonicalized protocol-relative paths produced by dot segments are rejected
-  after URL normalization as well.
-- Added a persistent polite warning on the existing login card, associated it
-  with the email field, and moved focus there for immediate recovery.
-- Made the session watcher validate both user ID and role, with a distinct
-  account-change recovery message. Ordinary authorization failures remain in
-  place instead of being mislabeled as expired sessions.
-- Added component and unit regressions for announcement, focus, safe redirect
-  fallback, and return-path preservation, plus a seeded Chromium recovery flow
-  that returns a teacher to the interrupted utility route after login.
-
-**Validation:**
-- Focused auth and Daily suites pass after review remediation. The final full
-  suite passes: 4,391 tests across 500 files. TypeScript, lint, production
-  build, architecture, design/UI policy, Pika audit, session-log, and diff
-  checks pass.
-- Desktop Playwright captures pass in light and dark for the shared
-  unauthenticated recovery state. Teacher/student role-specific rendering is
-  not applicable; both role return paths use this same login surface.
-- CI's seeded browser and database-contract lanes pass. A repeated unrelated
-  `TestDetailPanel` coverage-lane race was stabilized by waiting for its mocked
-  initial reads before clicking Preview and allowing the async save assertion
-  the same bounded time it receives under full-suite coverage load.
-- The `/student/history` compatibility decision remains the next independent
-  slice.
-
 ## 2026-08-17 — Retain and clarify student attendance utility
 
 **Risk profile:** none — compatibility-preserving student utility cleanup; no
@@ -1402,3 +1365,23 @@ no schema, grading, assessment, workspace persistence, or hosted state changed.
   is not applicable because Pal reward layers mount only for students.
 - Composite-widget accessibility checklist reviewed: keyboard behavior covered
   yes; semantic state covered by tests yes; remaining manual follow-up none.
+
+## 2026-08-21 — Make teacher CLI hints invocation-aware
+
+**Risk profile:** none — teacher CLI help and recovery text only; no application
+runtime, schema, hosted environment, deployment, or database state changed.
+
+**Completed:**
+- Derived the copy-pasteable command prefix from the global launcher's existing
+  `PIKA_ORIGIN_PWD` handoff, so global runs print `pika ...` while package-script
+  runs print `pnpm pika ...`.
+- Applied the detected invocation consistently to help, usage errors, login and
+  expired-session recovery, Blueprint follow-up, and Classroom undo hints.
+- Replaced the stale `course pull/push/instantiate` error text with the current
+  Blueprint commands while retaining newer proposal, apply, and delete commands.
+- Added behavior-level regression coverage through both real entry points with
+  a local mock API for help/errors, recovery, Next, and Undo output.
+
+**Verification:**
+- Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
+- Lint, production build, architecture boundaries, and Pika pre-commit audit pass.
