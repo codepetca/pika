@@ -74,6 +74,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     const fetcher = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
       expect(url.toString()).toBe('https://bara.example.test/api/integrations/pika/v1/smoke')
       const headers = new Headers(init?.headers)
+      expect(JSON.parse(String(init?.body))).toMatchObject({ rollout_mode: 'pre-enable' })
       await expect(verifyV1RequestSignature({
         secret: integrationSecret,
         method: 'POST',
@@ -89,6 +90,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     })
 
     await expect(runBaraAttendanceSmoke({
+      attendanceMode: 'pre-enable',
       supabase: supabase as never,
       fetcher,
       now: () => now,
@@ -114,6 +116,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     const supabase = supabaseMock()
     const fetcher = vi.fn()
     await expect(runBaraAttendanceSmoke({
+      attendanceMode: 'pre-enable',
       supabase: supabase as never,
       fetcher,
     })).resolves.toMatchObject({ status: 'skipped', reason: 'production_only' })
@@ -145,6 +148,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
       installation_ref: installationRef,
       scope_ref: await scopeRef(),
       challenge: 'smoke_0123456789abcdef0123456789abcdef',
+      rollout_mode: 'pre-enable',
     })
     const signature = await createV1RequestSignature({
       secret: eventSecret,
@@ -194,6 +198,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
       installation_ref: installationRef,
       scope_ref: await scopeRef(),
       challenge: 'smoke_0123456789abcdef0123456789abcdef',
+      rollout_mode: 'pre-enable',
     })
     const requestWithSignature = async (secret: string) => new Request(
       'https://pika.example.test/api/integrations/attendance/v1/smoke/events',

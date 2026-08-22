@@ -37,15 +37,17 @@ Bara worktree.
 2. Obtain separate authorization for the matching deployments and for applying
    only migration 131 to the named production Pika project, with both flags
    false during the new pre-enable gate.
-3. Run both aggregate-only pre-enable audits and the deployed bidirectional
-   smoke. Preview records a production-only skip because no staging database
-   exists; that skip never satisfies the production gate.
+3. Require Bara's guarded production build, then run Pika's deployed
+   `--mode pre-enable` runtime audit and bidirectional smoke. Downloaded Vercel
+   Sensitive values are redacted and cannot satisfy this gate. Preview records
+   a production-only skip because no staging database exists; that skip never
+   satisfies the production gate.
 4. After a separate enablement decision, enable only the paired Pika/Bara flags
    for the controlled canary and prove
    real teacher and student roster/schedule/lifecycle/mark/correction/QR,
    duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
    flows while attendance remains disabled for every non-canary pair. Run the
-   Pika preflight again with `--mode enabled` before exercising the flow.
+   Pika deployed gate again with `--mode enabled` before exercising the flow.
 5. Run a non-production load rehearsal only after an isolated staging database
    is explicitly provisioned; never point preview at production. Production receives
    only the bounded real-flow latency measurements approved for the pilot.

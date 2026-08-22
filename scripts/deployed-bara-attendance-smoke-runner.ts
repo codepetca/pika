@@ -19,6 +19,7 @@ function exactProductionOrigin(value: string) {
 
 export async function runDeployedBaraAttendanceSmoke(input: {
   stage: 'preview' | 'production'
+  attendanceMode: 'pre-enable' | 'enabled'
   expectedPikaOrigin: string
   configuredPikaOrigin: string
   readOperatorSecret: () => string
@@ -63,7 +64,10 @@ export async function runDeployedBaraAttendanceSmoke(input: {
       `${origin}/api/cron/bara-attendance-smoke`,
       {
         method: 'POST',
-        headers: { Authorization: `Bearer ${operatorSecret}` },
+        headers: {
+          Authorization: `Bearer ${operatorSecret}`,
+          'X-Attendance-Rollout-Mode': input.attendanceMode,
+        },
         signal: AbortSignal.timeout(20_000),
       },
     )

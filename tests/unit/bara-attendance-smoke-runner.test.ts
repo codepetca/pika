@@ -13,6 +13,7 @@ describe('deployed Bara attendance smoke runner', () => {
 
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'production',
+      attendanceMode: 'pre-enable',
       expectedPikaOrigin: 'https://attacker.example',
       configuredPikaOrigin: 'https://pika.example',
       readOperatorSecret,
@@ -32,6 +33,7 @@ describe('deployed Bara attendance smoke runner', () => {
 
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'production',
+      attendanceMode: 'pre-enable',
       expectedPikaOrigin: 'https://pika.example',
       configuredPikaOrigin: 'https://pika.example/',
       readOperatorSecret,
@@ -45,7 +47,10 @@ describe('deployed Bara attendance smoke runner', () => {
     expect(fetcher).toHaveBeenCalledWith(
       'https://pika.example/api/cron/bara-attendance-smoke',
       expect.objectContaining({
-        headers: { Authorization: `Bearer ${secret}` },
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'X-Attendance-Rollout-Mode': 'pre-enable',
+        },
       }),
     )
   })
@@ -60,6 +65,7 @@ describe('deployed Bara attendance smoke runner', () => {
 
       await expect(runDeployedBaraAttendanceSmoke({
         stage: 'production',
+        attendanceMode: 'enabled',
         expectedPikaOrigin: 'https://pika.example',
         configuredPikaOrigin: 'https://pika.example',
         readOperatorSecret: () => secret,
@@ -77,6 +83,7 @@ describe('deployed Bara attendance smoke runner', () => {
 
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'preview',
+      attendanceMode: 'pre-enable',
       expectedPikaOrigin: 'https://pika-preview.example',
       configuredPikaOrigin: '',
       readOperatorSecret,
@@ -96,6 +103,8 @@ describe('deployed Bara attendance smoke runner', () => {
         resolve(process.cwd(), 'scripts/run-deployed-bara-attendance-smoke.ts'),
         '--stage',
         'preview',
+        '--mode',
+        'pre-enable',
         '--expected-pika-origin',
         'https://pika-preview.example',
       ],
@@ -117,5 +126,31 @@ describe('deployed Bara attendance smoke runner', () => {
       reason: 'production_only_no_staging_database',
       rolloutGateSatisfied: false,
     })
+  })
+
+  it('fails before reading credentials when the CLI omits rollout mode', () => {
+    const result = spawnSync(
+      resolve(process.cwd(), 'node_modules/.bin/tsx'),
+      [
+        resolve(process.cwd(), 'scripts/run-deployed-bara-attendance-smoke.ts'),
+        '--stage',
+        'production',
+        '--expected-pika-origin',
+        'https://pika.example',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET: secret,
+          NEXT_PUBLIC_APP_URL: 'https://pika.example',
+        },
+      },
+    )
+
+    expect(result.status).toBe(2)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain('requires rollout mode')
   })
 })

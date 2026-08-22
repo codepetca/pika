@@ -90,8 +90,10 @@ that principal through the installation-scoped adapter.
    131. Do not edit or reapply migrations 129/130.
 2. Obtain separate authorization to apply only migration 131 to the named Pika
    production project and to deploy the matching reviewed commits. Run the
-   pre-enable static audits and deployed bidirectional smoke before any later
-   enablement or expansion decision.
+   guarded Bara production build and the deployed Pika `--mode pre-enable`
+   environment audit plus bidirectional smoke before any later enablement or
+   expansion decision. Downloaded Vercel Sensitive values are not audit
+   evidence because Vercel redacts them.
 3. Preserve the exact canary only. Its roster, schedule, session, QR mark,
    projection, and duplicate-idempotency path passed on 2026-08-22. Nine
    credential-era failed events remain untouched; snapshot reconciliation
@@ -103,8 +105,9 @@ that principal through the installation-scoped adapter.
 5. Visually and functionally verify teacher and student flows on desktop/mobile
    and light/dark, including loading, success, duplicate, unmatched, invalid,
    closed, and unavailable states.
-6. Before another exact-canary run, rerun the preflight with `--mode enabled`
-   and the deployed smoke. Expansion beyond that pair is a separate decision.
+6. Before another exact-canary run, rerun the deployed gate with `--mode
+   enabled`; it performs the Pika runtime preflight before the signed smoke.
+   Expansion beyond that pair is a separate decision.
 
 Archive-v2 does not yet know how to decommission Bara authority. Soft
 archive/restore preserves attendance rows, but compaction and permanent purge
