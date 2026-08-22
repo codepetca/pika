@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, PUT } from '@/app/api/teacher/attendance/policy/route'
 import { TeacherAttendancePolicyError } from '@/lib/server/bara-attendance-policy'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const {
   requireRole,
@@ -9,6 +10,7 @@ const {
   assertTeacherCanMutateClassroom,
   loadTeacherAttendancePolicy,
   saveTeacherAttendancePolicy,
+  assertBaraAttendanceCanaryClassroom,
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -16,6 +18,7 @@ const {
   assertTeacherCanMutateClassroom: vi.fn(),
   loadTeacherAttendancePolicy: vi.fn(),
   saveTeacherAttendancePolicy: vi.fn(),
+  assertBaraAttendanceCanaryClassroom: vi.fn(),
   supabase: { from: vi.fn(), rpc: vi.fn() },
 }))
 
@@ -37,6 +40,10 @@ vi.mock('@/lib/server/bara-attendance-policy', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-policy')>()
   return { ...actual, loadTeacherAttendancePolicy, saveTeacherAttendancePolicy }
 })
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return { ...actual, assertBaraAttendanceCanaryClassroom }
+})
 
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const policy = {
@@ -53,8 +60,11 @@ const policy = {
 describe('/api/teacher/attendance/policy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
-    assertTeacherOwnsClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
+    assertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true, classroom: { id: classroomId, archived_at: null },
+    })
     assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
     loadTeacherAttendancePolicy.mockResolvedValue(policy)
     saveTeacherAttendancePolicy.mockResolvedValue(policy)
@@ -69,6 +79,9 @@ describe('/api/teacher/attendance/policy', () => {
     expect(assertTeacherOwnsClassroom).toHaveBeenCalledWith(
       'teacher-1', classroomId, { supabase },
     )
+    expect(assertBaraAttendanceCanaryClassroom).toHaveBeenCalledWith({
+      teacherId: 'teacher-1', classroomId,
+    })
   })
 
   it('validates and saves a same-day policy with an expected revision', async () => {
@@ -91,6 +104,47 @@ describe('/api/teacher/attendance/policy', () => {
       closesLocal: '10:15',
       expectedRevision: 1,
     }))
+  })
+
+  it('does not read or save policy outside the exact canary', async () => {
+    assertBaraAttendanceCanaryClassroom.mockImplementation(() => {
+      throw new BaraAttendanceCanaryError('disabled')
+    })
+
+    const getResponse = await GET(new NextRequest(
+      `http://localhost/api/teacher/attendance/policy?classroom_id=${classroomId}`,
+    ))
+    const putResponse = await PUT(new NextRequest('http://localhost/api/teacher/attendance/policy', {
+      method: 'PUT',
+      body: JSON.stringify({
+        classroom_id: classroomId,
+        opens_local: '08:45',
+        closes_local: '10:15',
+        close_day_offset: 0,
+        enabled: true,
+        expected_revision: 1,
+      }),
+    }))
+
+    expect(getResponse.status).toBe(404)
+    expect(putResponse.status).toBe(404)
+    expect(loadTeacherAttendancePolicy).not.toHaveBeenCalled()
+    expect(saveTeacherAttendancePolicy).not.toHaveBeenCalled()
+  })
+
+  it('does not expose attendance policy for an archived canary classroom', async () => {
+    assertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true,
+      classroom: { id: classroomId, archived_at: '2026-08-21T12:00:00.000Z' },
+    })
+
+    const response = await GET(new NextRequest(
+      `http://localhost/api/teacher/attendance/policy?classroom_id=${classroomId}`,
+    ))
+
+    expect(response.status).toBe(403)
+    expect(assertBaraAttendanceCanaryClassroom).not.toHaveBeenCalled()
+    expect(loadTeacherAttendancePolicy).not.toHaveBeenCalled()
   })
 
   it('rejects an inverted same-day window before storage', async () => {

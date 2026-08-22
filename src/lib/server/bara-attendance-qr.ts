@@ -1,6 +1,5 @@
 import {
   BaraAttendanceClientError,
-  getBaraAttendanceIntegrationState,
   postBaraCheckInPresentation,
   type BaraCheckInPresentationResult,
 } from '@/lib/server/bara-attendance-client'
@@ -12,6 +11,7 @@ import {
 import type { V1CheckInPresentationRequest } from '@/vendor/attendance-contract/v1/types'
 import { sealAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
+import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
 
 const CHECK_IN_PATH = /^\/check-in\/([A-Za-z0-9._~-]{20,128})$/
 
@@ -74,7 +74,10 @@ export async function loadTeacherAttendanceQrPresentation(input: {
   send?: (payload: V1CheckInPresentationRequest) => Promise<BaraCheckInPresentationResult>
   sealEntryToken?: typeof sealAttendanceEntryToken
 }) {
-  const integrationState = input.integrationState ?? getBaraAttendanceIntegrationState()
+  const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
+    teacherId: input.teacherId,
+    classroomId: input.classroomId,
+  })
   if (integrationState !== 'ready') throw new TeacherAttendanceQrError(integrationState)
 
   const store = input.store ?? createSupabaseAttendanceCommandStore(input.supabase)
@@ -99,6 +102,7 @@ export async function loadTeacherAttendanceQrPresentation(input: {
     if (!pathMatch) throw new TeacherAttendanceQrError('upstream_unavailable')
 
     const entryToken = (input.sealEntryToken ?? sealAttendanceEntryToken)({
+      classroomId: input.classroomId,
       rosterRef: context.rosterRef,
       occurrenceRef: result.occurrenceRef,
       checkInToken: pathMatch[1],

@@ -100,8 +100,10 @@ describe('Bara attendance reconciliation', () => {
       { occurrence_ref: 'occurrence_three' },
     ]
     const batchRpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-      expect(name).toBe('list_attendance_reconciliation_targets_v1')
+      expect(name).toBe('list_attendance_reconciliation_targets_v2')
       expect(args).toEqual({
+        p_teacher_id: '10000000-0000-4000-8000-000000000001',
+        p_classroom_id: '20000000-0000-4000-8000-000000000002',
         p_now: '2026-09-02T14:00:00.000Z',
         p_lookback_hours: 48,
         p_limit: 3,
@@ -115,6 +117,8 @@ describe('Bara attendance reconciliation', () => {
     const summary = await reconcileBaraAttendanceSessions({
       supabase: { rpc: batchRpc } as never,
       enabled: true,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
       now: new Date('2026-09-02T14:00:00.000Z'),
       targetLimit: 2,
       concurrency: 2,

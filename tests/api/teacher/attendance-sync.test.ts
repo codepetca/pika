@@ -6,12 +6,14 @@ const {
   assertTeacherCanMutateClassroom,
   syncTeacherAttendanceSources,
   resolveVerifiedPikaAttendanceTeacher,
+  assertBaraAttendanceCanaryClassroom,
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   assertTeacherCanMutateClassroom: vi.fn(),
   syncTeacherAttendanceSources: vi.fn(),
   resolveVerifiedPikaAttendanceTeacher: vi.fn(),
+  assertBaraAttendanceCanaryClassroom: vi.fn(),
   supabase: { rpc: vi.fn() },
 }))
 
@@ -26,9 +28,14 @@ vi.mock('@/lib/server/bara-attendance-teacher', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-teacher')>()
   return { ...actual, resolveVerifiedPikaAttendanceTeacher }
 })
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return { ...actual, assertBaraAttendanceCanaryClassroom }
+})
 
 import { POST } from '@/app/api/teacher/attendance/sync/route'
 import { BaraAttendanceSyncError } from '@/lib/server/bara-attendance-sync'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const actor = { workosSubject: 'user_teacher', displayName: 'Teacher One' }
@@ -43,6 +50,7 @@ function request(body: unknown) {
 describe('POST /api/teacher/attendance/sync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' })
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
     assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true })
@@ -67,6 +75,25 @@ describe('POST /api/teacher/attendance/sync', () => {
       windowEnd: '2026-12-31',
       verifiedActor: actor,
     })
+    expect(assertBaraAttendanceCanaryClassroom).toHaveBeenCalledWith({
+      teacherId: 'teacher-1', classroomId,
+    })
+  })
+
+  it('stops before identity resolution outside the exact canary', async () => {
+    assertBaraAttendanceCanaryClassroom.mockImplementation(() => {
+      throw new BaraAttendanceCanaryError('disabled')
+    })
+
+    const response = await POST(request({
+      classroom_id: classroomId,
+      window_start: '2026-09-01',
+      window_end: '2026-12-31',
+    }))
+
+    expect(response.status).toBe(404)
+    expect(resolveVerifiedPikaAttendanceTeacher).not.toHaveBeenCalled()
+    expect(syncTeacherAttendanceSources).not.toHaveBeenCalled()
   })
 
   it('rejects reversed and oversized windows before source preparation', async () => {

@@ -2,7 +2,7 @@ import { addDays, format, parseISO } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { z } from 'zod'
 
-import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 import {
   BaraAttendanceSyncError,
   syncTeacherAttendanceSources,
@@ -35,8 +35,15 @@ function windowFor(now: Date, horizonDays: number) {
   }
 }
 
-async function loadTargets(supabase: any, targetLimit: number) {
-  const { data, error } = await supabase.rpc('list_attendance_sync_targets_v1', {
+async function loadTargets(
+  supabase: any,
+  teacherId: string,
+  classroomId: string,
+  targetLimit: number,
+) {
+  const { data, error } = await supabase.rpc('list_attendance_sync_targets_v2', {
+    p_teacher_id: teacherId,
+    p_classroom_id: classroomId,
     p_limit: targetLimit + 1,
   })
   if (error?.code === '42883' || error?.code === 'PGRST202') {
@@ -45,6 +52,11 @@ async function loadTargets(supabase: any, targetLimit: number) {
   if (error) throw new BaraAttendanceAutomationError('target_load_failed')
   const parsed = targetListSchema.safeParse(data ?? [])
   if (!parsed.success) throw new BaraAttendanceAutomationError('target_load_failed')
+  if (parsed.data.some((target) =>
+    target.teacher_id !== teacherId || target.classroom_id !== classroomId
+  )) {
+    throw new BaraAttendanceAutomationError('target_load_failed')
+  }
   return parsed.data
 }
 
@@ -82,16 +94,21 @@ export async function syncBaraAttendanceSchedules(input: {
   targetLimit?: number
   concurrency?: number
   integrationState?: 'disabled' | 'not_configured' | 'ready'
+  teacherId?: string
+  classroomId?: string
   sync?: typeof syncTeacherAttendanceSources
 }): Promise<BaraAttendanceAutomationSummary> {
-  const integrationState = input.integrationState ?? getBaraAttendanceIntegrationState()
+  const scope = getBaraAttendanceCanaryScope()
+  const integrationState = input.integrationState ?? scope.state
+  const teacherId = input.teacherId ?? scope.teacherId
+  const classroomId = input.classroomId ?? scope.classroomId
   const failures: Record<FailureReason, number> = {
     identity_not_linked: 0,
     policy_missing: 0,
     source_changed: 0,
     unavailable: 0,
   }
-  if (integrationState !== 'ready') {
+  if (integrationState !== 'ready' || !teacherId || !classroomId) {
     return {
       status: 'disabled',
       windowStart: null,
@@ -109,7 +126,7 @@ export async function syncBaraAttendanceSchedules(input: {
   const horizonDays = Math.min(400, Math.max(1, input.horizonDays ?? DEFAULT_HORIZON_DAYS))
   const concurrency = Math.min(5, Math.max(1, input.concurrency ?? DEFAULT_CONCURRENCY))
   const { windowStart, windowEnd } = windowFor(input.now ?? new Date(), horizonDays)
-  const loadedTargets = await loadTargets(input.supabase, targetLimit)
+  const loadedTargets = await loadTargets(input.supabase, teacherId, classroomId, targetLimit)
   const truncated = loadedTargets.length > targetLimit
   const targets = loadedTargets.slice(0, targetLimit)
   const sync = input.sync ?? syncTeacherAttendanceSources
