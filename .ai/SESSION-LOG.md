@@ -1320,21 +1320,31 @@ and browser logout. No hosted configuration or deployment was changed.
 - Added read-only silent restoration for an active WorkOS session. It recreates
   the Pika UUID/role mapping only from the existing exact
   `public.users.workos_user_id` link and never creates or relinks by email.
+  Restoration explicitly suppresses student login telemetry so it performs no
+  Pal outbox write or delivery attempt.
 - Preserved protected deep links and query strings through reauthentication by
   injecting a middleware-owned request-path header, stripping inbound spoofed
   values, and validating every returned internal path.
-- Routed browser logout through Pika cookie destruction and the WorkOS logout
-  URL so the server-side WorkOS session is invalidated, while retaining the
-  existing JSON logout endpoint as a compatibility surface.
+- Routed browser logout through a CSRF-protected same-origin POST, Pika cookie
+  destruction, and the WorkOS logout URL so the server-side WorkOS session is
+  invalidated. The retained JSON compatibility endpoint now explicitly revokes
+  the WorkOS session and clears local state even if provider revocation fails.
 - Updated the WorkOS rollout gate and operator guidance for the 180-day cookie,
-  Dashboard session settings, Preview/Production verification, and rollback.
+  an exact 180-day Dashboard absolute maximum, Preview/Production cutoff
+  verification, and rollback. The local Bara configurator now consumes the
+  shared duration constant instead of reintroducing the former 12-hour value.
 
 **Verification:**
-- Full Vitest passes 4,960 tests across 569 files. Lint, the clean production
-  build, diff checks, and the Pika audit pass.
+- Full Vitest passes 4,965 tests across 570 files. The full coverage run also
+  passes and restores `src/lib/auth.ts` to 100% branch coverage. Lint, the clean
+  production build, diff checks, and the Pika audit pass.
 - Playwright verification passes for the normal login and silent-restoration
   states on desktop/mobile in light/dark themes. The pre-auth surface is shared
   by teacher and student; both required stored-role captures were run.
+- The updated logout flow automatically reaches login in teacher desktop,
+  student mobile, and teacher mobile captures. Its transient status/manual
+  fallback state was separately inspected at desktop/mobile sizes in light and
+  dark themes with no overflow or readability issues.
 - Live local protected requests preserve full safe paths and query strings in
   `/login?next=...`. The shared `.env.local` was not modified; the local server
   used a process-only `WORKOS_COOKIE_MAX_AGE=15552000` override.

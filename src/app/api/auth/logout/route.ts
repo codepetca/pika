@@ -1,23 +1,21 @@
+import { getWorkOS, withAuth } from '@workos-inc/authkit-nextjs'
 import { NextResponse } from 'next/server'
-import { destroySession } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { cookies } from 'next/headers'
+import { clearLocalAuthenticationState } from '@/lib/server/workos-logout'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 
 export const POST = withErrorHandler('PostLogout', async () => {
-  await destroySession()
-
-  if (isWorkOSMagicAuthPilotEnabled()) {
-    const cookieStore = await cookies()
-    const workOSCookieNames = new Set([
-      process.env.WORKOS_COOKIE_NAME || 'wos-session',
-      'wos-session',
-      'pika-wos-session',
-    ])
-    for (const cookieName of workOSCookieNames) {
-      cookieStore.delete(cookieName)
+  try {
+    if (isWorkOSMagicAuthPilotEnabled()) {
+      const { sessionId } = await withAuth()
+      if (sessionId) {
+        await getWorkOS().userManagement.revokeSession({ sessionId })
+      }
     }
-    cookieStore.delete('pika_workos_magic')
+  } finally {
+    // Local state is cleared even when WorkOS is unavailable. Provider errors
+    // still propagate so legacy callers are never told that logout succeeded.
+    await clearLocalAuthenticationState()
   }
 
   return NextResponse.json({

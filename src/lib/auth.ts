@@ -65,10 +65,12 @@ export async function createSession(
   userId: string,
   email: string,
   role: UserRole,
-  options: { workosUserId?: string } = {},
+  options: {
+    workosUserId?: string
+    recordAuthenticationEvent?: boolean
+  } = {},
 ) {
   const session = await getSession()
-  const sessionId = randomUUID()
   session.user = {
     id: userId,
     email,
@@ -78,10 +80,10 @@ export async function createSession(
   }
   await session.save()
 
-  if (role === 'student') {
+  if (role === 'student' && options.recordAuthenticationEvent !== false) {
     await recordPalAuthenticatedSession({
       studentId: userId,
-      sessionId,
+      sessionId: randomUUID(),
     })
   }
 }

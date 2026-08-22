@@ -59,8 +59,11 @@ six-digit passcode flow.
 ## Remembered-session contract
 
 Pika's remembered-login contract is 180 days (`15,552,000` seconds). The Pika
-and WorkOS cookies must use the same browser lifetime; WorkOS Dashboard maximum
-and inactivity session lifetimes must not expire the credential earlier.
+and WorkOS cookies must use the same browser lifetime. The WorkOS Dashboard
+absolute maximum session lifetime must be exactly 180 days, while its inactivity
+timeout must be at least 180 days (or disabled). The exact absolute maximum is a
+deployment gate: it prevents AuthKit refreshes from turning remembered login
+into an indefinitely rolling session.
 
 The two cookies have different authority:
 
@@ -76,16 +79,20 @@ The two cookies have different authority:
 - Server and client reauthentication redirects preserve only a validated
   same-origin path. Middleware replaces any inbound path-header spoof before a
   protected server route builds its `/login?next=...` destination.
-- Browser logout destroys the Pika session, clears pending Magic Auth state,
-  and uses AuthKit logout to invalidate the WorkOS session. Configure the
-  WorkOS application's default Logout URI to Pika's `/login` URL.
+- Browser logout uses a same-origin POST, destroys the Pika session, clears
+  pending Magic Auth state, and uses AuthKit logout to invalidate the WorkOS
+  session. The legacy JSON logout endpoint explicitly revokes the WorkOS session
+  before reporting success. Configure the WorkOS application's default Logout
+  URI to Pika's `/login` URL.
 
 ### Preview and Production verification
 
 For each environment, verify all of the following before promotion:
 
-1. Set `WORKOS_COOKIE_MAX_AGE=15552000` and confirm the Dashboard session
-   lifetime settings do not shorten the 180-day contract.
+1. Set `WORKOS_COOKIE_MAX_AGE=15552000`. Record evidence that the Dashboard
+   absolute maximum session lifetime is exactly 180 days and the inactivity
+   timeout is at least 180 days (or disabled). Do not promote if the maximum is
+   shorter or longer.
 2. Confirm `pika_session` and the configured WorkOS cookie are secure,
    HTTP-only, same-site cookies whose `Max-Age` is `15552000` seconds.
 3. Sign in, remove only `pika_session`, and open a protected deep link with a
@@ -100,6 +107,8 @@ For each environment, verify all of the following before promotion:
    cannot silently restore authentication.
 7. Exercise one teacher and one student path, including a fresh code login, a
    restored session, a protected deep link, and logout.
+8. Using an environment-scoped test session at or beyond the Dashboard absolute
+   cutoff, confirm WorkOS rejects refresh and Pika cannot silently restore it.
 
 If any gate fails, disable `WORKOS_MAGIC_AUTH_PILOT` in that environment and
 redeploy. Do not weaken the exact-subject check or restore by email.

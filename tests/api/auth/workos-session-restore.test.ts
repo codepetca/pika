@@ -55,7 +55,10 @@ describe('POST /api/auth/workos/session/restore', () => {
       'pika-user-1',
       'student@example.com',
       'student',
-      { workosUserId: 'user_workos_1' },
+      {
+        workosUserId: 'user_workos_1',
+        recordAuthenticationEvent: false,
+      },
     )
   })
 

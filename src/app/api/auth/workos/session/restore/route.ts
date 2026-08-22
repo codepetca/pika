@@ -22,6 +22,7 @@ export const POST = withErrorHandler('RestoreWorkOSSession', async (request: Nex
 
   await createSession(pikaUser.id, pikaUser.email, pikaUser.role, {
     workosUserId: workosUser.id,
+    recordAuthenticationEvent: false,
   })
 
   return NextResponse.json(

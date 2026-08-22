@@ -11,8 +11,16 @@ const workOSMocks = vi.hoisted(() => ({
   withAuth: vi.fn(),
 }))
 
+const palMocks = vi.hoisted(() => ({
+  recordPalAuthenticatedSession: vi.fn(),
+}))
+
 vi.mock('@workos-inc/authkit-nextjs', () => ({
   withAuth: workOSMocks.withAuth,
+}))
+
+vi.mock('@/lib/server/pal-signals', () => ({
+  recordPalAuthenticatedSession: palMocks.recordPalAuthenticatedSession,
 }))
 
 // Mock iron-session
@@ -151,6 +159,16 @@ describe('auth utilities', () => {
       }))
     })
 
+    it('does not emit a student authentication event during silent restoration', async () => {
+      await createSession('user-1', 'test@student.com', 'student', {
+        workosUserId: 'user_workos_1',
+        recordAuthenticationEvent: false,
+      })
+
+      expect(mockSession.save).toHaveBeenCalledOnce()
+      expect(palMocks.recordPalAuthenticatedSession).not.toHaveBeenCalled()
+    })
+
     it('should overwrite existing session data', async () => {
       // Set initial user
       mockSession.user = {
@@ -280,6 +298,26 @@ describe('auth utilities', () => {
         user: {
           id: 'user_workos_2',
           email: 'student@example.com',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+    })
+
+    it('rejects a matching WorkOS subject whose normalized email differs', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+        version: 2,
+        workosUserId: 'user_workos_1',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_1',
+          email: 'different@example.com',
           emailVerified: true,
         },
       })

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { chmodSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { AUTH_SESSION_MAX_AGE_SECONDS } from '../src/lib/auth-session-policy'
 
 const PIKA_ORIGIN = 'http://localhost:3000'
 const BARA_ORIGIN = 'http://localhost:3001'
@@ -143,7 +144,7 @@ const nextPikaContents = upsertEnvironment(pikaContents, {
   NEXT_PUBLIC_APP_URL: PIKA_ORIGIN,
   WORKOS_MAGIC_AUTH_PILOT: 'true',
   WORKOS_COOKIE_NAME: 'pika-wos-session',
-  WORKOS_COOKIE_MAX_AGE: '43200',
+  WORKOS_COOKIE_MAX_AGE: String(AUTH_SESSION_MAX_AGE_SECONDS),
   WORKOS_MAGIC_AUTH_EMAIL_DELIVERY: 'brevo',
   WORKOS_MAGIC_AUTH_DEFAULT_EMAILS_DISABLED: 'true',
   ENABLE_MOCK_EMAIL: 'false',

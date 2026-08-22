@@ -19,13 +19,16 @@ vi.mock('@workos-inc/authkit-nextjs', () => ({
   withAuth: mocks.withAuth,
 }))
 
-import { GET } from '@/app/api/auth/workos/logout/route'
+import { POST } from '@/app/api/auth/workos/logout/route'
 
-function request() {
-  return new NextRequest('http://localhost:3000/api/auth/workos/logout')
+function request(origin = 'https://pika.example.test') {
+  return new NextRequest('https://pika.example.test/api/auth/workos/logout', {
+    method: 'POST',
+    headers: { origin },
+  })
 }
 
-describe('GET /api/auth/workos/logout', () => {
+describe('POST /api/auth/workos/logout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
@@ -40,7 +43,7 @@ describe('GET /api/auth/workos/logout', () => {
   })
 
   it('destroys both Pika and WorkOS authentication state', async () => {
-    const response = await GET(request(), { params: Promise.resolve({}) })
+    const response = await POST(request(), { params: Promise.resolve({}) })
 
     expect(mocks.destroySession).toHaveBeenCalledOnce()
     expect(mocks.deleteCookie).toHaveBeenCalledWith('pika-wos-session')
@@ -51,7 +54,7 @@ describe('GET /api/auth/workos/logout', () => {
       sessionId: 'session_workos_1',
       returnTo: 'https://pika.example.test/login',
     })
-    expect(response.status).toBe(307)
+    expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe(
       'https://api.workos.test/logout/session_workos_1',
     )
@@ -60,10 +63,10 @@ describe('GET /api/auth/workos/logout', () => {
   it('returns to login without invoking WorkOS when the pilot is disabled', async () => {
     vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
 
-    const response = await GET(request(), { params: Promise.resolve({}) })
+    const response = await POST(request(), { params: Promise.resolve({}) })
 
     expect(mocks.destroySession).toHaveBeenCalledOnce()
-    expect(response.status).toBe(307)
+    expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('https://pika.example.test/login')
     expect(mocks.withAuth).not.toHaveBeenCalled()
     expect(mocks.getLogoutUrl).not.toHaveBeenCalled()
@@ -72,9 +75,20 @@ describe('GET /api/auth/workos/logout', () => {
   it('returns locally when the WorkOS cookie no longer contains a session', async () => {
     mocks.withAuth.mockResolvedValueOnce({ sessionId: undefined })
 
-    const response = await GET(request(), { params: Promise.resolve({}) })
+    const response = await POST(request(), { params: Promise.resolve({}) })
 
     expect(response.headers.get('location')).toBe('https://pika.example.test/login')
     expect(mocks.getLogoutUrl).not.toHaveBeenCalled()
+  })
+
+  it('rejects cross-origin form posts before changing authentication state', async () => {
+    const response = await POST(request('https://evil.example'), {
+      params: Promise.resolve({}),
+    })
+
+    expect(response.status).toBe(403)
+    expect(mocks.destroySession).not.toHaveBeenCalled()
+    expect(mocks.deleteCookie).not.toHaveBeenCalled()
+    expect(mocks.withAuth).not.toHaveBeenCalled()
   })
 })
