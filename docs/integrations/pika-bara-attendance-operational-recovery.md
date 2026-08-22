@@ -43,6 +43,10 @@ change flags, or requeue hosted events.
    persisted as a hash and atomically consumed with its transport nonce. Output
    is aggregate only. Any skip, 401, 409, 429, 5xx, scope failure, malformed
    response, or failed direction blocks enablement and rollout expansion.
+   After successful operator authentication, a deployed-environment audit
+   failure returns only fixed check identifiers and aggregate pass/total counts;
+   it never returns configured values. Unauthorized responses contain neither
+   those identifiers nor configuration diagnostics.
    The CLI pins `--expected-pika-origin` to the independently configured
    `NEXT_PUBLIC_APP_URL` before reading the dedicated
    `BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET`; the route fails closed unless that
