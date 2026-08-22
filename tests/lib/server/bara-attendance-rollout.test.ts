@@ -5,6 +5,7 @@ import {
 } from '@/lib/server/bara-attendance-rollout'
 import {
   PIKA_ATTENDANCE_PRODUCTION_TARGET,
+  auditDeployedBaraAttendanceEnvironment,
   isDeployedBaraAttendanceEnvironmentReady,
 } from '@/lib/server/bara-attendance-deployed-preflight'
 
@@ -194,6 +195,14 @@ describe('deployed Bara attendance preflight', () => {
     const environment = readyProductionEnvironment()
     environment.VERCEL_ENV = 'preview'
     expect(isDeployedBaraAttendanceEnvironmentReady('pre-enable', environment)).toBe(false)
+    expect(auditDeployedBaraAttendanceEnvironment('pre-enable', environment)).toEqual({
+      ready: false,
+      stage: 'production',
+      attendanceMode: 'pre-enable',
+      passedCount: 0,
+      checkCount: 1,
+      failedChecks: ['deployed_production_runtime'],
+    })
 
     environment.VERCEL_ENV = 'production'
     environment.BARA_ATTENDANCE_API_BASE_URL = 'https://other.convex.site'
