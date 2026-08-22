@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 import { runDeployedBaraAttendanceSmoke } from '../../scripts/deployed-bara-attendance-smoke-runner'
@@ -64,5 +66,35 @@ describe('deployed Bara attendance smoke runner', () => {
     })
     expect(readOperatorSecret).not.toHaveBeenCalled()
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('executes the actual Preview CLI through the repository tsx runtime', () => {
+    const result = spawnSync(
+      resolve(process.cwd(), 'node_modules/.bin/tsx'),
+      [
+        resolve(process.cwd(), 'scripts/run-deployed-bara-attendance-smoke.ts'),
+        '--stage',
+        'preview',
+        '--expected-pika-origin',
+        'https://pika-preview.example',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET: '',
+          NEXT_PUBLIC_APP_URL: '',
+        },
+      },
+    )
+
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toEqual({
+      status: 'skipped',
+      reason: 'production_only_no_staging_database',
+      rolloutGateSatisfied: false,
+    })
   })
 })

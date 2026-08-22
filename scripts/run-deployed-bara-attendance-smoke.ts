@@ -14,13 +14,17 @@ if ((stage !== 'preview' && stage !== 'production') || !expectedPikaOrigin) {
   process.exit(2)
 }
 
-const result = await runDeployedBaraAttendanceSmoke({
-  stage,
-  expectedPikaOrigin,
-  configuredPikaOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
-  readOperatorSecret: () => process.env.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET ?? '',
-})
+async function main() {
+  const result = await runDeployedBaraAttendanceSmoke({
+    stage,
+    expectedPikaOrigin,
+    configuredPikaOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
+    readOperatorSecret: () => process.env.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET ?? '',
+  })
 
-if (result.error) process.stderr.write(`${result.error}\n`)
-if (result.output) process.stdout.write(`${JSON.stringify(result.output, null, 2)}\n`)
-if (result.exitCode !== 0) process.exitCode = result.exitCode
+  if (result.error) process.stderr.write(`${result.error}\n`)
+  if (result.output) process.stdout.write(`${JSON.stringify(result.output, null, 2)}\n`)
+  if (result.exitCode !== 0) process.exitCode = result.exitCode
+}
+
+void main()
