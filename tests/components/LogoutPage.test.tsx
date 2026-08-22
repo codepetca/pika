@@ -15,6 +15,7 @@ describe('LogoutPage', () => {
     render(<LogoutPage />)
 
     const button = screen.getByRole('button', { name: 'Continue signing out' })
+    expect(button).toHaveClass('min-h-control')
     const form = button.closest('form')
     expect(form).toHaveAttribute('action', '/api/auth/workos/logout')
     expect(form).toHaveAttribute('method', 'post')
