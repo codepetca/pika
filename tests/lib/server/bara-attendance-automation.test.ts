@@ -21,7 +21,7 @@ describe('Bara attendance schedule automation', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('materializes a Toronto rolling horizon for each eligible classroom', async () => {
-    const rpc = vi.fn(async () => ({ data: targets, error: null }))
+    const rpc = vi.fn(async () => ({ data: [targets[0]], error: null }))
     const sync = vi.fn(async () => ({
       roster: { outcome: 'applied', revision: 1 },
       schedule: { outcome: 'applied', revision: 1 },
@@ -32,15 +32,17 @@ describe('Bara attendance schedule automation', () => {
       now: new Date('2026-11-01T04:30:00.000Z'),
       horizonDays: 90,
       integrationState: 'ready',
+      teacherId: targets[0].teacher_id,
+      classroomId: targets[0].classroom_id,
       concurrency: 2,
       sync,
     })).resolves.toEqual({
       status: 'ok',
       windowStart: '2026-11-01',
       windowEnd: '2027-01-30',
-      eligible: 2,
-      attempted: 2,
-      synced: 2,
+      eligible: 1,
+      attempted: 1,
+      synced: 1,
       failed: 0,
       truncated: false,
       failures: {
@@ -50,8 +52,12 @@ describe('Bara attendance schedule automation', () => {
         unavailable: 0,
       },
     })
-    expect(rpc).toHaveBeenCalledWith('list_attendance_sync_targets_v1', { p_limit: 51 })
-    expect(sync).toHaveBeenCalledTimes(2)
+    expect(rpc).toHaveBeenCalledWith('list_attendance_sync_targets_v2', {
+      p_teacher_id: targets[0].teacher_id,
+      p_classroom_id: targets[0].classroom_id,
+      p_limit: 51,
+    })
+    expect(sync).toHaveBeenCalledTimes(1)
     expect(sync).toHaveBeenCalledWith(expect.objectContaining({
       teacherId: targets[0].teacher_id,
       classroomId: targets[0].classroom_id,
@@ -62,21 +68,22 @@ describe('Bara attendance schedule automation', () => {
   })
 
   it('returns aggregate-only partial health without exposing classroom IDs', async () => {
-    const rpc = vi.fn(async () => ({ data: targets, error: null }))
+    const rpc = vi.fn(async () => ({ data: [targets[0]], error: null }))
     const sync = vi.fn()
-      .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new BaraAttendanceSyncError('identity_not_linked'))
 
     const summary = await syncBaraAttendanceSchedules({
       supabase: { rpc },
       integrationState: 'ready',
+      teacherId: targets[0].teacher_id,
+      classroomId: targets[0].classroom_id,
       sync,
     })
 
     expect(summary).toMatchObject({
       status: 'partial',
-      attempted: 2,
-      synced: 1,
+      attempted: 1,
+      synced: 0,
       failed: 1,
       failures: { identity_not_linked: 1 },
     })
@@ -96,6 +103,8 @@ describe('Bara attendance schedule automation', () => {
     await expect(syncBaraAttendanceSchedules({
       supabase: { rpc },
       integrationState: 'ready',
+      teacherId: targets[0].teacher_id,
+      classroomId: targets[0].classroom_id,
     })).rejects.toMatchObject<BaraAttendanceAutomationError>({
       code: 'migration_required',
     })

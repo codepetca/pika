@@ -11,6 +11,7 @@ import {
 import type { V1SessionCommand } from '@/vendor/attendance-contract/v1/types'
 
 const classroomId = '20000000-0000-4000-8000-000000000002'
+const teacherId = '10000000-0000-4000-8000-000000000001'
 const outboxId = '30000000-0000-4000-8000-000000000003'
 const leaseToken = '40000000-0000-4000-8000-000000000004'
 const message: V1SessionCommand = {
@@ -239,7 +240,7 @@ describe('Bara attendance outbound outbox', () => {
 
   it('drains claimed rows and classifies retryable failures', async () => {
     const supabase = rpcClient((name) => {
-      if (name === 'claim_attendance_outbox_batch_v1') {
+      if (name === 'claim_attendance_outbox_batch_v2') {
         return [row('processing', { attempts: 2 })]
       }
       if (name === 'retry_attendance_outbox_v1') return true
@@ -249,6 +250,8 @@ describe('Bara attendance outbound outbox', () => {
     await expect(deliverBaraAttendanceOutboxBatch({
       supabase,
       enabled: true,
+      teacherId,
+      classroomId,
       now: new Date('2026-08-16T12:00:00.000Z'),
       deliver: vi.fn().mockRejectedValue(new BaraAttendanceClientError(
         'unavailable',
@@ -266,7 +269,7 @@ describe('Bara attendance outbound outbox', () => {
 
   it('returns aggregate-only delivery health and degrades while any work remains', async () => {
     const supabase = rpcClient((name) => {
-      if (name === 'attendance_outbox_health_v1') {
+      if (name === 'attendance_outbox_health_v2') {
         return {
           pending: 2,
           processing: 1,
@@ -278,7 +281,12 @@ describe('Bara attendance outbound outbox', () => {
       throw new Error(`unexpected rpc ${name}`)
     })
 
-    const health = await getBaraAttendanceOutboxHealth({ supabase, enabled: true })
+    const health = await getBaraAttendanceOutboxHealth({
+      supabase,
+      enabled: true,
+      teacherId,
+      classroomId,
+    })
 
     expect(health).toEqual({
       status: 'degraded',
@@ -317,6 +325,8 @@ describe('Bara attendance outbound outbox', () => {
     await expect(getBaraAttendanceOutboxHealth({
       supabase,
       enabled: true,
+      teacherId,
+      classroomId,
     })).resolves.toMatchObject({ status: 'ok', oldestUnresolvedAt: null })
   })
 })

@@ -2,7 +2,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import { z } from 'zod'
 
 const entryPayloadSchema = z.object({
-  v: z.literal(1),
+  v: z.literal(2),
+  i: z.string().uuid(),
   r: z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/),
   o: z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/),
   c: z.string().regex(/^[A-Za-z0-9._~-]{20,128}$/),
@@ -14,6 +15,7 @@ const IV_BYTES = 12
 const TAG_BYTES = 16
 
 export interface AttendanceEntryPayload {
+  classroomId: string
   rosterRef: string
   occurrenceRef: string
   checkInToken: string
@@ -40,7 +42,8 @@ export function sealAttendanceEntryToken(
 ): string {
   const expiresAt = Date.parse(payload.expiresAt)
   const parsed = entryPayloadSchema.safeParse({
-    v: 1,
+    v: 2,
+    i: payload.classroomId,
     r: payload.rosterRef,
     o: payload.occurrenceRef,
     c: payload.checkInToken,
@@ -65,6 +68,7 @@ export function openAttendanceEntryToken(
   if (!ENTRY_TOKEN_PATTERN.test(token)) throw new AttendanceEntryTokenError('invalid')
   try {
     const sealed = Buffer.from(token, 'base64url')
+    if (sealed.toString('base64url') !== token) throw new Error('non-canonical token')
     if (sealed.length <= IV_BYTES + TAG_BYTES) throw new Error('short token')
     const iv = sealed.subarray(0, IV_BYTES)
     const tag = sealed.subarray(IV_BYTES, IV_BYTES + TAG_BYTES)
@@ -79,6 +83,7 @@ export function openAttendanceEntryToken(
       throw new AttendanceEntryTokenError('expired')
     }
     return {
+      classroomId: parsed.i,
       rosterRef: parsed.r,
       occurrenceRef: parsed.o,
       checkInToken: parsed.c,

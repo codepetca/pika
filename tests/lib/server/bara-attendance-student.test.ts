@@ -6,6 +6,7 @@ import {
   resolveVerifiedPikaAttendanceStudent,
   StudentAttendanceCheckInError,
 } from '@/lib/server/bara-attendance-student'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const { withAuth } = vi.hoisted(() => ({ withAuth: vi.fn() }))
 vi.mock('@workos-inc/authkit-nextjs', () => ({ withAuth }))
@@ -14,9 +15,11 @@ const entrySecret = 'entry-token-secret-that-is-long-enough-for-tests'
 const pikaUser = { id: 'student-one', email: 'student@example.com', role: 'student' }
 const actor = { principalRef: 'principal_student_one', displayName: 'Student One' }
 const attemptId = '11111111-1111-4111-8111-111111111111'
+const classroomId = '20000000-0000-4000-8000-000000000002'
 
 function entryToken() {
   return sealAttendanceEntryToken({
+    classroomId,
     rosterRef: 'roster_one',
     occurrenceRef: 'occurrence_one',
     checkInToken: 'check_in_token_1234567890',
@@ -192,6 +195,52 @@ describe('native Pika student attendance check-in', () => {
       resolveActor,
       send,
     })).rejects.toEqual(new StudentAttendanceCheckInError('invalid_entry'))
+    expect(resolveActor).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('does not resolve a student or call Bara for a non-canary classroom token', async () => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'true')
+    vi.stubEnv('BARA_ATTENDANCE_API_BASE_URL', 'https://attendance-api.example')
+    vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'integration-secret-with-at-least-32-characters')
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID', '10000000-0000-4000-8000-000000000001')
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID', '30000000-0000-4000-8000-000000000003')
+    const resolveActor = vi.fn()
+    const send = vi.fn()
+
+    await expect(executeStudentAttendanceCheckIn({
+      supabase: {},
+      pikaUser,
+      entryToken: entryToken(),
+      attemptId,
+      resolveActor,
+      send,
+    })).rejects.toEqual(new StudentAttendanceCheckInError('disabled'))
+    expect(resolveActor).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('rejects a transferred canary classroom before resolving the student', async () => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'true')
+    vi.stubEnv('BARA_ATTENDANCE_API_BASE_URL', 'https://attendance-api.example')
+    vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'integration-secret-with-at-least-32-characters')
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID', '10000000-0000-4000-8000-000000000001')
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID', classroomId)
+    const resolveActor = vi.fn()
+    const send = vi.fn()
+    const verifyCanaryClassroom = vi.fn().mockRejectedValue(
+      new BaraAttendanceCanaryError('disabled'),
+    )
+
+    await expect(executeStudentAttendanceCheckIn({
+      supabase: {},
+      pikaUser,
+      entryToken: entryToken(),
+      attemptId,
+      resolveActor,
+      send,
+      verifyCanaryClassroom,
+    })).rejects.toEqual(new StudentAttendanceCheckInError('disabled'))
     expect(resolveActor).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
   })

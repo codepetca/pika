@@ -106,7 +106,7 @@ function StudentPalHostLayers() {
         ariaLabel="Reward earned"
         closeOnEscape={!rewardPending}
         closeOnBackdrop={!rewardPending}
-        panelClassName="w-full max-w-lg"
+        panelClassName="flex w-full max-w-lg justify-center"
       >
         <PalWidgetThemeBoundary>
           <PalRewardCelebration

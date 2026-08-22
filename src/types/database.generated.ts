@@ -6589,6 +6589,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      apply_attendance_event_for_classroom_v1: {
+        Args: {
+          p_classroom_id: string
+          p_event: Json
+          p_teacher_id: string
+          p_transport_nonce: string
+        }
+        Returns: Json
+      }
       apply_attendance_event_v1: {
         Args: { p_event: Json; p_transport_nonce: string }
         Returns: Json
@@ -6703,6 +6712,10 @@ export type Database = {
         Returns: boolean
       }
       attendance_outbox_health_v1: { Args: never; Returns: Json }
+      attendance_outbox_health_v2: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       attendance_roster_source_document_v1: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -7092,6 +7105,39 @@ export type Database = {
       }
       claim_attendance_outbox_batch_v1: {
         Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_attendance_outbox_batch_v2: {
+        Args: {
+          p_classroom_id: string
+          p_lease_seconds?: number
+          p_limit?: number
+          p_teacher_id: string
+        }
         Returns: {
           attempts: number
           classroom_id: string
@@ -8423,8 +8469,22 @@ export type Database = {
         Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }
         Returns: Json
       }
+      list_attendance_reconciliation_targets_v2: {
+        Args: {
+          p_classroom_id: string
+          p_limit?: number
+          p_lookback_hours?: number
+          p_now: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       list_attendance_sync_targets_v1: {
         Args: { p_limit?: number }
+        Returns: Json
+      }
+      list_attendance_sync_targets_v2: {
+        Args: { p_classroom_id: string; p_limit?: number; p_teacher_id: string }
         Returns: Json
       }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }

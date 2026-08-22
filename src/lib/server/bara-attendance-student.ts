@@ -11,6 +11,11 @@ import {
   openAttendanceEntryToken,
 } from '@/lib/server/bara-attendance-entry-token'
 import type { V1StudentCheckIn } from '@/vendor/attendance-contract/v1/types'
+import {
+  assertBaraAttendanceCanaryClassroomOwner,
+  BaraAttendanceCanaryError,
+  getBaraAttendanceClassroomIdIntegrationState,
+} from '@/lib/server/bara-attendance-canary'
 
 const actorUserSchema = z.object({
   email: z.string().email(),
@@ -151,10 +156,11 @@ export async function executeStudentAttendanceCheckIn(input: {
   integrationState?: 'disabled' | 'not_configured' | 'ready'
   resolveActor?: typeof resolveVerifiedPikaAttendanceStudent
   send?: (payload: V1StudentCheckIn) => Promise<BaraStudentCheckInResult>
+  verifyCanaryClassroom?: typeof assertBaraAttendanceCanaryClassroomOwner
 }) {
-  const integrationState = input.integrationState ?? getBaraAttendanceIntegrationState()
-  if (integrationState !== 'ready') {
-    throw new StudentAttendanceCheckInError(integrationState)
+  const transportState = input.integrationState ?? getBaraAttendanceIntegrationState()
+  if (transportState !== 'ready') {
+    throw new StudentAttendanceCheckInError(transportState)
   }
 
   let entry
@@ -167,6 +173,25 @@ export async function executeStudentAttendanceCheckIn(input: {
       throw new StudentAttendanceCheckInError('invalid_entry')
     }
     throw error
+  }
+
+  const classroomState = input.integrationState
+    ?? getBaraAttendanceClassroomIdIntegrationState(entry.classroomId)
+  if (classroomState !== 'ready') {
+    throw new StudentAttendanceCheckInError(classroomState)
+  }
+  if (!input.integrationState) {
+    try {
+      await (input.verifyCanaryClassroom ?? assertBaraAttendanceCanaryClassroomOwner)({
+        supabase: input.supabase,
+        classroomId: entry.classroomId,
+      })
+    } catch (error) {
+      if (error instanceof BaraAttendanceCanaryError) {
+        throw new StudentAttendanceCheckInError(error.code)
+      }
+      throw error
+    }
   }
 
   const actor = await (input.resolveActor ?? resolveVerifiedPikaAttendanceStudent)({

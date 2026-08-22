@@ -3,7 +3,11 @@ import { requireRole } from '@/lib/auth'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
-import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import {
+  assertBaraAttendanceCanaryClassroom,
+  BaraAttendanceCanaryError,
+  getBaraAttendanceClassroomIntegrationState,
+} from '@/lib/server/bara-attendance-canary'
 import {
   loadTeacherAttendanceView,
   TeacherAttendanceViewReadError,
@@ -32,11 +36,17 @@ export const GET = withErrorHandler('GetTeacherAttendanceSession', async (reques
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    const integration = ownership.classroom.archived_at
+      ? 'disabled'
+      : getBaraAttendanceClassroomIntegrationState({
+          teacherId: user.id,
+          classroomId: input.classroom_id,
+        })
     const view = await loadTeacherAttendanceView({
       supabase,
       classroomId: input.classroom_id,
       classDate: input.date,
-      integration: getBaraAttendanceIntegrationState(),
+      integration,
     })
     return NextResponse.json(view)
   } catch (error) {
@@ -48,6 +58,14 @@ export const GET = withErrorHandler('GetTeacherAttendanceSession', async (reques
 })
 
 function mapCommandError(error: unknown): never {
+  if (error instanceof BaraAttendanceCanaryError) {
+    throw new ApiError(
+      error.code === 'disabled' ? 404 : 503,
+      error.code === 'disabled'
+        ? 'Attendance is not enabled for this classroom'
+        : 'Attendance is temporarily unavailable',
+    )
+  }
   if (error instanceof TeacherAttendanceIdentityError) {
     if (error.code === 'identity_not_linked') {
       throw new ApiError(409, 'Attendance identity is not linked')
@@ -74,6 +92,10 @@ export const POST = withErrorHandler('PostTeacherAttendanceSession', async (requ
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    assertBaraAttendanceCanaryClassroom({
+      teacherId: user.id,
+      classroomId: input.classroom_id,
+    })
     const actor = await resolveVerifiedPikaAttendanceTeacher({ supabase, pikaUser: user })
     const result = await executeTeacherAttendanceSessionCommand({
       supabase,
