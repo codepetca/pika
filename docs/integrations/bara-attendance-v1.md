@@ -45,10 +45,11 @@ plus a teacher-local Toronto attendance-window policy. The authenticated
 read-only teacher route joins authoritative projections through those mappings
 and strips all opaque service references before returning browser-facing state.
 It returns a disabled view without touching integration tables while the
-feature is not ready. Migration 127 provides the base schema; production
-canary readiness additionally requires already-applied migration 129,
-separately authorized and applied migration 130, and both global attendance
-flags remaining false until the exact-pair pre-enable audit passes.
+feature is not ready. Migration 127 provides the base schema; the completed
+production canary proof additionally used migrations 129 and 130. This
+operational-recovery release requires separately authorized migration 131 and
+both global attendance flags remaining false until the exact-pair deployed
+pre-enable gate passes.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -167,12 +168,14 @@ such as a Convex ID fails the request.
 
 The complete ownership, privacy, route, event, versioning, and acceptance
 baseline is maintained in Bara's
-`docs/system/pika-bara-contract-v1.md`. The next gate is an explicitly
-authorized production application of Pika migration 130 while attendance is
-disabled, followed by a real
-roster/schedule/session/mark/event/snapshot/QR round trip. The Attendance UI
-remains disabled by configuration until that gate passes. Its teacher flow,
-state family, and Pika-owned view-model boundary are maintained in
+`docs/system/pika-bara-contract-v1.md`. The current recovery gate is an
+explicitly authorized production application (or verified prior application)
+of Pika migration 131 while attendance is disabled, followed by the deployed
+signed `pre-enable` round trip. Only after that gate passes and enablement is
+separately authorized may the exact canary rerun its real
+roster/schedule/session/mark/event/snapshot/QR flow. The Attendance UI remains
+disabled by configuration until those gates pass. Its teacher flow, state
+family, and Pika-owned view-model boundary are maintained in
 `docs/guidance/pika-attendance-teacher-surface-v1.md`.
 
 Attendance integration state is intentionally nonportable in archive-v2.
@@ -252,7 +255,7 @@ count toward that limit or incur compute charges. Do not resume or repurpose
 no-charge route to a future hosted load test is to obtain explicit permission
 to pause one named active project, provision a fresh Pika Preview target, and
 then obtain the separate one-time authorization required by the schema rollout
-checklist to apply the complete migration history through 130 to that target.
+checklist to apply the complete migration history through 131 to that target.
 
 References: [Supabase Free Plan billing](https://supabase.com/docs/guides/platform/billing-on-supabase)
 and [project pausing](https://supabase.com/docs/guides/platform/free-project-pausing).
