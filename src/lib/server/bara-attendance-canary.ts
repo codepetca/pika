@@ -33,6 +33,11 @@ export function getBaraAttendanceCanaryScope(): BaraAttendanceCanaryScope {
   const state = getBaraAttendanceIntegrationState()
   if (state !== 'ready') return { state, teacherId: null, classroomId: null }
 
+  return getConfiguredBaraAttendanceCanaryScope()
+}
+
+export function getConfiguredBaraAttendanceCanaryScope(): BaraAttendanceCanaryScope {
+
   const teacher = uuidSchema.safeParse(
     process.env.PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID?.trim(),
   )
@@ -117,6 +122,22 @@ export async function assertBaraAttendanceCanaryClassroomOwner(input: {
     throw new BaraAttendanceCanaryError('disabled')
   }
 
+  const audit = await auditBaraAttendanceCanaryDatabaseScope({
+    supabase: input.supabase,
+    teacherId: scope.teacherId,
+    classroomId: input.classroomId,
+  })
+  if (!audit.ready) throw new BaraAttendanceCanaryError('not_configured')
+}
+
+export async function assertConfiguredBaraAttendanceCanaryClassroomOwner(input: {
+  supabase: any
+  classroomId: string
+}): Promise<void> {
+  const scope = getConfiguredBaraAttendanceCanaryScope()
+  if (scope.state !== 'ready' || !scope.teacherId || scope.classroomId !== input.classroomId) {
+    throw new BaraAttendanceCanaryError('not_configured')
+  }
   const audit = await auditBaraAttendanceCanaryDatabaseScope({
     supabase: input.supabase,
     teacherId: scope.teacherId,

@@ -42,6 +42,17 @@ begin
   ) then
     raise exception 'Migration 130 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '131'
+  ) or to_regprocedure(
+    'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text)'
+  ) is null or to_regprocedure(
+    'public.complete_attendance_integration_smoke_v1(text,uuid,uuid,text,boolean,boolean,boolean,text)'
+  ) is null or to_regprocedure(
+    'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz)'
+  ) is null then
+    raise exception 'Migration 131 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -61,7 +72,9 @@ begin
     'attendance_integration_outbox',
     'attendance_integration_inbox',
     'attendance_session_projection',
-    'attendance_record_projection'
+    'attendance_record_projection',
+    'attendance_integration_smoke_runs',
+    'attendance_integration_smoke_nonces'
   ] loop
     if has_table_privilege('anon', 'public.' || v_table, 'SELECT')
       or has_table_privilege('authenticated', 'public.' || v_table, 'SELECT')
@@ -100,6 +113,34 @@ begin
     )
   then
     raise exception 'Attendance internal delivery functions are exposed';
+  end if;
+  if has_function_privilege(
+      'authenticated',
+      'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.complete_attendance_integration_smoke_v1(text,uuid,uuid,text,boolean,boolean,boolean,text)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.complete_attendance_integration_smoke_v1(text,uuid,uuid,text,boolean,boolean,boolean,text)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz)',
+      'execute'
+    )
+  then
+    raise exception 'Attendance smoke functions are exposed';
   end if;
 end;
 $privileges$;

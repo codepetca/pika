@@ -21,6 +21,7 @@
     "db:types:generate": "bash scripts/supabase-types.sh generate",
     "db:types:check": "bash scripts/supabase-types.sh check",
     "attendance:rollout:preflight": "tsx scripts/check-bara-attendance-rollout.ts",
+    "attendance:smoke:deployed": "tsx scripts/run-deployed-bara-attendance-smoke.ts",
     "attendance:load:scans": "tsx scripts/measure-bara-attendance-scans.ts",
     "attendance:load:local-engine": "tsx scripts/measure-local-bara-attendance-engine.ts",
     "attendance:local:configure": "tsx scripts/configure-local-bara-attendance.ts",

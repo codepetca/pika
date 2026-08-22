@@ -1263,6 +1263,87 @@ export type Database = {
           },
         ]
       }
+      attendance_integration_smoke_nonces: {
+        Row: {
+          created_at: string
+          direction: string
+          installation_ref: string
+          nonce: string
+          request_timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          installation_ref: string
+          nonce: string
+          request_timestamp: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          installation_ref?: string
+          nonce?: string
+          request_timestamp?: string
+        }
+        Relationships: []
+      }
+      attendance_integration_smoke_runs: {
+        Row: {
+          bara_to_pika: boolean | null
+          classroom_id: string
+          created_at: string
+          error_code: string | null
+          finished_at: string | null
+          id: string
+          installation_ref: string
+          pika_to_bara: boolean | null
+          request_id: string
+          status: string
+          teacher_id: string
+        }
+        Insert: {
+          bara_to_pika?: boolean | null
+          classroom_id: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          installation_ref: string
+          pika_to_bara?: boolean | null
+          request_id: string
+          status: string
+          teacher_id: string
+        }
+        Update: {
+          bara_to_pika?: boolean | null
+          classroom_id?: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          installation_ref?: string
+          pika_to_bara?: boolean | null
+          request_id?: string
+          status?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_integration_smoke_runs_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_integration_smoke_runs_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_occurrence_mappings: {
         Row: {
           class_date: string
@@ -6736,6 +6817,15 @@ export type Database = {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: boolean
       }
+      begin_attendance_integration_smoke_v1: {
+        Args: {
+          p_classroom_id: string
+          p_installation_ref: string
+          p_request_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       begin_classroom_archive_compaction: {
         Args: {
           p_archive_id: string
@@ -7630,6 +7720,19 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_attendance_integration_smoke_v1: {
+        Args: {
+          p_bara_to_pika: boolean
+          p_classroom_id: string
+          p_error_code: string
+          p_installation_ref: string
+          p_passed: boolean
+          p_pika_to_bara: boolean
+          p_request_id: string
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       complete_attendance_outbox_v1: {
         Args: {
           p_lease_token: string
@@ -7762,6 +7865,17 @@ export type Database = {
       }
       complete_test_document_snapshot_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
+        Returns: boolean
+      }
+      consume_attendance_integration_smoke_nonce_v1: {
+        Args: {
+          p_classroom_id: string
+          p_direction: string
+          p_installation_ref: string
+          p_nonce: string
+          p_request_timestamp: string
+          p_teacher_id: string
+        }
         Returns: boolean
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }

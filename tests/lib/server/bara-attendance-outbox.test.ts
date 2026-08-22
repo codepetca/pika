@@ -219,6 +219,59 @@ describe('Bara attendance outbound outbox', () => {
     ])
   })
 
+  it.each([
+    ['literal null', null],
+    ['all-null composite', {
+      id: null,
+      classroom_id: null,
+      idempotency_key: null,
+      message_type: null,
+      payload: null,
+      response_payload: null,
+      status: null,
+      attempts: null,
+      lease_token: null,
+    }],
+  ])('keeps durable delivery pending for a %s no-claim result', async (_shape, noClaim) => {
+    const supabase = rpcClient((name) => {
+      if (name === 'enqueue_attendance_outbound_message_v1') return row('pending')
+      if (name === 'claim_attendance_outbound_message_v1') return noClaim
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    const deliver = vi.fn()
+
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      classroomId,
+      message,
+      deliver,
+    })).rejects.toMatchObject<BaraAttendanceOutboxError>({
+      message: 'Attendance message is already awaiting delivery',
+      code: 'delivery_pending',
+      retryable: true,
+    })
+    expect(deliver).not.toHaveBeenCalled()
+  })
+
+  it('fails closed with sanitized diagnostics for a malformed non-null claim', async () => {
+    const supabase = rpcClient((name) => {
+      if (name === 'enqueue_attendance_outbound_message_v1') return row('pending')
+      if (name === 'claim_attendance_outbound_message_v1') return { id: null }
+      throw new Error(`unexpected rpc ${name}`)
+    })
+
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      classroomId,
+      message,
+      deliver: vi.fn(),
+    })).rejects.toMatchObject<BaraAttendanceOutboxError>({
+      message: 'Stored attendance outbox state is invalid',
+      code: 'invalid_stored_message',
+      retryable: false,
+    })
+  })
+
   it('fails closed when the same idempotency key is reused with different content', async () => {
     const supabase = {
       rpc: vi.fn().mockResolvedValue({

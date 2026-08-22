@@ -1290,3 +1290,21 @@ or UI changed.
 - The focused auth surface passes 154 tests across 16 files. Full Vitest passes
   4,970 tests across 570 files; lint, architecture boundaries, Pika audit,
   diff checks, and the production build pass.
+
+## 2026-08-22 — Make attendance recovery and credential smoke fail closed
+
+**Risk profile:** runtime-platform — cross-service authentication, private
+database state, and operator recovery; no hosted data, flags, configuration,
+deployment, or production state changed.
+
+- Normalized literal-null and all-null attendance outbox claim responses to a
+  durable pending result, while sanitizing malformed composite diagnostics.
+- Added migration 131 for private, service-role-only, canary-scoped smoke audit
+  runs and replay nonces with rate limits and bounded nonce cleanup.
+- Added production-only deployed Pika-to-Bara and Bara-to-Pika credential proof
+  routes. The signed exchange is tenant, installation, teacher, classroom, and
+  canary bound; it stores aggregate booleans and never mutates attendance data.
+- Documented recovery invariants, production-only Preview skip rules, rollout
+  ordering, and the explicit authorization boundary for migration/deployment.
+- Local migration reset, generated-type parity, database privilege guard, full
+  4,980-test suite, lint, and production build pass.
