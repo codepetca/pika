@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { withErrorHandler } from '@/lib/api-handler'
-import { isDeployedBaraAttendanceEnvironmentReady } from '@/lib/server/bara-attendance-deployed-preflight'
+import { auditDeployedBaraAttendanceEnvironment } from '@/lib/server/bara-attendance-deployed-preflight'
 import { runBaraAttendanceSmoke } from '@/lib/server/bara-attendance-smoke'
 
 export const dynamic = 'force-dynamic'
@@ -30,8 +30,14 @@ export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: 
   if (!rolloutMode.success) {
     return NextResponse.json({ error: 'Invalid rollout mode' }, { status: 400 })
   }
-  if (!isDeployedBaraAttendanceEnvironmentReady(rolloutMode.data)) {
-    return NextResponse.json({ error: 'Deployed attendance preflight failed' }, {
+  const deployedPreflight = auditDeployedBaraAttendanceEnvironment(rolloutMode.data)
+  if (!deployedPreflight.ready) {
+    return NextResponse.json({
+      error: 'Deployed attendance preflight failed',
+      failedChecks: deployedPreflight.failedChecks,
+      passedCount: deployedPreflight.passedCount,
+      checkCount: deployedPreflight.checkCount,
+    }, {
       status: 503,
       headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
     })

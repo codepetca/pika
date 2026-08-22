@@ -22267,3 +22267,45 @@ deployment, credential, or rollout state changed.
 - The rollout is locally ready but hosted verification remains blocked on one
   exact isolated non-production Supabase target. Do not repoint Preview at
   production or enable paid branching without an explicit environment choice.
+
+<!-- pika-session-log-archive-batch:c167964f6491f28fa917c1de8d94d249440abff16e63b120a6ea58c737df80c3 -->
+## 2026-08-17 — Expose automatic attendance hours in the native teacher flow
+
+**Risk profile:** teacher UX and schedule materialization. No hosted database,
+deployment, credential, or external configuration changed.
+
+**Completed:**
+- Added an Attendance Hours action and accessible dialog to the native Pika
+  Attendance pane so a teacher can explicitly set Toronto opening/closing
+  times, same-day or overnight close, and automatic operation.
+- Kept the no-guess boundary: a new policy starts with blank required times and
+  same-day closing is validated before any write.
+- Sent the existing optimistic policy revision on save, then requested the same
+  bounded 90-day roster/schedule sync used by automation. If immediate delivery
+  fails, Pika reports that the saved policy will retry rather than claiming the
+  schedule is current.
+- Reused Pika-owned routes and primitives; the browser receives no Bara,
+  Convex, WorkOS, or integration identifiers.
+- Made WorkOS the effective browser-session authority whenever the pilot flag
+  is on: `pika_session` is accepted only with a verified WorkOS session whose
+  normalized email matches the Pika user. Legacy, missing, unverified, and
+  mismatched WorkOS pairings fail closed, while flag-off rollback is unchanged.
+- Rebased the dirty feature worktree safely onto current `origin/main`
+  (`d19286d9`), retained main's migration 125 and timezone-safe calendar date
+  parsing, and kept attendance migration 127 as the only new schema version.
+- Rechecked Supabase read-only after the sync: `Pika` and `Codepet HQ` occupy
+  the two active Free slots, while an unverified `Attend` project is inactive.
+  No project was resumed, paused, created, linked, reset, or otherwise changed.
+
+**Validation:**
+- The post-sync full suite passes 4,551 tests across 538 files. Production
+  build, TypeScript, generated database types, architecture boundaries across
+  751 modules, design/UI policies, session-log validation, and diff hygiene
+  pass.
+- Focused WorkOS/Pika session, handoff, QR-entry, Magic Auth verification,
+  attendance UI/contract, and migration coverage passes 97/97.
+
+**Next gate:**
+- Apply migration 127 to one explicitly authorized isolated non-production
+  Supabase target, then prove policy save, immediate materialization, automatic
+  Bara open/close, and teacher/student attendance in the real cross-app smoke.

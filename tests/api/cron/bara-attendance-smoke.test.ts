@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { isDeployedBaraAttendanceEnvironmentReady, runBaraAttendanceSmoke } = vi.hoisted(() => ({
-  isDeployedBaraAttendanceEnvironmentReady: vi.fn(),
+const { auditDeployedBaraAttendanceEnvironment, runBaraAttendanceSmoke } = vi.hoisted(() => ({
+  auditDeployedBaraAttendanceEnvironment: vi.fn(),
   runBaraAttendanceSmoke: vi.fn(),
 }))
 
 vi.mock('@/lib/server/bara-attendance-smoke', () => ({ runBaraAttendanceSmoke }))
 vi.mock('@/lib/server/bara-attendance-deployed-preflight', () => ({
-  isDeployedBaraAttendanceEnvironmentReady,
+  auditDeployedBaraAttendanceEnvironment,
 }))
 
 import { POST } from '@/app/api/cron/bara-attendance-smoke/route'
@@ -22,7 +22,14 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     vi.stubEnv('CRON_SECRET', 'shared-cron-secret-that-must-not-authorize-smoke')
     vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'pika-to-bara-secret-that-is-distinct-and-long')
     vi.stubEnv('BARA_ATTENDANCE_EVENT_SECRET', 'bara-to-pika-secret-that-is-distinct-and-long')
-    isDeployedBaraAttendanceEnvironmentReady.mockReturnValue(true)
+    auditDeployedBaraAttendanceEnvironment.mockReturnValue({
+      ready: true,
+      stage: 'production',
+      attendanceMode: 'pre-enable',
+      passedCount: 22,
+      checkCount: 22,
+      failedChecks: [],
+    })
     runBaraAttendanceSmoke.mockResolvedValue({
       status: 'passed',
       checks: { canaryScope: true, pikaToBara: true, baraToPika: true },
@@ -40,6 +47,8 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     }) as never)
 
     expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect(auditDeployedBaraAttendanceEnvironment).not.toHaveBeenCalled()
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
   })
 
@@ -53,7 +62,7 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     }) as never)
 
     expect(response.status).toBe(200)
-    expect(isDeployedBaraAttendanceEnvironmentReady).toHaveBeenCalledWith('pre-enable')
+    expect(auditDeployedBaraAttendanceEnvironment).toHaveBeenCalledWith('pre-enable')
     expect(runBaraAttendanceSmoke).toHaveBeenCalledWith({ attendanceMode: 'pre-enable' })
   })
 
@@ -69,12 +78,19 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     }) as never)
 
     expect(response.status).toBe(400)
-    expect(isDeployedBaraAttendanceEnvironmentReady).not.toHaveBeenCalled()
+    expect(auditDeployedBaraAttendanceEnvironment).not.toHaveBeenCalled()
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
   })
 
   it('fails closed before smoke state when the deployed environment audit fails', async () => {
-    isDeployedBaraAttendanceEnvironmentReady.mockReturnValue(false)
+    auditDeployedBaraAttendanceEnvironment.mockReturnValue({
+      ready: false,
+      stage: 'production',
+      attendanceMode: 'enabled',
+      passedCount: 20,
+      checkCount: 22,
+      failedChecks: ['attendance_enabled', 'distinct_integration_secrets'],
+    })
 
     const response = await POST(new Request('https://pika.example/api/cron/bara-attendance-smoke', {
       method: 'POST',
@@ -85,7 +101,15 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     }) as never)
 
     expect(response.status).toBe(503)
-    expect(isDeployedBaraAttendanceEnvironmentReady).toHaveBeenCalledWith('enabled')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(await response.json()).toEqual({
+      error: 'Deployed attendance preflight failed',
+      failedChecks: ['attendance_enabled', 'distinct_integration_secrets'],
+      passedCount: 20,
+      checkCount: 22,
+    })
+    expect(auditDeployedBaraAttendanceEnvironment).toHaveBeenCalledWith('enabled')
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
   })
 
