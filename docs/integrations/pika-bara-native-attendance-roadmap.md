@@ -1,7 +1,8 @@
 # Native Pika attendance powered by Bara
 
-Status: local implementation complete; migration 129, hosted flow, latency, and
-production canary gates remain.
+Status: local implementation complete and production migration 129 applied;
+migration 130 capability retirement, hosted flow, latency, and production
+canary gates remain.
 
 Risk profile: `runtime-platform`.
 
@@ -84,10 +85,11 @@ that principal through the installation-scoped adapter.
 
 ## Remaining gates
 
-1. Review and deploy Pika migration 129, which adds exact teacher/classroom
-   scoping to event ingress and unattended worker RPCs. Migrations 126–128 are
-   already deployed; 129 has only been reset/replayed against the disposable
-   local stack.
+1. Review the disabled production release and migration 130, which revokes
+   service-role access to the unscoped worker/event RPCs superseded by the
+   migration-129 teacher/classroom-scoped variants. Production migration 129 is
+   already applied and must not be edited or reapplied. Apply 130 only after a
+   separate one-time production authorization.
 2. Configure the exact production teacher/classroom UUID pair while keeping
    Pika and Bara's global attendance flags false. There is no staging database,
    so rollout proceeds as a disabled production deployment followed by a

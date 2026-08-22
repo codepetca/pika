@@ -41,7 +41,9 @@ journey check.
 Run this only after all of these are true:
 
 1. The target is an explicitly authorized, isolated Pika Preview deployment.
-2. Supabase migration 127 is applied only to that preview database.
+2. The preview database has the full Pika migration history through migration
+   130. There is currently no isolated preview database, so this hosted harness
+   remains blocked and must not be pointed at production.
 3. Matching Pika and Bara previews pass `attendance:rollout:preflight` and the
    signed roster, schedule, session, event, and reconciliation smoke.
 4. A test attendance occurrence is open and allowlisted for the exercise.
