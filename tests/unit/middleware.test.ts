@@ -1,17 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
 
-vi.mock('@workos-inc/authkit-nextjs', () => ({
-  authkitMiddleware: vi.fn(),
+const workOSMocks = vi.hoisted(() => ({
+  authkit: vi.fn(),
+  partitionAuthkitHeaders: vi.fn(),
+  applyResponseHeaders: vi.fn((response: Response, headers: Headers) => {
+    for (const [name, value] of headers) response.headers.set(name, value)
+    return response
+  }),
 }))
 
-import { config } from '@/middleware'
+vi.mock('@workos-inc/authkit-nextjs', () => workOSMocks)
+
+import middleware, { config } from '@/middleware'
+import { PIKA_REQUEST_PATH_HEADER } from '@/lib/auth-redirect'
 
 const [matcher] = config.matcher
 const matchesPath = (pathname: string) => new RegExp(`^${matcher}$`).test(pathname)
 
 describe('AuthKit middleware matcher', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
   it('keeps passive assets out of AuthKit while covering application routes', () => {
     expect(matchesPath('/favicon.ico')).toBe(false)
     expect(matchesPath('/faviconXico')).toBe(true)
@@ -48,5 +59,34 @@ describe('AuthKit middleware matcher', () => {
 
     const fallbackFavicon = readFileSync(resolve(process.cwd(), 'public/favicon.ico'))
     expect([...fallbackFavicon.subarray(0, 4)]).toEqual([0, 0, 1, 0])
+  })
+
+  it('injects a trusted request path and overwrites a spoofed client header', async () => {
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    const request = new NextRequest('https://pika.example/teacher/calendar?view=month', {
+      headers: { [PIKA_REQUEST_PATH_HEADER]: '/evil' },
+    })
+
+    const response = await middleware(request)
+
+    expect(response.headers.get(`x-middleware-request-${PIKA_REQUEST_PATH_HEADER}`))
+      .toBe('/teacher/calendar?view=month')
+    expect(workOSMocks.authkit).not.toHaveBeenCalled()
+  })
+
+  it('preserves AuthKit response headers while forwarding the trusted request path', async () => {
+    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    const request = new NextRequest('https://pika.example/student/history?month=8')
+    workOSMocks.authkit.mockResolvedValue({ headers: new Headers() })
+    workOSMocks.partitionAuthkitHeaders.mockReturnValue({
+      requestHeaders: new Headers(request.headers),
+      responseHeaders: new Headers({ 'set-cookie': 'pika-wos-session=refreshed; Path=/' }),
+    })
+
+    const response = await middleware(request)
+
+    expect(response.headers.get(`x-middleware-request-${PIKA_REQUEST_PATH_HEADER}`))
+      .toBe('/student/history?month=8')
+    expect(response.headers.get('set-cookie')).toContain('pika-wos-session=refreshed')
   })
 })

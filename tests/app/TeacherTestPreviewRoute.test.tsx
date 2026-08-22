@@ -4,7 +4,8 @@ import TestPreviewPage from '@/app/classrooms/[classroomId]/tests/[testId]/previ
 import { getCurrentUser } from '@/lib/auth'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
-const { mockNotFound, mockRedirect } = vi.hoisted(() => ({
+const { mockGetServerLoginRedirectPath, mockNotFound, mockRedirect } = vi.hoisted(() => ({
+  mockGetServerLoginRedirectPath: vi.fn(() => '/login?next=%2Fteacher%2Fpreview'),
   mockNotFound: vi.fn(),
   mockRedirect: vi.fn(),
 }))
@@ -16,6 +17,10 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/auth', () => ({
   getCurrentUser: vi.fn(),
+}))
+
+vi.mock('@/lib/server/auth-redirect', () => ({
+  getServerLoginRedirectPath: mockGetServerLoginRedirectPath,
 }))
 
 vi.mock('@/lib/server/tests', () => ({
@@ -68,7 +73,7 @@ describe('standalone teacher test preview route', () => {
 
     await expect(TestPreviewPage({ params })).rejects.toThrow('NEXT_REDIRECT')
 
-    expect(mockRedirect).toHaveBeenCalledWith('/login')
+    expect(mockRedirect).toHaveBeenCalledWith('/login?next=%2Fteacher%2Fpreview')
     expect(assertTeacherOwnsTest).not.toHaveBeenCalled()
   })
 

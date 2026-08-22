@@ -301,6 +301,10 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 - `POST /api/auth/reset-password/confirm`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
+- `POST /api/auth/workos/magic/start`
+- `POST /api/auth/workos/magic/verify`
+- `POST /api/auth/workos/session/restore` (exact linked WorkOS subject only)
+- `GET /api/auth/workos/logout` (Pika + WorkOS browser-session logout)
 
 **Student**
 - `GET /api/student/classrooms`

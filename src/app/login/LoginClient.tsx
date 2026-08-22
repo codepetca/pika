@@ -22,9 +22,11 @@ const DEV_CREDENTIALS = {
 export function LoginClient({
   magicAuthEnabled = false,
   hasPendingMagicAuthChallenge = false,
+  hasActiveWorkOSSession = false,
 }: {
   magicAuthEnabled?: boolean
   hasPendingMagicAuthChallenge?: boolean
+  hasActiveWorkOSSession?: boolean
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -32,6 +34,9 @@ export function LoginClient({
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [restoringWorkOSSession, setRestoringWorkOSSession] = useState(
+    magicAuthEnabled && hasActiveWorkOSSession,
+  )
   const emailInputRef = useRef<HTMLInputElement | null>(null)
   const sessionMessageId = useId()
   const isDev = process.env.NODE_ENV === 'development'
@@ -47,6 +52,30 @@ export function LoginClient({
       emailInputRef.current?.focus()
     }
   }, [sessionMessage])
+
+  useEffect(() => {
+    if (!restoringWorkOSSession) return
+
+    let cancelled = false
+    async function restoreSession() {
+      try {
+        const next = getSafeInternalPath(searchParams.get('next'))
+        const response = await fetch('/api/auth/workos/session/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(next ? { next } : {}),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Unable to restore session')
+        if (!cancelled) navigateTo(data.redirectUrl)
+      } catch {
+        if (!cancelled) setRestoringWorkOSSession(false)
+      }
+    }
+
+    void restoreSession()
+    return () => { cancelled = true }
+  }, [restoringWorkOSSession, searchParams])
 
   function fillCredentials(creds: { email: string; password: string }) {
     setEmail(creds.email)
@@ -82,6 +111,19 @@ export function LoginClient({
       setError(err.message || 'An error occurred')
       setLoading(false)
     }
+  }
+
+  if (restoringWorkOSSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-page">
+        <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-text-default mb-6">Login to Pika</h1>
+          <p role="status" aria-live="polite" className="text-text-muted">
+            Restoring your session...
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

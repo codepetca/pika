@@ -22022,3 +22022,46 @@ migration, database, production, Gradex, or student behavior changes.
 - All 27 focused component tests and all 4,407 repository tests pass.
 - TypeScript, lint, architecture, production build, diff checks, and Pika audit
   pass. Visual verification is not applicable to this test-only patch.
+
+<!-- pika-session-log-archive-batch:39d56ff5ea5984a7e5f10e15acf97a864826d4e1c7c76a1e042511ecadfeda2f -->
+## 2026-08-17 — Blueprint editor dirty-state protection
+
+**Risk profile:** none — teacher-only Blueprint editor reliability and shared
+status/dialog UI; no API contract, schema, migration, production, archive,
+Gradex, or student behavior changes.
+
+**Completed:**
+- Added a normalized saved baseline for every independently editable Blueprint
+  section: course details, planned site, grading, and each Markdown package tab.
+- Saving one section now refreshes accepted server state only for that section,
+  preserving unsaved work elsewhere. Editor writes are locked while a save,
+  import, or proposal application can replace accepted state.
+- Every selected-Blueprint transition invalidates stale detail requests and
+  clears the previous editor before the new detail loads, including successful
+  package import and new-Blueprint creation.
+- Blueprint changes, local route actions, authority changes, imports, and
+  proposal application now require explicit discard confirmation. Export and
+  classroom creation explicitly confirm that they use the last saved version.
+- Permanent deletion also requires the local-discard confirmation before its
+  existing durable purge review. Blueprint-list reloads use request generations
+  so older responses cannot overwrite newer post-mutation state; purge
+  completion starts a fresh authoritative guarded reload.
+- Preparing a classroom update now confirms that it uses the last saved
+  Blueprint and is disabled while a save can replace accepted state. Proposal
+  and classroom-comparison requests use independent generations so returning to
+  the same Blueprint cannot surface an older response. Blueprint selection is
+  locked while that durable proposal is being prepared, and its global lock is
+  cleared defensively when the request settles.
+- The editor exposes shared Saved/Saving/Unsaved status and protects browser
+  refresh or tab closure while any section differs from its saved baseline.
+
+**Validation:**
+- Twenty-eight focused unit/component tests cover per-section comparisons,
+  cross-section save preservation, accepted server values, transition guards,
+  import/create/list/proposal/comparison races, deletion, saved-version actions,
+  unload protection, and in-flight editor locking.
+- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
+  and saved-version dialogs with no horizontal overflow and initial focus on
+  Keep editing. Student rendering is not applicable to this teacher-only route.
+- The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
+  architecture boundaries, production build, Pika audit, and diff checks pass.

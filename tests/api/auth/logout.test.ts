@@ -3,7 +3,7 @@
  * Tests session destruction and logout flow
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/logout/route'
 
 const mockDeleteCookie = vi.hoisted(() => vi.fn())
@@ -24,6 +24,10 @@ describe('POST /api/auth/logout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   // ==========================================================================
@@ -50,10 +54,12 @@ describe('POST /api/auth/logout', () => {
 
     it('clears WorkOS and pending-challenge cookies when the pilot is enabled', async () => {
       vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      vi.stubEnv('WORKOS_COOKIE_NAME', 'pika-wos-session')
 
       const response = await POST()
 
       expect(response.status).toBe(200)
+      expect(mockDeleteCookie).toHaveBeenCalledWith('pika-wos-session')
       expect(mockDeleteCookie).toHaveBeenCalledWith('wos-session')
       expect(mockDeleteCookie).toHaveBeenCalledWith('pika_workos_magic')
     })

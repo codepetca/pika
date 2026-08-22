@@ -142,7 +142,7 @@ export function auditBaraAttendanceRolloutEnvironment(
       hasSecret(environment.WORKOS_COOKIE_PASSWORD)
         && environment.WORKOS_COOKIE_PASSWORD !== environment.SESSION_SECRET
         && trimmed(environment.WORKOS_COOKIE_NAME) === 'pika-wos-session'
-        && trimmed(environment.WORKOS_COOKIE_MAX_AGE) === '43200',
+        && trimmed(environment.WORKOS_COOKIE_MAX_AGE) === '15552000',
     ],
     [
       'brevo_magic_auth_delivery',

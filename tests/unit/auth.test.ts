@@ -91,12 +91,13 @@ describe('auth utilities', () => {
       )
     })
 
-    it('should set session maxAge to 180 days (6 months)', async () => {
+    it('keeps both the browser cookie and encrypted seal valid for 180 days', async () => {
       await getSession()
       const expectedMaxAge = 180 * 24 * 60 * 60 // 180 days in seconds = 15552000
       expect(getIronSession).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          ttl: expectedMaxAge + 60,
           cookieOptions: expect.objectContaining({
             maxAge: expectedMaxAge,
           }),
@@ -117,6 +118,7 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
       })
       expect(mockSession.save).toHaveBeenCalled()
     })
@@ -128,6 +130,7 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
       })
       expect(mockSession.save).toHaveBeenCalled()
     })
@@ -137,17 +140,15 @@ describe('auth utilities', () => {
       expect(mockSession.save).toHaveBeenCalledTimes(1)
     })
 
-    it('supports a shorter compatibility-session lifetime for external auth pilots', async () => {
+    it('binds a WorkOS compatibility session to the exact external subject', async () => {
       await createSession('user-1', 'test@student.com', 'student', {
-        maxAgeSeconds: 12 * 60 * 60,
+        workosUserId: 'user_workos_1',
       })
 
-      expect(getIronSession).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          cookieOptions: expect.objectContaining({ maxAge: 12 * 60 * 60 }),
-        }),
-      )
+      expect(mockSession.user).toEqual(expect.objectContaining({
+        version: 2,
+        workosUserId: 'user_workos_1',
+      }))
     })
 
     it('should overwrite existing session data', async () => {
@@ -164,6 +165,7 @@ describe('auth utilities', () => {
         id: 'new-user',
         email: 'new@example.com',
         role: 'teacher',
+        version: 2,
       })
     })
   })
@@ -250,6 +252,8 @@ describe('auth utilities', () => {
         id: 'student-1',
         email: ' 123456789@GAPPS.YRDSB.CA ',
         role: 'student',
+        version: 2,
+        workosUserId: 'user_workos_1',
       }
       workOSMocks.withAuth.mockResolvedValue({
         user: {
@@ -261,6 +265,44 @@ describe('auth utilities', () => {
 
       await expect(getCurrentUser()).resolves.toEqual(mockSession.user)
       expect(workOSMocks.withAuth).toHaveBeenCalledOnce()
+    })
+
+    it('rejects a WorkOS session whose subject does not match the Pika session binding', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+        version: 2,
+        workosUserId: 'user_workos_1',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_2',
+          email: 'student@example.com',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+    })
+
+    it('rejects an unbound legacy compatibility session when the pilot is enabled', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_1',
+          email: 'student@example.com',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toBeNull()
     })
 
     it('rejects a Pika-only compatibility cookie when the pilot is enabled', async () => {

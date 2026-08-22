@@ -11,48 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Blueprint editor dirty-state protection
-
-**Risk profile:** none — teacher-only Blueprint editor reliability and shared
-status/dialog UI; no API contract, schema, migration, production, archive,
-Gradex, or student behavior changes.
-
-**Completed:**
-- Added a normalized saved baseline for every independently editable Blueprint
-  section: course details, planned site, grading, and each Markdown package tab.
-- Saving one section now refreshes accepted server state only for that section,
-  preserving unsaved work elsewhere. Editor writes are locked while a save,
-  import, or proposal application can replace accepted state.
-- Every selected-Blueprint transition invalidates stale detail requests and
-  clears the previous editor before the new detail loads, including successful
-  package import and new-Blueprint creation.
-- Blueprint changes, local route actions, authority changes, imports, and
-  proposal application now require explicit discard confirmation. Export and
-  classroom creation explicitly confirm that they use the last saved version.
-- Permanent deletion also requires the local-discard confirmation before its
-  existing durable purge review. Blueprint-list reloads use request generations
-  so older responses cannot overwrite newer post-mutation state; purge
-  completion starts a fresh authoritative guarded reload.
-- Preparing a classroom update now confirms that it uses the last saved
-  Blueprint and is disabled while a save can replace accepted state. Proposal
-  and classroom-comparison requests use independent generations so returning to
-  the same Blueprint cannot surface an older response. Blueprint selection is
-  locked while that durable proposal is being prepared, and its global lock is
-  cleared defensively when the request settles.
-- The editor exposes shared Saved/Saving/Unsaved status and protects browser
-  refresh or tab closure while any section differs from its saved baseline.
-
-**Validation:**
-- Twenty-eight focused unit/component tests cover per-section comparisons,
-  cross-section save preservation, accepted server values, transition guards,
-  import/create/list/proposal/comparison races, deletion, saved-version actions,
-  unload protection, and in-flight editor locking.
-- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
-  and saved-version dialogs with no horizontal overflow and initial focus on
-  Keep editing. Student rendering is not applicable to this teacher-only route.
-- The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
-  architecture boundaries, production build, Pika audit, and diff checks pass.
-
 ## 2026-08-17 — Classroom-to-Blueprint rollover browser drill
 
 **Risk profile:** none — local-only E2E verification and documentation; no
@@ -1345,3 +1303,42 @@ deployment, environment variable, or attendance flag was changed.
   architecture boundaries, and the production build pass.
 - The clean release CI already replayed migrations through 130 in an ephemeral
   Supabase database; no local or production migration application was run.
+
+## 2026-08-21 — Restore the remembered-login contract
+
+**Risk profile:** runtime-platform — Pika and WorkOS session lifetime,
+cross-cookie identity binding, protected-route recovery, middleware headers,
+and browser logout. No hosted configuration or deployment was changed.
+
+**Implemented:**
+- Replaced the WorkOS pilot's 12-hour compatibility cookie with one shared
+  180-day Pika policy and set both the browser `Max-Age` and encrypted
+  `iron-session` seal TTL, avoiding the library's otherwise hidden 14-day TTL.
+- Versioned Pika sessions and bound WorkOS-authenticated sessions to the exact
+  verified WorkOS user ID plus normalized email. Legacy, unbound, mismatched,
+  or Pika-only sessions fail closed while the pilot is enabled.
+- Added read-only silent restoration for an active WorkOS session. It recreates
+  the Pika UUID/role mapping only from the existing exact
+  `public.users.workos_user_id` link and never creates or relinks by email.
+- Preserved protected deep links and query strings through reauthentication by
+  injecting a middleware-owned request-path header, stripping inbound spoofed
+  values, and validating every returned internal path.
+- Routed browser logout through Pika cookie destruction and the WorkOS logout
+  URL so the server-side WorkOS session is invalidated, while retaining the
+  existing JSON logout endpoint as a compatibility surface.
+- Updated the WorkOS rollout gate and operator guidance for the 180-day cookie,
+  Dashboard session settings, Preview/Production verification, and rollback.
+
+**Verification:**
+- Full Vitest passes 4,960 tests across 569 files. Lint, the clean production
+  build, diff checks, and the Pika audit pass.
+- Playwright verification passes for the normal login and silent-restoration
+  states on desktop/mobile in light/dark themes. The pre-auth surface is shared
+  by teacher and student; both required stored-role captures were run.
+- Live local protected requests preserve full safe paths and query strings in
+  `/login?next=...`. The shared `.env.local` was not modified; the local server
+  used a process-only `WORKOS_COOKIE_MAX_AGE=15552000` override.
+- Composite accessibility checklist reviewed: keyboard behavior remains native
+  and unchanged, the restoration status is exposed through `role=status` with
+  `aria-live`, semantic state is component-tested, and no manual follow-up
+  remains.

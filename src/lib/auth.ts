@@ -2,6 +2,11 @@ import { getIronSession, IronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 import { randomUUID } from 'node:crypto'
 import type { SessionData, UserRole } from '@/types'
+import {
+  AUTH_SESSION_MAX_AGE_SECONDS,
+  AUTH_SESSION_TTL_SECONDS,
+  AUTH_SESSION_VERSION,
+} from '@/lib/auth-session-policy'
 import { recordPalAuthenticatedSession } from '@/lib/server/pal-signals'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 
@@ -25,9 +30,7 @@ export class AuthorizationError extends Error {
   }
 }
 
-const DEFAULT_SESSION_MAX_AGE_SECONDS = 180 * 24 * 60 * 60
-
-function getSessionOptions(maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS) {
+function getSessionOptions() {
   const password = process.env.SESSION_SECRET
 
   if (!password || password.length < 32) {
@@ -37,11 +40,12 @@ function getSessionOptions(maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS) {
   return {
     password,
     cookieName: 'pika_session',
+    ttl: AUTH_SESSION_TTL_SECONDS,
     cookieOptions: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'lax' as const,
-      maxAge: maxAgeSeconds,
+      maxAge: AUTH_SESSION_MAX_AGE_SECONDS,
     },
   }
 }
@@ -49,9 +53,9 @@ function getSessionOptions(maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS) {
 /**
  * Gets the current session
  */
-export async function getSession(maxAgeSeconds = DEFAULT_SESSION_MAX_AGE_SECONDS): Promise<IronSession<SessionData>> {
+export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies()
-  return getIronSession<SessionData>(cookieStore, getSessionOptions(maxAgeSeconds))
+  return getIronSession<SessionData>(cookieStore, getSessionOptions())
 }
 
 /**
@@ -61,14 +65,16 @@ export async function createSession(
   userId: string,
   email: string,
   role: UserRole,
-  options: { maxAgeSeconds?: number } = {},
+  options: { workosUserId?: string } = {},
 ) {
-  const session = await getSession(options.maxAgeSeconds)
+  const session = await getSession()
   const sessionId = randomUUID()
   session.user = {
     id: userId,
     email,
     role,
+    version: AUTH_SESSION_VERSION,
+    ...(options.workosUserId ? { workosUserId: options.workosUserId } : {}),
   }
   await session.save()
 
@@ -106,6 +112,14 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
   const { withAuth } = await import('@workos-inc/authkit-nextjs')
   const { user: workOSUser } = await withAuth()
   if (!workOSUser || !workOSUser.emailVerified) {
+    return null
+  }
+
+  if (
+    pikaUser.version !== AUTH_SESSION_VERSION
+    || !pikaUser.workosUserId
+    || pikaUser.workosUserId !== workOSUser.id
+  ) {
     return null
   }
 

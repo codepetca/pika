@@ -9,7 +9,14 @@ export const POST = withErrorHandler('PostLogout', async () => {
 
   if (isWorkOSMagicAuthPilotEnabled()) {
     const cookieStore = await cookies()
-    cookieStore.delete(process.env.WORKOS_COOKIE_NAME || 'wos-session')
+    const workOSCookieNames = new Set([
+      process.env.WORKOS_COOKIE_NAME || 'wos-session',
+      'wos-session',
+      'pika-wos-session',
+    ])
+    for (const cookieName of workOSCookieNames) {
+      cookieStore.delete(cookieName)
+    }
     cookieStore.delete('pika_workos_magic')
   }
 

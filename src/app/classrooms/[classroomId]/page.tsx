@@ -7,6 +7,7 @@ import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/cl
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 import { getPalApiUrl } from '@/lib/server/pal-config'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import {
   isClassroomTabAvailable,
   normalizeClassroomFeatureVisibility,
@@ -35,7 +36,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   // 1. Auth check - runs on server
   const user = await getCurrentUser()
   if (!user) {
-    redirect('/login')
+    redirect(getServerLoginRedirectPath())
   }
 
   const supabase = getServiceRoleClient()
