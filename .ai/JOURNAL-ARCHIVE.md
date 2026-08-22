@@ -22238,3 +22238,32 @@ was changed.
   preview WorkOS/Brevo/Bara environment, rerun the preflight, inspect remote
   migration history, and apply migration 127 only after the exact target is
   confirmed.
+
+<!-- pika-session-log-archive-batch:ed455dbdf473fcd0285ffddbe7c446602ce8891bad4745bf825ccafd60ab2f46 -->
+## 2026-08-17 — Harden the teacher attendance pilot surface
+
+**Risk profile:** teacher UX and local test data only. No hosted database,
+deployment, credential, or rollout state changed.
+
+**Completed:**
+- Audited the native Attendance tab at desktop and 390×844 mobile widths with
+  an open session, projected roster, QR/manual controls, status counts, and QR
+  failure recovery. Core controls retain programmatic names, the table remains
+  usable at the mobile breakpoint, and the source column collapses without
+  hiding attendance status.
+- Replaced the internal “identity is not linked” QR response with a bounded
+  teacher-facing setup/sync message while preserving the 409 recovery contract
+  and provider-detail boundary.
+- Removed the temporary local attendance projection fixture by explicitly
+  resetting loopback Supabase and replaying migrations 001–127. Stopped the
+  temporary development server and reset the browser viewport.
+
+**Validation:**
+- Focused rollout, teacher attendance component, and QR API suites pass 15/15;
+  TypeScript passes. The prior clean full suite, production build, migration
+  replay, generated types, and architecture evidence remain green.
+
+**Next gate:**
+- The rollout is locally ready but hosted verification remains blocked on one
+  exact isolated non-production Supabase target. Do not repoint Preview at
+  production or enable paid branching without an explicit environment choice.

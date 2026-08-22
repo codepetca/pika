@@ -36,8 +36,8 @@ duplicate-idempotency proof after both directional HMAC pairs were aligned.
 That evidence does not authorize expansion. Migration 131 and the deployed
 bidirectional smoke in `pika-bara-attendance-operational-recovery.md` must pass
 before another enablement or rollout-expansion decision. Run the aggregate
-`pre-enable` audit and smoke with both flags false for a new deployment; after
-separate enablement authorization, rerun the `enabled` audit and smoke before
-the controlled flow. This boundary is intentionally
+deployed `--mode pre-enable` audit and smoke with both flags false for a new
+deployment; after separate enablement authorization, rerun the deployed gate
+with `--mode enabled` before the controlled flow. This boundary is intentionally
 Pika-local: Bara continues to authorize the Pika installation and never receives
 Pika internal IDs.

@@ -524,6 +524,7 @@ async function signedRequest(
       },
       body: method === 'GET' ? undefined : body,
       cache: 'no-store',
+      redirect: 'error',
       signal: AbortSignal.timeout(10_000),
     })
   } catch {
