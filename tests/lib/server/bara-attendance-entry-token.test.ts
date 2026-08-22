@@ -7,6 +7,7 @@ import {
 
 const secret = 'entry-token-secret-that-is-long-enough-for-tests'
 const payload = {
+  classroomId: '20000000-0000-4000-8000-000000000002',
   rosterRef: 'roster_one',
   occurrenceRef: 'occurrence_one',
   checkInToken: 'check_in_token_1234567890',

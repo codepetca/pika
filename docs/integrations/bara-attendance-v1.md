@@ -188,7 +188,11 @@ a rollout prerequisite for that path.
 
 Run `pnpm attendance:rollout:preflight` only with the target deployment's
 environment loaded. It requires explicit stage, expected non-secret Supabase
-refs, and exact Pika app and Bara API origins. The preview audit fails if it shares the
+refs, exact Pika app and Bara API origins, and `--mode pre-enable` or
+`--mode enabled`. Pre-enable mode requires the global Pika attendance flag to
+remain false; enabled mode requires it to be true. Both modes verify through
+the service-role database boundary that the configured classroom exists, is
+active, and belongs to the configured teacher. The preview audit fails if it shares the
 production Supabase ref, uses a non-Staging WorkOS API key, leaves mock or
 WorkOS-default Magic Auth email enabled, turns on the retired browser-handoff
 flag,
@@ -200,6 +204,7 @@ Example operator shape:
 
 ```bash
 pnpm attendance:rollout:preflight -- \
+  --mode pre-enable \
   --stage preview \
   --expected-supabase-ref "$PIKA_PREVIEW_SUPABASE_REF" \
   --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \

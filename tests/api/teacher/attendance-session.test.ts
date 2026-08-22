@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { GET, POST } from '@/app/api/teacher/attendance/session/route'
 import { TeacherAttendanceViewReadError } from '@/lib/server/bara-attendance-view'
 import { TeacherAttendanceIdentityError } from '@/lib/server/bara-attendance-teacher'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const {
   requireRole,
@@ -10,6 +11,7 @@ const {
   assertTeacherCanMutateClassroom,
   loadTeacherAttendanceView,
   getBaraAttendanceIntegrationState,
+  assertBaraAttendanceCanaryClassroom,
   executeTeacherAttendanceSessionCommand,
   resolveVerifiedPikaAttendanceTeacher,
   supabase,
@@ -19,6 +21,7 @@ const {
   assertTeacherCanMutateClassroom: vi.fn(),
   loadTeacherAttendanceView: vi.fn(),
   getBaraAttendanceIntegrationState: vi.fn(),
+  assertBaraAttendanceCanaryClassroom: vi.fn(),
   executeTeacherAttendanceSessionCommand: vi.fn(),
   resolveVerifiedPikaAttendanceTeacher: vi.fn(),
   supabase: { from: vi.fn() },
@@ -39,6 +42,14 @@ vi.mock('@/lib/server/classrooms', () => ({
   assertTeacherCanMutateClassroom,
 }))
 vi.mock('@/lib/server/bara-attendance-client', () => ({ getBaraAttendanceIntegrationState }))
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return {
+    ...actual,
+    assertBaraAttendanceCanaryClassroom,
+    getBaraAttendanceClassroomIntegrationState: getBaraAttendanceIntegrationState,
+  }
+})
 vi.mock('@/lib/server/bara-attendance-view', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-view')>()
   return { ...actual, loadTeacherAttendanceView }
@@ -62,7 +73,7 @@ describe('GET /api/teacher/attendance/session', () => {
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
     assertTeacherOwnsClassroom.mockResolvedValue({
       ok: true,
-      classroom: { id: classroomId, teacher_id: 'teacher-1' },
+      classroom: { id: classroomId, teacher_id: 'teacher-1', archived_at: null },
     })
     assertTeacherCanMutateClassroom.mockResolvedValue({
       ok: true,
@@ -120,6 +131,28 @@ describe('GET /api/teacher/attendance/session', () => {
 
     expect(response.status).toBe(403)
     expect(loadTeacherAttendanceView).not.toHaveBeenCalled()
+  })
+
+  it('returns the disabled view without opening the canary for an archived classroom', async () => {
+    assertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true,
+      classroom: {
+        id: classroomId,
+        teacher_id: 'teacher-1',
+        archived_at: '2026-08-21T12:00:00.000Z',
+      },
+    })
+    getBaraAttendanceIntegrationState.mockReturnValue('ready')
+
+    const response = await GET(new NextRequest(
+      `http://localhost/api/teacher/attendance/session?classroom_id=${classroomId}&date=2026-09-08`,
+    ))
+
+    expect(response.status).toBe(200)
+    expect(loadTeacherAttendanceView).toHaveBeenCalledWith(expect.objectContaining({
+      integration: 'disabled',
+    }))
+    expect(getBaraAttendanceIntegrationState).not.toHaveBeenCalled()
   })
 
   it('maps missing or invalid projection storage to a privacy-safe 503', async () => {
@@ -189,6 +222,28 @@ describe('GET /api/teacher/attendance/session', () => {
 
     expect(response.status).toBe(409)
     expect(await response.json()).toEqual({ error: 'Attendance identity is not linked' })
+    expect(executeTeacherAttendanceSessionCommand).not.toHaveBeenCalled()
+  })
+
+  it('rejects a non-canary classroom before resolving the WorkOS actor', async () => {
+    assertBaraAttendanceCanaryClassroom.mockImplementationOnce(() => {
+      throw new BaraAttendanceCanaryError('disabled')
+    })
+    const response = await POST(new NextRequest(
+      'http://localhost/api/teacher/attendance/session',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: classroomId,
+          date: '2026-09-08',
+          request_id: '40000000-0000-4000-8000-000000000004',
+          command: 'open',
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(404)
+    expect(resolveVerifiedPikaAttendanceTeacher).not.toHaveBeenCalled()
     expect(executeTeacherAttendanceSessionCommand).not.toHaveBeenCalled()
   })
 })

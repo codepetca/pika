@@ -12,6 +12,8 @@ import { validateV1Message } from '@/vendor/attendance-contract/v1/validate'
 
 type Fetcher = typeof fetch
 
+export type BaraAttendanceIntegrationState = 'disabled' | 'not_configured' | 'ready'
+
 export interface ClientOptions {
   fetcher?: Fetcher
   now?: () => number
@@ -138,7 +140,7 @@ function configuration() {
   return { baseUrl: baseUrl.origin, installationRef, secret }
 }
 
-export function getBaraAttendanceIntegrationState(): 'disabled' | 'not_configured' | 'ready' {
+export function getBaraAttendanceIntegrationState(): BaraAttendanceIntegrationState {
   if (process.env.PIKA_BARA_ATTENDANCE_ENABLED !== 'true') return 'disabled'
   try {
     configuration()
