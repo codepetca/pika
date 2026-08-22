@@ -11,146 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Blueprint editor dirty-state protection
-
-**Risk profile:** none — teacher-only Blueprint editor reliability and shared
-status/dialog UI; no API contract, schema, migration, production, archive,
-Gradex, or student behavior changes.
-
-**Completed:**
-- Added a normalized saved baseline for every independently editable Blueprint
-  section: course details, planned site, grading, and each Markdown package tab.
-- Saving one section now refreshes accepted server state only for that section,
-  preserving unsaved work elsewhere. Editor writes are locked while a save,
-  import, or proposal application can replace accepted state.
-- Every selected-Blueprint transition invalidates stale detail requests and
-  clears the previous editor before the new detail loads, including successful
-  package import and new-Blueprint creation.
-- Blueprint changes, local route actions, authority changes, imports, and
-  proposal application now require explicit discard confirmation. Export and
-  classroom creation explicitly confirm that they use the last saved version.
-- Permanent deletion also requires the local-discard confirmation before its
-  existing durable purge review. Blueprint-list reloads use request generations
-  so older responses cannot overwrite newer post-mutation state; purge
-  completion starts a fresh authoritative guarded reload.
-- Preparing a classroom update now confirms that it uses the last saved
-  Blueprint and is disabled while a save can replace accepted state. Proposal
-  and classroom-comparison requests use independent generations so returning to
-  the same Blueprint cannot surface an older response. Blueprint selection is
-  locked while that durable proposal is being prepared, and its global lock is
-  cleared defensively when the request settles.
-- The editor exposes shared Saved/Saving/Unsaved status and protects browser
-  refresh or tab closure while any section differs from its saved baseline.
-
-**Validation:**
-- Twenty-eight focused unit/component tests cover per-section comparisons,
-  cross-section save preservation, accepted server values, transition guards,
-  import/create/list/proposal/comparison races, deletion, saved-version actions,
-  unload protection, and in-flight editor locking.
-- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
-  and saved-version dialogs with no horizontal overflow and initial focus on
-  Keep editing. Student rendering is not applicable to this teacher-only route.
-- The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
-  architecture boundaries, production build, Pika audit, and diff checks pass.
-
-## 2026-08-17 — Classroom-to-Blueprint rollover browser drill
-
-**Risk profile:** none — local-only E2E verification and documentation; no
-application behavior, schema, migration, or production state changed.
-
-- Added `pnpm e2e:verify blueprint-rollover`, which drives the seeded `TEST01`
-  classroom through Settings → Reuse, Blueprint review, classroom creation, and
-  the assignment date/release review handoff against the real local stack.
-- The drill compares reusable titles, artifact lineage, nested requirement and
-  question content, assignment instructions, lesson content, syllabus/resources,
-  and grading configuration. It proves that assignments/tests return as drafts
-  while enrollments, roster rows, logs, submissions, and test attempts stay out.
-- Added loopback-only guards for the app, Supabase API, and database; the drill
-  refuses managed-upload source fixtures and removes its generated local records.
-- Captured and visually inspected Blueprint review, classroom-created handoff,
-  and assignment review screenshots. The initial 33 browser checks passed.
-- Verification: the clean full suite passes all 4,432 tests. Production build,
-  lint, typecheck, architecture boundaries, Pika audit, and diff checks pass.
-
-**Independent review remediation:**
-- Added temporary non-empty material, survey/question, assignment-requirement,
-  announcement, and announcement-read fixtures. Announcements are now correctly
-  asserted as excluded live state rather than reusable Blueprint content.
-- Expanded lineage checks to every reusable parent and child plus the immutable
-  Blueprint Version used to create the classroom.
-- Snapshot and restore the shared source classroom's identity, provenance, and
-  revision fields; delete only the drill's exact operation rows; and assert the
-  source, operation ledger, storage inventory, and generated fixture inventory
-  all match their pre-drill state after cleanup.
-- The remediated browser drill passes all 42 checks. Managed-upload rollover is
-  explicitly outside this drill and remains follow-up package compatibility work.
-- Targeted re-review hardened the cleanup coordinator so known records are
-  restored even when fallback discovery fails, with a focused failure-path
-  regression test. It also binds the instantiated Version to the captured
-  Blueprint, checks each nested child's cloned-parent lineage, and requires a
-  non-empty source roster before asserting roster exclusion.
-- Final integration review bound operation cleanup to the browser requests'
-  exact idempotency keys, preallocated every temporary fixture ID before writes,
-  added non-empty test-response exclusion, checks both target artifact identity
-  columns, and verifies reusable test documents/settings. The browser drill now
-  passes 44 checks and restores the temporary source test document as part of
-  its baseline.
-- An explicitly approved fourth remediation batch now records each valid browser
-  operation ID before allowing its request onto the network and includes a real
-  browser failure-path probe proving a missing key creates no ledger result.
-- Submitted-document coverage now filters `assignment_docs.is_submitted = true`
-  so drafts cannot satisfy the live-data precondition. A temporary assignment
-  with non-default due timing, points, weight, final-grade exclusion,
-  authenticity tracking, and position makes the reusable comparison
-  non-vacuous; material and survey positions are also compared.
-- The remediated local browser drill passes all 47 checks and visually shows the
-  four draft assignments followed by the material and survey. Focused unit tests
-  pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
-  TypeScript, lint, architecture boundaries, production build, Pika audit, and
-  diff checks pass.
-
-## 2026-08-17 — Course Package versioned contract core (PR A)
-
-**Risk profile:** high — foundational untrusted package boundary and historical
-compatibility; no schema migration, production operation, dependency, or UI
-change.
-
-**Completed:**
-- Verified the historical v2-v5 file matrix against repository history and the
-  evidence in draft PR #1018: v2 requires the six reusable legacy files and
-  optionally accepts/discards `quizzes.md`; v3/v4 require exactly those six;
-  v5 requires exactly the current eight.
-- Replaced the shared v5-shaped raw record with strict discriminated wire types,
-  per-version manifest schemas, and an explicit required/allowed file registry.
-  Raw schemas no longer synthesize missing files.
-- Added one evidence-preserving verifier shared by direct JSON and TAR inputs.
-  Historical adapters run only after verification and produce one canonical
-  portable course model.
-- Added independently built, SHA-locked JSON and binary TAR fixtures for every
-  supported version plus table-driven parity mutations for required/forbidden/
-  duplicate entries, manifests, UTF-8/checksum failures, and size boundaries.
-- Preserved useful PR #1018 retry evidence by making legacy Artifact identity
-  deterministic per import operation and canonicalizing operation UUIDs.
-
-**Validation:**
-- The focused package contract suite passes 91 cases. The authoritative full
-  verification passes all 4,528 tests across 502 files, lint, architecture
-  boundaries, and the production build. Pika audit and diff checks pass.
-- Visual verification is not applicable because this PR changes no UI.
-
-**Independent review remediation:**
-- Raw JSON now remains bytes until the package boundary, uses fatal UTF-8
-  decoding, rejects duplicate keys at every object depth and leading BOMs,
-  preserves the exact received text, and applies the same 2 MiB manifest-entry
-  limit as TAR.
-- Verified bundles and raw evidence are defensively cloned, deeply frozen, and
-  exposed through a branded verified type so caller mutation cannot rewrite
-  evidence or change what a later adapter sees.
-- TAR verification now requires block alignment, zero entry padding, and two
-  complete zero terminator blocks; truncated and non-aligned zero tails fail.
-- Upload-document and managed-storage semantic policy remains deliberately
-  deferred to PR B, matching the requested phase sequence.
-
 ## 2026-08-17 — Add authoritative attendance projection reconciliation
 
 **Risk profile:** runtime-platform, privacy, and schema. Only the loopback
@@ -1345,3 +1205,88 @@ deployment, environment variable, or attendance flag was changed.
   architecture boundaries, and the production build pass.
 - The clean release CI already replayed migrations through 130 in an ephemeral
   Supabase database; no local or production migration application was run.
+
+## 2026-08-21 — Restore the remembered-login contract
+
+**Risk profile:** runtime-platform — Pika and WorkOS session lifetime,
+cross-cookie identity binding, protected-route recovery, middleware headers,
+and browser logout. No hosted configuration or deployment was changed.
+
+**Implemented:**
+- Replaced the WorkOS pilot's 12-hour compatibility cookie with one shared
+  180-day Pika policy and set both the browser `Max-Age` and encrypted
+  `iron-session` seal TTL, avoiding the library's otherwise hidden 14-day TTL.
+- Versioned Pika sessions and bound WorkOS-authenticated sessions to the exact
+  verified WorkOS user ID plus normalized email. Legacy, unbound, mismatched,
+  or Pika-only sessions fail closed while the pilot is enabled.
+- Added read-only silent restoration for an active WorkOS session. It recreates
+  the Pika UUID/role mapping only from the existing exact
+  `public.users.workos_user_id` link and never creates or relinks by email.
+  Restoration explicitly suppresses student login telemetry so it performs no
+  Pal outbox write or delivery attempt.
+- Preserved protected deep links and query strings through reauthentication by
+  injecting a middleware-owned request-path header, stripping inbound spoofed
+  values, and validating every returned internal path.
+- Routed browser logout through a CSRF-protected same-origin POST, Pika cookie
+  destruction, and the WorkOS logout URL so the server-side WorkOS session is
+  invalidated. The retained JSON compatibility endpoint now explicitly revokes
+  the WorkOS session and clears local state even if provider revocation fails.
+- Updated the WorkOS rollout gate and operator guidance for the 180-day cookie,
+  an exact 180-day Dashboard absolute maximum, Preview/Production cutoff
+  verification, and rollback. The local Bara configurator now consumes the
+  shared duration constant instead of reintroducing the former 12-hour value.
+
+**Verification:**
+- Full Vitest passes 4,965 tests across 570 files. The full coverage run also
+  passes and restores `src/lib/auth.ts` to 100% branch coverage. Lint, the clean
+  production build, diff checks, and the Pika audit pass.
+- Playwright verification passes for the normal login and silent-restoration
+  states on desktop/mobile in light/dark themes. The pre-auth surface is shared
+  by teacher and student; both required stored-role captures were run.
+- The account menu now performs a user-activated POST directly, while `/logout`
+  is an explicit confirmation fallback and cannot auto-submit after a
+  cross-origin navigation. Its confirmation state was inspected in teacher
+  desktop, student mobile, teacher mobile, and dark-theme captures with no
+  overflow or readability issues.
+- Live local protected requests preserve full safe paths and query strings in
+  `/login?next=...`. The shared `.env.local` was not modified; the local server
+  used a process-only `WORKOS_COOKIE_MAX_AGE=15552000` override.
+- Composite accessibility checklist reviewed: keyboard behavior remains native
+  and unchanged, the restoration status is exposed through `role=status` with
+  `aria-live`, semantic state is component-tested, and no manual follow-up
+  remains.
+
+## 2026-08-22 — Harden the legacy logout endpoint
+
+**Risk profile:** runtime-platform — authentication logout CSRF protection; no
+hosted configuration, deployment, database, or UI changed.
+
+- Applied the existing exact-origin POST guard to `POST /api/auth/logout`
+  before WorkOS session inspection, provider revocation, or local cookie
+  destruction.
+- Added regression coverage proving a cross-origin request returns 403 without
+  invoking WorkOS or changing Pika and WorkOS authentication state.
+- The test reproduced the prior behavior as a 200 response before the fix.
+  After remediation, the focused authentication suite passes 112 tests across
+  12 files; lint, Pika audit, and diff checks pass. Targeted security re-review
+  reports no remaining blocker in the correction.
+
+## 2026-08-22 — Preserve auth authority during rollback and Preview logout
+
+**Risk profile:** runtime-platform — authentication rollback provenance and
+logout CSRF origin validation; no hosted configuration, deployment, database,
+or UI changed.
+
+- Every new Pika session now records explicit password or WorkOS provenance.
+  When the pilot is disabled, only current password-origin sessions remain
+  valid; WorkOS mappings and ambiguous legacy seals fail closed instead of
+  becoming independent credentials.
+- Same-origin logout validation now trusts the origin serving the request,
+  allowing Preview and custom aliases while retaining the canonical public URL
+  solely for the WorkOS provider return destination.
+- Regression tests reproduced all three prior failures before the fixes and
+  cover password-session preservation, WorkOS-mapping rejection, and both
+  logout endpoints on a non-canonical Preview origin.
+- The focused auth surface passes 154 tests across 16 files. Full Vitest passes
+  4,970 tests across 570 files; lint, architecture boundaries, Pika audit,
+  diff checks, and the production build pass.

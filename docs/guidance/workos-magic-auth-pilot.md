@@ -16,8 +16,9 @@ six-digit passcode flow.
 - Pika's existing `pika_session` remains a temporary compatibility session so
   the rest of the application can continue to use `requireAuth()` during the
   pilot. When the pilot is enabled, every Pika authorization check also
-  requires a verified WorkOS session with the same normalized email; the Pika
-  cookie is an internal UUID/role mapping, not an independent credential.
+  requires a verified WorkOS session with the same normalized email and exact
+  WorkOS user id; the Pika cookie is a 180-day internal UUID/role mapping, not
+  an independent credential.
 - The pilot is disabled by default and does not change the password flow unless
   `WORKOS_MAGIC_AUTH_PILOT=true`.
 - This slice does not configure Pika/Bara attendance integration, SSO, or a
@@ -54,6 +55,70 @@ six-digit passcode flow.
 7. Automated API, identity, and component tests pass before dashboard changes.
 8. A real school-board account receives and submits the code in a local or
    preview smoke test before the pilot is considered viable.
+
+## Remembered-session contract
+
+Pika's remembered-login contract is 180 days (`15,552,000` seconds). The Pika
+and WorkOS cookies must use the same browser lifetime. The WorkOS Dashboard
+absolute maximum session lifetime must be exactly 180 days, while its inactivity
+timeout must be at least 180 days (or disabled). The exact absolute maximum is a
+deployment gate: it prevents AuthKit refreshes from turning remembered login
+into an indefinitely rolling session.
+
+The two cookies have different authority:
+
+- The encrypted WorkOS cookie is the credential and refresh authority.
+- `pika_session` contains only Pika's internal UUID, role, normalized email,
+  explicit authentication source, exact WorkOS user ID when applicable, and
+  session-format version.
+- Every protected request fails closed unless the two identities match while
+  the pilot is enabled.
+- If the pilot is disabled, only a current-version Pika session explicitly
+  marked as password-origin and carrying no WorkOS user ID remains valid.
+  WorkOS mappings and ambiguous legacy sessions fail closed during rollback.
+- If an older or missing Pika cookie accompanies a valid WorkOS session,
+  `/login` silently recreates the Pika mapping from the existing exact
+  `public.users.workos_user_id` link. Restoration never creates or relinks an
+  account and falls back to code entry on any mismatch.
+- Server and client reauthentication redirects preserve only a validated
+  same-origin path. Middleware replaces any inbound path-header spoof before a
+  protected server route builds its `/login?next=...` destination.
+- Browser logout uses a same-origin POST, destroys the Pika session, clears
+  pending Magic Auth state, and uses AuthKit logout to invalidate the WorkOS
+  session. The legacy JSON logout endpoint explicitly revokes the WorkOS session
+  before reporting success. Configure the WorkOS application's default Logout
+  URI to Pika's `/login` URL.
+
+### Preview and Production verification
+
+For each environment, verify all of the following before promotion:
+
+1. Set `WORKOS_COOKIE_MAX_AGE=15552000`. Record evidence that the Dashboard
+   absolute maximum session lifetime is exactly 180 days and the inactivity
+   timeout is at least 180 days (or disabled). Do not promote if the maximum is
+   shorter or longer.
+2. Confirm `pika_session` and the configured WorkOS cookie are secure,
+   HTTP-only, same-site cookies whose `Max-Age` is `15552000` seconds.
+3. Sign in, remove only `pika_session`, and open a protected deep link with a
+   query string. The login surface must restore the mapping without sending a
+   code and return to that exact safe path.
+4. Repeat with an older unbound Pika cookie and a valid WorkOS cookie; the
+   compatibility session must upgrade automatically from the exact WorkOS
+   subject link.
+5. Remove or alter the WorkOS cookie; a Pika cookie alone must never authorize
+   the request.
+6. Log out, revisit a protected path, and confirm the prior WorkOS session
+   cannot silently restore authentication.
+7. Exercise one teacher and one student path, including a fresh code login, a
+   restored session, a protected deep link, and logout.
+8. Using an environment-scoped test session at or beyond the Dashboard absolute
+   cutoff, confirm WorkOS rejects refresh and Pika cannot silently restore it.
+
+If any gate fails, disable `WORKOS_MAGIC_AUTH_PILOT` in that environment and
+redeploy. WorkOS-bound mapping sessions will require a new password login after
+rollback. Ambiguous legacy sessions without explicit provenance also require a
+new password login; neither may become an independent credential. Do not weaken
+the exact-subject check or restore by email.
 
 ## Brevo delivery staging slice
 
@@ -161,7 +226,8 @@ separate WorkOS Applications with separate cookies and internal user IDs.
 Native Pika attendance does not create a Bara browser session.
 
 While `WORKOS_MAGIC_AUTH_PILOT=true`, Pika treats its compatibility cookie as
-valid only alongside a verified, email-matched WorkOS session. For student QR
+valid only alongside a verified WorkOS session whose email and WorkOS user id
+match the Pika session binding. For student QR
 check-in, Pika additionally verifies that the WorkOS subject matches the local
 student identity, then resolves an installation-scoped opaque `principal_ref`
 before its server sends the signed, versioned command to Bara. Bara receives

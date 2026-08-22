@@ -119,6 +119,19 @@ export async function resolvePikaUserFromWorkOS(
   throw new ApiError(409, 'Account identity conflict')
 }
 
+export async function findLinkedPikaUserFromWorkOS(
+  workosUser: Pick<WorkOSUser, 'id' | 'email' | 'emailVerified'>,
+  store: WorkOSIdentityStore = createSupabaseWorkOSIdentityStore(),
+): Promise<PikaAuthUser | null> {
+  if (!workosUser.emailVerified) return null
+
+  const email = normalizeEmail(workosUser.email)
+  const linked = await store.findByWorkOSUserId(workosUser.id)
+  if (!linked || normalizeEmail(linked.email) !== email) return null
+
+  return toPikaAuthUser(linked, workosUser.id)
+}
+
 export function createSupabaseWorkOSIdentityStore(): WorkOSIdentityStore {
   const supabase = getServiceRoleClient()
   const selectFields = 'id, email, role, workos_user_id'

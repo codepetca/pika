@@ -9,6 +9,7 @@
 import { AuthenticationError, AuthorizationError, requireSnapshotGalleryAccess } from '@/lib/auth'
 import { notFound, redirect } from 'next/navigation'
 import { SnapshotGallery } from './SnapshotGallery'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,7 +23,7 @@ export default async function SnapshotsPage() {
     await requireSnapshotGalleryAccess()
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      redirect('/login')
+      redirect(getServerLoginRedirectPath())
     }
 
     if (error instanceof AuthorizationError) {

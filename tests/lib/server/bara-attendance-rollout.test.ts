@@ -24,7 +24,7 @@ function readyEnvironment(): BaraAttendanceRolloutEnvironment {
     WORKOS_API_KEY: 'sk_test_preview',
     WORKOS_COOKIE_PASSWORD: cookiePassword,
     WORKOS_COOKIE_NAME: 'pika-wos-session',
-    WORKOS_COOKIE_MAX_AGE: '43200',
+    WORKOS_COOKIE_MAX_AGE: '15552000',
     WORKOS_MAGIC_AUTH_EMAIL_DELIVERY: 'brevo',
     WORKOS_MAGIC_AUTH_DEFAULT_EMAILS_DISABLED: 'true',
     ENABLE_MOCK_EMAIL: 'false',

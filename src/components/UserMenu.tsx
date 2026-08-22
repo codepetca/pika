@@ -6,6 +6,7 @@ import { UserCircle, LogOut, Moon, Sun, Bug } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 import { FeedbackDialog } from '@/components/FeedbackDialog'
+import { Button } from '@/ui'
 
 interface UserMenuProps {
   user?: {
@@ -214,24 +215,28 @@ export function UserMenu({ user }: UserMenuProps) {
         </button>
 
         {/* Logout */}
-        <Link
-          id={getItemId(2)}
-          ref={(el) => { itemRefs.current[2] = el }}
-          href="/logout"
-          onClick={() => setIsOpen(false)}
-          onMouseEnter={() => setFocusedIndex(2)}
-          onKeyDown={handleItemKeyDown}
-          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
-            focusedIndex === 2
-              ? 'bg-surface-2'
-              : 'hover:bg-surface-hover'
-          }`}
-          role="menuitem"
-          tabIndex={isOpen ? 0 : -1}
-        >
-          <LogOut className="w-4 h-4" />
-          Logout
-        </Link>
+        <form action="/api/auth/workos/logout" method="post" role="none">
+          <Button
+            id={getItemId(2)}
+            ref={(el) => { itemRefs.current[2] = el }}
+            type="submit"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen(false)}
+            onMouseEnter={() => setFocusedIndex(2)}
+            onKeyDown={handleItemKeyDown}
+            className={`min-h-11 w-full justify-start rounded-none px-4 py-2 font-normal ${
+              focusedIndex === 2
+                ? 'bg-surface-2'
+                : 'hover:bg-surface-hover'
+            }`}
+            role="menuitem"
+            tabIndex={isOpen ? 0 : -1}
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
+        </form>
       </div>
 
       <FeedbackDialog isOpen={showFeedback} onClose={() => setShowFeedback(false)} />

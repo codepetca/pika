@@ -159,6 +159,9 @@ export interface SessionData {
     id: string
     email: string
     role: UserRole
+    version?: 2
+    authSource?: 'password' | 'workos'
+    workosUserId?: string
   }
 }
 
