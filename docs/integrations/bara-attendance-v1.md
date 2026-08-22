@@ -48,9 +48,10 @@ and strips all opaque service references before returning browser-facing state.
 It returns a disabled view without touching integration tables while the
 feature is not ready. Migration 127 provides the base schema; the completed
 production canary proof additionally used migrations 129 and 130. This
-operational-recovery release requires separately authorized migration 131 and
-both global attendance flags remaining false until the exact-pair deployed
-pre-enable gate passes.
+operational-recovery release requires verifying that the prior authorized
+migration 131 remains recorded as applied, without reapplying it, and both
+global attendance flags remaining false until the exact-pair deployed
+pre-enable gate passes. If 131 is absent, stop for fresh authorization.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -169,10 +170,11 @@ such as a Convex ID fails the request.
 
 The complete ownership, privacy, route, event, versioning, and acceptance
 baseline is maintained in Bara's
-`docs/system/pika-bara-contract-v1.md`. The current recovery gate is an
-explicitly authorized production application (or verified prior application)
-of Pika migration 131 while attendance is disabled, followed by the deployed
-signed `pre-enable` round trip. Only after that gate passes and enablement is
+`docs/system/pika-bara-contract-v1.md`. The current recovery gate verifies the
+prior authorized production application of Pika migration 131 while attendance
+is disabled and never reapplies it, followed by the deployed signed
+`pre-enable` round trip. If 131 is absent, stop for fresh authorization. Only
+after that gate passes and enablement is
 separately authorized may the exact canary rerun its real
 roster/schedule/session/mark/event/snapshot/QR flow. The Attendance UI remains
 disabled by configuration until those gates pass. Its teacher flow, state
@@ -229,12 +231,11 @@ Pika route runs this environment audit against pinned targets before the signed
 round trip. A failed local audit must not be rewritten as a pass.
 
 This environment preflight does not replace the database gate. Production
-migrations through 130 are already applied. Before enabling this operational-
-recovery release, inspect remote migration history, dry-run migration 131,
-obtain its separate one-time production authorization, apply only 131 while
-both global flags remain false, and rerun the pre-enable audit. If remote
-history already includes 131, do not reapply it; verify the recorded migration
-and continue with the deployed pre-enable gate.
+migrations through 131 are recorded as applied under prior authorization.
+Before enabling this operational-recovery release, verify remote migration
+history still includes 131 while both global flags remain false; do not dry-run
+or reapply it. If that record is missing, stop and obtain fresh migration
+authorization. Otherwise continue with the deployed pre-enable gate.
 
 The hosted scan measurement procedure is deliberately separate from this
 environment audit. Follow `docs/integrations/bara-attendance-scan-load.md`

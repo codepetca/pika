@@ -1,9 +1,11 @@
 # Native Pika attendance powered by Bara
 
-Status: local implementation and production migrations 129/130 are complete.
+Status: local implementation and production migrations through 131 are recorded
+as applied.
 The exact production canary passed on 2026-08-22 after both HMAC pairs were
-aligned. Expansion remains blocked on operational recovery, migration 131,
-the deployed bidirectional credential smoke, and fresh authorization.
+aligned. Expansion remains blocked on completing the reviewed operational
+recovery rollout, the deployed bidirectional credential smoke, and fresh
+authorization.
 
 Risk profile: `runtime-platform`.
 
@@ -86,10 +88,11 @@ that principal through the installation-scoped adapter.
 
 ## Remaining gates
 
-1. Review Bara recovery/smoke first, then Pika no-claim handling and migration
-   131. Do not edit or reapply migrations 129/130.
-2. Obtain separate authorization to apply only migration 131 to the named Pika
-   production project and to deploy the matching reviewed commits. Run the
+1. Review Bara recovery/smoke first, then Pika no-claim handling and smoke gate.
+   Verify the named production project still records migration 131 as applied;
+   do not edit, dry-run, or reapply migrations 129-131. If 131 is absent, stop
+   and obtain fresh migration authorization.
+2. Deploy matching reviewed commits only under separate authorization. Run the
    guarded Bara production build and the deployed Pika `--mode pre-enable`
    environment audit plus bidirectional smoke before any later enablement or
    expansion decision. Downloaded Vercel Sensitive values are not audit
