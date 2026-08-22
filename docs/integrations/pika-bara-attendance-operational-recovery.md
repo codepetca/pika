@@ -17,7 +17,9 @@ change flags, or requeue hosted events.
    project. Deploy matching Bara and Pika commits only with fresh deployment
    authorization.
 4. Confirm the Bara production deployment completed its guarded Vercel build,
-   then invoke the deployed gate from a trusted operator environment. The Pika
+   then invoke the deployed gate from a trusted operator environment. Bara's
+   attendance values live in Convex and are proven by this runtime round trip,
+   not by the Vercel build or a downloaded environment. The Pika
    route runs the full Pika `pre-enable` environment audit inside the deployed
    runtime before creating smoke replay-protection state:
 
