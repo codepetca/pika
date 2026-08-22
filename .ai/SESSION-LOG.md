@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Blueprint import review-gap coverage
-
-**Risk profile:** none — test-only follow-up; no runtime, UI, API, schema,
-migration, database, production, Gradex, or student behavior changes.
-
-**Completed:**
-- Added dedicated Blueprints-page coverage for normalized JSON retry identity,
-  changed-content key replacement, and operation-key clearing after success.
-- Added classroom-wizard coverage proving a pending package import suppresses a
-  second file submission until the first request settles.
-- Independent review's P3 maintainability finding was fixed by scoping the
-  suppression assertion to package-import requests instead of all global fetches.
-- Targeted re-review's P1 false-positive finding was fixed by also proving the
-  second event never re-enters asynchronous package preparation.
-
-**Validation:**
-- All 27 focused component tests and all 4,407 repository tests pass.
-- TypeScript, lint, architecture, production build, diff checks, and Pika audit
-  pass. Visual verification is not applicable to this test-only patch.
-
 ## 2026-08-17 — Blueprint editor dirty-state protection
 
 **Risk profile:** none — teacher-only Blueprint editor reliability and shared
@@ -1345,3 +1325,23 @@ capabilities, and rollout sequencing; attendance remains globally disabled.
 - The database-writing local contract was not run because applying migration
   130 locally requires separate exact authorization; the release PR's clean
   ephemeral database job is the required migration replay and privilege proof.
+
+## 2026-08-21 — Route attendance RPC retirement through main
+
+**Risk profile:** runtime-platform — linearizes the reviewed attendance
+privilege migration and rollout guidance onto `main`; no hosted database,
+deployment, environment variable, or attendance flag was changed.
+
+**Completed:**
+- Replayed the two reviewed release-remediation commits onto a dedicated branch
+  from current `origin/main`, excluding the production-only calendar-test
+  parity correction that was already absent from `main`.
+- Preserved migration 130 as an unapplied, separately authorized rollout step
+  and kept attendance globally disabled pending the exact-pair canary audit.
+
+**Verification:**
+- Focused migration and documentation coverage passes 3 tests.
+- Full Vitest passes 4,939 tests across 565 files; TypeScript, lint,
+  architecture boundaries, and the production build pass.
+- The clean release CI already replayed migrations through 130 in an ephemeral
+  Supabase database; no local or production migration application was run.

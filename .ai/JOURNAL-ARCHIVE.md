@@ -22001,3 +22001,24 @@ migration, production, archive cleanup, Gradex, or student behavior changes.
 - Teacher desktop/mobile light/dark screenshots remain clean. An intercepted,
   non-mutating request verifies the disabled importing state without layout
   shift or clipping. Student is not affected by this teacher-only route.
+
+<!-- pika-session-log-archive-batch:cf4f6a820b2b2500e33b68501ec3b80911150acc60784476c9efe920004f6dcc -->
+## 2026-08-17 — Blueprint import review-gap coverage
+
+**Risk profile:** none — test-only follow-up; no runtime, UI, API, schema,
+migration, database, production, Gradex, or student behavior changes.
+
+**Completed:**
+- Added dedicated Blueprints-page coverage for normalized JSON retry identity,
+  changed-content key replacement, and operation-key clearing after success.
+- Added classroom-wizard coverage proving a pending package import suppresses a
+  second file submission until the first request settles.
+- Independent review's P3 maintainability finding was fixed by scoping the
+  suppression assertion to package-import requests instead of all global fetches.
+- Targeted re-review's P1 false-positive finding was fixed by also proving the
+  second event never re-enters asynchronous package preparation.
+
+**Validation:**
+- All 27 focused component tests and all 4,407 repository tests pass.
+- TypeScript, lint, architecture, production build, diff checks, and Pika audit
+  pass. Visual verification is not applicable to this test-only patch.
