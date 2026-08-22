@@ -34,7 +34,8 @@ change flags, or requeue hosted events.
    response, or failed direction blocks enablement and rollout expansion.
    The CLI pins `--expected-pika-origin` to the independently configured
    `NEXT_PUBLIC_APP_URL` before reading the dedicated
-   `BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET`; that secret must be distinct from
+   `BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET`; the route fails closed unless that
+   secret is at least 32 characters and distinct from
    `CRON_SECRET` and every attendance HMAC secret.
 5. Enable or expand only after separate explicit authorization, then rerun the
    static `enabled` audits and the deployed smoke before the exact controlled
@@ -45,9 +46,17 @@ change flags, or requeue hosted events.
 Preview must never point at or probe the production Supabase database. Running
 the deployed smoke command with `--stage preview` records
 `production_only_no_staging_database` and performs no database or network call.
+The reverse callback also rejects before configuration or database access in
+Preview.
 That skip is expected for preview build evidence but never satisfies a
 production rollout gate. A production invocation must return `passed` with all
 three aggregate checks true.
+
+Smoke runs and nonces are aggregate-only operational evidence. Each new
+production challenge removes at most 100 runs and 100 nonces older than 24
+hours; active five-minute challenges are retained. Smoke-only foreign keys
+cascade on an otherwise-authorized teacher or Classroom deletion, so the gate
+cannot create a permanent tenant-deletion blocker.
 
 ## Pika no-claim behavior
 

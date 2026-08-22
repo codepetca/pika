@@ -5,8 +5,8 @@
 create table public.attendance_integration_smoke_runs (
   id uuid primary key default gen_random_uuid(),
   installation_ref text not null check (installation_ref ~ '^[A-Za-z0-9._~-]{1,128}$'),
-  teacher_id uuid not null references public.users(id) on delete restrict,
-  classroom_id uuid not null references public.classrooms(id) on delete restrict,
+  teacher_id uuid not null references public.users(id) on delete cascade,
+  classroom_id uuid not null references public.classrooms(id) on delete cascade,
   request_id text not null check (request_id ~ '^[A-Za-z0-9._~-]{16,128}$'),
   challenge_hash text not null check (challenge_hash ~ '^[a-f0-9]{64}$'),
   status text not null check (status in ('running', 'passed', 'failed')),
@@ -69,6 +69,32 @@ begin
     p_installation_ref || ':' || p_teacher_id::text || ':' || p_classroom_id::text,
     468021357
   ));
+
+  -- Keep the operational ledger bounded without retaining smoke-only rows as
+  -- tenant-deletion blockers. Active five-minute challenges are never eligible.
+  delete from public.attendance_integration_smoke_runs run
+  where run.id in (
+    select expired.id
+    from public.attendance_integration_smoke_runs expired
+    where (
+      expired.status in ('passed', 'failed')
+      and expired.finished_at < clock_timestamp() - interval '24 hours'
+    ) or (
+      expired.status = 'running'
+      and expired.created_at < clock_timestamp() - interval '24 hours'
+    )
+    order by expired.created_at
+    limit 100
+  );
+  delete from public.attendance_integration_smoke_nonces nonce
+  where nonce.ctid in (
+    select expired.ctid
+    from public.attendance_integration_smoke_nonces expired
+    where expired.created_at < clock_timestamp() - interval '24 hours'
+    order by expired.created_at
+    limit 100
+  );
+
   perform 1
   from public.classrooms classroom
   where classroom.id = p_classroom_id

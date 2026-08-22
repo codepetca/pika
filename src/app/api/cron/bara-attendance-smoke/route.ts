@@ -9,7 +9,15 @@ export const maxDuration = 30
 
 export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: NextRequest) => {
   const operatorSecret = process.env.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET
-  if (!operatorSecret || request.headers.get('authorization') !== `Bearer ${operatorSecret}`) {
+  const conflictingSecrets = [
+    process.env.CRON_SECRET,
+    process.env.BARA_ATTENDANCE_INTEGRATION_SECRET,
+    process.env.BARA_ATTENDANCE_EVENT_SECRET,
+  ].filter((value): value is string => Boolean(value))
+  if (!operatorSecret || operatorSecret.length < 32 || conflictingSecrets.includes(operatorSecret)) {
+    return NextResponse.json({ error: 'Smoke operator authentication not configured' }, { status: 503 })
+  }
+  if (request.headers.get('authorization') !== `Bearer ${operatorSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const result = await runBaraAttendanceSmoke()

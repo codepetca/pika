@@ -50,6 +50,27 @@ describe('deployed Bara attendance smoke runner', () => {
     )
   })
 
+  it.each([401, 409, 429, 503])(
+    'blocks rollout when HTTP %i carries a pass-shaped body',
+    async (status) => {
+      const fetcher = vi.fn(async () => new Response(JSON.stringify({
+        status: 'passed',
+        checks: { canaryScope: true, pikaToBara: true, baraToPika: true },
+      }), { status }))
+
+      await expect(runDeployedBaraAttendanceSmoke({
+        stage: 'production',
+        expectedPikaOrigin: 'https://pika.example',
+        configuredPikaOrigin: 'https://pika.example',
+        readOperatorSecret: () => secret,
+        fetcher,
+      })).resolves.toEqual({
+        exitCode: 1,
+        output: { status: 'failed', rolloutGateSatisfied: false, checksPassed: 0, checksTotal: 3 },
+      })
+    },
+  )
+
   it('skips Preview without reading a credential or contacting a service', async () => {
     const readOperatorSecret = vi.fn(() => secret)
     const fetcher = vi.fn()

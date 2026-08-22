@@ -878,6 +878,53 @@ begin
   ) then
     raise exception 'Challenge-correlated smoke could not complete';
   end if;
+
+  update public.attendance_integration_smoke_runs
+  set created_at = clock_timestamp() - interval '25 hours',
+      finished_at = clock_timestamp() - interval '25 hours'
+  where installation_ref = 'installation_guard'
+    and request_id = 'smoke_request_0123456789abcdef';
+  update public.attendance_integration_smoke_nonces
+  set created_at = clock_timestamp() - interval '25 hours'
+  where installation_ref = 'installation_guard'
+    and nonce = 'nonce_0123456789abcdef';
+
+  select public.begin_attendance_integration_smoke_v1(
+    'installation_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000020',
+    'smoke_request_fedcba9876543210',
+    repeat('c', 64)
+  ) into v_begin;
+  if not (v_begin->>'accepted')::boolean
+    or exists (
+      select 1 from public.attendance_integration_smoke_runs
+      where request_id = 'smoke_request_0123456789abcdef'
+    ) or exists (
+      select 1 from public.attendance_integration_smoke_nonces
+      where nonce = 'nonce_0123456789abcdef'
+    ) then
+    raise exception 'Expired smoke state was not cleaned before a new challenge';
+  end if;
+
+  insert into public.attendance_integration_smoke_runs (
+    installation_ref, teacher_id, classroom_id, request_id,
+    challenge_hash, status, pika_to_bara, bara_to_pika, finished_at
+  ) values (
+    'installation_delete_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000019',
+    'smoke_request_delete_guard', repeat('d', 64),
+    'passed', true, true, clock_timestamp()
+  );
+  delete from public.classrooms
+  where id = 'a1260000-0000-4000-8000-000000000019';
+  if exists (
+    select 1 from public.attendance_integration_smoke_runs
+    where request_id = 'smoke_request_delete_guard'
+  ) then
+    raise exception 'Smoke-only evidence blocked or survived classroom deletion';
+  end if;
 end;
 $smoke_challenge$;
 

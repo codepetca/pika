@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES,
+  ATTENDANCE_PROVIDER_OWNED_REFERENCES,
   CLASSROOM_ACTOR_REFERENCE_COLUMNS,
   CLASSROOM_NON_OWNING_REFERENCES,
   CLASSROOM_PURGE_ONLY_RELATIONAL_RESOURCES,
@@ -223,7 +223,7 @@ describe('classroom data inventory', () => {
     expect(audit.untracked_tables).not.toContain('attendance_integration_inbox')
     expect(audit.untracked_tables).not.toContain('attendance_session_projection')
     expect(audit.untracked_tables).not.toContain('attendance_record_projection')
-    expect(ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES).toEqual(
+    expect(ATTENDANCE_PROVIDER_OWNED_REFERENCES).toEqual(
       expect.arrayContaining([
         {
           child_table: 'attendance_integration_inbox',

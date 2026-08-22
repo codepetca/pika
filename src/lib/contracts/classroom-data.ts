@@ -71,11 +71,11 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
 } as const satisfies Record<string, readonly string[]>
 
 // Provider-owned attendance state is deliberately not portable classroom data.
-// Soft archive/restore retains it in place, while compaction and destructive
-// purge are blocked until a versioned Bara decommission/reseed protocol exists.
-// Keeping every live FK explicit prevents schema audit from misclassifying
-// opaque provider state as an exportable or silently rebuildable resource.
-export const ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES = [
+// Soft archive/restore retains it in place. Authoritative provider state blocks
+// destructive purge pending a versioned Bara decommission/reseed protocol;
+// bounded smoke-only evidence instead cascades with an authorized tenant delete.
+// Keeping every live FK explicit prevents schema audit from misclassifying it.
+export const ATTENDANCE_PROVIDER_OWNED_REFERENCES = [
   {
     child_table: 'attendance_integration_smoke_runs',
     parent_table: 'classrooms',
@@ -147,7 +147,7 @@ export const ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES = [
 // workflow either retains/blocks them explicitly or rebuilds/expires them under
 // its own documented contract.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
-  ...ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES,
+  ...ATTENDANCE_PROVIDER_OWNED_REFERENCES,
   {
     child_table: 'course_blueprint_change_proposals',
     parent_table: 'classrooms',

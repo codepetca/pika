@@ -57,6 +57,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
   }
 
   let result: unknown = null
+  let responseAccepted = false
   try {
     const response = await (input.fetcher ?? fetch)(
       `${origin}/api/cron/bara-attendance-smoke`,
@@ -66,6 +67,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
         signal: AbortSignal.timeout(20_000),
       },
     )
+    responseAccepted = response.ok && response.status === 200
     const text = (await response.text()).slice(0, 4_096)
     result = JSON.parse(text) as unknown
   } catch {
@@ -78,7 +80,8 @@ export async function runDeployedBaraAttendanceSmoke(input: {
     && record.checks !== null && !Array.isArray(record.checks)
     ? record.checks as Record<string, unknown>
     : null
-  const passed = record?.status === 'passed'
+  const passed = responseAccepted
+    && record?.status === 'passed'
     && checks?.canaryScope === true
     && checks.pikaToBara === true
     && checks.baraToPika === true

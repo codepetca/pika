@@ -11,78 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Add authoritative attendance projection reconciliation
-
-**Risk profile:** runtime-platform, privacy, and schema. Only the loopback
-Supabase stack was reset; no hosted database, deployment, or external
-configuration changed.
-
-**Completed:**
-- Added a separate daily reconciliation worker for up to 50 active or recently
-  closed occurrences from a 48-hour window, ordered least-recently reconciled
-  first and fetched with bounded concurrency.
-- Applied signed Bara snapshots monotonically to Pika's private session and
-  record projections, recording reconciliation progress even when revisions
-  are already current so eligible sessions rotate fairly.
-- Made event and snapshot ingress reject roster/occurrence and participant
-  references that do not resolve to the same Pika classroom. Browser and cron
-  responses remain closed and aggregate-only.
-- Kept reconciliation separate from schedule/outbox automation so neither job
-  consumes the other's serverless execution budget. Failed or truncated work
-  returns HTTP 503 for operator visibility.
-
-**Validation:**
-- Focused event, reconciliation, cron, configuration, and migration tests pass
-  22/22; TypeScript passes.
-- Migration 127 replayed from zero against loopback Supabase. A rollback-only
-  database smoke proved service-role-only target selection, valid event and
-  snapshot application, last-reconciled rotation, and fail-closed participant
-  mapping checks.
-- The clean full-suite rerun passes 4,453 tests across 532 files. Production
-  build, TypeScript, generated database types, design/UI policies, architecture
-  boundaries across 746 modules, and diff hygiene pass. One unrelated
-  asynchronous purge-dialog test failed during the first run, passed in
-  isolation, and passed in the clean full rerun.
-
-**Next gate:**
-- Apply migration 127 only to an explicitly confirmed non-production hosted
-  target and exercise the real no-second-login plus teacher/student attendance
-  round trip.
-
-## 2026-08-17 — Bind attendance rollout to an exact isolated environment
-
-**Risk profile:** runtime-platform, authentication, and hosted target safety.
-No Supabase project, Vercel variable, WorkOS resource, deployment, or DNS record
-was changed.
-
-**Completed:**
-- Audited Vercel and Supabase target metadata without exposing values. Preview
-  references Supabase `ykyikhblwvtqigwmtrkf`, whose hostname no longer
-  resolves; Production uses the healthy Pika project
-  `zhioqbapgfcrronyuidm`.
-- Confirmed the Supabase account already has two active Free projects, so a
-  third no-charge active development project is unavailable and paid preview
-  branching is not an acceptable implicit fallback.
-- Added an aggregate-only rollout preflight for exact Supabase refs and
-  Pika/Bara origins, Staging WorkOS credentials, Brevo-only Magic Auth,
-  no-prompt handoff, attendance transport/event ingress, and distinct secrets.
-  Preview cannot pass while sharing the production ref.
-- Exercised the preflight against the current Vercel Preview environment. It
-  reports 7/20 checks passing; WorkOS and Bara configuration is absent, the
-  existing Preview `SESSION_SECRET` is empty, and no value was printed.
-
-**Validation:**
-- Focused rollout, WorkOS delivery/session, Bara handoff, and signed-client
-  tests pass 25/25. TypeScript, architecture boundaries across 747 modules,
-  synthetic CLI success, and diff hygiene pass.
-
-**Next gate:**
-- Provision or explicitly designate an isolated non-production Supabase target
-  without disrupting Pika, Codepet HQ, or production billing. Then load the
-  preview WorkOS/Brevo/Bara environment, rerun the preflight, inspect remote
-  migration history, and apply migration 127 only after the exact target is
-  confirmed.
-
 ## 2026-08-17 — Harden the teacher attendance pilot surface
 
 **Risk profile:** teacher UX and local test data only. No hosted database,
@@ -1316,3 +1244,22 @@ deployment, or production state changed.
   so unchanged failures cannot starve later eligible events, and replaced the
   shared cron bearer with a dedicated smoke credential that is read only after
   the destination matches the configured canonical Pika production origin.
+
+## 2026-08-22 — Close attendance recovery review-loop gaps
+
+**Risk profile:** runtime-platform — deployed authentication smoke, bounded
+operational state, and tenant deletion behavior; no hosted data, migration,
+deployment, flag, credential, or production state changed.
+
+- Made the deployed operator gate require HTTP 200 as well as a strict passing
+  aggregate body, so pass-shaped 401/409/429/5xx responses cannot authorize
+  rollout expansion.
+- Made Preview reverse callbacks reject before configuration or database access
+  and made the operator route fail closed when its dedicated credential is
+  missing, short, or overlaps cron or either attendance HMAC secret.
+- Bounded smoke-run and nonce retention to 100 expired rows of each kind per
+  new challenge after 24 hours. Smoke-only evidence now cascades with an
+  otherwise-authorized tenant deletion while active five-minute challenges
+  remain protected.
+- Added runtime database-guard coverage for retention cleanup and classroom
+  deletion, plus focused route, runner, migration, and callback regressions.

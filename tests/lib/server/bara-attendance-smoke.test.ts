@@ -122,6 +122,20 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
+  it('rejects a Preview reverse callback before configuration or database access', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    const supabase = supabaseMock()
+
+    await expect(receiveBaraAttendanceSmokeCallback(
+      new Request('https://pika-preview.example/api/integrations/attendance/v1/smoke/events', {
+        method: 'POST',
+      }),
+      { supabase: supabase as never },
+    )).resolves.toEqual({ ok: false, status: 404, error: 'not_found' })
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
+  })
+
   it('authenticates the reverse callback, binds the exact canary, and consumes its nonce', async () => {
     const timestamp = String(Math.floor(now / 1_000))
     const nonce = 'nonce_0123456789abcdef0123456789abcdef'

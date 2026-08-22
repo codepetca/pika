@@ -14,6 +14,11 @@ const databaseGuard = readFileSync(
 describe('attendance cross-service smoke migration', () => {
   it('keeps smoke state private, canary-scoped, replay-resistant, and rate bounded', () => {
     expect(migration).toContain('create table public.attendance_integration_smoke_runs')
+    expect(migration).toContain('references public.users(id) on delete cascade')
+    expect(migration).toContain('references public.classrooms(id) on delete cascade')
+    expect(migration).toContain("expired.finished_at < clock_timestamp() - interval '24 hours'")
+    expect(migration).toContain("expired.created_at < clock_timestamp() - interval '24 hours'")
+    expect(migration.match(/limit 100/g)).toHaveLength(3)
     expect(migration).toContain('create table public.attendance_integration_smoke_nonces')
     expect(migration).toContain('enable row level security')
     expect(migration).toContain('from public, anon, authenticated, service_role')

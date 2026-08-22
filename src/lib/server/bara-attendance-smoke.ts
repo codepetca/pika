@@ -244,6 +244,9 @@ export async function receiveBaraAttendanceSmokeCallback(
   request: Request,
   input: { supabase?: SmokeRpcClient; now?: () => number } = {},
 ): Promise<{ ok: true; status: 200 } | { ok: false; status: number; error: string }> {
+  if (process.env.VERCEL_ENV !== 'production') {
+    return { ok: false, status: 404, error: 'not_found' }
+  }
   let config: ReturnType<typeof smokeConfiguration>
   try {
     config = smokeConfiguration()
