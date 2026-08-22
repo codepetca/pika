@@ -3,6 +3,10 @@ import {
   auditBaraAttendanceRolloutEnvironment,
   type BaraAttendanceRolloutEnvironment,
 } from '@/lib/server/bara-attendance-rollout'
+import {
+  PIKA_ATTENDANCE_PRODUCTION_TARGET,
+  isDeployedBaraAttendanceEnvironmentReady,
+} from '@/lib/server/bara-attendance-deployed-preflight'
 
 const previewRef = 'abcdefghijklmnopqrst'
 const productionRef = 'zyxwvutsrqponmlkjihg'
@@ -147,5 +151,52 @@ describe('Bara attendance rollout environment audit', () => {
       environment.CRON_SECRET,
     ]) if (value) expect(serialized).not.toContain(value)
     expect(serialized).toContain('bara_attendance_transport')
+  })
+})
+
+describe('deployed Bara attendance preflight', () => {
+  function readyProductionEnvironment(): BaraAttendanceRolloutEnvironment & {
+    VERCEL_ENV: string
+  } {
+    return {
+      ...readyEnvironment(),
+      VERCEL_ENV: 'production',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://zhioqbapgfcrronyuidm.supabase.co',
+      NEXT_PUBLIC_APP_URL: 'https://pika.codepet.ca',
+      WORKOS_API_KEY: 'sk_live_production',
+      PIKA_BARA_ATTENDANCE_ENABLED: 'false',
+      BARA_ATTENDANCE_API_BASE_URL: 'https://adamant-mockingbird-31.convex.site',
+    }
+  }
+
+  it('pins the exact reviewed production targets', () => {
+    expect(PIKA_ATTENDANCE_PRODUCTION_TARGET).toEqual({
+      stage: 'production',
+      expectedSupabaseRef: 'zhioqbapgfcrronyuidm',
+      productionSupabaseRef: 'zhioqbapgfcrronyuidm',
+      expectedPikaOrigin: 'https://pika.codepet.ca',
+      expectedBaraApiOrigin: 'https://adamant-mockingbird-31.convex.site',
+    })
+  })
+
+  it('accepts the deployed production environment only in the requested flag mode', () => {
+    const environment = readyProductionEnvironment()
+
+    expect(isDeployedBaraAttendanceEnvironmentReady('pre-enable', environment)).toBe(true)
+    expect(isDeployedBaraAttendanceEnvironmentReady('enabled', environment)).toBe(false)
+
+    environment.PIKA_BARA_ATTENDANCE_ENABLED = 'true'
+    expect(isDeployedBaraAttendanceEnvironmentReady('pre-enable', environment)).toBe(false)
+    expect(isDeployedBaraAttendanceEnvironmentReady('enabled', environment)).toBe(true)
+  })
+
+  it('fails closed outside production or when a pinned origin drifts', () => {
+    const environment = readyProductionEnvironment()
+    environment.VERCEL_ENV = 'preview'
+    expect(isDeployedBaraAttendanceEnvironmentReady('pre-enable', environment)).toBe(false)
+
+    environment.VERCEL_ENV = 'production'
+    environment.BARA_ATTENDANCE_API_BASE_URL = 'https://other.convex.site'
+    expect(isDeployedBaraAttendanceEnvironmentReady('pre-enable', environment)).toBe(false)
   })
 })

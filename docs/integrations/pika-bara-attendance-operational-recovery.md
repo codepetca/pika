@@ -9,25 +9,36 @@ change flags, or requeue hosted events.
    recovery operation and the signed smoke endpoint, which is attendance-domain
    mutation-free but writes bounded replay-protection state. Do not run hosted
    recovery.
-2. Review and merge the Pika PR second. It adds migration 131, the reverse
-   signed smoke ingress, and the operator-protected deployed gate.
+2. Review and merge the Pika PR second. Pika main already contains migration
+   131 and the reverse signed smoke ingress; the companion PR adds the pinned
+   deployed environment gate and explicit rollout-mode proof.
 3. With both attendance flags still false, obtain one-time authorization for
    Pika migration 131 and apply only that migration to the named production
    project. Deploy matching Bara and Pika commits only with fresh deployment
    authorization.
-4. Run both static production `pre-enable` audits, then invoke the deployed
-   gate from a trusted operator environment:
+4. Confirm the Bara production deployment completed its guarded Vercel build,
+   then invoke the deployed gate from a trusted operator environment. Bara's
+   attendance values live in Convex and are proven by this runtime round trip,
+   not by the Vercel build or a downloaded environment. The Pika
+   route runs the full Pika `pre-enable` environment audit inside the deployed
+   runtime before creating smoke replay-protection state:
 
    ```bash
    pnpm attendance:smoke:deployed -- \
+     --mode pre-enable \
      --stage production \
      --expected-pika-origin "https://pika.codepet.ca"
    ```
 
-   The command calls the deployed Pika operator route. Deployed Pika signs a
+   The command calls the deployed Pika operator route. The route checks the
+   actual Vercel Sensitive values against reviewed, pinned production Pika,
+   Bara, and Supabase targets and requires the current attendance flag to match
+   `--mode`. Only after that audit passes does deployed Pika sign a
    fresh Pika-to-Bara request; deployed Bara verifies it and signs a separate
    callback to deployed Pika. Passing therefore proves both receiver-held
    credential pairs, not a local comparison of secret values. Pika accepts the
+   signed legs only without redirects, so a pinned receiver cannot forward a
+   signed body or authentication headers to another origin. Pika accepts the
    callback only for the active rate-bounded run's five-minute challenge,
    persisted as a hash and atomically consumed with its transport nonce. Output
    is aggregate only. Any skip, 401, 409, 429, 5xx, scope failure, malformed
@@ -37,14 +48,17 @@ change flags, or requeue hosted events.
    `BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET`; the route fails closed unless that
    secret is at least 32 characters and distinct from
    `CRON_SECRET` and every attendance HMAC secret.
+   `vercel env pull` and `vercel env run` intentionally return empty values for
+   Vercel Sensitive variables. A local static audit using those downloads is
+   advisory and is expected to fail closed; it is not hosted rollout evidence.
 5. Enable or expand only after separate explicit authorization, then rerun the
-   static `enabled` audits and the deployed smoke before the exact controlled
-   canary. Keep every non-canary teacher/classroom disabled.
+   deployed smoke with `--mode enabled` before the exact controlled canary.
+   Keep every non-canary teacher/classroom disabled.
 
 ## Preview rule when no staging database exists
 
 Preview must never point at or probe the production Supabase database. Running
-the deployed smoke command with `--stage preview` records
+the deployed smoke command with `--mode pre-enable --stage preview` records
 `production_only_no_staging_database` and performs no database or network call.
 The reverse callback also rejects before configuration or database access in
 Preview.

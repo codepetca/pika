@@ -5,8 +5,9 @@
   in both directions.
 - Operator flow: run the production-targeted smoke gate against the exact
   configured teacher/classroom canary before enablement or expansion; the gate
-  signs Pika-to-Bara, requires Bara to call the separately signed Pika ingress,
-  and reports aggregate directional checks only.
+  first audits Pika's actual deployed Sensitive environment against pinned
+  production targets, then signs Pika-to-Bara, requires Bara to call the
+  separately signed Pika ingress, and reports aggregate directional checks only.
 - Architecture: normalize literal `null` and all-null PostgREST composite claim
   results before Zod parsing; defensively return SQL `null` explicitly from a new
   migration only if required by PostgreSQL/PostgREST behavior. Add a private
@@ -17,6 +18,9 @@
   diagnostics never escape; malformed non-null rows still fail closed.
 - Smoke invariants: production deployment only; exact installation, tenant, teacher,
   classroom, Bara URL, and Pika callback URL come from deployment configuration;
+  the expected Pika origin, Bara Convex site origin, and Supabase project are
+  independently pinned in reviewed code; the operator must name `pre-enable` or
+  `enabled`, and the deployed audit fails if the actual flag disagrees;
   dedicated operator bearer pinned to configured Pika origin plus HMAC on
   service legs; separate directional secrets;
   one-use timestamped nonces; fixed paths and origins; bounded body, timeout,
@@ -28,9 +32,12 @@
   replayed, or either direction rejects authentication.
 - Risks: treating malformed data as no claim, leaking Zod/database diagnostics,
   SSRF, cross-tenant probes, replay, using one secret in both directions, or a
-  local self-comparison that does not exercise deployed receivers.
+  local self-comparison that does not exercise deployed receivers. Vercel
+  Sensitive values are intentionally unreadable to `vercel env pull/run`, so a
+  downloaded-env audit is advisory and never satisfies the hosted gate.
 - Simplification: no staging database, attendance-domain smoke fixture, browser
   endpoint, secret introspection, production flag mutation, or hosted requeue.
 - Acceptance: focused tests cover both no-claim shapes and malformed rows;
-  directional smoke success/mismatch/replay/scope/bounds; rollout docs make the
-  production-only skip/fail and PR/deploy/migration order explicit.
+  deployed preflight mode/scope/target failures; directional smoke
+  success/mismatch/replay/scope/bounds; rollout docs make the production-only
+  skip/fail and PR/deploy/migration order explicit.

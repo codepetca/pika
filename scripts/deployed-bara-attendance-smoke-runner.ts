@@ -19,6 +19,7 @@ function exactProductionOrigin(value: string) {
 
 export async function runDeployedBaraAttendanceSmoke(input: {
   stage: 'preview' | 'production'
+  attendanceMode: 'pre-enable' | 'enabled'
   expectedPikaOrigin: string
   configuredPikaOrigin: string
   readOperatorSecret: () => string
@@ -26,7 +27,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
 }): Promise<DeployedSmokeRunnerResult> {
   if (input.stage === 'preview') {
     return {
-      exitCode: 0,
+      exitCode: 1,
       output: {
         status: 'skipped',
         reason: 'production_only_no_staging_database',
@@ -63,7 +64,11 @@ export async function runDeployedBaraAttendanceSmoke(input: {
       `${origin}/api/cron/bara-attendance-smoke`,
       {
         method: 'POST',
-        headers: { Authorization: `Bearer ${operatorSecret}` },
+        headers: {
+          Authorization: `Bearer ${operatorSecret}`,
+          'X-Attendance-Rollout-Mode': input.attendanceMode,
+        },
+        redirect: 'error',
         signal: AbortSignal.timeout(20_000),
       },
     )

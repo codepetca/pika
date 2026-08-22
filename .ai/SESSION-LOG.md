@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Harden the teacher attendance pilot surface
-
-**Risk profile:** teacher UX and local test data only. No hosted database,
-deployment, credential, or rollout state changed.
-
-**Completed:**
-- Audited the native Attendance tab at desktop and 390×844 mobile widths with
-  an open session, projected roster, QR/manual controls, status counts, and QR
-  failure recovery. Core controls retain programmatic names, the table remains
-  usable at the mobile breakpoint, and the source column collapses without
-  hiding attendance status.
-- Replaced the internal “identity is not linked” QR response with a bounded
-  teacher-facing setup/sync message while preserving the 409 recovery contract
-  and provider-detail boundary.
-- Removed the temporary local attendance projection fixture by explicitly
-  resetting loopback Supabase and replaying migrations 001–127. Stopped the
-  temporary development server and reset the browser viewport.
-
-**Validation:**
-- Focused rollout, teacher attendance component, and QR API suites pass 15/15;
-  TypeScript passes. The prior clean full suite, production build, migration
-  replay, generated types, and architecture evidence remain green.
-
-**Next gate:**
-- The rollout is locally ready but hosted verification remains blocked on one
-  exact isolated non-production Supabase target. Do not repoint Preview at
-  production or enable paid branching without an explicit environment choice.
-
 ## 2026-08-17 — Expose automatic attendance hours in the native teacher flow
 
 **Risk profile:** teacher UX and schedule materialization. No hosted database,
@@ -1263,3 +1235,18 @@ deployment, flag, credential, or production state changed.
   remain protected.
 - Added runtime database-guard coverage for retention cleanup and classroom
   deletion, plus focused route, runner, migration, and callback regressions.
+
+## 2026-08-22 — Move attendance rollout preflight into deployed runtimes
+
+**Risk profile:** runtime-platform — production cross-service authentication
+and rollout gating; no hosted configuration, flags, deployment, or data changed.
+
+- Made the Pika operator smoke run the complete pinned production environment
+  audit inside Vercel before creating any smoke state, avoiding false evidence
+  from locally downloaded Sensitive values that Vercel intentionally redacts.
+- Bound each operator invocation to an explicit pre-enable or enabled mode and
+  made Bara verify that mode against its deployed Convex integration flag before
+  consuming nonce or callback state.
+- Kept the proof aggregate-only, exact-canary scoped, authenticated, replay
+  resistant, and non-mutating; updated rollout documentation and regression
+  coverage for target drift, mode mismatch, and fail-before-smoke behavior.
