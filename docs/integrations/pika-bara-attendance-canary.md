@@ -29,8 +29,9 @@ the authorization race, new teacher commands, QR issuance/check-in, ingress,
 claims, reconciliation selection, and attendance reads fail closed. Pika does
 not hold a database transaction or expiring lease across a Bara network call.
 
-Changing the canary requires changing both variables and redeploying. Keep the
-global flag false until migration 129 and the exact pair are installed and the
+Changing the canary requires changing both variables and redeploying. Production
+migration 129 is already applied. Keep the global flag false until migration 130
+is separately authorized and applied, the exact pair is configured, and the
 `pre-enable` rollout audit proves that the classroom is active and currently
 owned by the configured teacher. After the paired flags are enabled, run the
 `enabled` audit again before the controlled flow. This boundary is intentionally

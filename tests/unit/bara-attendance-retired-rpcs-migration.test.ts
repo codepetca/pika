@@ -22,6 +22,10 @@ const v1Guide = readFileSync(
   resolve(process.cwd(), 'docs/integrations/bara-attendance-v1.md'),
   'utf8',
 )
+const canaryRunbook = readFileSync(
+  resolve(process.cwd(), 'docs/integrations/pika-bara-attendance-canary.md'),
+  'utf8',
+)
 
 describe('retired unscoped Bara attendance RPC migration', () => {
   it('removes every superseded worker and event capability from service role', () => {
@@ -54,5 +58,8 @@ describe('retired unscoped Bara attendance RPC migration', () => {
       'Migration 127 provides the base schema; production\ncanary readiness additionally requires already-applied migration 129',
     )
     expect(v1Guide).not.toContain('hosted configured reads remain gated on applying migration 127')
+    expect(canaryRunbook).toContain('Production\nmigration 129 is already applied')
+    expect(canaryRunbook).toContain('migration 130\nis separately authorized and applied')
+    expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
   })
 })
