@@ -48,18 +48,18 @@ describe('retired unscoped Bara attendance RPC migration', () => {
   })
 
   it('keeps active rollout guidance aligned with the production migration state', () => {
-    expect(completionAudit).toContain('Production migration 129 is applied')
-    expect(roadmap).toContain('production migration 129 applied')
-    expect(completionAudit).toContain('apply only migration 130')
-    expect(roadmap).toContain('Apply 130 only after a\n   separate one-time production authorization')
+    expect(completionAudit).toContain('production migrations 129 and 130')
+    expect(roadmap).toContain('production migrations 129/130 are complete')
+    expect(completionAudit).toContain('migration 131')
+    expect(roadmap).toContain('apply only migration 131')
     expect(scanRunbook).toContain('full Pika migration history through migration\n   130')
     expect(scanRunbook).not.toContain('Supabase migration 127 is applied only')
     expect(v1Guide).toContain(
       'Migration 127 provides the base schema; production\ncanary readiness additionally requires already-applied migration 129',
     )
     expect(v1Guide).not.toContain('hosted configured reads remain gated on applying migration 127')
-    expect(canaryRunbook).toContain('Production\nmigration 129 is already applied')
-    expect(canaryRunbook).toContain('migration 130\nis separately authorized and applied')
+    expect(canaryRunbook).toContain('production migrations through 130')
+    expect(canaryRunbook).toContain('Migration 131')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
   })
 })
