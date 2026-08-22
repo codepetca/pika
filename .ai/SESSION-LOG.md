@@ -1227,6 +1227,10 @@ event, or production data changed.
 - Aligned the migration gate with hosted evidence that migration 131 is already
   recorded as applied: operators verify it and stop for fresh authorization if
   it is absent, but never dry-run or reapply it from this rollout flow.
+- Swept every sibling attendance status, canary, roadmap, completion-audit, and
+  recovery runbook so none still instructs operators to authorize or apply the
+  already-recorded production migration 131; 42 focused documentation and
+  startup guard tests pass.
 - Added route and deployed-runtime regression coverage. The focused 24-test
   surface and the full 5,008-test suite, typecheck, production build, lint,
   architecture guard, and diff check pass.

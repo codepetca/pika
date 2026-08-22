@@ -30,12 +30,15 @@ claims, reconciliation selection, and attendance reads fail closed. Pika does
 not hold a database transaction or expiring lease across a Bara network call.
 
 Changing the canary requires changing both variables and redeploying. As of
-2026-08-22, production migrations through 130 and the exact Codepet Labs canary
+2026-08-22, production migrations through 131 are recorded as applied and the
+exact Codepet Labs canary
 completed one end-to-end roster, schedule, session, QR mark, projection, and
 duplicate-idempotency proof after both directional HMAC pairs were aligned.
-That evidence does not authorize expansion. Migration 131 and the deployed
-bidirectional smoke in `pika-bara-attendance-operational-recovery.md` must pass
-before another enablement or rollout-expansion decision. Run the aggregate
+That evidence does not authorize expansion. Verify migration 131 remains
+recorded; do not reapply it, and stop for fresh authorization if it is absent.
+The deployed bidirectional smoke in
+`pika-bara-attendance-operational-recovery.md` must pass before another
+enablement or rollout-expansion decision. Run the aggregate
 deployed `--mode pre-enable` audit and smoke with both flags false for a new
 deployment; after separate enablement authorization, rerun the deployed gate
 with `--mode enabled` before the controlled flow. This boundary is intentionally

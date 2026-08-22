@@ -1,9 +1,10 @@
 # Pika–Bara native attendance completion audit
 
 Status: the exact Codepet Labs canary passed end to end on 2026-08-22 after
-production migrations 129 and 130 and both directional HMAC pairs were aligned.
-Expansion remains blocked on reviewed recovery changes, separately authorized
-migration 131/deployments, and a passing deployed bidirectional smoke.
+production migrations through 131 were recorded as applied and both directional
+HMAC pairs were aligned. Expansion remains blocked on reviewed recovery
+changes, separately authorized deployments, and a passing deployed
+bidirectional smoke.
 
 This ledger prevents local test evidence from being mistaken for a rollout.
 Paths are relative to the owning repository: this Pika worktree or the sibling
@@ -24,8 +25,8 @@ Bara worktree.
 | Timeout and retention policy | Complete and documented in the v1 contract. Bara retains request nonces for 24 hours and idempotency results for 30 days with bounded cleanup. Pika distinguishes definitive results from uncertain transport outcomes. | Operational cron cadence/alerting remains a pilot gate. |
 | Native Pika teacher client | Complete locally. The Attendance surface, policy, sync, QR, session, marks, corrections, durable pending state, projection, and recovery workers are Pika-owned. WorkOS is verified locally; outbound commands carry only the mapped Pika principal. Retryable delivery uncertainty returns pending and survives reload from the durable outbox. | Real teacher correction and lifecycle flows remain unproved. |
 | Native Pika student client | Complete locally. The QR opens a Pika URL; the raw Bara token is encrypted in a Pika-owned entry token and is not persisted. The server derives the student only from the verified Pika session and renders Bara's authoritative success/duplicate/invalid/closed/needs-help/unavailable state. | Real student mobile/login/scan flows remain unproved. |
-| Exact production canary boundary | Complete locally. The global flag is combined with an exact Pika teacher/classroom UUID pair. Teacher reads render disabled outside the pair; mutations stop before WorkOS identity resolution; student tokens bind the classroom; inbound events and schedule/reconciliation/outbox workers use migration-129 scoped RPCs. Focused tests and a full local reset prove fail-closed behavior. | Production migrations 129 and 130 are applied. The exact canary flags are enabled and passed roster, schedule, session, QR mark revision 1, Pika projection, and duplicate-idempotency proof on 2026-08-22. No non-canary expansion is authorized. |
-| Versioned contract fixtures and isolation | Complete. Bara is the v1 source and Pika vendors byte-identical closed types, validators, signing, and fixtures. Tests cover replay, idempotency conflicts, revision ordering, opaque mappings, tenant fences, and forbidden internal identifiers. A deployed bidirectional smoke gate is implemented with exact-canary database binding, separate HMAC legs, replay/rate bounds, and aggregate-only output. | The gate still requires reviewed merges, authorized migration 131, authorized deployments, and a production pass; local tests are not hosted evidence. |
+| Exact production canary boundary | Complete locally. The global flag is combined with an exact Pika teacher/classroom UUID pair. Teacher reads render disabled outside the pair; mutations stop before WorkOS identity resolution; student tokens bind the classroom; inbound events and schedule/reconciliation/outbox workers use migration-129 scoped RPCs. Focused tests and a full local reset prove fail-closed behavior. | Production migrations through 131 are recorded as applied. The exact canary flags passed roster, schedule, session, QR mark revision 1, Pika projection, and duplicate-idempotency proof on 2026-08-22; they are currently kept false pending a new pre-enable gate. No non-canary expansion is authorized. |
+| Versioned contract fixtures and isolation | Complete. Bara is the v1 source and Pika vendors byte-identical closed types, validators, signing, and fixtures. Tests cover replay, idempotency conflicts, revision ordering, opaque mappings, tenant fences, and forbidden internal identifiers. A deployed bidirectional smoke gate is implemented with exact-canary database binding, separate HMAC legs, replay/rate bounds, and aggregate-only output. | The gate still requires reviewed merges, authorized deployments, and a production pass; migration 131 must be verified as recorded and never reapplied from this flow. Local tests are not hosted evidence. |
 | Archive/purge containment | Complete as a fail-closed interim boundary. Soft archive/restore retains attendance state. Every attendance row family, compaction start, purge start, final classroom delete, and individual-student purge begin/finalization is guarded until a versioned Bara decommission/reseed/erase protocol exists. Inbox/projections carry local classroom lineage and record projections carry student lineage. | Destructive archive/purge and attendance-linked student erasure remain intentionally unavailable until coordinated provider decommissioning exists. |
 | Local verification and UI evidence | Complete at the last recorded gate: both repositories passed their complete tests, type checks, builds, and prescribed guards. Pika Playwright evidence covers native success and uncertain student states on desktop/mobile without leaving Pika. | Hosted full state-family browser evidence remains open. |
 | Hosted scan latency/load | Harness complete at `scripts/measure-bara-attendance-scans.ts`, with validation tests and the runbook in `docs/integrations/bara-attendance-scan-load.md`. It requires 30–100 distinct sessions, refuses production, and emits only aggregate p50/p95/p99 metrics. | No hosted p50/p95/p99 measurement has been run. |
@@ -33,10 +34,11 @@ Bara worktree.
 ## Remaining release sequence
 
 1. Preserve the verified 2026-08-22 exact canary and do not expand it. Review
-   Bara recovery/smoke first, then Pika no-claim/smoke migration 131.
-2. Obtain separate authorization for the matching deployments and for applying
-   only migration 131 to the named production Pika project, with both flags
-   false during the new pre-enable gate.
+   Bara recovery/smoke first, then Pika no-claim/smoke changes.
+2. Verify the named production Pika project still records migration 131 as
+   applied; do not dry-run or reapply it. If it is absent, stop and obtain fresh
+   migration authorization. Obtain separate authorization for matching
+   deployments, with both flags false during the new pre-enable gate.
 3. Require Bara's guarded production build, then run Pika's deployed
    `--mode pre-enable` runtime audit and bidirectional smoke. Downloaded Vercel
    Sensitive values are redacted and cannot satisfy this gate. Preview records

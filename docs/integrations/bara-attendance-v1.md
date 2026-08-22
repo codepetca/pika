@@ -48,9 +48,10 @@ and strips all opaque service references before returning browser-facing state.
 It returns a disabled view without touching integration tables while the
 feature is not ready. Migration 127 provides the base schema; the completed
 production canary proof additionally used migrations 129 and 130. This
-operational-recovery release requires separately authorized migration 131 and
-both global attendance flags remaining false until the exact-pair deployed
-pre-enable gate passes.
+operational-recovery release requires verifying that the prior authorized
+migration 131 remains recorded as applied, without reapplying it, and both
+global attendance flags remaining false until the exact-pair deployed
+pre-enable gate passes. If 131 is absent, stop for fresh authorization.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -169,10 +170,11 @@ such as a Convex ID fails the request.
 
 The complete ownership, privacy, route, event, versioning, and acceptance
 baseline is maintained in Bara's
-`docs/system/pika-bara-contract-v1.md`. The current recovery gate is an
-explicitly authorized production application (or verified prior application)
-of Pika migration 131 while attendance is disabled, followed by the deployed
-signed `pre-enable` round trip. Only after that gate passes and enablement is
+`docs/system/pika-bara-contract-v1.md`. The current recovery gate verifies the
+prior authorized production application of Pika migration 131 while attendance
+is disabled and never reapplies it, followed by the deployed signed
+`pre-enable` round trip. If 131 is absent, stop for fresh authorization. Only
+after that gate passes and enablement is
 separately authorized may the exact canary rerun its real
 roster/schedule/session/mark/event/snapshot/QR flow. The Attendance UI remains
 disabled by configuration until those gates pass. Its teacher flow, state
