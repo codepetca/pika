@@ -37,13 +37,20 @@ begin
   ) is null then
     raise exception 'Migration 129 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '130'
+  ) then
+    raise exception 'Migration 130 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
 begin;
 
 do $privileges$
-declare v_table text;
+declare
+  v_table text;
+  v_function text;
 begin
   foreach v_table in array array[
     'attendance_roster_mappings',
@@ -61,6 +68,17 @@ begin
       or has_table_privilege('service_role', 'public.' || v_table, 'DELETE')
     then
       raise exception 'Unsafe attendance table privilege on %', v_table;
+    end if;
+  end loop;
+  foreach v_function in array array[
+    'public.list_attendance_sync_targets_v1(integer)',
+    'public.list_attendance_reconciliation_targets_v1(timestamptz,integer,integer)',
+    'public.claim_attendance_outbox_batch_v1(integer,integer)',
+    'public.attendance_outbox_health_v1()',
+    'public.apply_attendance_event_v1(jsonb,text)'
+  ] loop
+    if has_function_privilege('service_role', v_function, 'execute') then
+      raise exception 'Retired unscoped attendance function remains executable: %', v_function;
     end if;
   end loop;
   if has_function_privilege(

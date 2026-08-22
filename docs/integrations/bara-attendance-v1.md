@@ -44,8 +44,11 @@ classrooms, enrolled students, and class dates to random contract references,
 plus a teacher-local Toronto attendance-window policy. The authenticated
 read-only teacher route joins authoritative projections through those mappings
 and strips all opaque service references before returning browser-facing state.
-It returns a disabled view without touching the unapplied integration tables;
-hosted configured reads remain gated on applying migration 127 there.
+It returns a disabled view without touching integration tables while the
+feature is not ready. Migration 127 provides the base schema; production
+canary readiness additionally requires already-applied migration 129,
+separately authorized and applied migration 130, and both global attendance
+flags remaining false until the exact-pair pre-enable audit passes.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -165,7 +168,8 @@ such as a Convex ID fails the request.
 The complete ownership, privacy, route, event, versioning, and acceptance
 baseline is maintained in Bara's
 `docs/system/pika-bara-contract-v1.md`. The next gate is an explicitly
-authorized hosted-development migration and a real
+authorized production application of Pika migration 130 while attendance is
+disabled, followed by a real
 roster/schedule/session/mark/event/snapshot/QR round trip. The Attendance UI
 remains disabled by configuration until that gate passes. Its teacher flow,
 state family, and Pika-owned view-model boundary are maintained in
@@ -192,10 +196,11 @@ refs, exact Pika app and Bara API origins, and `--mode pre-enable` or
 `--mode enabled`. Pre-enable mode requires the global Pika attendance flag to
 remain false; enabled mode requires it to be true. Both modes verify through
 the service-role database boundary that the configured classroom exists, is
-active, and belongs to the configured teacher. The preview audit fails if it shares the
-production Supabase ref, uses a non-Staging WorkOS API key, leaves mock or
-WorkOS-default Magic Auth email enabled, turns on the retired browser-handoff
-flag,
+active, and belongs to the configured teacher. Preview mode additionally
+requires an isolated Supabase project and staging WorkOS credentials. Production
+mode requires the expected and production Supabase refs to match. Every mode
+fails if mock or WorkOS-default Magic Auth email is enabled, the retired
+browser-handoff flag is on, or the deployment
 omits the Brevo delivery contract, or reuses session/cron/transport/event/entry
 secrets. Output contains only aggregate
 counts and failed check identifiers; it never includes configured values.
@@ -205,18 +210,18 @@ Example operator shape:
 ```bash
 pnpm attendance:rollout:preflight -- \
   --mode pre-enable \
-  --stage preview \
-  --expected-supabase-ref "$PIKA_PREVIEW_SUPABASE_REF" \
+  --stage production \
+  --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
   --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
-  --expected-pika-origin "$PIKA_PREVIEW_ORIGIN" \
-  --expected-bara-api-origin "$BARA_PREVIEW_CONVEX_SITE_ORIGIN"
+  --expected-pika-origin "https://pika.codepet.ca" \
+  --expected-bara-api-origin "$BARA_PRODUCTION_CONVEX_SITE_ORIGIN"
 ```
 
-This environment preflight does not replace the database gate. Before applying
-migration 127, separately prove the expected preview hostname resolves, bind a
-non-persisted database credential to that exact ref, inspect remote migration
-history, and dry-run the additive migration. After applying it, run the full
-signed cross-app smoke before enabling a pilot classroom.
+This environment preflight does not replace the database gate. Production
+migration 129 is already applied. Before enabling attendance, inspect remote
+migration history, dry-run migration 130, obtain its separate one-time
+production authorization, apply only 130 while both global flags remain false,
+and rerun the pre-enable audit.
 
 The hosted scan measurement procedure is deliberately separate from this
 environment audit. Follow `docs/integrations/bara-attendance-scan-load.md`
@@ -226,19 +231,19 @@ refuses production and emits aggregate results only.
 The 2026-08-17 read-only audit found that Vercel Preview still referenced a
 deleted Supabase project whose hostname no longer resolves, while Production
 uses the healthy `Pika` project. WorkOS and Bara integration variables were not
-present in Preview, and its existing `SESSION_SECRET` value was empty. Do not
-reuse the production Supabase project, enable the integration, or apply
-migration 127 until an isolated preview target exists.
+present in Preview, and its existing `SESSION_SECRET` value was empty. No
+staging database is currently available. Do not reuse the production database
+for the preview-only load harness.
 
 A same-day Supabase CLI recheck found two active healthy Free projects (`Pika`
 and `Codepet HQ`) plus an inactive project named `Attend`. Supabase currently
 allows two active Free projects across the account, and paused projects do not
 count toward that limit or incur compute charges. Do not resume or repurpose
 `Attend`: its ownership and retained data have not been verified. The clean
-no-charge route is to obtain explicit permission to pause one named active
-project, provision a fresh Pika Preview target, and then obtain the separate
-one-time authorization required by the schema rollout checklist to apply only
-migration 127 to that staging target.
+no-charge route to a future hosted load test is to obtain explicit permission
+to pause one named active project, provision a fresh Pika Preview target, and
+then obtain the separate one-time authorization required by the schema rollout
+checklist to apply the complete migration history through 130 to that target.
 
 References: [Supabase Free Plan billing](https://supabase.com/docs/guides/platform/billing-on-supabase)
 and [project pausing](https://supabase.com/docs/guides/platform/free-project-pausing).
