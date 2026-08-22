@@ -22,9 +22,10 @@ presentation from Bara through the signed adapter, encrypts it into a Pika-owned
 entry URL, and keeps the raw Bara token out of Pika persistence and logs. The
 student stays in Pika, which derives the actor from its verified server session
 and renders Bara's synchronous authoritative result.
-The additive Supabase migration has been replayed from scratch and exercised
-only against the disposable local Supabase stack. It has not been applied to a
-hosted environment, and no production rollout is enabled.
+The additive Supabase history was replayed from scratch against the disposable
+local stack before hosted use. Production migrations through 131 are now
+recorded as applied to the named Pika project under separate authorization, and
+the exact canary has prior evidence; no broader production rollout is enabled.
 
 Automatic schedule materialization is now wired locally: a daily,
 secret-protected Pika worker advances a rolling 90-day class-day horizon for

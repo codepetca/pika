@@ -60,6 +60,8 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(v1Guide).toContain('The current recovery gate is an\nexplicitly authorized production application')
     expect(v1Guide).toContain('of Pika migration 131 while attendance is disabled')
     expect(v1Guide).not.toContain('The next gate is an explicitly\nauthorized production application of Pika migration 130')
+    expect(v1Guide).toContain('Production migrations through 131 are now\nrecorded as applied to the named Pika project')
+    expect(v1Guide).not.toContain('It has not been applied to a\nhosted environment')
     expect(v1Guide).not.toContain('hosted configured reads remain gated on applying migration 127')
     expect(canaryRunbook).toContain('production migrations through 130')
     expect(canaryRunbook).toContain('Migration 131')
