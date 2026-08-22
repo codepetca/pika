@@ -73,6 +73,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     const supabase = supabaseMock()
     const fetcher = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
       expect(url.toString()).toBe('https://bara.example.test/api/integrations/pika/v1/smoke')
+      expect(init?.redirect).toBe('error')
       const headers = new Headers(init?.headers)
       expect(JSON.parse(String(init?.body))).toMatchObject({ rollout_mode: 'pre-enable' })
       await expect(verifyV1RequestSignature({

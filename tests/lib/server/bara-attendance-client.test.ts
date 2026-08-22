@@ -161,6 +161,7 @@ describe('Bara attendance server client', () => {
     expect(fetcher).toHaveBeenCalledOnce()
     const [url, init] = fetcher.mock.calls[0]!
     expect(url).toBe('https://attendance-api.example/api/integrations/pika/v1/rosters/roster_one')
+    expect(init?.redirect).toBe('error')
     const headers = init?.headers as Record<string, string>
     const body = init?.body as string
     await expect(verifyV1RequestSignature({

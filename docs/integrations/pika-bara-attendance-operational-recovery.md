@@ -35,6 +35,8 @@ change flags, or requeue hosted events.
    fresh Pika-to-Bara request; deployed Bara verifies it and signs a separate
    callback to deployed Pika. Passing therefore proves both receiver-held
    credential pairs, not a local comparison of secret values. Pika accepts the
+   signed legs only without redirects, so a pinned receiver cannot forward a
+   signed body or authentication headers to another origin. Pika accepts the
    callback only for the active rate-bounded run's five-minute challenge,
    persisted as a hash and atomically consumed with its transport nonce. Output
    is aggregate only. Any skip, 401, 409, 429, 5xx, scope failure, malformed

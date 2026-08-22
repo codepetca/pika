@@ -68,6 +68,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
           Authorization: `Bearer ${operatorSecret}`,
           'X-Attendance-Rollout-Mode': input.attendanceMode,
         },
+        redirect: 'error',
         signal: AbortSignal.timeout(20_000),
       },
     )

@@ -47,6 +47,7 @@ describe('deployed Bara attendance smoke runner', () => {
     expect(fetcher).toHaveBeenCalledWith(
       'https://pika.example/api/cron/bara-attendance-smoke',
       expect.objectContaining({
+        redirect: 'error',
         headers: {
           Authorization: `Bearer ${secret}`,
           'X-Attendance-Rollout-Mode': 'pre-enable',

@@ -211,6 +211,7 @@ export async function runBaraAttendanceSmoke(input: {
       },
       body,
       cache: 'no-store',
+      redirect: 'error',
       signal: AbortSignal.timeout(10_000),
     })
     const responseText = (await response.text()).slice(0, 4_096)
