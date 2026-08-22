@@ -1,8 +1,9 @@
 # Native Pika attendance powered by Bara
 
-Status: local implementation complete and production migration 129 applied;
-migration 130 capability retirement, hosted flow, latency, and production
-canary gates remain.
+Status: local implementation and production migrations 129/130 are complete.
+The exact production canary passed on 2026-08-22 after both HMAC pairs were
+aligned. Expansion remains blocked on operational recovery, migration 131,
+the deployed bidirectional credential smoke, and fresh authorization.
 
 Risk profile: `runtime-platform`.
 
@@ -85,30 +86,25 @@ that principal through the installation-scoped adapter.
 
 ## Remaining gates
 
-1. Review the disabled production release and migration 130, which revokes
-   service-role access to the unscoped worker/event RPCs superseded by the
-   migration-129 teacher/classroom-scoped variants. Production migration 129 is
-   already applied and must not be edited or reapplied. Apply 130 only after a
-   separate one-time production authorization.
-2. Configure the exact production teacher/classroom UUID pair while keeping
-   Pika and Bara's global attendance flags false. There is no staging database,
-   so rollout proceeds as a disabled production deployment followed by a
-   narrowly controlled canary enablement. Run the Pika rollout preflight with
-   `--mode pre-enable`; it must validate that the configured classroom is active
-   and owned by the configured teacher.
-3. Prove real roster, schedule, automatic lifecycle, teacher correction,
-   student scan, duplicate/lost-response retry, event reorder, and snapshot
-   reconciliation round trips.
-4. Measure hosted student-scan latency and record p50/p95/p99 under roughly
-   30–100 concurrent scans with the preview-only aggregate harness in
-   `docs/integrations/bara-attendance-scan-load.md`. Local unit timing is not a
-   hosted latency claim.
+1. Review Bara recovery/smoke first, then Pika no-claim handling and migration
+   131. Do not edit or reapply migrations 129/130.
+2. Obtain separate authorization to apply only migration 131 to the named Pika
+   production project and to deploy the matching reviewed commits. Run the
+   pre-enable static audits and deployed bidirectional smoke before any later
+   enablement or expansion decision.
+3. Preserve the exact canary only. Its roster, schedule, session, QR mark,
+   projection, and duplicate-idempotency path passed on 2026-08-22. Nine
+   credential-era failed events remain untouched; snapshot reconciliation
+   restored current state. Recover them only under the separately authorized,
+   bounded requeue/supersede runbook.
+4. There is no staging database. Preview records a production-only smoke skip
+   and must never target production. Hosted load testing remains blocked until
+   an isolated non-production database is explicitly provisioned.
 5. Visually and functionally verify teacher and student flows on desktop/mobile
    and light/dark, including loading, success, duplicate, unmatched, invalid,
    closed, and unavailable states.
-6. Run the one exact teacher/classroom canary with rollback flags. Do not
-   enable production attendance until the teacher and student flows pass. After
-   enabling only the paired flags, rerun the preflight with `--mode enabled`.
+6. Before another exact-canary run, rerun the preflight with `--mode enabled`
+   and the deployed smoke. Expansion beyond that pair is a separate decision.
 
 Archive-v2 does not yet know how to decommission Bara authority. Soft
 archive/restore preserves attendance rows, but compaction and permanent purge

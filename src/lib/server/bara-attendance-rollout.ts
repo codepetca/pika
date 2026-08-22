@@ -30,6 +30,7 @@ export interface BaraAttendanceRolloutEnvironment {
   BARA_ATTENDANCE_INTEGRATION_SECRET?: string
   BARA_ATTENDANCE_EVENT_SECRET?: string
   BARA_ATTENDANCE_ENTRY_TOKEN_SECRET?: string
+  BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET?: string
   CRON_SECRET?: string
 }
 
@@ -182,6 +183,7 @@ export function auditBaraAttendanceRolloutEnvironment(
     ],
     ['bara_event_ingress', hasSecret(environment.BARA_ATTENDANCE_EVENT_SECRET)],
     ['attendance_entry_tokens', hasSecret(environment.BARA_ATTENDANCE_ENTRY_TOKEN_SECRET)],
+    ['attendance_smoke_operator', hasSecret(environment.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET)],
     [
       'distinct_integration_secrets',
       allDistinct([
@@ -190,6 +192,7 @@ export function auditBaraAttendanceRolloutEnvironment(
         environment.BARA_ATTENDANCE_INTEGRATION_SECRET,
         environment.BARA_ATTENDANCE_EVENT_SECRET,
         environment.BARA_ATTENDANCE_ENTRY_TOKEN_SECRET,
+        environment.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET,
         environment.CRON_SECRET,
       ]),
     ],

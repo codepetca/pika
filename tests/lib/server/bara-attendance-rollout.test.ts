@@ -11,6 +11,7 @@ const cookiePassword = 'workos-cookie-password-that-is-long-enough'
 const integrationSecret = 'integration-secret-that-is-long-enough'
 const eventSecret = 'event-secret-that-is-long-enough-and-distinct'
 const entryTokenSecret = 'entry-token-secret-that-is-long-enough'
+const smokeOperatorSecret = 'smoke-operator-secret-that-is-long-enough'
 
 function readyEnvironment(): BaraAttendanceRolloutEnvironment {
   return {
@@ -42,6 +43,7 @@ function readyEnvironment(): BaraAttendanceRolloutEnvironment {
     BARA_ATTENDANCE_INTEGRATION_SECRET: integrationSecret,
     BARA_ATTENDANCE_EVENT_SECRET: eventSecret,
     BARA_ATTENDANCE_ENTRY_TOKEN_SECRET: entryTokenSecret,
+    BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET: smokeOperatorSecret,
     CRON_SECRET: 'cron-secret-that-is-definitely-long-enough',
   }
 }
@@ -95,6 +97,14 @@ describe('Bara attendance rollout environment audit', () => {
       .toContain('attendance_enabled')
   })
 
+  it('requires the smoke operator credential to be distinct from shared cron auth', () => {
+    const environment = readyEnvironment()
+    environment.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET = environment.CRON_SECRET
+
+    expect(auditBaraAttendanceRolloutEnvironment(environment, target).failedChecks)
+      .toContain('distinct_integration_secrets')
+  })
+
   it('fails closed when preview shares production or uses incomplete provider configuration', () => {
     const environment = readyEnvironment()
     environment.NEXT_PUBLIC_SUPABASE_URL = `https://${productionRef}.supabase.co`
@@ -133,6 +143,7 @@ describe('Bara attendance rollout environment audit', () => {
       environment.BARA_ATTENDANCE_INTEGRATION_SECRET,
       environment.BARA_ATTENDANCE_EVENT_SECRET,
       environment.BARA_ATTENDANCE_ENTRY_TOKEN_SECRET,
+      environment.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET,
       environment.CRON_SECRET,
     ]) if (value) expect(serialized).not.toContain(value)
     expect(serialized).toContain('bara_attendance_transport')

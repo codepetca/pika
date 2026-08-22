@@ -72,6 +72,38 @@ const outboxRowSchema = z.object({
   lease_token: z.string().uuid().nullable(),
 }).passthrough()
 
+function isNoClaimResult(value: unknown): boolean {
+  if (value === null) return true
+  if (typeof value !== 'object' || Array.isArray(value)) return false
+  const composite = value as Record<string, unknown>
+  const requiredCompositeFields = [
+    'id',
+    'classroom_id',
+    'idempotency_key',
+    'message_type',
+    'payload',
+    'response_payload',
+    'status',
+    'attempts',
+    'lease_token',
+  ]
+  return requiredCompositeFields.every((field) =>
+    Object.hasOwn(composite, field) && composite[field] === null)
+    && Object.values(composite).every((field) => field === null)
+}
+
+function parseOutboxRow(value: unknown) {
+  const parsed = outboxRowSchema.safeParse(value)
+  if (!parsed.success) {
+    throw new BaraAttendanceOutboxError(
+      'Stored attendance outbox state is invalid',
+      'invalid_stored_message',
+      false,
+    )
+  }
+  return parsed.data
+}
+
 const rosterResultSchema = z.object({
   outcome: z.enum(['applied', 'duplicate']),
   rosterRef: z.string(),
@@ -337,7 +369,7 @@ export async function deliverBaraAttendanceMessage(input: {
     { p_classroom_id: input.classroomId, p_message: validation.value },
   )
   if (error) mapDatabaseError(error, 'persist attendance message')
-  const enqueued = outboxRowSchema.parse(data)
+  const enqueued = parseOutboxRow(data)
   if (enqueued.status === 'delivered') {
     return parseResult(validation.value.message_type, enqueued.response_payload)
   }
@@ -354,7 +386,10 @@ export async function deliverBaraAttendanceMessage(input: {
     p_lease_seconds: 60,
   })
   if (claim.error) mapDatabaseError(claim.error, 'claim attendance message')
-  if (claim.data === null) {
+  // PostgreSQL composite-returning functions may reach PostgREST as either a
+  // literal null or an object whose every composite field is null. Both mean
+  // that the durable row exists but no dependency-ready lease was acquired.
+  if (isNoClaimResult(claim.data)) {
     throw new BaraAttendanceOutboxError(
       'Attendance message is already awaiting delivery',
       'delivery_pending',
@@ -363,7 +398,7 @@ export async function deliverBaraAttendanceMessage(input: {
   }
   const result = await deliverClaimed({
     supabase: input.supabase,
-    row: outboxRowSchema.parse(claim.data),
+    row: parseOutboxRow(claim.data),
     now: input.now ?? new Date(),
     deliver: input.deliver,
   })

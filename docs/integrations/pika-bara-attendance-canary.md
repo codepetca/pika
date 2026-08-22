@@ -29,11 +29,15 @@ the authorization race, new teacher commands, QR issuance/check-in, ingress,
 claims, reconciliation selection, and attendance reads fail closed. Pika does
 not hold a database transaction or expiring lease across a Bara network call.
 
-Changing the canary requires changing both variables and redeploying. Production
-migration 129 is already applied. Keep the global flag false until migration 130
-is separately authorized and applied, the exact pair is configured, and the
-`pre-enable` rollout audit proves that the classroom is active and currently
-owned by the configured teacher. After the paired flags are enabled, run the
-`enabled` audit again before the controlled flow. This boundary is intentionally
+Changing the canary requires changing both variables and redeploying. As of
+2026-08-22, production migrations through 130 and the exact Codepet Labs canary
+completed one end-to-end roster, schedule, session, QR mark, projection, and
+duplicate-idempotency proof after both directional HMAC pairs were aligned.
+That evidence does not authorize expansion. Migration 131 and the deployed
+bidirectional smoke in `pika-bara-attendance-operational-recovery.md` must pass
+before another enablement or rollout-expansion decision. Run the aggregate
+`pre-enable` audit and smoke with both flags false for a new deployment; after
+separate enablement authorization, rerun the `enabled` audit and smoke before
+the controlled flow. This boundary is intentionally
 Pika-local: Bara continues to authorize the Pika installation and never receives
 Pika internal IDs.
