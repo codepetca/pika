@@ -118,11 +118,63 @@ insert into public.attendance_window_policies (
 ) values (
   'a1260000-0000-4000-8000-000000000013', '08:45', '09:30'
 );
+insert into public.attendance_roster_mappings (
+  classroom_id, roster_ref, source_revision, schedule_source_revision,
+  schedule_synced_revision
+) values
+  (
+    'a1260000-0000-4000-8000-000000000013',
+    'roster_' || replace('a1260000-0000-4000-8000-000000000013', '-', ''),
+    1, 1, 1
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000014',
+    'roster_' || replace('a1260000-0000-4000-8000-000000000014', '-', ''),
+    1, 1, 1
+  );
+insert into public.attendance_occurrence_mappings (
+  classroom_id, class_date, occurrence_ref, opens_at, closes_at,
+  source_revision
+) values
+  (
+    'a1260000-0000-4000-8000-000000000013', '2026-09-13',
+    'occurrence_' || replace('a1260000-0000-4000-8000-000000000013', '-', ''),
+    '2026-09-13T12:00:00Z', '2026-09-13T14:00:00Z', 1
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000014', '2026-09-14',
+    'occurrence_' || replace('a1260000-0000-4000-8000-000000000014', '-', ''),
+    '2026-09-13T12:00:00Z', '2026-09-13T14:00:00Z', 1
+  );
+insert into public.attendance_integration_outbox (
+  classroom_id, idempotency_key, message_type, payload
+) values
+  (
+    'a1260000-0000-4000-8000-000000000013', 'roster:canary:13',
+    'roster.snapshot', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'roster.snapshot',
+      'idempotency_key', 'roster:canary:13', 'correlation_ref', 'canary_13',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_canary_13', 'revision', 1
+    )
+  ),
+  (
+    'a1260000-0000-4000-8000-000000000014', 'roster:noncanary:14',
+    'roster.snapshot', jsonb_build_object(
+      'schema_version', 1, 'message_type', 'roster.snapshot',
+      'idempotency_key', 'roster:noncanary:14', 'correlation_ref', 'noncanary_14',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_noncanary_14', 'revision', 1
+    )
+  );
 
 do $canary_scope$
 declare
   v_targets jsonb;
+  v_reconciliation jsonb;
   v_health jsonb;
+  v_claimed_count integer;
+  v_claimed_classroom uuid;
 begin
   v_targets := public.list_attendance_sync_targets_v2(
     'a1260000-0000-4000-8000-000000000001',
@@ -143,6 +195,50 @@ begin
     raise exception 'Canary sync target accepted the wrong teacher';
   end if;
 
+  v_reconciliation := public.list_attendance_reconciliation_targets_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000013',
+    '2026-09-13T13:00:00Z', 48, 51
+  );
+  if jsonb_array_length(v_reconciliation) <> 1
+    or v_reconciliation->0->>'occurrence_ref'
+      <> 'occurrence_a1260000000040008000000000000013'
+  then
+    raise exception 'Canary reconciliation crossed classroom scope';
+  end if;
+  if jsonb_array_length(public.list_attendance_reconciliation_targets_v2(
+    'a1260000-0000-4000-8000-000000000002',
+    'a1260000-0000-4000-8000-000000000013',
+    '2026-09-13T13:00:00Z', 48, 51
+  )) <> 0 then
+    raise exception 'Canary reconciliation accepted the wrong teacher';
+  end if;
+
+  select count(*) into v_claimed_count
+  from public.claim_attendance_outbox_batch_v2(
+    'a1260000-0000-4000-8000-000000000002',
+    'a1260000-0000-4000-8000-000000000014', 10, 60
+  );
+  if v_claimed_count <> 0 then
+    raise exception 'Canary outbox claim accepted the wrong teacher';
+  end if;
+
+  select count(*), min(classroom_id::text)::uuid
+  into v_claimed_count, v_claimed_classroom
+  from public.claim_attendance_outbox_batch_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000013', 10, 60
+  );
+  if v_claimed_count <> 1
+    or v_claimed_classroom <> 'a1260000-0000-4000-8000-000000000013'
+    or not exists (
+      select 1 from public.attendance_integration_outbox
+      where idempotency_key = 'roster:noncanary:14' and status = 'pending'
+    )
+  then
+    raise exception 'Canary outbox claim crossed classroom scope';
+  end if;
+
   v_health := public.attendance_outbox_health_v2(
     'a1260000-0000-4000-8000-000000000001',
     'a1260000-0000-4000-8000-000000000013'
@@ -152,6 +248,83 @@ begin
   end if;
 end;
 $canary_scope$;
+delete from public.attendance_integration_outbox
+where idempotency_key in ('roster:canary:13', 'roster:noncanary:14');
+
+do $canary_event_scope$
+declare
+  v_event jsonb := jsonb_build_object(
+    'schema_version', 1,
+    'event_id', 'event_canary_13',
+    'idempotency_key', 'event:canary:13',
+    'correlation_ref', 'canary_13',
+    'event_type', 'attendance.session.opened',
+    'occurred_at', '2026-09-13T13:00:00Z',
+    'installation_ref', 'installation_guard',
+    'roster_ref', 'roster_a1260000000040008000000000000013',
+    'occurrence_ref', 'occurrence_a1260000000040008000000000000013',
+    'session_revision', 1,
+    'metadata', jsonb_build_object(
+      'opened_at', '2026-09-13T13:00:00Z', 'trigger', 'staff'
+    )
+  );
+  v_result jsonb;
+begin
+  begin
+    perform public.apply_attendance_event_for_classroom_v1(
+      v_event,
+      'nonce_wrong_teacher_13',
+      'a1260000-0000-4000-8000-000000000002',
+      'a1260000-0000-4000-8000-000000000013'
+    );
+    raise exception 'Canary event accepted the wrong teacher';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'attendance_event_mapping_mismatch' then raise; end if;
+  end;
+
+  begin
+    perform public.apply_attendance_event_for_classroom_v1(
+      v_event || jsonb_build_object(
+        'event_id', 'event_wrong_classroom_14',
+        'idempotency_key', 'event:wrong-classroom:14',
+        'roster_ref', 'roster_a1260000000040008000000000000014',
+        'occurrence_ref', 'occurrence_a1260000000040008000000000000014'
+      ),
+      'nonce_wrong_classroom_14',
+      'a1260000-0000-4000-8000-000000000001',
+      'a1260000-0000-4000-8000-000000000013'
+    );
+    raise exception 'Canary event crossed classroom scope';
+  exception when sqlstate '23514' then
+    if sqlerrm <> 'attendance_event_mapping_mismatch' then raise; end if;
+  end;
+
+  if exists (
+    select 1 from public.attendance_integration_inbox
+    where event_id in ('event_canary_13', 'event_wrong_classroom_14')
+  ) or exists (
+    select 1 from public.attendance_session_projection
+    where last_event_id in ('event_canary_13', 'event_wrong_classroom_14')
+  ) then
+    raise exception 'Rejected canary event wrote inbox or projection state';
+  end if;
+
+  v_result := public.apply_attendance_event_for_classroom_v1(
+    v_event,
+    'nonce_valid_canary_13',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000013'
+  );
+  if not (v_result->>'accepted')::boolean
+    or (select count(*) from public.attendance_integration_inbox
+        where event_id = 'event_canary_13') <> 1
+    or (select count(*) from public.attendance_session_projection
+        where last_event_id = 'event_canary_13') <> 1
+  then
+    raise exception 'Valid canary event was not applied atomically';
+  end if;
+end;
+$canary_event_scope$;
 insert into public.attendance_integration_outbox (
   classroom_id, idempotency_key, message_type, payload, status
 ) values (

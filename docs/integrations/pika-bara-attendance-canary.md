@@ -22,5 +22,8 @@ they never lease non-canary work.
 
 Changing the canary requires changing both variables and redeploying. Keep the
 global flag false until migration 129 and the exact pair are installed and the
-rollout audit passes. This boundary is intentionally Pika-local: Bara continues
-to authorize the Pika installation and never receives Pika internal IDs.
+`pre-enable` rollout audit proves that the classroom is active and currently
+owned by the configured teacher. After the paired flags are enabled, run the
+`enabled` audit again before the controlled flow. This boundary is intentionally
+Pika-local: Bara continues to authorize the Pika installation and never receives
+Pika internal IDs.

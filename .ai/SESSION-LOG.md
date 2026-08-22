@@ -1356,13 +1356,18 @@ database was changed.
   non-canary work and Bara still receives only opaque contract references.
 - Added the two required rollout variables, preflight validation, generated
   database types, operator documentation, and production sequence updates.
+- Review remediation split preflight into explicit disabled `pre-enable` and
+  enabled modes, verifies the configured classroom is active and still owned by
+  the configured teacher, and repeats that ownership check before ingress or
+  unattended worker activity.
 
 **Verification:**
-- Focused canary/API/worker/token coverage passes 70 tests; the clean local
+- Focused canary/API/worker/token coverage passes; the clean local
   Supabase reset replayed migrations 001–129, generated types match, and the
   attendance SQL contract passes exact-pair, wrong-teacher, privilege, and
-  cross-classroom checks.
-- The full repository test suite, TypeScript, lint, architecture, design policy,
-  UI policy, and production build pass. The shared environment's non-loopback
-  Bara URL correctly prevents the local-only cross-service rehearsal from
-  running without explicit reconfiguration.
+  cross-classroom checks. The contract behaviorally exercises scoped claims,
+  reconciliation, rejected event atomicity, and a valid atomic event apply.
+- The full repository suite passes all 4,932 tests across 564 files. TypeScript,
+  lint, architecture, design policy, UI policy, and production build pass. The
+  shared environment's non-loopback Bara URL correctly prevents the local-only
+  cross-service rehearsal from running without explicit reconfiguration.

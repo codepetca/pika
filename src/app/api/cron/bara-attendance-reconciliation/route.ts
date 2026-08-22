@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { withErrorHandler } from '@/lib/api-handler'
-import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import {
+  assertBaraAttendanceCanaryClassroomOwner,
+  BaraAttendanceCanaryError,
+  getBaraAttendanceCanaryScope,
+} from '@/lib/server/bara-attendance-canary'
 import { reconcileBaraAttendanceSessions } from '@/lib/server/bara-attendance-reconciliation'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -19,8 +23,25 @@ async function handle(request: NextRequest) {
   }
 
   const scope = getBaraAttendanceCanaryScope()
+  const supabase = getServiceRoleClient()
+  if (scope.state === 'ready' && scope.classroomId) {
+    try {
+      await assertBaraAttendanceCanaryClassroomOwner({
+        supabase,
+        classroomId: scope.classroomId,
+      })
+    } catch (error) {
+      if (error instanceof BaraAttendanceCanaryError) {
+        return NextResponse.json({ status: 'error', error: 'not_configured' }, {
+          status: 503,
+          headers: { 'Cache-Control': 'no-store' },
+        })
+      }
+      throw error
+    }
+  }
   const summary = await reconcileBaraAttendanceSessions({
-    supabase: getServiceRoleClient(),
+    supabase,
     enabled: scope.state === 'ready',
     teacherId: scope.teacherId,
     classroomId: scope.classroomId,

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/attendance/marks/route'
 import { TeacherAttendanceCommandError } from '@/lib/server/bara-attendance-commands'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const {
   requireRole,
@@ -58,6 +59,7 @@ function request(body: unknown) {
 describe('POST /api/teacher/attendance/marks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' })
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
     assertTeacherCanMutateClassroom.mockResolvedValue({
@@ -96,6 +98,26 @@ describe('POST /api/teacher/attendance/marks', () => {
       actor,
       marks: [{ studentId, status: 'present' }],
     })
+    expect(assertBaraAttendanceCanaryClassroom).toHaveBeenCalledWith({
+      teacherId: 'teacher-1', classroomId,
+    })
+  })
+
+  it('stops before identity resolution when the classroom is outside the canary', async () => {
+    assertBaraAttendanceCanaryClassroom.mockImplementation(() => {
+      throw new BaraAttendanceCanaryError('disabled')
+    })
+
+    const response = await POST(request({
+      classroom_id: classroomId,
+      date: '2026-09-08',
+      request_id: requestId,
+      marks: [{ student_id: studentId, status: 'present' }],
+    }))
+
+    expect(response.status).toBe(404)
+    expect(resolveVerifiedPikaAttendanceTeacher).not.toHaveBeenCalled()
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
   })
 
   it('rejects duplicate students before calling Bara', async () => {

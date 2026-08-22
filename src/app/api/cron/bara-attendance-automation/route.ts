@@ -5,7 +5,11 @@ import {
   BaraAttendanceAutomationError,
   syncBaraAttendanceSchedules,
 } from '@/lib/server/bara-attendance-automation'
-import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import {
+  assertBaraAttendanceCanaryClassroomOwner,
+  BaraAttendanceCanaryError,
+  getBaraAttendanceCanaryScope,
+} from '@/lib/server/bara-attendance-canary'
 import {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
@@ -28,6 +32,12 @@ async function handle(request: NextRequest) {
   const supabase = getServiceRoleClient()
   const scope = getBaraAttendanceCanaryScope()
   try {
+    if (scope.state === 'ready' && scope.classroomId) {
+      await assertBaraAttendanceCanaryClassroomOwner({
+        supabase,
+        classroomId: scope.classroomId,
+      })
+    }
     const schedules = await syncBaraAttendanceSchedules({
       supabase,
       integrationState: scope.state,
@@ -58,6 +68,12 @@ async function handle(request: NextRequest) {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (error) {
+    if (error instanceof BaraAttendanceCanaryError) {
+      return NextResponse.json({ status: 'error', error: 'not_configured' }, {
+        status: 503,
+        headers: { 'Cache-Control': 'no-store' },
+      })
+    }
     if (error instanceof BaraAttendanceAutomationError) {
       return NextResponse.json({
         status: 'error',

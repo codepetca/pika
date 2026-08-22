@@ -91,7 +91,9 @@ that principal through the installation-scoped adapter.
 2. Configure the exact production teacher/classroom UUID pair while keeping
    Pika and Bara's global attendance flags false. There is no staging database,
    so rollout proceeds as a disabled production deployment followed by a
-   narrowly controlled canary enablement.
+   narrowly controlled canary enablement. Run the Pika rollout preflight with
+   `--mode pre-enable`; it must validate that the configured classroom is active
+   and owned by the configured teacher.
 3. Prove real roster, schedule, automatic lifecycle, teacher correction,
    student scan, duplicate/lost-response retry, event reorder, and snapshot
    reconciliation round trips.
@@ -103,7 +105,8 @@ that principal through the installation-scoped adapter.
    and light/dark, including loading, success, duplicate, unmatched, invalid,
    closed, and unavailable states.
 6. Run the one exact teacher/classroom canary with rollback flags. Do not
-   enable production attendance until the teacher and student flows pass.
+   enable production attendance until the teacher and student flows pass. After
+   enabling only the paired flags, rerun the preflight with `--mode enabled`.
 
 Archive-v2 does not yet know how to decommission Bara authority. Soft
 archive/restore preserves attendance rows, but compaction and permanent purge

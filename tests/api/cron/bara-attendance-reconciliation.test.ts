@@ -3,20 +3,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   reconcile: vi.fn(),
   canaryScope: vi.fn(),
+  assertOwner: vi.fn(),
   serviceClient: { rpc: vi.fn() },
 }))
 
 vi.mock('@/lib/server/bara-attendance-reconciliation', () => ({
   reconcileBaraAttendanceSessions: mocks.reconcile,
 }))
-vi.mock('@/lib/server/bara-attendance-canary', () => ({
-  getBaraAttendanceCanaryScope: mocks.canaryScope,
-}))
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return {
+    ...original,
+    getBaraAttendanceCanaryScope: mocks.canaryScope,
+    assertBaraAttendanceCanaryClassroomOwner: mocks.assertOwner,
+  }
+})
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => mocks.serviceClient,
 }))
 
 import { GET, POST } from '@/app/api/cron/bara-attendance-reconciliation/route'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 function request(method: 'GET' | 'POST', authorized = true) {
   return new Request('http://localhost/api/cron/bara-attendance-reconciliation', {
@@ -34,6 +41,7 @@ describe('/api/cron/bara-attendance-reconciliation', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
     })
+    mocks.assertOwner.mockResolvedValue(undefined)
     mocks.reconcile.mockResolvedValue({
       status: 'ok',
       eligible: 2,
@@ -88,5 +96,17 @@ describe('/api/cron/bara-attendance-reconciliation', () => {
       failed: 1,
       truncated: true,
     })
+  })
+
+  it('does not reconcile when the configured pair is missing or inactive', async () => {
+    mocks.assertOwner.mockRejectedValue(new BaraAttendanceCanaryError('not_configured'))
+
+    const response = await GET(request('GET') as never)
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      status: 'error', error: 'not_configured',
+    })
+    expect(mocks.reconcile).not.toHaveBeenCalled()
   })
 })

@@ -28,6 +28,7 @@ vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
 
 import { GET } from '@/app/api/teacher/attendance/qr/route'
 import { TeacherAttendanceQrError } from '@/lib/server/bara-attendance-qr'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const classroomId = '11111111-1111-4111-8111-111111111111'
 const actor = { workosSubject: 'user_teacher', displayName: 'Teacher One' }
@@ -41,6 +42,7 @@ function request() {
 describe('GET /api/teacher/attendance/qr', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.assertCanary.mockImplementation(() => undefined)
     mocks.requireRole.mockResolvedValue({
       id: 'teacher-one', email: 'teacher@example.com', role: 'teacher',
     })
@@ -71,6 +73,21 @@ describe('GET /api/teacher/attendance/qr', () => {
       classDate: '2026-09-02',
       actor,
     }))
+    expect(mocks.assertCanary).toHaveBeenCalledWith({
+      teacherId: 'teacher-one', classroomId,
+    })
+  })
+
+  it('stops before identity resolution outside the exact canary', async () => {
+    mocks.assertCanary.mockImplementation(() => {
+      throw new BaraAttendanceCanaryError('disabled')
+    })
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(404)
+    expect(mocks.resolveActor).not.toHaveBeenCalled()
+    expect(mocks.load).not.toHaveBeenCalled()
   })
 
   it('maps a closed session to a bounded conflict without leaking provider detail', async () => {

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   deliverOutbox: vi.fn(),
   getOutboxHealth: vi.fn(),
   canaryScope: vi.fn(),
+  assertOwner: vi.fn(),
   serviceClient: { rpc: vi.fn() },
 }))
 
@@ -16,14 +17,20 @@ vi.mock('@/lib/server/bara-attendance-outbox', () => ({
   deliverBaraAttendanceOutboxBatch: mocks.deliverOutbox,
   getBaraAttendanceOutboxHealth: mocks.getOutboxHealth,
 }))
-vi.mock('@/lib/server/bara-attendance-canary', () => ({
-  getBaraAttendanceCanaryScope: mocks.canaryScope,
-}))
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return {
+    ...original,
+    getBaraAttendanceCanaryScope: mocks.canaryScope,
+    assertBaraAttendanceCanaryClassroomOwner: mocks.assertOwner,
+  }
+})
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => mocks.serviceClient,
 }))
 
 import { GET, POST } from '@/app/api/cron/bara-attendance-automation/route'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 function request(method: 'GET' | 'POST', authorized = true) {
   return new Request('http://localhost/api/cron/bara-attendance-automation', {
@@ -41,6 +48,7 @@ describe('/api/cron/bara-attendance-automation', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
     })
+    mocks.assertOwner.mockResolvedValue(undefined)
     mocks.syncSchedules.mockResolvedValue({
       status: 'ok',
       windowStart: '2026-08-17',
@@ -103,6 +111,19 @@ describe('/api/cron/bara-attendance-automation', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
     })
+  })
+
+  it('fails configuration health before running workers for an invalid canary pair', async () => {
+    mocks.assertOwner.mockRejectedValue(new BaraAttendanceCanaryError('not_configured'))
+
+    const response = await GET(request('GET') as never)
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      status: 'error', error: 'not_configured',
+    })
+    expect(mocks.syncSchedules).not.toHaveBeenCalled()
+    expect(mocks.deliverOutbox).not.toHaveBeenCalled()
   })
 
   it('returns aggregate partial health when a target or durable delivery needs review', async () => {

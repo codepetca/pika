@@ -1,4 +1,5 @@
 export type BaraAttendanceRolloutStage = 'preview' | 'production'
+export type BaraAttendanceRolloutMode = 'pre-enable' | 'enabled'
 
 export interface BaraAttendanceRolloutEnvironment {
   NEXT_PUBLIC_SUPABASE_URL?: string
@@ -34,6 +35,7 @@ export interface BaraAttendanceRolloutEnvironment {
 
 export interface BaraAttendanceRolloutTarget {
   stage: BaraAttendanceRolloutStage
+  attendanceMode: BaraAttendanceRolloutMode
   expectedSupabaseRef: string
   productionSupabaseRef: string
   expectedPikaOrigin: string
@@ -43,6 +45,7 @@ export interface BaraAttendanceRolloutTarget {
 export interface BaraAttendanceRolloutAudit {
   ready: boolean
   stage: BaraAttendanceRolloutStage
+  attendanceMode: BaraAttendanceRolloutMode
   passedCount: number
   checkCount: number
   failedChecks: string[]
@@ -155,7 +158,13 @@ export function auditBaraAttendanceRolloutEnvironment(
     ],
     ['mock_email_disabled', environment.ENABLE_MOCK_EMAIL === 'false'],
     ['legacy_browser_handoff_disabled', environment.PIKA_BARA_AUTH_HANDOFF !== 'true'],
-    ['attendance_enabled', environment.PIKA_BARA_ATTENDANCE_ENABLED === 'true'],
+    [
+      target.attendanceMode === 'enabled'
+        ? 'attendance_enabled'
+        : 'attendance_disabled_for_preflight',
+      environment.PIKA_BARA_ATTENDANCE_ENABLED
+        === (target.attendanceMode === 'enabled' ? 'true' : 'false'),
+    ],
     [
       'attendance_exact_canary',
       UUID_PATTERN.test(trimmed(environment.PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID))
@@ -194,6 +203,7 @@ export function auditBaraAttendanceRolloutEnvironment(
   return {
     ready: failedChecks.length === 0,
     stage: target.stage,
+    attendanceMode: target.attendanceMode,
     passedCount: checks.length - failedChecks.length,
     checkCount: checks.length,
     failedChecks,

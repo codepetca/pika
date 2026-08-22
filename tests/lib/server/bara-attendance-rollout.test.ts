@@ -48,6 +48,7 @@ function readyEnvironment(): BaraAttendanceRolloutEnvironment {
 
 const target = {
   stage: 'preview' as const,
+  attendanceMode: 'enabled' as const,
   expectedSupabaseRef: previewRef,
   productionSupabaseRef: productionRef,
   expectedPikaOrigin: 'https://pika-preview.example',
@@ -61,11 +62,37 @@ describe('Bara attendance rollout environment audit', () => {
     expect(result).toEqual({
       ready: true,
       stage: 'preview',
+      attendanceMode: 'enabled',
       passedCount: result.checkCount,
       checkCount: result.checkCount,
       failedChecks: [],
     })
     expect(result.checkCount).toBeGreaterThanOrEqual(16)
+  })
+
+  it('can prove complete configuration while runtime attendance remains disabled', () => {
+    const environment = readyEnvironment()
+    environment.PIKA_BARA_ATTENDANCE_ENABLED = 'false'
+
+    const result = auditBaraAttendanceRolloutEnvironment(environment, {
+      ...target,
+      attendanceMode: 'pre-enable',
+    })
+
+    expect(result.ready).toBe(true)
+    expect(result.failedChecks).toEqual([])
+  })
+
+  it('does not confuse pre-enable and enabled rollout modes', () => {
+    const environment = readyEnvironment()
+    expect(auditBaraAttendanceRolloutEnvironment(environment, {
+      ...target,
+      attendanceMode: 'pre-enable',
+    }).failedChecks).toContain('attendance_disabled_for_preflight')
+
+    environment.PIKA_BARA_ATTENDANCE_ENABLED = 'false'
+    expect(auditBaraAttendanceRolloutEnvironment(environment, target).failedChecks)
+      .toContain('attendance_enabled')
   })
 
   it('fails closed when preview shares production or uses incomplete provider configuration', () => {

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { withErrorHandler } from '@/lib/api-handler'
-import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import {
+  assertBaraAttendanceCanaryClassroomOwner,
+  BaraAttendanceCanaryError,
+  getBaraAttendanceCanaryScope,
+} from '@/lib/server/bara-attendance-canary'
 import {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
@@ -26,6 +30,22 @@ export const POST = withErrorHandler(
     const supabase = getServiceRoleClient()
     const scope = getBaraAttendanceCanaryScope()
     const enabled = scope.state === 'ready'
+    if (enabled && scope.classroomId) {
+      try {
+        await assertBaraAttendanceCanaryClassroomOwner({
+          supabase,
+          classroomId: scope.classroomId,
+        })
+      } catch (error) {
+        if (error instanceof BaraAttendanceCanaryError) {
+          return NextResponse.json({ status: 'error', error: 'not_configured' }, {
+            status: 503,
+            headers: { 'Cache-Control': 'no-store' },
+          })
+        }
+        throw error
+      }
+    }
     const delivery = await deliverBaraAttendanceOutboxBatch({
       supabase,
       enabled,

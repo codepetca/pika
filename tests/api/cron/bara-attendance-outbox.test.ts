@@ -4,11 +4,13 @@ const {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
   getBaraAttendanceCanaryScope,
+  assertBaraAttendanceCanaryClassroomOwner,
   serviceClient,
 } = vi.hoisted(() => ({
   deliverBaraAttendanceOutboxBatch: vi.fn(),
   getBaraAttendanceOutboxHealth: vi.fn(),
   getBaraAttendanceCanaryScope: vi.fn(),
+  assertBaraAttendanceCanaryClassroomOwner: vi.fn(),
   serviceClient: { rpc: vi.fn() },
 }))
 
@@ -16,14 +18,20 @@ vi.mock('@/lib/server/bara-attendance-outbox', () => ({
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
 }))
-vi.mock('@/lib/server/bara-attendance-canary', () => ({
-  getBaraAttendanceCanaryScope,
-}))
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return {
+    ...original,
+    getBaraAttendanceCanaryScope,
+    assertBaraAttendanceCanaryClassroomOwner,
+  }
+})
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => serviceClient,
 }))
 
 import { POST } from '@/app/api/cron/bara-attendance-outbox/route'
+import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 describe('POST /api/cron/bara-attendance-outbox', () => {
   beforeEach(() => {
@@ -34,6 +42,7 @@ describe('POST /api/cron/bara-attendance-outbox', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
     })
+    assertBaraAttendanceCanaryClassroomOwner.mockResolvedValue(undefined)
     deliverBaraAttendanceOutboxBatch.mockResolvedValue({
       status: 'ok',
       claimed: 1,
@@ -110,5 +119,22 @@ describe('POST /api/cron/bara-attendance-outbox', () => {
 
     expect(response.status).toBe(503)
     await expect(response.json()).resolves.toMatchObject({ status: 'partial' })
+  })
+
+  it('does not lease work when the configured classroom is not owned by the teacher', async () => {
+    assertBaraAttendanceCanaryClassroomOwner.mockRejectedValue(
+      new BaraAttendanceCanaryError('not_configured'),
+    )
+
+    const response = await POST(new Request('http://localhost/api/cron/bara-attendance-outbox', {
+      method: 'POST',
+      headers: { authorization: 'Bearer cron-test-secret' },
+    }))
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      status: 'error', error: 'not_configured',
+    })
+    expect(deliverBaraAttendanceOutboxBatch).not.toHaveBeenCalled()
   })
 })

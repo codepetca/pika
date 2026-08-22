@@ -1,7 +1,11 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyV1RequestSignature } from '@/vendor/attendance-contract/v1/signing'
 import { validateV1Event } from '@/vendor/attendance-contract/v1/validate'
-import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import {
+  assertBaraAttendanceCanaryClassroomOwner,
+  BaraAttendanceCanaryError,
+  getBaraAttendanceCanaryScope,
+} from '@/lib/server/bara-attendance-canary'
 
 const EVENT_PATH = '/api/integrations/attendance/v1/events'
 const MAX_BODY_BYTES = 64_000
@@ -105,7 +109,19 @@ export async function receiveBaraAttendanceEvent(request: Request): Promise<Ingr
     return { ok: false, status: 422, error: 'resource_mismatch' }
   }
 
-  const client = getServiceRoleClient() as unknown as AttendanceEventRpcClient
+  const serviceClient = getServiceRoleClient()
+  try {
+    await assertBaraAttendanceCanaryClassroomOwner({
+      supabase: serviceClient,
+      classroomId: config.classroomId,
+    })
+  } catch (error) {
+    if (error instanceof BaraAttendanceCanaryError) {
+      return { ok: false, status: 503, error: 'temporarily_unavailable' }
+    }
+    throw error
+  }
+  const client = serviceClient as unknown as AttendanceEventRpcClient
   const { data, error } = await client.rpc('apply_attendance_event_for_classroom_v1', {
     p_event: validation.value,
     p_transport_nonce: nonce,

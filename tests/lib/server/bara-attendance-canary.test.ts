@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  auditBaraAttendanceCanaryDatabaseScope,
   assertBaraAttendanceCanaryClassroom,
   assertBaraAttendanceCanaryClassroomOwner,
   BaraAttendanceCanaryError,
@@ -49,7 +50,9 @@ describe('Bara attendance exact canary', () => {
   })
 
   it('revalidates current classroom ownership for student token use', async () => {
-    const owner = vi.fn().mockResolvedValue({ data: { teacher_id: teacherId }, error: null })
+    const owner = vi.fn().mockResolvedValue({
+      data: { teacher_id: teacherId, archived_at: null }, error: null,
+    })
     const query: any = {
       select: vi.fn(() => query),
       eq: vi.fn(() => query),
@@ -60,10 +63,39 @@ describe('Bara attendance exact canary', () => {
     await expect(assertBaraAttendanceCanaryClassroomOwner({ supabase, classroomId }))
       .resolves.toBeUndefined()
     owner.mockResolvedValueOnce({
-      data: { teacher_id: '30000000-0000-4000-8000-000000000003' },
+      data: {
+        teacher_id: '30000000-0000-4000-8000-000000000003', archived_at: null,
+      },
       error: null,
     })
     await expect(assertBaraAttendanceCanaryClassroomOwner({ supabase, classroomId }))
-      .rejects.toEqual(new BaraAttendanceCanaryError('disabled'))
+      .rejects.toEqual(new BaraAttendanceCanaryError('not_configured'))
+  })
+
+  it.each([
+    ['wrong owner', {
+      data: { teacher_id: '30000000-0000-4000-8000-000000000003', archived_at: null },
+      error: null,
+    }],
+    ['missing classroom', { data: null, error: null }],
+    ['archived classroom', {
+      data: { teacher_id: teacherId, archived_at: '2026-08-21T12:00:00.000Z' },
+      error: null,
+    }],
+  ])('fails database preflight for a %s', async (_label, result) => {
+    const query: any = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      maybeSingle: vi.fn().mockResolvedValue(result),
+    }
+    const audit = await auditBaraAttendanceCanaryDatabaseScope({
+      supabase: { from: vi.fn(() => query) },
+      teacherId,
+      classroomId,
+    })
+    expect(audit).toEqual({
+      ready: false,
+      failedChecks: ['attendance_canary_database_scope'],
+    })
   })
 })

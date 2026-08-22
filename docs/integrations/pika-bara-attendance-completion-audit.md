@@ -35,11 +35,14 @@ Bara worktree.
 2. After merge, verify production migration history and apply only migration
    129 to the authorized Pika production project.
 3. Configure the exact teacher/classroom canary UUIDs, redeploy with both global
-   attendance flags still false, and run the aggregate-only rollout preflight.
+   attendance flags still false, and run the aggregate-only rollout preflight
+   with `--mode pre-enable`. It must prove the active classroom still belongs to
+   the configured teacher.
 4. Enable only the paired Pika/Bara flags for the controlled canary and prove
    real teacher and student roster/schedule/lifecycle/mark/correction/QR,
    duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
-   flows while all production flags remain off.
+   flows while attendance remains disabled for every non-canary pair. Run the
+   Pika preflight again with `--mode enabled` before exercising the flow.
 5. Run a non-production load rehearsal before the canary; production receives
    only the bounded real-flow latency measurements approved for the pilot.
 6. Verify the complete UI state family, then run one allowlisted classroom
