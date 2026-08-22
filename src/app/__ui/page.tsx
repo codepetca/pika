@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { UiGallery } from './UiGallery'
 
 export const dynamic = 'force-dynamic'
@@ -12,9 +13,9 @@ export default async function UiGalleryPage() {
 
   const user = await getCurrentUser()
   if (!user) {
-    redirect('/login')
+    redirect(getServerLoginRedirectPath())
   }
 
-  return <UiGallery role={user.role} />
+  const galleryProps = { role: user.role }
+  return <UiGallery {...galleryProps} />
 }
-

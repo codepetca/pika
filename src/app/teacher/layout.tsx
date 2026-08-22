@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { AppNavigation, type AppNavigationItem } from '@/components/AppNavigation'
 import { AppShell } from '@/components/AppShell'
 
@@ -17,7 +18,7 @@ export default async function TeacherLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect(getServerLoginRedirectPath())
   }
 
   if (user.role !== 'teacher') {

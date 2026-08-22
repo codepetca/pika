@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
@@ -15,7 +16,7 @@ export default async function ClassroomsIndexPage() {
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect(getServerLoginRedirectPath())
   }
 
   const supabase = getServiceRoleClient()

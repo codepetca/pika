@@ -68,6 +68,13 @@ export const verifyWorkOSMagicAuthSchema = z.object({
 })
 
 /**
+ * POST /api/auth/workos/session/restore
+ */
+export const restoreWorkOSSessionSchema = z.object({
+  next: safeNextPath.optional(),
+})
+
+/**
  * POST /api/auth/forgot-password
  */
 export const forgotPasswordSchema = z.object({

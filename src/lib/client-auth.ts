@@ -2,25 +2,15 @@
 
 import { navigateTo } from '@/lib/client-navigation'
 import type { UserRole } from '@/types'
+import { buildLoginRedirectPath as buildLoginRedirectPathFromPath } from '@/lib/auth-redirect'
+import { getSafeInternalPath } from '@/lib/navigation-safety'
+
+export { getSafeInternalPath } from '@/lib/navigation-safety'
 
 export const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again before continuing.'
 export const SESSION_EXPIRED_REASON = 'session-expired'
 export const SESSION_CHANGED_MESSAGE = 'Your signed-in account changed. Please log in again before continuing.'
 export const SESSION_CHANGED_REASON = 'session-changed'
-
-const INTERNAL_URL_BASE = 'https://pika.internal'
-
-export function getSafeInternalPath(path: string | null | undefined): string | null {
-  if (!path?.startsWith('/') || path.includes('\\') || /%5c/i.test(path)) return null
-
-  try {
-    const url = new URL(path, INTERNAL_URL_BASE)
-    if (url.origin !== INTERNAL_URL_BASE || url.pathname.startsWith('//')) return null
-    return `${url.pathname}${url.search}${url.hash}`
-  } catch {
-    return null
-  }
-}
 
 export function buildLoginRedirectPath(
   currentPath?: string,
@@ -32,12 +22,7 @@ export function buildLoginRedirectPath(
       ? `${window.location.pathname}${window.location.search}`
       : '/classrooms')
 
-  const safePath = getSafeInternalPath(path) ?? '/classrooms'
-  const searchParams = new URLSearchParams({
-    next: safePath,
-    reason,
-  })
-  return `/login?${searchParams.toString()}`
+  return buildLoginRedirectPathFromPath(path, reason)
 }
 
 export function redirectToLoginForReauth(

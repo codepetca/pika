@@ -3,12 +3,16 @@ import { LoginClient } from './LoginClient'
 import { Spinner } from '@/components/Spinner'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 import { hasActivePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
+import { withAuth } from '@workos-inc/authkit-nextjs'
 
 export default async function LoginPage() {
   const magicAuthEnabled = isWorkOSMagicAuthPilotEnabled()
-  const hasPendingChallenge = magicAuthEnabled
-    ? await hasActivePendingWorkOSMagicAuth('sign-in')
-    : false
+  const [hasPendingChallenge, hasActiveWorkOSSession] = magicAuthEnabled
+    ? await Promise.all([
+        hasActivePendingWorkOSMagicAuth('sign-in'),
+        withAuth().then(({ user }) => Boolean(user?.emailVerified)),
+      ])
+    : [false, false]
 
   return (
     <Suspense
@@ -21,6 +25,7 @@ export default async function LoginPage() {
       <LoginClient
         magicAuthEnabled={magicAuthEnabled}
         hasPendingMagicAuthChallenge={hasPendingChallenge}
+        hasActiveWorkOSSession={hasActiveWorkOSSession}
       />
     </Suspense>
   )

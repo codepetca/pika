@@ -11,8 +11,6 @@ import {
 import { requireWorkOSMagicAuthPilot, safePikaPath } from '@/lib/server/workos-pilot'
 import { verifyWorkOSMagicAuthSchema } from '@/lib/validations/auth'
 
-const WORKOS_PILOT_COMPATIBILITY_SESSION_MAX_AGE_SECONDS = 12 * 60 * 60
-
 export const POST = withErrorHandler('VerifyWorkOSMagicAuth', async (request: NextRequest) => {
   requireWorkOSMagicAuthPilot()
   const { code } = verifyWorkOSMagicAuthSchema.parse(await request.json())
@@ -39,12 +37,12 @@ export const POST = withErrorHandler('VerifyWorkOSMagicAuth', async (request: Ne
 
   const pikaUser = await resolvePikaUserFromWorkOS(authResponse.user)
 
-  // WorkOS is the credential/session authority. The Pika session remains as a
-  // short-term compatibility bridge for existing requireAuth()/requireRole().
+  // WorkOS is the credential/session authority. The Pika session remains an
+  // internal identity/role mapping for existing requireAuth()/requireRole().
   // Save WorkOS first so a failure cannot leave only a Pika-authenticated user.
   await saveSession(authResponse, request)
   await createSession(pikaUser.id, pikaUser.email, pikaUser.role, {
-    maxAgeSeconds: WORKOS_PILOT_COMPATIBILITY_SESSION_MAX_AGE_SECONDS,
+    workosUserId: authResponse.user.id,
   })
   await clearPendingWorkOSMagicAuth()
 

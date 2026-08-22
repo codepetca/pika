@@ -11,8 +11,16 @@ const workOSMocks = vi.hoisted(() => ({
   withAuth: vi.fn(),
 }))
 
+const palMocks = vi.hoisted(() => ({
+  recordPalAuthenticatedSession: vi.fn(),
+}))
+
 vi.mock('@workos-inc/authkit-nextjs', () => ({
   withAuth: workOSMocks.withAuth,
+}))
+
+vi.mock('@/lib/server/pal-signals', () => ({
+  recordPalAuthenticatedSession: palMocks.recordPalAuthenticatedSession,
 }))
 
 // Mock iron-session
@@ -91,12 +99,13 @@ describe('auth utilities', () => {
       )
     })
 
-    it('should set session maxAge to 180 days (6 months)', async () => {
+    it('keeps both the browser cookie and encrypted seal valid for 180 days', async () => {
       await getSession()
       const expectedMaxAge = 180 * 24 * 60 * 60 // 180 days in seconds = 15552000
       expect(getIronSession).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          ttl: expectedMaxAge + 60,
           cookieOptions: expect.objectContaining({
             maxAge: expectedMaxAge,
           }),
@@ -117,6 +126,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
       expect(mockSession.save).toHaveBeenCalled()
     })
@@ -128,6 +139,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
       expect(mockSession.save).toHaveBeenCalled()
     })
@@ -137,17 +150,26 @@ describe('auth utilities', () => {
       expect(mockSession.save).toHaveBeenCalledTimes(1)
     })
 
-    it('supports a shorter compatibility-session lifetime for external auth pilots', async () => {
+    it('binds a WorkOS compatibility session to the exact external subject', async () => {
       await createSession('user-1', 'test@student.com', 'student', {
-        maxAgeSeconds: 12 * 60 * 60,
+        workosUserId: 'user_workos_1',
       })
 
-      expect(getIronSession).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          cookieOptions: expect.objectContaining({ maxAge: 12 * 60 * 60 }),
-        }),
-      )
+      expect(mockSession.user).toEqual(expect.objectContaining({
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
+      }))
+    })
+
+    it('does not emit a student authentication event during silent restoration', async () => {
+      await createSession('user-1', 'test@student.com', 'student', {
+        workosUserId: 'user_workos_1',
+        recordAuthenticationEvent: false,
+      })
+
+      expect(mockSession.save).toHaveBeenCalledOnce()
+      expect(palMocks.recordPalAuthenticatedSession).not.toHaveBeenCalled()
     })
 
     it('should overwrite existing session data', async () => {
@@ -164,6 +186,8 @@ describe('auth utilities', () => {
         id: 'new-user',
         email: 'new@example.com',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
   })
@@ -200,11 +224,13 @@ describe('auth utilities', () => {
   // ==========================================================================
 
   describe('getCurrentUser', () => {
-    it('should return user when session has user', async () => {
+    it('preserves password-origin sessions when the WorkOS pilot is disabled', async () => {
       mockSession.user = {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await getCurrentUser()
@@ -212,7 +238,35 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+    })
+
+    it('rejects WorkOS-bound mapping sessions when the pilot is disabled', async () => {
+      mockSession.user = {
+        id: 'user-1',
+        email: 'test@student.com',
+        role: 'student',
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
+      }
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+    })
+
+    it('rejects an ambiguous legacy session when the pilot is disabled', async () => {
+      mockSession.user = {
+        id: 'user-1',
+        email: 'test@student.com',
+        role: 'student',
+      }
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
     })
 
     it('should return null when session has no user', async () => {
@@ -234,6 +288,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await getCurrentUser()
@@ -241,6 +297,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -250,6 +308,9 @@ describe('auth utilities', () => {
         id: 'student-1',
         email: ' 123456789@GAPPS.YRDSB.CA ',
         role: 'student',
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
       }
       workOSMocks.withAuth.mockResolvedValue({
         user: {
@@ -261,6 +322,66 @@ describe('auth utilities', () => {
 
       await expect(getCurrentUser()).resolves.toEqual(mockSession.user)
       expect(workOSMocks.withAuth).toHaveBeenCalledOnce()
+    })
+
+    it('rejects a WorkOS session whose subject does not match the Pika session binding', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_2',
+          email: 'student@example.com',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+    })
+
+    it('rejects a matching WorkOS subject whose normalized email differs', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_1',
+          email: 'different@example.com',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+    })
+
+    it('rejects an unbound legacy compatibility session when the pilot is enabled', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      mockSession.user = {
+        id: 'student-1',
+        email: 'student@example.com',
+        role: 'student',
+      }
+      workOSMocks.withAuth.mockResolvedValue({
+        user: {
+          id: 'user_workos_1',
+          email: 'student@example.com',
+          emailVerified: true,
+        },
+      })
+
+      await expect(getCurrentUser()).resolves.toBeNull()
     })
 
     it('rejects a Pika-only compatibility cookie when the pilot is enabled', async () => {
@@ -311,6 +432,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireAuth()
@@ -318,6 +441,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -340,6 +465,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireAuth()
@@ -353,6 +480,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireAuth()
@@ -372,6 +501,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireRole('student')
@@ -379,6 +510,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -387,6 +520,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireRole('teacher')
@@ -394,6 +529,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -402,6 +539,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
@@ -420,6 +559,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
@@ -431,6 +572,8 @@ describe('auth utilities', () => {
         id: 'student-1',
         email: 'student@example.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('teacher')).rejects.toThrow()
@@ -441,6 +584,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('student')).rejects.toThrow()
@@ -462,6 +607,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireSnapshotGalleryAccess()
@@ -470,6 +617,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -479,6 +628,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireSnapshotGalleryAccess()).rejects.toThrow(AuthorizationError)
