@@ -1,8 +1,8 @@
 # Pika–Bara native attendance completion audit
 
-Status: all requested local architecture and behavior slices are implemented;
-hosted database, cross-service, latency, and pilot proof remains intentionally
-open.
+Status: all requested local architecture and behavior slices are implemented.
+Production migration 129 is applied; migration 130 capability retirement,
+cross-service, latency, and canary proof remain intentionally open.
 
 This ledger prevents local test evidence from being mistaken for a rollout.
 Paths are relative to the owning repository: this Pika worktree or the sibling
@@ -23,6 +23,7 @@ Bara worktree.
 | Timeout and retention policy | Complete and documented in the v1 contract. Bara retains request nonces for 24 hours and idempotency results for 30 days with bounded cleanup. Pika distinguishes definitive results from uncertain transport outcomes. | Operational cron cadence/alerting remains a pilot gate. |
 | Native Pika teacher client | Complete locally. The Attendance surface, policy, sync, QR, session, marks, corrections, durable pending state, projection, and recovery workers are Pika-owned. WorkOS is verified locally; outbound commands carry only the mapped Pika principal. Retryable delivery uncertainty returns pending and survives reload from the durable outbox. | Real teacher correction and lifecycle flows remain unproved. |
 | Native Pika student client | Complete locally. The QR opens a Pika URL; the raw Bara token is encrypted in a Pika-owned entry token and is not persisted. The server derives the student only from the verified Pika session and renders Bara's authoritative success/duplicate/invalid/closed/needs-help/unavailable state. | Real student mobile/login/scan flows remain unproved. |
+| Exact production canary boundary | Complete locally. The global flag is combined with an exact Pika teacher/classroom UUID pair. Teacher reads render disabled outside the pair; mutations stop before WorkOS identity resolution; student tokens bind the classroom; inbound events and schedule/reconciliation/outbox workers use migration-129 scoped RPCs. Focused tests and a full local reset prove fail-closed behavior. | Production migration 129 is applied. Migration 130 must retire the superseded unscoped service-role RPC capabilities before enablement. The exact canary variables remain unconfigured and both global flags remain false. |
 | Versioned contract fixtures and isolation | Complete. Bara is the v1 source and Pika vendors byte-identical closed types, validators, signing, and fixtures. Tests cover replay, idempotency conflicts, revision ordering, opaque mappings, tenant fences, and forbidden internal identifiers. | Provider/consumer requests still need a deployed cross-service smoke. |
 | Archive/purge containment | Complete as a fail-closed interim boundary. Soft archive/restore retains attendance state. Every attendance row family, compaction start, purge start, final classroom delete, and individual-student purge begin/finalization is guarded until a versioned Bara decommission/reseed/erase protocol exists. Inbox/projections carry local classroom lineage and record projections carry student lineage. | Destructive archive/purge and attendance-linked student erasure remain intentionally unavailable until coordinated provider decommissioning exists. |
 | Local verification and UI evidence | Complete at the last recorded gate: both repositories passed their complete tests, type checks, builds, and prescribed guards. Pika Playwright evidence covers native success and uncertain student states on desktop/mobile without leaving Pika. | Hosted full state-family browser evidence remains open. |
@@ -30,17 +31,22 @@ Bara worktree.
 
 ## Remaining release sequence
 
-1. If a hosted pilot is desired, provision a named isolated Pika Supabase
-   target (none exists today), then obtain explicit authorization for that
-   target and for the narrowly scoped Bara roster-owner backfill.
-2. Verify target identities and migration history, dry-run, then apply only Pika
-   migration 127 and the named Bara backfill to their approved environments.
-3. Deploy matching previews with separate WorkOS Applications and distinct
-   secrets; run the aggregate-only rollout preflight.
-4. Prove real teacher and student roster/schedule/lifecycle/mark/correction/QR,
+1. Review and merge the disabled-by-default Pika production release containing
+   migration 130. Verify production history already contains migration 129; do
+   not edit or reapply it.
+2. Obtain separate one-time authorization and apply only migration 130 to the
+   Pika production project while both global attendance flags remain false.
+3. Configure the exact teacher/classroom canary UUIDs, redeploy with both global
+   attendance flags still false, and run the aggregate-only rollout preflight
+   with `--mode pre-enable`. It must prove the active classroom still belongs to
+   the configured teacher.
+4. Enable only the paired Pika/Bara flags for the controlled canary and prove
+   real teacher and student roster/schedule/lifecycle/mark/correction/QR,
    duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
-   flows while all production flags remain off.
-5. Run the preview-only 30–100 scan measurement and retain p50/p95/p99 evidence.
+   flows while attendance remains disabled for every non-canary pair. Run the
+   Pika preflight again with `--mode enabled` before exercising the flow.
+5. Run a non-production load rehearsal before the canary; production receives
+   only the bounded real-flow latency measurements approved for the pilot.
 6. Verify the complete UI state family, then run one allowlisted classroom
    canary with rollback. Production enablement remains a separate decision.
 

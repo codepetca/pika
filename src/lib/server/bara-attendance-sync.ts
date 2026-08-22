@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
-import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
 import { deliverBaraAttendanceMessage } from '@/lib/server/bara-attendance-outbox'
 import { buildBaraRosterSnapshot } from '@/lib/server/bara-attendance-roster'
 import { buildBaraScheduleSnapshot } from '@/lib/server/bara-attendance-schedule'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
+import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
 
 const preparationSchema = z.object({
   classroom_id: z.string().uuid(),
@@ -100,7 +100,10 @@ export async function syncTeacherAttendanceSources(input: {
   verifiedActor?: VerifiedPikaAttendanceTeacher
   integrationState?: 'disabled' | 'not_configured' | 'ready'
 }) {
-  const integrationState = input.integrationState ?? getBaraAttendanceIntegrationState()
+  const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
+    teacherId: input.teacherId,
+    classroomId: input.classroomId,
+  })
   if (integrationState !== 'ready') throw new BaraAttendanceSyncError(integrationState)
   const installationRef = process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim() ?? ''
   const tenantRef = process.env.BARA_ATTENDANCE_TENANT_REF?.trim() ?? ''

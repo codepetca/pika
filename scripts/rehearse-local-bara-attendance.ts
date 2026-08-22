@@ -135,6 +135,9 @@ async function main() {
     }).select('id').single()
     if (classroomError || !classroom) throw classroomError ?? new Error('Classroom seed failed')
 
+    process.env.PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID = teacher.id
+    process.env.PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID = classroom.id
+
     const { error: enrollmentError } = await supabase.from('classroom_enrollments').insert(
       students.map((student) => ({ classroom_id: classroom.id, student_id: student.id })),
     )

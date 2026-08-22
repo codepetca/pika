@@ -46,10 +46,6 @@ vi.mock('@/components/PageLayout', () => ({
   ),
 }))
 
-vi.mock('@/lib/timezone', () => ({
-  getTodayInToronto: () => '2026-06-01',
-}))
-
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: vi.fn((_key: string, load: () => Promise<unknown>) => load()),
   invalidateCachedJSON: vi.fn(),

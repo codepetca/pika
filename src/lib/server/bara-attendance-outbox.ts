@@ -381,14 +381,18 @@ export interface AttendanceOutboxDeliverySummary {
 export async function deliverBaraAttendanceOutboxBatch(input: {
   supabase: AttendanceOutboxClient
   enabled: boolean
+  teacherId?: string | null
+  classroomId?: string | null
   limit?: number
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<AttendanceOutboxDeliverySummary> {
-  if (!input.enabled) {
+  if (!input.enabled || !input.teacherId || !input.classroomId) {
     return { status: 'disabled', claimed: 0, delivered: 0, retrying: 0, nonRetryable: 0 }
   }
-  const { data, error } = await callOutboxRpc(input.supabase, 'claim_attendance_outbox_batch_v1', {
+  const { data, error } = await callOutboxRpc(input.supabase, 'claim_attendance_outbox_batch_v2', {
+    p_teacher_id: input.teacherId,
+    p_classroom_id: input.classroomId,
     p_limit: input.limit ?? 20,
     p_lease_seconds: 60,
   })
@@ -443,8 +447,10 @@ export interface AttendanceOutboxHealthSummary {
 export async function getBaraAttendanceOutboxHealth(input: {
   supabase: AttendanceOutboxClient
   enabled: boolean
+  teacherId?: string | null
+  classroomId?: string | null
 }): Promise<AttendanceOutboxHealthSummary> {
-  if (!input.enabled) {
+  if (!input.enabled || !input.teacherId || !input.classroomId) {
     return {
       status: 'disabled',
       pending: 0,
@@ -455,7 +461,10 @@ export async function getBaraAttendanceOutboxHealth(input: {
     }
   }
 
-  const { data, error } = await callOutboxRpc(input.supabase, 'attendance_outbox_health_v1')
+  const { data, error } = await callOutboxRpc(input.supabase, 'attendance_outbox_health_v2', {
+    p_teacher_id: input.teacherId,
+    p_classroom_id: input.classroomId,
+  })
   if (error) mapDatabaseError(error, 'read attendance outbox health')
   const health = outboxHealthSchema.parse(data)
   const unresolved = health.pending + health.processing + health.non_retryable

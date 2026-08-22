@@ -96,6 +96,8 @@ export interface BaraAttendanceReconciliationSummary {
 export async function reconcileBaraAttendanceSessions(input: {
   supabase: AttendanceReconciliationRpcClient
   enabled: boolean
+  teacherId?: string | null
+  classroomId?: string | null
   now?: Date
   lookbackHours?: number
   targetLimit?: number
@@ -105,7 +107,7 @@ export async function reconcileBaraAttendanceSessions(input: {
     options?: ReconciliationOptions,
   ) => Promise<unknown>
 }): Promise<BaraAttendanceReconciliationSummary> {
-  if (!input.enabled) {
+  if (!input.enabled || !input.teacherId || !input.classroomId) {
     return {
       status: 'disabled',
       eligible: 0,
@@ -123,8 +125,10 @@ export async function reconcileBaraAttendanceSessions(input: {
   const lookbackHours = Math.min(168, Math.max(1, input.lookbackHours ?? DEFAULT_LOOKBACK_HOURS))
   const concurrency = Math.min(5, Math.max(1, input.concurrency ?? DEFAULT_CONCURRENCY))
   const { data, error } = await input.supabase.rpc(
-    'list_attendance_reconciliation_targets_v1',
+    'list_attendance_reconciliation_targets_v2',
     {
+      p_teacher_id: input.teacherId,
+      p_classroom_id: input.classroomId,
       p_now: (input.now ?? new Date()).toISOString(),
       p_lookback_hours: lookbackHours,
       p_limit: targetLimit + 1,

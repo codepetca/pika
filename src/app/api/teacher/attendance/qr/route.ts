@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import {
   loadTeacherAttendanceQrPresentation,
   TeacherAttendanceQrError,
@@ -12,11 +12,20 @@ import {
   resolveVerifiedPikaAttendanceTeacher,
   TeacherAttendanceIdentityError,
 } from '@/lib/server/bara-attendance-teacher'
+import {
+  assertBaraAttendanceCanaryClassroom,
+  BaraAttendanceCanaryError,
+} from '@/lib/server/bara-attendance-canary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function mapQrError(error: unknown): never {
+  if (error instanceof BaraAttendanceCanaryError) {
+    throw new ApiError(error.code === 'disabled' ? 404 : 503, error.code === 'disabled'
+      ? 'Attendance is not enabled for this classroom'
+      : 'Attendance is temporarily unavailable')
+  }
   if (error instanceof TeacherAttendanceIdentityError) {
     if (error.code === 'identity_not_linked') {
       throw new ApiError(409, 'Attendance setup is still syncing. Try again shortly')
@@ -44,10 +53,11 @@ export const GET = withErrorHandler('GetTeacherAttendanceQr', async (request) =>
     Object.fromEntries(new URL(request.url).searchParams),
   )
   const supabase = getServiceRoleClient()
-  const ownership = await assertTeacherOwnsClassroom(user.id, input.classroom_id, { supabase })
+  const ownership = await assertTeacherCanMutateClassroom(user.id, input.classroom_id, { supabase })
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
     const actor = await resolveVerifiedPikaAttendanceTeacher({ supabase, pikaUser: user })
     const presentation = await loadTeacherAttendanceQrPresentation({
       supabase,

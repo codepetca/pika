@@ -21872,3 +21872,153 @@ migration, production, Gradex, mobile, or student-history route change.
   the same bounded time it receives under full-suite coverage load.
 - The `/student/history` compatibility decision remains the next independent
   slice.
+
+<!-- pika-session-log-archive-batch:25dbd9ff3d9b448e18dae933632ef3ac0642a6b2e70736dbef24b9e48fe990a3 -->
+## 2026-08-17 — Retain and clarify student attendance utility
+
+**Risk profile:** none — compatibility-preserving student utility cleanup; no
+schema, migration, production, Gradex, or mobile redesign work.
+
+**Completed:**
+- Confirmed `/student/history` is attendance history rather than assignment or
+  test history. It remains the only cross-classroom full class-day summary;
+  classroom Today intentionally loads only the latest submitted logs, so a
+  redirect would lose absent and pending records.
+- Preserved the stable URL, changed its visible navigation label to Attendance,
+  and moved class-day row construction into the tested attendance domain.
+- Removed the unmounted duplicate `StudentHistoryTab` and its isolated tests.
+- Replaced feature-local native controls and the hand-built log modal with
+  shared controls, keyboard-operable rows, and governed dialog focus return.
+
+**Validation:**
+- The full suite passes: 4,390 tests across 499 files. A first run exposed only
+  a 17-character startup-context overage from the continuity update; the
+  summary was tightened and its complete 38-test contract rerun passed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, session-log, and diff checks pass. Six stale native-control and raw
+  design-value exceptions were removed with the legacy implementation.
+- Playwright passes the student utility contract across desktop/mobile and
+  light/dark with no horizontal overflow. Loaded and empty states were visually
+  inspected; the shared dialog passes both desktop themes and returns focus.
+- Independent compatibility review was clean. Accessibility review found that
+  the submitted-log button name hid its visible attendance status; the name now
+  includes date, status, and action, with a focused regression test and targeted
+  rereview.
+
+## 2026-08-17 — Organize Settings and decide student grades/profile scope
+
+**Risk profile:** none — teacher Settings organization and durable product
+decisions; no API, schema, migration, production, Gradex, or mobile redesign.
+
+**Completed:**
+- Split the existing teacher Settings surface into stable URL-backed General,
+  Access, Syllabus, Class Days, and Reuse sections without changing the fields,
+  save behavior, archived read-only behavior, or underlying routes.
+- Kept the shared keyboard-operable segmented control and added narrow-screen
+  containment so section navigation cannot widen the page.
+- Recorded that returned assignment/test feedback remains the student grade
+  surface until aggregate disclosure, weighting, hidden-work, and incomplete-
+  work semantics are defined.
+- Recorded that standalone student profile editing remains declined until one
+  source of truth and synchronization contract exists for global profiles and
+  classroom roster names.
+
+**Validation:**
+- The 26-test Settings component suite passes, including cross-section state
+  reset, stale URL fallback, save/error behavior, archived read-only behavior,
+  syllabus preferences, enrollment, and blueprint capture.
+- The full run passed all 4,390 behavior tests; its only failure was a
+  19-character startup-context overage, then the tightened summary passed the
+  complete 38-test startup contract.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright captures pass for every section at desktop and 390px in light and
+  dark. Each URL selects the intended section, body width equals viewport width,
+  and the teacher surface remains visually consistent. Student is not affected.
+- Independent review found the unpublished-syllabus recovery action still
+  opened bare Settings. It now uses in-app navigation directly to the Syllabus
+  section, with a focused resources regression.
+
+<!-- pika-session-log-archive-batch:7ae1a55911d4d4b28a5199247d4688dc769ce2a5d9d797211f5a7125068271e7 -->
+## 2026-08-17 — Blueprint rollover retry and review handoff
+
+**Risk profile:** none — teacher-only blueprint rollover reliability and review
+UX; no schema, migration, production, archive cleanup, or Gradex work.
+
+**Completed:**
+- Classroom capture and blueprint instantiation now retain one UUID operation
+  key while the same semantic request is retried, then clear it after success.
+- Blueprint-created classrooms remain in the create dialog for a focused review
+  handoff that states assignments/tests are unpublished, calls out due-date and
+  release review, lists lesson plans that did not fit the chosen calendar, and
+  opens the new classroom's Assignments tab from every parent surface when the
+  teacher explicitly selects Review Classroom.
+- Blueprint completion refreshes parent classroom state through a non-routing
+  callback. Escape/backdrop dismissal only closes the completed handoff, and
+  dismissal is blocked while instantiation is pending so its operation key
+  cannot be discarded before the request settles.
+- Dashboard and Calendar keep one stable modal instance when the first created
+  classroom replaces their empty state, preserving the completed review
+  handoff until the teacher explicitly reviews or dismisses it.
+- The completed step moves focus to its heading and preserves the existing
+  dialog, progress, and continuation patterns.
+
+**Validation:**
+- Focused component coverage proves both same-key retry paths, delayed success
+  completion, in-flight dismissal blocking, non-routing completion callbacks,
+  empty-state handoff preservation, overflow rendering, and focus transfer. The
+  full suite passes all 4,394 tests across 499 files; TypeScript, lint,
+  production build, Pika audit, and diff checks pass.
+- Playwright verifies the teacher-only overflow handoff at desktop/mobile in
+  light/dark, including a browser-sent UUID operation key and no horizontal
+  overflow. Student rendering is not applicable to this teacher creation flow.
+- Composite checklist reviewed: yes. Keyboard behavior covered: yes. Semantic
+  state covered by tests: yes. Remaining manual follow-up: none.
+
+## 2026-08-17 — Course package import retry identity
+
+**Risk profile:** none — teacher-only client retry behavior; no API, schema,
+migration, production, archive cleanup, Gradex, or student behavior changes.
+
+**Completed:**
+- Added one shared browser-safe package operation helper used by both teacher
+  import entry points. It normalizes JSON, compares exact TAR bytes, retains one
+  caller UUID for unchanged retries, and replaces the key when content changes.
+- Import identity now survives retryable network/server failures and clears
+  after success, wizard cancellation, or component teardown. Synchronous guards
+  prevent concurrent file submissions from creating competing operation IDs.
+- The Blueprints page disables and relabels its import action while a request is
+  pending; the classroom wizard retains its existing busy-state behavior.
+
+**Validation:**
+- Thirty focused component/API tests cover JSON and TAR headers, semantic JSON
+  retries, exact archive retries, changed bytes, success/cancellation clearing,
+  both import entry points, pending-request suppression, and the existing route
+  contract.
+- The full suite passes all 4,405 tests across 499 files.
+- TypeScript, lint, architecture, production build, Pika audit, and diff checks
+  pass.
+- Teacher desktop/mobile light/dark screenshots remain clean. An intercepted,
+  non-mutating request verifies the disabled importing state without layout
+  shift or clipping. Student is not affected by this teacher-only route.
+
+<!-- pika-session-log-archive-batch:cf4f6a820b2b2500e33b68501ec3b80911150acc60784476c9efe920004f6dcc -->
+## 2026-08-17 — Blueprint import review-gap coverage
+
+**Risk profile:** none — test-only follow-up; no runtime, UI, API, schema,
+migration, database, production, Gradex, or student behavior changes.
+
+**Completed:**
+- Added dedicated Blueprints-page coverage for normalized JSON retry identity,
+  changed-content key replacement, and operation-key clearing after success.
+- Added classroom-wizard coverage proving a pending package import suppresses a
+  second file submission until the first request settles.
+- Independent review's P3 maintainability finding was fixed by scoping the
+  suppression assertion to package-import requests instead of all global fetches.
+- Targeted re-review's P1 false-positive finding was fixed by also proving the
+  second event never re-enters asynchronous package preparation.
+
+**Validation:**
+- All 27 focused component tests and all 4,407 repository tests pass.
+- TypeScript, lint, architecture, production build, diff checks, and Pika audit
+  pass. Visual verification is not applicable to this test-only patch.
