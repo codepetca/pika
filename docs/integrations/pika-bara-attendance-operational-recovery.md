@@ -12,10 +12,11 @@ change flags, or requeue hosted events.
 2. Review and merge the Pika PR second. Pika main already contains migration
    131 and the reverse signed smoke ingress; the companion PR adds the pinned
    deployed environment gate and explicit rollout-mode proof.
-3. With both attendance flags still false, obtain one-time authorization for
-   Pika migration 131 and apply only that migration to the named production
-   project. Deploy matching Bara and Pika commits only with fresh deployment
-   authorization.
+3. With both attendance flags still false, verify that the named production
+   project records Pika migration 131 as applied under the prior authorization;
+   do not reapply it. If that record is missing, stop and obtain fresh migration
+   authorization. Deploy matching Bara and Pika commits only with fresh
+   deployment authorization.
 4. Confirm the Bara production deployment completed its guarded Vercel build,
    then invoke the deployed gate from a trusted operator environment. Bara's
    attendance values live in Convex and are proven by this runtime round trip,
@@ -43,6 +44,10 @@ change flags, or requeue hosted events.
    persisted as a hash and atomically consumed with its transport nonce. Output
    is aggregate only. Any skip, 401, 409, 429, 5xx, scope failure, malformed
    response, or failed direction blocks enablement and rollout expansion.
+   After successful operator authentication, a deployed-environment audit
+   failure returns only fixed check identifiers and aggregate pass/total counts;
+   it never returns configured values. Unauthorized responses contain neither
+   those identifiers nor configuration diagnostics.
    The CLI pins `--expected-pika-origin` to the independently configured
    `NEXT_PUBLIC_APP_URL` before reading the dedicated
    `BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET`; the route fails closed unless that
