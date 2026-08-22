@@ -44,8 +44,11 @@ classrooms, enrolled students, and class dates to random contract references,
 plus a teacher-local Toronto attendance-window policy. The authenticated
 read-only teacher route joins authoritative projections through those mappings
 and strips all opaque service references before returning browser-facing state.
-It returns a disabled view without touching the unapplied integration tables;
-hosted configured reads remain gated on applying migration 127 there.
+It returns a disabled view without touching integration tables while the
+feature is not ready. Migration 127 provides the base schema; production
+canary readiness additionally requires already-applied migration 129,
+separately authorized and applied migration 130, and both global attendance
+flags remaining false until the exact-pair pre-enable audit passes.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for

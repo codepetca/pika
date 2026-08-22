@@ -18,6 +18,10 @@ const scanRunbook = readFileSync(
   resolve(process.cwd(), 'docs/integrations/bara-attendance-scan-load.md'),
   'utf8',
 )
+const v1Guide = readFileSync(
+  resolve(process.cwd(), 'docs/integrations/bara-attendance-v1.md'),
+  'utf8',
+)
 
 describe('retired unscoped Bara attendance RPC migration', () => {
   it('removes every superseded worker and event capability from service role', () => {
@@ -46,5 +50,9 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(roadmap).toContain('Apply 130 only after a\n   separate one-time production authorization')
     expect(scanRunbook).toContain('full Pika migration history through migration\n   130')
     expect(scanRunbook).not.toContain('Supabase migration 127 is applied only')
+    expect(v1Guide).toContain(
+      'Migration 127 provides the base schema; production\ncanary readiness additionally requires already-applied migration 129',
+    )
+    expect(v1Guide).not.toContain('hosted configured reads remain gated on applying migration 127')
   })
 })
