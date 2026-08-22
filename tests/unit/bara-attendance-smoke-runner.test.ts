@@ -89,7 +89,7 @@ describe('deployed Bara attendance smoke runner', () => {
       readOperatorSecret,
       fetcher,
     })).resolves.toMatchObject({
-      exitCode: 0,
+      exitCode: 1,
       output: { status: 'skipped', rolloutGateSatisfied: false },
     })
     expect(readOperatorSecret).not.toHaveBeenCalled()
@@ -119,7 +119,7 @@ describe('deployed Bara attendance smoke runner', () => {
       },
     )
 
-    expect(result.status).toBe(0)
+    expect(result.status).toBe(1)
     expect(result.stderr).toBe('')
     expect(JSON.parse(result.stdout)).toEqual({
       status: 'skipped',

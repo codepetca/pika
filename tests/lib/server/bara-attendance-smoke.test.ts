@@ -235,4 +235,53 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
       { supabase: replaySupabase as never, now: () => now },
     )).resolves.toEqual({ ok: false, status: 409, error: 'replayed_request' })
   })
+
+  it.each([
+    { deployedFlag: 'false', callbackMode: 'enabled' },
+    { deployedFlag: 'true', callbackMode: 'pre-enable' },
+  ])('rejects a $callbackMode callback when Pika is $deployedFlag before database access', async ({
+    deployedFlag,
+    callbackMode,
+  }) => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', deployedFlag)
+    const timestamp = String(Math.floor(now / 1_000))
+    const nonce = 'nonce_mode_mismatch_0123456789abcdef'
+    const body = JSON.stringify({
+      schema_version: 1,
+      kind: 'attendance.auth.smoke.callback',
+      installation_ref: installationRef,
+      scope_ref: await scopeRef(),
+      challenge: 'smoke_0123456789abcdef0123456789abcdef',
+      rollout_mode: callbackMode,
+    })
+    const request = new Request(
+      'https://pika.example.test/api/integrations/attendance/v1/smoke/events',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Attendance-Installation-Ref': installationRef,
+          'X-Attendance-Timestamp': timestamp,
+          'X-Attendance-Nonce': nonce,
+          'X-Attendance-Signature': await createV1RequestSignature({
+            secret: eventSecret,
+            method: 'POST',
+            path: '/api/integrations/attendance/v1/smoke/events',
+            timestamp,
+            nonce,
+            body,
+          }),
+        },
+        body,
+      },
+    )
+    const supabase = supabaseMock()
+
+    await expect(receiveBaraAttendanceSmokeCallback(request, {
+      supabase: supabase as never,
+      now: () => now,
+    })).resolves.toEqual({ ok: false, status: 503, error: 'rollout_mode_mismatch' })
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(supabase.rpc).not.toHaveBeenCalled()
+  })
 })

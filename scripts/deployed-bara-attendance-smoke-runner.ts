@@ -27,7 +27,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
 }): Promise<DeployedSmokeRunnerResult> {
   if (input.stage === 'preview') {
     return {
-      exitCode: 0,
+      exitCode: 1,
       output: {
         status: 'skipped',
         reason: 'production_only_no_staging_database',

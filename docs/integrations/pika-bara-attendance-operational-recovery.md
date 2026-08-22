@@ -9,8 +9,9 @@ change flags, or requeue hosted events.
    recovery operation and the signed smoke endpoint, which is attendance-domain
    mutation-free but writes bounded replay-protection state. Do not run hosted
    recovery.
-2. Review and merge the Pika PR second. It adds migration 131, the reverse
-   signed smoke ingress, and the operator-protected deployed gate.
+2. Review and merge the Pika PR second. Pika main already contains migration
+   131 and the reverse signed smoke ingress; the companion PR adds the pinned
+   deployed environment gate and explicit rollout-mode proof.
 3. With both attendance flags still false, obtain one-time authorization for
    Pika migration 131 and apply only that migration to the named production
    project. Deploy matching Bara and Pika commits only with fresh deployment

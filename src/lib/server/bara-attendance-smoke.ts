@@ -299,6 +299,15 @@ export async function receiveBaraAttendanceSmokeCallback(
     || payload.scope_ref !== await configuredScopeRef(config)
   ) return { ok: false, status: 422, error: 'resource_mismatch' }
 
+  const deployedMode = process.env.PIKA_BARA_ATTENDANCE_ENABLED === 'true'
+    ? 'enabled'
+    : process.env.PIKA_BARA_ATTENDANCE_ENABLED === 'false'
+      ? 'pre-enable'
+      : null
+  if (payload.rollout_mode !== deployedMode) {
+    return { ok: false, status: 503, error: 'rollout_mode_mismatch' }
+  }
+
   const supabase = input.supabase ?? getServiceRoleClient() as unknown as SmokeRpcClient
   try {
     await assertConfiguredBaraAttendanceCanaryClassroomOwner({
