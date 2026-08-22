@@ -1,10 +1,15 @@
 import { getWorkOS, withAuth } from '@workos-inc/authkit-nextjs'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
-import { clearLocalAuthenticationState } from '@/lib/server/workos-logout'
+import {
+  clearLocalAuthenticationState,
+  requireSameOriginPost,
+} from '@/lib/server/workos-logout'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
 
-export const POST = withErrorHandler('PostLogout', async () => {
+export const POST = withErrorHandler('PostLogout', async (request: NextRequest) => {
+  requireSameOriginPost(request)
+
   try {
     if (isWorkOSMagicAuthPilotEnabled()) {
       const { sessionId } = await withAuth()

@@ -11,62 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Classroom-to-Blueprint rollover browser drill
-
-**Risk profile:** none — local-only E2E verification and documentation; no
-application behavior, schema, migration, or production state changed.
-
-- Added `pnpm e2e:verify blueprint-rollover`, which drives the seeded `TEST01`
-  classroom through Settings → Reuse, Blueprint review, classroom creation, and
-  the assignment date/release review handoff against the real local stack.
-- The drill compares reusable titles, artifact lineage, nested requirement and
-  question content, assignment instructions, lesson content, syllabus/resources,
-  and grading configuration. It proves that assignments/tests return as drafts
-  while enrollments, roster rows, logs, submissions, and test attempts stay out.
-- Added loopback-only guards for the app, Supabase API, and database; the drill
-  refuses managed-upload source fixtures and removes its generated local records.
-- Captured and visually inspected Blueprint review, classroom-created handoff,
-  and assignment review screenshots. The initial 33 browser checks passed.
-- Verification: the clean full suite passes all 4,432 tests. Production build,
-  lint, typecheck, architecture boundaries, Pika audit, and diff checks pass.
-
-**Independent review remediation:**
-- Added temporary non-empty material, survey/question, assignment-requirement,
-  announcement, and announcement-read fixtures. Announcements are now correctly
-  asserted as excluded live state rather than reusable Blueprint content.
-- Expanded lineage checks to every reusable parent and child plus the immutable
-  Blueprint Version used to create the classroom.
-- Snapshot and restore the shared source classroom's identity, provenance, and
-  revision fields; delete only the drill's exact operation rows; and assert the
-  source, operation ledger, storage inventory, and generated fixture inventory
-  all match their pre-drill state after cleanup.
-- The remediated browser drill passes all 42 checks. Managed-upload rollover is
-  explicitly outside this drill and remains follow-up package compatibility work.
-- Targeted re-review hardened the cleanup coordinator so known records are
-  restored even when fallback discovery fails, with a focused failure-path
-  regression test. It also binds the instantiated Version to the captured
-  Blueprint, checks each nested child's cloned-parent lineage, and requires a
-  non-empty source roster before asserting roster exclusion.
-- Final integration review bound operation cleanup to the browser requests'
-  exact idempotency keys, preallocated every temporary fixture ID before writes,
-  added non-empty test-response exclusion, checks both target artifact identity
-  columns, and verifies reusable test documents/settings. The browser drill now
-  passes 44 checks and restores the temporary source test document as part of
-  its baseline.
-- An explicitly approved fourth remediation batch now records each valid browser
-  operation ID before allowing its request onto the network and includes a real
-  browser failure-path probe proving a missing key creates no ledger result.
-- Submitted-document coverage now filters `assignment_docs.is_submitted = true`
-  so drafts cannot satisfy the live-data precondition. A temporary assignment
-  with non-default due timing, points, weight, final-grade exclusion,
-  authenticity tracking, and position makes the reusable comparison
-  non-vacuous; material and survey positions are also compared.
-- The remediated local browser drill passes all 47 checks and visually shows the
-  four draft assignments followed by the material and survey. Focused unit tests
-  pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
-  TypeScript, lint, architecture boundaries, production build, Pika audit, and
-  diff checks pass.
-
 ## 2026-08-17 — Course Package versioned contract core (PR A)
 
 **Risk profile:** high — foundational untrusted package boundary and historical
@@ -1353,3 +1297,18 @@ and browser logout. No hosted configuration or deployment was changed.
   and unchanged, the restoration status is exposed through `role=status` with
   `aria-live`, semantic state is component-tested, and no manual follow-up
   remains.
+
+## 2026-08-22 — Harden the legacy logout endpoint
+
+**Risk profile:** runtime-platform — authentication logout CSRF protection; no
+hosted configuration, deployment, database, or UI changed.
+
+- Applied the existing exact-origin POST guard to `POST /api/auth/logout`
+  before WorkOS session inspection, provider revocation, or local cookie
+  destruction.
+- Added regression coverage proving a cross-origin request returns 403 without
+  invoking WorkOS or changing Pika and WorkOS authentication state.
+- The test reproduced the prior behavior as a 200 response before the fix.
+  After remediation, the focused authentication suite passes 112 tests across
+  12 files; lint, Pika audit, and diff checks pass. Targeted security re-review
+  reports no remaining blocker in the correction.

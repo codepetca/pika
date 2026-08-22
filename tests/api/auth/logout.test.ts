@@ -4,6 +4,7 @@
  */
 
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/auth/logout/route'
 
 const mockDeleteCookie = vi.hoisted(() => vi.fn())
@@ -31,10 +32,18 @@ vi.mock('@workos-inc/authkit-nextjs', () => ({
 // Import mocked modules
 import { destroySession } from '@/lib/auth'
 
+function request(origin = 'https://pika.example.test') {
+  return new NextRequest('https://pika.example.test/api/auth/logout', {
+    method: 'POST',
+    headers: { origin },
+  })
+}
+
 describe('POST /api/auth/logout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://pika.example.test')
     workOSMocks.withAuth.mockResolvedValue({ sessionId: 'session_workos_1' })
   })
 
@@ -48,13 +57,13 @@ describe('POST /api/auth/logout', () => {
 
   describe('success cases', () => {
     it('should call destroySession', async () => {
-      await POST()
+      await POST(request(), { params: Promise.resolve({}) })
 
       expect(destroySession).toHaveBeenCalledTimes(1)
     })
 
     it('should return 200 with success message', async () => {
-      const response = await POST()
+      const response = await POST(request(), { params: Promise.resolve({}) })
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -68,7 +77,7 @@ describe('POST /api/auth/logout', () => {
       vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
       vi.stubEnv('WORKOS_COOKIE_NAME', 'pika-wos-session')
 
-      const response = await POST()
+      const response = await POST(request(), { params: Promise.resolve({}) })
 
       expect(response.status).toBe(200)
       expect(workOSMocks.revokeSession).toHaveBeenCalledWith({
@@ -83,7 +92,7 @@ describe('POST /api/auth/logout', () => {
       vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
       workOSMocks.revokeSession.mockRejectedValueOnce(new Error('WorkOS unavailable'))
 
-      const response = await POST()
+      const response = await POST(request(), { params: Promise.resolve({}) })
       const data = await response.json()
 
       expect(response.status).toBe(500)
@@ -91,6 +100,20 @@ describe('POST /api/auth/logout', () => {
       expect(destroySession).toHaveBeenCalledOnce()
       expect(mockDeleteCookie).toHaveBeenCalledWith('wos-session')
       expect(mockDeleteCookie).toHaveBeenCalledWith('pika_workos_magic')
+    })
+
+    it('rejects cross-origin requests before changing authentication state', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+
+      const response = await POST(request('https://evil.example'), {
+        params: Promise.resolve({}),
+      })
+
+      expect(response.status).toBe(403)
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+      expect(workOSMocks.revokeSession).not.toHaveBeenCalled()
+      expect(destroySession).not.toHaveBeenCalled()
+      expect(mockDeleteCookie).not.toHaveBeenCalled()
     })
   })
 
@@ -102,7 +125,7 @@ describe('POST /api/auth/logout', () => {
     it('should return 500 when destroySession fails', async () => {
       ;(destroySession as any).mockRejectedValueOnce(new Error('Session destroy failed'))
 
-      const response = await POST()
+      const response = await POST(request(), { params: Promise.resolve({}) })
       const data = await response.json()
 
       expect(response.status).toBe(500)
