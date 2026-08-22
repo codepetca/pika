@@ -31,7 +31,10 @@ describe('UserMenu', () => {
     expect(screen.queryByRole('menuitemcheckbox', { name: 'Show markdown' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /dark mode|light mode|toggle theme/i })).toHaveClass('min-h-11')
     expect(screen.getByRole('menuitem', { name: 'Send Feedback' })).toHaveClass('min-h-11')
-    expect(screen.getByRole('menuitem', { name: 'Logout' })).toHaveClass('min-h-11')
+    const logout = screen.getByRole('menuitem', { name: 'Logout' })
+    expect(logout).toHaveClass('min-h-11')
+    expect(logout.closest('form')).toHaveAttribute('action', '/api/auth/workos/logout')
+    expect(logout.closest('form')).toHaveAttribute('method', 'post')
   })
 
   it('closes with Escape and outside click while restoring focus to the trigger', () => {

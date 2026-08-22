@@ -1341,10 +1341,11 @@ and browser logout. No hosted configuration or deployment was changed.
 - Playwright verification passes for the normal login and silent-restoration
   states on desktop/mobile in light/dark themes. The pre-auth surface is shared
   by teacher and student; both required stored-role captures were run.
-- The updated logout flow automatically reaches login in teacher desktop,
-  student mobile, and teacher mobile captures. Its transient status/manual
-  fallback state was separately inspected at desktop/mobile sizes in light and
-  dark themes with no overflow or readability issues.
+- The account menu now performs a user-activated POST directly, while `/logout`
+  is an explicit confirmation fallback and cannot auto-submit after a
+  cross-origin navigation. Its confirmation state was inspected in teacher
+  desktop, student mobile, teacher mobile, and dark-theme captures with no
+  overflow or readability issues.
 - Live local protected requests preserve full safe paths and query strings in
   `/login?next=...`. The shared `.env.local` was not modified; the local server
   used a process-only `WORKOS_COOKIE_MAX_AGE=15552000` override.
