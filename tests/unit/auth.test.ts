@@ -127,6 +127,7 @@ describe('auth utilities', () => {
         email: 'test@student.com',
         role: 'student',
         version: 2,
+        authSource: 'password',
       })
       expect(mockSession.save).toHaveBeenCalled()
     })
@@ -139,6 +140,7 @@ describe('auth utilities', () => {
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
         version: 2,
+        authSource: 'password',
       })
       expect(mockSession.save).toHaveBeenCalled()
     })
@@ -155,6 +157,7 @@ describe('auth utilities', () => {
 
       expect(mockSession.user).toEqual(expect.objectContaining({
         version: 2,
+        authSource: 'workos',
         workosUserId: 'user_workos_1',
       }))
     })
@@ -184,6 +187,7 @@ describe('auth utilities', () => {
         email: 'new@example.com',
         role: 'teacher',
         version: 2,
+        authSource: 'password',
       })
     })
   })
@@ -220,11 +224,13 @@ describe('auth utilities', () => {
   // ==========================================================================
 
   describe('getCurrentUser', () => {
-    it('should return user when session has user', async () => {
+    it('preserves password-origin sessions when the WorkOS pilot is disabled', async () => {
       mockSession.user = {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await getCurrentUser()
@@ -232,7 +238,35 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+    })
+
+    it('rejects WorkOS-bound mapping sessions when the pilot is disabled', async () => {
+      mockSession.user = {
+        id: 'user-1',
+        email: 'test@student.com',
+        role: 'student',
+        version: 2,
+        authSource: 'workos',
+        workosUserId: 'user_workos_1',
+      }
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
+    })
+
+    it('rejects an ambiguous legacy session when the pilot is disabled', async () => {
+      mockSession.user = {
+        id: 'user-1',
+        email: 'test@student.com',
+        role: 'student',
+      }
+
+      await expect(getCurrentUser()).resolves.toBeNull()
+      expect(workOSMocks.withAuth).not.toHaveBeenCalled()
     })
 
     it('should return null when session has no user', async () => {
@@ -254,6 +288,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await getCurrentUser()
@@ -261,6 +297,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -271,6 +309,7 @@ describe('auth utilities', () => {
         email: ' 123456789@GAPPS.YRDSB.CA ',
         role: 'student',
         version: 2,
+        authSource: 'workos',
         workosUserId: 'user_workos_1',
       }
       workOSMocks.withAuth.mockResolvedValue({
@@ -292,6 +331,7 @@ describe('auth utilities', () => {
         email: 'student@example.com',
         role: 'student',
         version: 2,
+        authSource: 'workos',
         workosUserId: 'user_workos_1',
       }
       workOSMocks.withAuth.mockResolvedValue({
@@ -312,6 +352,7 @@ describe('auth utilities', () => {
         email: 'student@example.com',
         role: 'student',
         version: 2,
+        authSource: 'workos',
         workosUserId: 'user_workos_1',
       }
       workOSMocks.withAuth.mockResolvedValue({
@@ -391,6 +432,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireAuth()
@@ -398,6 +441,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -420,6 +465,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireAuth()
@@ -433,6 +480,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireAuth()
@@ -452,6 +501,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireRole('student')
@@ -459,6 +510,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -467,6 +520,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireRole('teacher')
@@ -474,6 +529,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -482,6 +539,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
@@ -500,6 +559,8 @@ describe('auth utilities', () => {
         id: 'user-1',
         email: 'test@student.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
@@ -511,6 +572,8 @@ describe('auth utilities', () => {
         id: 'student-1',
         email: 'student@example.com',
         role: 'student',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('teacher')).rejects.toThrow()
@@ -521,6 +584,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@gapps.yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireRole('student')).rejects.toThrow()
@@ -542,6 +607,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       const user = await requireSnapshotGalleryAccess()
@@ -550,6 +617,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       })
     })
 
@@ -559,6 +628,8 @@ describe('auth utilities', () => {
         id: 'teacher-1',
         email: 'teacher@yrdsb.ca',
         role: 'teacher',
+        version: 2,
+        authSource: 'password',
       }
 
       await expect(requireSnapshotGalleryAccess()).rejects.toThrow(AuthorizationError)

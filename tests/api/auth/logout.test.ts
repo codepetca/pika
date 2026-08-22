@@ -32,8 +32,11 @@ vi.mock('@workos-inc/authkit-nextjs', () => ({
 // Import mocked modules
 import { destroySession } from '@/lib/auth'
 
-function request(origin = 'https://pika.example.test') {
-  return new NextRequest('https://pika.example.test/api/auth/logout', {
+function request(
+  origin = 'https://pika.example.test',
+  requestOrigin = 'https://pika.example.test',
+) {
+  return new NextRequest(`${requestOrigin}/api/auth/logout`, {
     method: 'POST',
     headers: { origin },
   })
@@ -114,6 +117,18 @@ describe('POST /api/auth/logout', () => {
       expect(workOSMocks.revokeSession).not.toHaveBeenCalled()
       expect(destroySession).not.toHaveBeenCalled()
       expect(mockDeleteCookie).not.toHaveBeenCalled()
+    })
+
+    it('accepts the origin serving a Preview request when the canonical URL differs', async () => {
+      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+
+      const response = await POST(request(
+        'https://pika-preview.example.test',
+        'https://pika-preview.example.test',
+      ), { params: Promise.resolve({}) })
+
+      expect(response.status).toBe(200)
+      expect(destroySession).toHaveBeenCalledOnce()
     })
   })
 

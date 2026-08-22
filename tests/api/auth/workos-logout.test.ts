@@ -21,8 +21,11 @@ vi.mock('@workos-inc/authkit-nextjs', () => ({
 
 import { POST } from '@/app/api/auth/workos/logout/route'
 
-function request(origin = 'https://pika.example.test') {
-  return new NextRequest('https://pika.example.test/api/auth/workos/logout', {
+function request(
+  origin = 'https://pika.example.test',
+  requestOrigin = 'https://pika.example.test',
+) {
+  return new NextRequest(`${requestOrigin}/api/auth/workos/logout`, {
     method: 'POST',
     headers: { origin },
   })
@@ -90,5 +93,19 @@ describe('POST /api/auth/workos/logout', () => {
     expect(mocks.destroySession).not.toHaveBeenCalled()
     expect(mocks.deleteCookie).not.toHaveBeenCalled()
     expect(mocks.withAuth).not.toHaveBeenCalled()
+  })
+
+  it('accepts a Preview request while keeping the canonical provider return URL', async () => {
+    const response = await POST(request(
+      'https://pika-preview.example.test',
+      'https://pika-preview.example.test',
+    ), { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(303)
+    expect(mocks.destroySession).toHaveBeenCalledOnce()
+    expect(mocks.getLogoutUrl).toHaveBeenCalledWith({
+      sessionId: 'session_workos_1',
+      returnTo: 'https://pika.example.test/login',
+    })
   })
 })

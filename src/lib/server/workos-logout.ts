@@ -11,9 +11,7 @@ export function getPikaLoginUrl(request: NextRequest): string {
 }
 
 export function requireSameOriginPost(request: NextRequest): void {
-  const expectedOrigin = new URL(
-    process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin,
-  ).origin
+  const expectedOrigin = request.nextUrl.origin
 
   if (request.headers.get('origin') !== expectedOrigin) {
     throw new ApiError(403, 'Invalid request origin')

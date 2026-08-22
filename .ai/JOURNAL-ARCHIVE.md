@@ -22122,3 +22122,46 @@ application behavior, schema, migration, or production state changed.
   pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
   TypeScript, lint, architecture boundaries, production build, Pika audit, and
   diff checks pass.
+
+<!-- pika-session-log-archive-batch:d3569ebedf41cd20c16a93a4bd0ef83f5354c166e4e9e62f0a6bc544978d3ebd -->
+## 2026-08-17 — Course Package versioned contract core (PR A)
+
+**Risk profile:** high — foundational untrusted package boundary and historical
+compatibility; no schema migration, production operation, dependency, or UI
+change.
+
+**Completed:**
+- Verified the historical v2-v5 file matrix against repository history and the
+  evidence in draft PR #1018: v2 requires the six reusable legacy files and
+  optionally accepts/discards `quizzes.md`; v3/v4 require exactly those six;
+  v5 requires exactly the current eight.
+- Replaced the shared v5-shaped raw record with strict discriminated wire types,
+  per-version manifest schemas, and an explicit required/allowed file registry.
+  Raw schemas no longer synthesize missing files.
+- Added one evidence-preserving verifier shared by direct JSON and TAR inputs.
+  Historical adapters run only after verification and produce one canonical
+  portable course model.
+- Added independently built, SHA-locked JSON and binary TAR fixtures for every
+  supported version plus table-driven parity mutations for required/forbidden/
+  duplicate entries, manifests, UTF-8/checksum failures, and size boundaries.
+- Preserved useful PR #1018 retry evidence by making legacy Artifact identity
+  deterministic per import operation and canonicalizing operation UUIDs.
+
+**Validation:**
+- The focused package contract suite passes 91 cases. The authoritative full
+  verification passes all 4,528 tests across 502 files, lint, architecture
+  boundaries, and the production build. Pika audit and diff checks pass.
+- Visual verification is not applicable because this PR changes no UI.
+
+**Independent review remediation:**
+- Raw JSON now remains bytes until the package boundary, uses fatal UTF-8
+  decoding, rejects duplicate keys at every object depth and leading BOMs,
+  preserves the exact received text, and applies the same 2 MiB manifest-entry
+  limit as TAR.
+- Verified bundles and raw evidence are defensively cloned, deeply frozen, and
+  exposed through a branded verified type so caller mutation cannot rewrite
+  evidence or change what a later adapter sees.
+- TAR verification now requires block alignment, zero entry padding, and two
+  complete zero terminator blocks; truncated and non-aligned zero tails fail.
+- Upload-document and managed-storage semantic policy remains deliberately
+  deferred to PR B, matching the requested phase sequence.

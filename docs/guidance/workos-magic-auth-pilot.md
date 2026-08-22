@@ -69,9 +69,13 @@ The two cookies have different authority:
 
 - The encrypted WorkOS cookie is the credential and refresh authority.
 - `pika_session` contains only Pika's internal UUID, role, normalized email,
-  exact WorkOS user ID, and session-format version.
+  explicit authentication source, exact WorkOS user ID when applicable, and
+  session-format version.
 - Every protected request fails closed unless the two identities match while
   the pilot is enabled.
+- If the pilot is disabled, only a current-version Pika session explicitly
+  marked as password-origin and carrying no WorkOS user ID remains valid.
+  WorkOS mappings and ambiguous legacy sessions fail closed during rollback.
 - If an older or missing Pika cookie accompanies a valid WorkOS session,
   `/login` silently recreates the Pika mapping from the existing exact
   `public.users.workos_user_id` link. Restoration never creates or relinks an
@@ -111,7 +115,10 @@ For each environment, verify all of the following before promotion:
    cutoff, confirm WorkOS rejects refresh and Pika cannot silently restore it.
 
 If any gate fails, disable `WORKOS_MAGIC_AUTH_PILOT` in that environment and
-redeploy. Do not weaken the exact-subject check or restore by email.
+redeploy. WorkOS-bound mapping sessions will require a new password login after
+rollback. Ambiguous legacy sessions without explicit provenance also require a
+new password login; neither may become an independent credential. Do not weaken
+the exact-subject check or restore by email.
 
 ## Brevo delivery staging slice
 

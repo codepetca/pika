@@ -76,6 +76,7 @@ export async function createSession(
     email,
     role,
     version: AUTH_SESSION_VERSION,
+    authSource: options.workosUserId ? 'workos' : 'password',
     ...(options.workosUserId ? { workosUserId: options.workosUserId } : {}),
   }
   await session.save()
@@ -103,8 +104,19 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
   const session = await getSession()
   const pikaUser = session.user || null
 
-  if (!pikaUser || !isWorkOSMagicAuthPilotEnabled()) {
-    return pikaUser
+  if (!pikaUser) {
+    return null
+  }
+
+  if (!isWorkOSMagicAuthPilotEnabled()) {
+    // Only current sessions explicitly issued by the password flow remain
+    // credentials during rollback. WorkOS mappings and ambiguous legacy seals
+    // fail closed rather than being promoted into independent credentials.
+    return (
+      pikaUser.version === AUTH_SESSION_VERSION
+      && pikaUser.authSource === 'password'
+      && !pikaUser.workosUserId
+    ) ? pikaUser : null
   }
 
   // During the pilot, the Pika cookie is only an internal identity/role
@@ -119,6 +131,7 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
 
   if (
     pikaUser.version !== AUTH_SESSION_VERSION
+    || pikaUser.authSource !== 'workos'
     || !pikaUser.workosUserId
     || pikaUser.workosUserId !== workOSUser.id
   ) {
