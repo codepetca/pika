@@ -17,7 +17,8 @@
   diagnostics never escape; malformed non-null rows still fail closed.
 - Smoke invariants: production deployment only; exact installation, tenant, teacher,
   classroom, Bara URL, and Pika callback URL come from deployment configuration;
-  operator bearer auth plus HMAC on service legs; separate directional secrets;
+  dedicated operator bearer pinned to configured Pika origin plus HMAC on
+  service legs; separate directional secrets;
   one-use timestamped nonces; fixed paths and origins; bounded body, timeout,
   and attempts; no attendance messages/events/projections are created or changed;
   response contains only aggregate check names and pass/fail state.

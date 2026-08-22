@@ -1312,3 +1312,7 @@ deployment, or production state changed.
   callbacks to an active five-minute challenge, reject recovery idempotency
   drift, derive recovery time server-side, and repair the pre-enable rollout
   order. The same full verification passed after remediation.
+- A subsequent independent PR review added audited recovery-page continuation
+  so unchanged failures cannot starve later eligible events, and replaced the
+  shared cron bearer with a dedicated smoke credential that is read only after
+  the destination matches the configured canonical Pika production origin.

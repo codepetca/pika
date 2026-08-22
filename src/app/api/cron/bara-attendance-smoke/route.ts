@@ -8,8 +8,8 @@ export const revalidate = 0
 export const maxDuration = 30
 
 export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: NextRequest) => {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret || request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  const operatorSecret = process.env.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET
+  if (!operatorSecret || request.headers.get('authorization') !== `Bearer ${operatorSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const result = await runBaraAttendanceSmoke()

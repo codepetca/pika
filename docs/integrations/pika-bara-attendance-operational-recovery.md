@@ -6,8 +6,9 @@ change flags, or requeue hosted events.
 ## Release and smoke order
 
 1. Review and merge the Bara PR first. It adds the internal bounded event
-   recovery operation and the mutation-free signed smoke endpoint. Do not run
-   hosted recovery.
+   recovery operation and the signed smoke endpoint, which is attendance-domain
+   mutation-free but writes bounded replay-protection state. Do not run hosted
+   recovery.
 2. Review and merge the Pika PR second. It adds migration 131, the reverse
    signed smoke ingress, and the operator-protected deployed gate.
 3. With both attendance flags still false, obtain one-time authorization for
@@ -31,6 +32,10 @@ change flags, or requeue hosted events.
    persisted as a hash and atomically consumed with its transport nonce. Output
    is aggregate only. Any skip, 401, 409, 429, 5xx, scope failure, malformed
    response, or failed direction blocks enablement and rollout expansion.
+   The CLI pins `--expected-pika-origin` to the independently configured
+   `NEXT_PUBLIC_APP_URL` before reading the dedicated
+   `BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET`; that secret must be distinct from
+   `CRON_SECRET` and every attendance HMAC secret.
 5. Enable or expand only after separate explicit authorization, then rerun the
    static `enabled` audits and the deployed smoke before the exact controlled
    canary. Keep every non-canary teacher/classroom disabled.
@@ -69,7 +74,10 @@ failed event with current authoritative Bara revisions:
 The operation is installation-scoped, fixed to `http_401`/`http_403`, limited to
 50 rows, capped at 20 delivery attempts and three recovery attempts, idempotent
 by request ID, and append-only audited with opaque operator/reason references
-and aggregate counts. It is an internal Convex mutation, not a client API.
+and aggregate counts. Each page accepts an audited opaque cursor and returns
+`nextCursor`/`isDone`, so an authorized operator can continue past unchanged
+rows without increasing the per-call bound. It is an internal Convex mutation,
+not a client API.
 
 After fresh authorization naming the deployment, installation, bounds, opaque
 operator/reason references, and request ID, an operator may run the equivalent
@@ -77,10 +85,11 @@ of:
 
 ```bash
 pnpm exec convex run --prod pikaOutboxRecovery:recoverFailedEvents \
-  '{"installationRef":"<configured-ref>","requestId":"<unique-opaque-id>","operatorRef":"<opaque-operator>","reasonCode":"credentials_repaired","limit":10,"maxDeliveryAttempts":5,"maxRecoveryAttempts":1}'
+  '{"installationRef":"<configured-ref>","requestId":"<unique-opaque-id>","operatorRef":"<opaque-operator>","reasonCode":"credentials_repaired","limit":10,"maxDeliveryAttempts":5,"maxRecoveryAttempts":1,"cursor":null}'
 ```
 
-First inspect the aggregate result. The normal outbox worker, not the recovery
-operation, performs delivery. Never delete, rewrite, or bulk-select hosted
-events, and never use this command for the nine known pre-repair failures
-without fresh explicit authorization.
+First inspect the aggregate result. If `isDone` is false, repeat only under the
+same authorization with a fresh request ID and the exact returned `nextCursor`.
+The normal outbox worker, not the recovery operation, performs delivery. Never
+delete, rewrite, or bulk-select hosted events, and never use this command for
+the nine known pre-repair failures without fresh explicit authorization.
