@@ -22,6 +22,7 @@ const smokeRequestSchema = z.object({
   installation_ref: z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/),
   scope_ref: z.string().regex(/^scope_[a-f0-9]{64}$/),
   challenge: z.string().regex(/^smoke_[a-f0-9]{32}$/),
+  rollout_mode: z.enum(['pre-enable', 'enabled']),
 }).strict()
 
 const smokeCallbackSchema = smokeRequestSchema.extend({
@@ -124,11 +125,12 @@ function failure(reason: AttendanceSmokeResult['reason'], checks?: Partial<Atten
 }
 
 export async function runBaraAttendanceSmoke(input: {
+  attendanceMode: 'pre-enable' | 'enabled'
   supabase?: SmokeRpcClient
   fetcher?: typeof fetch
   now?: () => number
   randomId?: () => string
-} = {}): Promise<AttendanceSmokeResult> {
+}): Promise<AttendanceSmokeResult> {
   if (process.env.VERCEL_ENV !== 'production') {
     return {
       status: 'skipped',
@@ -181,6 +183,7 @@ export async function runBaraAttendanceSmoke(input: {
     installation_ref: config.installationRef,
     scope_ref: scopeRef,
     challenge,
+    rollout_mode: input.attendanceMode,
   })
   const body = JSON.stringify(payload)
   const timestamp = String(Math.floor(now / 1_000))
@@ -208,6 +211,7 @@ export async function runBaraAttendanceSmoke(input: {
       },
       body,
       cache: 'no-store',
+      redirect: 'error',
       signal: AbortSignal.timeout(10_000),
     })
     const responseText = (await response.text()).slice(0, 4_096)
@@ -295,6 +299,15 @@ export async function receiveBaraAttendanceSmokeCallback(
     payload.installation_ref !== config.installationRef
     || payload.scope_ref !== await configuredScopeRef(config)
   ) return { ok: false, status: 422, error: 'resource_mismatch' }
+
+  const deployedMode = process.env.PIKA_BARA_ATTENDANCE_ENABLED === 'true'
+    ? 'enabled'
+    : process.env.PIKA_BARA_ATTENDANCE_ENABLED === 'false'
+      ? 'pre-enable'
+      : null
+  if (payload.rollout_mode !== deployedMode) {
+    return { ok: false, status: 503, error: 'rollout_mode_mismatch' }
+  }
 
   const supabase = input.supabase ?? getServiceRoleClient() as unknown as SmokeRpcClient
   try {

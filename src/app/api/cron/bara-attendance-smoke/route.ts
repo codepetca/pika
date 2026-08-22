@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 import { withErrorHandler } from '@/lib/api-handler'
+import { isDeployedBaraAttendanceEnvironmentReady } from '@/lib/server/bara-attendance-deployed-preflight'
 import { runBaraAttendanceSmoke } from '@/lib/server/bara-attendance-smoke'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const maxDuration = 30
+
+const rolloutModeSchema = z.enum(['pre-enable', 'enabled'])
 
 export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: NextRequest) => {
   const operatorSecret = process.env.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET
@@ -20,7 +24,19 @@ export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: 
   if (request.headers.get('authorization') !== `Bearer ${operatorSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const result = await runBaraAttendanceSmoke()
+  const rolloutMode = rolloutModeSchema.safeParse(
+    request.headers.get('x-attendance-rollout-mode'),
+  )
+  if (!rolloutMode.success) {
+    return NextResponse.json({ error: 'Invalid rollout mode' }, { status: 400 })
+  }
+  if (!isDeployedBaraAttendanceEnvironmentReady(rolloutMode.data)) {
+    return NextResponse.json({ error: 'Deployed attendance preflight failed' }, {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
+    })
+  }
+  const result = await runBaraAttendanceSmoke({ attendanceMode: rolloutMode.data })
   return NextResponse.json(result, {
     status: result.status === 'failed' ? 503 : 200,
     headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },

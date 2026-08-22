@@ -217,6 +217,13 @@ pnpm attendance:rollout:preflight -- \
   --expected-bara-api-origin "$BARA_PRODUCTION_CONVEX_SITE_ORIGIN"
 ```
 
+Vercel intentionally redacts Sensitive values from `vercel env pull` and
+`vercel env run`, so this local command is advisory when fed a downloaded
+Production environment. The production rollout gate is the operator-protected
+`attendance:smoke:deployed -- --mode <pre-enable|enabled>` command: its deployed
+Pika route runs this environment audit against pinned targets before the signed
+round trip. A failed local audit must not be rewritten as a pass.
+
 This environment preflight does not replace the database gate. Production
 migration 129 is already applied. Before enabling attendance, inspect remote
 migration history, dry-run migration 130, obtain its separate one-time
