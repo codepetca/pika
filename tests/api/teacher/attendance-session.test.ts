@@ -73,7 +73,7 @@ describe('GET /api/teacher/attendance/session', () => {
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
     assertTeacherOwnsClassroom.mockResolvedValue({
       ok: true,
-      classroom: { id: classroomId, teacher_id: 'teacher-1' },
+      classroom: { id: classroomId, teacher_id: 'teacher-1', archived_at: null },
     })
     assertTeacherCanMutateClassroom.mockResolvedValue({
       ok: true,
@@ -131,6 +131,28 @@ describe('GET /api/teacher/attendance/session', () => {
 
     expect(response.status).toBe(403)
     expect(loadTeacherAttendanceView).not.toHaveBeenCalled()
+  })
+
+  it('returns the disabled view without opening the canary for an archived classroom', async () => {
+    assertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true,
+      classroom: {
+        id: classroomId,
+        teacher_id: 'teacher-1',
+        archived_at: '2026-08-21T12:00:00.000Z',
+      },
+    })
+    getBaraAttendanceIntegrationState.mockReturnValue('ready')
+
+    const response = await GET(new NextRequest(
+      `http://localhost/api/teacher/attendance/session?classroom_id=${classroomId}&date=2026-09-08`,
+    ))
+
+    expect(response.status).toBe(200)
+    expect(loadTeacherAttendanceView).toHaveBeenCalledWith(expect.objectContaining({
+      integration: 'disabled',
+    }))
+    expect(getBaraAttendanceIntegrationState).not.toHaveBeenCalled()
   })
 
   it('maps missing or invalid projection storage to a privacy-safe 503', async () => {

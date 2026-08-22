@@ -43,6 +43,9 @@ export const GET = withErrorHandler('GetTeacherAttendancePolicy', async (request
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherOwnsClassroom(user.id, input.classroom_id, { supabase })
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
+  if (ownership.classroom.archived_at) {
+    throw new ApiError(403, 'Classroom is archived')
+  }
 
   try {
     assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })

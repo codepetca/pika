@@ -36,14 +36,17 @@ export const GET = withErrorHandler('GetTeacherAttendanceSession', async (reques
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    const integration = ownership.classroom.archived_at
+      ? 'disabled'
+      : getBaraAttendanceClassroomIntegrationState({
+          teacherId: user.id,
+          classroomId: input.classroom_id,
+        })
     const view = await loadTeacherAttendanceView({
       supabase,
       classroomId: input.classroom_id,
       classDate: input.date,
-      integration: getBaraAttendanceClassroomIntegrationState({
-        teacherId: user.id,
-        classroomId: input.classroom_id,
-      }),
+      integration,
     })
     return NextResponse.json(view)
   } catch (error) {

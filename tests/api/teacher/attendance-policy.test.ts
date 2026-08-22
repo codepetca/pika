@@ -62,7 +62,9 @@ describe('/api/teacher/attendance/policy', () => {
     vi.clearAllMocks()
     assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
-    assertTeacherOwnsClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
+    assertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true, classroom: { id: classroomId, archived_at: null },
+    })
     assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
     loadTeacherAttendancePolicy.mockResolvedValue(policy)
     saveTeacherAttendancePolicy.mockResolvedValue(policy)
@@ -128,6 +130,21 @@ describe('/api/teacher/attendance/policy', () => {
     expect(putResponse.status).toBe(404)
     expect(loadTeacherAttendancePolicy).not.toHaveBeenCalled()
     expect(saveTeacherAttendancePolicy).not.toHaveBeenCalled()
+  })
+
+  it('does not expose attendance policy for an archived canary classroom', async () => {
+    assertTeacherOwnsClassroom.mockResolvedValue({
+      ok: true,
+      classroom: { id: classroomId, archived_at: '2026-08-21T12:00:00.000Z' },
+    })
+
+    const response = await GET(new NextRequest(
+      `http://localhost/api/teacher/attendance/policy?classroom_id=${classroomId}`,
+    ))
+
+    expect(response.status).toBe(403)
+    expect(assertBaraAttendanceCanaryClassroom).not.toHaveBeenCalled()
+    expect(loadTeacherAttendancePolicy).not.toHaveBeenCalled()
   })
 
   it('rejects an inverted same-day window before storage', async () => {

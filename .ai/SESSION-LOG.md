@@ -1363,6 +1363,10 @@ database was changed.
 - Database claims and event application hold an active-classroom row lock so a
   concurrent archive cannot race the runtime check; archived QR issuance and
   archived event application fail before Bara access or projection writes.
+- Archived teacher session reads now return the disabled attendance view and
+  policy reads stop before attendance storage. The rollout contract defines
+  authorization at operation start: already-started work may settle after soft
+  archive, while every new operation is rejected.
 
 **Verification:**
 - Focused canary/API/worker/token coverage passes; the clean local
