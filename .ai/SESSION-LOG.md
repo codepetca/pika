@@ -1360,6 +1360,9 @@ database was changed.
   enabled modes, verifies the configured classroom is active and still owned by
   the configured teacher, and repeats that ownership check before ingress or
   unattended worker activity.
+- Database claims and event application hold an active-classroom row lock so a
+  concurrent archive cannot race the runtime check; archived QR issuance and
+  archived event application fail before Bara access or projection writes.
 
 **Verification:**
 - Focused canary/API/worker/token coverage passes; the clean local

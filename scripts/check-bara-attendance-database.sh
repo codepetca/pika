@@ -223,6 +223,24 @@ begin
     raise exception 'Canary outbox claim accepted the wrong teacher';
   end if;
 
+  update public.classrooms
+  set archived_at = clock_timestamp()
+  where id = 'a1260000-0000-4000-8000-000000000014';
+  select count(*) into v_claimed_count
+  from public.claim_attendance_outbox_batch_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000014', 10, 60
+  );
+  if v_claimed_count <> 0 or not exists (
+    select 1 from public.attendance_integration_outbox
+    where idempotency_key = 'roster:noncanary:14' and status = 'pending'
+  ) then
+    raise exception 'Archived canary classroom leased outbox work';
+  end if;
+  update public.classrooms
+  set archived_at = null
+  where id = 'a1260000-0000-4000-8000-000000000014';
+
   select count(*), min(classroom_id::text)::uuid
   into v_claimed_count, v_claimed_classroom
   from public.claim_attendance_outbox_batch_v2(
@@ -278,8 +296,8 @@ begin
       'a1260000-0000-4000-8000-000000000013'
     );
     raise exception 'Canary event accepted the wrong teacher';
-  exception when sqlstate '23514' then
-    if sqlerrm <> 'attendance_event_mapping_mismatch' then raise; end if;
+  exception when sqlstate '55000' then
+    if sqlerrm <> 'attendance_canary_not_active' then raise; end if;
   end;
 
   begin
@@ -299,12 +317,39 @@ begin
     if sqlerrm <> 'attendance_event_mapping_mismatch' then raise; end if;
   end;
 
+  update public.classrooms
+  set archived_at = clock_timestamp()
+  where id = 'a1260000-0000-4000-8000-000000000014';
+  begin
+    perform public.apply_attendance_event_for_classroom_v1(
+      v_event || jsonb_build_object(
+        'event_id', 'event_archived_classroom_14',
+        'idempotency_key', 'event:archived-classroom:14',
+        'roster_ref', 'roster_a1260000000040008000000000000014',
+        'occurrence_ref', 'occurrence_a1260000000040008000000000000014'
+      ),
+      'nonce_archived_classroom_14',
+      'a1260000-0000-4000-8000-000000000001',
+      'a1260000-0000-4000-8000-000000000014'
+    );
+    raise exception 'Archived canary classroom accepted an event';
+  exception when sqlstate '55000' then
+    if sqlerrm <> 'attendance_canary_not_active' then raise; end if;
+  end;
+  update public.classrooms
+  set archived_at = null
+  where id = 'a1260000-0000-4000-8000-000000000014';
+
   if exists (
     select 1 from public.attendance_integration_inbox
-    where event_id in ('event_canary_13', 'event_wrong_classroom_14')
+    where event_id in (
+      'event_canary_13', 'event_wrong_classroom_14', 'event_archived_classroom_14'
+    )
   ) or exists (
     select 1 from public.attendance_session_projection
-    where last_event_id in ('event_canary_13', 'event_wrong_classroom_14')
+    where last_event_id in (
+      'event_canary_13', 'event_wrong_classroom_14', 'event_archived_classroom_14'
+    )
   ) then
     raise exception 'Rejected canary event wrote inbox or projection state';
   end if;

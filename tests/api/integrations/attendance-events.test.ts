@@ -143,6 +143,18 @@ describe('POST /api/integrations/attendance/v1/events', () => {
     await expect(response.json()).resolves.toEqual({ error: 'resource_mismatch' })
   })
 
+  it('asks Bara to retry when the classroom is archived during event apply', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: '55000', message: 'database detail' },
+    })
+
+    const response = await POST(await request(), { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({ error: 'temporarily_unavailable' })
+  })
+
   it('asks Bara to retry while event ingress is disabled', async () => {
     vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'false')
     const response = await POST(await request(), { params: Promise.resolve({}) })

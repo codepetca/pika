@@ -19,7 +19,10 @@ describe('Bara attendance canary migration', () => {
 
     expect(migration).toContain('candidate.classroom_id = p_classroom_id')
     expect(migration).toContain('classroom.teacher_id = p_teacher_id')
+    expect(migration).toContain('classroom.archived_at is null')
+    expect(migration).toContain('for share')
     expect(migration).toContain('for update of candidate skip locked')
+    expect(migration).toContain("errcode = '55000', message = 'attendance_canary_not_active'")
     expect(migration).toContain('return public.apply_attendance_event_v1')
   })
 

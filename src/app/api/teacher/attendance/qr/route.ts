@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import {
   loadTeacherAttendanceQrPresentation,
   TeacherAttendanceQrError,
@@ -53,7 +53,7 @@ export const GET = withErrorHandler('GetTeacherAttendanceQr', async (request) =>
     Object.fromEntries(new URL(request.url).searchParams),
   )
   const supabase = getServiceRoleClient()
-  const ownership = await assertTeacherOwnsClassroom(user.id, input.classroom_id, { supabase })
+  const ownership = await assertTeacherCanMutateClassroom(user.id, input.classroom_id, { supabase })
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {

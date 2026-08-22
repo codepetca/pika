@@ -93,6 +93,16 @@ begin
     raise exception using errcode = '22023', message = 'attendance_outbox_claim_invalid';
   end if;
 
+  -- Hold the active classroom row through the claim so a concurrent archive
+  -- cannot revoke the canary between the application preflight and leasing.
+  perform 1
+  from public.classrooms classroom
+  where classroom.id = p_classroom_id
+    and classroom.teacher_id = p_teacher_id
+    and classroom.archived_at is null
+  for share;
+  if not found then return; end if;
+
   return query
   with candidates as (
     select candidate.id
@@ -100,6 +110,7 @@ begin
     join public.classrooms classroom on classroom.id = candidate.classroom_id
     where candidate.classroom_id = p_classroom_id
       and classroom.teacher_id = p_teacher_id
+      and classroom.archived_at is null
       and public.attendance_outbox_dependencies_ready_v1(candidate)
       and (
         (candidate.status = 'pending' and candidate.next_attempt_at <= clock_timestamp())
@@ -149,7 +160,8 @@ as $$
   where p_teacher_id is not null
     and p_classroom_id is not null
     and outbox.classroom_id = p_classroom_id
-    and classroom.teacher_id = p_teacher_id;
+    and classroom.teacher_id = p_teacher_id
+    and classroom.archived_at is null;
 $$;
 
 create function public.apply_attendance_event_for_classroom_v1(
@@ -164,8 +176,20 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_scope_active boolean;
   v_matches boolean;
 begin
+  -- Serialize against archive/ownership changes for the entire atomic apply.
+  select true into v_scope_active
+  from public.classrooms classroom
+  where classroom.id = p_classroom_id
+    and classroom.teacher_id = p_teacher_id
+    and classroom.archived_at is null
+  for share;
+  if not coalesce(v_scope_active, false) then
+    raise exception using errcode = '55000', message = 'attendance_canary_not_active';
+  end if;
+
   select exists (
     select 1
     from public.attendance_occurrence_mappings occurrence
@@ -176,6 +200,7 @@ begin
       and roster.roster_ref = p_event->>'roster_ref'
       and occurrence.classroom_id = p_classroom_id
       and classroom.teacher_id = p_teacher_id
+      and classroom.archived_at is null
   ) into v_matches;
 
   if not coalesce(v_matches, false) then

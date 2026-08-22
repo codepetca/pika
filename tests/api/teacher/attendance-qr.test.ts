@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => mocks.supabase }))
-vi.mock('@/lib/server/classrooms', () => ({ assertTeacherOwnsClassroom: mocks.owns }))
+vi.mock('@/lib/server/classrooms', () => ({ assertTeacherCanMutateClassroom: mocks.owns }))
 vi.mock('@/lib/server/bara-attendance-qr', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-qr')>()
   return { ...actual, loadTeacherAttendanceQrPresentation: mocks.load }
@@ -86,6 +86,19 @@ describe('GET /api/teacher/attendance/qr', () => {
     const response = await GET(request())
 
     expect(response.status).toBe(404)
+    expect(mocks.resolveActor).not.toHaveBeenCalled()
+    expect(mocks.load).not.toHaveBeenCalled()
+  })
+
+  it('does not issue a QR presentation for an archived canary classroom', async () => {
+    mocks.owns.mockResolvedValue({
+      ok: false, status: 403, error: 'Classroom is archived',
+    })
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(403)
+    expect(mocks.assertCanary).not.toHaveBeenCalled()
     expect(mocks.resolveActor).not.toHaveBeenCalled()
     expect(mocks.load).not.toHaveBeenCalled()
   })

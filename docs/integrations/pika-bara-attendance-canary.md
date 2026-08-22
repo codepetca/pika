@@ -18,7 +18,9 @@ receives the existing disabled attendance view; mutation and QR APIs fail
 closed before identity resolution or attendance writes. Student entry tokens
 cryptographically bind the classroom, inbound events resolve their Pika
 classroom before persistence, and workers use classroom-scoped database RPCs so
-they never lease non-canary work.
+they never lease non-canary work. Claim and event-apply transactions lock and
+recheck the active classroom row, so a concurrent archive cannot race the
+runtime preflight and still deliver or project attendance.
 
 Changing the canary requires changing both variables and redeploying. Keep the
 global flag false until migration 129 and the exact pair are installed and the

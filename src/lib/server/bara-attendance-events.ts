@@ -131,6 +131,7 @@ export async function receiveBaraAttendanceEvent(request: Request): Promise<Ingr
   if (error) {
     if (error.code === '23505') return { ok: false, status: 409, error: 'replay_conflict' }
     if (error.code === '22023') return { ok: false, status: 422, error: 'invalid_payload' }
+    if (error.code === '55000') return { ok: false, status: 503, error: 'temporarily_unavailable' }
     if (error.code === '23514') return { ok: false, status: 422, error: 'resource_mismatch' }
     throw new Error('Attendance event could not be persisted')
   }
