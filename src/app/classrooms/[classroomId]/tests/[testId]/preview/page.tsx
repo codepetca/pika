@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,7 @@ export default async function TestPreviewPage({ params }: PageProps) {
 
   const user = await getCurrentUser()
   if (!user) {
-    redirect('/login')
+    redirect(getServerLoginRedirectPath())
   }
   if (user.role !== 'teacher') {
     notFound()

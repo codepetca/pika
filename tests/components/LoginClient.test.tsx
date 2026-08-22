@@ -172,6 +172,42 @@ describe('LoginClient', () => {
     expect(email).toHaveAttribute('aria-describedby', message.id)
   })
 
+  it('silently restores a linked Pika session from an active WorkOS session', async () => {
+    mockGet.mockImplementation((key: string) => (
+      key === 'next' ? '/teacher/calendar?view=month' : null
+    ))
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ redirectUrl: '/teacher/calendar?view=month' }),
+    })
+
+    render(<LoginClient magicAuthEnabled hasActiveWorkOSSession />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Restoring your session')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/auth/workos/session/restore',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ next: '/teacher/calendar?view=month' }),
+      }),
+    ))
+    await waitFor(() => expect(mockNavigateTo).toHaveBeenCalledWith('/teacher/calendar?view=month'))
+  })
+
+  it('falls back to the code form when silent WorkOS restoration fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Account identity conflict' }),
+    })
+
+    render(<LoginClient magicAuthEnabled hasActiveWorkOSSession />)
+
+    expect(await screen.findByRole('button', { name: /email me a sign-in code/i })).toBeInTheDocument()
+    expect(mockNavigateTo).not.toHaveBeenCalled()
+  })
+
   it('displays error message on failed login', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({

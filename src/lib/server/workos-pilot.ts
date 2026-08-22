@@ -1,5 +1,5 @@
 import { ApiError } from '@/lib/api-error'
-import { isSafeInternalPath } from '@/lib/navigation-safety'
+import { getSafeInternalPath } from '@/lib/navigation-safety'
 
 export function isWorkOSMagicAuthPilotEnabled(): boolean {
   return process.env.WORKOS_MAGIC_AUTH_PILOT === 'true'
@@ -28,5 +28,5 @@ export function getWorkOSPilotConfig(): {
 }
 
 export function safePikaPath(value: unknown, fallback = '/classrooms'): string {
-  return isSafeInternalPath(value) ? value.trim() : fallback
+  return getSafeInternalPath(value) ?? fallback
 }

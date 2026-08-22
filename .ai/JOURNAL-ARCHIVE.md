@@ -22022,3 +22022,146 @@ migration, database, production, Gradex, or student behavior changes.
 - All 27 focused component tests and all 4,407 repository tests pass.
 - TypeScript, lint, architecture, production build, diff checks, and Pika audit
   pass. Visual verification is not applicable to this test-only patch.
+
+<!-- pika-session-log-archive-batch:39d56ff5ea5984a7e5f10e15acf97a864826d4e1c7c76a1e042511ecadfeda2f -->
+## 2026-08-17 — Blueprint editor dirty-state protection
+
+**Risk profile:** none — teacher-only Blueprint editor reliability and shared
+status/dialog UI; no API contract, schema, migration, production, archive,
+Gradex, or student behavior changes.
+
+**Completed:**
+- Added a normalized saved baseline for every independently editable Blueprint
+  section: course details, planned site, grading, and each Markdown package tab.
+- Saving one section now refreshes accepted server state only for that section,
+  preserving unsaved work elsewhere. Editor writes are locked while a save,
+  import, or proposal application can replace accepted state.
+- Every selected-Blueprint transition invalidates stale detail requests and
+  clears the previous editor before the new detail loads, including successful
+  package import and new-Blueprint creation.
+- Blueprint changes, local route actions, authority changes, imports, and
+  proposal application now require explicit discard confirmation. Export and
+  classroom creation explicitly confirm that they use the last saved version.
+- Permanent deletion also requires the local-discard confirmation before its
+  existing durable purge review. Blueprint-list reloads use request generations
+  so older responses cannot overwrite newer post-mutation state; purge
+  completion starts a fresh authoritative guarded reload.
+- Preparing a classroom update now confirms that it uses the last saved
+  Blueprint and is disabled while a save can replace accepted state. Proposal
+  and classroom-comparison requests use independent generations so returning to
+  the same Blueprint cannot surface an older response. Blueprint selection is
+  locked while that durable proposal is being prepared, and its global lock is
+  cleared defensively when the request settles.
+- The editor exposes shared Saved/Saving/Unsaved status and protects browser
+  refresh or tab closure while any section differs from its saved baseline.
+
+**Validation:**
+- Twenty-eight focused unit/component tests cover per-section comparisons,
+  cross-section save preservation, accepted server values, transition guards,
+  import/create/list/proposal/comparison races, deletion, saved-version actions,
+  unload protection, and in-flight editor locking.
+- Teacher desktop/mobile light/dark Playwright captures verify the dirty state
+  and saved-version dialogs with no horizontal overflow and initial focus on
+  Keep editing. Student rendering is not applicable to this teacher-only route.
+- The full suite passes all 4,425 tests across 500 files. TypeScript, lint,
+  architecture boundaries, production build, Pika audit, and diff checks pass.
+
+<!-- pika-session-log-archive-batch:104c9f71f1c74bcc57e5bc9b75ffcb5b57f43e2f81892b17b103822f860f4f3b -->
+## 2026-08-17 — Classroom-to-Blueprint rollover browser drill
+
+**Risk profile:** none — local-only E2E verification and documentation; no
+application behavior, schema, migration, or production state changed.
+
+- Added `pnpm e2e:verify blueprint-rollover`, which drives the seeded `TEST01`
+  classroom through Settings → Reuse, Blueprint review, classroom creation, and
+  the assignment date/release review handoff against the real local stack.
+- The drill compares reusable titles, artifact lineage, nested requirement and
+  question content, assignment instructions, lesson content, syllabus/resources,
+  and grading configuration. It proves that assignments/tests return as drafts
+  while enrollments, roster rows, logs, submissions, and test attempts stay out.
+- Added loopback-only guards for the app, Supabase API, and database; the drill
+  refuses managed-upload source fixtures and removes its generated local records.
+- Captured and visually inspected Blueprint review, classroom-created handoff,
+  and assignment review screenshots. The initial 33 browser checks passed.
+- Verification: the clean full suite passes all 4,432 tests. Production build,
+  lint, typecheck, architecture boundaries, Pika audit, and diff checks pass.
+
+**Independent review remediation:**
+- Added temporary non-empty material, survey/question, assignment-requirement,
+  announcement, and announcement-read fixtures. Announcements are now correctly
+  asserted as excluded live state rather than reusable Blueprint content.
+- Expanded lineage checks to every reusable parent and child plus the immutable
+  Blueprint Version used to create the classroom.
+- Snapshot and restore the shared source classroom's identity, provenance, and
+  revision fields; delete only the drill's exact operation rows; and assert the
+  source, operation ledger, storage inventory, and generated fixture inventory
+  all match their pre-drill state after cleanup.
+- The remediated browser drill passes all 42 checks. Managed-upload rollover is
+  explicitly outside this drill and remains follow-up package compatibility work.
+- Targeted re-review hardened the cleanup coordinator so known records are
+  restored even when fallback discovery fails, with a focused failure-path
+  regression test. It also binds the instantiated Version to the captured
+  Blueprint, checks each nested child's cloned-parent lineage, and requires a
+  non-empty source roster before asserting roster exclusion.
+- Final integration review bound operation cleanup to the browser requests'
+  exact idempotency keys, preallocated every temporary fixture ID before writes,
+  added non-empty test-response exclusion, checks both target artifact identity
+  columns, and verifies reusable test documents/settings. The browser drill now
+  passes 44 checks and restores the temporary source test document as part of
+  its baseline.
+- An explicitly approved fourth remediation batch now records each valid browser
+  operation ID before allowing its request onto the network and includes a real
+  browser failure-path probe proving a missing key creates no ledger result.
+- Submitted-document coverage now filters `assignment_docs.is_submitted = true`
+  so drafts cannot satisfy the live-data precondition. A temporary assignment
+  with non-default due timing, points, weight, final-grade exclusion,
+  authenticity tracking, and position makes the reusable comparison
+  non-vacuous; material and survey positions are also compared.
+- The remediated local browser drill passes all 47 checks and visually shows the
+  four draft assignments followed by the material and survey. Focused unit tests
+  pass all 11 cases. The full suite passes all 4,436 tests across 501 files;
+  TypeScript, lint, architecture boundaries, production build, Pika audit, and
+  diff checks pass.
+
+<!-- pika-session-log-archive-batch:d3569ebedf41cd20c16a93a4bd0ef83f5354c166e4e9e62f0a6bc544978d3ebd -->
+## 2026-08-17 — Course Package versioned contract core (PR A)
+
+**Risk profile:** high — foundational untrusted package boundary and historical
+compatibility; no schema migration, production operation, dependency, or UI
+change.
+
+**Completed:**
+- Verified the historical v2-v5 file matrix against repository history and the
+  evidence in draft PR #1018: v2 requires the six reusable legacy files and
+  optionally accepts/discards `quizzes.md`; v3/v4 require exactly those six;
+  v5 requires exactly the current eight.
+- Replaced the shared v5-shaped raw record with strict discriminated wire types,
+  per-version manifest schemas, and an explicit required/allowed file registry.
+  Raw schemas no longer synthesize missing files.
+- Added one evidence-preserving verifier shared by direct JSON and TAR inputs.
+  Historical adapters run only after verification and produce one canonical
+  portable course model.
+- Added independently built, SHA-locked JSON and binary TAR fixtures for every
+  supported version plus table-driven parity mutations for required/forbidden/
+  duplicate entries, manifests, UTF-8/checksum failures, and size boundaries.
+- Preserved useful PR #1018 retry evidence by making legacy Artifact identity
+  deterministic per import operation and canonicalizing operation UUIDs.
+
+**Validation:**
+- The focused package contract suite passes 91 cases. The authoritative full
+  verification passes all 4,528 tests across 502 files, lint, architecture
+  boundaries, and the production build. Pika audit and diff checks pass.
+- Visual verification is not applicable because this PR changes no UI.
+
+**Independent review remediation:**
+- Raw JSON now remains bytes until the package boundary, uses fatal UTF-8
+  decoding, rejects duplicate keys at every object depth and leading BOMs,
+  preserves the exact received text, and applies the same 2 MiB manifest-entry
+  limit as TAR.
+- Verified bundles and raw evidence are defensively cloned, deeply frozen, and
+  exposed through a branded verified type so caller mutation cannot rewrite
+  evidence or change what a later adapter sees.
+- TAR verification now requires block alignment, zero entry padding, and two
+  complete zero terminator blocks; truncated and non-aligned zero tails fail.
+- Upload-document and managed-storage semantic policy remains deliberately
+  deferred to PR B, matching the requested phase sequence.

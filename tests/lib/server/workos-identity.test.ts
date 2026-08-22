@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api-error'
 import {
+  findLinkedPikaUserFromWorkOS,
   resolvePikaUserFromWorkOS,
   type WorkOSIdentityStore,
 } from '@/lib/server/workos-identity'
@@ -15,6 +16,33 @@ function user(overrides: Partial<{ id: string; email: string; emailVerified: boo
     ...overrides,
   }
 }
+
+describe('findLinkedPikaUserFromWorkOS', () => {
+  it('returns only an existing exact subject and email link', async () => {
+    const identityStore = store({
+      findByWorkOSUserId: vi.fn(async () => stored()),
+    })
+
+    await expect(findLinkedPikaUserFromWorkOS(user(), identityStore)).resolves.toEqual({
+      id: 'pika-user-1',
+      email: 'student@example.com',
+      role: 'student',
+      workosUserId: 'user_workos_1',
+    })
+    expect(identityStore.findByEmail).not.toHaveBeenCalled()
+    expect(identityStore.createUser).not.toHaveBeenCalled()
+  })
+
+  it('fails closed without mutating when the link is missing or mismatched', async () => {
+    const identityStore = store({
+      findByWorkOSUserId: vi.fn(async () => stored({ email: 'other@example.com' })),
+    })
+
+    await expect(findLinkedPikaUserFromWorkOS(user(), identityStore)).resolves.toBeNull()
+    expect(identityStore.claimExistingUser).not.toHaveBeenCalled()
+    expect(identityStore.createUser).not.toHaveBeenCalled()
+  })
+})
 
 function store(overrides: Partial<WorkOSIdentityStore> = {}): WorkOSIdentityStore {
   return {

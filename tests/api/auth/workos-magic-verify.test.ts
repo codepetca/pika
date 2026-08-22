@@ -133,7 +133,7 @@ describe('POST /api/auth/workos/magic/verify', () => {
       'pika-user-1',
       'student@example.com',
       'student',
-      { maxAgeSeconds: 12 * 60 * 60 },
+      { workosUserId: 'user_workos_1' },
     )
     expect(order).toEqual(['workos', 'pika'])
     expect(mocks.clearPending).toHaveBeenCalledOnce()

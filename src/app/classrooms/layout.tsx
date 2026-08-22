@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
+import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { StudentPalExperience } from '@/integrations/pal'
 import { getPalApiUrl } from '@/lib/server/pal-config'
 
@@ -16,7 +17,7 @@ export default async function ClassroomsLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect(getServerLoginRedirectPath())
   }
 
   const palApiUrl = user.role === 'student' ? getPalApiUrl() : null
