@@ -40,13 +40,15 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     vi.unstubAllEnvs()
   })
 
-  it('rejects the shared cron credential', async () => {
+  it('rejects the shared cron credential without authentication diagnostics', async () => {
     const response = await POST(new Request('https://pika.example/api/cron/bara-attendance-smoke', {
       method: 'POST',
       headers: { Authorization: 'Bearer shared-cron-secret-that-must-not-authorize-smoke' },
     }) as never)
 
     expect(response.status).toBe(401)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(await response.json()).toEqual({ error: 'Unauthorized' })
     expect(auditDeployedBaraAttendanceEnvironment).not.toHaveBeenCalled()
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
@@ -114,21 +116,39 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
   })
 
   it.each([
-    'CRON_SECRET',
-    'BARA_ATTENDANCE_INTEGRATION_SECRET',
-    'BARA_ATTENDANCE_EVENT_SECRET',
-  ])('fails closed when the operator secret overlaps %s', async (environmentName) => {
-    vi.stubEnv(environmentName, 'dedicated-smoke-operator-secret-at-least-32-characters')
+    ['missing operator secret', 'BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET', ''],
+    ['short operator secret', 'BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET', 'too-short'],
+    [
+      'operator secret overlapping CRON_SECRET',
+      'CRON_SECRET',
+      'dedicated-smoke-operator-secret-at-least-32-characters',
+    ],
+    [
+      'operator secret overlapping BARA_ATTENDANCE_INTEGRATION_SECRET',
+      'BARA_ATTENDANCE_INTEGRATION_SECRET',
+      'dedicated-smoke-operator-secret-at-least-32-characters',
+    ],
+    [
+      'operator secret overlapping BARA_ATTENDANCE_EVENT_SECRET',
+      'BARA_ATTENDANCE_EVENT_SECRET',
+      'dedicated-smoke-operator-secret-at-least-32-characters',
+    ],
+  ])('rejects %s without authentication diagnostics', async (_case, environmentName, value) => {
+    vi.stubEnv(environmentName, value)
 
     const response = await POST(new Request('https://pika.example/api/cron/bara-attendance-smoke', {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer dedicated-smoke-operator-secret-at-least-32-characters',
+        Authorization: 'Bearer wrong-or-unusable-operator-credential',
         'X-Attendance-Rollout-Mode': 'pre-enable',
       },
     }) as never)
 
-    expect(response.status).toBe(503)
+    expect(response.status).toBe(401)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect(auditDeployedBaraAttendanceEnvironment).not.toHaveBeenCalled()
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
   })
 })
