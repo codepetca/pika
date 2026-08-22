@@ -21872,3 +21872,69 @@ migration, production, Gradex, mobile, or student-history route change.
   the same bounded time it receives under full-suite coverage load.
 - The `/student/history` compatibility decision remains the next independent
   slice.
+
+<!-- pika-session-log-archive-batch:25dbd9ff3d9b448e18dae933632ef3ac0642a6b2e70736dbef24b9e48fe990a3 -->
+## 2026-08-17 — Retain and clarify student attendance utility
+
+**Risk profile:** none — compatibility-preserving student utility cleanup; no
+schema, migration, production, Gradex, or mobile redesign work.
+
+**Completed:**
+- Confirmed `/student/history` is attendance history rather than assignment or
+  test history. It remains the only cross-classroom full class-day summary;
+  classroom Today intentionally loads only the latest submitted logs, so a
+  redirect would lose absent and pending records.
+- Preserved the stable URL, changed its visible navigation label to Attendance,
+  and moved class-day row construction into the tested attendance domain.
+- Removed the unmounted duplicate `StudentHistoryTab` and its isolated tests.
+- Replaced feature-local native controls and the hand-built log modal with
+  shared controls, keyboard-operable rows, and governed dialog focus return.
+
+**Validation:**
+- The full suite passes: 4,390 tests across 499 files. A first run exposed only
+  a 17-character startup-context overage from the continuity update; the
+  summary was tightened and its complete 38-test contract rerun passed.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, session-log, and diff checks pass. Six stale native-control and raw
+  design-value exceptions were removed with the legacy implementation.
+- Playwright passes the student utility contract across desktop/mobile and
+  light/dark with no horizontal overflow. Loaded and empty states were visually
+  inspected; the shared dialog passes both desktop themes and returns focus.
+- Independent compatibility review was clean. Accessibility review found that
+  the submitted-log button name hid its visible attendance status; the name now
+  includes date, status, and action, with a focused regression test and targeted
+  rereview.
+
+## 2026-08-17 — Organize Settings and decide student grades/profile scope
+
+**Risk profile:** none — teacher Settings organization and durable product
+decisions; no API, schema, migration, production, Gradex, or mobile redesign.
+
+**Completed:**
+- Split the existing teacher Settings surface into stable URL-backed General,
+  Access, Syllabus, Class Days, and Reuse sections without changing the fields,
+  save behavior, archived read-only behavior, or underlying routes.
+- Kept the shared keyboard-operable segmented control and added narrow-screen
+  containment so section navigation cannot widen the page.
+- Recorded that returned assignment/test feedback remains the student grade
+  surface until aggregate disclosure, weighting, hidden-work, and incomplete-
+  work semantics are defined.
+- Recorded that standalone student profile editing remains declined until one
+  source of truth and synchronization contract exists for global profiles and
+  classroom roster names.
+
+**Validation:**
+- The 26-test Settings component suite passes, including cross-section state
+  reset, stale URL fallback, save/error behavior, archived read-only behavior,
+  syllabus preferences, enrollment, and blueprint capture.
+- The full run passed all 4,390 behavior tests; its only failure was a
+  19-character startup-context overage, then the tightened summary passed the
+  complete 38-test startup contract.
+- TypeScript, lint, production build, architecture, design/UI policy, Pika
+  audit, and diff checks pass.
+- Playwright captures pass for every section at desktop and 390px in light and
+  dark. Each URL selects the intended section, body width equals viewport width,
+  and the teacher surface remains visually consistent. Student is not affected.
+- Independent review found the unpublished-syllabus recovery action still
+  opened bare Settings. It now uses in-app navigation directly to the Syllabus
+  section, with a focused resources regression.
