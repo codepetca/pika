@@ -77,6 +77,16 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
 // opaque provider state as an exportable or silently rebuildable resource.
 export const ATTENDANCE_PROVIDER_OWNED_BLOCKING_REFERENCES = [
   {
+    child_table: 'attendance_integration_smoke_runs',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_integration_smoke_runs',
+    parent_table: 'users',
+    child_columns: ['teacher_id'],
+  },
+  {
     child_table: 'attendance_integration_outbox',
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],

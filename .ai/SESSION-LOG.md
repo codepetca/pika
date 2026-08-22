@@ -1308,3 +1308,7 @@ deployment, or production state changed.
   ordering, and the explicit authorization boundary for migration/deployment.
 - Local migration reset, generated-type parity, database privilege guard, full
   4,980-test suite, lint, and production build pass.
+- Independent review corrections classify smoke audit ownership edges, bind
+  callbacks to an active five-minute challenge, reject recovery idempotency
+  drift, derive recovery time server-side, and repair the pre-enable rollout
+  order. The same full verification passed after remediation.

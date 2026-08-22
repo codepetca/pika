@@ -157,12 +157,14 @@ export async function runBaraAttendanceSmoke(input: {
   const random = (input.randomId?.() ?? crypto.randomUUID().replaceAll('-', '')).toLowerCase()
   const requestId = `smoke_request_${random}`
   const challenge = `smoke_${random.slice(0, 32)}`
+  const challengeHash = await sha256Hex(challenge)
   const scopeRef = await configuredScopeRef(config)
   const begin = await supabase.rpc('begin_attendance_integration_smoke_v1', {
     p_installation_ref: config.installationRef,
     p_teacher_id: config.teacherId,
     p_classroom_id: config.classroomId,
     p_request_id: requestId,
+    p_challenge_hash: challengeHash,
   })
   if (begin.error) {
     return failure(
@@ -307,6 +309,7 @@ export async function receiveBaraAttendanceSmokeCallback(
     p_direction: 'bara_to_pika',
     p_nonce: nonce,
     p_request_timestamp: new Date(timestampSeconds * 1_000).toISOString(),
+    p_challenge_hash: await sha256Hex(payload.challenge),
   })
   if (consumed.error) return { ok: false, status: 503, error: 'temporarily_unavailable' }
   if (consumed.data !== true) return { ok: false, status: 409, error: 'replayed_request' }

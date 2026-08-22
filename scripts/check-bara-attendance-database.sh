@@ -45,11 +45,11 @@ begin
   if not exists (
     select 1 from supabase_migrations.schema_migrations where version = '131'
   ) or to_regprocedure(
-    'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text)'
+    'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text,text)'
   ) is null or to_regprocedure(
     'public.complete_attendance_integration_smoke_v1(text,uuid,uuid,text,boolean,boolean,boolean,text)'
   ) is null or to_regprocedure(
-    'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz)'
+    'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz,text)'
   ) is null then
     raise exception 'Migration 131 is not applied to the local database';
   end if;
@@ -116,7 +116,7 @@ begin
   end if;
   if has_function_privilege(
       'authenticated',
-      'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text)',
+      'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text,text)',
       'execute'
     ) or has_function_privilege(
       'authenticated',
@@ -124,11 +124,11 @@ begin
       'execute'
     ) or has_function_privilege(
       'authenticated',
-      'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz)',
+      'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz,text)',
       'execute'
     ) or not has_function_privilege(
       'service_role',
-      'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text)',
+      'public.begin_attendance_integration_smoke_v1(text,uuid,uuid,text,text)',
       'execute'
     ) or not has_function_privilege(
       'service_role',
@@ -136,7 +136,7 @@ begin
       'execute'
     ) or not has_function_privilege(
       'service_role',
-      'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz)',
+      'public.consume_attendance_integration_smoke_nonce_v1(text,uuid,uuid,text,text,timestamptz,text)',
       'execute'
     )
   then
@@ -832,6 +832,54 @@ begin
   end if;
 end;
 $same_aggregate_order$;
+
+do $smoke_challenge$
+declare v_begin jsonb;
+begin
+  select public.begin_attendance_integration_smoke_v1(
+    'installation_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000020',
+    'smoke_request_0123456789abcdef',
+    repeat('a', 64)
+  ) into v_begin;
+  if not (v_begin->>'accepted')::boolean then
+    raise exception 'Smoke challenge run was not accepted';
+  end if;
+  if public.consume_attendance_integration_smoke_nonce_v1(
+    'installation_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000020',
+    'bara_to_pika', 'nonce_0123456789abcdef', clock_timestamp(), repeat('b', 64)
+  ) then
+    raise exception 'Unmatched smoke challenge was accepted';
+  end if;
+  if not public.consume_attendance_integration_smoke_nonce_v1(
+    'installation_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000020',
+    'bara_to_pika', 'nonce_0123456789abcdef', clock_timestamp(), repeat('a', 64)
+  ) then
+    raise exception 'Active smoke challenge was rejected';
+  end if;
+  if public.consume_attendance_integration_smoke_nonce_v1(
+    'installation_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000020',
+    'bara_to_pika', 'nonce_fedcba9876543210', clock_timestamp(), repeat('a', 64)
+  ) then
+    raise exception 'Consumed smoke challenge was accepted twice';
+  end if;
+  if not public.complete_attendance_integration_smoke_v1(
+    'installation_guard',
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000020',
+    'smoke_request_0123456789abcdef', true, true, true, null
+  ) then
+    raise exception 'Challenge-correlated smoke could not complete';
+  end if;
+end;
+$smoke_challenge$;
 
 rollback;
 SQL

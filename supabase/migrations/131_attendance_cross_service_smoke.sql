@@ -8,13 +8,16 @@ create table public.attendance_integration_smoke_runs (
   teacher_id uuid not null references public.users(id) on delete restrict,
   classroom_id uuid not null references public.classrooms(id) on delete restrict,
   request_id text not null check (request_id ~ '^[A-Za-z0-9._~-]{16,128}$'),
+  challenge_hash text not null check (challenge_hash ~ '^[a-f0-9]{64}$'),
   status text not null check (status in ('running', 'passed', 'failed')),
   pika_to_bara boolean,
   bara_to_pika boolean,
   error_code text check (error_code is null or error_code ~ '^[a-z0-9_]{1,64}$'),
   created_at timestamptz not null default clock_timestamp(),
   finished_at timestamptz,
-  unique (installation_ref, request_id)
+  callback_consumed_at timestamptz,
+  unique (installation_ref, request_id),
+  unique (installation_ref, challenge_hash)
 );
 
 create index attendance_integration_smoke_runs_scope_created
@@ -45,7 +48,8 @@ create function public.begin_attendance_integration_smoke_v1(
   p_installation_ref text,
   p_teacher_id uuid,
   p_classroom_id uuid,
-  p_request_id text
+  p_request_id text,
+  p_challenge_hash text
 )
 returns jsonb
 language plpgsql
@@ -56,7 +60,8 @@ declare
   v_recent_count integer;
 begin
   if p_installation_ref !~ '^[A-Za-z0-9._~-]{1,128}$'
-    or p_request_id !~ '^[A-Za-z0-9._~-]{16,128}$' then
+    or p_request_id !~ '^[A-Za-z0-9._~-]{16,128}$'
+    or p_challenge_hash !~ '^[a-f0-9]{64}$' then
     raise exception using errcode = '22023', message = 'attendance_smoke_invalid';
   end if;
 
@@ -92,9 +97,10 @@ begin
   end if;
 
   insert into public.attendance_integration_smoke_runs (
-    installation_ref, teacher_id, classroom_id, request_id, status
+    installation_ref, teacher_id, classroom_id, request_id, challenge_hash, status
   ) values (
-    p_installation_ref, p_teacher_id, p_classroom_id, p_request_id, 'running'
+    p_installation_ref, p_teacher_id, p_classroom_id, p_request_id,
+    p_challenge_hash, 'running'
   );
   return jsonb_build_object('accepted', true);
 end;
@@ -116,7 +122,8 @@ security definer
 set search_path = ''
 as $$
 begin
-  if p_error_code is not null and p_error_code !~ '^[a-z0-9_]{1,64}$' then
+  if (p_error_code is not null and p_error_code !~ '^[a-z0-9_]{1,64}$')
+    or p_passed is distinct from (p_pika_to_bara and p_bara_to_pika) then
     raise exception using errcode = '22023', message = 'attendance_smoke_invalid';
   end if;
   update public.attendance_integration_smoke_runs
@@ -129,7 +136,8 @@ begin
     and teacher_id = p_teacher_id
     and classroom_id = p_classroom_id
     and request_id = p_request_id
-    and status = 'running';
+    and status = 'running'
+    and (not p_bara_to_pika or callback_consumed_at is not null);
   return found;
 end;
 $$;
@@ -140,7 +148,8 @@ create function public.consume_attendance_integration_smoke_nonce_v1(
   p_classroom_id uuid,
   p_direction text,
   p_nonce text,
-  p_request_timestamp timestamptz
+  p_request_timestamp timestamptz,
+  p_challenge_hash text
 )
 returns boolean
 language plpgsql
@@ -151,6 +160,7 @@ begin
   if p_installation_ref !~ '^[A-Za-z0-9._~-]{1,128}$'
     or p_direction <> 'bara_to_pika'
     or p_nonce !~ '^[A-Za-z0-9._~-]{16,128}$'
+    or p_challenge_hash !~ '^[a-f0-9]{64}$'
     or abs(extract(epoch from (clock_timestamp() - p_request_timestamp))) > 300 then
     return false;
   end if;
@@ -160,6 +170,18 @@ begin
     and classroom.teacher_id = p_teacher_id
     and classroom.archived_at is null
   for share;
+  if not found then return false; end if;
+
+  perform 1
+  from public.attendance_integration_smoke_runs run
+  where run.installation_ref = p_installation_ref
+    and run.teacher_id = p_teacher_id
+    and run.classroom_id = p_classroom_id
+    and run.challenge_hash = p_challenge_hash
+    and run.status = 'running'
+    and run.callback_consumed_at is null
+    and run.created_at >= clock_timestamp() - interval '5 minutes'
+  for update;
   if not found then return false; end if;
 
   delete from public.attendance_integration_smoke_nonces nonce
@@ -176,23 +198,31 @@ begin
   ) values (
     p_installation_ref, p_direction, p_nonce, p_request_timestamp
   ) on conflict do nothing;
+  if not found then return false; end if;
+
+  update public.attendance_integration_smoke_runs run
+  set callback_consumed_at = clock_timestamp()
+  where run.installation_ref = p_installation_ref
+    and run.challenge_hash = p_challenge_hash
+    and run.status = 'running'
+    and run.callback_consumed_at is null;
   return found;
 end;
 $$;
 
-revoke all on function public.begin_attendance_integration_smoke_v1(text, uuid, uuid, text)
+revoke all on function public.begin_attendance_integration_smoke_v1(text, uuid, uuid, text, text)
   from public, anon, authenticated;
 revoke all on function public.complete_attendance_integration_smoke_v1(
   text, uuid, uuid, text, boolean, boolean, boolean, text
 ) from public, anon, authenticated;
 revoke all on function public.consume_attendance_integration_smoke_nonce_v1(
-  text, uuid, uuid, text, text, timestamptz
+  text, uuid, uuid, text, text, timestamptz, text
 ) from public, anon, authenticated;
-grant execute on function public.begin_attendance_integration_smoke_v1(text, uuid, uuid, text)
+grant execute on function public.begin_attendance_integration_smoke_v1(text, uuid, uuid, text, text)
   to service_role;
 grant execute on function public.complete_attendance_integration_smoke_v1(
   text, uuid, uuid, text, boolean, boolean, boolean, text
 ) to service_role;
 grant execute on function public.consume_attendance_integration_smoke_nonce_v1(
-  text, uuid, uuid, text, text, timestamptz
+  text, uuid, uuid, text, text, timestamptz, text
 ) to service_role;

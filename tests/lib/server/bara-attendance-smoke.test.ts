@@ -101,6 +101,12 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
       'begin_attendance_integration_smoke_v1',
       'complete_attendance_integration_smoke_v1',
     ])
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'begin_attendance_integration_smoke_v1',
+      expect.objectContaining({
+        p_challenge_hash: await sha256Hex('smoke_0123456789abcdef0123456789abcdef'),
+      }),
+    )
   })
 
   it('skips preview without touching the production database or network', async () => {
@@ -160,6 +166,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
         p_classroom_id: classroomId,
         p_direction: 'bara_to_pika',
         p_nonce: nonce,
+        p_challenge_hash: await sha256Hex('smoke_0123456789abcdef0123456789abcdef'),
       }),
     )
   })

@@ -1290,6 +1290,8 @@ export type Database = {
       attendance_integration_smoke_runs: {
         Row: {
           bara_to_pika: boolean | null
+          callback_consumed_at: string | null
+          challenge_hash: string
           classroom_id: string
           created_at: string
           error_code: string | null
@@ -1303,6 +1305,8 @@ export type Database = {
         }
         Insert: {
           bara_to_pika?: boolean | null
+          callback_consumed_at?: string | null
+          challenge_hash: string
           classroom_id: string
           created_at?: string
           error_code?: string | null
@@ -1316,6 +1320,8 @@ export type Database = {
         }
         Update: {
           bara_to_pika?: boolean | null
+          callback_consumed_at?: string | null
+          challenge_hash?: string
           classroom_id?: string
           created_at?: string
           error_code?: string | null
@@ -6819,6 +6825,7 @@ export type Database = {
       }
       begin_attendance_integration_smoke_v1: {
         Args: {
+          p_challenge_hash: string
           p_classroom_id: string
           p_installation_ref: string
           p_request_id: string
@@ -7869,6 +7876,7 @@ export type Database = {
       }
       consume_attendance_integration_smoke_nonce_v1: {
         Args: {
+          p_challenge_hash: string
           p_classroom_id: string
           p_direction: string
           p_installation_ref: string
