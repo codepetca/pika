@@ -1,6 +1,7 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyV1RequestSignature } from '@/vendor/attendance-contract/v1/signing'
 import { validateV1Event } from '@/vendor/attendance-contract/v1/validate'
+import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 
 const EVENT_PATH = '/api/integrations/attendance/v1/events'
 const MAX_BODY_BYTES = 64_000
@@ -8,8 +9,13 @@ const MAX_CLOCK_SKEW_SECONDS = 5 * 60
 
 interface AttendanceEventRpcClient {
   rpc(
-    name: 'apply_attendance_event_v1',
-    args: { p_event: unknown; p_transport_nonce: string },
+    name: 'apply_attendance_event_for_classroom_v1',
+    args: {
+      p_event: unknown
+      p_transport_nonce: string
+      p_teacher_id: string
+      p_classroom_id: string
+    },
   ): Promise<{
     data: unknown
     error: { code?: string; message?: string } | null
@@ -25,13 +31,19 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function configuration() {
-  if (process.env.PIKA_BARA_ATTENDANCE_ENABLED !== 'true') return null
+  const scope = getBaraAttendanceCanaryScope()
+  if (scope.state !== 'ready' || !scope.teacherId || !scope.classroomId) return null
   const installationRef = process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim() ?? ''
   const secret = process.env.BARA_ATTENDANCE_EVENT_SECRET ?? ''
   if (!/^[A-Za-z0-9._~-]{1,128}$/.test(installationRef) || secret.length < 32) {
     throw new Error('Attendance event ingress is not configured')
   }
-  return { installationRef, secret }
+  return {
+    installationRef,
+    secret,
+    teacherId: scope.teacherId,
+    classroomId: scope.classroomId,
+  }
 }
 
 export async function receiveBaraAttendanceEvent(request: Request): Promise<IngressResult> {
@@ -94,9 +106,11 @@ export async function receiveBaraAttendanceEvent(request: Request): Promise<Ingr
   }
 
   const client = getServiceRoleClient() as unknown as AttendanceEventRpcClient
-  const { data, error } = await client.rpc('apply_attendance_event_v1', {
+  const { data, error } = await client.rpc('apply_attendance_event_for_classroom_v1', {
     p_event: validation.value,
     p_transport_nonce: nonce,
+    p_teacher_id: config.teacherId,
+    p_classroom_id: config.classroomId,
   })
   if (error) {
     if (error.code === '23505') return { ok: false, status: 409, error: 'replay_conflict' }

@@ -1,6 +1,7 @@
 # Native Pika attendance powered by Bara
 
-Status: local implementation complete; hosted data, migration, latency, and pilot gates remain.
+Status: local implementation complete; migration 129, hosted flow, latency, and
+production canary gates remain.
 
 Risk profile: `runtime-platform`.
 
@@ -43,7 +44,7 @@ that principal through the installation-scoped adapter.
 3. Teacher commands enter Pika's durable outbox and remain pending until a
    Bara revision reaches Pika's projection.
 4. QR presentation is fetched server-to-server. Pika encrypts the roster,
-   occurrence, raw Bara check-in token, and expiry into a public Pika entry
+   Pika classroom, occurrence, raw Bara check-in token, and expiry into a public Pika entry
    token. The raw Bara token is not stored in Pika's database or exposed as a
    Bara URL.
 
@@ -83,12 +84,14 @@ that principal through the installation-scoped adapter.
 
 ## Remaining gates
 
-1. If a hosted pilot is desired, first provision and authorize a named isolated
-   Pika Supabase target; none exists today. Migration 127 has only been replayed
-   and tested against the disposable local stack.
-2. Deploy matching Bara and Pika previews with distinct WorkOS Applications,
-   cookie/session secrets, transport/event/entry-token secrets, and exact API
-   origins. Keep the legacy browser-handoff flag false.
+1. Review and deploy Pika migration 129, which adds exact teacher/classroom
+   scoping to event ingress and unattended worker RPCs. Migrations 126–128 are
+   already deployed; 129 has only been reset/replayed against the disposable
+   local stack.
+2. Configure the exact production teacher/classroom UUID pair while keeping
+   Pika and Bara's global attendance flags false. There is no staging database,
+   so rollout proceeds as a disabled production deployment followed by a
+   narrowly controlled canary enablement.
 3. Prove real roster, schedule, automatic lifecycle, teacher correction,
    student scan, duplicate/lost-response retry, event reorder, and snapshot
    reconciliation round trips.
@@ -99,7 +102,7 @@ that principal through the installation-scoped adapter.
 5. Visually and functionally verify teacher and student flows on desktop/mobile
    and light/dark, including loading, success, duplicate, unmatched, invalid,
    closed, and unavailable states.
-6. Run one allowlisted classroom canary with rollback flags. Do not promote or
+6. Run the one exact teacher/classroom canary with rollback flags. Do not
    enable production attendance until the teacher and student flows pass.
 
 Archive-v2 does not yet know how to decommission Bara authority. Soft

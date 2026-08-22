@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { withErrorHandler } from '@/lib/api-handler'
-import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 import { reconcileBaraAttendanceSessions } from '@/lib/server/bara-attendance-reconciliation'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -18,9 +18,12 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const scope = getBaraAttendanceCanaryScope()
   const summary = await reconcileBaraAttendanceSessions({
     supabase: getServiceRoleClient(),
-    enabled: getBaraAttendanceIntegrationState() === 'ready',
+    enabled: scope.state === 'ready',
+    teacherId: scope.teacherId,
+    classroomId: scope.classroomId,
   })
   return NextResponse.json(summary, {
     status: summary.status === 'partial' ? 503 : 200,

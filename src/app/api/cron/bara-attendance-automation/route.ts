@@ -5,7 +5,7 @@ import {
   BaraAttendanceAutomationError,
   syncBaraAttendanceSchedules,
 } from '@/lib/server/bara-attendance-automation'
-import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 import {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
@@ -26,20 +26,26 @@ async function handle(request: NextRequest) {
   }
 
   const supabase = getServiceRoleClient()
-  const integrationState = getBaraAttendanceIntegrationState()
+  const scope = getBaraAttendanceCanaryScope()
   try {
     const schedules = await syncBaraAttendanceSchedules({
       supabase,
-      integrationState,
+      integrationState: scope.state,
+      teacherId: scope.teacherId ?? undefined,
+      classroomId: scope.classroomId ?? undefined,
     })
     const delivery = await deliverBaraAttendanceOutboxBatch({
       supabase,
-      enabled: integrationState === 'ready',
+      enabled: scope.state === 'ready',
+      teacherId: scope.teacherId,
+      classroomId: scope.classroomId,
       limit: 50,
     })
     const health = await getBaraAttendanceOutboxHealth({
       supabase,
-      enabled: integrationState === 'ready',
+      enabled: scope.state === 'ready',
+      teacherId: scope.teacherId,
+      classroomId: scope.classroomId,
     })
     const status = schedules.status === 'partial'
       || delivery.status === 'partial'

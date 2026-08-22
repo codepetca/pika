@@ -21,6 +21,8 @@ export interface BaraAttendanceRolloutEnvironment {
   BREVO_FROM_NAME?: string
   PIKA_BARA_AUTH_HANDOFF?: string
   PIKA_BARA_ATTENDANCE_ENABLED?: string
+  PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID?: string
+  PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID?: string
   BARA_ATTENDANCE_API_BASE_URL?: string
   BARA_ATTENDANCE_INSTALLATION_REF?: string
   BARA_ATTENDANCE_TENANT_REF?: string
@@ -49,6 +51,7 @@ export interface BaraAttendanceRolloutAudit {
 const PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/
 const INSTALLATION_REF_PATTERN = /^[A-Za-z0-9._~-]{1,128}$/
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function trimmed(value: string | undefined): string {
   return value?.trim() ?? ''
@@ -153,6 +156,11 @@ export function auditBaraAttendanceRolloutEnvironment(
     ['mock_email_disabled', environment.ENABLE_MOCK_EMAIL === 'false'],
     ['legacy_browser_handoff_disabled', environment.PIKA_BARA_AUTH_HANDOFF !== 'true'],
     ['attendance_enabled', environment.PIKA_BARA_ATTENDANCE_ENABLED === 'true'],
+    [
+      'attendance_exact_canary',
+      UUID_PATTERN.test(trimmed(environment.PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID))
+        && UUID_PATTERN.test(trimmed(environment.PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID)),
+    ],
     [
       'bara_attendance_origin',
       exactHttpsOrigin(environment.BARA_ATTENDANCE_API_BASE_URL, target.expectedBaraApiOrigin),

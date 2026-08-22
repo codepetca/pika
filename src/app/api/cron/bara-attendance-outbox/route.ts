@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { withErrorHandler } from '@/lib/api-handler'
-import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 import {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
@@ -24,9 +24,20 @@ export const POST = withErrorHandler(
     }
 
     const supabase = getServiceRoleClient()
-    const enabled = getBaraAttendanceIntegrationState() === 'ready'
-    const delivery = await deliverBaraAttendanceOutboxBatch({ supabase, enabled })
-    const health = await getBaraAttendanceOutboxHealth({ supabase, enabled })
+    const scope = getBaraAttendanceCanaryScope()
+    const enabled = scope.state === 'ready'
+    const delivery = await deliverBaraAttendanceOutboxBatch({
+      supabase,
+      enabled,
+      teacherId: scope.teacherId,
+      classroomId: scope.classroomId,
+    })
+    const health = await getBaraAttendanceOutboxHealth({
+      supabase,
+      enabled,
+      teacherId: scope.teacherId,
+      classroomId: scope.classroomId,
+    })
     const status = delivery.status === 'partial' || health.status === 'degraded'
       ? 'partial'
       : delivery.status

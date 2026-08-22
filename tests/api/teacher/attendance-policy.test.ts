@@ -9,6 +9,7 @@ const {
   assertTeacherCanMutateClassroom,
   loadTeacherAttendancePolicy,
   saveTeacherAttendancePolicy,
+  assertBaraAttendanceCanaryClassroom,
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
@@ -16,6 +17,7 @@ const {
   assertTeacherCanMutateClassroom: vi.fn(),
   loadTeacherAttendancePolicy: vi.fn(),
   saveTeacherAttendancePolicy: vi.fn(),
+  assertBaraAttendanceCanaryClassroom: vi.fn(),
   supabase: { from: vi.fn(), rpc: vi.fn() },
 }))
 
@@ -36,6 +38,10 @@ vi.mock('@/lib/server/classrooms', () => ({
 vi.mock('@/lib/server/bara-attendance-policy', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-policy')>()
   return { ...actual, loadTeacherAttendancePolicy, saveTeacherAttendancePolicy }
+})
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return { ...actual, assertBaraAttendanceCanaryClassroom }
 })
 
 const classroomId = '20000000-0000-4000-8000-000000000002'

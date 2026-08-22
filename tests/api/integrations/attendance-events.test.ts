@@ -12,6 +12,8 @@ import { POST } from '@/app/api/integrations/attendance/v1/events/route'
 
 const path = '/api/integrations/attendance/v1/events'
 const secret = 'test-attendance-event-secret-with-at-least-32-characters'
+const teacherId = '10000000-0000-4000-8000-000000000001'
+const classroomId = '20000000-0000-4000-8000-000000000002'
 const event = {
   schema_version: 1,
   event_id: 'event_one',
@@ -58,7 +60,11 @@ describe('POST /api/integrations/attendance/v1/events', () => {
     vi.clearAllMocks()
     vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'true')
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'pika_test_installation')
+    vi.stubEnv('BARA_ATTENDANCE_API_BASE_URL', 'https://attendance-api.example')
+    vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'integration-secret-with-at-least-32-characters')
     vi.stubEnv('BARA_ATTENDANCE_EVENT_SECRET', secret)
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID', teacherId)
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID', classroomId)
     mocks.rpc.mockResolvedValue({
       data: { accepted: true, duplicate: false, projection_applied: true },
       error: null,
@@ -76,9 +82,11 @@ describe('POST /api/integrations/attendance/v1/events', () => {
       duplicate: false,
       projection_applied: true,
     })
-    expect(mocks.rpc).toHaveBeenCalledWith('apply_attendance_event_v1', {
+    expect(mocks.rpc).toHaveBeenCalledWith('apply_attendance_event_for_classroom_v1', {
       p_event: event,
       p_transport_nonce: 'nonce_event_request_12345',
+      p_teacher_id: teacherId,
+      p_classroom_id: classroomId,
     })
   })
 

@@ -12,11 +12,20 @@ import {
   resolveVerifiedPikaAttendanceTeacher,
   TeacherAttendanceIdentityError,
 } from '@/lib/server/bara-attendance-teacher'
+import {
+  assertBaraAttendanceCanaryClassroom,
+  BaraAttendanceCanaryError,
+} from '@/lib/server/bara-attendance-canary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function mapQrError(error: unknown): never {
+  if (error instanceof BaraAttendanceCanaryError) {
+    throw new ApiError(error.code === 'disabled' ? 404 : 503, error.code === 'disabled'
+      ? 'Attendance is not enabled for this classroom'
+      : 'Attendance is temporarily unavailable')
+  }
   if (error instanceof TeacherAttendanceIdentityError) {
     if (error.code === 'identity_not_linked') {
       throw new ApiError(409, 'Attendance setup is still syncing. Try again shortly')
@@ -48,6 +57,7 @@ export const GET = withErrorHandler('GetTeacherAttendanceQr', async (request) =>
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
     const actor = await resolveVerifiedPikaAttendanceTeacher({ supabase, pikaUser: user })
     const presentation = await loadTeacherAttendanceQrPresentation({
       supabase,

@@ -2,15 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   reconcile: vi.fn(),
-  integrationState: vi.fn(),
+  canaryScope: vi.fn(),
   serviceClient: { rpc: vi.fn() },
 }))
 
 vi.mock('@/lib/server/bara-attendance-reconciliation', () => ({
   reconcileBaraAttendanceSessions: mocks.reconcile,
 }))
-vi.mock('@/lib/server/bara-attendance-client', () => ({
-  getBaraAttendanceIntegrationState: mocks.integrationState,
+vi.mock('@/lib/server/bara-attendance-canary', () => ({
+  getBaraAttendanceCanaryScope: mocks.canaryScope,
 }))
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => mocks.serviceClient,
@@ -29,7 +29,11 @@ describe('/api/cron/bara-attendance-reconciliation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.CRON_SECRET = 'cron-test-secret'
-    mocks.integrationState.mockReturnValue('ready')
+    mocks.canaryScope.mockReturnValue({
+      state: 'ready',
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
+    })
     mocks.reconcile.mockResolvedValue({
       status: 'ok',
       eligible: 2,
@@ -62,6 +66,8 @@ describe('/api/cron/bara-attendance-reconciliation', () => {
     expect(mocks.reconcile).toHaveBeenCalledWith({
       supabase: mocks.serviceClient,
       enabled: true,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
     })
   })
 

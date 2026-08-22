@@ -6,12 +6,14 @@ const {
   assertTeacherCanMutateClassroom,
   syncTeacherAttendanceSources,
   resolveVerifiedPikaAttendanceTeacher,
+  assertBaraAttendanceCanaryClassroom,
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   assertTeacherCanMutateClassroom: vi.fn(),
   syncTeacherAttendanceSources: vi.fn(),
   resolveVerifiedPikaAttendanceTeacher: vi.fn(),
+  assertBaraAttendanceCanaryClassroom: vi.fn(),
   supabase: { rpc: vi.fn() },
 }))
 
@@ -25,6 +27,10 @@ vi.mock('@/lib/server/bara-attendance-sync', async (importOriginal) => {
 vi.mock('@/lib/server/bara-attendance-teacher', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-teacher')>()
   return { ...actual, resolveVerifiedPikaAttendanceTeacher }
+})
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return { ...actual, assertBaraAttendanceCanaryClassroom }
 })
 
 import { POST } from '@/app/api/teacher/attendance/sync/route'

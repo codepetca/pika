@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import {
   BaraAttendanceClientError,
-  getBaraAttendanceIntegrationState,
   type BaraAttendanceMarksResult,
   type BaraSessionCommandResult,
 } from '@/lib/server/bara-attendance-client'
@@ -15,6 +14,7 @@ import type {
   V1SessionCommand,
 } from '@/vendor/attendance-contract/v1/types'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
+import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
 
 const opaqueRefSchema = z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/)
 const contextRowSchemas = {
@@ -213,7 +213,10 @@ export async function executeTeacherAttendanceSessionCommand(input: {
   store?: AttendanceCommandStore
   send?: (payload: V1SessionCommand) => Promise<BaraSessionCommandResult>
 }) {
-  const integrationState = input.integrationState ?? getBaraAttendanceIntegrationState()
+  const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
+    teacherId: input.teacherId,
+    classroomId: input.classroomId,
+  })
   if (integrationState !== 'ready') {
     throw new TeacherAttendanceCommandError(integrationState)
   }
@@ -262,7 +265,10 @@ export async function executeTeacherAttendanceMarks(input: {
   store?: AttendanceCommandStore
   send?: (payload: V1AttendanceMarks) => Promise<BaraAttendanceMarksResult>
 }) {
-  const integrationState = input.integrationState ?? getBaraAttendanceIntegrationState()
+  const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
+    teacherId: input.teacherId,
+    classroomId: input.classroomId,
+  })
   if (integrationState !== 'ready') {
     throw new TeacherAttendanceCommandError(integrationState)
   }

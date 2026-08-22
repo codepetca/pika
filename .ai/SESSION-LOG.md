@@ -1338,3 +1338,31 @@ no reward timing, acknowledgement behavior, schema, hosted state, or auth change
 - Matched Playwright evidence passes on desktop/mobile in light/dark themes:
   the card moved from 112 px left of center on desktop and 35 px left on mobile
   to exactly centered in all four variants.
+## 2026-08-21 — Enforce the native attendance production canary
+
+**Risk profile:** runtime-platform — teacher/student authorization, signed event
+ingress, unattended delivery/reconciliation workers, opaque QR entry tokens,
+and one additive Supabase migration. No hosted configuration, deployment, or
+database was changed.
+
+**Implemented:**
+- Added a fail-closed exact Pika teacher/classroom scope on top of the global
+  attendance flag. Non-canary reads retain the disabled UI, and mutations stop
+  before WorkOS identity resolution or attendance side effects.
+- Bound the Pika classroom UUID into version-2 encrypted entry tokens and
+  required canonical Base64URL encoding before student identity resolution.
+- Added migration 129 with teacher/classroom-scoped schedule, reconciliation,
+  outbox claim/health, and atomic event-ingress RPCs. Workers cannot lease
+  non-canary work and Bara still receives only opaque contract references.
+- Added the two required rollout variables, preflight validation, generated
+  database types, operator documentation, and production sequence updates.
+
+**Verification:**
+- Focused canary/API/worker/token coverage passes 70 tests; the clean local
+  Supabase reset replayed migrations 001–129, generated types match, and the
+  attendance SQL contract passes exact-pair, wrong-teacher, privilege, and
+  cross-classroom checks.
+- The full repository test suite, TypeScript, lint, architecture, design policy,
+  UI policy, and production build pass. The shared environment's non-loopback
+  Bara URL correctly prevents the local-only cross-service rehearsal from
+  running without explicit reconfiguration.

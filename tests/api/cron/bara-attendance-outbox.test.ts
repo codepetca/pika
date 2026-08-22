@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
-  getBaraAttendanceIntegrationState,
+  getBaraAttendanceCanaryScope,
   serviceClient,
 } = vi.hoisted(() => ({
   deliverBaraAttendanceOutboxBatch: vi.fn(),
   getBaraAttendanceOutboxHealth: vi.fn(),
-  getBaraAttendanceIntegrationState: vi.fn(),
+  getBaraAttendanceCanaryScope: vi.fn(),
   serviceClient: { rpc: vi.fn() },
 }))
 
@@ -16,8 +16,8 @@ vi.mock('@/lib/server/bara-attendance-outbox', () => ({
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
 }))
-vi.mock('@/lib/server/bara-attendance-client', () => ({
-  getBaraAttendanceIntegrationState,
+vi.mock('@/lib/server/bara-attendance-canary', () => ({
+  getBaraAttendanceCanaryScope,
 }))
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => serviceClient,
@@ -29,7 +29,11 @@ describe('POST /api/cron/bara-attendance-outbox', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.CRON_SECRET = 'cron-test-secret'
-    getBaraAttendanceIntegrationState.mockReturnValue('ready')
+    getBaraAttendanceCanaryScope.mockReturnValue({
+      state: 'ready',
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
+    })
     deliverBaraAttendanceOutboxBatch.mockResolvedValue({
       status: 'ok',
       claimed: 1,
@@ -71,10 +75,14 @@ describe('POST /api/cron/bara-attendance-outbox', () => {
     expect(deliverBaraAttendanceOutboxBatch).toHaveBeenCalledWith({
       supabase: serviceClient,
       enabled: true,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
     })
     expect(getBaraAttendanceOutboxHealth).toHaveBeenCalledWith({
       supabase: serviceClient,
       enabled: true,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
     })
   })
 

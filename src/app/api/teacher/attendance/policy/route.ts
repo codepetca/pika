@@ -12,11 +12,20 @@ import {
   teacherAttendancePolicyQuerySchema,
   teacherAttendancePolicyUpdateSchema,
 } from '@/lib/validations/teacher-attendance-policy'
+import {
+  assertBaraAttendanceCanaryClassroom,
+  BaraAttendanceCanaryError,
+} from '@/lib/server/bara-attendance-canary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 function mapPolicyError(error: unknown): never {
+  if (error instanceof BaraAttendanceCanaryError) {
+    throw new ApiError(error.code === 'disabled' ? 404 : 503, error.code === 'disabled'
+      ? 'Attendance is not enabled for this classroom'
+      : 'Attendance settings are temporarily unavailable')
+  }
   if (error instanceof TeacherAttendancePolicyError) {
     if (error.code === 'conflict') {
       throw new ApiError(409, 'Attendance settings changed; refresh and try again')
@@ -36,6 +45,7 @@ export const GET = withErrorHandler('GetTeacherAttendancePolicy', async (request
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
     const policy = await loadTeacherAttendancePolicy({
       supabase,
       classroomId: input.classroom_id,
@@ -54,6 +64,7 @@ export const PUT = withErrorHandler('PutTeacherAttendancePolicy', async (request
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
+    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
     const policy = await saveTeacherAttendancePolicy({
       supabase,
       teacherId: user.id,

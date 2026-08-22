@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   owns: vi.fn(),
   load: vi.fn(),
   resolveActor: vi.fn(),
+  assertCanary: vi.fn(),
   supabase: {},
 }))
 
@@ -19,6 +20,10 @@ vi.mock('@/lib/server/bara-attendance-qr', async (importOriginal) => {
 vi.mock('@/lib/server/bara-attendance-teacher', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-teacher')>()
   return { ...actual, resolveVerifiedPikaAttendanceTeacher: mocks.resolveActor }
+})
+vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
+  return { ...actual, assertBaraAttendanceCanaryClassroom: mocks.assertCanary }
 })
 
 import { GET } from '@/app/api/teacher/attendance/qr/route'

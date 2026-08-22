@@ -28,6 +28,15 @@ begin
   ) is null then
     raise exception 'Migration 127 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '129'
+  ) or to_regprocedure(
+    'public.claim_attendance_outbox_batch_v2(uuid,uuid,integer,integer)'
+  ) is null or to_regprocedure(
+    'public.apply_attendance_event_for_classroom_v1(jsonb,text,uuid,uuid)'
+  ) is null then
+    raise exception 'Migration 129 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -61,6 +70,14 @@ begin
     ) or has_function_privilege(
       'authenticated',
       'public.claim_attendance_outbox_batch_v1(integer,integer)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.claim_attendance_outbox_batch_v2(uuid,uuid,integer,integer)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.claim_attendance_outbox_batch_v2(uuid,uuid,integer,integer)',
       'execute'
     )
   then
@@ -101,6 +118,40 @@ insert into public.attendance_window_policies (
 ) values (
   'a1260000-0000-4000-8000-000000000013', '08:45', '09:30'
 );
+
+do $canary_scope$
+declare
+  v_targets jsonb;
+  v_health jsonb;
+begin
+  v_targets := public.list_attendance_sync_targets_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000013',
+    51
+  );
+  if jsonb_array_length(v_targets) <> 1
+    or v_targets->0->>'classroom_id' <> 'a1260000-0000-4000-8000-000000000013'
+  then
+    raise exception 'Canary sync target did not stay inside the exact classroom';
+  end if;
+
+  if jsonb_array_length(public.list_attendance_sync_targets_v2(
+    'a1260000-0000-4000-8000-000000000002',
+    'a1260000-0000-4000-8000-000000000013',
+    51
+  )) <> 0 then
+    raise exception 'Canary sync target accepted the wrong teacher';
+  end if;
+
+  v_health := public.attendance_outbox_health_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000013'
+  );
+  if (v_health->>'non_retryable')::integer <> 0 then
+    raise exception 'Canary outbox health crossed classroom scope';
+  end if;
+end;
+$canary_scope$;
 insert into public.attendance_integration_outbox (
   classroom_id, idempotency_key, message_type, payload, status
 ) values (
@@ -113,6 +164,26 @@ insert into public.attendance_integration_outbox (
     'revision', 1
   ), 'non_retryable'
 );
+
+do $canary_outbox_scope$
+declare
+  v_canary_health jsonb;
+  v_other_health jsonb;
+begin
+  v_canary_health := public.attendance_outbox_health_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000014'
+  );
+  v_other_health := public.attendance_outbox_health_v2(
+    'a1260000-0000-4000-8000-000000000001',
+    'a1260000-0000-4000-8000-000000000013'
+  );
+  if (v_canary_health->>'non_retryable')::integer <> 1
+    or (v_other_health->>'non_retryable')::integer <> 0 then
+    raise exception 'Canary outbox health crossed classroom scope';
+  end if;
+end;
+$canary_outbox_scope$;
 insert into public.attendance_integration_inbox (
   classroom_id, installation_ref, transport_nonce, event_id, idempotency_key,
   correlation_ref, event_type, occurred_at, roster_ref, occurrence_ref,

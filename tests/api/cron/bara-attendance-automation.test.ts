@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   syncSchedules: vi.fn(),
   deliverOutbox: vi.fn(),
   getOutboxHealth: vi.fn(),
-  integrationState: vi.fn(),
+  canaryScope: vi.fn(),
   serviceClient: { rpc: vi.fn() },
 }))
 
@@ -16,8 +16,8 @@ vi.mock('@/lib/server/bara-attendance-outbox', () => ({
   deliverBaraAttendanceOutboxBatch: mocks.deliverOutbox,
   getBaraAttendanceOutboxHealth: mocks.getOutboxHealth,
 }))
-vi.mock('@/lib/server/bara-attendance-client', () => ({
-  getBaraAttendanceIntegrationState: mocks.integrationState,
+vi.mock('@/lib/server/bara-attendance-canary', () => ({
+  getBaraAttendanceCanaryScope: mocks.canaryScope,
 }))
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: () => mocks.serviceClient,
@@ -36,7 +36,11 @@ describe('/api/cron/bara-attendance-automation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.CRON_SECRET = 'cron-test-secret'
-    mocks.integrationState.mockReturnValue('ready')
+    mocks.canaryScope.mockReturnValue({
+      state: 'ready',
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
+    })
     mocks.syncSchedules.mockResolvedValue({
       status: 'ok',
       windowStart: '2026-08-17',
@@ -83,15 +87,21 @@ describe('/api/cron/bara-attendance-automation', () => {
     expect(mocks.syncSchedules).toHaveBeenCalledWith({
       supabase: mocks.serviceClient,
       integrationState: 'ready',
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
     })
     expect(mocks.deliverOutbox).toHaveBeenCalledWith({
       supabase: mocks.serviceClient,
       enabled: true,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
       limit: 50,
     })
     expect(mocks.getOutboxHealth).toHaveBeenCalledWith({
       supabase: mocks.serviceClient,
       enabled: true,
+      teacherId: '10000000-0000-4000-8000-000000000001',
+      classroomId: '20000000-0000-4000-8000-000000000002',
     })
   })
 
