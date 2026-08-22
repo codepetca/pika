@@ -21938,3 +21938,66 @@ decisions; no API, schema, migration, production, Gradex, or mobile redesign.
 - Independent review found the unpublished-syllabus recovery action still
   opened bare Settings. It now uses in-app navigation directly to the Syllabus
   section, with a focused resources regression.
+
+<!-- pika-session-log-archive-batch:7ae1a55911d4d4b28a5199247d4688dc769ce2a5d9d797211f5a7125068271e7 -->
+## 2026-08-17 — Blueprint rollover retry and review handoff
+
+**Risk profile:** none — teacher-only blueprint rollover reliability and review
+UX; no schema, migration, production, archive cleanup, or Gradex work.
+
+**Completed:**
+- Classroom capture and blueprint instantiation now retain one UUID operation
+  key while the same semantic request is retried, then clear it after success.
+- Blueprint-created classrooms remain in the create dialog for a focused review
+  handoff that states assignments/tests are unpublished, calls out due-date and
+  release review, lists lesson plans that did not fit the chosen calendar, and
+  opens the new classroom's Assignments tab from every parent surface when the
+  teacher explicitly selects Review Classroom.
+- Blueprint completion refreshes parent classroom state through a non-routing
+  callback. Escape/backdrop dismissal only closes the completed handoff, and
+  dismissal is blocked while instantiation is pending so its operation key
+  cannot be discarded before the request settles.
+- Dashboard and Calendar keep one stable modal instance when the first created
+  classroom replaces their empty state, preserving the completed review
+  handoff until the teacher explicitly reviews or dismisses it.
+- The completed step moves focus to its heading and preserves the existing
+  dialog, progress, and continuation patterns.
+
+**Validation:**
+- Focused component coverage proves both same-key retry paths, delayed success
+  completion, in-flight dismissal blocking, non-routing completion callbacks,
+  empty-state handoff preservation, overflow rendering, and focus transfer. The
+  full suite passes all 4,394 tests across 499 files; TypeScript, lint,
+  production build, Pika audit, and diff checks pass.
+- Playwright verifies the teacher-only overflow handoff at desktop/mobile in
+  light/dark, including a browser-sent UUID operation key and no horizontal
+  overflow. Student rendering is not applicable to this teacher creation flow.
+- Composite checklist reviewed: yes. Keyboard behavior covered: yes. Semantic
+  state covered by tests: yes. Remaining manual follow-up: none.
+
+## 2026-08-17 — Course package import retry identity
+
+**Risk profile:** none — teacher-only client retry behavior; no API, schema,
+migration, production, archive cleanup, Gradex, or student behavior changes.
+
+**Completed:**
+- Added one shared browser-safe package operation helper used by both teacher
+  import entry points. It normalizes JSON, compares exact TAR bytes, retains one
+  caller UUID for unchanged retries, and replaces the key when content changes.
+- Import identity now survives retryable network/server failures and clears
+  after success, wizard cancellation, or component teardown. Synchronous guards
+  prevent concurrent file submissions from creating competing operation IDs.
+- The Blueprints page disables and relabels its import action while a request is
+  pending; the classroom wizard retains its existing busy-state behavior.
+
+**Validation:**
+- Thirty focused component/API tests cover JSON and TAR headers, semantic JSON
+  retries, exact archive retries, changed bytes, success/cancellation clearing,
+  both import entry points, pending-request suppression, and the existing route
+  contract.
+- The full suite passes all 4,405 tests across 499 files.
+- TypeScript, lint, architecture, production build, Pika audit, and diff checks
+  pass.
+- Teacher desktop/mobile light/dark screenshots remain clean. An intercepted,
+  non-mutating request verifies the disabled importing state without layout
+  shift or clipping. Student is not affected by this teacher-only route.
