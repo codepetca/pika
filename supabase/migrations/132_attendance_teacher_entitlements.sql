@@ -670,10 +670,10 @@ begin
     or (p_message->>'revision')::bigint <> v_roster.schedule_source_revision
     or p_message->>'window_start' !~ '^\d{4}-\d{2}-\d{2}$'
     or p_message->>'window_end' !~ '^\d{4}-\d{2}-\d{2}$'
-    or case when jsonb_typeof(p_message->'occurrences') = 'array'
+    or (case when jsonb_typeof(p_message->'occurrences') = 'array'
       then jsonb_array_length(p_message->'occurrences') <> 0
       else true
-    end then
+    end) then
     raise exception using errcode = '42501', message = 'attendance_deactivation_schedule_invalid';
   end if;
   v_window_start := (p_message->>'window_start')::date;
@@ -860,10 +860,10 @@ begin
       and integration_state = 'active';
   end if;
   if v_completed and v_row.message_type = 'schedule.snapshot'
-    and case when jsonb_typeof(v_row.payload->'occurrences') = 'array'
+    and (case when jsonb_typeof(v_row.payload->'occurrences') = 'array'
       then jsonb_array_length(v_row.payload->'occurrences') = 0
       else false
-    end then
+    end) then
     update public.attendance_roster_mappings
     set integration_state = case
           when deactivation_window_end < deactivation_target_end
