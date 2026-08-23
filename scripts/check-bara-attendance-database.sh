@@ -297,7 +297,7 @@ begin
     schedule_synced_revision, remote_schedule_window_end
   ) values (
     'a1260000-0000-4000-8000-000000000030',
-    'roster_entitlement_lifecycle_30', 1, 1, 7, 7, 7, '2028-01-01'
+    'roster_a1260000000040008000000000000030', 1, 1, 7, 7, 7, '2028-01-01'
   );
 
   v_change := public.set_attendance_teacher_entitlement_v1(
@@ -333,6 +333,25 @@ begin
       <> date '2028-01-01' then
     raise exception 'Revocation did not preserve the full remote schedule horizon';
   end if;
+  begin
+    perform public.stage_attendance_schedule_snapshot_v2(
+      'a1260000-0000-4000-8000-000000000003',
+      'a1260000-0000-4000-8000-000000000030',
+      v_prepared->>'schedule_source_token',
+      jsonb_build_object(
+        'message_type', 'schedule.snapshot',
+        'roster_ref', 'roster_a1260000000040008000000000000030',
+        'revision', (v_prepared->>'schedule_revision')::bigint,
+        'window_start', v_prepared->>'window_start',
+        'window_end', (v_first_window_end - 1)::text,
+        'occurrences', '[]'::jsonb
+      ),
+      '2026-08-23T12:00:00Z'
+    );
+    raise exception 'Narrowed deactivation schedule window was accepted';
+  exception when sqlstate '22023' then
+    null;
+  end;
   update public.attendance_roster_mappings
   set schedule_staged_revision = (v_prepared->>'schedule_revision')::bigint
   where classroom_id = 'a1260000-0000-4000-8000-000000000030';
@@ -349,7 +368,7 @@ begin
       'idempotency_key', 'schedule:entitlement-cleanup:8',
       'correlation_ref', 'entitlement_cleanup_8',
       'installation_ref', 'installation_guard',
-      'roster_ref', 'roster_entitlement_lifecycle_30',
+      'roster_ref', 'roster_a1260000000040008000000000000030',
       'revision', (v_prepared->>'schedule_revision')::bigint,
       'window_start', v_prepared->>'window_start',
       'window_end', v_prepared->>'window_end',
@@ -388,7 +407,7 @@ begin
       'idempotency_key', 'schedule:entitlement-cleanup:9',
       'correlation_ref', 'entitlement_cleanup_9',
       'installation_ref', 'installation_guard',
-      'roster_ref', 'roster_entitlement_lifecycle_30',
+      'roster_ref', 'roster_a1260000000040008000000000000030',
       'revision', (v_prepared->>'schedule_revision')::bigint,
       'window_start', v_prepared->>'window_start',
       'window_end', v_prepared->>'window_end',
