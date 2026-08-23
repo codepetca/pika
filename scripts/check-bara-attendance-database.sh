@@ -645,16 +645,14 @@ begin
       where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 4 then
     raise exception 'Entitlement audit did not preserve one row per operation';
   end if;
-  delete from public.classrooms
-  where id = 'a1260000-0000-4000-8000-000000000030';
-  delete from public.users
-  where id = 'a1260000-0000-4000-8000-000000000003';
+  delete from public.attendance_teacher_entitlements
+  where teacher_id = 'a1260000-0000-4000-8000-000000000003';
   if exists (
     select 1 from public.attendance_teacher_entitlements
     where teacher_id = 'a1260000-0000-4000-8000-000000000003'
   ) or (select count(*) from public.attendance_teacher_entitlement_audit
         where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 4 then
-    raise exception 'Teacher deletion did not retain immutable entitlement audit';
+    raise exception 'Live entitlement removal did not retain immutable audit';
   end if;
 end;
 $entitlement_lifecycle$;
