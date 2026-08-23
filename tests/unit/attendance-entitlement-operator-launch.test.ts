@@ -7,9 +7,13 @@ const repoRoot = path.resolve(import.meta.dirname, '../..')
 
 describe('attendance entitlement operator command', () => {
   it('launches through the documented package script before validating input', () => {
+    const command = process.platform === 'win32' ? 'cmd.exe' : 'pnpm'
+    const commandArguments = process.platform === 'win32'
+      ? ['/d', '/s', '/c', 'pnpm attendance:entitlement:set -- --operation-id invalid']
+      : ['attendance:entitlement:set', '--', '--operation-id', 'invalid']
     const result = spawnSync(
-      process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-      ['attendance:entitlement:set', '--', '--operation-id', 'invalid'],
+      command,
+      commandArguments,
       {
         cwd: repoRoot,
         encoding: 'utf8',
