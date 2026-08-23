@@ -196,6 +196,7 @@ describe('GET /api/teacher/attendance/session', () => {
       requestId,
       command: 'open',
       actor,
+      integrationState: 'ready',
     })
     expect(resolveVerifiedPikaAttendanceTeacher).toHaveBeenCalledWith({
       supabase,

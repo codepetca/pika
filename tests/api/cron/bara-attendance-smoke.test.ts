@@ -32,7 +32,12 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     })
     runBaraAttendanceSmoke.mockResolvedValue({
       status: 'passed',
-      checks: { canaryScope: true, pikaToBara: true, baraToPika: true },
+      checks: {
+        canaryScope: true,
+        transitionQueue: true,
+        pikaToBara: true,
+        baraToPika: true,
+      },
     })
   })
 
@@ -60,12 +65,19 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
       headers: {
         Authorization: 'Bearer dedicated-smoke-operator-secret-at-least-32-characters',
         'X-Attendance-Rollout-Mode': 'pre-enable',
+        'X-Attendance-Scope-Mode': 'exact_canary',
+        'X-Attendance-Target-Scope-Mode': 'teacher_entitlements',
       },
     }) as never)
 
     expect(response.status).toBe(200)
-    expect(auditDeployedBaraAttendanceEnvironment).toHaveBeenCalledWith('pre-enable')
-    expect(runBaraAttendanceSmoke).toHaveBeenCalledWith({ attendanceMode: 'pre-enable' })
+    expect(auditDeployedBaraAttendanceEnvironment)
+      .toHaveBeenCalledWith('pre-enable', 'exact_canary')
+    expect(runBaraAttendanceSmoke).toHaveBeenCalledWith({
+      attendanceMode: 'pre-enable',
+      scopeMode: 'exact_canary',
+      targetScopeMode: 'teacher_entitlements',
+    })
   })
 
   it.each([null, '', 'preview', 'all'])('rejects invalid rollout mode %s', async (mode) => {
@@ -79,6 +91,23 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
       headers,
     }) as never)
 
+    expect(response.status).toBe(400)
+    expect(auditDeployedBaraAttendanceEnvironment).not.toHaveBeenCalled()
+    expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
+  })
+
+  it.each([null, '', 'all'])('rejects invalid runtime scope mode %s', async (mode) => {
+    const headers = new Headers({
+      Authorization: 'Bearer dedicated-smoke-operator-secret-at-least-32-characters',
+      'X-Attendance-Rollout-Mode': 'pre-enable',
+      'X-Attendance-Target-Scope-Mode': 'exact_canary',
+    })
+    if (mode !== null) headers.set('X-Attendance-Scope-Mode', mode)
+
+    const response = await POST(new Request(
+      'https://pika.example/api/cron/bara-attendance-smoke',
+      { method: 'POST', headers },
+    ) as never)
     expect(response.status).toBe(400)
     expect(auditDeployedBaraAttendanceEnvironment).not.toHaveBeenCalled()
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
@@ -99,6 +128,8 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
       headers: {
         Authorization: 'Bearer dedicated-smoke-operator-secret-at-least-32-characters',
         'X-Attendance-Rollout-Mode': 'enabled',
+        'X-Attendance-Scope-Mode': 'teacher_entitlements',
+        'X-Attendance-Target-Scope-Mode': 'teacher_entitlements',
       },
     }) as never)
 
@@ -111,7 +142,8 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
       passedCount: 20,
       checkCount: 22,
     })
-    expect(auditDeployedBaraAttendanceEnvironment).toHaveBeenCalledWith('enabled')
+    expect(auditDeployedBaraAttendanceEnvironment)
+      .toHaveBeenCalledWith('enabled', 'teacher_entitlements')
     expect(runBaraAttendanceSmoke).not.toHaveBeenCalled()
   })
 
@@ -141,6 +173,7 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
       headers: {
         Authorization: 'Bearer wrong-or-unusable-operator-credential',
         'X-Attendance-Rollout-Mode': 'pre-enable',
+        'X-Attendance-Scope-Mode': 'exact_canary',
       },
     }) as never)
 

@@ -4,10 +4,12 @@ import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import {
-  assertBaraAttendanceCanaryClassroom,
   BaraAttendanceCanaryError,
-  getBaraAttendanceClassroomIntegrationState,
 } from '@/lib/server/bara-attendance-canary'
+import {
+  assertBaraAttendanceClassroomAccess,
+  getBaraAttendanceClassroomAccess,
+} from '@/lib/server/bara-attendance-scope'
 import {
   loadTeacherAttendanceView,
   TeacherAttendanceViewReadError,
@@ -38,10 +40,11 @@ export const GET = withErrorHandler('GetTeacherAttendanceSession', async (reques
   try {
     const integration = ownership.classroom.archived_at
       ? 'disabled'
-      : getBaraAttendanceClassroomIntegrationState({
+      : (await getBaraAttendanceClassroomAccess({
+          supabase,
           teacherId: user.id,
           classroomId: input.classroom_id,
-        })
+        })).state
     const view = await loadTeacherAttendanceView({
       supabase,
       classroomId: input.classroom_id,
@@ -92,7 +95,8 @@ export const POST = withErrorHandler('PostTeacherAttendanceSession', async (requ
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
-    assertBaraAttendanceCanaryClassroom({
+    await assertBaraAttendanceClassroomAccess({
+      supabase,
       teacherId: user.id,
       classroomId: input.classroom_id,
     })
@@ -105,6 +109,7 @@ export const POST = withErrorHandler('PostTeacherAttendanceSession', async (requ
       requestId: input.request_id,
       command: input.command,
       actor,
+      integrationState: 'ready',
     })
     return NextResponse.json(result)
   } catch (error) {

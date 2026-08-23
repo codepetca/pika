@@ -56,6 +56,7 @@ function readyEnvironment(): BaraAttendanceRolloutEnvironment {
 const target = {
   stage: 'preview' as const,
   attendanceMode: 'enabled' as const,
+  attendanceScopeMode: 'exact_canary' as const,
   expectedSupabaseRef: previewRef,
   productionSupabaseRef: productionRef,
   expectedPikaOrigin: 'https://pika-preview.example',
@@ -100,6 +101,19 @@ describe('Bara attendance rollout environment audit', () => {
     environment.PIKA_BARA_ATTENDANCE_ENABLED = 'false'
     expect(auditBaraAttendanceRolloutEnvironment(environment, target).failedChecks)
       .toContain('attendance_enabled')
+  })
+
+  it('pins the requested runtime scope while keeping the exact smoke canary configured', () => {
+    const environment = readyEnvironment()
+    expect(auditBaraAttendanceRolloutEnvironment(environment, target).ready).toBe(true)
+
+    environment.PIKA_BARA_ATTENDANCE_SCOPE_MODE = 'teacher_entitlements'
+    expect(auditBaraAttendanceRolloutEnvironment(environment, target).failedChecks)
+      .toContain('attendance_scope_mode')
+    expect(auditBaraAttendanceRolloutEnvironment(environment, {
+      ...target,
+      attendanceScopeMode: 'teacher_entitlements',
+    }).ready).toBe(true)
   })
 
   it('requires the smoke operator credential to be distinct from shared cron auth', () => {

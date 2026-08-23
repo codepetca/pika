@@ -4,8 +4,8 @@ import { withErrorHandler } from '@/lib/api-handler'
 import {
   assertBaraAttendanceCanaryClassroomOwner,
   BaraAttendanceCanaryError,
-  getBaraAttendanceCanaryScope,
 } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceWorkerScope } from '@/lib/server/bara-attendance-scope'
 import { reconcileBaraAttendanceSessions } from '@/lib/server/bara-attendance-reconciliation'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -22,9 +22,9 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const scope = getBaraAttendanceCanaryScope()
+  const scope = getBaraAttendanceWorkerScope()
   const supabase = getServiceRoleClient()
-  if (scope.state === 'ready' && scope.classroomId) {
+  if (scope.mode === 'exact_canary' && scope.state === 'ready' && scope.classroomId) {
     try {
       await assertBaraAttendanceCanaryClassroomOwner({
         supabase,
@@ -45,6 +45,7 @@ async function handle(request: NextRequest) {
     enabled: scope.state === 'ready',
     teacherId: scope.teacherId,
     classroomId: scope.classroomId,
+    scopeMode: scope.mode,
   })
   return NextResponse.json(summary, {
     status: summary.status === 'partial' ? 503 : 200,
