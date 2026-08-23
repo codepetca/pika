@@ -63,7 +63,10 @@ export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: 
       headers: privateResponseHeaders,
     })
   }
-  const result = await runBaraAttendanceSmoke({ attendanceMode: rolloutMode.data })
+  const result = await runBaraAttendanceSmoke({
+    attendanceMode: rolloutMode.data,
+    scopeMode: runtimeScopeMode.data,
+  })
   return NextResponse.json(result, {
     status: result.status === 'failed' ? 503 : 200,
     headers: privateResponseHeaders,

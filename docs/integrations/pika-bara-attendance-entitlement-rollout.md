@@ -26,7 +26,11 @@ Entitlements are keyed by stable Pika `users.id`. The service-role-only setter
 requires a unique operation UUID, optimistic expected revision, bounded actor
 and reason codes, validity window, and source. Every accepted request appends an
 audit row. Reusing an operation UUID with identical input is a no-op; different
-input is rejected. There is no browser or public operator route.
+input is rejected. The dry run emits a non-secret authorization binding over
+the exact Supabase origin, operation ID, teacher ID, requested state, validity,
+source, actor, reason, and expected revision. Execution accepts only that exact
+binding, preventing approval from being reused for another target or payload.
+There is no browser or public operator route.
 
 ## Revocation invariant
 
@@ -74,10 +78,12 @@ the same deactivation path after expiry.
      --expected-revision 0
    ```
 
-6. After separate authorization for that exact entitlement operation, set
-   `PIKA_ATTENDANCE_ENTITLEMENT_AUTHORIZATION` to the same operation UUID and
-   repeat with `--execute`. Inspect only the closed status/revision/duplicate
-   result and the aggregate worker health.
+6. Verify the dry-run target origin and proposed fields. After separate
+   authorization for that exact entitlement operation, set
+   `PIKA_ATTENDANCE_ENTITLEMENT_AUTHORIZATION` to the exact
+   `authorization_binding` emitted by that dry run and repeat with `--execute`.
+   Inspect only the closed status/revision/duplicate result and aggregate worker
+   health. A target or payload change requires a new dry run and authorization.
 7. Seed the verified teacher entitlement while runtime remains exact-canary.
    Then, under a separate flag-change authorization, set
    `PIKA_BARA_ATTENDANCE_SCOPE_MODE=teacher_entitlements` and redeploy Pika.

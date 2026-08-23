@@ -67,7 +67,10 @@ describe('POST /api/cron/bara-attendance-smoke', () => {
     expect(response.status).toBe(200)
     expect(auditDeployedBaraAttendanceEnvironment)
       .toHaveBeenCalledWith('pre-enable', 'exact_canary')
-    expect(runBaraAttendanceSmoke).toHaveBeenCalledWith({ attendanceMode: 'pre-enable' })
+    expect(runBaraAttendanceSmoke).toHaveBeenCalledWith({
+      attendanceMode: 'pre-enable',
+      scopeMode: 'exact_canary',
+    })
   })
 
   it.each([null, '', 'preview', 'all'])('rejects invalid rollout mode %s', async (mode) => {

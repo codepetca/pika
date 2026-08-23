@@ -391,8 +391,16 @@ export async function deliverBaraAttendanceMessage(input: {
 
   const { data, error } = await callOutboxRpc(
     input.supabase,
-    'enqueue_attendance_outbound_message_v1',
-    { p_classroom_id: input.classroomId, p_message: validation.value },
+    scopeMode === 'teacher_entitlements'
+      ? 'enqueue_attendance_outbound_message_v2'
+      : 'enqueue_attendance_outbound_message_v1',
+    {
+      ...(scopeMode === 'teacher_entitlements'
+        ? { p_teacher_id: input.teacherId, p_at: (input.now ?? new Date()).toISOString() }
+        : {}),
+      p_classroom_id: input.classroomId,
+      p_message: validation.value,
+    },
   )
   if (error) mapDatabaseError(error, 'persist attendance message')
   const enqueued = parseOutboxRow(data)
@@ -402,6 +410,13 @@ export async function deliverBaraAttendanceMessage(input: {
   if (enqueued.status === 'non_retryable') {
     throw new BaraAttendanceOutboxError(
       'Attendance message requires operator review',
+      'delivery_pending',
+      false,
+    )
+  }
+  if (enqueued.status === 'superseded') {
+    throw new BaraAttendanceOutboxError(
+      'Attendance message was superseded by an authorization change',
       'delivery_pending',
       false,
     )

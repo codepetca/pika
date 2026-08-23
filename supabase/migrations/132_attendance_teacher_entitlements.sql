@@ -19,7 +19,9 @@ create table public.attendance_teacher_entitlements (
 create table public.attendance_teacher_entitlement_audit (
   id uuid primary key default gen_random_uuid(),
   operation_id uuid not null unique,
-  teacher_id uuid not null references public.users (id) on delete cascade,
+  -- Immutable subject snapshot: deleting a user removes live entitlement state
+  -- but must not erase who was granted or revoked historically.
+  teacher_id uuid not null,
   previous_status text check (previous_status in ('active', 'revoked')),
   new_status text not null check (new_status in ('active', 'revoked')),
   entitlement_revision bigint not null check (entitlement_revision > 0),
@@ -47,23 +49,47 @@ alter table public.attendance_roster_mappings
     check (integration_state in ('active', 'deactivating', 'inactive')),
   add column deactivation_requested_at timestamptz,
   add column inactive_at timestamptz,
+  add column remote_schedule_window_end date,
   add column deactivation_window_start date,
   add column deactivation_window_end date,
+  add column deactivation_target_end date,
   add constraint attendance_roster_mappings_deactivation_window_check check (
-    (deactivation_window_start is null and deactivation_window_end is null)
+    (
+      deactivation_window_start is null
+      and deactivation_window_end is null
+      and deactivation_target_end is null
+    )
     or (
       deactivation_window_start is not null
       and deactivation_window_end is not null
+      and deactivation_target_end is not null
       and deactivation_window_end >= deactivation_window_start
       and deactivation_window_end - deactivation_window_start <= 400
+      and deactivation_target_end >= deactivation_window_end
     )
   );
 
 alter table public.attendance_integration_outbox
+  add column entitlement_revision bigint,
   drop constraint attendance_integration_outbox_status_check;
 alter table public.attendance_integration_outbox
   add constraint attendance_integration_outbox_status_check
   check (status in ('pending', 'processing', 'delivered', 'non_retryable', 'superseded'));
+
+-- Preserve the furthest window Bara may already know about before entitlement
+-- mode is enabled. This metadata backfill does not enqueue or deliver work.
+update public.attendance_roster_mappings roster
+set remote_schedule_window_end = delivered.window_end
+from (
+  select outbox.classroom_id,
+    max((outbox.payload->>'window_end')::date) as window_end
+  from public.attendance_integration_outbox outbox
+  where outbox.message_type = 'schedule.snapshot'
+    and outbox.status = 'delivered'
+    and outbox.payload->>'window_end' ~ '^\d{4}-\d{2}-\d{2}$'
+  group by outbox.classroom_id
+) delivered
+where roster.classroom_id = delivered.classroom_id;
 
 create function public.attendance_teacher_entitled_v1(
   p_teacher_id uuid,
@@ -83,6 +109,66 @@ as $$
       and entitlement.valid_from <= p_at
       and (entitlement.valid_until is null or entitlement.valid_until > p_at)
   );
+$$;
+
+create function public.enqueue_attendance_outbound_message_v2(
+  p_teacher_id uuid,
+  p_classroom_id uuid,
+  p_message jsonb,
+  p_at timestamptz default clock_timestamp()
+)
+returns public.attendance_integration_outbox
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_entitlement_revision bigint;
+  v_row public.attendance_integration_outbox%rowtype;
+begin
+  if p_teacher_id is null or p_classroom_id is null or p_at is null then
+    raise exception using errcode = '22023', message = 'attendance_outbox_enqueue_invalid';
+  end if;
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_teacher_id::text, 13220260823)
+  );
+  select entitlement.revision into v_entitlement_revision
+  from public.attendance_teacher_entitlements entitlement
+  join public.classrooms classroom
+    on classroom.teacher_id = entitlement.teacher_id
+  left join public.attendance_roster_mappings roster
+    on roster.classroom_id = classroom.id
+  where entitlement.teacher_id = p_teacher_id
+    and classroom.id = p_classroom_id
+    and classroom.archived_at is null
+    and entitlement.status = 'active'
+    and entitlement.valid_from <= p_at
+    and (entitlement.valid_until is null or entitlement.valid_until > p_at)
+    and coalesce(roster.integration_state, 'active') = 'active';
+  if v_entitlement_revision is null then
+    raise exception using errcode = '42501', message = 'attendance_classroom_not_entitled';
+  end if;
+
+  select * into v_row from public.enqueue_attendance_outbound_message_v1(
+    p_classroom_id, p_message
+  );
+  if v_row.entitlement_revision is not null
+    and v_row.entitlement_revision <> v_entitlement_revision
+    and v_row.status in ('pending', 'processing', 'non_retryable') then
+    update public.attendance_integration_outbox
+    set status = 'superseded', lease_token = null, lease_expires_at = null,
+        updated_at = clock_timestamp()
+    where id = v_row.id
+    returning * into v_row;
+    return v_row;
+  end if;
+  update public.attendance_integration_outbox
+  set entitlement_revision = coalesce(entitlement_revision, v_entitlement_revision),
+      updated_at = clock_timestamp()
+  where id = v_row.id and status <> 'superseded'
+  returning * into v_row;
+  return v_row;
+end;
 $$;
 
 create function public.set_attendance_teacher_entitlement_v1(
@@ -123,6 +209,12 @@ begin
   ) then
     raise exception using errcode = 'P0002', message = 'attendance_entitlement_teacher_not_found';
   end if;
+
+  -- A missing entitlement row cannot be protected by FOR UPDATE. Serialize the
+  -- first grant/revoke and every later revision on the stable teacher ID.
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_teacher_id::text, 13220260823)
+  );
 
   v_fingerprint := md5(jsonb_build_object(
     'teacher_id', p_teacher_id,
@@ -182,6 +274,19 @@ begin
     v_revision, p_valid_from, p_valid_until, p_source,
     p_actor_ref, p_reason_code, v_fingerprint
   );
+
+  if p_status = 'revoked' then
+    -- Close the revoke/regrant race immediately. Cleanup is represented by a
+    -- new higher-revision empty schedule; pre-revocation work must never become
+    -- claimable again merely because a later entitlement is active.
+    update public.attendance_integration_outbox outbox
+    set status = 'superseded', lease_token = null, lease_expires_at = null,
+        updated_at = clock_timestamp()
+    from public.classrooms classroom
+    where classroom.id = outbox.classroom_id
+      and classroom.teacher_id = p_teacher_id
+      and outbox.status in ('pending', 'processing', 'non_retryable');
+  end if;
 
   return jsonb_build_object(
     'teacher_id', p_teacher_id,
@@ -278,7 +383,9 @@ as $$
     where p_at is not null and p_limit between 1 and 51
       and classroom.archived_at is null
       and public.attendance_teacher_entitled_v1(classroom.teacher_id, p_at)
-      and coalesce(roster.integration_state, 'active') = 'active'
+      and coalesce(roster.integration_state, 'active') in (
+        'active', 'deactivating', 'inactive'
+      )
       and (
         entitlement.valid_until is null
         or (entitlement.valid_until at time zone 'America/Toronto')::date - 1
@@ -322,6 +429,7 @@ declare
   v_has_remote_intent boolean;
   v_deactivation_window_start date;
   v_deactivation_window_end date;
+  v_deactivation_target_end date;
 begin
   if p_teacher_id is null or p_classroom_id is null or p_at is null
     or p_window_start is null or p_window_end is null
@@ -357,7 +465,9 @@ begin
       update public.attendance_roster_mappings
       set integration_state = 'active', deactivation_requested_at = null,
           inactive_at = null, deactivation_window_start = null,
-          deactivation_window_end = null, updated_at = clock_timestamp()
+          deactivation_window_end = null, deactivation_target_end = null,
+          source_token = null, schedule_source_token = null,
+          updated_at = clock_timestamp()
       where classroom_id = p_classroom_id;
     end if;
     v_prepared := public.prepare_attendance_snapshot_v1(
@@ -370,11 +480,8 @@ begin
     raise exception using errcode = '55000', message = 'attendance_classroom_inactive';
   end if;
 
-  select v_roster.schedule_source_revision > 0 or exists (
-    select 1 from public.attendance_integration_outbox outbox
-    where outbox.classroom_id = p_classroom_id
-      and outbox.message_type = 'schedule.snapshot'
-  ) into v_has_remote_intent;
+  v_has_remote_intent := v_roster.remote_schedule_window_end is not null
+    and v_roster.remote_schedule_window_end >= p_window_start;
 
   if not v_has_remote_intent then
     update public.attendance_integration_outbox
@@ -395,11 +502,16 @@ begin
     );
   end if;
 
+  v_deactivation_target_end := coalesce(
+    v_roster.deactivation_target_end,
+    greatest(p_window_end, v_roster.remote_schedule_window_end)
+  );
   v_deactivation_window_start := coalesce(
     v_roster.deactivation_window_start, p_window_start
   );
   v_deactivation_window_end := coalesce(
-    v_roster.deactivation_window_end, p_window_end
+    v_roster.deactivation_window_end,
+    least(v_deactivation_window_start + 400, v_deactivation_target_end)
   );
   v_token := md5(jsonb_build_object(
     'mode', 'deactivation',
@@ -417,6 +529,7 @@ begin
       deactivation_requested_at = coalesce(deactivation_requested_at, clock_timestamp()),
       deactivation_window_start = v_deactivation_window_start,
       deactivation_window_end = v_deactivation_window_end,
+      deactivation_target_end = v_deactivation_target_end,
       schedule_source_token = v_token,
       schedule_source_revision = v_revision,
       updated_at = clock_timestamp()
@@ -456,6 +569,8 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_result jsonb;
 begin
   if not public.attendance_teacher_entitled_v1(p_teacher_id, p_at)
     or not exists (
@@ -469,9 +584,13 @@ begin
     ) then
     raise exception using errcode = '42501', message = 'attendance_classroom_not_entitled';
   end if;
-  return public.stage_attendance_roster_snapshot_v1(
+  v_result := public.stage_attendance_roster_snapshot_v1(
     p_teacher_id, p_classroom_id, p_source_token, p_message
   );
+  perform public.enqueue_attendance_outbound_message_v2(
+    p_teacher_id, p_classroom_id, p_message, p_at
+  );
+  return v_result;
 end;
 $$;
 
@@ -517,6 +636,7 @@ declare
   v_classroom public.classrooms%rowtype;
   v_roster public.attendance_roster_mappings%rowtype;
   v_outbox public.attendance_integration_outbox%rowtype;
+  v_active_result jsonb;
   v_window_start date;
   v_window_end date;
 begin
@@ -529,9 +649,13 @@ begin
     and v_classroom.teacher_id = p_teacher_id
     and v_classroom.archived_at is null
     and v_roster.integration_state = 'active' then
-    return public.stage_attendance_schedule_snapshot_v1(
+    v_active_result := public.stage_attendance_schedule_snapshot_v1(
       p_teacher_id, p_classroom_id, p_source_token, p_message
     );
+    perform public.enqueue_attendance_outbound_message_v2(
+      p_teacher_id, p_classroom_id, p_message, p_at
+    );
+    return v_active_result;
   end if;
 
   if v_classroom.id is null or v_classroom.teacher_id <> p_teacher_id
@@ -546,14 +670,18 @@ begin
     or (p_message->>'revision')::bigint <> v_roster.schedule_source_revision
     or p_message->>'window_start' !~ '^\d{4}-\d{2}-\d{2}$'
     or p_message->>'window_end' !~ '^\d{4}-\d{2}-\d{2}$'
-    or jsonb_typeof(p_message->'occurrences') <> 'array'
-    or jsonb_array_length(p_message->'occurrences') <> 0 then
+    or case when jsonb_typeof(p_message->'occurrences') = 'array'
+      then jsonb_array_length(p_message->'occurrences') <> 0
+      else true
+    end then
     raise exception using errcode = '42501', message = 'attendance_deactivation_schedule_invalid';
   end if;
   v_window_start := (p_message->>'window_start')::date;
   v_window_end := (p_message->>'window_end')::date;
   if v_window_start is null or v_window_end is null
-    or v_window_end < v_window_start or v_window_end - v_window_start > 400 then
+    or v_window_end < v_window_start or v_window_end - v_window_start > 400
+    or v_window_start <> v_roster.deactivation_window_start
+    or v_window_end <> v_roster.deactivation_window_end then
     raise exception using errcode = '22023', message = 'attendance_snapshot_window_invalid';
   end if;
 
@@ -610,6 +738,11 @@ as $$
         (
           roster.integration_state = 'active'
           and public.attendance_teacher_entitled_v1(p_teacher_id, p_at)
+          and p_row.entitlement_revision = (
+            select entitlement.revision
+            from public.attendance_teacher_entitlements entitlement
+            where entitlement.teacher_id = p_teacher_id
+          )
           and public.attendance_outbox_dependencies_ready_v1(p_row)
         )
         or (
@@ -715,9 +848,43 @@ begin
     p_outbox_id, p_lease_token, p_response_payload
   );
   if v_completed and v_row.message_type = 'schedule.snapshot'
-    and jsonb_array_length(v_row.payload->'occurrences') = 0 then
+    and jsonb_typeof(v_row.payload) = 'object'
+    and v_row.payload->>'window_end' ~ '^\d{4}-\d{2}-\d{2}$' then
     update public.attendance_roster_mappings
-    set integration_state = 'inactive', inactive_at = clock_timestamp(),
+    set remote_schedule_window_end = greatest(
+          coalesce(remote_schedule_window_end, (v_row.payload->>'window_end')::date),
+          (v_row.payload->>'window_end')::date
+        ),
+        updated_at = clock_timestamp()
+    where classroom_id = v_row.classroom_id
+      and integration_state = 'active';
+  end if;
+  if v_completed and v_row.message_type = 'schedule.snapshot'
+    and case when jsonb_typeof(v_row.payload->'occurrences') = 'array'
+      then jsonb_array_length(v_row.payload->'occurrences') = 0
+      else false
+    end then
+    update public.attendance_roster_mappings
+    set integration_state = case
+          when deactivation_window_end < deactivation_target_end
+            then 'deactivating'
+          else 'inactive'
+        end,
+        inactive_at = case
+          when deactivation_window_end < deactivation_target_end
+            then null
+          else clock_timestamp()
+        end,
+        deactivation_window_start = case
+          when deactivation_window_end < deactivation_target_end
+            then deactivation_window_end + 1
+          else deactivation_window_start
+        end,
+        deactivation_window_end = case
+          when deactivation_window_end < deactivation_target_end
+            then least(deactivation_window_end + 401, deactivation_target_end)
+          else deactivation_window_end
+        end,
         updated_at = clock_timestamp()
     where classroom_id = v_row.classroom_id
       and integration_state = 'deactivating'
@@ -866,6 +1033,9 @@ $$;
 
 revoke all on function public.attendance_teacher_entitled_v1(uuid, timestamptz)
   from public, anon, authenticated;
+revoke all on function public.enqueue_attendance_outbound_message_v2(
+  uuid, uuid, jsonb, timestamptz
+) from public, anon, authenticated;
 revoke all on function public.set_attendance_teacher_entitlement_v1(
   uuid, uuid, text, timestamptz, timestamptz, text, text, text, bigint
 ) from public, anon, authenticated;
@@ -908,6 +1078,9 @@ revoke all on function public.attendance_outbox_health_v3()
 
 grant execute on function public.attendance_teacher_entitled_v1(uuid, timestamptz)
   to service_role;
+grant execute on function public.enqueue_attendance_outbound_message_v2(
+  uuid, uuid, jsonb, timestamptz
+) to service_role;
 grant execute on function public.set_attendance_teacher_entitlement_v1(
   uuid, uuid, text, timestamptz, timestamptz, text, text, text, bigint
 ) to service_role;

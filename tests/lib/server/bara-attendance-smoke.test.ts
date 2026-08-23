@@ -18,7 +18,10 @@ const integrationSecret = 'pika-to-bara-smoke-secret-at-least-32-characters'
 const eventSecret = 'bara-to-pika-smoke-secret-at-least-32-characters'
 const now = Date.parse('2026-08-22T12:00:00Z')
 
-function supabaseMock(consumeData: unknown = true) {
+function supabaseMock(
+  consumeData: unknown = true,
+  entitlementAccess: unknown = { state: 'ready', schedule_through: null },
+) {
   const chain = {
     select: vi.fn(() => chain),
     eq: vi.fn(() => chain),
@@ -36,6 +39,9 @@ function supabaseMock(consumeData: unknown = true) {
     }
     if (name === 'consume_attendance_integration_smoke_nonce_v1') {
       return { data: consumeData, error: null }
+    }
+    if (name === 'get_attendance_classroom_access_v1') {
+      return { data: entitlementAccess, error: null }
     }
     throw new Error(`unexpected rpc ${name}`)
   })
@@ -92,6 +98,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
 
     await expect(runBaraAttendanceSmoke({
       attendanceMode: 'pre-enable',
+      scopeMode: 'exact_canary',
       supabase: supabase as never,
       fetcher,
       now: () => now,
@@ -118,11 +125,34 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     const fetcher = vi.fn()
     await expect(runBaraAttendanceSmoke({
       attendanceMode: 'pre-enable',
+      scopeMode: 'exact_canary',
       supabase: supabase as never,
       fetcher,
     })).resolves.toMatchObject({ status: 'skipped', reason: 'production_only' })
     expect(supabase.from).not.toHaveBeenCalled()
     expect(supabase.rpc).not.toHaveBeenCalled()
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('requires the exact canary teacher entitlement before entitlement-mode smoke state', async () => {
+    const supabase = supabaseMock(true, { state: 'disabled', schedule_through: null })
+    const fetcher = vi.fn()
+    await expect(runBaraAttendanceSmoke({
+      attendanceMode: 'enabled',
+      scopeMode: 'teacher_entitlements',
+      supabase: supabase as never,
+      fetcher,
+      now: () => now,
+    })).resolves.toMatchObject({ status: 'failed', reason: 'not_configured' })
+    expect(supabase.rpc).toHaveBeenCalledWith('get_attendance_classroom_access_v1', {
+      p_teacher_id: teacherId,
+      p_classroom_id: classroomId,
+      p_at: new Date(now).toISOString(),
+    })
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'begin_attendance_integration_smoke_v1',
+      expect.anything(),
+    )
     expect(fetcher).not.toHaveBeenCalled()
   })
 

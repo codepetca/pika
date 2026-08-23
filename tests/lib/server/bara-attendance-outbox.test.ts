@@ -33,7 +33,7 @@ const result = {
   sessionRevision: 2,
 }
 
-function row(status: 'pending' | 'processing' | 'delivered' | 'non_retryable', input: {
+function row(status: 'pending' | 'processing' | 'delivered' | 'non_retryable' | 'superseded', input: {
   attempts?: number
   response?: unknown
 } = {}) {
@@ -324,7 +324,15 @@ describe('Bara attendance outbound outbox', () => {
     const order: string[] = []
     const supabase = rpcClient((name, args) => {
       order.push(name)
-      if (name === 'enqueue_attendance_outbound_message_v1') return row('pending')
+      if (name === 'enqueue_attendance_outbound_message_v2') {
+        expect(args).toEqual({
+          p_teacher_id: teacherId,
+          p_classroom_id: classroomId,
+          p_message: message,
+          p_at: '2026-08-23T12:00:00.000Z',
+        })
+        return row('pending')
+      }
       if (name === 'claim_attendance_outbound_message_v2') {
         expect(args).toMatchObject({
           p_teacher_id: teacherId,
@@ -343,13 +351,33 @@ describe('Bara attendance outbound outbox', () => {
       classroomId,
       message,
       scopeMode: 'teacher_entitlements',
+      now: new Date('2026-08-23T12:00:00.000Z'),
       deliver: vi.fn().mockResolvedValue(result),
     })).resolves.toEqual(result)
     expect(order).toEqual([
-      'enqueue_attendance_outbound_message_v1',
+      'enqueue_attendance_outbound_message_v2',
       'claim_attendance_outbound_message_v2',
       'complete_attendance_outbox_v2',
     ])
+  })
+
+  it('never claims an entitlement-epoch message already superseded by revocation', async () => {
+    const supabase = rpcClient((name) => {
+      if (name === 'enqueue_attendance_outbound_message_v2') return row('superseded')
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      teacherId,
+      classroomId,
+      message,
+      scopeMode: 'teacher_entitlements',
+      deliver: vi.fn(),
+    })).rejects.toMatchObject<BaraAttendanceOutboxError>({
+      code: 'delivery_pending',
+      retryable: false,
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
   })
 
   it('does not enqueue entitlement-mode work without a verified teacher owner', async () => {

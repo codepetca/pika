@@ -126,6 +126,7 @@ function failure(reason: AttendanceSmokeResult['reason'], checks?: Partial<Atten
 
 export async function runBaraAttendanceSmoke(input: {
   attendanceMode: 'pre-enable' | 'enabled'
+  scopeMode: 'exact_canary' | 'teacher_entitlements'
   supabase?: SmokeRpcClient
   fetcher?: typeof fetch
   now?: () => number
@@ -156,6 +157,17 @@ export async function runBaraAttendanceSmoke(input: {
   }
 
   const now = input.now?.() ?? Date.now()
+  if (input.scopeMode === 'teacher_entitlements') {
+    const access = await supabase.rpc('get_attendance_classroom_access_v1', {
+      p_teacher_id: config.teacherId,
+      p_classroom_id: config.classroomId,
+      p_at: new Date(now).toISOString(),
+    })
+    if (
+      access.error
+      || !z.object({ state: z.literal('ready') }).passthrough().safeParse(access.data).success
+    ) return failure('not_configured')
+  }
   const random = (input.randomId?.() ?? crypto.randomUUID().replaceAll('-', '')).toLowerCase()
   const requestId = `smoke_request_${random}`
   const challenge = `smoke_${random.slice(0, 32)}`

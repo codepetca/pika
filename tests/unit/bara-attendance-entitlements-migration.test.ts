@@ -14,8 +14,10 @@ describe('Bara attendance teacher entitlement migration', () => {
     expect(migration).toContain('operation_id uuid not null unique')
     expect(migration).toContain('attendance_entitlement_operation_conflict')
     expect(migration).toContain('attendance_entitlement_revision_conflict')
+    expect(migration).toContain('pg_advisory_xact_lock')
     expect(migration).toContain('from public, anon, authenticated, service_role')
     expect(migration).not.toContain('grant insert on table public.attendance_teacher_entitlement_audit')
+    expect(migration).not.toContain('teacher_id uuid not null references public.users (id) on delete cascade')
   })
 
   it('uses one database entitlement predicate across admission, staging, and claims', () => {
@@ -28,6 +30,7 @@ describe('Bara attendance teacher entitlement migration', () => {
       'stage_attendance_schedule_snapshot_v2',
       'upsert_attendance_window_policy_v2',
       'attendance_outbox_claim_allowed_v1',
+      'enqueue_attendance_outbound_message_v2',
       'claim_attendance_outbound_message_v2',
       'claim_attendance_outbox_batch_v3',
     ]) expect(migration).toContain(`function public.${functionName}`)
@@ -38,7 +41,11 @@ describe('Bara attendance teacher entitlement migration', () => {
     expect(migration).toContain("integration_state in ('active', 'deactivating', 'inactive')")
     expect(migration).toContain("status in ('pending', 'processing', 'delivered', 'non_retryable', 'superseded')")
     expect(migration).toContain("set status = 'superseded'")
-    expect(migration).toContain("jsonb_array_length(p_message->'occurrences') <> 0")
+    expect(migration).toContain('remote_schedule_window_end')
+    expect(migration).toContain('deactivation_target_end')
+    expect(migration).toContain('deactivation_window_end + 401')
+    expect(migration).toContain('v_window_start <> v_roster.deactivation_window_start')
+    expect(migration).toContain('p_row.entitlement_revision')
     expect(migration).toContain("set integration_state = 'inactive'")
     expect(migration).toContain('list_attendance_reconciliation_targets_v3')
     expect(migration).toContain('apply_attendance_event_for_entitled_mapping_v1')
