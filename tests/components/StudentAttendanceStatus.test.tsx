@@ -119,9 +119,9 @@ describe('StudentAttendanceStatus', () => {
     expect(screen.getByText('Attendance check-in is open')).toBeInTheDocument()
   })
 
-  it('hides at the exact close instant and retries a failed refresh without stale QR copy', async () => {
+  it('hides at a sub-second exact close and retries a failed refresh without stale QR copy', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-08-23T13:59:58.000Z'))
+    vi.setSystemTime(new Date('2026-08-23T13:59:59.900Z'))
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(statusResponse({
         classrooms: [{
@@ -140,7 +140,7 @@ describe('StudentAttendanceStatus', () => {
     expect(screen.getByText('Attendance check-in is open')).toBeInTheDocument()
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2_000)
+      await vi.advanceTimersByTimeAsync(100)
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -151,5 +151,59 @@ describe('StudentAttendanceStatus', () => {
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(screen.queryByText('Scan the QR shown by your teacher.')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      name: 'Toronto midnight',
+      now: '2026-08-24T03:59:59.900Z',
+      validUntil: '2026-08-24T04:00:00.000Z',
+      closesAt: '2026-08-23T14:00:00.000Z',
+    },
+    {
+      name: 'an overnight close',
+      now: '2026-08-24T04:59:59.900Z',
+      validUntil: '2026-08-24T05:00:00.000Z',
+      closesAt: '2026-08-24T05:00:00.000Z',
+    },
+  ])('hides an expired confirmation at $name even when refreshes fail', async ({
+    now,
+    validUntil,
+    closesAt,
+  }) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(now))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'confirmed',
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt,
+          attendanceStatus: 'present',
+          confirmedAt: '2026-08-23T13:07:00.000Z',
+          validUntil,
+        }],
+        nextRefreshAt: validUntil,
+      }))
+      .mockRejectedValue(new Error('service unavailable'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000)
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
   })
 })

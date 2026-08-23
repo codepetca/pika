@@ -98,6 +98,18 @@ function nextTorontoDayBoundary(now: Date): string {
   )
 }
 
+function confirmedValidityBoundary(
+  occurrence: OccurrenceRow | null,
+  closesAt: string | null,
+  now: Date,
+): string {
+  const dayBoundary = occurrence
+    ? toTorontoStartOfDayIso(addDaysToDateString(occurrence.class_date, 1))
+    : nextTorontoDayBoundary(now)
+  if (!closesAt || !Number.isFinite(Date.parse(closesAt))) return dayBoundary
+  return new Date(Math.max(Date.parse(dayBoundary), Date.parse(closesAt))).toISOString()
+}
+
 export function buildStudentAttendanceClassroomState(input: {
   classroomId: string
   occurrence: OccurrenceRow | null
@@ -115,6 +127,7 @@ export function buildStudentAttendanceClassroomState(input: {
   if (record && ownConfirmedStatus) {
     const closesTime = closesAt ? Date.parse(closesAt) : Number.NaN
     const shouldRefreshBeforeClose = Number.isFinite(closesTime) && now.getTime() < closesTime
+    const validUntil = confirmedValidityBoundary(occurrence, closesAt, now)
     return {
       state: {
         classroomId,
@@ -123,10 +136,11 @@ export function buildStudentAttendanceClassroomState(input: {
         closesAt,
         attendanceStatus: ownConfirmedStatus,
         confirmedAt: record.last_event_at,
+        validUntil,
       },
       nextRefreshAt: shouldRefreshBeforeClose
         ? new Date(Math.min(now.getTime() + OPEN_REFRESH_MS, closesTime)).toISOString()
-        : nextTorontoDayBoundary(now),
+        : validUntil,
     }
   }
 

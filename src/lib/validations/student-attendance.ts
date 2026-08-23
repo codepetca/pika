@@ -23,6 +23,7 @@ export const studentAttendanceClassroomStateSchema = z.object({
   closesAt: z.string().datetime({ offset: true }).nullable(),
   attendanceStatus: z.enum(['present', 'late']).optional(),
   confirmedAt: z.string().datetime({ offset: true }).optional(),
+  validUntil: z.string().datetime({ offset: true }).optional(),
 }).strict()
 
 export const studentAttendanceStatusViewSchema = z.object({

@@ -52,9 +52,10 @@ A confirmed state may remain visible for the current occurrence after close;
 only the stale open prompt must disappear. Closed confirmations revalidate at
 the next Toronto midnight, while an occurrence that legitimately closes the
 next day remains current until its close. The server response includes a
-bounded next-refresh hint, while the client also suppresses an open prompt at
-the known close instant so timer delay or a failed read cannot leave stale
-instructions visible.
+bounded next-refresh hint and a confirmation validity boundary. The client
+suppresses an open prompt at the known close instant and confirmation at its
+validity boundary, so timer delay or a failed read cannot leave stale
+instructions or a prior occurrence's confirmation visible.
 
 ## Minimum safe read model
 

@@ -102,6 +102,7 @@ describe('student attendance status view', () => {
       state: 'confirmed',
       attendanceStatus: 'late',
       confirmedAt: '2026-08-23T13:07:00.000Z',
+      validUntil: '2026-08-24T04:00:00.000Z',
     }))
   })
 
@@ -269,6 +270,7 @@ describe('student attendance status view', () => {
     expect(beforeClose.classrooms[0]).toEqual(expect.objectContaining({
       state: 'confirmed',
       confirmedAt: '2026-08-24T03:15:00.000Z',
+      validUntil: '2026-08-24T05:00:00.000Z',
     }))
 
     const afterClose = await loadStudentAttendanceStatusView({
@@ -310,5 +312,9 @@ describe('student attendance status view', () => {
     })
 
     expect(result.nextRefreshAt).toBe('2026-08-24T04:00:00.000Z')
+    expect(result.state).toEqual(expect.objectContaining({
+      state: 'confirmed',
+      validUntil: '2026-08-24T04:00:00.000Z',
+    }))
   })
 })

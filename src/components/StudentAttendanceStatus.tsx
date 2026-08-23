@@ -32,6 +32,11 @@ export function resolveVisibleStudentAttendanceState(
     && state.closesAt
     && now.getTime() >= Date.parse(state.closesAt)
   ) return null
+  if (
+    state.state === 'confirmed'
+    && state.validUntil
+    && now.getTime() >= Date.parse(state.validUntil)
+  ) return null
   return state.state === 'open' || state.state === 'confirmed' ? state : null
 }
 
@@ -42,6 +47,7 @@ export function useStudentAttendanceStatusView(studentId?: string) {
   const [refreshCycle, setRefreshCycle] = useState(0)
   const mountedRef = useRef(true)
   const activeStudentIdRef = useRef(studentId)
+  const handledBoundaryTimesRef = useRef(new Set<number>())
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (!studentId) return
@@ -63,6 +69,7 @@ export function useStudentAttendanceStatusView(studentId?: string) {
   useEffect(() => {
     mountedRef.current = true
     activeStudentIdRef.current = studentId
+    handledBoundaryTimesRef.current.clear()
     setView(null)
     setNowMs(Date.now())
     if (studentId) void load(false)
@@ -72,15 +79,22 @@ export function useStudentAttendanceStatusView(studentId?: string) {
   useEffect(() => {
     if (!view) return
     const nextRefreshTime = view.nextRefreshAt ? Date.parse(view.nextRefreshAt) : Number.NaN
-    const nextCloseTime = view.classrooms.reduce((earliest, state) => {
-      if (state.state !== 'open' || !state.closesAt) return earliest
-      const closesTime = Date.parse(state.closesAt)
-      return Number.isFinite(closesTime) ? Math.min(earliest, closesTime) : earliest
-    }, Number.POSITIVE_INFINITY)
-    const targetTime = Math.min(
-      Number.isFinite(nextRefreshTime) ? nextRefreshTime : Number.POSITIVE_INFINITY,
-      nextCloseTime,
-    )
+    const localBoundaryTimes = view.classrooms.flatMap((state) => {
+      const boundary = state.state === 'open'
+        ? state.closesAt
+        : state.state === 'confirmed' ? state.validUntil : null
+      if (!boundary) return []
+      const boundaryTime = Date.parse(boundary)
+      return Number.isFinite(boundaryTime) ? [boundaryTime] : []
+    })
+    if (
+      Number.isFinite(nextRefreshTime)
+      && localBoundaryTimes.includes(nextRefreshTime)
+      && !handledBoundaryTimesRef.current.has(nextRefreshTime)
+    ) return
+    const targetTime = Number.isFinite(nextRefreshTime)
+      ? nextRefreshTime
+      : Number.POSITIVE_INFINITY
     if (!Number.isFinite(targetTime)) return
     const timeUntilTarget = targetTime - Date.now()
     const delay = timeUntilTarget <= 0
@@ -92,6 +106,33 @@ export function useStudentAttendanceStatusView(studentId?: string) {
     }, delay)
     return () => window.clearTimeout(timer)
   }, [load, refreshCycle, view])
+
+  useEffect(() => {
+    if (!view) return
+    const nextUnhandledBoundary = view.classrooms.reduce((earliest, state) => {
+      const boundary = state.state === 'open'
+        ? state.closesAt
+        : state.state === 'confirmed' ? state.validUntil : null
+      if (!boundary) return earliest
+      const boundaryTime = Date.parse(boundary)
+      if (
+        !Number.isFinite(boundaryTime)
+        || handledBoundaryTimesRef.current.has(boundaryTime)
+      ) {
+        return earliest
+      }
+      return Math.min(earliest, boundaryTime)
+    }, Number.POSITIVE_INFINITY)
+    if (!Number.isFinite(nextUnhandledBoundary)) return
+    const remaining = Math.max(0, nextUnhandledBoundary - Date.now())
+    const timer = window.setTimeout(() => {
+      setNowMs(Date.now())
+      if (Date.now() < nextUnhandledBoundary) return
+      handledBoundaryTimesRef.current.add(nextUnhandledBoundary)
+      void load(true)
+    }, Math.min(MAX_REFRESH_DELAY_MS, remaining))
+    return () => window.clearTimeout(timer)
+  }, [load, nowMs, refreshCycle, view])
 
   return { view, refreshing, now: new Date(nowMs) }
 }
