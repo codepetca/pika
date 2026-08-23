@@ -42,6 +42,8 @@ describe('Bara attendance teacher entitlement migration', () => {
     expect(migration).toContain("status in ('pending', 'processing', 'delivered', 'non_retryable', 'superseded')")
     expect(migration).toContain("set status = 'superseded'")
     expect(migration).toContain('remote_schedule_window_end')
+    expect(migration).toContain('create or replace function public.complete_attendance_outbox_v1(')
+    expect(migration).toContain("when integration_state = 'active'")
     expect(migration).toContain('deactivation_target_end')
     expect(migration).toContain('deactivation_window_end + 401')
     expect(migration).toContain('v_window_start <> v_roster.deactivation_window_start')

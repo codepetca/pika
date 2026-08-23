@@ -826,6 +826,72 @@ begin
 end;
 $$;
 
+-- Schedule delivery can still use the v1 completion path while rollout scope
+-- remains exact_canary. Track Bara's acknowledged horizon at the completion
+-- boundary so a later entitlement revocation always cancels every delivered
+-- future window, independent of the scope mode that staged the snapshot.
+create or replace function public.complete_attendance_outbox_v1(
+  p_outbox_id uuid,
+  p_lease_token uuid,
+  p_response_payload jsonb
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_row public.attendance_integration_outbox%rowtype;
+begin
+  if jsonb_typeof(p_response_payload) <> 'object'
+    or pg_column_size(p_response_payload) > 32768 then
+    raise exception using errcode = '22023', message = 'attendance_outbox_response_invalid';
+  end if;
+
+  update public.attendance_integration_outbox
+  set status = 'delivered',
+      response_payload = p_response_payload,
+      delivered_at = clock_timestamp(),
+      lease_token = null,
+      lease_expires_at = null,
+      last_error_code = null,
+      last_error_detail = null,
+      updated_at = clock_timestamp()
+  where id = p_outbox_id and status = 'processing' and lease_token = p_lease_token
+  returning * into v_row;
+  if v_row.id is null then return false; end if;
+
+  if v_row.message_type = 'roster.snapshot' then
+    update public.attendance_roster_mappings
+    set synced_revision = greatest(
+          coalesce(synced_revision, 0),
+          (v_row.payload->>'revision')::bigint
+        ),
+        updated_at = clock_timestamp()
+    where classroom_id = v_row.classroom_id;
+  elsif v_row.message_type = 'schedule.snapshot' then
+    update public.attendance_roster_mappings
+    set schedule_synced_revision = greatest(
+          coalesce(schedule_synced_revision, 0),
+          (v_row.payload->>'revision')::bigint
+        ),
+        remote_schedule_window_end = case
+          when integration_state = 'active'
+            and jsonb_typeof(v_row.payload) = 'object'
+            and v_row.payload->>'window_end' ~ '^\d{4}-\d{2}-\d{2}$'
+          then greatest(
+            coalesce(remote_schedule_window_end, (v_row.payload->>'window_end')::date),
+            (v_row.payload->>'window_end')::date
+          )
+          else remote_schedule_window_end
+        end,
+        updated_at = clock_timestamp()
+    where classroom_id = v_row.classroom_id;
+  end if;
+  return true;
+end;
+$$;
+
 create function public.complete_attendance_outbox_v2(
   p_outbox_id uuid,
   p_lease_token uuid,
@@ -847,18 +913,6 @@ begin
   v_completed := public.complete_attendance_outbox_v1(
     p_outbox_id, p_lease_token, p_response_payload
   );
-  if v_completed and v_row.message_type = 'schedule.snapshot'
-    and jsonb_typeof(v_row.payload) = 'object'
-    and v_row.payload->>'window_end' ~ '^\d{4}-\d{2}-\d{2}$' then
-    update public.attendance_roster_mappings
-    set remote_schedule_window_end = greatest(
-          coalesce(remote_schedule_window_end, (v_row.payload->>'window_end')::date),
-          (v_row.payload->>'window_end')::date
-        ),
-        updated_at = clock_timestamp()
-    where classroom_id = v_row.classroom_id
-      and integration_state = 'active';
-  end if;
   if v_completed and v_row.message_type = 'schedule.snapshot'
     and (case when jsonb_typeof(v_row.payload->'occurrences') = 'array'
       then jsonb_array_length(v_row.payload->'occurrences') = 0

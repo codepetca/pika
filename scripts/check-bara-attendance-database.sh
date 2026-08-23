@@ -297,8 +297,37 @@ begin
     schedule_synced_revision, remote_schedule_window_end
   ) values (
     'a1260000-0000-4000-8000-000000000030',
-    'roster_a1260000000040008000000000000030', 1, 1, 7, 7, 7, '2028-01-01'
+    'roster_a1260000000040008000000000000030', 1, 1, 7, 7, 7, null
   );
+
+  v_lease := gen_random_uuid();
+  insert into public.attendance_integration_outbox (
+    classroom_id, idempotency_key, message_type, payload,
+    status, attempts, lease_token, lease_expires_at
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'schedule:exact-canary:7', 'schedule.snapshot',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'schedule.snapshot',
+      'idempotency_key', 'schedule:exact-canary:7',
+      'correlation_ref', 'exact_canary_7',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030',
+      'revision', 7, 'window_start', '2026-08-23',
+      'window_end', '2028-01-01',
+      'occurrences', jsonb_build_array(jsonb_build_object(
+        'occurrence_ref', 'occurrence_exact_canary_7'
+      ))
+    ),
+    'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
+  ) returning id into v_outbox_id;
+  if not public.complete_attendance_outbox_v1(v_outbox_id, v_lease, '{}'::jsonb)
+    or (select remote_schedule_window_end
+        from public.attendance_roster_mappings
+        where classroom_id = 'a1260000-0000-4000-8000-000000000030')
+      <> date '2028-01-01' then
+    raise exception 'Exact-canary delivery did not record the remote schedule horizon';
+  end if;
 
   v_change := public.set_attendance_teacher_entitlement_v1(
     'a1260000-0000-4000-8000-000000000130',
