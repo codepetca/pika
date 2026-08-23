@@ -111,6 +111,32 @@ as $$
   );
 $$;
 
+create function public.stamp_attendance_outbox_entitlement_revision_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.entitlement_revision is null then
+    select entitlement.revision into new.entitlement_revision
+    from public.classrooms classroom
+    join public.attendance_teacher_entitlements entitlement
+      on entitlement.teacher_id = classroom.teacher_id
+    where classroom.id = new.classroom_id
+      and entitlement.status = 'active'
+      and entitlement.valid_from <= clock_timestamp()
+      and (entitlement.valid_until is null
+        or entitlement.valid_until > clock_timestamp());
+  end if;
+  return new;
+end;
+$$;
+
+create trigger attendance_outbox_entitlement_revision_insert
+before insert on public.attendance_integration_outbox
+for each row execute function public.stamp_attendance_outbox_entitlement_revision_v1();
+
 create function public.enqueue_attendance_outbound_message_v2(
   p_teacher_id uuid,
   p_classroom_id uuid,
@@ -162,10 +188,13 @@ begin
     returning * into v_row;
     return v_row;
   end if;
+  if v_row.status = 'superseded' then
+    return v_row;
+  end if;
   update public.attendance_integration_outbox
   set entitlement_revision = coalesce(entitlement_revision, v_entitlement_revision),
       updated_at = clock_timestamp()
-  where id = v_row.id and status <> 'superseded'
+  where id = v_row.id
   returning * into v_row;
   return v_row;
 end;
@@ -275,19 +304,6 @@ begin
     p_actor_ref, p_reason_code, v_fingerprint
   );
 
-  if p_status = 'revoked' then
-    -- Close the revoke/regrant race immediately. Cleanup is represented by a
-    -- new higher-revision empty schedule; pre-revocation work must never become
-    -- claimable again merely because a later entitlement is active.
-    update public.attendance_integration_outbox outbox
-    set status = 'superseded', lease_token = null, lease_expires_at = null,
-        updated_at = clock_timestamp()
-    from public.classrooms classroom
-    where classroom.id = outbox.classroom_id
-      and classroom.teacher_id = p_teacher_id
-      and outbox.status in ('pending', 'processing', 'non_retryable');
-  end if;
-
   return jsonb_build_object(
     'teacher_id', p_teacher_id,
     'status', p_status,
@@ -346,6 +362,56 @@ as $$
     from public.classrooms classroom
     where classroom.id = p_classroom_id
   ), jsonb_build_object('state', 'disabled', 'schedule_through', null));
+$$;
+
+create function public.get_attendance_entitlement_transition_health_v1(
+  p_teacher_id uuid,
+  p_classroom_id uuid
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_scope_valid boolean;
+  v_unversioned_unresolved_count bigint;
+  v_stale_epoch_unresolved_count bigint;
+begin
+  select exists (
+    select 1 from public.classrooms classroom
+    where classroom.id = p_classroom_id
+      and classroom.teacher_id = p_teacher_id
+      and classroom.archived_at is null
+  ) into v_scope_valid;
+  if not v_scope_valid then
+    return jsonb_build_object(
+      'ready', false,
+      'unversioned_unresolved_count', 0,
+      'stale_epoch_unresolved_count', 0
+    );
+  end if;
+  select count(*) into v_unversioned_unresolved_count
+  from public.attendance_integration_outbox outbox
+  where outbox.classroom_id = p_classroom_id
+    and outbox.entitlement_revision is null
+    and outbox.status in ('pending', 'processing', 'non_retryable');
+  select count(*) into v_stale_epoch_unresolved_count
+  from public.attendance_integration_outbox outbox
+  join public.attendance_teacher_entitlements entitlement
+    on entitlement.teacher_id = p_teacher_id
+  where outbox.classroom_id = p_classroom_id
+    and outbox.entitlement_revision is not null
+    and outbox.entitlement_revision <> entitlement.revision
+    and outbox.status in ('pending', 'processing', 'non_retryable');
+  return jsonb_build_object(
+    'ready', v_unversioned_unresolved_count = 0
+      and v_stale_epoch_unresolved_count = 0,
+    'unversioned_unresolved_count', v_unversioned_unresolved_count,
+    'stale_epoch_unresolved_count', v_stale_epoch_unresolved_count
+  );
+end;
 $$;
 
 create function public.list_attendance_sync_targets_v3(
@@ -1087,6 +1153,8 @@ $$;
 
 revoke all on function public.attendance_teacher_entitled_v1(uuid, timestamptz)
   from public, anon, authenticated;
+revoke all on function public.stamp_attendance_outbox_entitlement_revision_v1()
+  from public, anon, authenticated, service_role;
 revoke all on function public.enqueue_attendance_outbound_message_v2(
   uuid, uuid, jsonb, timestamptz
 ) from public, anon, authenticated;
@@ -1096,6 +1164,8 @@ revoke all on function public.set_attendance_teacher_entitlement_v1(
 revoke all on function public.get_attendance_classroom_access_v1(uuid, uuid, timestamptz)
   from public, anon, authenticated;
 revoke all on function public.get_attendance_classroom_id_access_v1(uuid, timestamptz)
+  from public, anon, authenticated;
+revoke all on function public.get_attendance_entitlement_transition_health_v1(uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.list_attendance_sync_targets_v3(timestamptz, integer)
   from public, anon, authenticated;
@@ -1141,6 +1211,8 @@ grant execute on function public.set_attendance_teacher_entitlement_v1(
 grant execute on function public.get_attendance_classroom_access_v1(uuid, uuid, timestamptz)
   to service_role;
 grant execute on function public.get_attendance_classroom_id_access_v1(uuid, timestamptz)
+  to service_role;
+grant execute on function public.get_attendance_entitlement_transition_health_v1(uuid, uuid)
   to service_role;
 grant execute on function public.list_attendance_sync_targets_v3(timestamptz, integer)
   to service_role;

@@ -8711,6 +8711,10 @@ export type Database = {
         Args: { p_at?: string; p_classroom_id: string }
         Returns: Json
       }
+      get_attendance_entitlement_transition_health_v1: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       get_classroom_archive_source_object_presence: {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json

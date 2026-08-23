@@ -24,6 +24,7 @@ describe('Bara attendance teacher entitlement migration', () => {
     for (const functionName of [
       'attendance_teacher_entitled_v1',
       'get_attendance_classroom_access_v1',
+      'get_attendance_entitlement_transition_health_v1',
       'list_attendance_sync_targets_v3',
       'prepare_attendance_snapshot_v2',
       'stage_attendance_roster_snapshot_v2',
@@ -48,6 +49,10 @@ describe('Bara attendance teacher entitlement migration', () => {
     expect(migration).toContain('deactivation_window_end + 401')
     expect(migration).toContain('v_window_start <> v_roster.deactivation_window_start')
     expect(migration).toContain('p_row.entitlement_revision')
+    expect(migration).toContain("if v_row.status = 'superseded' then")
+    expect(migration).toContain("outbox.entitlement_revision is null")
+    expect(migration).toContain('attendance_outbox_entitlement_revision_insert')
+    expect(migration).toContain('v_stale_epoch_unresolved_count')
     expect(migration).toContain("set integration_state = 'inactive'")
     expect(migration).toContain('list_attendance_reconciliation_targets_v3')
     expect(migration).toContain('apply_attendance_event_for_entitled_mapping_v1')

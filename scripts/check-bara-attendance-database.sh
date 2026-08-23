@@ -61,6 +61,8 @@ begin
     'public.prepare_attendance_snapshot_v2(uuid,uuid,date,date,timestamptz)'
   ) is null or to_regprocedure(
     'public.complete_attendance_outbox_v2(uuid,uuid,jsonb)'
+  ) is null or to_regprocedure(
+    'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)'
   ) is null then
     raise exception 'Migration 132 is not applied to the local database';
   end if;
@@ -171,9 +173,21 @@ begin
       'authenticated',
       'public.apply_attendance_event_for_entitled_mapping_v1(jsonb,text)',
       'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)',
+      'execute'
+    ) or has_function_privilege(
+      'service_role',
+      'public.stamp_attendance_outbox_entitlement_revision_v1()',
+      'execute'
     ) or not has_function_privilege(
       'service_role',
       'public.set_attendance_teacher_entitlement_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,bigint)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)',
       'execute'
     )
   then
@@ -270,8 +284,11 @@ declare
   v_duplicate jsonb;
   v_prepared jsonb;
   v_targets jsonb;
+  v_transition jsonb;
   v_lease uuid;
   v_outbox_id uuid;
+  v_outbox public.attendance_integration_outbox%rowtype;
+  v_claim public.attendance_integration_outbox%rowtype;
   v_first_window_end date;
 begin
   insert into public.users (id, email, role, workos_user_id) values (
@@ -327,6 +344,44 @@ begin
         where classroom_id = 'a1260000-0000-4000-8000-000000000030')
       <> date '2028-01-01' then
     raise exception 'Exact-canary delivery did not record the remote schedule horizon';
+  end if;
+
+  v_lease := gen_random_uuid();
+  insert into public.attendance_integration_outbox (
+    classroom_id, idempotency_key, message_type, payload,
+    status, attempts, lease_token, lease_expires_at
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'session:legacy-unversioned:30', 'session.command',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:legacy-unversioned:30',
+      'correlation_ref', 'legacy_unversioned_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    ),
+    'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
+  ) returning id into v_outbox_id;
+  v_transition := public.get_attendance_entitlement_transition_health_v1(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030'
+  );
+  if (v_transition->>'ready')::boolean
+    or (v_transition->>'unversioned_unresolved_count')::bigint <> 1
+    or (v_transition->>'stale_epoch_unresolved_count')::bigint <> 0 then
+    raise exception 'Legacy exact-canary work did not block entitlement expansion';
+  end if;
+  if not public.complete_attendance_outbox_v1(v_outbox_id, v_lease, '{}'::jsonb) then
+    raise exception 'Legacy exact-canary work did not drain under its original scope';
+  end if;
+  v_transition := public.get_attendance_entitlement_transition_health_v1(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030'
+  );
+  if not (v_transition->>'ready')::boolean
+    or (v_transition->>'unversioned_unresolved_count')::bigint <> 0
+    or (v_transition->>'stale_epoch_unresolved_count')::bigint <> 0 then
+    raise exception 'Drained exact-canary work still blocked entitlement expansion';
   end if;
 
   v_change := public.set_attendance_teacher_entitlement_v1(
@@ -489,8 +544,90 @@ begin
     )->>'state') <> 'ready' then
     raise exception 'Re-entitlement did not restore active classroom admission';
   end if;
+
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v1(
+    'a1260000-0000-4000-8000-000000000030',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:exact-canary-entitled:30',
+      'correlation_ref', 'exact_canary_entitled_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    )
+  );
+  if v_outbox.id is null or v_outbox.entitlement_revision <> 2 then
+    raise exception 'Entitled exact-canary enqueue did not receive the current epoch';
+  end if;
+  v_lease := gen_random_uuid();
+  update public.attendance_integration_outbox
+  set status = 'processing', attempts = 1, lease_token = v_lease,
+      lease_expires_at = clock_timestamp() + interval '60 seconds'
+  where id = v_outbox.id;
+  if not public.complete_attendance_outbox_v1(v_outbox.id, v_lease, '{}'::jsonb) then
+    raise exception 'Entitled exact-canary enqueue did not drain';
+  end if;
+
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:entitlement-epoch:30',
+      'correlation_ref', 'entitlement_epoch_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    ),
+    '2026-08-24T12:00:00Z'
+  );
+  if v_outbox.id is null or v_outbox.entitlement_revision <> 2
+    or v_outbox.status <> 'pending' then
+    raise exception 'Entitlement epoch was not stamped on queued work';
+  end if;
+  perform public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000132',
+    'a1260000-0000-4000-8000-000000000003',
+    'revoked', '2026-08-24T12:01:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_epoch_revocation', 2
+  );
+  perform public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000133',
+    'a1260000-0000-4000-8000-000000000003',
+    'active', '2026-08-24T12:02:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_epoch_regrant', 3
+  );
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:entitlement-epoch:30',
+      'correlation_ref', 'entitlement_epoch_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    ),
+    '2026-08-24T12:03:00Z'
+  );
+  if v_outbox.id is null or v_outbox.status <> 'superseded' then
+    raise exception 'Stale entitlement epoch was not superseded on retry';
+  end if;
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030', v_outbox.payload,
+    '2026-08-24T12:04:00Z'
+  );
+  if v_outbox.id is null or v_outbox.status <> 'superseded' then
+    raise exception 'Already-superseded idempotent retry returned no row';
+  end if;
+  select * into v_claim from public.claim_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    'session:entitlement-epoch:30', 60
+  );
+  if v_claim.id is not null then
+    raise exception 'Stale entitlement epoch became claimable after regrant';
+  end if;
   if (select count(*) from public.attendance_teacher_entitlement_audit
-      where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 2 then
+      where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 4 then
     raise exception 'Entitlement audit did not preserve one row per operation';
   end if;
   delete from public.classrooms
@@ -501,7 +638,7 @@ begin
     select 1 from public.attendance_teacher_entitlements
     where teacher_id = 'a1260000-0000-4000-8000-000000000003'
   ) or (select count(*) from public.attendance_teacher_entitlement_audit
-        where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 2 then
+        where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 4 then
     raise exception 'Teacher deletion did not retain immutable entitlement audit';
   end if;
 end;

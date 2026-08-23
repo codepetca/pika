@@ -232,9 +232,12 @@ pnpm attendance:rollout:preflight -- \
 Vercel intentionally redacts Sensitive values from `vercel env pull` and
 `vercel env run`, so this local command is advisory when fed a downloaded
 Production environment. The production rollout gate is the operator-protected
-`attendance:smoke:deployed -- --mode <pre-enable|enabled>` command: its deployed
-Pika route runs this environment audit against pinned targets before the signed
-round trip. A failed local audit must not be rewritten as a pass.
+`attendance:smoke:deployed -- --mode <pre-enable|enabled> --scope-mode <current>
+--target-scope-mode <target>` command: its deployed Pika route runs this
+environment audit against pinned targets before the signed round trip. When the
+target is `teacher_entitlements`, it also requires the exact canary entitlement
+and aggregate zero counts of unresolved legacy outbox rows with missing or
+stale entitlement revisions. A failed local audit must not be rewritten as a pass.
 
 This environment preflight does not replace the database gate. Production
 migrations through 131 are recorded as applied under prior authorization.

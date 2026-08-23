@@ -21,6 +21,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
   stage: 'preview' | 'production'
   attendanceMode: 'pre-enable' | 'enabled'
   attendanceScopeMode: 'exact_canary' | 'teacher_entitlements'
+  targetScopeMode: 'exact_canary' | 'teacher_entitlements'
   expectedPikaOrigin: string
   configuredPikaOrigin: string
   readOperatorSecret: () => string
@@ -69,6 +70,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
           Authorization: `Bearer ${operatorSecret}`,
           'X-Attendance-Rollout-Mode': input.attendanceMode,
           'X-Attendance-Scope-Mode': input.attendanceScopeMode,
+          'X-Attendance-Target-Scope-Mode': input.targetScopeMode,
         },
         redirect: 'error',
         signal: AbortSignal.timeout(20_000),
@@ -90,13 +92,14 @@ export async function runDeployedBaraAttendanceSmoke(input: {
   const passed = responseAccepted
     && record?.status === 'passed'
     && checks?.canaryScope === true
+    && checks.transitionQueue === true
     && checks.pikaToBara === true
     && checks.baraToPika === true
-    && Object.keys(checks).length === 3
+    && Object.keys(checks).length === 4
   return {
     exitCode: passed ? 0 : 1,
     output: passed
-      ? { status: 'passed', rolloutGateSatisfied: true, checksPassed: 3, checksTotal: 3 }
-      : { status: 'failed', rolloutGateSatisfied: false, checksPassed: 0, checksTotal: 3 },
+      ? { status: 'passed', rolloutGateSatisfied: true, checksPassed: 4, checksTotal: 4 }
+      : { status: 'failed', rolloutGateSatisfied: false, checksPassed: 0, checksTotal: 4 },
   }
 }

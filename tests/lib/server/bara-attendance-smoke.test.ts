@@ -21,6 +21,11 @@ const now = Date.parse('2026-08-22T12:00:00Z')
 function supabaseMock(
   consumeData: unknown = true,
   entitlementAccess: unknown = { state: 'ready', schedule_through: null },
+  transitionHealth: unknown = {
+    ready: true,
+    unversioned_unresolved_count: 0,
+    stale_epoch_unresolved_count: 0,
+  },
 ) {
   const chain = {
     select: vi.fn(() => chain),
@@ -42,6 +47,9 @@ function supabaseMock(
     }
     if (name === 'get_attendance_classroom_access_v1') {
       return { data: entitlementAccess, error: null }
+    }
+    if (name === 'get_attendance_entitlement_transition_health_v1') {
+      return { data: transitionHealth, error: null }
     }
     throw new Error(`unexpected rpc ${name}`)
   })
@@ -99,13 +107,19 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     await expect(runBaraAttendanceSmoke({
       attendanceMode: 'pre-enable',
       scopeMode: 'exact_canary',
+      targetScopeMode: 'exact_canary',
       supabase: supabase as never,
       fetcher,
       now: () => now,
       randomId: () => '0123456789abcdef0123456789abcdef',
     })).resolves.toEqual({
       status: 'passed',
-      checks: { canaryScope: true, pikaToBara: true, baraToPika: true },
+      checks: {
+        canaryScope: true,
+        transitionQueue: true,
+        pikaToBara: true,
+        baraToPika: true,
+      },
     })
     expect(supabase.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_attendance_integration_smoke_v1',
@@ -126,6 +140,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     await expect(runBaraAttendanceSmoke({
       attendanceMode: 'pre-enable',
       scopeMode: 'exact_canary',
+      targetScopeMode: 'exact_canary',
       supabase: supabase as never,
       fetcher,
     })).resolves.toMatchObject({ status: 'skipped', reason: 'production_only' })
@@ -140,6 +155,7 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
     await expect(runBaraAttendanceSmoke({
       attendanceMode: 'enabled',
       scopeMode: 'teacher_entitlements',
+      targetScopeMode: 'teacher_entitlements',
       supabase: supabase as never,
       fetcher,
       now: () => now,
@@ -149,6 +165,40 @@ describe('deployed Pika–Bara attendance authentication smoke', () => {
       p_classroom_id: classroomId,
       p_at: new Date(now).toISOString(),
     })
+    expect(supabase.rpc).not.toHaveBeenCalledWith(
+      'begin_attendance_integration_smoke_v1',
+      expect.anything(),
+    )
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('blocks entitlement expansion while exact-canary work lacks an entitlement epoch', async () => {
+    const supabase = supabaseMock(
+      true,
+      { state: 'ready', schedule_through: null },
+      {
+        ready: false,
+        unversioned_unresolved_count: 1,
+        stale_epoch_unresolved_count: 0,
+      },
+    )
+    const fetcher = vi.fn()
+    await expect(runBaraAttendanceSmoke({
+      attendanceMode: 'enabled',
+      scopeMode: 'exact_canary',
+      targetScopeMode: 'teacher_entitlements',
+      supabase: supabase as never,
+      fetcher,
+      now: () => now,
+    })).resolves.toMatchObject({
+      status: 'failed',
+      reason: 'transition_not_ready',
+      checks: { canaryScope: true, transitionQueue: false },
+    })
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'get_attendance_entitlement_transition_health_v1',
+      { p_teacher_id: teacherId, p_classroom_id: classroomId },
+    )
     expect(supabase.rpc).not.toHaveBeenCalledWith(
       'begin_attendance_integration_smoke_v1',
       expect.anything(),

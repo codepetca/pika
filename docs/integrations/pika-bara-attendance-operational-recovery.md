@@ -28,6 +28,7 @@ change flags, or requeue hosted events.
    pnpm attendance:smoke:deployed -- \
      --mode pre-enable \
      --scope-mode exact_canary \
+     --target-scope-mode exact_canary \
      --stage production \
      --expected-pika-origin "https://pika.codepet.ca"
    ```
@@ -58,7 +59,8 @@ change flags, or requeue hosted events.
    Vercel Sensitive variables. A local static audit using those downloads is
    advisory and is expected to fail closed; it is not hosted rollout evidence.
 5. Enable or expand only after separate explicit authorization, then rerun the
-   deployed smoke with `--mode enabled --scope-mode <expected-runtime-mode>`
+   deployed smoke with `--mode enabled --scope-mode <current-runtime-mode>
+   --target-scope-mode <authorized-target-mode>`
    before the exact controlled canary.
    Keep every non-canary teacher/classroom disabled until the reviewed
    entitlement migration, deployment, initial audited entitlement, and explicit

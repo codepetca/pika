@@ -64,8 +64,9 @@ the same deactivation path after expiry.
    that migrated target. Do not change the scope mode yet.
 4. Deploy Bara, then Pika, only under fresh deployment authorization. Keep
    exact-canary mode and run the deployed signed smoke. With the existing
-   global flags enabled, use `--mode enabled --scope-mode exact_canary`; any
-   skip or failure blocks expansion.
+   global flags enabled, use
+   `--mode enabled --scope-mode exact_canary --target-scope-mode exact_canary`;
+   any skip or failure blocks expansion.
 5. Dry-run the initial entitlement operation. The command requires UUIDs and
    explicit timestamps; it never looks up a teacher by email:
 
@@ -89,11 +90,20 @@ the same deactivation path after expiry.
    Inspect only the closed status/revision/duplicate result and aggregate worker
    health. A target or payload change requires a new dry run and authorization.
 7. Seed the verified teacher entitlement while runtime remains exact-canary.
-   Then, under a separate flag-change authorization, set
+   Run the deployed signed smoke again with
+   `--mode enabled --scope-mode exact_canary --target-scope-mode teacher_entitlements`.
+   This aggregate-only transition gate requires the exact canary entitlement
+   and zero unresolved exact-canary outbox rows whose entitlement revision is
+   absent or differs from the current grant. New exact-canary work is stamped
+   with the current epoch once the grant exists. Drain retryable legacy work
+   under exact-canary mode; stop on non-retryable
+   work and use the reviewed recovery path. Never adopt or replay legacy work
+   across the scope boundary. Only after this gate passes, and under a separate
+   flag-change authorization, set
    `PIKA_BARA_ATTENDANCE_SCOPE_MODE=teacher_entitlements` and redeploy Pika.
    Rerun the deployed signed smoke with
-   `--mode enabled --scope-mode teacher_entitlements`; the smoke must still use
-   the exact pair.
+   `--mode enabled --scope-mode teacher_entitlements --target-scope-mode teacher_entitlements`;
+   the smoke must still use the exact pair.
 8. Verify that the entitled teacher sees Attendance in every active classroom,
    that a classroom without hours reports not configured, and that saving hours
    produces only that classroom's opaque roster/schedule. Expand by adding

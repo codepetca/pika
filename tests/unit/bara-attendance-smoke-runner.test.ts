@@ -15,6 +15,7 @@ describe('deployed Bara attendance smoke runner', () => {
       stage: 'production',
       attendanceMode: 'pre-enable',
       attendanceScopeMode: 'exact_canary',
+      targetScopeMode: 'exact_canary',
       expectedPikaOrigin: 'https://attacker.example',
       configuredPikaOrigin: 'https://pika.example',
       readOperatorSecret,
@@ -29,20 +30,26 @@ describe('deployed Bara attendance smoke runner', () => {
     const readOperatorSecret = vi.fn(() => secret)
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
       status: 'passed',
-      checks: { canaryScope: true, pikaToBara: true, baraToPika: true },
+      checks: {
+        canaryScope: true,
+        transitionQueue: true,
+        pikaToBara: true,
+        baraToPika: true,
+      },
     })))
 
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'production',
       attendanceMode: 'pre-enable',
       attendanceScopeMode: 'teacher_entitlements',
+      targetScopeMode: 'teacher_entitlements',
       expectedPikaOrigin: 'https://pika.example',
       configuredPikaOrigin: 'https://pika.example/',
       readOperatorSecret,
       fetcher,
     })).resolves.toEqual({
       exitCode: 0,
-      output: { status: 'passed', rolloutGateSatisfied: true, checksPassed: 3, checksTotal: 3 },
+      output: { status: 'passed', rolloutGateSatisfied: true, checksPassed: 4, checksTotal: 4 },
     })
 
     expect(readOperatorSecret).toHaveBeenCalledOnce()
@@ -54,6 +61,7 @@ describe('deployed Bara attendance smoke runner', () => {
           Authorization: `Bearer ${secret}`,
           'X-Attendance-Rollout-Mode': 'pre-enable',
           'X-Attendance-Scope-Mode': 'teacher_entitlements',
+          'X-Attendance-Target-Scope-Mode': 'teacher_entitlements',
         },
       }),
     )
@@ -64,20 +72,26 @@ describe('deployed Bara attendance smoke runner', () => {
     async (status) => {
       const fetcher = vi.fn(async () => new Response(JSON.stringify({
         status: 'passed',
-        checks: { canaryScope: true, pikaToBara: true, baraToPika: true },
+        checks: {
+          canaryScope: true,
+          transitionQueue: true,
+          pikaToBara: true,
+          baraToPika: true,
+        },
       }), { status }))
 
       await expect(runDeployedBaraAttendanceSmoke({
         stage: 'production',
         attendanceMode: 'enabled',
         attendanceScopeMode: 'teacher_entitlements',
+        targetScopeMode: 'teacher_entitlements',
         expectedPikaOrigin: 'https://pika.example',
         configuredPikaOrigin: 'https://pika.example',
         readOperatorSecret: () => secret,
         fetcher,
       })).resolves.toEqual({
         exitCode: 1,
-        output: { status: 'failed', rolloutGateSatisfied: false, checksPassed: 0, checksTotal: 3 },
+        output: { status: 'failed', rolloutGateSatisfied: false, checksPassed: 0, checksTotal: 4 },
       })
     },
   )
@@ -90,6 +104,7 @@ describe('deployed Bara attendance smoke runner', () => {
       stage: 'preview',
       attendanceMode: 'pre-enable',
       attendanceScopeMode: 'exact_canary',
+      targetScopeMode: 'exact_canary',
       expectedPikaOrigin: 'https://pika-preview.example',
       configuredPikaOrigin: '',
       readOperatorSecret,
@@ -112,6 +127,8 @@ describe('deployed Bara attendance smoke runner', () => {
         '--mode',
         'pre-enable',
         '--scope-mode',
+        'exact_canary',
+        '--target-scope-mode',
         'exact_canary',
         '--expected-pika-origin',
         'https://pika-preview.example',

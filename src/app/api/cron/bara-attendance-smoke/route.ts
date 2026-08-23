@@ -48,6 +48,12 @@ export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: 
   if (!runtimeScopeMode.success) {
     return NextResponse.json({ error: 'Invalid attendance scope mode' }, { status: 400 })
   }
+  const targetScopeMode = runtimeScopeModeSchema.safeParse(
+    request.headers.get('x-attendance-target-scope-mode'),
+  )
+  if (!targetScopeMode.success) {
+    return NextResponse.json({ error: 'Invalid attendance target scope mode' }, { status: 400 })
+  }
   const deployedPreflight = auditDeployedBaraAttendanceEnvironment(
     rolloutMode.data,
     runtimeScopeMode.data,
@@ -66,6 +72,7 @@ export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: 
   const result = await runBaraAttendanceSmoke({
     attendanceMode: rolloutMode.data,
     scopeMode: runtimeScopeMode.data,
+    targetScopeMode: targetScopeMode.data,
   })
   return NextResponse.json(result, {
     status: result.status === 'failed' ? 503 : 200,
