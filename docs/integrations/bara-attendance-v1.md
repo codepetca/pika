@@ -26,6 +26,10 @@ The additive Supabase history was replayed from scratch against the disposable
 local stack before hosted use. Production migrations through 131 are now
 recorded as applied to the named Pika project under separate authorization, and
 the exact canary has prior evidence; no broader production rollout is enabled.
+The additive teacher-entitlement design is documented in
+`pika-bara-attendance-entitlement-rollout.md`; it remains exact-canary by
+default and requires migration 132 plus separate deployment, entitlement, and
+scope-mode authorizations.
 
 Automatic schedule materialization is now wired locally: a daily,
 secret-protected Pika worker advances a rolling 90-day class-day horizon for
@@ -199,7 +203,8 @@ a rollout prerequisite for that path.
 Run `pnpm attendance:rollout:preflight` only with the target deployment's
 environment loaded. It requires explicit stage, expected non-secret Supabase
 refs, exact Pika app and Bara API origins, and `--mode pre-enable` or
-`--mode enabled`. Pre-enable mode requires the global Pika attendance flag to
+`--mode enabled`, plus `--scope-mode exact_canary` or
+`--scope-mode teacher_entitlements`. Pre-enable mode requires the global Pika attendance flag to
 remain false; enabled mode requires it to be true. Both modes verify through
 the service-role database boundary that the configured classroom exists, is
 active, and belongs to the configured teacher. Preview mode additionally
@@ -216,6 +221,7 @@ Example operator shape:
 ```bash
 pnpm attendance:rollout:preflight -- \
   --mode pre-enable \
+  --scope-mode exact_canary \
   --stage production \
   --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
   --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \

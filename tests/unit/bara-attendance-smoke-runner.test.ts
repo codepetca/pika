@@ -14,6 +14,7 @@ describe('deployed Bara attendance smoke runner', () => {
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'production',
       attendanceMode: 'pre-enable',
+      attendanceScopeMode: 'exact_canary',
       expectedPikaOrigin: 'https://attacker.example',
       configuredPikaOrigin: 'https://pika.example',
       readOperatorSecret,
@@ -34,6 +35,7 @@ describe('deployed Bara attendance smoke runner', () => {
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'production',
       attendanceMode: 'pre-enable',
+      attendanceScopeMode: 'teacher_entitlements',
       expectedPikaOrigin: 'https://pika.example',
       configuredPikaOrigin: 'https://pika.example/',
       readOperatorSecret,
@@ -51,6 +53,7 @@ describe('deployed Bara attendance smoke runner', () => {
         headers: {
           Authorization: `Bearer ${secret}`,
           'X-Attendance-Rollout-Mode': 'pre-enable',
+          'X-Attendance-Scope-Mode': 'teacher_entitlements',
         },
       }),
     )
@@ -67,6 +70,7 @@ describe('deployed Bara attendance smoke runner', () => {
       await expect(runDeployedBaraAttendanceSmoke({
         stage: 'production',
         attendanceMode: 'enabled',
+        attendanceScopeMode: 'teacher_entitlements',
         expectedPikaOrigin: 'https://pika.example',
         configuredPikaOrigin: 'https://pika.example',
         readOperatorSecret: () => secret,
@@ -85,6 +89,7 @@ describe('deployed Bara attendance smoke runner', () => {
     await expect(runDeployedBaraAttendanceSmoke({
       stage: 'preview',
       attendanceMode: 'pre-enable',
+      attendanceScopeMode: 'exact_canary',
       expectedPikaOrigin: 'https://pika-preview.example',
       configuredPikaOrigin: '',
       readOperatorSecret,
@@ -106,6 +111,8 @@ describe('deployed Bara attendance smoke runner', () => {
         'preview',
         '--mode',
         'pre-enable',
+        '--scope-mode',
+        'exact_canary',
         '--expected-pika-origin',
         'https://pika-preview.example',
       ],

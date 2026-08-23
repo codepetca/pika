@@ -12,6 +12,7 @@ import {
   isClassroomTabAvailable,
   normalizeClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
+import { getBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 
 // Force dynamic rendering (no caching) since data is user-specific
 export const dynamic = 'force-dynamic'
@@ -61,12 +62,23 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
 
     const classroom = hydrateClassroomRecord(classroomResult.data as Record<string, any>)
     const palEnabled = getPalApiUrl() !== null
+    const attendanceAvailable = !classroom.archived_at
+      && (await getBaraAttendanceClassroomAccess({
+        supabase,
+        teacherId: user.id,
+        classroomId,
+      })).state === 'ready'
+    const effectiveFeatureVisibility = {
+      ...normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+      attendance: attendanceAvailable
+        && normalizeClassroomFeatureVisibility(classroom.feature_visibility).attendance,
+    }
     if (
       tab &&
       !isClassroomTabAvailable(
         'teacher',
         tab,
-        normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+        effectiveFeatureVisibility,
         palEnabled,
       )
     ) {
@@ -93,6 +105,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         initialTab={tab}
         initialSearchParams={initialSearchParams}
         palEnabled={palEnabled}
+        attendanceAvailable={attendanceAvailable}
       />
     )
   }

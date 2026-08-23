@@ -8,15 +8,17 @@ function readArgument(name: string): string | undefined {
 
 const stage = readArgument('--stage')
 const attendanceMode = readArgument('--mode')
+const attendanceScopeMode = readArgument('--scope-mode')
 const expectedPikaOrigin = readArgument('--expected-pika-origin')
 
 if (
   (stage !== 'preview' && stage !== 'production')
   || (attendanceMode !== 'pre-enable' && attendanceMode !== 'enabled')
+  || (attendanceScopeMode !== 'exact_canary' && attendanceScopeMode !== 'teacher_entitlements')
   || !expectedPikaOrigin
 ) {
   process.stderr.write(
-    'Deployed attendance smoke requires rollout mode, preview/production stage, and exact Pika origin.\n',
+    'Deployed attendance smoke requires rollout mode, runtime scope mode, preview/production stage, and exact Pika origin.\n',
   )
   process.exit(2)
 }
@@ -25,6 +27,7 @@ async function main() {
   const result = await runDeployedBaraAttendanceSmoke({
     stage,
     attendanceMode,
+    attendanceScopeMode,
     expectedPikaOrigin,
     configuredPikaOrigin: process.env.NEXT_PUBLIC_APP_URL ?? '',
     readOperatorSecret: () => process.env.BARA_ATTENDANCE_SMOKE_OPERATOR_SECRET ?? '',

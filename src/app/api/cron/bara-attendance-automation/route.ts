@@ -8,8 +8,8 @@ import {
 import {
   assertBaraAttendanceCanaryClassroomOwner,
   BaraAttendanceCanaryError,
-  getBaraAttendanceCanaryScope,
 } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceWorkerScope } from '@/lib/server/bara-attendance-scope'
 import {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
@@ -30,9 +30,9 @@ async function handle(request: NextRequest) {
   }
 
   const supabase = getServiceRoleClient()
-  const scope = getBaraAttendanceCanaryScope()
+  const scope = getBaraAttendanceWorkerScope()
   try {
-    if (scope.state === 'ready' && scope.classroomId) {
+    if (scope.mode === 'exact_canary' && scope.state === 'ready' && scope.classroomId) {
       await assertBaraAttendanceCanaryClassroomOwner({
         supabase,
         classroomId: scope.classroomId,
@@ -43,12 +43,14 @@ async function handle(request: NextRequest) {
       integrationState: scope.state,
       teacherId: scope.teacherId ?? undefined,
       classroomId: scope.classroomId ?? undefined,
+      scopeMode: scope.mode,
     })
     const delivery = await deliverBaraAttendanceOutboxBatch({
       supabase,
       enabled: scope.state === 'ready',
       teacherId: scope.teacherId,
       classroomId: scope.classroomId,
+      scopeMode: scope.mode,
       limit: 50,
     })
     const health = await getBaraAttendanceOutboxHealth({
@@ -56,6 +58,7 @@ async function handle(request: NextRequest) {
       enabled: scope.state === 'ready',
       teacherId: scope.teacherId,
       classroomId: scope.classroomId,
+      scopeMode: scope.mode,
     })
     const status = schedules.status === 'partial'
       || delivery.status === 'partial'

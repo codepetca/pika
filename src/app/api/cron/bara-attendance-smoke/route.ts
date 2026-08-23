@@ -10,6 +10,7 @@ export const revalidate = 0
 export const maxDuration = 30
 
 const rolloutModeSchema = z.enum(['pre-enable', 'enabled'])
+const runtimeScopeModeSchema = z.enum(['exact_canary', 'teacher_entitlements'])
 const privateResponseHeaders = {
   'Cache-Control': 'no-store',
   'Referrer-Policy': 'no-referrer',
@@ -41,7 +42,16 @@ export const POST = withErrorHandler('PostBaraAttendanceSmoke', async (request: 
   if (!rolloutMode.success) {
     return NextResponse.json({ error: 'Invalid rollout mode' }, { status: 400 })
   }
-  const deployedPreflight = auditDeployedBaraAttendanceEnvironment(rolloutMode.data)
+  const runtimeScopeMode = runtimeScopeModeSchema.safeParse(
+    request.headers.get('x-attendance-scope-mode'),
+  )
+  if (!runtimeScopeMode.success) {
+    return NextResponse.json({ error: 'Invalid attendance scope mode' }, { status: 400 })
+  }
+  const deployedPreflight = auditDeployedBaraAttendanceEnvironment(
+    rolloutMode.data,
+    runtimeScopeMode.data,
+  )
   if (!deployedPreflight.ready) {
     return NextResponse.json({
       error: 'Deployed attendance preflight failed',

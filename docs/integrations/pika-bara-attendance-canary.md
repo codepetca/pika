@@ -1,15 +1,17 @@
 # Pika–Bara attendance canary boundary
 
-Pika's first production attendance rollout is limited to one exact Pika teacher
-and one exact Pika classroom. The global attendance flag is necessary but not
-sufficient: both UUID-valued canary variables must match the verified request
-context before Pika reads, stages, sends, receives, or reconciles attendance.
+Pika's default production attendance runtime remains limited to one exact Pika
+teacher and one exact Pika classroom. The global attendance flag is necessary
+but not sufficient: both UUID-valued canary variables must match the verified
+request context before Pika reads, stages, sends, receives, or reconciles
+attendance.
 
 Required variables:
 
 - `PIKA_BARA_ATTENDANCE_ENABLED=true`
 - `PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID=<Pika users.id>`
 - `PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID=<Pika classrooms.id>`
+- `PIKA_BARA_ATTENDANCE_SCOPE_MODE=exact_canary` (optional; this is the default)
 
 The classroom must belong to the configured teacher. UUIDs are table-local and
 may coincidentally have the same value; ownership, not UUID inequality, binds
@@ -44,3 +46,10 @@ deployment; after separate enablement authorization, rerun the deployed gate
 with `--mode enabled` before the controlled flow. This boundary is intentionally
 Pika-local: Bara continues to authorize the Pika installation and never receives
 Pika internal IDs.
+
+The entitlement expansion keeps this exact pair as the deployed signed-smoke
+scope even when runtime admission is explicitly changed to
+`teacher_entitlements`. See
+`pika-bara-attendance-entitlement-rollout.md`. The new mode does not authorize
+all teachers: it admits only active, audited Pika teacher entitlements, and its
+flag change remains a separately authorized rollout action.

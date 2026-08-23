@@ -20,6 +20,10 @@ import type {
   V1SessionCommand,
 } from '@/vendor/attendance-contract/v1/types'
 import { validateV1Message } from '@/vendor/attendance-contract/v1/validate'
+import {
+  getBaraAttendanceScopeMode,
+  type BaraAttendanceScopeMode,
+} from '@/lib/server/bara-attendance-scope'
 
 type V1OutboxMessage =
   | V1RosterSnapshot
@@ -67,7 +71,7 @@ const outboxRowSchema = z.object({
   message_type: messageTypeSchema,
   payload: z.unknown(),
   response_payload: z.unknown().nullable(),
-  status: z.enum(['pending', 'processing', 'delivered', 'non_retryable']),
+  status: z.enum(['pending', 'processing', 'delivered', 'non_retryable', 'superseded']),
   attempts: z.number().int().nonnegative(),
   lease_token: z.string().uuid().nullable(),
 }).passthrough()
@@ -288,6 +292,7 @@ async function deliverClaimed(input: {
   row: z.infer<typeof outboxRowSchema>
   now: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
+  scopeMode?: BaraAttendanceScopeMode
 }) {
   const validation = validateV1Message(input.row.payload)
   if (
@@ -310,7 +315,10 @@ async function deliverClaimed(input: {
     if (!input.row.lease_token) {
       throw new BaraAttendanceOutboxError('Attendance delivery lease was lost', 'lease_lost', true)
     }
-    await transition(input.supabase, 'complete_attendance_outbox_v1', {
+    await transition(input.supabase,
+      input.scopeMode === 'teacher_entitlements'
+        ? 'complete_attendance_outbox_v2'
+        : 'complete_attendance_outbox_v1', {
       p_outbox_id: input.row.id,
       p_lease_token: input.row.lease_token,
       p_response_payload: result,
@@ -325,42 +333,60 @@ async function deliverClaimed(input: {
 
 export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
+  teacherId?: string
   classroomId: string
   message: V1RosterSnapshot
+  scopeMode?: BaraAttendanceScopeMode
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<BaraRosterSnapshotResult>
 export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
+  teacherId?: string
   classroomId: string
   message: V1ScheduleSnapshot
+  scopeMode?: BaraAttendanceScopeMode
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<BaraScheduleSnapshotResult>
 export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
+  teacherId?: string
   classroomId: string
   message: V1SessionCommand
+  scopeMode?: BaraAttendanceScopeMode
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<BaraSessionCommandResult>
 export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
+  teacherId?: string
   classroomId: string
   message: V1AttendanceMarks
+  scopeMode?: BaraAttendanceScopeMode
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<BaraAttendanceMarksResult>
 export async function deliverBaraAttendanceMessage(input: {
   supabase: AttendanceOutboxClient
+  teacherId?: string
   classroomId: string
   message: V1OutboxMessage
+  scopeMode?: BaraAttendanceScopeMode
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<BaraAttendanceDeliveryResult> {
   const validation = validateV1Message(input.message)
   if (!validation.ok || !isOutboxMessage(validation.value)) {
     throw new BaraAttendanceClientError('Invalid Bara attendance message', 'invalid_payload', false)
+  }
+  const scopeMode = input.scopeMode ?? getBaraAttendanceScopeMode()
+  if (scopeMode === 'teacher_entitlements' && !input.teacherId) {
+    throw new BaraAttendanceOutboxError(
+      'Attendance message owner is required',
+      'persistence_failed',
+      false,
+    )
   }
 
   const { data, error } = await callOutboxRpc(
@@ -381,7 +407,13 @@ export async function deliverBaraAttendanceMessage(input: {
     )
   }
 
-  const claim = await callOutboxRpc(input.supabase, 'claim_attendance_outbound_message_v1', {
+  const claim = await callOutboxRpc(input.supabase,
+    scopeMode === 'teacher_entitlements'
+      ? 'claim_attendance_outbound_message_v2'
+      : 'claim_attendance_outbound_message_v1', {
+    ...(scopeMode === 'teacher_entitlements'
+      ? { p_teacher_id: input.teacherId, p_classroom_id: input.classroomId }
+      : {}),
     p_idempotency_key: validation.value.idempotency_key,
     p_lease_seconds: 60,
   })
@@ -401,6 +433,7 @@ export async function deliverBaraAttendanceMessage(input: {
     row: parseOutboxRow(claim.data),
     now: input.now ?? new Date(),
     deliver: input.deliver,
+    scopeMode,
   })
   return parseResult(validation.value.message_type, result)
 }
@@ -418,16 +451,22 @@ export async function deliverBaraAttendanceOutboxBatch(input: {
   enabled: boolean
   teacherId?: string | null
   classroomId?: string | null
+  scopeMode?: BaraAttendanceScopeMode
   limit?: number
   now?: Date
   deliver?: (message: V1OutboxMessage) => Promise<BaraAttendanceDeliveryResult>
 }): Promise<AttendanceOutboxDeliverySummary> {
-  if (!input.enabled || !input.teacherId || !input.classroomId) {
+  const scopeMode = input.scopeMode ?? getBaraAttendanceScopeMode()
+  if (!input.enabled || (scopeMode === 'exact_canary' && (!input.teacherId || !input.classroomId))) {
     return { status: 'disabled', claimed: 0, delivered: 0, retrying: 0, nonRetryable: 0 }
   }
-  const { data, error } = await callOutboxRpc(input.supabase, 'claim_attendance_outbox_batch_v2', {
-    p_teacher_id: input.teacherId,
-    p_classroom_id: input.classroomId,
+  const { data, error } = await callOutboxRpc(input.supabase,
+    scopeMode === 'teacher_entitlements'
+      ? 'claim_attendance_outbox_batch_v3'
+      : 'claim_attendance_outbox_batch_v2', {
+    ...(scopeMode === 'exact_canary'
+      ? { p_teacher_id: input.teacherId, p_classroom_id: input.classroomId }
+      : {}),
     p_limit: input.limit ?? 20,
     p_lease_seconds: 60,
   })
@@ -448,6 +487,7 @@ export async function deliverBaraAttendanceOutboxBatch(input: {
         row,
         now: input.now ?? new Date(),
         deliver: input.deliver,
+        scopeMode,
       })
       summary.delivered += 1
     } catch (deliveryError) {
@@ -484,8 +524,10 @@ export async function getBaraAttendanceOutboxHealth(input: {
   enabled: boolean
   teacherId?: string | null
   classroomId?: string | null
+  scopeMode?: BaraAttendanceScopeMode
 }): Promise<AttendanceOutboxHealthSummary> {
-  if (!input.enabled || !input.teacherId || !input.classroomId) {
+  const scopeMode = input.scopeMode ?? getBaraAttendanceScopeMode()
+  if (!input.enabled || (scopeMode === 'exact_canary' && (!input.teacherId || !input.classroomId))) {
     return {
       status: 'disabled',
       pending: 0,
@@ -496,9 +538,13 @@ export async function getBaraAttendanceOutboxHealth(input: {
     }
   }
 
-  const { data, error } = await callOutboxRpc(input.supabase, 'attendance_outbox_health_v2', {
-    p_teacher_id: input.teacherId,
-    p_classroom_id: input.classroomId,
+  const { data, error } = await callOutboxRpc(input.supabase,
+    scopeMode === 'teacher_entitlements'
+      ? 'attendance_outbox_health_v3'
+      : 'attendance_outbox_health_v2', {
+    ...(scopeMode === 'exact_canary'
+      ? { p_teacher_id: input.teacherId, p_classroom_id: input.classroomId }
+      : {}),
   })
   if (error) mapDatabaseError(error, 'read attendance outbox health')
   const health = outboxHealthSchema.parse(data)

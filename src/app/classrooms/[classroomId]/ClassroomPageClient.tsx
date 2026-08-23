@@ -63,6 +63,7 @@ import type {
 import {
   getAvailableClassroomTabs,
   normalizeClassroomFeatureVisibility,
+  type ClassroomFeatureVisibility,
 } from '@/lib/classroom-feature-visibility'
 
 interface UserInfo {
@@ -85,6 +86,7 @@ interface ClassroomPageClientProps {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
+  attendanceAvailable?: boolean
 }
 
 type UpdateSearchOptions = {
@@ -133,6 +135,7 @@ export function ClassroomPageClient({
   initialTab,
   initialSearchParams,
   palEnabled = false,
+  attendanceAvailable = true,
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
   const [clientClassroom, setClientClassroom] = useState(classroom)
@@ -142,8 +145,16 @@ export function ClassroomPageClient({
   const palAvailable = palEnabled
   const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
   const featureVisibility = useMemo(
-    () => normalizeClassroomFeatureVisibility(effectiveClassroom.feature_visibility),
-    [effectiveClassroom.feature_visibility],
+    () => {
+      const preference = normalizeClassroomFeatureVisibility(
+        effectiveClassroom.feature_visibility,
+      )
+      return {
+        ...preference,
+        attendance: attendanceAvailable && preference.attendance,
+      }
+    },
+    [attendanceAvailable, effectiveClassroom.feature_visibility],
   )
   const isArchived = isTeacher && !!effectiveClassroom.archived_at
   const basePath = `/classrooms/${effectiveClassroom.id}`
@@ -265,6 +276,7 @@ export function ClassroomPageClient({
           onClassroomUpdated={handleClassroomUpdated}
           palEnabled={palAvailable}
           availableTabs={validTabs}
+          featureVisibility={featureVisibility}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -415,6 +427,7 @@ function ClassroomPageContent({
   onClassroomUpdated,
   palEnabled,
   availableTabs,
+  featureVisibility,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -426,6 +439,7 @@ function ClassroomPageContent({
   onClassroomUpdated: (classroom: Classroom) => void
   palEnabled: boolean
   availableTabs: readonly string[]
+  featureVisibility: ClassroomFeatureVisibility
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1256,7 +1270,7 @@ function ClassroomPageContent({
               onTabIntent={prefetchTabData}
               updateSearchParams={navigateInClassroom}
               palEnabled={palEnabled}
-              featureVisibility={classroom.feature_visibility}
+              featureVisibility={featureVisibility}
             />
           </LeftSidebar>
         )}

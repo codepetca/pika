@@ -74,6 +74,8 @@ describe('POST /api/teacher/attendance/sync', () => {
       windowStart: '2026-09-01',
       windowEnd: '2026-12-31',
       verifiedActor: actor,
+      integrationState: 'ready',
+      scheduleThrough: null,
     })
     expect(assertBaraAttendanceCanaryClassroom).toHaveBeenCalledWith({
       teacherId: 'teacher-1', classroomId,

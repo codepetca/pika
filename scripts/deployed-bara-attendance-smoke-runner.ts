@@ -20,6 +20,7 @@ function exactProductionOrigin(value: string) {
 export async function runDeployedBaraAttendanceSmoke(input: {
   stage: 'preview' | 'production'
   attendanceMode: 'pre-enable' | 'enabled'
+  attendanceScopeMode: 'exact_canary' | 'teacher_entitlements'
   expectedPikaOrigin: string
   configuredPikaOrigin: string
   readOperatorSecret: () => string
@@ -67,6 +68,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
         headers: {
           Authorization: `Bearer ${operatorSecret}`,
           'X-Attendance-Rollout-Mode': input.attendanceMode,
+          'X-Attendance-Scope-Mode': input.attendanceScopeMode,
         },
         redirect: 'error',
         signal: AbortSignal.timeout(20_000),
