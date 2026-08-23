@@ -434,8 +434,8 @@ test.describe('student experience matrix', () => {
       animations: 'disabled',
     })
     await page.goto(`/classrooms/${classroom.id}?tab=today`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText('Attendance check-in is open')).toBeVisible()
-    await expect(page.getByText('Scan the QR shown by your teacher.')).toBeVisible()
+    await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+    await expect(page.getByText('Attendance check-in is open')).toHaveCount(0)
     await verifyProjectContract(page, testInfo)
     await page.screenshot({
       path: testInfo.outputPath('student-attendance-open.png'),

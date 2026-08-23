@@ -22430,3 +22430,18 @@ Vercel, Convex, Supabase, and two application security boundaries.
   `authkit_authorization_code`, provision an explicitly isolated Pika Preview
   data target, then create Preview-only deploy credentials and run the complete
   no-prompt/auth/attendance smoke. Keep all rollout flags disabled meanwhile.
+
+<!-- pika-session-log-archive-batch:4c10fdcea79d27ef010aa468db70a1331b4c4a07748d1f373c5cf8c38eaf91c2 -->
+## 2026-08-18 — Tighten the v3 Course Package manifest contract
+
+**Risk profile:** high — strict historical compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Replaced the permissive v3 planned-site catchall with the exact historical
+  seven-key shape, including the retired `quizzes` key.
+- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
+  and TAR fixtures and updated their locked SHA-256 digests.
+- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
+  fail as `invalid_manifest` before adaptation.
+- Full verification passes 4,529 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.

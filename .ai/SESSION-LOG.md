@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-18 — Tighten the v3 Course Package manifest contract
-
-**Risk profile:** high — strict historical compatibility boundary; no schema,
-production, dependency, or UI change.
-
-- Replaced the permissive v3 planned-site catchall with the exact historical
-  seven-key shape, including the retired `quizzes` key.
-- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
-  and TAR fixtures and updated their locked SHA-256 digests.
-- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
-  fail as `invalid_manifest` before adaptation.
-- Full verification passes 4,529 tests across 502 files, lint, and the
-  production build. Pika audit and diff checks pass.
-
 ## 2026-08-18 — Preserve both strict v3 planned-site forms
 
 **Risk profile:** high — historical package compatibility boundary; no schema,
@@ -1208,3 +1194,19 @@ authorization, schema, flag, deployment, or production state changed.
   desktop/mobile light/dark browser matrix pass. Visual verification passed for
   teacher/student smoke views and the student open state in every required
   viewport/theme combination.
+
+## 2026-08-23 — Compact and statically highlight student attendance prompts
+
+**Risk profile:** student-only visual refinement; no attendance behavior,
+authorization, schema, flag, deployment, or production state changed.
+
+- Shortened the open-state Today banner to the single line “Scan QR for
+  Attendance” beside the QR-scan icon while preserving the private confirmed
+  Present/Late state and timestamp.
+- Replaced the classroom-list pulse with a static semantic accent ring and soft
+  highlight, and applied the same non-interactive emphasis to the compact Today
+  status. No attendance indicator now uses looping motion.
+- Focused component tests (13), TypeScript, lint, Pika audit, and the six-test
+  desktop/mobile light/dark attendance browser matrix pass. Visual verification
+  passed for student open/closed/confirmed states and teacher/student regression
+  views without overflow.

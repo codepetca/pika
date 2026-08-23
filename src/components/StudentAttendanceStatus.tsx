@@ -167,7 +167,7 @@ export function StudentAttendanceStatus({
   if (variant === 'index') {
     return (
       <div
-        className={`absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-control ${confirmed ? 'bg-success-bg text-success' : 'bg-surface-accent text-primary motion-safe:animate-pulse'}`}
+        className={`absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-control ${confirmed ? 'bg-success-bg text-success' : 'bg-surface-accent text-primary shadow-sm ring-1 ring-primary/30'}`}
         role="status"
         aria-label={confirmed ? `Attendance confirmed: ${statusLabel}` : 'Attendance check-in is open'}
         aria-live="polite"
@@ -181,26 +181,30 @@ export function StudentAttendanceStatus({
 
   return (
     <section
-      className={`flex items-start gap-3 rounded-card border px-4 py-3 ${confirmed ? 'border-success bg-success-bg' : 'border-primary bg-surface-accent'}`}
+      className={`flex gap-3 rounded-card border px-4 py-3 ${confirmed ? 'items-start border-success bg-success-bg' : 'items-center border-primary bg-surface-accent shadow-sm ring-1 ring-primary/30'}`}
       role="status"
       aria-live="polite"
       aria-busy={refreshing}
       data-testid="student-attendance-status"
     >
       <Icon
-        className={`mt-0.5 h-5 w-5 shrink-0 ${confirmed ? 'text-success' : 'text-primary'}`}
+        className={`${confirmed ? 'mt-0.5 text-success' : 'text-primary'} h-5 w-5 shrink-0`}
         aria-hidden="true"
       />
-      <div className="min-w-0">
-        <p className={`text-sm font-semibold ${confirmed ? 'text-success' : 'text-text-default'}`}>
-          {confirmed ? `Checked in — ${statusLabel}` : 'Attendance check-in is open'}
+      {confirmed ? (
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-success">
+            {`Checked in — ${statusLabel}`}
+          </p>
+          <p className="mt-0.5 text-sm text-text-muted">
+            {timeLabel ? `Confirmed at ${timeLabel}.` : 'Your attendance is confirmed.'}
+          </p>
+        </div>
+      ) : (
+        <p className="min-w-0 text-sm font-semibold text-text-default">
+          Scan QR for Attendance
         </p>
-        <p className="mt-0.5 text-sm text-text-muted">
-          {confirmed
-            ? timeLabel ? `Confirmed at ${timeLabel}.` : 'Your attendance is confirmed.'
-            : 'Scan the QR shown by your teacher.'}
-        </p>
-      </div>
+      )}
     </section>
   )
 }

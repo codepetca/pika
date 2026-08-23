@@ -45,14 +45,15 @@ describe('StudentAttendanceStatus', () => {
     })
   }
 
-  it('shows the QR-preserving prompt only in the matching open classroom', () => {
+  it('shows the concise QR-preserving prompt only in the matching open classroom', () => {
     render(<StudentAttendanceStatus
       state={{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: null }}
       variant="banner"
     />)
 
-    expect(screen.getByText('Attendance check-in is open')).toBeInTheDocument()
-    expect(screen.getByText('Scan the QR shown by your teacher.')).toBeInTheDocument()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+    expect(screen.queryByText('Attendance check-in is open')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scan the QR shown by your teacher.')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
@@ -65,7 +66,8 @@ describe('StudentAttendanceStatus', () => {
 
     const status = screen.getByRole('status', { name: 'Attendance check-in is open' })
     expect(status).toHaveTextContent('')
-    expect(status).toHaveClass('motion-safe:animate-pulse')
+    expect(status).toHaveClass('shadow-sm', 'ring-1', 'ring-primary/30')
+    expect(status).not.toHaveClass('motion-safe:animate-pulse')
     expect(status.querySelector('.lucide-scan-qr-code')).toBeInTheDocument()
     expect(screen.queryByText(/Scan your teacher’s QR/i)).not.toBeInTheDocument()
   })
@@ -122,14 +124,14 @@ describe('StudentAttendanceStatus', () => {
 
     render(<HookHarness />)
     await flushAsyncState()
-    expect(screen.queryByText('Attendance check-in is open')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_000)
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(screen.getByText('Attendance check-in is open')).toBeInTheDocument()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
   })
 
   it('hides at a sub-second exact close and retries a failed refresh without stale QR copy', async () => {
@@ -150,20 +152,20 @@ describe('StudentAttendanceStatus', () => {
 
     render(<HookHarness />)
     await flushAsyncState()
-    expect(screen.getByText('Attendance check-in is open')).toBeInTheDocument()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100)
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(screen.queryByText('Attendance check-in is open')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000)
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(screen.queryByText('Scan the QR shown by your teacher.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
   })
 
   it.each([
