@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Prove the approved shared Codepet Platform session
-
-**Risk profile:** local authentication and documentation only. No hosted
-WorkOS, Vercel, Convex production, or Supabase configuration changed.
-
-**Decision and evidence:**
-- Superseded the separate-application handoff blocker above after explicit
-  product approval: Pika and Bara use one Codepet Platform AuthKit application
-  and one environment-specific browser session, while Codepet Labs remains
-  separate. Pika/Supabase and Bara/Convex still own separate internal users,
-  authorization, data, and versioned integration contracts.
-- Completed a Chrome smoke using Pika's six-digit passcode login and landed on
-  `/classrooms`. Opening protected Bara on the same host required no second
-  login; Bara resolved the WorkOS session and JWT, Convex reached authenticated
-  state, and the Bara dashboard rendered.
-- Repeated Bara reloads left the development deployment at three historical
-  `app_users` and three linked WorkOS `auth_identities`; no duplicate bootstrap
-  row was added for the current user.
-- Isolated the apparent Convex failure to a local Next.js 16 origin mismatch:
-  Bara was initialized as `localhost` while Chrome used `127.0.0.1`, so Next
-  blocked its own development client runtime. Bara now explicitly allows the
-  loopback development origin, and the normal dev command hydrates correctly.
-- Kept the session cookie host-only for the local proof. No parent-domain cookie
-  was enabled, and the versioned Pika/Bara API and event boundaries remain the
-  production integration boundary.
-
-**Next gate:**
-- Configure and verify the same model in isolated Preview, then prove logout,
-  exact QR return-path preservation, second-account tenant isolation, and the
-  first native attendance contract slice before enabling pilot flags.
-
 ## 2026-08-17 — Harden Bara's eager-auth browser boundary
 
 **Risk profile:** local Bara security headers and documentation only. No hosted
@@ -1231,3 +1200,19 @@ changed.
   design guard, UI guard, and diff check pass. Local execution of migration 132
   and generated-type parity remain intentionally pending exact local-only
   authorization.
+
+## 2026-08-23 — Repair attendance entitlement operator launch
+
+**Risk profile:** runtime-platform — service-only entitlement operator
+availability; no authorization binding, RPC payload, hosted entitlement, flag,
+credential, or attendance state changed.
+
+- Wrapped the existing operator body in an async entrypoint so the documented
+  CommonJS `tsx` package command no longer fails compilation on top-level await.
+- Added a subprocess regression that invokes the exact package script and proves
+  it reaches argument validation instead of the transform failure.
+- Verified the documented command against production in dry-run mode only; it
+  read the current active revision 1 entitlement and emitted a disposable exact
+  binding without executing an RPC.
+- Focused tests, the full Vitest suite, lint, architecture guard, production
+  build, and diff check pass.
