@@ -9,7 +9,11 @@ const STUDENT_ATTENDANCE_CACHE_TTL_MS = 5_000
 
 export async function fetchStudentAttendanceStatus(
   studentId: string,
+  options: { forceNetwork?: boolean } = {},
 ): Promise<StudentAttendanceStatusView> {
+  if (options.forceNetwork) {
+    invalidateCachedJSONMatching(`${STUDENT_ATTENDANCE_CACHE_PREFIX}${studentId}`)
+  }
   return await fetchJSONWithCache(
     `${STUDENT_ATTENDANCE_CACHE_PREFIX}${studentId}`,
     async () => {

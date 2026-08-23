@@ -83,6 +83,7 @@ describe('StudentClassroomsIndex', () => {
     const status = await screen.findByRole('status')
     expect(status).toHaveTextContent('Attendance check-in is open · Scan your teacher’s QR')
     expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveAttribute('aria-busy', 'false')
     expect(within(screen.getByRole('button', { name: /^Math 101/ })).getByRole('status'))
       .toBe(status)
     expect(within(screen.getByRole('button', { name: /^Science 101/ })).queryByRole('status'))

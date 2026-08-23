@@ -49,9 +49,12 @@ no experimental pattern is introduced, and no human promotion is needed.
 | Multiple active enrollments | one state per enrolled classroom | Never combine or transfer state between classroom IDs. |
 
 A confirmed state may remain visible for the current occurrence after close;
-only the stale open prompt must disappear. The server response includes a
+only the stale open prompt must disappear. Closed confirmations revalidate at
+the next Toronto midnight, while an occurrence that legitimately closes the
+next day remains current until its close. The server response includes a
 bounded next-refresh hint, while the client also suppresses an open prompt at
-the known close instant so timer delay cannot leave stale instructions visible.
+the known close instant so timer delay or a failed read cannot leave stale
+instructions visible.
 
 ## Minimum safe read model
 
@@ -62,9 +65,11 @@ the known close instant so timer delay cannot leave stale instructions visible.
   a bounded number of classrooms. Archived classrooms are excluded.
 - Apply the existing exact-canary or teacher-entitlement gate before reading an
   attendance projection. Entitlement and Pika IDs never cross into Bara.
-- Batch-read only current-day occurrence/session projections and records whose
-  `student_id` is the signed-in student. Return Pika classroom IDs, public state,
-  session times, own status, own confirmation time, and a refresh hint.
+- Batch-read at most 100 occurrence/session projections across the current and
+  immediately preceding Toronto class dates, supporting bounded next-day close
+  windows, and records whose `student_id` is the signed-in student. Return Pika
+  classroom IDs, public state, session times, own status, own confirmation time,
+  and a refresh hint.
 - Never return QR/check-in tokens, opaque roster/participant/occurrence refs,
   provider IDs, other students, roster rows, teacher identity, entitlement
   records, or arbitrary caller-selected classroom results.

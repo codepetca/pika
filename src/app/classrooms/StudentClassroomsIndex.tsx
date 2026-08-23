@@ -30,7 +30,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
   const router = useRouter()
   const [classrooms] = useState<Classroom[]>(initialClassrooms)
   const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
-  const { view: attendanceView, refreshing: attendanceRefreshing } =
+  const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
     useStudentAttendanceStatusView(studentId)
 
   const sorted = useMemo(() => {
@@ -96,6 +96,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
                     <StudentAttendanceStatus
                       state={attendanceView?.classrooms.find((item) => item.classroomId === c.id)}
                       refreshing={attendanceRefreshing}
+                      now={attendanceNow}
                       variant="index"
                     />
                   ) : null}

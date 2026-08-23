@@ -3,13 +3,15 @@ import { z } from 'zod'
 import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
 import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
-import { formatDateInToronto } from '@/lib/timezone'
+import { addDaysToDateString } from '@/lib/date-string'
+import { formatDateInToronto, toTorontoStartOfDayIso } from '@/lib/timezone'
 import type {
   StudentAttendanceClassroomState,
   StudentAttendanceStatusView,
 } from '@/lib/validations/student-attendance'
 
 const MAX_STUDENT_CLASSROOMS = 50
+const MAX_STUDENT_OCCURRENCES = MAX_STUDENT_CLASSROOMS * 2
 const OPEN_REFRESH_MS = 15_000
 const SCHEDULED_REFRESH_MS = 60_000
 
@@ -33,25 +35,26 @@ const rosterRowsSchema = z.array(z.object({
 
 const occurrenceRowsSchema = z.array(z.object({
   classroom_id: z.string().uuid(),
+  class_date: z.string().date(),
   occurrence_ref: z.string().min(1).max(128),
   opens_at: z.string().datetime({ offset: true }).nullable(),
   closes_at: z.string().datetime({ offset: true }).nullable(),
   desired_state: z.enum(['scheduled', 'cancelled']),
-}).strict()).max(MAX_STUDENT_CLASSROOMS)
+}).strict()).max(MAX_STUDENT_OCCURRENCES)
 
 const sessionRowsSchema = z.array(z.object({
   occurrence_ref: z.string().min(1).max(128),
   status: z.enum(['scheduled', 'open', 'closed', 'cancelled']),
   opens_at: z.string().datetime({ offset: true }).nullable(),
   closes_at: z.string().datetime({ offset: true }).nullable(),
-}).strict()).max(MAX_STUDENT_CLASSROOMS)
+}).strict()).max(MAX_STUDENT_OCCURRENCES)
 
 const recordRowsSchema = z.array(z.object({
   classroom_id: z.string().uuid(),
   occurrence_ref: z.string().min(1).max(128),
   status: z.enum(['unmarked', 'present', 'late', 'absent']),
   last_event_at: z.string().datetime({ offset: true }),
-}).strict()).max(MAX_STUDENT_CLASSROOMS)
+}).strict()).max(MAX_STUDENT_OCCURRENCES)
 
 type OccurrenceRow = z.infer<typeof occurrenceRowsSchema>[number]
 type SessionRow = z.infer<typeof sessionRowsSchema>[number]
@@ -89,6 +92,12 @@ function minInstant(current: string | null, candidate: string | null): string | 
   return Date.parse(candidate) < Date.parse(current) ? candidate : current
 }
 
+function nextTorontoDayBoundary(now: Date): string {
+  return toTorontoStartOfDayIso(
+    addDaysToDateString(formatDateInToronto(now), 1),
+  )
+}
+
 export function buildStudentAttendanceClassroomState(input: {
   classroomId: string
   occurrence: OccurrenceRow | null
@@ -104,9 +113,8 @@ export function buildStudentAttendanceClassroomState(input: {
   const closesAt = session?.closes_at ?? occurrence?.closes_at ?? null
 
   if (record && ownConfirmedStatus) {
-    const shouldRefresh = Boolean(
-      closesAt && session?.status === 'open' && now.getTime() < Date.parse(closesAt),
-    )
+    const closesTime = closesAt ? Date.parse(closesAt) : Number.NaN
+    const shouldRefreshBeforeClose = Number.isFinite(closesTime) && now.getTime() < closesTime
     return {
       state: {
         classroomId,
@@ -116,16 +124,16 @@ export function buildStudentAttendanceClassroomState(input: {
         attendanceStatus: ownConfirmedStatus,
         confirmedAt: record.last_event_at,
       },
-      nextRefreshAt: shouldRefresh
-        ? new Date(Math.min(now.getTime() + OPEN_REFRESH_MS, Date.parse(closesAt!))).toISOString()
-        : null,
+      nextRefreshAt: shouldRefreshBeforeClose
+        ? new Date(Math.min(now.getTime() + OPEN_REFRESH_MS, closesTime)).toISOString()
+        : nextTorontoDayBoundary(now),
     }
   }
 
   if (!occurrence) {
     return {
       state: { classroomId, state: 'no_session', opensAt: null, closesAt: null },
-      nextRefreshAt: null,
+      nextRefreshAt: nextTorontoDayBoundary(now),
     }
   }
 
@@ -138,7 +146,7 @@ export function buildStudentAttendanceClassroomState(input: {
   if (isClosed) {
     return {
       state: { classroomId, state: 'closed', opensAt, closesAt },
-      nextRefreshAt: null,
+      nextRefreshAt: nextTorontoDayBoundary(now),
     }
   }
 
@@ -245,12 +253,14 @@ export async function loadStudentAttendanceStatusView(input: {
     return { classrooms: classrooms.map((row) => unavailableState(row.id)), nextRefreshAt: null }
   }
 
+  const today = formatDateInToronto(now)
+  const previousDay = addDaysToDateString(today, -1)
   const occurrenceResult = await input.supabase
     .from('attendance_occurrence_mappings')
-    .select('classroom_id, occurrence_ref, opens_at, closes_at, desired_state')
+    .select('classroom_id, class_date, occurrence_ref, opens_at, closes_at, desired_state')
     .in('classroom_id', readyClassroomIds)
-    .eq('class_date', formatDateInToronto(now))
-    .limit(MAX_STUDENT_CLASSROOMS)
+    .in('class_date', [previousDay, today])
+    .limit(MAX_STUDENT_OCCURRENCES)
   assertRead(occurrenceResult)
   const occurrences = parseRows(occurrenceRowsSchema, occurrenceResult.data)
   const occurrenceRefs = occurrences.map((row) => row.occurrence_ref)
@@ -268,14 +278,14 @@ export async function loadStudentAttendanceStatusView(input: {
         .select('occurrence_ref, status, opens_at, closes_at')
         .eq('installation_ref', installationRef)
         .in('occurrence_ref', occurrenceRefs)
-        .limit(MAX_STUDENT_CLASSROOMS),
+        .limit(MAX_STUDENT_OCCURRENCES),
       input.supabase
         .from('attendance_record_projection')
         .select('classroom_id, occurrence_ref, status, last_event_at')
         .eq('installation_ref', installationRef)
         .eq('student_id', input.studentId)
         .in('occurrence_ref', occurrenceRefs)
-        .limit(MAX_STUDENT_CLASSROOMS),
+        .limit(MAX_STUDENT_OCCURRENCES),
     ])
     assertRead(sessionResult)
     assertRead(recordResult)
@@ -283,13 +293,32 @@ export async function loadStudentAttendanceStatusView(input: {
     records = parseRows(recordRowsSchema, recordResult.data)
   }
 
-  const occurrenceByClassroom = new Map(occurrences.map((row) => [row.classroom_id, row]))
   const sessionByOccurrence = new Map(sessions.map((row) => [row.occurrence_ref, row]))
   const recordByOccurrence = new Map(records.map((row) => [row.occurrence_ref, row]))
+  const occurrencesByClassroom = new Map<string, OccurrenceRow[]>()
+  for (const occurrence of occurrences) {
+    const rows = occurrencesByClassroom.get(occurrence.classroom_id) ?? []
+    rows.push(occurrence)
+    occurrencesByClassroom.set(occurrence.classroom_id, rows)
+  }
   let nextRefreshAt: string | null = null
   const states = classrooms.map((classroom) => {
     if (!readySet.has(classroom.id)) return unavailableState(classroom.id)
-    const occurrence = occurrenceByClassroom.get(classroom.id) ?? null
+    const classroomOccurrences = occurrencesByClassroom.get(classroom.id) ?? []
+    const overnightOccurrence = classroomOccurrences.find((occurrence) => {
+      if (occurrence.class_date !== previousDay || occurrence.desired_state === 'cancelled') {
+        return false
+      }
+      const session = sessionByOccurrence.get(occurrence.occurrence_ref)
+      const effectiveClosesAt = session?.closes_at ?? occurrence.closes_at
+      const closesTime = effectiveClosesAt ? Date.parse(effectiveClosesAt) : Number.NaN
+      if (!Number.isFinite(closesTime) || now.getTime() >= closesTime) return false
+      const record = recordByOccurrence.get(occurrence.occurrence_ref)
+      return session?.status === 'open' || record?.status === 'present' || record?.status === 'late'
+    })
+    const occurrence = overnightOccurrence
+      ?? classroomOccurrences.find((row) => row.class_date === today)
+      ?? null
     const built = buildStudentAttendanceClassroomState({
       classroomId: classroom.id,
       occurrence,

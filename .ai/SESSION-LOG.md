@@ -1208,13 +1208,15 @@ changed.
   still required.
 - Invalidated the private client snapshot after successful or idempotent
   duplicate scans, linked back to the matching classroom, and bounded refreshes
-  while suppressing stale prompts at the exact close time.
+  while suppressing stale prompts at the exact close time. Review remediation
+  added forced boundary reads, bounded failure retries, next-day-close support,
+  and Toronto-midnight rollover for closed confirmations.
 - Added unit, API, component, and teacher/student experience-matrix coverage for
   entitlement and classroom isolation, unavailable and closed states, mobile
   rendering, and duplicate-scan confirmation. Visual checks passed across
   desktop/mobile and light/dark student views plus the prescribed teacher and
   student smoke screenshots.
-- The full 5,043-test suite, lint, TypeScript, production build, architecture,
+- The full 5,049-test suite, lint, TypeScript, production build, architecture,
   design, UI, Pika audit, browser matrix, and diff checks pass. Local database
   runtime/type-parity guards remain intentionally unavailable because the local
   schema does not include unapplied migration 132; no migration was applied

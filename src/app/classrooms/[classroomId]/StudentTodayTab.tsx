@@ -117,7 +117,7 @@ export function StudentTodayTab({
   onLessonPlanLoad,
 }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
-  const { view: attendanceView, refreshing: attendanceRefreshing } =
+  const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
     useStudentAttendanceStatusView(studentId)
   const {
     classDays,
@@ -698,6 +698,7 @@ export function StudentTodayTab({
         <StudentAttendanceStatus
           state={attendanceView?.classrooms.find((item) => item.classroomId === classroom.id)}
           refreshing={attendanceRefreshing}
+          now={attendanceNow}
           variant="banner"
         />
       ) : null}

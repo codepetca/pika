@@ -493,6 +493,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await waitFor(() => {
       expect(mockStudentTodayTabProps).toHaveBeenCalledWith(expect.objectContaining({
         classroom,
+        layout: 'pane',
         studentId: 'student-1',
       }))
     })

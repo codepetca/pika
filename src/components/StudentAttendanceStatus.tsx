@@ -10,7 +10,8 @@ import type {
 } from '@/lib/validations/student-attendance'
 
 const MIN_REFRESH_DELAY_MS = 1_000
-const MAX_REFRESH_DELAY_MS = 60_000
+const MAX_REFRESH_DELAY_MS = 24 * 60 * 60 * 1_000
+const FAILED_REFRESH_RETRY_MS = 15_000
 
 function formatTorontoTime(value: string): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -37,55 +38,79 @@ export function resolveVisibleStudentAttendanceState(
 export function useStudentAttendanceStatusView(studentId?: string) {
   const [view, setView] = useState<StudentAttendanceStatusView | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  const [refreshCycle, setRefreshCycle] = useState(0)
   const mountedRef = useRef(true)
+  const activeStudentIdRef = useRef(studentId)
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (!studentId) return
     if (isRefresh) setRefreshing(true)
     try {
-      const next = await fetchStudentAttendanceStatus(studentId)
-      if (mountedRef.current) setView(next)
+      const next = await fetchStudentAttendanceStatus(studentId, { forceNetwork: isRefresh })
+      if (mountedRef.current && activeStudentIdRef.current === studentId) setView(next)
     } catch {
       // Keep the last safe snapshot. A failed attendance read must not become
       // an empty state or an unearned confirmation.
     } finally {
-      if (mountedRef.current) setRefreshing(false)
+      if (mountedRef.current && activeStudentIdRef.current === studentId) {
+        setRefreshing(false)
+        if (isRefresh) setRefreshCycle((cycle) => cycle + 1)
+      }
     }
   }, [studentId])
 
   useEffect(() => {
     mountedRef.current = true
+    activeStudentIdRef.current = studentId
     setView(null)
+    setNowMs(Date.now())
     if (studentId) void load(false)
     return () => { mountedRef.current = false }
   }, [load, studentId])
 
   useEffect(() => {
-    if (!view?.nextRefreshAt) return
-    const delay = Math.min(
-      MAX_REFRESH_DELAY_MS,
-      Math.max(MIN_REFRESH_DELAY_MS, Date.parse(view.nextRefreshAt) - Date.now()),
+    if (!view) return
+    const nextRefreshTime = view.nextRefreshAt ? Date.parse(view.nextRefreshAt) : Number.NaN
+    const nextCloseTime = view.classrooms.reduce((earliest, state) => {
+      if (state.state !== 'open' || !state.closesAt) return earliest
+      const closesTime = Date.parse(state.closesAt)
+      return Number.isFinite(closesTime) ? Math.min(earliest, closesTime) : earliest
+    }, Number.POSITIVE_INFINITY)
+    const targetTime = Math.min(
+      Number.isFinite(nextRefreshTime) ? nextRefreshTime : Number.POSITIVE_INFINITY,
+      nextCloseTime,
     )
-    const timer = window.setTimeout(() => void load(true), delay)
+    if (!Number.isFinite(targetTime)) return
+    const timeUntilTarget = targetTime - Date.now()
+    const delay = timeUntilTarget <= 0
+      ? FAILED_REFRESH_RETRY_MS
+      : Math.min(MAX_REFRESH_DELAY_MS, Math.max(MIN_REFRESH_DELAY_MS, timeUntilTarget))
+    const timer = window.setTimeout(() => {
+      setNowMs(Date.now())
+      void load(true)
+    }, delay)
     return () => window.clearTimeout(timer)
-  }, [load, view])
+  }, [load, refreshCycle, view])
 
-  return { view, refreshing }
+  return { view, refreshing, now: new Date(nowMs) }
 }
 
 export function StudentAttendanceStatus({
   state: rawState,
   refreshing = false,
+  now,
   variant,
 }: {
   state: StudentAttendanceClassroomState | undefined
   refreshing?: boolean
+  now?: Date
   variant: 'index' | 'banner'
 }) {
 
   const state = useMemo(
-    () => resolveVisibleStudentAttendanceState(rawState),
-    [rawState],
+    () => resolveVisibleStudentAttendanceState(rawState, now),
+    [now, rawState],
   )
   if (!state) return null
 
