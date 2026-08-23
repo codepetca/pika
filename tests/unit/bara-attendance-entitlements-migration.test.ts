@@ -52,6 +52,11 @@ describe('Bara attendance teacher entitlement migration', () => {
     expect(migration).toContain("if v_row.status = 'superseded' then")
     expect(migration).toContain("outbox.entitlement_revision is null")
     expect(migration).toContain('attendance_outbox_entitlement_revision_insert')
+    expect(migration).toContain('hashtextextended(v_teacher_id::text, 13220260823)')
+    expect(migration).toMatch(
+      /function public\.get_attendance_entitlement_transition_health_v1[\s\S]*?language plpgsql\s+volatile/,
+    )
+    expect(migration).toContain('hashtextextended(v_actual_teacher_id::text, 13220260823)')
     expect(migration).toContain('v_stale_epoch_unresolved_count')
     expect(migration).toContain("set integration_state = 'inactive'")
     expect(migration).toContain('list_attendance_reconciliation_targets_v3')

@@ -1468,6 +1468,112 @@ delete from public.users
 where id = 'c1260000-0000-4000-8000-000000000001';
 SQL
 
+# Prove a concurrent entitlement revision, exact-canary v1 enqueue, and rollout
+# gate share the teacher lock. The enqueue queues behind the setter, stamps the
+# committed revision, and the gate waits for both before reporting readiness.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+insert into public.users (id, email, role, workos_user_id) values (
+  'd1260000-0000-4000-8000-000000000001',
+  'attendance-transition-race@example.test',
+  'teacher',
+  'user_attendance_transition_race'
+);
+insert into public.classrooms (id, teacher_id, title, class_code) values (
+  'd1260000-0000-4000-8000-000000000040',
+  'd1260000-0000-4000-8000-000000000001',
+  'Attendance transition race',
+  'D12640'
+);
+select public.set_attendance_teacher_entitlement_v1(
+  'd1260000-0000-4000-8000-000000000140',
+  'd1260000-0000-4000-8000-000000000001',
+  'active', '2020-01-01T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'transition_race_initial', 0
+);
+SQL
+
+docker exec -e PGAPPNAME=attendance-transition-setter -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.set_attendance_teacher_entitlement_v1(
+  'd1260000-0000-4000-8000-000000000141',
+  'd1260000-0000-4000-8000-000000000001',
+  'active', '2020-01-01T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'transition_race_revision', 1
+);
+select pg_sleep(2);
+commit;
+SQL
+transition_setter_pid=$!
+if ! wait_for_attendance_race_lock 'attendance-transition-setter'; then
+  echo "Transition setter did not acquire its teacher serialization lock." >&2
+  wait "$transition_setter_pid" || true
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=attendance-transition-enqueue -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.enqueue_attendance_outbound_message_v1(
+  'd1260000-0000-4000-8000-000000000040',
+  jsonb_build_object(
+    'schema_version', 1,
+    'message_type', 'session.command',
+    'idempotency_key', 'session:transition-race:40',
+    'correlation_ref', 'transition_race_40',
+    'installation_ref', 'installation_guard',
+    'roster_ref', 'roster_d1260000000040008000000000000040'
+  )
+);
+select pg_sleep(1);
+commit;
+SQL
+transition_enqueue_pid=$!
+if ! wait_for_attendance_race_lock 'attendance-transition-enqueue'; then
+  echo "Transition enqueue did not acquire its classroom serialization lock." >&2
+  wait "$transition_setter_pid" || true
+  wait "$transition_enqueue_pid" || true
+  exit 1
+fi
+
+transition_ready="$(docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -A -t -v ON_ERROR_STOP=1 <<'SQL'
+select (public.get_attendance_entitlement_transition_health_v1(
+  'd1260000-0000-4000-8000-000000000001',
+  'd1260000-0000-4000-8000-000000000040'
+)->>'ready')::boolean;
+SQL
+)"
+wait "$transition_setter_pid"
+wait "$transition_enqueue_pid"
+if [[ "$transition_ready" != "t" ]]; then
+  echo "Concurrent transition gate did not wait for serialized work." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $transition_race$
+begin
+  if (select revision from public.attendance_teacher_entitlements
+      where teacher_id = 'd1260000-0000-4000-8000-000000000001') <> 2
+    or (select entitlement_revision from public.attendance_integration_outbox
+        where idempotency_key = 'session:transition-race:40') <> 2 then
+    raise exception 'Concurrent exact-canary enqueue was stamped with a stale entitlement epoch';
+  end if;
+end;
+$transition_race$;
+delete from public.attendance_integration_outbox
+where idempotency_key = 'session:transition-race:40';
+delete from public.attendance_teacher_entitlements
+where teacher_id = 'd1260000-0000-4000-8000-000000000001';
+delete from public.attendance_teacher_entitlement_audit
+where teacher_id = 'd1260000-0000-4000-8000-000000000001';
+delete from public.classrooms
+where id = 'd1260000-0000-4000-8000-000000000040';
+delete from public.users
+where id = 'd1260000-0000-4000-8000-000000000001';
+SQL
+
 # Commit isolated fixtures so two independent sessions can prove that the
 # attendance writer and student-purge paths serialize on the same subject lock.
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'

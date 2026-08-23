@@ -117,13 +117,23 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_teacher_id uuid;
 begin
   if new.entitlement_revision is null then
-    select entitlement.revision into new.entitlement_revision
+    select classroom.teacher_id into v_teacher_id
     from public.classrooms classroom
-    join public.attendance_teacher_entitlements entitlement
-      on entitlement.teacher_id = classroom.teacher_id
-    where classroom.id = new.classroom_id
+    where classroom.id = new.classroom_id;
+    if v_teacher_id is not null then
+      -- Serialize exact-canary v1 inserts with entitlement revisions. The v1
+      -- enqueue already owns the classroom lock, matching the v2 lock order.
+      perform pg_advisory_xact_lock(
+        hashtextextended(v_teacher_id::text, 13220260823)
+      );
+    end if;
+    select entitlement.revision into new.entitlement_revision
+    from public.attendance_teacher_entitlements entitlement
+    where entitlement.teacher_id = v_teacher_id
       and entitlement.status = 'active'
       and entitlement.valid_from <= clock_timestamp()
       and (entitlement.valid_until is null
@@ -155,6 +165,11 @@ begin
   if p_teacher_id is null or p_classroom_id is null or p_at is null then
     raise exception using errcode = '22023', message = 'attendance_outbox_enqueue_invalid';
   end if;
+  -- Match the v1 enqueue/insert-trigger order to avoid classroom/teacher
+  -- advisory-lock inversion when exact-canary and entitled writes overlap.
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_classroom_id::text, 918273645)
+  );
   perform pg_advisory_xact_lock(
     hashtextextended(p_teacher_id::text, 13220260823)
   );
@@ -370,19 +385,37 @@ create function public.get_attendance_entitlement_transition_health_v1(
 )
 returns jsonb
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
 declare
+  v_actual_teacher_id uuid;
   v_scope_valid boolean;
   v_unversioned_unresolved_count bigint;
   v_stale_epoch_unresolved_count bigint;
 begin
+  select classroom.teacher_id into v_actual_teacher_id
+  from public.classrooms classroom
+  where classroom.id = p_classroom_id
+    and classroom.archived_at is null;
+  if v_actual_teacher_id is null
+    or v_actual_teacher_id is distinct from p_teacher_id then
+    return jsonb_build_object(
+      'ready', false,
+      'unversioned_unresolved_count', 0,
+      'stale_epoch_unresolved_count', 0
+    );
+  end if;
+  -- Wait for both entitlement setters and exact-canary insert triggers. As a
+  -- VOLATILE function, the statements below observe their committed result.
+  perform pg_advisory_xact_lock(
+    hashtextextended(v_actual_teacher_id::text, 13220260823)
+  );
   select exists (
     select 1 from public.classrooms classroom
     where classroom.id = p_classroom_id
-      and classroom.teacher_id = p_teacher_id
+      and classroom.teacher_id = v_actual_teacher_id
       and classroom.archived_at is null
   ) into v_scope_valid;
   if not v_scope_valid then
