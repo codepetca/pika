@@ -22398,3 +22398,35 @@ WorkOS, Vercel, Convex, or Supabase configuration changed.
 - Configure isolated hosted Preview, verify the emitted policy there, then run
   logout, exact QR return-path, second-account isolation, and bounded classroom
   contract smokes before enabling rollout flags.
+
+<!-- pika-session-log-archive-batch:fd7fa3f3b1533f7a7576f6b7820ea1ae09ddbf6fe987fdc6779a0f18c9c44328 -->
+## 2026-08-17 — Reaffirm separate WorkOS application boundaries
+
+**Risk profile:** read-only hosted audit and documentation correction. No
+WorkOS, Vercel, Convex, Supabase, DNS, or production configuration changed.
+
+**Model recommendation:** frontier reasoning model — this phase spans WorkOS,
+Vercel, Convex, Supabase, and two application security boundaries.
+
+**Findings and decision:**
+- Codepet Platform Staging and Production each contain separate Bara and Pika
+  AuthKit Applications. Codepet Labs remains a separate WorkOS project.
+- The boundary-preserving target is Pika authentication under its Application,
+  a one-time WorkOS cross-application code, and exchange into Bara's own
+  Application session before Convex resolves the subject locally.
+- The same-client/shared-cookie local proof remains useful fallback evidence,
+  but it is not the production architecture. Pika and Bara keep distinct client
+  IDs, API keys, cookies, refresh tokens, token audiences, internal users,
+  databases, and authorization.
+- Bara Vercel Preview currently reuses development Convex and an obsolete
+  callback. Pika Preview has no WorkOS/Bara variables and points at the only
+  hosted Pika Supabase project. Deploying the attendance migration there would
+  violate the isolated-preview gate.
+- Pika Staging has a short-lived pilot key; Pika Production has no active key.
+  No hosted settings were changed.
+
+**Next gate:**
+- Obtain WorkOS's exact issuance conditions for
+  `authkit_authorization_code`, provision an explicitly isolated Pika Preview
+  data target, then create Preview-only deploy credentials and run the complete
+  no-prompt/auth/attendance smoke. Keep all rollout flags disabled meanwhile.

@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Reaffirm separate WorkOS application boundaries
-
-**Risk profile:** read-only hosted audit and documentation correction. No
-WorkOS, Vercel, Convex, Supabase, DNS, or production configuration changed.
-
-**Model recommendation:** frontier reasoning model — this phase spans WorkOS,
-Vercel, Convex, Supabase, and two application security boundaries.
-
-**Findings and decision:**
-- Codepet Platform Staging and Production each contain separate Bara and Pika
-  AuthKit Applications. Codepet Labs remains a separate WorkOS project.
-- The boundary-preserving target is Pika authentication under its Application,
-  a one-time WorkOS cross-application code, and exchange into Bara's own
-  Application session before Convex resolves the subject locally.
-- The same-client/shared-cookie local proof remains useful fallback evidence,
-  but it is not the production architecture. Pika and Bara keep distinct client
-  IDs, API keys, cookies, refresh tokens, token audiences, internal users,
-  databases, and authorization.
-- Bara Vercel Preview currently reuses development Convex and an obsolete
-  callback. Pika Preview has no WorkOS/Bara variables and points at the only
-  hosted Pika Supabase project. Deploying the attendance migration there would
-  violate the isolated-preview gate.
-- Pika Staging has a short-lived pilot key; Pika Production has no active key.
-  No hosted settings were changed.
-
-**Next gate:**
-- Obtain WorkOS's exact issuance conditions for
-  `authkit_authorization_code`, provision an explicitly isolated Pika Preview
-  data target, then create Preview-only deploy credentials and run the complete
-  no-prompt/auth/attendance smoke. Keep all rollout flags disabled meanwhile.
-
 ## 2026-08-18 — Tighten the v3 Course Package manifest contract
 
 **Risk profile:** high — strict historical compatibility boundary; no schema,
@@ -1223,3 +1192,19 @@ changed.
   runtime/type-parity guards remain intentionally unavailable because the local
   schema does not include unapplied migration 132; no migration was applied
   without fresh authorization.
+
+## 2026-08-23 — Refine the student classroom attendance signal
+
+**Risk profile:** student-only visual refinement; no attendance behavior,
+authorization, schema, flag, deployment, or production state changed.
+
+- Replaced the classroom-list attendance sentence with an icon-only Lucide
+  QR-scan indicator in the card's upper-right corner. The open indicator uses a
+  restrained reduced-motion-safe pulse; confirmed attendance uses the existing
+  static success icon. Full scanning instructions remain on Today.
+- Kept a polite named status for assistive technology and preserved the entire
+  classroom card as the only interaction on the index.
+- Focused component tests, TypeScript, lint, Pika audit, and the six-test
+  desktop/mobile light/dark browser matrix pass. Visual verification passed for
+  teacher/student smoke views and the student open state in every required
+  viewport/theme combination.

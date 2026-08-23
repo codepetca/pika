@@ -80,10 +80,11 @@ describe('StudentClassroomsIndex', () => {
       studentId="30000000-0000-4000-8000-000000000001"
     />)
 
-    const status = await screen.findByRole('status')
-    expect(status).toHaveTextContent('Attendance check-in is open · Scan your teacher’s QR')
+    const status = await screen.findByRole('status', { name: 'Attendance check-in is open' })
+    expect(status).toHaveTextContent('')
     expect(status).toHaveAttribute('aria-live', 'polite')
     expect(status).toHaveAttribute('aria-busy', 'false')
+    expect(status).toHaveClass('motion-safe:animate-pulse')
     expect(within(screen.getByRole('button', { name: /^Math 101/ })).getByRole('status'))
       .toBe(status)
     expect(within(screen.getByRole('button', { name: /^Science 101/ })).queryByRole('status'))

@@ -427,7 +427,7 @@ test.describe('student experience matrix', () => {
 
     attendanceState = 'open'
     await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText('Attendance check-in is open · Scan your teacher’s QR')).toBeVisible()
+    await expect(page.getByRole('status', { name: 'Attendance check-in is open' })).toBeVisible()
     await page.screenshot({
       path: testInfo.outputPath('student-attendance-index-open.png'),
       fullPage: true,

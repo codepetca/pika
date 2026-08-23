@@ -79,7 +79,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
                   aria-busy={openingClassroomId === c.id}
                   style={getClassroomThemeStyle(theme.value)}
                   className={[
-                    'classroom-theme classroom-theme-card classroom-theme-card-interactive w-full border border-border px-5 py-4 text-left',
+                    'classroom-theme classroom-theme-card classroom-theme-card-interactive relative w-full border border-border px-5 py-4 pr-14 text-left',
                     openingClassroomId === c.id ? 'cursor-wait' : 'cursor-pointer',
                   ].join(' ')}
                 >

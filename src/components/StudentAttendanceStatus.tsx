@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, ScanLine } from 'lucide-react'
+import { CheckCircle2, ScanQrCode } from 'lucide-react'
 
 import { fetchStudentAttendanceStatus } from '@/lib/student-attendance-client'
 import type {
@@ -162,22 +162,19 @@ export function StudentAttendanceStatus({
   const timeLabel = confirmed && state.confirmedAt
     ? formatTorontoTime(state.confirmedAt)
     : null
-  const Icon = confirmed ? CheckCircle2 : ScanLine
+  const Icon = confirmed ? CheckCircle2 : ScanQrCode
 
   if (variant === 'index') {
     return (
       <div
-        className={`mt-3 flex items-center gap-2 text-sm font-medium ${confirmed ? 'text-success' : 'text-primary'}`}
+        className={`absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-control ${confirmed ? 'bg-success-bg text-success' : 'bg-surface-accent text-primary motion-safe:animate-pulse'}`}
         role="status"
+        aria-label={confirmed ? `Attendance confirmed: ${statusLabel}` : 'Attendance check-in is open'}
         aria-live="polite"
         aria-busy={refreshing}
+        data-testid="student-attendance-index-status"
       >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>
-          {confirmed
-            ? `Checked in · ${statusLabel}${timeLabel ? ` · ${timeLabel}` : ''}`
-            : 'Attendance check-in is open · Scan your teacher’s QR'}
-        </span>
+        <Icon className="h-5 w-5" aria-hidden="true" />
       </div>
     )
   }

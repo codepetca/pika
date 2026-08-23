@@ -57,6 +57,19 @@ describe('StudentAttendanceStatus', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
+  it('uses only a subtle QR-scan indicator on the classroom index', () => {
+    render(<StudentAttendanceStatus
+      state={{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: null }}
+      variant="index"
+    />)
+
+    const status = screen.getByRole('status', { name: 'Attendance check-in is open' })
+    expect(status).toHaveTextContent('')
+    expect(status).toHaveClass('motion-safe:animate-pulse')
+    expect(status.querySelector('.lucide-scan-qr-code')).toBeInTheDocument()
+    expect(screen.queryByText(/Scan your teacher’s QR/i)).not.toBeInTheDocument()
+  })
+
   it('shows only the student’s own confirmed status and Toronto time', () => {
     render(<StudentAttendanceStatus
       state={{

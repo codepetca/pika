@@ -12,9 +12,9 @@ check-in mutation.
 
 ## UI change brief
 
-- Surface: compact status within each enrolled classroom row on the Classrooms
-  index, plus a prominent banner at the top of the selected classroom's Today
-  pane.
+- Surface: a subtle icon-only QR-scan status within each enrolled classroom row
+  on the Classrooms index, plus a prominent banner at the top of the selected
+  classroom's Today pane.
 - Reference: existing student classroom cards, Today page-state notices, and
   semantic attendance status treatments.
 - Affected roles: student only. Teacher and unauthenticated surfaces are not
@@ -39,7 +39,7 @@ no experimental pattern is introduced, and no human promotion is needed.
 | Integration disabled, not configured, or teacher not entitled | `unavailable` | No attendance prompt or status is shown. Other classroom content remains usable. |
 | Active enrolled classroom with no current occurrence | `no_session` | No attendance UI is shown. |
 | Current occurrence scheduled but not open | `scheduled` | No prompt is shown; revalidate at a bounded interval or at opening. |
-| Session open and the student has no confirmed record | `open` | Show “Attendance check-in is open — scan the QR shown by your teacher.” |
+| Session open and the student has no confirmed record | `open` | Show an accessible QR-scan indicator on the classroom card and “Attendance check-in is open — scan the QR shown by your teacher” on Today. |
 | An open/session-bound read is refreshing | client-only `revalidating` | Keep the last safe state visible without claiming a new confirmation. |
 | Own record is `present` or `late` | `confirmed` | Show the private status and Toronto confirmation time in that classroom. |
 | Session closed, cancelled, or past `closesAt` without a record | `closed` | Remove the open prompt immediately; no check-in action is offered. |
