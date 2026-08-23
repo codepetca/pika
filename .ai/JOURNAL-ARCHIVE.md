@@ -22371,3 +22371,30 @@ WorkOS, Vercel, Convex production, or Supabase configuration changed.
 - Configure and verify the same model in isolated Preview, then prove logout,
   exact QR return-path preservation, second-account tenant isolation, and the
   first native attendance contract slice before enabling pilot flags.
+
+<!-- pika-session-log-archive-batch:156dda3d48ec4b8c40b92de0f8227804a0224a7d3c90f8080cb124b9d4921258 -->
+## 2026-08-17 — Harden Bara's eager-auth browser boundary
+
+**Risk profile:** local Bara security headers and documentation only. No hosted
+WorkOS, Vercel, Convex, or Supabase configuration changed.
+
+**Completed:**
+- Added a per-request nonce Content Security Policy around Bara's AuthKit eager
+  auth path. Scripts require the nonce, inline event handlers and framing are
+  blocked, and browser connections are limited to Bara plus the exact configured
+  Convex cloud/site HTTP and WebSocket origins.
+- Kept only the development exceptions required by React debugging and local
+  HMR. The production policy contains no `unsafe-eval` and upgrades insecure
+  subresource requests.
+- Re-smoked the signed-in Bara dashboard, roster import, and public unavailable
+  attendance state in Chrome with no CSP violations; production-mode Bara also
+  retained the shared WorkOS session and authenticated Convex UI.
+
+**Validation:**
+- Bara passes 136 tests across 29 files, TypeScript, production build, brand
+  guard, diff hygiene, and lint with only existing generated Convex warnings.
+
+**Next gate:**
+- Configure isolated hosted Preview, verify the emitted policy there, then run
+  logout, exact QR return-path, second-account isolation, and bounded classroom
+  contract smokes before enabling rollout flags.

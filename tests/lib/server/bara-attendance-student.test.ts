@@ -113,6 +113,7 @@ describe('native Pika student attendance check-in', () => {
       description: 'Your attendance was recorded.',
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
+      classroomId,
     })
   })
 
@@ -134,7 +135,7 @@ describe('native Pika student attendance check-in', () => {
       integrationState: 'ready',
       resolveActor: vi.fn().mockResolvedValue(actor),
       send,
-    })).resolves.toMatchObject({ state: 'already_checked_in' })
+    })).resolves.toMatchObject({ state: 'already_checked_in', classroomId })
 
     expect(send).toHaveBeenCalledTimes(2)
     expect(send.mock.calls[0][0]).toEqual(send.mock.calls[1][0])

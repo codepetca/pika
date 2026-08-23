@@ -15,16 +15,23 @@ import {
 } from '@/ui'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import { formatClassroomDateRange } from '@/lib/classroom-date-range'
+import {
+  StudentAttendanceStatus,
+  useStudentAttendanceStatusView,
+} from '@/components/StudentAttendanceStatus'
 import type { Classroom } from '@/types'
 
 interface Props {
   initialClassrooms: Classroom[]
+  studentId?: string
 }
 
-export function StudentClassroomsIndex({ initialClassrooms }: Props) {
+export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) {
   const router = useRouter()
   const [classrooms] = useState<Classroom[]>(initialClassrooms)
   const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
+  const { view: attendanceView, refreshing: attendanceRefreshing } =
+    useStudentAttendanceStatusView(studentId)
 
   const sorted = useMemo(() => {
     return [...classrooms].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -85,6 +92,13 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
                   <div className="mt-1 text-sm leading-6 text-text-muted">
                     {dateRange ?? 'Semester dates not set'}
                   </div>
+                  {studentId ? (
+                    <StudentAttendanceStatus
+                      state={attendanceView?.classrooms.find((item) => item.classroomId === c.id)}
+                      refreshing={attendanceRefreshing}
+                      variant="index"
+                    />
+                  ) : null}
                   {openingClassroomId === c.id && (
                     <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
                       <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />

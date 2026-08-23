@@ -247,5 +247,8 @@ export async function executeStudentAttendanceCheckIn(input: {
       throw new StudentAttendanceCheckInError('upstream_unavailable')
     }
   }
-  return mapResult(result)
+  const mapped = mapResult(result)
+  return mapped.state === 'checked_in' || mapped.state === 'already_checked_in'
+    ? { ...mapped, classroomId: entry.classroomId }
+    : mapped
 }

@@ -367,6 +367,7 @@ function StudentTodayPlanSidebar({
 
 function StudentTodayWorkspace({
   classroom,
+  studentId,
   todayLessonPlan,
   lastClassLessonPlan,
   lastClassDate,
@@ -374,6 +375,7 @@ function StudentTodayWorkspace({
   onLessonPlanLoad,
 }: {
   classroom: Classroom
+  studentId: string
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
@@ -399,6 +401,7 @@ function StudentTodayWorkspace({
       primary={
         <StudentTodayTab
           classroom={classroom}
+          studentId={studentId}
           layout="pane"
           onLessonPlanLoad={onLessonPlanLoad}
         />
@@ -1423,6 +1426,7 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'today'}>
                       <StudentTodayWorkspace
                         classroom={classroom}
+                        studentId={user.id}
                         todayLessonPlan={todayLessonPlan}
                         lastClassLessonPlan={lastClassLessonPlan}
                         lastClassDate={lastClassLessonPlanDate}

@@ -49,7 +49,7 @@ export default async function ClassroomsIndexPage() {
   if (classroomIds.length === 0) {
     return (
       <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
-        <StudentClassroomsIndex initialClassrooms={[]} />
+        <StudentClassroomsIndex initialClassrooms={[]} studentId={user.id} />
       </AppShell>
     )
   }
@@ -65,6 +65,7 @@ export default async function ClassroomsIndexPage() {
     <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }}>
       <StudentClassroomsIndex
         initialClassrooms={hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
+        studentId={user.id}
       />
     </AppShell>
   )

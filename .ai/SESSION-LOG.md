@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Harden Bara's eager-auth browser boundary
-
-**Risk profile:** local Bara security headers and documentation only. No hosted
-WorkOS, Vercel, Convex, or Supabase configuration changed.
-
-**Completed:**
-- Added a per-request nonce Content Security Policy around Bara's AuthKit eager
-  auth path. Scripts require the nonce, inline event handlers and framing are
-  blocked, and browser connections are limited to Bara plus the exact configured
-  Convex cloud/site HTTP and WebSocket origins.
-- Kept only the development exceptions required by React debugging and local
-  HMR. The production policy contains no `unsafe-eval` and upgrades insecure
-  subresource requests.
-- Re-smoked the signed-in Bara dashboard, roster import, and public unavailable
-  attendance state in Chrome with no CSP violations; production-mode Bara also
-  retained the shared WorkOS session and authenticated Convex UI.
-
-**Validation:**
-- Bara passes 136 tests across 29 files, TypeScript, production build, brand
-  guard, diff hygiene, and lint with only existing generated Convex warnings.
-
-**Next gate:**
-- Configure isolated hosted Preview, verify the emitted policy there, then run
-  logout, exact QR return-path, second-account isolation, and bounded classroom
-  contract smokes before enabling rollout flags.
-
 ## 2026-08-17 — Reaffirm separate WorkOS application boundaries
 
 **Risk profile:** read-only hosted audit and documentation correction. No
@@ -1216,3 +1190,32 @@ credential, or attendance state changed.
   binding without executing an RPC.
 - Focused tests, the full Vitest suite, lint, architecture guard, production
   build, and diff check pass.
+
+## 2026-08-23 — Make student mobile attendance state obvious
+
+**Risk profile:** student-facing attendance read UX — private tenant-scoped
+status reads, bounded revalidation, and QR check-in confirmation; no migration,
+hosted data, deployment, flag, entitlement, credential, or production state
+changed.
+
+- Added a signed-in-student-only attendance status endpoint and bounded batch
+  reader for active enrolled classrooms. It preserves teacher entitlement and
+  exact-canary scope and returns no token, roster, other-student, or arbitrary
+  classroom data.
+- Added a prominent mobile Today banner and compact classroom-index status for
+  open check-in, plus the student's own present/late confirmation and Toronto
+  timestamp. The banner remains informational and scanning the teacher's QR is
+  still required.
+- Invalidated the private client snapshot after successful or idempotent
+  duplicate scans, linked back to the matching classroom, and bounded refreshes
+  while suppressing stale prompts at the exact close time.
+- Added unit, API, component, and teacher/student experience-matrix coverage for
+  entitlement and classroom isolation, unavailable and closed states, mobile
+  rendering, and duplicate-scan confirmation. Visual checks passed across
+  desktop/mobile and light/dark student views plus the prescribed teacher and
+  student smoke screenshots.
+- The full 5,043-test suite, lint, TypeScript, production build, architecture,
+  design, UI, Pika audit, browser matrix, and diff checks pass. Local database
+  runtime/type-parity guards remain intentionally unavailable because the local
+  schema does not include unapplied migration 132; no migration was applied
+  without fresh authorization.
