@@ -508,13 +508,19 @@ begin
     ),
     'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
   ) returning id into v_outbox_id;
-  if not public.complete_attendance_outbox_v2(v_outbox_id, v_lease, '{}'::jsonb)
-    or not exists (
-      select 1 from public.attendance_roster_mappings
-      where classroom_id = 'a1260000-0000-4000-8000-000000000030'
-        and integration_state = 'inactive'
-    ) then
-    raise exception 'Deactivation became inactive before the full horizon drained';
+  v_completed := public.complete_attendance_outbox_v2(
+    v_outbox_id, v_lease, '{}'::jsonb
+  );
+  select * into v_roster from public.attendance_roster_mappings
+  where classroom_id = 'a1260000-0000-4000-8000-000000000030';
+  if not v_completed or v_roster.integration_state <> 'inactive' then
+    raise exception
+      'Deactivation did not become inactive after the full horizon drained: completed=%, state=%, start=%, end=%, target=%, staged=%, payload_revision=%',
+      v_completed, v_roster.integration_state, v_roster.deactivation_window_start,
+      v_roster.deactivation_window_end, v_roster.deactivation_target_end,
+      v_roster.schedule_staged_revision,
+      (select (payload->>'revision')::bigint
+       from public.attendance_integration_outbox where id = v_outbox_id);
   end if;
 
   v_change := public.set_attendance_teacher_entitlement_v1(
