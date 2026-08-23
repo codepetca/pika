@@ -13,9 +13,9 @@ import {
   teacherAttendancePolicyUpdateSchema,
 } from '@/lib/validations/teacher-attendance-policy'
 import {
-  assertBaraAttendanceCanaryClassroom,
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
+import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,7 +48,11 @@ export const GET = withErrorHandler('GetTeacherAttendancePolicy', async (request
   }
 
   try {
-    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
+    await assertBaraAttendanceClassroomAccess({
+      supabase,
+      teacherId: user.id,
+      classroomId: input.classroom_id,
+    })
     const policy = await loadTeacherAttendancePolicy({
       supabase,
       classroomId: input.classroom_id,
@@ -67,7 +71,11 @@ export const PUT = withErrorHandler('PutTeacherAttendancePolicy', async (request
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
-    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
+    await assertBaraAttendanceClassroomAccess({
+      supabase,
+      teacherId: user.id,
+      classroomId: input.classroom_id,
+    })
     const policy = await saveTeacherAttendancePolicy({
       supabase,
       teacherId: user.id,

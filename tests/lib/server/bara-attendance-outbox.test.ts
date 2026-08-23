@@ -33,7 +33,7 @@ const result = {
   sessionRevision: 2,
 }
 
-function row(status: 'pending' | 'processing' | 'delivered' | 'non_retryable', input: {
+function row(status: 'pending' | 'processing' | 'delivered' | 'non_retryable' | 'superseded', input: {
   attempts?: number
   response?: unknown
 } = {}) {
@@ -318,6 +318,98 @@ describe('Bara attendance outbound outbox', () => {
       retrying: 1,
       nonRetryable: 0,
     })
+  })
+
+  it('claims and completes direct entitlement-mode delivery through scoped RPCs', async () => {
+    const order: string[] = []
+    const supabase = rpcClient((name, args) => {
+      order.push(name)
+      if (name === 'enqueue_attendance_outbound_message_v2') {
+        expect(args).toEqual({
+          p_teacher_id: teacherId,
+          p_classroom_id: classroomId,
+          p_message: message,
+          p_at: '2026-08-23T12:00:00.000Z',
+        })
+        return row('pending')
+      }
+      if (name === 'claim_attendance_outbound_message_v2') {
+        expect(args).toMatchObject({
+          p_teacher_id: teacherId,
+          p_classroom_id: classroomId,
+          p_idempotency_key: message.idempotency_key,
+        })
+        return row('processing', { attempts: 1 })
+      }
+      if (name === 'complete_attendance_outbox_v2') return true
+      throw new Error(`unexpected rpc ${name}`)
+    })
+
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      teacherId,
+      classroomId,
+      message,
+      scopeMode: 'teacher_entitlements',
+      now: new Date('2026-08-23T12:00:00.000Z'),
+      deliver: vi.fn().mockResolvedValue(result),
+    })).resolves.toEqual(result)
+    expect(order).toEqual([
+      'enqueue_attendance_outbound_message_v2',
+      'claim_attendance_outbound_message_v2',
+      'complete_attendance_outbox_v2',
+    ])
+  })
+
+  it('never claims an entitlement-epoch message already superseded by revocation', async () => {
+    const supabase = rpcClient((name) => {
+      if (name === 'enqueue_attendance_outbound_message_v2') return row('superseded')
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      teacherId,
+      classroomId,
+      message,
+      scopeMode: 'teacher_entitlements',
+      deliver: vi.fn(),
+    })).rejects.toMatchObject<BaraAttendanceOutboxError>({
+      code: 'delivery_pending',
+      retryable: false,
+    })
+    expect(supabase.rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not enqueue entitlement-mode work without a verified teacher owner', async () => {
+    const supabase = rpcClient(() => row('pending'))
+
+    await expect(deliverBaraAttendanceMessage({
+      supabase,
+      classroomId,
+      message,
+      scopeMode: 'teacher_entitlements',
+      deliver: vi.fn(),
+    })).rejects.toMatchObject<BaraAttendanceOutboxError>({
+      code: 'persistence_failed',
+      retryable: false,
+    })
+    expect(supabase.rpc).not.toHaveBeenCalled()
+  })
+
+  it('drains entitlement-mode work without accepting caller-supplied scope IDs', async () => {
+    const supabase = rpcClient((name, args) => {
+      if (name === 'claim_attendance_outbox_batch_v3') {
+        expect(args).toEqual({ p_limit: 20, p_lease_seconds: 60 })
+        return []
+      }
+      throw new Error(`unexpected rpc ${name}`)
+    })
+
+    await expect(deliverBaraAttendanceOutboxBatch({
+      supabase,
+      enabled: true,
+      scopeMode: 'teacher_entitlements',
+    })).resolves.toMatchObject({ status: 'ok', claimed: 0 })
   })
 
   it('returns aggregate-only delivery health and degrades while any work remains', async () => {

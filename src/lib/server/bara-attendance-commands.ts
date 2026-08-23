@@ -240,6 +240,7 @@ export async function executeTeacherAttendanceSessionCommand(input: {
       ? input.send(payload)
       : deliverBaraAttendanceMessage({
           supabase: input.supabase,
+          teacherId: input.teacherId,
           classroomId: input.classroomId,
           message: payload,
         }))
@@ -303,6 +304,7 @@ export async function executeTeacherAttendanceMarks(input: {
       ? input.send(payload)
       : deliverBaraAttendanceMessage({
           supabase: input.supabase,
+          teacherId: input.teacherId,
           classroomId: input.classroomId,
           message: payload,
         }))

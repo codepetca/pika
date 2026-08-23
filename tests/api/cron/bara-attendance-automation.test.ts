@@ -47,6 +47,7 @@ describe('/api/cron/bara-attendance-automation', () => {
       state: 'ready',
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
     mocks.assertOwner.mockResolvedValue(undefined)
     mocks.syncSchedules.mockResolvedValue({
@@ -97,6 +98,7 @@ describe('/api/cron/bara-attendance-automation', () => {
       integrationState: 'ready',
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
     expect(mocks.deliverOutbox).toHaveBeenCalledWith({
       supabase: mocks.serviceClient,
@@ -104,12 +106,14 @@ describe('/api/cron/bara-attendance-automation', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
       limit: 50,
+      scopeMode: 'exact_canary',
     })
     expect(mocks.getOutboxHealth).toHaveBeenCalledWith({
       supabase: mocks.serviceClient,
       enabled: true,
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
   })
 

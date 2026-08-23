@@ -12,10 +12,10 @@ import {
 } from '@/lib/server/bara-attendance-entry-token'
 import type { V1StudentCheckIn } from '@/vendor/attendance-contract/v1/types'
 import {
-  assertBaraAttendanceCanaryClassroomOwner,
   BaraAttendanceCanaryError,
   getBaraAttendanceClassroomIdIntegrationState,
 } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
 
 const actorUserSchema = z.object({
   email: z.string().email(),
@@ -156,7 +156,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   integrationState?: 'disabled' | 'not_configured' | 'ready'
   resolveActor?: typeof resolveVerifiedPikaAttendanceStudent
   send?: (payload: V1StudentCheckIn) => Promise<BaraStudentCheckInResult>
-  verifyCanaryClassroom?: typeof assertBaraAttendanceCanaryClassroomOwner
+  verifyCanaryClassroom?: (input: { supabase: any; classroomId: string }) => Promise<void>
 }) {
   const transportState = input.integrationState ?? getBaraAttendanceIntegrationState()
   if (transportState !== 'ready') {
@@ -176,13 +176,18 @@ export async function executeStudentAttendanceCheckIn(input: {
   }
 
   const classroomState = input.integrationState
-    ?? getBaraAttendanceClassroomIdIntegrationState(entry.classroomId)
+    ?? (input.verifyCanaryClassroom
+      ? getBaraAttendanceClassroomIdIntegrationState(entry.classroomId)
+      : (await getBaraAttendanceClassroomIdAccess({
+          supabase: input.supabase,
+          classroomId: entry.classroomId,
+        })).state)
   if (classroomState !== 'ready') {
     throw new StudentAttendanceCheckInError(classroomState)
   }
-  if (!input.integrationState) {
+  if (!input.integrationState && input.verifyCanaryClassroom) {
     try {
-      await (input.verifyCanaryClassroom ?? assertBaraAttendanceCanaryClassroomOwner)({
+      await input.verifyCanaryClassroom({
         supabase: input.supabase,
         classroomId: entry.classroomId,
       })

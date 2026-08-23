@@ -41,6 +41,7 @@ describe('POST /api/cron/bara-attendance-outbox', () => {
       state: 'ready',
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
     assertBaraAttendanceCanaryClassroomOwner.mockResolvedValue(undefined)
     deliverBaraAttendanceOutboxBatch.mockResolvedValue({
@@ -86,12 +87,14 @@ describe('POST /api/cron/bara-attendance-outbox', () => {
       enabled: true,
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
     expect(getBaraAttendanceOutboxHealth).toHaveBeenCalledWith({
       supabase: serviceClient,
       enabled: true,
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
   })
 

@@ -93,6 +93,29 @@ describe('Bara attendance reconciliation', () => {
     })).rejects.toThrow('Attendance reconciliation returned an invalid result')
   })
 
+  it('accepts authoritative cleanup snapshots after entitlement revocation', async () => {
+    const fetcher = vi.fn(async () =>
+      new Response(JSON.stringify(snapshotResponse), { status: 200 }),
+    )
+    rpc.mockResolvedValue({
+      data: {
+        applied: true,
+        session_projection_applied: true,
+        record_projection_count: 1,
+      },
+      error: null,
+    })
+
+    await reconcileBaraAttendanceSession('occurrence_one', {
+      fetcher: fetcher as typeof fetch,
+      scopeMode: 'teacher_entitlements',
+    })
+    expect(rpc).toHaveBeenCalledWith(
+      'apply_attendance_session_snapshot_for_entitled_mapping_v1',
+      expect.objectContaining({ p_installation_ref: 'pika_test_installation' }),
+    )
+  })
+
   it('reconciles a bounded least-recent batch and returns aggregate-only health', async () => {
     const targets = [
       { occurrence_ref: 'occurrence_one' },
@@ -152,5 +175,22 @@ describe('Bara attendance reconciliation', () => {
       truncated: false,
     })
     expect(batchRpc).not.toHaveBeenCalled()
+  })
+
+  it('loads bounded cleanup targets without caller-provided classroom identifiers', async () => {
+    const now = new Date('2026-09-02T14:00:00.000Z')
+    const batchRpc = vi.fn().mockResolvedValue({ data: [], error: null })
+
+    await expect(reconcileBaraAttendanceSessions({
+      supabase: { rpc: batchRpc } as never,
+      enabled: true,
+      scopeMode: 'teacher_entitlements',
+      now,
+    })).resolves.toMatchObject({ status: 'ok', eligible: 0 })
+    expect(batchRpc).toHaveBeenCalledWith('list_attendance_reconciliation_targets_v3', {
+      p_now: now.toISOString(),
+      p_lookback_hours: 48,
+      p_limit: 51,
+    })
   })
 })

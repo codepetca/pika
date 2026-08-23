@@ -1,5 +1,6 @@
 export type BaraAttendanceRolloutStage = 'preview' | 'production'
 export type BaraAttendanceRolloutMode = 'pre-enable' | 'enabled'
+export type BaraAttendanceRuntimeScopeMode = 'exact_canary' | 'teacher_entitlements'
 
 export interface BaraAttendanceRolloutEnvironment {
   NEXT_PUBLIC_SUPABASE_URL?: string
@@ -22,6 +23,7 @@ export interface BaraAttendanceRolloutEnvironment {
   BREVO_FROM_NAME?: string
   PIKA_BARA_AUTH_HANDOFF?: string
   PIKA_BARA_ATTENDANCE_ENABLED?: string
+  PIKA_BARA_ATTENDANCE_SCOPE_MODE?: string
   PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID?: string
   PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID?: string
   BARA_ATTENDANCE_API_BASE_URL?: string
@@ -37,6 +39,7 @@ export interface BaraAttendanceRolloutEnvironment {
 export interface BaraAttendanceRolloutTarget {
   stage: BaraAttendanceRolloutStage
   attendanceMode: BaraAttendanceRolloutMode
+  attendanceScopeMode: BaraAttendanceRuntimeScopeMode
   expectedSupabaseRef: string
   productionSupabaseRef: string
   expectedPikaOrigin: string
@@ -170,6 +173,11 @@ export function auditBaraAttendanceRolloutEnvironment(
       'attendance_exact_canary',
       UUID_PATTERN.test(trimmed(environment.PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID))
         && UUID_PATTERN.test(trimmed(environment.PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID)),
+    ],
+    [
+      'attendance_scope_mode',
+      (trimmed(environment.PIKA_BARA_ATTENDANCE_SCOPE_MODE) || 'exact_canary')
+        === target.attendanceScopeMode,
     ],
     [
       'bara_attendance_origin',

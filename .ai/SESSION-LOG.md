@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Isolate the Pika-to-Bara WorkOS handoff blocker
-
-**Risk profile:** authentication provider diagnostic only. No hosted setting,
-credential, database, redirect, or rollout flag was changed.
-
-**Observed:**
-- A fresh Chrome smoke completed Pika self-hosted Magic Auth and landed on
-  `/classrooms`; WorkOS recorded `authentication.magic_auth_succeeded` and
-  `session.created` for the Pika client.
-- Codepet Platform Staging contains separate Bara (default) and Pika
-  applications in one environment. Pika's local client ID and masked
-  application-scoped staging API key matched the Pika application.
-- WorkOS's successful Magic Auth response omitted the documented optional
-  `authkit_authorization_code`. Pika logged
-  `crossApplicationCodeReturned: false` and `status: unavailable`; Bara
-  received no request. The silent redirect/callback flow therefore never ran.
-- WorkOS's API reference describes that field as an authorization code that a
-  different application can exchange, so the remaining issue is the provider
-  response/entitlement or an undocumented issuance condition, not a Bara
-  callback failure.
-
-**Next gate:**
-- Ask WorkOS to explain or enable cross-application authorization-code issuance
-  for this same-environment, application-scoped Magic Auth flow. Do not weaken
-  the boundary by sharing cookies, refresh tokens, Pika UUIDs, or database
-  access. If WorkOS cannot support the documented exchange, explicitly design
-  and approve a versioned Pika-to-Bara identity federation fallback before
-  implementation.
-
 ## 2026-08-17 — Prove the approved shared Codepet Platform session
 
 **Risk profile:** local authentication and documentation only. No hosted
@@ -1234,3 +1205,29 @@ event, or production data changed.
 - Added route and deployed-runtime regression coverage. The focused 24-test
   surface and the full 5,008-test suite, typecheck, production build, lint,
   architecture guard, and diff check pass.
+
+## 2026-08-23 — Add teacher-scoped attendance entitlements
+
+**Risk profile:** runtime-platform — service-only authorization, schedule
+deactivation, cross-service rollout gating, and additive database schema; no
+hosted migration, deployment, flag, entitlement, requeue, or production state
+changed.
+
+- Added an audited, idempotent teacher entitlement boundary keyed by stable
+  Pika user ID. The global attendance flags remain kill switches, while the UI,
+  teacher APIs, workers, outbox, reconciliation, and event ingress share the
+  same fail-closed authorization predicate.
+- Added stateful classroom deactivation: a higher-revision empty schedule
+  cancels future intent, preserves open and historical sessions, and remains
+  resumable until Bara acknowledges it. Expiry clamps future schedule delivery.
+- Kept the existing exact Codepet Labs canary as the non-mutating deployed
+  credential smoke and made the requested rollout scope an authenticated,
+  audited preflight expectation instead of broadening the smoke payload.
+- Added a dry-run-first, operation-id-bound service operator command and rollout
+  documentation for enablement, revocation, rollback, Preview skip behavior,
+  release order, and the production authorization boundary.
+- Bara's 166-test suite, typecheck, and production build pass. Pika's full
+  5,029-test suite, TypeScript check, production build, architecture guard,
+  design guard, UI guard, and diff check pass. Local execution of migration 132
+  and generated-type parity remain intentionally pending exact local-only
+  authorization.

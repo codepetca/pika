@@ -13,9 +13,9 @@ import {
   TeacherAttendanceIdentityError,
 } from '@/lib/server/bara-attendance-teacher'
 import {
-  assertBaraAttendanceCanaryClassroom,
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
+import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -57,7 +57,11 @@ export const GET = withErrorHandler('GetTeacherAttendanceQr', async (request) =>
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
-    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
+    await assertBaraAttendanceClassroomAccess({
+      supabase,
+      teacherId: user.id,
+      classroomId: input.classroom_id,
+    })
     const actor = await resolveVerifiedPikaAttendanceTeacher({ supabase, pikaUser: user })
     const presentation = await loadTeacherAttendanceQrPresentation({
       supabase,
@@ -66,6 +70,7 @@ export const GET = withErrorHandler('GetTeacherAttendanceQr', async (request) =>
       classDate: input.date,
       requestId: crypto.randomUUID(),
       actor,
+      integrationState: 'ready',
     })
     return NextResponse.json(presentation, {
       headers: {

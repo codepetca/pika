@@ -40,6 +40,7 @@ describe('/api/cron/bara-attendance-reconciliation', () => {
       state: 'ready',
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
     mocks.assertOwner.mockResolvedValue(undefined)
     mocks.reconcile.mockResolvedValue({
@@ -76,6 +77,7 @@ describe('/api/cron/bara-attendance-reconciliation', () => {
       enabled: true,
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '20000000-0000-4000-8000-000000000002',
+      scopeMode: 'exact_canary',
     })
   })
 

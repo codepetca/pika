@@ -109,9 +109,11 @@ vi.mock('@/components/layout', async () => {
         <button type="button" onClick={() => onTabChange('daily')}>
           Go Daily
         </button>
-        <button type="button" onClick={() => onTabChange('attendance')}>
-          Go Attendance
-        </button>
+        {featureVisibility?.attendance !== false ? (
+          <button type="button" onClick={() => onTabChange('attendance')}>
+            Go Attendance
+          </button>
+        ) : null}
         {palEnabled ? (
           <button type="button" onClick={() => onTabChange('achievements')}>
             Go Achievements
@@ -395,6 +397,7 @@ function renderClient(options?: {
   classroom?: Classroom
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
+  attendanceAvailable?: boolean
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'assignments'
@@ -408,6 +411,7 @@ function renderClient(options?: {
         teacherClassrooms={[targetClassroom]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
+        attendanceAvailable={options?.attendanceAvailable}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -464,6 +468,17 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       markdown: '## Assignment One',
       hasRichContent: false,
     })
+  })
+
+  it('does not expose the Attendance destination when server entitlement is unavailable', () => {
+    renderClient({
+      initialTab: 'attendance',
+      initialSearchParams: { tab: 'attendance' },
+      attendanceAvailable: false,
+    })
+
+    expect(screen.queryByRole('button', { name: 'Go Attendance' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Live attendance')).not.toBeInTheDocument()
   })
 
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {

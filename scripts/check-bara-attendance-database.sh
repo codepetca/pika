@@ -53,6 +53,19 @@ begin
   ) is null then
     raise exception 'Migration 131 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '132'
+  ) or to_regprocedure(
+    'public.set_attendance_teacher_entitlement_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,bigint)'
+  ) is null or to_regprocedure(
+    'public.prepare_attendance_snapshot_v2(uuid,uuid,date,date,timestamptz)'
+  ) is null or to_regprocedure(
+    'public.complete_attendance_outbox_v2(uuid,uuid,jsonb)'
+  ) is null or to_regprocedure(
+    'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)'
+  ) is null then
+    raise exception 'Migration 132 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -74,7 +87,9 @@ begin
     'attendance_session_projection',
     'attendance_record_projection',
     'attendance_integration_smoke_runs',
-    'attendance_integration_smoke_nonces'
+    'attendance_integration_smoke_nonces',
+    'attendance_teacher_entitlements',
+    'attendance_teacher_entitlement_audit'
   ] loop
     if has_table_privilege('anon', 'public.' || v_table, 'SELECT')
       or has_table_privilege('authenticated', 'public.' || v_table, 'SELECT')
@@ -141,6 +156,42 @@ begin
     )
   then
     raise exception 'Attendance smoke functions are exposed';
+  end if;
+  if has_function_privilege(
+      'authenticated',
+      'public.set_attendance_teacher_entitlement_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,bigint)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.enqueue_attendance_outbound_message_v2(uuid,uuid,jsonb,timestamptz)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.claim_attendance_outbox_batch_v3(integer,integer)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.apply_attendance_event_for_entitled_mapping_v1(jsonb,text)',
+      'execute'
+    ) or has_function_privilege(
+      'authenticated',
+      'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)',
+      'execute'
+    ) or has_function_privilege(
+      'service_role',
+      'public.stamp_attendance_outbox_entitlement_revision_v1()',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.set_attendance_teacher_entitlement_v1(uuid,uuid,text,timestamptz,timestamptz,text,text,text,bigint)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.get_attendance_entitlement_transition_health_v1(uuid,uuid)',
+      'execute'
+    )
+  then
+    raise exception 'Attendance entitlement functions are exposed';
   end if;
 end;
 $privileges$;
@@ -226,6 +277,385 @@ insert into public.attendance_integration_outbox (
       'roster_ref', 'roster_noncanary_14', 'revision', 1
     )
   );
+
+do $entitlement_lifecycle$
+declare
+  v_change jsonb;
+  v_duplicate jsonb;
+  v_prepared jsonb;
+  v_targets jsonb;
+  v_transition jsonb;
+  v_lease uuid;
+  v_outbox_id uuid;
+  v_outbox public.attendance_integration_outbox%rowtype;
+  v_claim public.attendance_integration_outbox%rowtype;
+  v_roster public.attendance_roster_mappings%rowtype;
+  v_completed boolean;
+  v_first_window_end date;
+begin
+  insert into public.users (id, email, role, workos_user_id) values (
+    'a1260000-0000-4000-8000-000000000003',
+    'attendance-entitlement-teacher@example.test',
+    'teacher',
+    'user_attendance_entitlement_teacher'
+  );
+  insert into public.classrooms (id, teacher_id, title, class_code) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'a1260000-0000-4000-8000-000000000003',
+    'Attendance entitlement lifecycle',
+    'A12630'
+  );
+  insert into public.attendance_window_policies (
+    classroom_id, opens_local, closes_local
+  ) values (
+    'a1260000-0000-4000-8000-000000000030', '08:45', '09:30'
+  );
+  insert into public.attendance_roster_mappings (
+    classroom_id, roster_ref, source_revision, synced_revision,
+    schedule_source_revision, schedule_staged_revision,
+    schedule_synced_revision, remote_schedule_window_end
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'roster_a1260000000040008000000000000030', 1, 1, 7, 7, 7, null
+  );
+
+  v_lease := gen_random_uuid();
+  insert into public.attendance_integration_outbox (
+    classroom_id, idempotency_key, message_type, payload,
+    status, attempts, lease_token, lease_expires_at
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'schedule:exact-canary:7', 'schedule.snapshot',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'schedule.snapshot',
+      'idempotency_key', 'schedule:exact-canary:7',
+      'correlation_ref', 'exact_canary_7',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030',
+      'revision', 7, 'window_start', '2026-08-23',
+      'window_end', '2028-01-01',
+      'occurrences', jsonb_build_array(jsonb_build_object(
+        'occurrence_ref', 'occurrence_exact_canary_7'
+      ))
+    ),
+    'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
+  ) returning id into v_outbox_id;
+  if not public.complete_attendance_outbox_v1(v_outbox_id, v_lease, '{}'::jsonb)
+    or (select remote_schedule_window_end
+        from public.attendance_roster_mappings
+        where classroom_id = 'a1260000-0000-4000-8000-000000000030')
+      <> date '2028-01-01' then
+    raise exception 'Exact-canary delivery did not record the remote schedule horizon';
+  end if;
+
+  v_lease := gen_random_uuid();
+  insert into public.attendance_integration_outbox (
+    classroom_id, idempotency_key, message_type, payload,
+    status, attempts, lease_token, lease_expires_at
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'session:legacy-unversioned:30', 'session.command',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:legacy-unversioned:30',
+      'correlation_ref', 'legacy_unversioned_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    ),
+    'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
+  ) returning id into v_outbox_id;
+  v_transition := public.get_attendance_entitlement_transition_health_v1(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030'
+  );
+  if (v_transition->>'ready')::boolean
+    or (v_transition->>'unversioned_unresolved_count')::bigint <> 1
+    or (v_transition->>'stale_epoch_unresolved_count')::bigint <> 0 then
+    raise exception 'Legacy exact-canary work did not block entitlement expansion';
+  end if;
+  if not public.complete_attendance_outbox_v1(v_outbox_id, v_lease, '{}'::jsonb) then
+    raise exception 'Legacy exact-canary work did not drain under its original scope';
+  end if;
+  v_transition := public.get_attendance_entitlement_transition_health_v1(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030'
+  );
+  if not (v_transition->>'ready')::boolean
+    or (v_transition->>'unversioned_unresolved_count')::bigint <> 0
+    or (v_transition->>'stale_epoch_unresolved_count')::bigint <> 0 then
+    raise exception 'Drained exact-canary work still blocked entitlement expansion';
+  end if;
+
+  v_change := public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000130',
+    'a1260000-0000-4000-8000-000000000003',
+    'revoked', '2026-08-23T00:00:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_revocation', 0
+  );
+  v_duplicate := public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000130',
+    'a1260000-0000-4000-8000-000000000003',
+    'revoked', '2026-08-23T00:00:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_revocation', 0
+  );
+  if (v_change->>'revision')::bigint <> 1
+    or (v_change->>'duplicate')::boolean
+    or not (v_duplicate->>'duplicate')::boolean then
+    raise exception 'Entitlement mutation was not revisioned and idempotent';
+  end if;
+
+  v_prepared := public.prepare_attendance_snapshot_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    '2026-08-23', '2026-11-21', '2026-08-23T12:00:00Z'
+  );
+  v_first_window_end := (v_prepared->>'window_end')::date;
+  if v_prepared->>'integration_mode' <> 'deactivating'
+    or (v_prepared->>'window_start')::date <> date '2026-08-23'
+    or v_first_window_end <> date '2026-08-23' + 400
+    or (select deactivation_target_end
+        from public.attendance_roster_mappings
+        where classroom_id = 'a1260000-0000-4000-8000-000000000030')
+      <> date '2028-01-01' then
+    raise exception 'Revocation did not preserve the full remote schedule horizon';
+  end if;
+  begin
+    perform public.stage_attendance_schedule_snapshot_v2(
+      'a1260000-0000-4000-8000-000000000003',
+      'a1260000-0000-4000-8000-000000000030',
+      v_prepared->>'schedule_source_token',
+      jsonb_build_object(
+        'message_type', 'schedule.snapshot',
+        'roster_ref', 'roster_a1260000000040008000000000000030',
+        'revision', (v_prepared->>'schedule_revision')::bigint,
+        'window_start', v_prepared->>'window_start',
+        'window_end', (v_first_window_end - 1)::text,
+        'occurrences', '[]'::jsonb
+      ),
+      '2026-08-23T12:00:00Z'
+    );
+    raise exception 'Narrowed deactivation schedule window was accepted';
+  exception when sqlstate '22023' then
+    null;
+  end;
+  update public.attendance_roster_mappings
+  set schedule_staged_revision = (v_prepared->>'schedule_revision')::bigint
+  where classroom_id = 'a1260000-0000-4000-8000-000000000030';
+
+  v_lease := gen_random_uuid();
+  insert into public.attendance_integration_outbox (
+    classroom_id, idempotency_key, message_type, payload,
+    status, attempts, lease_token, lease_expires_at
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'schedule:entitlement-cleanup:8', 'schedule.snapshot',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'schedule.snapshot',
+      'idempotency_key', 'schedule:entitlement-cleanup:8',
+      'correlation_ref', 'entitlement_cleanup_8',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030',
+      'revision', (v_prepared->>'schedule_revision')::bigint,
+      'window_start', v_prepared->>'window_start',
+      'window_end', v_prepared->>'window_end',
+      'occurrences', '[]'::jsonb
+    ),
+    'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
+  ) returning id into v_outbox_id;
+  v_completed := public.complete_attendance_outbox_v2(
+    v_outbox_id, v_lease, '{}'::jsonb
+  );
+  select * into v_roster from public.attendance_roster_mappings
+  where classroom_id = 'a1260000-0000-4000-8000-000000000030';
+  if not v_completed
+    or v_roster.integration_state <> 'deactivating'
+    or v_roster.deactivation_window_start <> v_first_window_end + 1
+    or v_roster.deactivation_window_end <> date '2028-01-01' then
+    raise exception
+      'Bounded deactivation did not advance: completed=%, state=%, start=%, end=%, target=%, staged=%, payload_revision=%',
+      v_completed, v_roster.integration_state, v_roster.deactivation_window_start,
+      v_roster.deactivation_window_end, v_roster.deactivation_target_end,
+      v_roster.schedule_staged_revision,
+      (select (payload->>'revision')::bigint
+       from public.attendance_integration_outbox where id = v_outbox_id);
+  end if;
+
+  v_prepared := public.prepare_attendance_snapshot_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    '2026-08-23', '2026-11-21', '2026-08-23T12:00:00Z'
+  );
+  update public.attendance_roster_mappings
+  set schedule_staged_revision = (v_prepared->>'schedule_revision')::bigint
+  where classroom_id = 'a1260000-0000-4000-8000-000000000030';
+  v_lease := gen_random_uuid();
+  insert into public.attendance_integration_outbox (
+    classroom_id, idempotency_key, message_type, payload,
+    status, attempts, lease_token, lease_expires_at
+  ) values (
+    'a1260000-0000-4000-8000-000000000030',
+    'schedule:entitlement-cleanup:9', 'schedule.snapshot',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'schedule.snapshot',
+      'idempotency_key', 'schedule:entitlement-cleanup:9',
+      'correlation_ref', 'entitlement_cleanup_9',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030',
+      'revision', (v_prepared->>'schedule_revision')::bigint,
+      'window_start', v_prepared->>'window_start',
+      'window_end', v_prepared->>'window_end',
+      'occurrences', '[]'::jsonb
+    ),
+    'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
+  ) returning id into v_outbox_id;
+  v_completed := public.complete_attendance_outbox_v2(
+    v_outbox_id, v_lease, '{}'::jsonb
+  );
+  select * into v_roster from public.attendance_roster_mappings
+  where classroom_id = 'a1260000-0000-4000-8000-000000000030';
+  if not v_completed or v_roster.integration_state <> 'inactive' then
+    raise exception
+      'Deactivation did not become inactive after the full horizon drained: completed=%, state=%, start=%, end=%, target=%, staged=%, payload_revision=%',
+      v_completed, v_roster.integration_state, v_roster.deactivation_window_start,
+      v_roster.deactivation_window_end, v_roster.deactivation_target_end,
+      v_roster.schedule_staged_revision,
+      (select (payload->>'revision')::bigint
+       from public.attendance_integration_outbox where id = v_outbox_id);
+  end if;
+
+  v_change := public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000131',
+    'a1260000-0000-4000-8000-000000000003',
+    'active', '2026-08-23T00:00:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_reactivation', 1
+  );
+  v_targets := public.list_attendance_sync_targets_v3(
+    '2026-08-24T12:00:00Z', 51
+  );
+  if not exists (
+    select 1 from jsonb_array_elements(v_targets) target
+    where target->>'classroom_id' = 'a1260000-0000-4000-8000-000000000030'
+      and target->>'integration_mode' = 'active'
+  ) then
+    raise exception 'Re-entitled inactive classroom was not scheduled for activation';
+  end if;
+  v_prepared := public.prepare_attendance_snapshot_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    '2026-08-24', '2026-11-22', '2026-08-24T12:00:00Z'
+  );
+  if v_prepared->>'integration_mode' <> 'active'
+    or not exists (
+      select 1 from public.attendance_roster_mappings
+      where classroom_id = 'a1260000-0000-4000-8000-000000000030'
+        and integration_state = 'active'
+        and deactivation_window_start is null
+        and deactivation_window_end is null
+        and deactivation_target_end is null
+    ) or (public.get_attendance_classroom_access_v1(
+      'a1260000-0000-4000-8000-000000000003',
+      'a1260000-0000-4000-8000-000000000030',
+      '2026-08-24T12:00:00Z'
+    )->>'state') <> 'ready' then
+    raise exception 'Re-entitlement did not restore active classroom admission';
+  end if;
+
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v1(
+    'a1260000-0000-4000-8000-000000000030',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:exact-canary-entitled:30',
+      'correlation_ref', 'exact_canary_entitled_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    )
+  );
+  if v_outbox.id is null or v_outbox.entitlement_revision <> 2 then
+    raise exception 'Entitled exact-canary enqueue did not receive the current epoch';
+  end if;
+  v_lease := gen_random_uuid();
+  update public.attendance_integration_outbox
+  set status = 'processing', attempts = 1, lease_token = v_lease,
+      lease_expires_at = clock_timestamp() + interval '60 seconds'
+  where id = v_outbox.id;
+  if not public.complete_attendance_outbox_v1(v_outbox.id, v_lease, '{}'::jsonb) then
+    raise exception 'Entitled exact-canary enqueue did not drain';
+  end if;
+
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:entitlement-epoch:30',
+      'correlation_ref', 'entitlement_epoch_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    ),
+    '2026-08-24T12:00:00Z'
+  );
+  if v_outbox.id is null or v_outbox.entitlement_revision <> 2
+    or v_outbox.status <> 'pending' then
+    raise exception 'Entitlement epoch was not stamped on queued work';
+  end if;
+  perform public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000132',
+    'a1260000-0000-4000-8000-000000000003',
+    'revoked', '2026-08-24T12:01:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_epoch_revocation', 2
+  );
+  perform public.set_attendance_teacher_entitlement_v1(
+    'a1260000-0000-4000-8000-000000000133',
+    'a1260000-0000-4000-8000-000000000003',
+    'active', '2026-08-24T12:02:00Z', null,
+    'database_guard', 'ci:attendance', 'guard_epoch_regrant', 3
+  );
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    jsonb_build_object(
+      'schema_version', 1, 'message_type', 'session.command',
+      'idempotency_key', 'session:entitlement-epoch:30',
+      'correlation_ref', 'entitlement_epoch_30',
+      'installation_ref', 'installation_guard',
+      'roster_ref', 'roster_a1260000000040008000000000000030'
+    ),
+    '2026-08-24T12:03:00Z'
+  );
+  if v_outbox.id is null or v_outbox.status <> 'superseded' then
+    raise exception 'Stale entitlement epoch was not superseded on retry';
+  end if;
+  select * into v_outbox from public.enqueue_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030', v_outbox.payload,
+    '2026-08-24T12:04:00Z'
+  );
+  if v_outbox.id is null or v_outbox.status <> 'superseded' then
+    raise exception 'Already-superseded idempotent retry returned no row';
+  end if;
+  select * into v_claim from public.claim_attendance_outbound_message_v2(
+    'a1260000-0000-4000-8000-000000000003',
+    'a1260000-0000-4000-8000-000000000030',
+    'session:entitlement-epoch:30', 60
+  );
+  if v_claim.id is not null then
+    raise exception 'Stale entitlement epoch became claimable after regrant';
+  end if;
+  if (select count(*) from public.attendance_teacher_entitlement_audit
+      where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 4 then
+    raise exception 'Entitlement audit did not preserve one row per operation';
+  end if;
+  delete from public.attendance_teacher_entitlements
+  where teacher_id = 'a1260000-0000-4000-8000-000000000003';
+  if exists (
+    select 1 from public.attendance_teacher_entitlements
+    where teacher_id = 'a1260000-0000-4000-8000-000000000003'
+  ) or (select count(*) from public.attendance_teacher_entitlement_audit
+        where teacher_id = 'a1260000-0000-4000-8000-000000000003') <> 4 then
+    raise exception 'Live entitlement removal did not retain immutable audit';
+  end if;
+end;
+$entitlement_lifecycle$;
 
 do $canary_scope$
 declare
@@ -944,6 +1374,205 @@ wait_for_attendance_race_lock() {
   done
   return 1
 }
+
+# Prove first-write revision serialization and concurrent same-operation
+# idempotency on a stable teacher key, where a missing entitlement row offers no
+# ordinary row lock.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+insert into public.users (id, email, role, workos_user_id) values (
+  'c1260000-0000-4000-8000-000000000001',
+  'attendance-entitlement-race@example.test',
+  'teacher',
+  'user_attendance_entitlement_race'
+);
+SQL
+
+docker exec -e PGAPPNAME=attendance-entitlement-first-grant -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.set_attendance_teacher_entitlement_v1(
+  'c1260000-0000-4000-8000-000000000140',
+  'c1260000-0000-4000-8000-000000000001',
+  'active', '2026-08-23T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'concurrent_first_grant', 0
+);
+select pg_sleep(2);
+commit;
+SQL
+entitlement_first_pid=$!
+if ! wait_for_attendance_race_lock 'attendance-entitlement-first-grant'; then
+  echo "First entitlement grant did not acquire its teacher serialization lock." >&2
+  wait "$entitlement_first_pid" || true
+  exit 1
+fi
+set +e
+entitlement_conflict_output="$(docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 2>&1 <<'SQL'
+select public.set_attendance_teacher_entitlement_v1(
+  'c1260000-0000-4000-8000-000000000141',
+  'c1260000-0000-4000-8000-000000000001',
+  'active', '2026-08-23T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'concurrent_first_grant', 0
+);
+SQL
+)"
+entitlement_conflict_status=$?
+set -e
+wait "$entitlement_first_pid"
+if [[ "$entitlement_conflict_status" -eq 0 ]] \
+  || ! grep -q 'attendance_entitlement_revision_conflict' <<<"$entitlement_conflict_output"; then
+  echo "Concurrent first entitlement grants were not serialized." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=attendance-entitlement-same-operation -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.set_attendance_teacher_entitlement_v1(
+  'c1260000-0000-4000-8000-000000000142',
+  'c1260000-0000-4000-8000-000000000001',
+  'revoked', '2026-08-23T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'concurrent_same_operation', 1
+);
+select pg_sleep(2);
+commit;
+SQL
+entitlement_same_pid=$!
+if ! wait_for_attendance_race_lock 'attendance-entitlement-same-operation'; then
+  echo "Entitlement retry did not acquire its teacher serialization lock." >&2
+  wait "$entitlement_same_pid" || true
+  exit 1
+fi
+entitlement_duplicate="$(docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -A -t -v ON_ERROR_STOP=1 <<'SQL'
+select (public.set_attendance_teacher_entitlement_v1(
+  'c1260000-0000-4000-8000-000000000142',
+  'c1260000-0000-4000-8000-000000000001',
+  'revoked', '2026-08-23T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'concurrent_same_operation', 1
+)->>'duplicate')::boolean;
+SQL
+)"
+wait "$entitlement_same_pid"
+if [[ "$entitlement_duplicate" != "t" ]]; then
+  echo "Concurrent entitlement operation retry was not idempotent." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+delete from public.attendance_teacher_entitlements
+where teacher_id = 'c1260000-0000-4000-8000-000000000001';
+delete from public.attendance_teacher_entitlement_audit
+where teacher_id = 'c1260000-0000-4000-8000-000000000001';
+delete from public.users
+where id = 'c1260000-0000-4000-8000-000000000001';
+SQL
+
+# Prove a concurrent entitlement revision, exact-canary v1 enqueue, and rollout
+# gate share the teacher lock. The enqueue queues behind the setter, stamps the
+# committed revision, and the gate waits for both before reporting readiness.
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+insert into public.users (id, email, role, workos_user_id) values (
+  'd1260000-0000-4000-8000-000000000001',
+  'attendance-transition-race@example.test',
+  'teacher',
+  'user_attendance_transition_race'
+);
+insert into public.classrooms (id, teacher_id, title, class_code) values (
+  'd1260000-0000-4000-8000-000000000040',
+  'd1260000-0000-4000-8000-000000000001',
+  'Attendance transition race',
+  'D12640'
+);
+select public.set_attendance_teacher_entitlement_v1(
+  'd1260000-0000-4000-8000-000000000140',
+  'd1260000-0000-4000-8000-000000000001',
+  'active', '2020-01-01T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'transition_race_initial', 0
+);
+SQL
+
+docker exec -e PGAPPNAME=attendance-transition-setter -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.set_attendance_teacher_entitlement_v1(
+  'd1260000-0000-4000-8000-000000000141',
+  'd1260000-0000-4000-8000-000000000001',
+  'active', '2020-01-01T00:00:00Z', null,
+  'database_guard', 'ci:attendance', 'transition_race_revision', 1
+);
+select pg_sleep(2);
+commit;
+SQL
+transition_setter_pid=$!
+if ! wait_for_attendance_race_lock 'attendance-transition-setter'; then
+  echo "Transition setter did not acquire its teacher serialization lock." >&2
+  wait "$transition_setter_pid" || true
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=attendance-transition-enqueue -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.enqueue_attendance_outbound_message_v1(
+  'd1260000-0000-4000-8000-000000000040',
+  jsonb_build_object(
+    'schema_version', 1,
+    'message_type', 'session.command',
+    'idempotency_key', 'session:transition-race:40',
+    'correlation_ref', 'transition_race_40',
+    'installation_ref', 'installation_guard',
+    'roster_ref', 'roster_d1260000000040008000000000000040'
+  )
+);
+select pg_sleep(1);
+commit;
+SQL
+transition_enqueue_pid=$!
+if ! wait_for_attendance_race_lock 'attendance-transition-enqueue'; then
+  echo "Transition enqueue did not acquire its classroom serialization lock." >&2
+  wait "$transition_setter_pid" || true
+  wait "$transition_enqueue_pid" || true
+  exit 1
+fi
+
+transition_ready="$(docker exec -i "$DB_CONTAINER" \
+  psql -U postgres -d postgres -X -A -t -v ON_ERROR_STOP=1 <<'SQL'
+select (public.get_attendance_entitlement_transition_health_v1(
+  'd1260000-0000-4000-8000-000000000001',
+  'd1260000-0000-4000-8000-000000000040'
+)->>'ready')::boolean;
+SQL
+)"
+wait "$transition_setter_pid"
+wait "$transition_enqueue_pid"
+if [[ "$transition_ready" != "t" ]]; then
+  echo "Concurrent transition gate did not wait for serialized work." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $transition_race$
+begin
+  if (select revision from public.attendance_teacher_entitlements
+      where teacher_id = 'd1260000-0000-4000-8000-000000000001') <> 2
+    or (select entitlement_revision from public.attendance_integration_outbox
+        where idempotency_key = 'session:transition-race:40') <> 2 then
+    raise exception 'Concurrent exact-canary enqueue was stamped with a stale entitlement epoch';
+  end if;
+end;
+$transition_race$;
+delete from public.attendance_integration_outbox
+where idempotency_key = 'session:transition-race:40';
+delete from public.attendance_teacher_entitlements
+where teacher_id = 'd1260000-0000-4000-8000-000000000001';
+delete from public.attendance_teacher_entitlement_audit
+where teacher_id = 'd1260000-0000-4000-8000-000000000001';
+delete from public.classrooms
+where id = 'd1260000-0000-4000-8000-000000000040';
+delete from public.users
+where id = 'd1260000-0000-4000-8000-000000000001';
+SQL
 
 # Commit isolated fixtures so two independent sessions can prove that the
 # attendance writer and student-purge paths serialize on the same subject lock.

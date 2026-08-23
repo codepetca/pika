@@ -4,8 +4,8 @@ import { withErrorHandler } from '@/lib/api-handler'
 import {
   assertBaraAttendanceCanaryClassroomOwner,
   BaraAttendanceCanaryError,
-  getBaraAttendanceCanaryScope,
 } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceWorkerScope } from '@/lib/server/bara-attendance-scope'
 import {
   deliverBaraAttendanceOutboxBatch,
   getBaraAttendanceOutboxHealth,
@@ -28,9 +28,9 @@ export const POST = withErrorHandler(
     }
 
     const supabase = getServiceRoleClient()
-    const scope = getBaraAttendanceCanaryScope()
+    const scope = getBaraAttendanceWorkerScope()
     const enabled = scope.state === 'ready'
-    if (enabled && scope.classroomId) {
+    if (scope.mode === 'exact_canary' && enabled && scope.classroomId) {
       try {
         await assertBaraAttendanceCanaryClassroomOwner({
           supabase,
@@ -51,12 +51,14 @@ export const POST = withErrorHandler(
       enabled,
       teacherId: scope.teacherId,
       classroomId: scope.classroomId,
+      scopeMode: scope.mode,
     })
     const health = await getBaraAttendanceOutboxHealth({
       supabase,
       enabled,
       teacherId: scope.teacherId,
       classroomId: scope.classroomId,
+      scopeMode: scope.mode,
     })
     const status = delivery.status === 'partial' || health.status === 'degraded'
       ? 'partial'

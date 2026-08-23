@@ -278,4 +278,120 @@ describe('Pika attendance source snapshot sync', () => {
     })).rejects.toMatchObject<BaraAttendanceSyncError>({ code: 'source_changed' })
     expect(deliverBaraAttendanceMessage).not.toHaveBeenCalled()
   })
+
+  it('stages only a higher-revision empty schedule while a revoked classroom deactivates', async () => {
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'prepare_attendance_snapshot_v2') {
+        return {
+          data: {
+            integration_mode: 'deactivating',
+            classroom_id: classroomId,
+            roster_ref: prepared.roster_ref,
+            title: prepared.title,
+            schedule_source_token: 'c'.repeat(32),
+            schedule_revision: 5,
+            window_start: '2026-11-02',
+            window_end: '2026-11-03',
+            policy: { ...prepared.policy, enabled: false },
+            class_days: [],
+          },
+          error: null,
+        }
+      }
+      if (name === 'stage_attendance_schedule_snapshot_v2') {
+        expect(args.p_message).toMatchObject({
+          message_type: 'schedule.snapshot',
+          revision: 5,
+          window_start: '2026-11-02',
+          window_end: '2026-11-03',
+          occurrences: [],
+        })
+        return {
+          data: {
+            outbox_id: outboxTwo,
+            idempotency_key: `schedule:${prepared.roster_ref}:revision:5`,
+            revision: 5,
+            status: 'pending',
+          },
+          error: null,
+        }
+      }
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    deliverBaraAttendanceMessage.mockResolvedValue({
+      outcome: 'applied',
+      rosterRef: prepared.roster_ref,
+      revision: 5,
+      scheduledCount: 0,
+      updatedCount: 0,
+      cancelledCount: 2,
+      preservedCount: 1,
+    })
+
+    await expect(syncTeacherAttendanceSources({
+      supabase: { rpc },
+      teacherId,
+      classroomId,
+      windowStart: '2026-11-02',
+      windowEnd: '2026-11-03',
+      integrationState: 'ready',
+      scopeMode: 'teacher_entitlements',
+    })).resolves.toEqual({
+      roster: { outcome: 'not_required', revision: 0 },
+      schedule: { outcome: 'applied', revision: 5 },
+    })
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      'prepare_attendance_snapshot_v2',
+      'stage_attendance_schedule_snapshot_v2',
+    ])
+    expect(deliverBaraAttendanceMessage).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId,
+      classroomId,
+      scopeMode: 'teacher_entitlements',
+      message: expect.objectContaining({ occurrences: [] }),
+    }))
+  })
+
+  it('clamps an entitled schedule before its conservative expiry date', async () => {
+    const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'prepare_attendance_snapshot_v2') {
+        expect(args.p_window_end).toBe('2026-11-02')
+        return { data: { ...prepared, integration_mode: 'active', class_days: [] }, error: null }
+      }
+      if (name === 'stage_attendance_roster_snapshot_v2') {
+        return { data: {
+          outbox_id: outboxOne,
+          idempotency_key: `roster:${prepared.roster_ref}:revision:2`,
+          revision: 2,
+          status: 'pending',
+        }, error: null }
+      }
+      if (name === 'stage_attendance_schedule_snapshot_v2') {
+        expect(args.p_message).toMatchObject({ window_end: '2026-11-02', occurrences: [] })
+        return { data: {
+          outbox_id: outboxTwo,
+          idempotency_key: `schedule:${prepared.roster_ref}:revision:4`,
+          revision: 4,
+          status: 'pending',
+        }, error: null }
+      }
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    deliverBaraAttendanceMessage
+      .mockResolvedValueOnce({
+        outcome: 'applied', rosterRef: prepared.roster_ref, revision: 2,
+        createdCount: 0, updatedCount: 0, deactivatedCount: 0,
+      })
+      .mockResolvedValueOnce({
+        outcome: 'applied', rosterRef: prepared.roster_ref, revision: 4,
+        scheduledCount: 0, updatedCount: 0, cancelledCount: 0, preservedCount: 0,
+      })
+
+    await expect(syncTeacherAttendanceSources({
+      supabase: { rpc }, teacherId, classroomId,
+      windowStart: '2026-11-02', windowEnd: '2026-11-30',
+      scheduleThrough: '2026-11-02',
+      integrationState: 'ready', scopeMode: 'teacher_entitlements',
+    })).resolves.toMatchObject({ schedule: { revision: 4 } })
+  })
 })

@@ -5,6 +5,10 @@ import {
   getBaraSessionSnapshot,
   type ClientOptions,
 } from '@/lib/server/bara-attendance-client'
+import {
+  getBaraAttendanceScopeMode,
+  type BaraAttendanceScopeMode,
+} from '@/lib/server/bara-attendance-scope'
 
 export interface AttendanceReconciliationRpcClient {
   rpc(
@@ -19,6 +23,7 @@ export interface AttendanceReconciliationRpcClient {
 interface ReconciliationOptions extends ClientOptions {
   supabase?: AttendanceReconciliationRpcClient
   installationRef?: string
+  scopeMode?: BaraAttendanceScopeMode
 }
 
 export interface BaraAttendanceReconciliationResult {
@@ -49,7 +54,11 @@ export async function reconcileBaraAttendanceSession(
   })
   const client = options.supabase
     ?? getServiceRoleClient() as unknown as AttendanceReconciliationRpcClient
-  const { data, error } = await client.rpc('apply_attendance_session_snapshot_v1', {
+  const scopeMode = options.scopeMode ?? getBaraAttendanceScopeMode()
+  const { data, error } = await client.rpc(
+    scopeMode === 'teacher_entitlements'
+      ? 'apply_attendance_session_snapshot_for_entitled_mapping_v1'
+      : 'apply_attendance_session_snapshot_v1', {
     p_installation_ref: installationRef,
     p_snapshot: snapshot,
   })
@@ -102,12 +111,17 @@ export async function reconcileBaraAttendanceSessions(input: {
   lookbackHours?: number
   targetLimit?: number
   concurrency?: number
+  scopeMode?: BaraAttendanceScopeMode
   reconcile?: (
     occurrenceRef: string,
     options?: ReconciliationOptions,
   ) => Promise<unknown>
 }): Promise<BaraAttendanceReconciliationSummary> {
-  if (!input.enabled || !input.teacherId || !input.classroomId) {
+  const scopeMode = input.scopeMode ?? getBaraAttendanceScopeMode()
+  if (
+    !input.enabled
+    || (scopeMode === 'exact_canary' && (!input.teacherId || !input.classroomId))
+  ) {
     return {
       status: 'disabled',
       eligible: 0,
@@ -125,10 +139,13 @@ export async function reconcileBaraAttendanceSessions(input: {
   const lookbackHours = Math.min(168, Math.max(1, input.lookbackHours ?? DEFAULT_LOOKBACK_HOURS))
   const concurrency = Math.min(5, Math.max(1, input.concurrency ?? DEFAULT_CONCURRENCY))
   const { data, error } = await input.supabase.rpc(
-    'list_attendance_reconciliation_targets_v2',
+    scopeMode === 'teacher_entitlements'
+      ? 'list_attendance_reconciliation_targets_v3'
+      : 'list_attendance_reconciliation_targets_v2',
     {
-      p_teacher_id: input.teacherId,
-      p_classroom_id: input.classroomId,
+      ...(scopeMode === 'exact_canary'
+        ? { p_teacher_id: input.teacherId, p_classroom_id: input.classroomId }
+        : {}),
       p_now: (input.now ?? new Date()).toISOString(),
       p_lookback_hours: lookbackHours,
       p_limit: targetLimit + 1,
@@ -146,7 +163,10 @@ export async function reconcileBaraAttendanceSessions(input: {
     while (cursor < targets.length) {
       const target = targets[cursor++]
       try {
-        await reconcile(target.occurrence_ref, { supabase: input.supabase })
+        await reconcile(target.occurrence_ref, {
+          supabase: input.supabase,
+          scopeMode,
+        })
         reconciled += 1
       } catch {
         // Aggregate-only health deliberately excludes opaque refs and remote details.
