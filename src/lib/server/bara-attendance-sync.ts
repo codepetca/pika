@@ -5,8 +5,10 @@ import { buildBaraRosterSnapshot } from '@/lib/server/bara-attendance-roster'
 import { buildBaraScheduleSnapshot } from '@/lib/server/bara-attendance-schedule'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
 import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 
 const preparationSchema = z.object({
+  integration_mode: z.literal('active').optional(),
   classroom_id: z.string().uuid(),
   roster_ref: z.string().regex(/^roster_[A-Za-z0-9._~-]+$/),
   title: z.string().min(1).max(200),
@@ -35,6 +37,33 @@ const preparationSchema = z.object({
     is_class_day: z.boolean(),
     occurrence_ref: z.string().regex(/^occurrence_[A-Za-z0-9._~-]+$/).nullable(),
   }).strict()).max(401),
+}).strict()
+
+const deactivationPreparationSchema = z.object({
+  integration_mode: z.literal('deactivating'),
+  classroom_id: z.string().uuid(),
+  roster_ref: z.string().regex(/^roster_[A-Za-z0-9._~-]+$/),
+  title: z.string().min(1).max(200),
+  schedule_source_token: z.string().regex(/^[a-f0-9]{32}$/),
+  schedule_revision: z.number().int().safe().positive(),
+  window_start: z.string().date(),
+  window_end: z.string().date(),
+  policy: z.object({
+    timezone: z.literal('America/Toronto'),
+    opens_local: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    closes_local: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    close_day_offset: z.union([z.literal(0), z.literal(1)]),
+    enabled: z.literal(false),
+    policy_revision: z.number().int().safe().positive(),
+  }).strict(),
+  class_days: z.tuple([]),
+}).strict()
+
+const inactivePreparationSchema = z.object({
+  integration_mode: z.literal('inactive'),
+  classroom_id: z.string().uuid(),
+  roster_ref: z.string().regex(/^roster_[A-Za-z0-9._~-]+$/),
+  title: z.string().min(1).max(200),
 }).strict()
 
 const stagedSchema = z.object({
@@ -99,6 +128,8 @@ export async function syncTeacherAttendanceSources(input: {
   windowEnd: string
   verifiedActor?: VerifiedPikaAttendanceTeacher
   integrationState?: 'disabled' | 'not_configured' | 'ready'
+  scheduleThrough?: string | null
+  scopeMode?: 'exact_canary' | 'teacher_entitlements'
 }) {
   const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
     teacherId: input.teacherId,
@@ -107,13 +138,81 @@ export async function syncTeacherAttendanceSources(input: {
   if (integrationState !== 'ready') throw new BaraAttendanceSyncError(integrationState)
   const installationRef = process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim() ?? ''
   const tenantRef = process.env.BARA_ATTENDANCE_TENANT_REF?.trim() ?? ''
+  const scopeMode = input.scopeMode ?? getBaraAttendanceScopeMode()
+  const windowEnd = input.scheduleThrough && input.scheduleThrough < input.windowEnd
+    ? input.scheduleThrough
+    : input.windowEnd
+  if (windowEnd < input.windowStart) throw new BaraAttendanceSyncError('disabled')
 
-  const preparedResult = await rpc(input.supabase, 'prepare_attendance_snapshot_v1', {
+  const preparedResult = await rpc(input.supabase,
+    scopeMode === 'teacher_entitlements'
+      ? 'prepare_attendance_snapshot_v2'
+      : 'prepare_attendance_snapshot_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
     p_window_start: input.windowStart,
-    p_window_end: input.windowEnd,
+    p_window_end: windowEnd,
+    ...(scopeMode === 'teacher_entitlements'
+      ? { p_at: new Date().toISOString() }
+      : {}),
   })
+  const inactive = inactivePreparationSchema.safeParse(preparedResult)
+  if (inactive.success) {
+    return {
+      roster: { outcome: 'not_required' as const, revision: 0 },
+      schedule: { outcome: 'not_required' as const, revision: 0 },
+    }
+  }
+  const deactivation = deactivationPreparationSchema.safeParse(preparedResult)
+  if (deactivation.success) {
+    const scheduleRefs = refs(
+      deactivation.data.roster_ref,
+      'schedule',
+      deactivation.data.schedule_revision,
+    )
+    const schedule = buildBaraScheduleSnapshot({
+      installationRef,
+      rosterRef: deactivation.data.roster_ref,
+      revision: deactivation.data.schedule_revision,
+      ...scheduleRefs,
+      windowStart: deactivation.data.window_start,
+      windowEnd: deactivation.data.window_end,
+      attendanceTitle: `${deactivation.data.title} attendance`,
+      policy: {
+        timezone: deactivation.data.policy.timezone,
+        opensAtLocal: deactivation.data.policy.opens_local,
+        closesAtLocal: deactivation.data.policy.closes_local,
+        closeDayOffset: deactivation.data.policy.close_day_offset,
+      },
+      classDays: [],
+    })
+    const stagedResult = await rpc(
+      input.supabase,
+      'stage_attendance_schedule_snapshot_v2',
+      {
+        p_teacher_id: input.teacherId,
+        p_classroom_id: input.classroomId,
+        p_source_token: deactivation.data.schedule_source_token,
+        p_message: schedule,
+        p_at: new Date().toISOString(),
+      },
+    )
+    const staged = stagedSchema.safeParse(stagedResult)
+    if (!staged.success || staged.data.revision !== schedule.revision) {
+      throw new BaraAttendanceSyncError('invalid_source')
+    }
+    const result = await deliverBaraAttendanceMessage({
+      supabase: input.supabase,
+      teacherId: input.teacherId,
+      classroomId: input.classroomId,
+      message: schedule,
+      scopeMode,
+    })
+    return {
+      roster: { outcome: 'not_required' as const, revision: 0 },
+      schedule: { outcome: result.outcome, revision: result.revision },
+    }
+  }
   const prepared = preparationSchema.safeParse(preparedResult)
   if (!prepared.success || prepared.data.classroom_id !== input.classroomId) {
     throw new BaraAttendanceSyncError('invalid_source')
@@ -156,7 +255,7 @@ export async function syncTeacherAttendanceSources(input: {
     revision: prepared.data.schedule_revision,
     ...scheduleRefs,
     windowStart: input.windowStart,
-    windowEnd: input.windowEnd,
+    windowEnd,
     attendanceTitle: `${prepared.data.title} attendance`,
     policy: {
       timezone: prepared.data.policy.timezone,
@@ -171,20 +270,31 @@ export async function syncTeacherAttendanceSources(input: {
     })),
   })
 
-  const stagedRosterResult = await rpc(input.supabase, 'stage_attendance_roster_snapshot_v1', {
+  const stagedRosterResult = await rpc(input.supabase,
+    scopeMode === 'teacher_entitlements'
+      ? 'stage_attendance_roster_snapshot_v2'
+      : 'stage_attendance_roster_snapshot_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
     p_source_token: prepared.data.roster_source_token,
     p_message: roster,
+    ...(scopeMode === 'teacher_entitlements'
+      ? { p_at: new Date().toISOString() }
+      : {}),
   })
   const stagedScheduleResult = await rpc(
     input.supabase,
-    'stage_attendance_schedule_snapshot_v1',
+    scopeMode === 'teacher_entitlements'
+      ? 'stage_attendance_schedule_snapshot_v2'
+      : 'stage_attendance_schedule_snapshot_v1',
     {
       p_teacher_id: input.teacherId,
       p_classroom_id: input.classroomId,
       p_source_token: prepared.data.schedule_source_token,
       p_message: schedule,
+      ...(scopeMode === 'teacher_entitlements'
+        ? { p_at: new Date().toISOString() }
+        : {}),
     },
   )
   const stagedRoster = stagedSchema.safeParse(stagedRosterResult)
@@ -201,13 +311,17 @@ export async function syncTeacherAttendanceSources(input: {
   // creation order and preserves the same dependency after an outage.
   const rosterResult = await deliverBaraAttendanceMessage({
     supabase: input.supabase,
+    teacherId: input.teacherId,
     classroomId: input.classroomId,
     message: roster,
+    scopeMode,
   })
   const scheduleResult = await deliverBaraAttendanceMessage({
     supabase: input.supabase,
+    teacherId: input.teacherId,
     classroomId: input.classroomId,
     message: schedule,
+    scopeMode,
   })
 
   return {

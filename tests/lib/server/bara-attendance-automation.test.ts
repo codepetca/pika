@@ -109,4 +109,45 @@ describe('Bara attendance schedule automation', () => {
       code: 'migration_required',
     })
   })
+
+  it('loads bounded entitlement targets without a canary pair and prioritizes cleanup mode', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{
+        ...targets[0],
+        integration_mode: 'deactivating',
+        schedule_through: null,
+      }, {
+        ...targets[1],
+        integration_mode: 'active',
+        schedule_through: '2026-11-30',
+      }],
+      error: null,
+    })
+    const sync = vi.fn().mockResolvedValue({
+      roster: { outcome: 'not_required', revision: 0 },
+      schedule: { outcome: 'applied', revision: 2 },
+    })
+    const now = new Date('2026-08-23T12:00:00.000Z')
+
+    await expect(syncBaraAttendanceSchedules({
+      supabase: { rpc },
+      now,
+      integrationState: 'ready',
+      scopeMode: 'teacher_entitlements',
+      sync,
+    })).resolves.toMatchObject({ status: 'ok', eligible: 2, synced: 2 })
+    expect(rpc).toHaveBeenCalledWith('list_attendance_sync_targets_v3', {
+      p_at: now.toISOString(),
+      p_limit: 51,
+    })
+    expect(sync).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      teacherId: targets[0].teacher_id,
+      classroomId: targets[0].classroom_id,
+      scheduleThrough: null,
+      scopeMode: 'teacher_entitlements',
+    }))
+    expect(sync).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      scheduleThrough: '2026-11-30',
+    }))
+  })
 })

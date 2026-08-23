@@ -1201,6 +1201,7 @@ export type Database = {
           classroom_id: string
           created_at: string
           delivered_at: string | null
+          entitlement_revision: number | null
           id: string
           idempotency_key: string
           last_attempt_at: string | null
@@ -1220,6 +1221,7 @@ export type Database = {
           classroom_id: string
           created_at?: string
           delivered_at?: string | null
+          entitlement_revision?: number | null
           id?: string
           idempotency_key: string
           last_attempt_at?: string | null
@@ -1239,6 +1241,7 @@ export type Database = {
           classroom_id?: string
           created_at?: string
           delivered_at?: string | null
+          entitlement_revision?: number | null
           id?: string
           idempotency_key?: string
           last_attempt_at?: string | null
@@ -1541,6 +1544,13 @@ export type Database = {
         Row: {
           classroom_id: string
           created_at: string
+          deactivation_requested_at: string | null
+          deactivation_target_end: string | null
+          deactivation_window_end: string | null
+          deactivation_window_start: string | null
+          inactive_at: string | null
+          integration_state: string
+          remote_schedule_window_end: string | null
           roster_ref: string
           schedule_source_revision: number
           schedule_source_token: string | null
@@ -1555,6 +1565,13 @@ export type Database = {
         Insert: {
           classroom_id: string
           created_at?: string
+          deactivation_requested_at?: string | null
+          deactivation_target_end?: string | null
+          deactivation_window_end?: string | null
+          deactivation_window_start?: string | null
+          inactive_at?: string | null
+          integration_state?: string
+          remote_schedule_window_end?: string | null
           roster_ref?: string
           schedule_source_revision?: number
           schedule_source_token?: string | null
@@ -1569,6 +1586,13 @@ export type Database = {
         Update: {
           classroom_id?: string
           created_at?: string
+          deactivation_requested_at?: string | null
+          deactivation_target_end?: string | null
+          deactivation_window_end?: string | null
+          deactivation_window_start?: string | null
+          inactive_at?: string | null
+          integration_state?: string
+          remote_schedule_window_end?: string | null
           roster_ref?: string
           schedule_source_revision?: number
           schedule_source_token?: string | null
@@ -1639,6 +1663,95 @@ export type Database = {
             columns: ["classroom_id"]
             isOneToOne: false
             referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_teacher_entitlement_audit: {
+        Row: {
+          actor_ref: string
+          created_at: string
+          entitlement_revision: number
+          id: string
+          new_status: string
+          operation_id: string
+          previous_status: string | null
+          reason_code: string
+          request_fingerprint: string
+          source: string
+          teacher_id: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          actor_ref: string
+          created_at?: string
+          entitlement_revision: number
+          id?: string
+          new_status: string
+          operation_id: string
+          previous_status?: string | null
+          reason_code: string
+          request_fingerprint: string
+          source: string
+          teacher_id: string
+          valid_from: string
+          valid_until?: string | null
+        }
+        Update: {
+          actor_ref?: string
+          created_at?: string
+          entitlement_revision?: number
+          id?: string
+          new_status?: string
+          operation_id?: string
+          previous_status?: string | null
+          reason_code?: string
+          request_fingerprint?: string
+          source?: string
+          teacher_id?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      attendance_teacher_entitlements: {
+        Row: {
+          created_at: string
+          revision: number
+          source: string
+          status: string
+          teacher_id: string
+          updated_at: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          revision: number
+          source: string
+          status: string
+          teacher_id: string
+          updated_at?: string
+          valid_from: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          revision?: number
+          source?: string
+          status?: string
+          teacher_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_teacher_entitlements_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: true
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -6685,8 +6798,16 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_attendance_event_for_entitled_mapping_v1: {
+        Args: { p_event: Json; p_transport_nonce: string }
+        Returns: Json
+      }
       apply_attendance_event_v1: {
         Args: { p_event: Json; p_transport_nonce: string }
+        Returns: Json
+      }
+      apply_attendance_session_snapshot_for_entitled_mapping_v1: {
+        Args: { p_installation_ref: string; p_snapshot: Json }
         Returns: Json
       }
       apply_attendance_session_snapshot_v1: {
@@ -6792,6 +6913,14 @@ export type Database = {
         Returns: boolean
       }
       attendance_event_v1_valid: { Args: { p_event: Json }; Returns: boolean }
+      attendance_outbox_claim_allowed_v1: {
+        Args: {
+          p_at?: string
+          p_row: Database["public"]["Tables"]["attendance_integration_outbox"]["Row"]
+          p_teacher_id: string
+        }
+        Returns: boolean
+      }
       attendance_outbox_dependencies_ready_v1: {
         Args: {
           p_row: Database["public"]["Tables"]["attendance_integration_outbox"]["Row"]
@@ -6803,6 +6932,7 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
       }
+      attendance_outbox_health_v3: { Args: never; Returns: Json }
       attendance_roster_source_document_v1: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -6821,6 +6951,10 @@ export type Database = {
       }
       attendance_student_has_state_v1: {
         Args: { p_classroom_id: string; p_student_id: string }
+        Returns: boolean
+      }
+      attendance_teacher_entitled_v1: {
+        Args: { p_at?: string; p_teacher_id: string }
         Returns: boolean
       }
       begin_attendance_integration_smoke_v1: {
@@ -7179,6 +7313,41 @@ export type Database = {
           classroom_id: string
           created_at: string
           delivered_at: string | null
+          entitlement_revision: number | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      claim_attendance_outbound_message_v2: {
+        Args: {
+          p_classroom_id: string
+          p_idempotency_key: string
+          p_lease_seconds?: number
+          p_teacher_id: string
+        }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          entitlement_revision: number | null
           id: string
           idempotency_key: string
           last_attempt_at: string | null
@@ -7207,6 +7376,7 @@ export type Database = {
           classroom_id: string
           created_at: string
           delivered_at: string | null
+          entitlement_revision: number | null
           id: string
           idempotency_key: string
           last_attempt_at: string | null
@@ -7240,6 +7410,36 @@ export type Database = {
           classroom_id: string
           created_at: string
           delivered_at: string | null
+          entitlement_revision: number | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_attendance_outbox_batch_v3: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          entitlement_revision: number | null
           id: string
           idempotency_key: string
           last_attempt_at: string | null
@@ -7748,6 +7948,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      complete_attendance_outbox_v2: {
+        Args: {
+          p_lease_token: string
+          p_outbox_id: string
+          p_response_payload: Json
+        }
+        Returns: boolean
+      }
       complete_classroom_archive_compaction: {
         Args: {
           p_actors: Json
@@ -8157,6 +8365,41 @@ export type Database = {
           classroom_id: string
           created_at: string
           delivered_at: string | null
+          entitlement_revision: number | null
+          id: string
+          idempotency_key: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_detail: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_type: string
+          next_attempt_at: string
+          payload: Json
+          response_payload: Json | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_integration_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      enqueue_attendance_outbound_message_v2: {
+        Args: {
+          p_at?: string
+          p_classroom_id: string
+          p_message: Json
+          p_teacher_id: string
+        }
+        Returns: {
+          attempts: number
+          classroom_id: string
+          created_at: string
+          delivered_at: string | null
+          entitlement_revision: number | null
           id: string
           idempotency_key: string
           last_attempt_at: string | null
@@ -8460,6 +8703,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_attendance_classroom_access_v1: {
+        Args: { p_at?: string; p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      get_attendance_classroom_id_access_v1: {
+        Args: { p_at?: string; p_classroom_id: string }
+        Returns: Json
+      }
+      get_attendance_entitlement_transition_health_v1: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       get_classroom_archive_source_object_presence: {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
@@ -8601,12 +8856,20 @@ export type Database = {
         }
         Returns: Json
       }
+      list_attendance_reconciliation_targets_v3: {
+        Args: { p_limit?: number; p_lookback_hours?: number; p_now: string }
+        Returns: Json
+      }
       list_attendance_sync_targets_v1: {
         Args: { p_limit?: number }
         Returns: Json
       }
       list_attendance_sync_targets_v2: {
         Args: { p_classroom_id: string; p_limit?: number; p_teacher_id: string }
+        Returns: Json
+      }
+      list_attendance_sync_targets_v3: {
+        Args: { p_at: string; p_limit?: number }
         Returns: Json
       }
       lock_managed_storage_protocol: { Args: never; Returns: boolean }
@@ -8713,6 +8976,16 @@ export type Database = {
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
       prepare_attendance_snapshot_v1: {
         Args: {
+          p_classroom_id: string
+          p_teacher_id: string
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: Json
+      }
+      prepare_attendance_snapshot_v2: {
+        Args: {
+          p_at?: string
           p_classroom_id: string
           p_teacher_id: string
           p_window_end: string
@@ -9178,6 +9451,20 @@ export type Database = {
         }
         Returns: Json
       }
+      set_attendance_teacher_entitlement_v1: {
+        Args: {
+          p_actor_ref: string
+          p_expected_revision?: number
+          p_operation_id: string
+          p_reason_code: string
+          p_source: string
+          p_status: string
+          p_teacher_id: string
+          p_valid_from: string
+          p_valid_until: string
+        }
+        Returns: Json
+      }
       set_test_ai_grading_item_state_atomic: {
         Args: {
           p_attempt_count: number
@@ -9212,8 +9499,28 @@ export type Database = {
         }
         Returns: Json
       }
+      stage_attendance_roster_snapshot_v2: {
+        Args: {
+          p_at?: string
+          p_classroom_id: string
+          p_message: Json
+          p_source_token: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       stage_attendance_schedule_snapshot_v1: {
         Args: {
+          p_classroom_id: string
+          p_message: Json
+          p_source_token: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      stage_attendance_schedule_snapshot_v2: {
+        Args: {
+          p_at?: string
           p_classroom_id: string
           p_message: Json
           p_source_token: string
@@ -9399,6 +9706,19 @@ export type Database = {
       }
       upsert_attendance_window_policy_v1: {
         Args: {
+          p_classroom_id: string
+          p_close_day_offset: number
+          p_closes_local: string
+          p_enabled: boolean
+          p_expected_revision?: number
+          p_opens_local: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      upsert_attendance_window_policy_v2: {
+        Args: {
+          p_at?: string
           p_classroom_id: string
           p_close_day_offset: number
           p_closes_local: string

@@ -100,6 +100,22 @@ describe('POST /api/integrations/attendance/v1/events', () => {
     })
   })
 
+  it('derives entitlement-mode ingress scope only from opaque stored mappings', async () => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_SCOPE_MODE', 'teacher_entitlements')
+
+    const response = await POST(await request(), { params: Promise.resolve({}) })
+
+    expect(response.status).toBe(200)
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      'apply_attendance_event_for_entitled_mapping_v1',
+      {
+        p_event: event,
+        p_transport_nonce: 'nonce_event_request_12345',
+      },
+    )
+    expect(mocks.assertOwner).not.toHaveBeenCalled()
+  })
+
   it('rejects a tampered body before touching Supabase', async () => {
     const original = JSON.stringify(event)
     const tampered = JSON.stringify({ ...event, session_revision: 3 })

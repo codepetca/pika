@@ -22309,3 +22309,33 @@ deployment, credential, or external configuration changed.
 - Apply migration 127 to one explicitly authorized isolated non-production
   Supabase target, then prove policy save, immediate materialization, automatic
   Bara open/close, and teacher/student attendance in the real cross-app smoke.
+
+<!-- pika-session-log-archive-batch:13a90fcea54f745145c5471e875ca45caacf74f0e046158f6ed05b12e61685f1 -->
+## 2026-08-17 — Isolate the Pika-to-Bara WorkOS handoff blocker
+
+**Risk profile:** authentication provider diagnostic only. No hosted setting,
+credential, database, redirect, or rollout flag was changed.
+
+**Observed:**
+- A fresh Chrome smoke completed Pika self-hosted Magic Auth and landed on
+  `/classrooms`; WorkOS recorded `authentication.magic_auth_succeeded` and
+  `session.created` for the Pika client.
+- Codepet Platform Staging contains separate Bara (default) and Pika
+  applications in one environment. Pika's local client ID and masked
+  application-scoped staging API key matched the Pika application.
+- WorkOS's successful Magic Auth response omitted the documented optional
+  `authkit_authorization_code`. Pika logged
+  `crossApplicationCodeReturned: false` and `status: unavailable`; Bara
+  received no request. The silent redirect/callback flow therefore never ran.
+- WorkOS's API reference describes that field as an authorization code that a
+  different application can exchange, so the remaining issue is the provider
+  response/entitlement or an undocumented issuance condition, not a Bara
+  callback failure.
+
+**Next gate:**
+- Ask WorkOS to explain or enable cross-application authorization-code issuance
+  for this same-environment, application-scoped Magic Auth flow. Do not weaken
+  the boundary by sharing cookies, refresh tokens, Pika UUIDs, or database
+  access. If WorkOS cannot support the documented exchange, explicitly design
+  and approve a versioned Pika-to-Bara identity federation fallback before
+  implementation.

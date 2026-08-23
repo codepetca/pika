@@ -2,6 +2,7 @@ import {
   auditBaraAttendanceRolloutEnvironment,
   type BaraAttendanceRolloutMode,
   type BaraAttendanceRolloutStage,
+  type BaraAttendanceRuntimeScopeMode,
 } from '../src/lib/server/bara-attendance-rollout'
 import { auditBaraAttendanceCanaryDatabaseScope } from '../src/lib/server/bara-attendance-canary'
 import { getServiceRoleClient } from '../src/lib/supabase'
@@ -15,6 +16,7 @@ function readArgument(name: string): string | undefined {
 
 const stage = readArgument('--stage')
 const attendanceMode = readArgument('--mode')
+const attendanceScopeMode = readArgument('--scope-mode')
 const expectedSupabaseRef = readArgument('--expected-supabase-ref')
 const productionSupabaseRef = readArgument('--production-supabase-ref')
 const expectedPikaOrigin = readArgument('--expected-pika-origin')
@@ -23,13 +25,14 @@ const expectedBaraApiOrigin = readArgument('--expected-bara-api-origin')
 if (
   (stage !== 'preview' && stage !== 'production')
   || (attendanceMode !== 'pre-enable' && attendanceMode !== 'enabled')
+  || (attendanceScopeMode !== 'exact_canary' && attendanceScopeMode !== 'teacher_entitlements')
   || !expectedSupabaseRef
   || !productionSupabaseRef
   || !expectedPikaOrigin
   || !expectedBaraApiOrigin
 ) {
   process.stderr.write(
-    'Attendance rollout preflight requires mode, stage, exact Supabase refs, and exact Pika/Bara API origins.\n',
+    'Attendance rollout preflight requires rollout mode, runtime scope mode, stage, exact Supabase refs, and exact Pika/Bara API origins.\n',
   )
   process.exit(2)
 }
@@ -38,6 +41,7 @@ async function main() {
   const environmentResult = auditBaraAttendanceRolloutEnvironment(process.env, {
     stage: stage as BaraAttendanceRolloutStage,
     attendanceMode: attendanceMode as BaraAttendanceRolloutMode,
+    attendanceScopeMode: attendanceScopeMode as BaraAttendanceRuntimeScopeMode,
     expectedSupabaseRef: expectedSupabaseRef!,
     productionSupabaseRef: productionSupabaseRef!,
     expectedPikaOrigin: expectedPikaOrigin!,

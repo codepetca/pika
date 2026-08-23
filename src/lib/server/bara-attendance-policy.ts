@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 
 const timeFromDatabaseSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/)
 const policyRowSchema = z.object({
@@ -86,7 +87,11 @@ export async function saveTeacherAttendancePolicy(input: {
   enabled: boolean
   expectedRevision: number | null
 }): Promise<TeacherAttendancePolicy> {
-  const { data, error } = await input.supabase.rpc('upsert_attendance_window_policy_v1', {
+  const scopeMode = getBaraAttendanceScopeMode()
+  const { data, error } = await input.supabase.rpc(
+    scopeMode === 'teacher_entitlements'
+      ? 'upsert_attendance_window_policy_v2'
+      : 'upsert_attendance_window_policy_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
     p_opens_local: input.opensLocal,
@@ -94,6 +99,9 @@ export async function saveTeacherAttendancePolicy(input: {
     p_close_day_offset: input.closeDayOffset,
     p_enabled: input.enabled,
     p_expected_revision: input.expectedRevision,
+    ...(scopeMode === 'teacher_entitlements'
+      ? { p_at: new Date().toISOString() }
+      : {}),
   })
   if (error) {
     if (isMigrationError(error)) throw new TeacherAttendancePolicyError('migration_required')

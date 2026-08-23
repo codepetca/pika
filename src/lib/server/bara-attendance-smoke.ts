@@ -48,10 +48,11 @@ export type AttendanceSmokeResult = {
   status: 'passed' | 'failed' | 'skipped'
   checks: {
     canaryScope: boolean
+    transitionQueue: boolean
     pikaToBara: boolean
     baraToPika: boolean
   }
-  reason?: 'production_only' | 'not_configured' | 'rate_limited' | 'remote_rejected' | 'audit_failed'
+  reason?: 'production_only' | 'not_configured' | 'transition_not_ready' | 'rate_limited' | 'remote_rejected' | 'audit_failed'
 }
 
 function exactBaseUrl(raw: string) {
@@ -118,6 +119,7 @@ function failure(reason: AttendanceSmokeResult['reason'], checks?: Partial<Atten
     reason,
     checks: {
       canaryScope: checks?.canaryScope ?? false,
+      transitionQueue: checks?.transitionQueue ?? false,
       pikaToBara: checks?.pikaToBara ?? false,
       baraToPika: checks?.baraToPika ?? false,
     },
@@ -126,6 +128,8 @@ function failure(reason: AttendanceSmokeResult['reason'], checks?: Partial<Atten
 
 export async function runBaraAttendanceSmoke(input: {
   attendanceMode: 'pre-enable' | 'enabled'
+  scopeMode: 'exact_canary' | 'teacher_entitlements'
+  targetScopeMode: 'exact_canary' | 'teacher_entitlements'
   supabase?: SmokeRpcClient
   fetcher?: typeof fetch
   now?: () => number
@@ -135,7 +139,12 @@ export async function runBaraAttendanceSmoke(input: {
     return {
       status: 'skipped',
       reason: 'production_only',
-      checks: { canaryScope: false, pikaToBara: false, baraToPika: false },
+      checks: {
+        canaryScope: false,
+        transitionQueue: false,
+        pikaToBara: false,
+        baraToPika: false,
+      },
     }
   }
 
@@ -156,6 +165,39 @@ export async function runBaraAttendanceSmoke(input: {
   }
 
   const now = input.now?.() ?? Date.now()
+  let transitionQueue = true
+  if (input.targetScopeMode === 'teacher_entitlements') {
+    const transition = await supabase.rpc(
+      'get_attendance_entitlement_transition_health_v1',
+      {
+        p_teacher_id: config.teacherId,
+        p_classroom_id: config.classroomId,
+      },
+    )
+    const transitionResult = z.object({
+      ready: z.literal(true),
+      unversioned_unresolved_count: z.literal(0),
+      stale_epoch_unresolved_count: z.literal(0),
+    }).strict().safeParse(transition.data)
+    transitionQueue = !transition.error && transitionResult.success
+    if (!transitionQueue) {
+      return failure('transition_not_ready', {
+        canaryScope: true,
+        transitionQueue: false,
+      })
+    }
+  }
+  if (input.targetScopeMode === 'teacher_entitlements') {
+    const access = await supabase.rpc('get_attendance_classroom_access_v1', {
+      p_teacher_id: config.teacherId,
+      p_classroom_id: config.classroomId,
+      p_at: new Date(now).toISOString(),
+    })
+    if (
+      access.error
+      || !z.object({ state: z.literal('ready') }).passthrough().safeParse(access.data).success
+    ) return failure('not_configured', { canaryScope: true, transitionQueue })
+  }
   const random = (input.randomId?.() ?? crypto.randomUUID().replaceAll('-', '')).toLowerCase()
   const requestId = `smoke_request_${random}`
   const challenge = `smoke_${random.slice(0, 32)}`
@@ -237,11 +279,29 @@ export async function runBaraAttendanceSmoke(input: {
     p_error_code: passed ? null : 'remote_rejected',
   })
   if (completed.error || completed.data !== true) {
-    return failure('audit_failed', { canaryScope: true, pikaToBara, baraToPika })
+    return failure('audit_failed', {
+      canaryScope: true,
+      transitionQueue,
+      pikaToBara,
+      baraToPika,
+    })
   }
   return passed
-    ? { status: 'passed', checks: { canaryScope: true, pikaToBara: true, baraToPika: true } }
-    : failure('remote_rejected', { canaryScope: true, pikaToBara, baraToPika })
+    ? {
+        status: 'passed',
+        checks: {
+          canaryScope: true,
+          transitionQueue,
+          pikaToBara: true,
+          baraToPika: true,
+        },
+      }
+    : failure('remote_rejected', {
+        canaryScope: true,
+        transitionQueue,
+        pikaToBara,
+        baraToPika,
+      })
 }
 
 export async function receiveBaraAttendanceSmokeCallback(

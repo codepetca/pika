@@ -6,6 +6,8 @@ import {
   BaraAttendanceCanaryError,
   getBaraAttendanceCanaryScope,
 } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
+import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 
 const EVENT_PATH = '/api/integrations/attendance/v1/events'
 const MAX_BODY_BYTES = 64_000
@@ -13,13 +15,8 @@ const MAX_CLOCK_SKEW_SECONDS = 5 * 60
 
 interface AttendanceEventRpcClient {
   rpc(
-    name: 'apply_attendance_event_for_classroom_v1',
-    args: {
-      p_event: unknown
-      p_transport_nonce: string
-      p_teacher_id: string
-      p_classroom_id: string
-    },
+    name: string,
+    args: Record<string, unknown>,
   ): Promise<{
     data: unknown
     error: { code?: string; message?: string } | null
@@ -35,8 +32,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function configuration() {
+  const mode = getBaraAttendanceScopeMode()
+  if (getBaraAttendanceIntegrationState() !== 'ready') return null
   const scope = getBaraAttendanceCanaryScope()
-  if (scope.state !== 'ready' || !scope.teacherId || !scope.classroomId) return null
+  if (
+    mode === 'exact_canary'
+    && (scope.state !== 'ready' || !scope.teacherId || !scope.classroomId)
+  ) return null
   const installationRef = process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim() ?? ''
   const secret = process.env.BARA_ATTENDANCE_EVENT_SECRET ?? ''
   if (!/^[A-Za-z0-9._~-]{1,128}$/.test(installationRef) || secret.length < 32) {
@@ -45,8 +47,9 @@ function configuration() {
   return {
     installationRef,
     secret,
-    teacherId: scope.teacherId,
-    classroomId: scope.classroomId,
+    mode,
+    teacherId: mode === 'exact_canary' ? scope.teacherId : null,
+    classroomId: mode === 'exact_canary' ? scope.classroomId : null,
   }
 }
 
@@ -110,23 +113,29 @@ export async function receiveBaraAttendanceEvent(request: Request): Promise<Ingr
   }
 
   const serviceClient = getServiceRoleClient()
-  try {
-    await assertBaraAttendanceCanaryClassroomOwner({
-      supabase: serviceClient,
-      classroomId: config.classroomId,
-    })
-  } catch (error) {
-    if (error instanceof BaraAttendanceCanaryError) {
-      return { ok: false, status: 503, error: 'temporarily_unavailable' }
+  if (config.mode === 'exact_canary' && config.classroomId) {
+    try {
+      await assertBaraAttendanceCanaryClassroomOwner({
+        supabase: serviceClient,
+        classroomId: config.classroomId,
+      })
+    } catch (error) {
+      if (error instanceof BaraAttendanceCanaryError) {
+        return { ok: false, status: 503, error: 'temporarily_unavailable' }
+      }
+      throw error
     }
-    throw error
   }
   const client = serviceClient as unknown as AttendanceEventRpcClient
-  const { data, error } = await client.rpc('apply_attendance_event_for_classroom_v1', {
+  const { data, error } = await client.rpc(
+    config.mode === 'teacher_entitlements'
+      ? 'apply_attendance_event_for_entitled_mapping_v1'
+      : 'apply_attendance_event_for_classroom_v1', {
     p_event: validation.value,
     p_transport_nonce: nonce,
-    p_teacher_id: config.teacherId,
-    p_classroom_id: config.classroomId,
+    ...(config.mode === 'exact_canary'
+      ? { p_teacher_id: config.teacherId, p_classroom_id: config.classroomId }
+      : {}),
   })
   if (error) {
     if (error.code === '23505') return { ok: false, status: 409, error: 'replay_conflict' }

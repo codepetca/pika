@@ -3,6 +3,7 @@ import {
   type BaraAttendanceRolloutAudit,
   type BaraAttendanceRolloutEnvironment,
   type BaraAttendanceRolloutMode,
+  type BaraAttendanceRuntimeScopeMode,
 } from '@/lib/server/bara-attendance-rollout'
 
 export const PIKA_ATTENDANCE_PRODUCTION_TARGET = Object.freeze({
@@ -19,15 +20,27 @@ type DeployedAttendanceEnvironment = BaraAttendanceRolloutEnvironment & {
 
 export function isDeployedBaraAttendanceEnvironmentReady(
   attendanceMode: BaraAttendanceRolloutMode,
-  environment: DeployedAttendanceEnvironment = process.env as DeployedAttendanceEnvironment,
+  scopeOrEnvironment: BaraAttendanceRuntimeScopeMode | DeployedAttendanceEnvironment = 'exact_canary',
+  maybeEnvironment: DeployedAttendanceEnvironment = process.env as DeployedAttendanceEnvironment,
 ): boolean {
-  return auditDeployedBaraAttendanceEnvironment(attendanceMode, environment).ready
+  return auditDeployedBaraAttendanceEnvironment(
+    attendanceMode,
+    scopeOrEnvironment,
+    maybeEnvironment,
+  ).ready
 }
 
 export function auditDeployedBaraAttendanceEnvironment(
   attendanceMode: BaraAttendanceRolloutMode,
-  environment: DeployedAttendanceEnvironment = process.env as DeployedAttendanceEnvironment,
+  scopeOrEnvironment: BaraAttendanceRuntimeScopeMode | DeployedAttendanceEnvironment = 'exact_canary',
+  maybeEnvironment: DeployedAttendanceEnvironment = process.env as DeployedAttendanceEnvironment,
 ): BaraAttendanceRolloutAudit {
+  const attendanceScopeMode = typeof scopeOrEnvironment === 'string'
+    ? scopeOrEnvironment
+    : 'exact_canary'
+  const environment = typeof scopeOrEnvironment === 'string'
+    ? maybeEnvironment
+    : scopeOrEnvironment
   if (environment.VERCEL_ENV !== 'production') {
     return {
       ready: false,
@@ -42,5 +55,6 @@ export function auditDeployedBaraAttendanceEnvironment(
   return auditBaraAttendanceRolloutEnvironment(environment, {
     ...PIKA_ATTENDANCE_PRODUCTION_TARGET,
     attendanceMode,
+    attendanceScopeMode,
   })
 }

@@ -96,6 +96,7 @@ describe('POST /api/teacher/attendance/marks', () => {
       classDate: '2026-09-08',
       requestId,
       actor,
+      integrationState: 'ready',
       marks: [{ studentId, status: 'present' }],
     })
     expect(assertBaraAttendanceCanaryClassroom).toHaveBeenCalledWith({

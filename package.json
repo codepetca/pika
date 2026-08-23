@@ -26,6 +26,7 @@
     "attendance:load:local-engine": "tsx scripts/measure-local-bara-attendance-engine.ts",
     "attendance:local:configure": "tsx scripts/configure-local-bara-attendance.ts",
     "attendance:local:rehearse": "tsx scripts/rehearse-local-bara-attendance.ts",
+    "attendance:entitlement:set": "tsx scripts/set-bara-attendance-teacher-entitlement.ts",
     "check:bara-attendance-db": "bash scripts/check-bara-attendance-database.sh",
     "check:architecture": "tsx scripts/check-architecture.ts",
     "check:design-policy": "tsx scripts/check-design-policy.ts",

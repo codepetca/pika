@@ -2,7 +2,10 @@ import { addDays, format, parseISO } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { z } from 'zod'
 
-import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import {
+  getBaraAttendanceWorkerScope,
+  type BaraAttendanceScopeMode,
+} from '@/lib/server/bara-attendance-scope'
 import {
   BaraAttendanceSyncError,
   syncTeacherAttendanceSources,
@@ -16,6 +19,8 @@ const DEFAULT_CONCURRENCY = 3
 const targetSchema = z.object({
   classroom_id: z.string().uuid(),
   teacher_id: z.string().uuid(),
+  integration_mode: z.enum(['active', 'deactivating']).optional(),
+  schedule_through: z.string().date().nullable().optional(),
 }).strict()
 
 const targetListSchema = z.array(targetSchema).max(DEFAULT_TARGET_LIMIT + 1)
@@ -37,13 +42,19 @@ function windowFor(now: Date, horizonDays: number) {
 
 async function loadTargets(
   supabase: any,
-  teacherId: string,
-  classroomId: string,
+  scopeMode: BaraAttendanceScopeMode,
+  teacherId: string | null,
+  classroomId: string | null,
   targetLimit: number,
+  now: Date,
 ) {
-  const { data, error } = await supabase.rpc('list_attendance_sync_targets_v2', {
-    p_teacher_id: teacherId,
-    p_classroom_id: classroomId,
+  const { data, error } = await supabase.rpc(
+    scopeMode === 'teacher_entitlements'
+      ? 'list_attendance_sync_targets_v3'
+      : 'list_attendance_sync_targets_v2', {
+    ...(scopeMode === 'exact_canary'
+      ? { p_teacher_id: teacherId, p_classroom_id: classroomId }
+      : { p_at: now.toISOString() }),
     p_limit: targetLimit + 1,
   })
   if (error?.code === '42883' || error?.code === 'PGRST202') {
@@ -52,7 +63,7 @@ async function loadTargets(
   if (error) throw new BaraAttendanceAutomationError('target_load_failed')
   const parsed = targetListSchema.safeParse(data ?? [])
   if (!parsed.success) throw new BaraAttendanceAutomationError('target_load_failed')
-  if (parsed.data.some((target) =>
+  if (scopeMode === 'exact_canary' && parsed.data.some((target) =>
     target.teacher_id !== teacherId || target.classroom_id !== classroomId
   )) {
     throw new BaraAttendanceAutomationError('target_load_failed')
@@ -97,8 +108,10 @@ export async function syncBaraAttendanceSchedules(input: {
   teacherId?: string
   classroomId?: string
   sync?: typeof syncTeacherAttendanceSources
+  scopeMode?: BaraAttendanceScopeMode
 }): Promise<BaraAttendanceAutomationSummary> {
-  const scope = getBaraAttendanceCanaryScope()
+  const scope = getBaraAttendanceWorkerScope()
+  const scopeMode = input.scopeMode ?? scope.mode
   const integrationState = input.integrationState ?? scope.state
   const teacherId = input.teacherId ?? scope.teacherId
   const classroomId = input.classroomId ?? scope.classroomId
@@ -108,7 +121,10 @@ export async function syncBaraAttendanceSchedules(input: {
     source_changed: 0,
     unavailable: 0,
   }
-  if (integrationState !== 'ready' || !teacherId || !classroomId) {
+  if (
+    integrationState !== 'ready'
+    || (scopeMode === 'exact_canary' && (!teacherId || !classroomId))
+  ) {
     return {
       status: 'disabled',
       windowStart: null,
@@ -125,8 +141,16 @@ export async function syncBaraAttendanceSchedules(input: {
   const targetLimit = Math.min(DEFAULT_TARGET_LIMIT, Math.max(1, input.targetLimit ?? DEFAULT_TARGET_LIMIT))
   const horizonDays = Math.min(400, Math.max(1, input.horizonDays ?? DEFAULT_HORIZON_DAYS))
   const concurrency = Math.min(5, Math.max(1, input.concurrency ?? DEFAULT_CONCURRENCY))
-  const { windowStart, windowEnd } = windowFor(input.now ?? new Date(), horizonDays)
-  const loadedTargets = await loadTargets(input.supabase, teacherId, classroomId, targetLimit)
+  const now = input.now ?? new Date()
+  const { windowStart, windowEnd } = windowFor(now, horizonDays)
+  const loadedTargets = await loadTargets(
+    input.supabase,
+    scopeMode,
+    teacherId,
+    classroomId,
+    targetLimit,
+    now,
+  )
   const truncated = loadedTargets.length > targetLimit
   const targets = loadedTargets.slice(0, targetLimit)
   const sync = input.sync ?? syncTeacherAttendanceSources
@@ -144,6 +168,8 @@ export async function syncBaraAttendanceSchedules(input: {
           windowStart,
           windowEnd,
           integrationState: 'ready',
+          scheduleThrough: target.schedule_through,
+          scopeMode,
         })
         synced += 1
       } catch (error) {

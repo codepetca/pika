@@ -14,9 +14,9 @@ import {
   TeacherAttendanceIdentityError,
 } from '@/lib/server/bara-attendance-teacher'
 import {
-  assertBaraAttendanceCanaryClassroom,
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
+import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -33,7 +33,11 @@ export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
 
   try {
-    assertBaraAttendanceCanaryClassroom({ teacherId: user.id, classroomId: input.classroom_id })
+    const access = await assertBaraAttendanceClassroomAccess({
+      supabase,
+      teacherId: user.id,
+      classroomId: input.classroom_id,
+    })
     const actor = await resolveVerifiedPikaAttendanceTeacher({ supabase, pikaUser: user })
     return NextResponse.json(await syncTeacherAttendanceSources({
       supabase,
@@ -42,6 +46,8 @@ export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request
       windowStart: input.window_start,
       windowEnd: input.window_end,
       verifiedActor: actor,
+      integrationState: 'ready',
+      scheduleThrough: access.scheduleThrough,
     }))
   } catch (error) {
     if (error instanceof BaraAttendanceCanaryError) {
