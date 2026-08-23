@@ -22339,3 +22339,35 @@ credential, database, redirect, or rollout flag was changed.
   access. If WorkOS cannot support the documented exchange, explicitly design
   and approve a versioned Pika-to-Bara identity federation fallback before
   implementation.
+
+<!-- pika-session-log-archive-batch:5e7b8b0a4b3f7e337d82454e5e76c3e4016496db40cfa3d71eeb2385272ab5a2 -->
+## 2026-08-17 — Prove the approved shared Codepet Platform session
+
+**Risk profile:** local authentication and documentation only. No hosted
+WorkOS, Vercel, Convex production, or Supabase configuration changed.
+
+**Decision and evidence:**
+- Superseded the separate-application handoff blocker above after explicit
+  product approval: Pika and Bara use one Codepet Platform AuthKit application
+  and one environment-specific browser session, while Codepet Labs remains
+  separate. Pika/Supabase and Bara/Convex still own separate internal users,
+  authorization, data, and versioned integration contracts.
+- Completed a Chrome smoke using Pika's six-digit passcode login and landed on
+  `/classrooms`. Opening protected Bara on the same host required no second
+  login; Bara resolved the WorkOS session and JWT, Convex reached authenticated
+  state, and the Bara dashboard rendered.
+- Repeated Bara reloads left the development deployment at three historical
+  `app_users` and three linked WorkOS `auth_identities`; no duplicate bootstrap
+  row was added for the current user.
+- Isolated the apparent Convex failure to a local Next.js 16 origin mismatch:
+  Bara was initialized as `localhost` while Chrome used `127.0.0.1`, so Next
+  blocked its own development client runtime. Bara now explicitly allows the
+  loopback development origin, and the normal dev command hydrates correctly.
+- Kept the session cookie host-only for the local proof. No parent-domain cookie
+  was enabled, and the versioned Pika/Bara API and event boundaries remain the
+  production integration boundary.
+
+**Next gate:**
+- Configure and verify the same model in isolated Preview, then prove logout,
+  exact QR return-path preservation, second-account tenant isolation, and the
+  first native attendance contract slice before enabling pilot flags.
