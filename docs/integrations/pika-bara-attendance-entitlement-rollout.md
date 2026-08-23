@@ -37,11 +37,15 @@ There is no browser or public operator route.
 Revocation immediately denies new policy changes, syncs, session commands,
 marks, QR issuance, student check-in, and new normal outbox claims. Each mapped
 classroom then advances through `active -> deactivating -> inactive` in bounded
-worker pages. Pika supersedes unresolved stale messages and sends only the
-latest higher-revision empty schedule. Bara cancels future scheduled
-occurrences but preserves open and closed history. An already-open session may
-close naturally; signed close/cancel/event and authoritative snapshot cleanup
-remain accepted through opaque stored mappings.
+worker pages. Pika records the furthest successfully delivered schedule window,
+supersedes unresolved stale authorization epochs, and sends only the latest
+higher-revision empty schedule for each at-most-400-day cleanup page. It reaches
+`inactive` only after the entire known remote horizon is acknowledged. Bara
+cancels future scheduled occurrences but preserves open and closed history. An
+already-open session may close naturally; signed close/cancel/event and
+authoritative snapshot cleanup remain accepted through opaque stored mappings.
+Re-entitlement schedules inactive mappings for a fresh higher-revision roster
+and schedule before normal classroom admission resumes.
 
 An entitlement ending during the 90-day horizon is scheduled conservatively
 only through the Toronto calendar day before expiry. The worker later performs
