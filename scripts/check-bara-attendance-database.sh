@@ -289,6 +289,8 @@ declare
   v_outbox_id uuid;
   v_outbox public.attendance_integration_outbox%rowtype;
   v_claim public.attendance_integration_outbox%rowtype;
+  v_roster public.attendance_roster_mappings%rowtype;
+  v_completed boolean;
   v_first_window_end date;
 begin
   insert into public.users (id, email, role, workos_user_id) values (
@@ -460,15 +462,22 @@ begin
     ),
     'processing', 1, v_lease, clock_timestamp() + interval '60 seconds'
   ) returning id into v_outbox_id;
-  if not public.complete_attendance_outbox_v2(v_outbox_id, v_lease, '{}'::jsonb)
-    or not exists (
-      select 1 from public.attendance_roster_mappings
-      where classroom_id = 'a1260000-0000-4000-8000-000000000030'
-        and integration_state = 'deactivating'
-        and deactivation_window_start = v_first_window_end + 1
-        and deactivation_window_end = date '2028-01-01'
-    ) then
-    raise exception 'Bounded deactivation did not advance to the remaining horizon';
+  v_completed := public.complete_attendance_outbox_v2(
+    v_outbox_id, v_lease, '{}'::jsonb
+  );
+  select * into v_roster from public.attendance_roster_mappings
+  where classroom_id = 'a1260000-0000-4000-8000-000000000030';
+  if not v_completed
+    or v_roster.integration_state <> 'deactivating'
+    or v_roster.deactivation_window_start <> v_first_window_end + 1
+    or v_roster.deactivation_window_end <> date '2028-01-01' then
+    raise exception
+      'Bounded deactivation did not advance: completed=%, state=%, start=%, end=%, target=%, staged=%, payload_revision=%',
+      v_completed, v_roster.integration_state, v_roster.deactivation_window_start,
+      v_roster.deactivation_window_end, v_roster.deactivation_target_end,
+      v_roster.schedule_staged_revision,
+      (select (payload->>'revision')::bigint
+       from public.attendance_integration_outbox where id = v_outbox_id);
   end if;
 
   v_prepared := public.prepare_attendance_snapshot_v2(
