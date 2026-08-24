@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardCopy,
   Clock3,
+  DoorOpen,
   QrCode as QrCodeIcon,
   RefreshCw,
   UserRoundCheck,
@@ -477,20 +478,18 @@ export function TeacherLiveAttendanceTab({
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      label={(
-        <CalendarDateNavigator
-          label={formatDay(selectedDate)}
-          onPrev={() => setSelectedDate((current) => nextDate(current, -1))}
-          onNext={() => setSelectedDate((current) => nextDate(current, 1))}
-          onLabelClick={() => setSelectedDate(getTodayInToronto())}
-          labelAriaLabel="Go to today"
-          prevAriaLabel="Previous day"
-          nextAriaLabel="Next day"
-          labelClassName="px-0"
-        />
-      )}
-      center={sessionAction || sessionState === 'open' ? (
-        <div className="flex items-center gap-1">
+      center={(
+        <div className="flex items-center gap-1" data-testid="attendance-center-fab">
+          <CalendarDateNavigator
+            label={formatDay(selectedDate)}
+            onPrev={() => setSelectedDate((current) => nextDate(current, -1))}
+            onNext={() => setSelectedDate((current) => nextDate(current, 1))}
+            onLabelClick={() => setSelectedDate(getTodayInToronto())}
+            labelAriaLabel="Go to today"
+            prevAriaLabel="Previous day"
+            nextAriaLabel="Next day"
+            labelClassName="px-0"
+          />
           {sessionState === 'open' ? (
             <Button
               type="button"
@@ -503,19 +502,36 @@ export function TeacherLiveAttendanceTab({
             </Button>
           ) : null}
           {sessionAction ? (
-            <Button
-              type="button"
-              size="sm"
-              variant={sessionAction.command === 'open' ? 'primary' : 'secondary'}
-              loading={activeCommand === `session:${sessionAction.command}`}
-              disabled={Boolean(activeCommand) || localSessionPending}
-              onClick={() => void submitSessionCommand(sessionAction.command)}
-            >
-              {sessionAction.label}
-            </Button>
+            sessionAction.command === 'open' ? (
+              <Tooltip content={sessionAction.label}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  className="h-9 w-9 px-0"
+                  aria-label={sessionAction.label}
+                  loading={activeCommand === 'session:open'}
+                  disabled={Boolean(activeCommand) || localSessionPending}
+                  onClick={() => void submitSessionCommand('open')}
+                >
+                  <DoorOpen className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Tooltip>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                loading={activeCommand === 'session:close'}
+                disabled={Boolean(activeCommand) || localSessionPending}
+                onClick={() => void submitSessionCommand('close')}
+              >
+                {sessionAction.label}
+              </Button>
+            )
           ) : null}
         </div>
-      ) : null}
+      )}
       centerPlacement="floating"
       centerClassName="top-24 sm:top-14"
       trailing={(
@@ -726,7 +742,7 @@ export function TeacherLiveAttendanceTab({
   return (
     <>
       <PageLayout className="flex h-full min-h-0 flex-col">
-        <PageActionBar primary={actionBar} className="pb-14 sm:pb-2" />
+        <PageActionBar primary={actionBar} className="pb-20 sm:pb-2" />
         <PageContent className="flex min-h-0 flex-1 flex-col pb-24">
           {content}
         </PageContent>

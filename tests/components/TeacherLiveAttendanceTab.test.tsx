@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TeacherLiveAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherLiveAttendanceTab'
 import { AppMessageProvider } from '@/ui'
 import type { TeacherAttendanceView } from '@/lib/teacher-attendance'
@@ -130,6 +130,31 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByRole('toolbar', { name: 'Bulk attendance actions' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Present/ })).toBeEnabled()
     expect(screen.getByRole('button', { name: /Absent/ })).toBeEnabled()
+  })
+
+  it('groups the date selector and icon-only open action in the center FAB', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      session: {
+        state: 'scheduled',
+        opensAt: '2026-08-17T12:45:00.000Z',
+        closesAt: '2026-08-17T13:15:00.000Z',
+        revision: 1,
+        commandFailed: false,
+      },
+    })))
+
+    renderTab()
+    await screen.findByText('Lovelace, Ada')
+
+    const centerFab = screen.getByTestId('attendance-center-fab')
+    expect(within(centerFab).getByRole('button', { name: 'Previous day' })).toBeEnabled()
+    expect(within(centerFab).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
+    expect(within(centerFab).getByRole('button', { name: 'Next day' })).toBeEnabled()
+
+    const openAttendance = within(centerFab).getByRole('button', { name: 'Open attendance' })
+    expect(openAttendance).toBeEnabled()
+    expect(openAttendance).toHaveTextContent('')
+    expect(screen.queryByText('Open attendance')).not.toBeInTheDocument()
   })
 
   it('loads a Pika-owned QR presentation only when requested and copies its exact entry URL', async () => {

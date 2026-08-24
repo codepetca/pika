@@ -22497,3 +22497,23 @@ dependency, or UI change.
   story eligibility with ingestion time instead of the preserved producer
   timestamp; correcting that cross-service cutoff and proving the delayed
   boundary case is a rollout blocker outside this Pika-only PR.
+
+<!-- pika-session-log-archive-batch:179f143266c572b4259390f574728e98c030194d85c26596e7dfb337f8c0c5db -->
+## 2026-08-18 — Verify Pal source-timestamp rollout dependency
+
+**Risk profile:** documentation and cross-service verification only; no Pika
+runtime, contract, schema, dependency, privacy, or UI change.
+
+- Verified merged Pal PR #73 at `2c4f71389db978e495af42f9d494b9de2bf8354a`
+  adds append-only migration `0010_story_source_timestamps.sql` and uses
+  producer `learner_facts.occurred_at` for story eligibility, lateness,
+  terminal effective due time, and protection/reconstruction checks.
+- Verified Pal's persisted-ingest test uses Pika's seven-field adaptive calendar,
+  accepts a pre-boundary fact delivered after the boundary, rejects a truly late
+  fact, and proves a retry with the same idempotency key remains a duplicate.
+- Confirmed Pal PR #73 CI is green, the public widget remains exactly
+  `@codepet/pal-widget@0.1.0-alpha.3`, and Pal changed no contract or widget
+  source after Pika's vendored contract commit.
+- Updated the pilot runbook to name the required Pal migration and record that
+  the code-level blocker is cleared. Applying it in a target Pal environment
+  remains Pal-controlled; Pika performs no deployment or historical backfill.

@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-18 — Verify Pal source-timestamp rollout dependency
-
-**Risk profile:** documentation and cross-service verification only; no Pika
-runtime, contract, schema, dependency, privacy, or UI change.
-
-- Verified merged Pal PR #73 at `2c4f71389db978e495af42f9d494b9de2bf8354a`
-  adds append-only migration `0010_story_source_timestamps.sql` and uses
-  producer `learner_facts.occurred_at` for story eligibility, lateness,
-  terminal effective due time, and protection/reconstruction checks.
-- Verified Pal's persisted-ingest test uses Pika's seven-field adaptive calendar,
-  accepts a pre-boundary fact delivered after the boundary, rejects a truly late
-  fact, and proves a retry with the same idempotency key remains a duplicate.
-- Confirmed Pal PR #73 CI is green, the public widget remains exactly
-  `@codepet/pal-widget@0.1.0-alpha.3`, and Pal changed no contract or widget
-  source after Pika's vendored contract commit.
-- Updated the pilot runbook to name the required Pal migration and record that
-  the code-level blocker is cleared. Applying it in a target Pal environment
-  remains Pal-controlled; Pika performs no deployment or historical backfill.
-
 ## 2026-08-18 — Course Package portable policy and integration (PR B)
 
 **Risk profile:** high — application-layer untrusted package semantics and
@@ -1215,3 +1196,20 @@ attendance behavior, API contract, schema, flag, entitlement, or deployment chan
 - The focused dialog suite, lint, and UI policy checks pass. Playwright visual
   verification passed for teacher desktop/mobile, light/dark, and both hover or
   keyboard-focus tooltip states; student is not applicable to this teacher-only dialog.
+
+## 2026-08-24 — Consolidate live-attendance center FAB
+
+**Risk profile:** none — teacher-only attendance navigation and action layout;
+no attendance behavior, API contract, schema, flag, entitlement, or deployment changed.
+
+- Moved the live-attendance date navigator from the action-bar label slot into
+  the center floating action cluster alongside session actions.
+- Replaced the scheduled-state Open attendance text button with an accessible
+  DoorOpen icon button and shared tooltip while preserving its command behavior,
+  loading state, disabled state, and accessible name.
+- Increased mobile action-bar clearance so the wider center FAB does not overlap
+  the session summary.
+- Focused component tests (17), lint, design policy, and UI policy pass.
+  Playwright visual verification passed for teacher desktop/mobile, light/dark,
+  default, tooltip-hover, and keyboard-focus states; student is not applicable
+  to this teacher-only surface.
