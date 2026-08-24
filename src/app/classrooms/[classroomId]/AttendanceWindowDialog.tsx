@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
+import { CircleHelp } from 'lucide-react'
 import { fetchJSON } from '@/lib/request-cache'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
@@ -12,6 +13,7 @@ import {
   PageState,
   Select,
   TableSelectionCheckbox,
+  Tooltip,
   useAppMessage,
 } from '@/ui'
 
@@ -192,7 +194,6 @@ export function AttendanceWindowDialog({
       isOpen={isOpen}
       onClose={onClose}
       title="Attendance hours"
-      subtitle="Applied automatically on scheduled class days"
       maxWidth="max-w-md"
       showHeaderClose={!saving}
       showFooterClose={false}
@@ -236,7 +237,19 @@ export function AttendanceWindowDialog({
 
           <FormField
             label="Closing day"
-            hint="Use next day only for classes that continue past midnight."
+            labelAccessory={
+              <Tooltip content="Use next day only for classes that continue past midnight.">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="About closing day"
+                  disabled={saving}
+                >
+                  <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Tooltip>
+            }
           >
             <Select
               value={String(closeDayOffset)}
@@ -249,21 +262,28 @@ export function AttendanceWindowDialog({
             />
           </FormField>
 
-          <label className="flex items-start gap-3 rounded-control border border-border bg-surface-2 px-3 py-3 text-sm text-text-default">
-            <TableSelectionCheckbox
-              checked={enabled}
-              disabled={saving}
-              ariaLabel="Open and close automatically"
-              className="mt-0.5"
-              onChange={setEnabled}
-            />
-            <span>
-              <span className="block font-medium">Open and close automatically</span>
-              <span className="mt-1 block text-text-muted">
-                Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.
-              </span>
-            </span>
-          </label>
+          <div className="flex items-center gap-2 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-default">
+            <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3 font-medium">
+              <TableSelectionCheckbox
+                checked={enabled}
+                disabled={saving}
+                ariaLabel="Open and close automatically"
+                onChange={setEnabled}
+              />
+              <span>Open and close automatically</span>
+            </label>
+            <Tooltip content="Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.">
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-label="About automatic attendance hours"
+                disabled={saving}
+              >
+                <CircleHelp className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </Tooltip>
+          </div>
 
           <p className="text-xs text-text-muted">Timezone: America/Toronto</p>
           {validationError && (opensLocal || closesLocal) ? (

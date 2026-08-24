@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AttendanceWindowDialog } from '@/app/classrooms/[classroomId]/AttendanceWindowDialog'
-import { AppMessageProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2026-08-17',
@@ -32,14 +32,16 @@ function savedPolicy(overrides: Record<string, unknown> = {}) {
 
 function renderDialog(onSaved = vi.fn(), onClose = vi.fn()) {
   render(
-    <AppMessageProvider>
-      <AttendanceWindowDialog
-        classroomId={classroomId}
-        isOpen
-        onSaved={onSaved}
-        onClose={onClose}
-      />
-    </AppMessageProvider>,
+    <TooltipProvider>
+      <AppMessageProvider>
+        <AttendanceWindowDialog
+          classroomId={classroomId}
+          isOpen
+          onSaved={onSaved}
+          onClose={onClose}
+        />
+      </AppMessageProvider>
+    </TooltipProvider>,
   )
   return { onSaved, onClose }
 }
@@ -125,6 +127,19 @@ describe('AttendanceWindowDialog', () => {
       close_day_offset: 1,
       expected_revision: 4,
     })
+  })
+
+  it('keeps optional attendance guidance in help tooltips', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    renderDialog()
+
+    await screen.findByDisplayValue('08:45')
+
+    expect(screen.queryByText('Applied automatically on scheduled class days')).not.toBeInTheDocument()
+    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Pika sends concrete Toronto-time windows/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About closing day' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'About automatic attendance hours' })).toBeEnabled()
   })
 
   it('keeps the saved policy and reports recovery when immediate sync is unavailable', async () => {

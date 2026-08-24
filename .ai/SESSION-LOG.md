@@ -1232,3 +1232,16 @@ no attendance behavior, API contract, schema, flag, entitlement, or deployment c
   and 375px widths in
   light and dark modes, including keyboard tooltip disclosure; student is not
   applicable to this teacher-only surface.
+## 2026-08-24 — Simplify attendance-hours guidance
+
+**Risk profile:** none — teacher-only copy and contextual-help refinement; no
+attendance behavior, API contract, schema, flag, entitlement, or deployment changed.
+
+- Removed the attendance-hours dialog subtitle and moved the Closing day and
+  automatic scheduling explanations into accessible help-icon tooltips.
+- Kept both concise labels visible, preserved checkbox/select behavior, and
+  retained shared semantic tokens, tooltip ownership, focus treatment, and
+  minimum control targets.
+- The focused dialog suite, lint, and UI policy checks pass. Playwright visual
+  verification passed for teacher desktop/mobile, light/dark, and both hover or
+  keyboard-focus tooltip states; student is not applicable to this teacher-only dialog.
