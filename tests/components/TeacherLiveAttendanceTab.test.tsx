@@ -118,9 +118,15 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(await screen.findByText('Lovelace, Ada')).toBeInTheDocument()
     expect(screen.getByText('Hopper, Grace')).toBeInTheDocument()
     expect(screen.getByText('QR check-in')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Close attendance' })).toBeEnabled()
+    const centerFab = screen.getByTestId('attendance-center-fab')
+    const showQr = within(centerFab).getByRole('button', { name: 'Show QR' })
+    const closeAttendance = within(centerFab).getByRole('button', { name: 'Close attendance' })
+    expect(showQr).toBeEnabled()
+    expect(closeAttendance).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Attendance hours' })).toBeEnabled()
+
+    fireEvent.focus(closeAttendance)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
 

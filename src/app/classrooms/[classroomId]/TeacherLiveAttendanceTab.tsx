@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardCopy,
   Clock3,
+  DoorClosed,
   DoorOpen,
   QrCode as QrCodeIcon,
   RefreshCw,
@@ -491,15 +492,20 @@ export function TeacherLiveAttendanceTab({
             labelClassName="px-0"
           />
           {sessionState === 'open' ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="primary"
-              disabled={Boolean(activeCommand) || localSessionPending}
-              onClick={openQrPresentation}
-            >
-              <QrCodeIcon className="h-4 w-4" aria-hidden="true" /> Show QR
-            </Button>
+            <Tooltip content="Show QR">
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                className="w-9 px-0 sm:w-auto sm:px-3"
+                aria-label="Show QR"
+                disabled={Boolean(activeCommand) || localSessionPending}
+                onClick={openQrPresentation}
+              >
+                <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Show QR</span>
+              </Button>
+            </Tooltip>
           ) : null}
           {sessionAction ? (
             sessionAction.command === 'open' ? (
@@ -518,16 +524,21 @@ export function TeacherLiveAttendanceTab({
                 </Button>
               </Tooltip>
             ) : (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                loading={activeCommand === 'session:close'}
-                disabled={Boolean(activeCommand) || localSessionPending}
-                onClick={() => void submitSessionCommand('close')}
-              >
-                {sessionAction.label}
-              </Button>
+              <Tooltip content={sessionAction.label}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="w-9 px-0 sm:w-auto sm:px-3"
+                  aria-label={sessionAction.label}
+                  loading={activeCommand === 'session:close'}
+                  disabled={Boolean(activeCommand) || localSessionPending}
+                  onClick={() => void submitSessionCommand('close')}
+                >
+                  <DoorClosed className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">{sessionAction.label}</span>
+                </Button>
+              </Tooltip>
             )
           ) : null}
         </div>
@@ -742,7 +753,7 @@ export function TeacherLiveAttendanceTab({
   return (
     <>
       <PageLayout className="flex h-full min-h-0 flex-col">
-        <PageActionBar primary={actionBar} className="pb-20 sm:pb-2" />
+        <PageActionBar primary={actionBar} className="pb-24 sm:pb-2" />
         <PageContent className="flex min-h-0 flex-1 flex-col pb-24">
           {content}
         </PageContent>
