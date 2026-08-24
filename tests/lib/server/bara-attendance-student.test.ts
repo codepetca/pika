@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
-import { sealAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
+import {
+  deriveStudentAttendanceOccurrenceBinding,
+  sealAttendanceEntryToken,
+} from '@/lib/server/bara-attendance-entry-token'
 import {
   executeStudentAttendanceCheckIn,
   resolveVerifiedPikaAttendanceStudent,
@@ -12,7 +15,8 @@ const { withAuth } = vi.hoisted(() => ({ withAuth: vi.fn() }))
 vi.mock('@workos-inc/authkit-nextjs', () => ({ withAuth }))
 
 const entrySecret = 'entry-token-secret-that-is-long-enough-for-tests'
-const pikaUser = { id: 'student-one', email: 'student@example.com', role: 'student' }
+const studentId = '30000000-0000-4000-8000-000000000001'
+const pikaUser = { id: studentId, email: 'student@example.com', role: 'student' }
 const actor = { principalRef: 'principal_student_one', displayName: 'Student One' }
 const attemptId = '11111111-1111-4111-8111-111111111111'
 const classroomId = '20000000-0000-4000-8000-000000000002'
@@ -113,6 +117,13 @@ describe('native Pika student attendance check-in', () => {
       description: 'Your attendance was recorded.',
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
+      classroomId,
+      studentId,
+      occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
+        studentId,
+        occurrenceRef: 'occurrence_one',
+        secret: entrySecret,
+      }),
     })
   })
 
@@ -134,7 +145,7 @@ describe('native Pika student attendance check-in', () => {
       integrationState: 'ready',
       resolveActor: vi.fn().mockResolvedValue(actor),
       send,
-    })).resolves.toMatchObject({ state: 'already_checked_in' })
+    })).resolves.toMatchObject({ state: 'already_checked_in', classroomId })
 
     expect(send).toHaveBeenCalledTimes(2)
     expect(send.mock.calls[0][0]).toEqual(send.mock.calls[1][0])

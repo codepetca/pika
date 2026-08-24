@@ -380,6 +380,119 @@ test.describe('student experience matrix', () => {
     await expect(navigation.getByRole('link', { name: 'Attendance' })).toHaveAttribute('aria-current', 'page')
     await verifyProjectContract(page, testInfo)
   })
+
+  test('keeps mobile attendance prompts classroom-scoped and confirms an idempotent scan', async ({ page }, testInfo) => {
+    const authResponse = await page.request.get('/api/auth/me')
+    expect(authResponse.ok()).toBe(true)
+    const authPayload = await authResponse.json() as { user: { id: string } }
+    const classroomsResponse = await page.request.get('/api/student/classrooms')
+    expect(classroomsResponse.ok()).toBe(true)
+    const classroomsPayload = await classroomsResponse.json() as {
+      classrooms?: Array<{ id: string; title: string }>
+    }
+    const classroom = classroomsPayload.classrooms?.find((item) => item.title === 'Test Classroom')
+    if (!classroom) throw new Error('Student browser fixture is missing Test Classroom')
+
+    const otherClassroomId = '20000000-0000-4000-8000-000000000099'
+    const occurrenceBinding = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    let attendanceState: 'isolated' | 'open' | 'closed' | 'confirmed' = 'isolated'
+    await page.route('**/api/student/attendance/status', async (route) => {
+      const common = { opensAt: null, closesAt: null }
+      const classrooms = attendanceState === 'isolated'
+        ? [
+            { classroomId: classroom.id, state: 'unavailable', ...common },
+            { classroomId: otherClassroomId, state: 'open', ...common },
+          ]
+        : attendanceState === 'open'
+          ? [{
+              classroomId: classroom.id,
+              state: 'open',
+              occurrenceBinding,
+              opensAt: '2026-08-23T13:00:00.000Z',
+              closesAt: '2099-08-23T14:00:00.000Z',
+            }]
+          : attendanceState === 'confirmed'
+            ? [{
+                classroomId: classroom.id,
+                state: 'confirmed',
+                ...common,
+                attendanceStatus: 'present',
+                confirmedAt: '2026-08-23T13:01:00.000Z',
+              }]
+            : [{ classroomId: classroom.id, state: 'closed', ...common }]
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'X-Pika-Student-Id': authPayload.user.id },
+        body: JSON.stringify({
+          studentId: authPayload.user.id,
+          classrooms,
+          nextRefreshAt: null,
+          serverNow: '2026-08-23T13:30:00.000Z',
+        }),
+      })
+    })
+
+    await page.goto(`/classrooms/${classroom.id}?tab=today`, { waitUntil: 'domcontentloaded' })
+    await expect(page.getByTestId('student-attendance-status')).toHaveCount(0)
+
+    attendanceState = 'open'
+    await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('status', { name: 'Attendance check-in is open' })).toBeVisible()
+    await page.screenshot({
+      path: testInfo.outputPath('student-attendance-index-open.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
+    await page.goto(`/classrooms/${classroom.id}?tab=today`, { waitUntil: 'domcontentloaded' })
+    await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+    await expect(page.getByText('Attendance check-in is open')).toHaveCount(0)
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({
+      path: testInfo.outputPath('student-attendance-open.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
+
+    attendanceState = 'closed'
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await expect(page.getByTestId('student-attendance-status')).toHaveCount(0)
+
+    attendanceState = 'open'
+    await page.route('**/api/student/attendance/check-in', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          state: 'already_checked_in',
+          title: 'You are already checked in',
+          description: 'No additional attendance record was created.',
+          attendanceStatus: 'present',
+          recordedAt: '2026-08-23T13:01:00.000Z',
+          classroomId: classroom.id,
+          studentId: authPayload.user.id,
+          occurrenceBinding,
+        }),
+      })
+    })
+    await page.goto(`/attendance/check-in/${'A'.repeat(100)}`, { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Back to classroom' }).click()
+    await expect(page.getByText('Checked in — Present')).toBeVisible()
+    await expect(page.getByText(/Confirmed at 9:01/)).toBeVisible()
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({
+      path: testInfo.outputPath('student-attendance-confirmed.png'),
+      fullPage: true,
+      animations: 'disabled',
+    })
+
+    attendanceState = 'closed'
+    await expect(page.getByTestId('student-attendance-status')).toHaveCount(0, {
+      timeout: 10_000,
+    })
+  })
 })
 
 test.describe('public planned course experience matrix', () => {
