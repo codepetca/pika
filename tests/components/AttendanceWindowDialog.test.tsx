@@ -31,19 +31,24 @@ function savedPolicy(overrides: Record<string, unknown> = {}) {
 }
 
 function renderDialog(onSaved = vi.fn(), onClose = vi.fn()) {
-  render(
+  const dialog = (isOpen: boolean) => (
     <TooltipProvider>
       <AppMessageProvider>
         <AttendanceWindowDialog
           classroomId={classroomId}
-          isOpen
+          isOpen={isOpen}
           onSaved={onSaved}
           onClose={onClose}
         />
       </AppMessageProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   )
-  return { onSaved, onClose }
+  const view = render(dialog(true))
+  return {
+    onSaved,
+    onClose,
+    rerenderDialog: (isOpen: boolean) => view.rerender(dialog(isOpen)),
+  }
 }
 
 describe('AttendanceWindowDialog', () => {
@@ -159,6 +164,24 @@ describe('AttendanceWindowDialog', () => {
 
     fireEvent.click(closingDayHelp)
     expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
+  })
+
+  it('collapses tapped help when the dialog is reopened', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    const { rerenderDialog } = renderDialog()
+
+    await screen.findByDisplayValue('08:45')
+    fireEvent.click(screen.getByRole('button', { name: 'About closing day' }))
+    expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
+
+    rerenderDialog(false)
+    rerenderDialog(true)
+
+    await screen.findByDisplayValue('08:45')
+    expect(screen.getByRole('button', { name: 'About closing day' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
   })
 

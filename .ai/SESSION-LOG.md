@@ -1246,5 +1246,6 @@ attendance behavior, API contract, schema, flag, entitlement, or deployment chan
   verification passed for teacher desktop/mobile, light/dark, and both hover or
   keyboard-focus tooltip states. Independent review found that touch taps do not
   open Radix tooltips, so each help icon now also toggles an accessible inline
-  disclosure with verified first-tap open and second-tap dismissal. Student is
-  not applicable to this teacher-only dialog.
+  disclosure with verified first-tap open and second-tap dismissal. Disclosure
+  state resets between dialog sessions so reopened settings remain concise.
+  Student is not applicable to this teacher-only dialog.

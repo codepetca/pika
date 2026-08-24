@@ -125,7 +125,10 @@ export function AttendanceWindowDialog({
   }, [classroomId])
 
   useEffect(() => {
-    if (isOpen) void loadPolicy()
+    if (isOpen) {
+      setExpandedHelp(null)
+      void loadPolicy()
+    }
   }, [isOpen, loadPolicy])
 
   const validationError = !opensLocal || !closesLocal
