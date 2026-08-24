@@ -6,6 +6,8 @@ import {
   Check,
   ClipboardCopy,
   Clock3,
+  DoorClosed,
+  DoorOpen,
   QrCode as QrCodeIcon,
   RefreshCw,
   UserRoundCheck,
@@ -477,45 +479,70 @@ export function TeacherLiveAttendanceTab({
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      label={(
-        <CalendarDateNavigator
-          label={formatDay(selectedDate)}
-          onPrev={() => setSelectedDate((current) => nextDate(current, -1))}
-          onNext={() => setSelectedDate((current) => nextDate(current, 1))}
-          onLabelClick={() => setSelectedDate(getTodayInToronto())}
-          labelAriaLabel="Go to today"
-          prevAriaLabel="Previous day"
-          nextAriaLabel="Next day"
-          labelClassName="px-0"
-        />
-      )}
-      center={sessionAction || sessionState === 'open' ? (
-        <div className="flex items-center gap-1">
+      center={(
+        <div className="flex items-center gap-1" data-testid="attendance-center-fab">
+          <CalendarDateNavigator
+            label={formatDay(selectedDate)}
+            onPrev={() => setSelectedDate((current) => nextDate(current, -1))}
+            onNext={() => setSelectedDate((current) => nextDate(current, 1))}
+            onLabelClick={() => setSelectedDate(getTodayInToronto())}
+            labelAriaLabel="Go to today"
+            prevAriaLabel="Previous day"
+            nextAriaLabel="Next day"
+            labelClassName="px-0"
+          />
           {sessionState === 'open' ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="primary"
-              disabled={Boolean(activeCommand) || localSessionPending}
-              onClick={openQrPresentation}
-            >
-              <QrCodeIcon className="h-4 w-4" aria-hidden="true" /> Show QR
-            </Button>
+            <Tooltip content="Show QR">
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                className="w-9 px-0 sm:w-auto sm:px-3"
+                aria-label="Show QR"
+                disabled={Boolean(activeCommand) || localSessionPending}
+                onClick={openQrPresentation}
+              >
+                <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Show QR</span>
+              </Button>
+            </Tooltip>
           ) : null}
           {sessionAction ? (
-            <Button
-              type="button"
-              size="sm"
-              variant={sessionAction.command === 'open' ? 'primary' : 'secondary'}
-              loading={activeCommand === `session:${sessionAction.command}`}
-              disabled={Boolean(activeCommand) || localSessionPending}
-              onClick={() => void submitSessionCommand(sessionAction.command)}
-            >
-              {sessionAction.label}
-            </Button>
+            sessionAction.command === 'open' ? (
+              <Tooltip content={sessionAction.label}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  className="h-9 w-9 px-0"
+                  aria-label={sessionAction.label}
+                  loading={activeCommand === 'session:open'}
+                  disabled={Boolean(activeCommand) || localSessionPending}
+                  onClick={() => void submitSessionCommand('open')}
+                >
+                  <DoorOpen className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Tooltip>
+            ) : (
+              <Tooltip content={sessionAction.label}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="w-9 px-0 sm:w-auto sm:px-3"
+                  aria-label={sessionAction.label}
+                  loading={activeCommand === 'session:close'}
+                  disabled={Boolean(activeCommand) || localSessionPending}
+                  onClick={() => void submitSessionCommand('close')}
+                >
+                  <DoorClosed className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">{sessionAction.label}</span>
+                </Button>
+              </Tooltip>
+            )
           ) : null}
         </div>
-      ) : null}
+      )}
       centerPlacement="floating"
       centerClassName="top-24 sm:top-14"
       trailing={(
@@ -726,7 +753,7 @@ export function TeacherLiveAttendanceTab({
   return (
     <>
       <PageLayout className="flex h-full min-h-0 flex-col">
-        <PageActionBar primary={actionBar} className="pb-14 sm:pb-2" />
+        <PageActionBar primary={actionBar} className="pb-24 sm:pb-2" />
         <PageContent className="flex min-h-0 flex-1 flex-col pb-24">
           {content}
         </PageContent>

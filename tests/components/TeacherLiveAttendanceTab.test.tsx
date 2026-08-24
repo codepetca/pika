@@ -1,18 +1,13 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TeacherLiveAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherLiveAttendanceTab'
-import { AppMessageProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { TeacherAttendanceView } from '@/lib/teacher-attendance'
 import type { Classroom } from '@/types'
 
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2026-08-17',
-}))
-
-vi.mock('@/ui/Tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
 const classroom: Classroom = {
@@ -82,9 +77,11 @@ function jsonResponse(body: unknown, status = 200) {
 
 function renderTab(classroomOverride: Classroom = classroom) {
   return render(
-    <AppMessageProvider>
-      <TeacherLiveAttendanceTab classroom={classroomOverride} isActive />
-    </AppMessageProvider>,
+    <TooltipProvider>
+      <AppMessageProvider>
+        <TeacherLiveAttendanceTab classroom={classroomOverride} isActive />
+      </AppMessageProvider>
+    </TooltipProvider>,
   )
 }
 
@@ -121,15 +118,69 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(await screen.findByText('Lovelace, Ada')).toBeInTheDocument()
     expect(screen.getByText('Hopper, Grace')).toBeInTheDocument()
     expect(screen.getByText('QR check-in')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show QR' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Close attendance' })).toBeEnabled()
+    const centerFab = screen.getByTestId('attendance-center-fab')
+    const showQr = within(centerFab).getByRole('button', { name: 'Show QR' })
+    const closeAttendance = within(centerFab).getByRole('button', { name: 'Close attendance' })
+    expect(showQr).toBeEnabled()
+    expect(closeAttendance).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Attendance hours' })).toBeEnabled()
+
+    fireEvent.focus(closeAttendance)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Close attendance')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
 
     expect(screen.getByRole('toolbar', { name: 'Bulk attendance actions' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Present/ })).toBeEnabled()
     expect(screen.getByRole('button', { name: /Absent/ })).toBeEnabled()
+  })
+
+  it('groups the date selector and icon-only open action in the center FAB', async () => {
+    const scheduledView = attendanceView({
+      session: {
+        state: 'scheduled',
+        opensAt: '2026-08-17T12:45:00.000Z',
+        closesAt: '2026-08-17T13:15:00.000Z',
+        revision: 1,
+        commandFailed: false,
+      },
+    })
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(scheduledView))
+      .mockResolvedValueOnce(jsonResponse({ outcome: 'applied' }))
+      .mockResolvedValueOnce(jsonResponse(attendanceView({
+        session: {
+          ...scheduledView.session,
+          state: 'open',
+          revision: 2,
+        },
+      })))
+
+    renderTab()
+    await screen.findByText('Lovelace, Ada')
+
+    const centerFab = screen.getByTestId('attendance-center-fab')
+    expect(within(centerFab).getByRole('button', { name: 'Previous day' })).toBeEnabled()
+    expect(within(centerFab).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
+    expect(within(centerFab).getByRole('button', { name: 'Next day' })).toBeEnabled()
+
+    const openAttendance = within(centerFab).getByRole('button', { name: 'Open attendance' })
+    expect(openAttendance).toBeEnabled()
+    expect(openAttendance).toHaveTextContent('')
+    expect(screen.queryByText('Open attendance')).not.toBeInTheDocument()
+
+    fireEvent.focus(openAttendance)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open attendance')
+    fireEvent.click(openAttendance)
+
+    await waitFor(() => expect(screen.getByText('Attendance opened')).toBeInTheDocument())
+    const commandWrite = vi.mocked(fetch).mock.calls[1]
+    expect(commandWrite[0]).toBe('/api/teacher/attendance/session')
+    expect(JSON.parse(String(commandWrite[1]?.body))).toMatchObject({
+      classroom_id: classroom.id,
+      date: '2026-08-17',
+      command: 'open',
+    })
   })
 
   it('loads a Pika-owned QR presentation only when requested and copies its exact entry URL', async () => {

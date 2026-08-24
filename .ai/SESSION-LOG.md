@@ -1214,3 +1214,21 @@ authorization, data, schema, and deployment state are unchanged.
 - Focused component tests, lint, and the design-policy check pass. Playwright
   visual verification passed for teacher and student titlebars at 390px and
   1440px in light and dark themes, with no horizontal overflow.
+## 2026-08-24 — Consolidate live-attendance center FAB
+
+**Risk profile:** none — teacher-only attendance navigation and action layout;
+no attendance behavior, API contract, schema, flag, entitlement, or deployment changed.
+
+- Moved the live-attendance date navigator from the action-bar label slot into
+  the center floating action cluster alongside session actions.
+- Replaced the scheduled-state Open attendance text button with an accessible
+  DoorOpen icon button and shared tooltip while preserving its command behavior,
+  loading state, disabled state, and accessible name.
+- Kept the open-state QR and Close actions icon-only below the `sm` breakpoint,
+  with accessible names and keyboard-disclosed tooltips, and increased mobile
+  action-bar clearance so the center FAB does not overlap the session summary.
+- All 11 focused component tests, lint, design policy, and UI policy pass; the
+  Pika audit found no violations. Playwright verification passed at exact 320px
+  and 375px widths in
+  light and dark modes, including keyboard tooltip disclosure; student is not
+  applicable to this teacher-only surface.
