@@ -1214,6 +1214,10 @@ deployment, credential, or production state changed.
 - Added component and browser regressions for stale-open navigation after an
   idempotent duplicate scan, client clocks two hours ahead and behind, bounded
   reconciliation, cross-student isolation, and automatic disabled-scope hiding.
+- Independent re-review found and remediation removed an SSR-to-POST identity
+  race by binding the handoff to the route-authenticated student returned in the
+  positive response. Cached status views also retain their original monotonic
+  receipt so remounting cannot re-age server time near close or expiry.
 - Focused tests, TypeScript, the full Vitest suite, lint, production build,
   architecture/design/UI guards, Pika audit, and the six-test desktop/mobile
   light/dark attendance matrix pass. Visual artifacts were inspected. The local

@@ -20,7 +20,7 @@ describe('StudentAttendanceCheckIn', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders Bara authoritative success inside Pika', async () => {
+  it('binds the handoff to the POST-authenticated student returned by the server', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       state: 'checked_in',
       title: 'You are checked in',
@@ -28,14 +28,11 @@ describe('StudentAttendanceCheckIn', () => {
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId: '20000000-0000-4000-8000-000000000001',
+      studentId,
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
-    render(<StudentAttendanceCheckIn
-      entryToken="sealed-entry-token"
-      canCheckIn
-      studentId={studentId}
-    />)
+    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
 
     expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeInTheDocument()
     expect(screen.getByText('Your attendance was recorded.')).toBeInTheDocument()

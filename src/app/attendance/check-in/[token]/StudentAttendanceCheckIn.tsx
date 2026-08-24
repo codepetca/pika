@@ -22,11 +22,9 @@ type ViewState =
 export function StudentAttendanceCheckIn({
   entryToken,
   canCheckIn,
-  studentId,
 }: {
   entryToken: string
   canCheckIn: boolean
-  studentId?: string
 }) {
   const [view, setView] = useState<ViewState>(() => canCheckIn
     ? { kind: 'loading' }
@@ -61,25 +59,25 @@ export function StudentAttendanceCheckIn({
         || parsed.data.state === 'already_checked_in'
       ) {
         if (
-          studentId
+          parsed.data.studentId
           && parsed.data.classroomId
           && parsed.data.attendanceStatus
         ) {
           preserveAuthoritativeStudentAttendanceConfirmation({
-            studentId,
+            studentId: parsed.data.studentId,
             classroomId: parsed.data.classroomId,
             attendanceStatus: parsed.data.attendanceStatus,
             ...(parsed.data.recordedAt ? { confirmedAt: parsed.data.recordedAt } : {}),
           })
         }
-        invalidateStudentAttendanceStatus(studentId)
+        invalidateStudentAttendanceStatus(parsed.data.studentId)
       }
       setView({ kind: 'result', result: parsed.data })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       setView({ kind: 'unavailable' })
     }
-  }, [canCheckIn, entryToken, studentId])
+  }, [canCheckIn, entryToken])
 
   useEffect(() => {
     const controller = new AbortController()

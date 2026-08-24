@@ -265,6 +265,42 @@ describe('StudentAttendanceStatus', () => {
     expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
   })
 
+  it('keeps server time advancing when a cached view remounts just before close', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2036-08-23T13:59:59.800Z'))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'open',
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt: '2026-08-23T14:00:00.000Z',
+        }],
+        nextRefreshAt: '2026-08-23T14:00:00.000Z',
+        serverNow: '2026-08-23T13:59:59.800Z',
+      }))
+      .mockRejectedValue(new Error('service unavailable'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const firstMount = render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+    firstMount.unmount()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150)
+    })
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('preserves an authoritative duplicate-scan confirmation while projection remains open', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2036-08-23T13:00:00.000Z'))
@@ -297,6 +333,7 @@ describe('StudentAttendanceStatus', () => {
   })
 
   it('bounds projection-convergence reads to one refresh per five seconds', async () => {
+    vi.useFakeTimers()
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: studentOne,
       classroomId: classroomOne,

@@ -12,7 +12,8 @@ const { withAuth } = vi.hoisted(() => ({ withAuth: vi.fn() }))
 vi.mock('@workos-inc/authkit-nextjs', () => ({ withAuth }))
 
 const entrySecret = 'entry-token-secret-that-is-long-enough-for-tests'
-const pikaUser = { id: 'student-one', email: 'student@example.com', role: 'student' }
+const studentId = '30000000-0000-4000-8000-000000000001'
+const pikaUser = { id: studentId, email: 'student@example.com', role: 'student' }
 const actor = { principalRef: 'principal_student_one', displayName: 'Student One' }
 const attemptId = '11111111-1111-4111-8111-111111111111'
 const classroomId = '20000000-0000-4000-8000-000000000002'
@@ -114,6 +115,7 @@ describe('native Pika student attendance check-in', () => {
       attendanceStatus: 'present',
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId,
+      studentId,
     })
   })
 

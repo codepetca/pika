@@ -49,8 +49,10 @@ no experimental pattern is introduced, and no human promotion is needed.
 | Classroom archived | omitted | Archived classrooms are excluded before attendance reads and render no state. |
 | Multiple active enrollments | one state per enrolled classroom | Never combine or transfer state between classroom IDs. |
 
-A validated positive check-in response is handed off in memory only for that
-signed-in student and classroom while the read projection converges. The handoff
+A validated positive check-in response is handed off in memory only for the
+POST-authenticated student identity returned by the server and that classroom
+while the read projection converges. It never trusts an identity captured by an
+earlier page render. The handoff
 is bounded to two minutes, revalidates at most every five seconds, and is cleared
 immediately if the classroom becomes unavailable, unenrolled, archived, or
 projection-confirmed. It cannot survive a reload, contain a token, or mutate
@@ -61,7 +63,8 @@ next day remains current until its close. The server response includes a
 bounded next-refresh hint and a confirmation validity boundary. The client
 suppresses an open prompt at the known close instant and confirmation at its
 validity boundary. Every response includes validated server time; the client
-anchors it to a monotonic timer so a skewed phone clock cannot leave stale
+anchors it and its original cache receipt to a monotonic timer so a skewed phone
+clock or a cache-backed remount cannot leave stale
 instructions or a prior occurrence's confirmation visible.
 
 ## Minimum safe read model

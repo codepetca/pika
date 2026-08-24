@@ -249,6 +249,6 @@ export async function executeStudentAttendanceCheckIn(input: {
   }
   const mapped = mapResult(result)
   return mapped.state === 'checked_in' || mapped.state === 'already_checked_in'
-    ? { ...mapped, classroomId: entry.classroomId }
+    ? { ...mapped, classroomId: entry.classroomId, studentId: input.pikaUser.id }
     : mapped
 }

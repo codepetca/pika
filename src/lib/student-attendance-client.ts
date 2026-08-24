@@ -21,6 +21,11 @@ const authoritativeConfirmations = new Map<
   Map<string, AuthoritativeConfirmation>
 >()
 
+type CachedStudentAttendanceStatus = {
+  view: StudentAttendanceStatusView
+  receivedAtMonotonicMs: number
+}
+
 function monotonicNow(): number {
   return typeof performance === 'undefined' ? 0 : performance.now()
 }
@@ -112,19 +117,32 @@ export async function fetchStudentAttendanceStatus(
   if (options.forceNetwork) {
     invalidateCachedJSONMatching(`${STUDENT_ATTENDANCE_CACHE_PREFIX}${studentId}`)
   }
-  return await fetchJSONWithCache(
+  const cached = await fetchJSONWithCache<CachedStudentAttendanceStatus>(
     `${STUDENT_ATTENDANCE_CACHE_PREFIX}${studentId}`,
     async () => {
       const response = await fetch('/api/student/attendance/status', { cache: 'no-store' })
       const body = await response.json().catch(() => null) as unknown
       if (!response.ok) throw new Error('Attendance status is temporarily unavailable')
-      return reconcileAuthoritativeConfirmation(
-        studentId,
-        studentAttendanceStatusViewSchema.parse(body),
-      )
+      return {
+        view: studentAttendanceStatusViewSchema.parse(body),
+        receivedAtMonotonicMs: monotonicNow(),
+      }
     },
     STUDENT_ATTENDANCE_CACHE_TTL_MS,
   )
+  const elapsedSinceReceiptMs = Math.max(
+    0,
+    monotonicNow() - cached.receivedAtMonotonicMs,
+  )
+  const currentView = elapsedSinceReceiptMs === 0
+    ? cached.view
+    : {
+        ...cached.view,
+        serverNow: new Date(
+          Date.parse(cached.view.serverNow) + elapsedSinceReceiptMs,
+        ).toISOString(),
+      }
+  return reconcileAuthoritativeConfirmation(studentId, currentView)
 }
 
 export function invalidateStudentAttendanceStatus(studentId?: string) {

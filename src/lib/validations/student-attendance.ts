@@ -12,6 +12,7 @@ export const studentAttendanceCheckInViewSchema = z.object({
   attendanceStatus: z.enum(['present', 'late']).optional(),
   recordedAt: z.string().datetime({ offset: true }).optional(),
   classroomId: z.string().uuid().optional(),
+  studentId: z.string().uuid().optional(),
 }).strict()
 
 export type StudentAttendanceCheckInView = z.infer<typeof studentAttendanceCheckInViewSchema>

@@ -382,6 +382,9 @@ test.describe('student experience matrix', () => {
   })
 
   test('keeps mobile attendance prompts classroom-scoped and confirms an idempotent scan', async ({ page }, testInfo) => {
+    const authResponse = await page.request.get('/api/auth/me')
+    expect(authResponse.ok()).toBe(true)
+    const authPayload = await authResponse.json() as { user: { id: string } }
     const classroomsResponse = await page.request.get('/api/student/classrooms')
     expect(classroomsResponse.ok()).toBe(true)
     const classroomsPayload = await classroomsResponse.json() as {
@@ -462,6 +465,7 @@ test.describe('student experience matrix', () => {
           attendanceStatus: 'present',
           recordedAt: '2026-08-23T13:01:00.000Z',
           classroomId: classroom.id,
+          studentId: authPayload.user.id,
         }),
       })
     })

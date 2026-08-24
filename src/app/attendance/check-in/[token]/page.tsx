@@ -15,9 +15,5 @@ export default async function AttendanceCheckInPage({ params }: PageProps) {
   const user = await getCurrentUser()
   if (!user) redirect(`/login?next=${encodeURIComponent(entryPath)}`)
 
-  return <StudentAttendanceCheckIn
-    entryToken={token}
-    canCheckIn={user.role === 'student'}
-    studentId={user.role === 'student' ? user.id : undefined}
-  />
+  return <StudentAttendanceCheckIn entryToken={token} canCheckIn={user.role === 'student'} />
 }
