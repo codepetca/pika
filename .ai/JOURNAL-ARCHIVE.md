@@ -22497,3 +22497,125 @@ dependency, or UI change.
   story eligibility with ingestion time instead of the preserved producer
   timestamp; correcting that cross-service cutoff and proving the delayed
   boundary case is a rollout blocker outside this Pika-only PR.
+
+<!-- pika-session-log-archive-batch:0b8caa26475ccb5c523e72528baf5762544701441f6a964b55acee17e795d684 -->
+## 2026-08-18 — Verify Pal source-timestamp rollout dependency
+
+**Risk profile:** documentation and cross-service verification only; no Pika
+runtime, contract, schema, dependency, privacy, or UI change.
+
+- Verified merged Pal PR #73 at `2c4f71389db978e495af42f9d494b9de2bf8354a`
+  adds append-only migration `0010_story_source_timestamps.sql` and uses
+  producer `learner_facts.occurred_at` for story eligibility, lateness,
+  terminal effective due time, and protection/reconstruction checks.
+- Verified Pal's persisted-ingest test uses Pika's seven-field adaptive calendar,
+  accepts a pre-boundary fact delivered after the boundary, rejects a truly late
+  fact, and proves a retry with the same idempotency key remains a duplicate.
+- Confirmed Pal PR #73 CI is green, the public widget remains exactly
+  `@codepet/pal-widget@0.1.0-alpha.3`, and Pal changed no contract or widget
+  source after Pika's vendored contract commit.
+- Updated the pilot runbook to name the required Pal migration and record that
+  the code-level blocker is cleared. Applying it in a target Pal environment
+  remains Pal-controlled; Pika performs no deployment or historical backfill.
+
+## 2026-08-18 — Course Package portable policy and integration (PR B)
+
+**Risk profile:** high — application-layer untrusted package semantics and
+write-path authorization; no schema migration, production operation,
+dependency, or UI change.
+
+- Added a strict package-owned Test document union. Portable packages admit
+  exact link and embedded-text records only; uploads and runtime storage or
+  snapshot fields fail before a canonical plan is produced.
+- Export construction selects portable fields explicitly and omits upload
+  documents, managed-origin URLs, and all runtime storage state.
+- Centralized origin-aware managed URL classification, including encoded paths,
+  while allowing matching paths on external origins. Parsed structured URLs are
+  authoritative; freeform Markdown scanning is defense in depth.
+- Import and repository-proposal routes now share the same bounded JSON package
+  planner once and pass only a branded verified canonical plan to server write
+  operations. Invalid input never reaches import/proposal RPC or managed-storage
+  work.
+- Added source, runtime-field, origin/encoding, direct/JSON/TAR, route parity,
+  byte-limit, and no-side-effect matrices.
+- Full verification passes 4,555 tests across 503 files, lint, type checking,
+  and the production build. Pika audit and diff checks pass. Visual verification
+  is not applicable because this change has no UI surface.
+
+**Independent review remediation:**
+- Expanded the managed-storage abstraction to cover Supabase image-render
+  routes, encoded relative paths, and trailing DNS-root aliases (including
+  encoded dots) while preserving exact scheme and port checks.
+- Added structured/freeform bundle, JSON, TAR, export-filter, import-route, and
+  proposal-route regressions for every bypass. Invalid inputs are rejected
+  before any server write-capable operation is called.
+- Remediated full verification passes 4,566 tests across 503 files, lint, type
+  checking, and the production build.
+- A targeted re-review found fully encoded leading slashes still escaped the
+  representation-specific freeform extractor. Replaced URL-shape matching with
+  bounded Markdown tokenization so literal, encoded, double-encoded, inline-link,
+  absolute, and protocol-relative candidates all reach the one classifier.
+- The second remediated full verification passes 4,573 tests across 503 files,
+  lint, type checking, and the production build.
+- After the same freeform extraction category recurred around valid object-key
+  punctuation, the human-approved third remediation moved the policy boundary:
+  any recognized managed route through a managed bucket is rejected at the
+  bucket boundary, without depending on successful object-key tokenization.
+- Added structured, freeform, JSON/TAR, import, and proposal regressions for
+  parenthesized and comma-prefixed object keys plus bucket-root object and image-
+  render routes. The third remediated full verification passes 4,583 tests
+  across 503 files, lint, type checking, and the production build.
+- A targeted security re-review found the same extraction category in URL
+  userinfo containing delimiter characters. At the required human checkpoint,
+  the owner approved a fourth remediation and extended review budget.
+- Replaced delimiter tokenization with a bounded, single-pass URL/Markdown
+  candidate scanner. It preserves complete non-whitespace destinations and
+  authorities, recognizes absolute, protocol-relative, literal-relative, and
+  encoded-relative starts, and fails closed on excessive candidate spans/counts.
+- Added bundle/JSON/TAR and import/proposal no-write regressions for `=`, `;`,
+  `,`, and `|` userinfo plus external-origin, protocol, port, and labeled-relative
+  negatives. The fourth remediated full verification passes 4,595 tests across
+  503 files, lint, type checking, and the production build.
+
+## 2026-08-18 — Complete local headless Bara attendance boundary
+
+**Risk profile:** runtime-platform. No Supabase migration, Convex migration,
+hosted configuration, rollout flag, production write, merge, or promotion.
+
+**Completed:**
+- Retired the cross-application Bara browser-session handoff. Pika now keeps
+  student QR entry and authoritative result rendering on Pika, derives the
+  actor from the verified Pika server session, and calls Bara's signed v1
+  `student_check_in` command directly.
+- Synchronized the closed Bara v1 contract and fixtures; added tenant/display
+  identity fields, encrypted short-lived Pika entry tokens, stable command
+  idempotency, one identical retry for uncertain outcomes, and no durable
+  student-scan outbox.
+- Kept teacher commands recoverable through the durable outbox and student
+  success dependent on Bara's synchronous authoritative result. Invalid,
+  closed, unmatched, duplicate, and unavailable states are explicit.
+- Updated rollout guards and guidance so separate WorkOS Applications,
+  databases, sessions, and internal IDs remain mandatory. The retired browser
+  handoff flag must be false.
+- Fixed the teacher QR validator/test to accept the encrypted entry-token shape
+  and removed its fixed-date expiry flake. Consolidated duplicated startup
+  guidance so the enforced 16,000-character startup budget passes.
+
+**Verification:**
+- Full Vitest run: 540 files and 4,557 tests pass after the focused startup-doc
+  rerun; attendance-focused suites pass, including contract fixtures, retries,
+  lost outcomes, closed/invalid QR, identity boundaries, event ordering, and
+  teacher projection behavior.
+- ESLint, `pnpm exec tsc --noEmit`, production build, architecture guard,
+  design-policy guard, and diff hygiene pass.
+- Playwright CLI verified desktop/mobile native success and mobile dark
+  uncertain-outcome states with a local intercepted API. The browser remained
+  on Pika and never sent a real Bara attendance command.
+
+**Remaining gates:**
+- Migration 127 is still unapplied and all attendance rollout flags remain
+  disabled. An explicitly isolated hosted Preview and one-time migration
+  authorization are required before real teacher/student flows.
+- Hosted p50/p95/p99 latency and roughly 30–100 concurrent scan load evidence,
+  tenant-isolation smoke, and pilot approval remain outstanding. Keep this
+  feature marked failing until those gates pass.
