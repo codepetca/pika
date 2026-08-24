@@ -22461,3 +22461,39 @@ production, dependency, or UI change.
   the package contract documentation.
 - Full verification passes 4,530 tests across 502 files, lint, and the
   production build. Pika audit and diff checks pass.
+
+<!-- pika-session-log-archive-batch:44284a7c9bb332e62fb35b2c4f1840580b91487e3895562e964b985b2b1c6214 -->
+## 2026-08-18 — Emit Pal adaptive term calendars prospectively
+
+**Risk profile:** runtime-platform — additive external contract and
+transactional delivery behavior; no migration, historical backfill,
+dependency, or UI change.
+
+- Updated the vendored Pal v1 contract and fixtures to Pal main commit
+  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
+  term calendar accepted by the guaranteed weekly story scheduler.
+- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
+  tokens. Current open weekly configurations gain one monotonic calendar
+  revision; historical calendar-less catch-up weeks remain calendar-less, while
+  later closures preserve any calendar already emitted.
+- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
+  privacy allow-list, stable idempotency keys, leases, retry classification,
+  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
+  achievement calculations.
+- Added contract, calendar, planner, outbox, vertical integration, and guarded
+  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
+  TypeScript, lint, architecture/UI/design policy, production build, real
+  outbox recovery, and PostgreSQL concurrency checks pass.
+- After the initial registry lookup returned 404, alpha.3 was published and the
+  public `alpha` dist-tag moved to it. Pika now pins
+  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
+  title, and roadmap collectible presentation through the existing Pika hosts.
+  Playwright verification covers student desktop/mobile, light/dark,
+  sketch/full-color roadmap states, and the open story reward dialog; teacher
+  views remain unaffected.
+- Independent review added winter-term and Toronto DST boundary coverage,
+  proved retries preserve the original producer timestamp, and made the real
+  recovery smoke remove and verify every fixture row. Pal main still compares
+  story eligibility with ingestion time instead of the preserved producer
+  timestamp; correcting that cross-service cutoff and proving the delayed
+  boundary case is a rollout blocker outside this Pika-only PR.

@@ -87,7 +87,12 @@ describe('AppHeader classroom theme', () => {
 
     expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('h-11', 'w-11')
-    expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toHaveClass('min-h-11', 'min-w-11')
+    expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toHaveClass(
+      'hidden',
+      'min-h-11',
+      'min-w-11',
+      'sm:flex'
+    )
     expect(screen.getByRole('link', { name: 'Login' })).toHaveClass('min-h-11', 'min-w-11')
   })
 
