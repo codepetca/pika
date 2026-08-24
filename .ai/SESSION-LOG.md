@@ -1223,6 +1223,7 @@ deployment, credential, or production state changed.
   overlays a still-open projection and is capped at its server-authored close.
 - A fresh security pass found the status snapshot lacked a response-to-session
   identity binding. Status views now carry the GET-authenticated student ID and
+  every post-auth response carries the same binding; success or failure
   mismatches are rejected, cleared, and never cached or rendered.
 - Focused tests, TypeScript, the full Vitest suite, lint, production build,
   architecture/design/UI guards, Pika audit, and the six-test desktop/mobile

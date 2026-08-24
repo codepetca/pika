@@ -135,6 +135,10 @@ export async function fetchStudentAttendanceStatus(
     async () => {
       const response = await fetch('/api/student/attendance/status', { cache: 'no-store' })
       const body = await response.json().catch(() => null) as unknown
+      if (response.headers.get('x-pika-student-id') !== studentId) {
+        clearAuthoritativeStudentAttendanceConfirmation(studentId)
+        throw new StudentAttendanceIdentityMismatchError()
+      }
       if (!response.ok) throw new Error('Attendance status is temporarily unavailable')
       const view = studentAttendanceStatusViewSchema.parse(body)
       if (view.studentId !== studentId) {

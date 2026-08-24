@@ -72,7 +72,13 @@ describe('StudentClassroomsIndex', () => {
       }],
       nextRefreshAt: null,
       serverNow: '2026-08-23T13:30:00.000Z',
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Pika-Student-Id': '30000000-0000-4000-8000-000000000001',
+      },
+    })))
 
     render(<StudentClassroomsIndex
       initialClassrooms={[

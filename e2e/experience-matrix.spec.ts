@@ -421,6 +421,7 @@ test.describe('student experience matrix', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
+        headers: { 'X-Pika-Student-Id': authPayload.user.id },
         body: JSON.stringify({
           studentId: authPayload.user.id,
           classrooms,

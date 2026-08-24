@@ -39,12 +39,28 @@ describe('StudentAttendanceStatus', () => {
   }
 
   function statusResponse(body: unknown) {
-    return new Response(JSON.stringify({
+    const payload = {
       studentId: studentOne,
       ...(body as Record<string, unknown>),
-    }), {
+    }
+    return new Response(JSON.stringify(payload), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Pika-Student-Id': String(payload.studentId),
+      },
+    })
+  }
+
+  function statusFailure(studentId: string) {
+    return new Response(JSON.stringify({
+      error: 'Attendance status is temporarily unavailable',
+    }), {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Pika-Student-Id': studentId,
+      },
     })
   }
 
@@ -476,6 +492,44 @@ describe('StudentAttendanceStatus', () => {
     expect(recovered.studentId).toBe(studentOne)
     expect(recovered.classrooms[0]?.state).toBe('open')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('clears a visible view and overlay on a differently authenticated failure', async () => {
+    vi.useFakeTimers()
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: studentOne,
+      classroomId: classroomOne,
+      attendanceStatus: 'present',
+    })
+    const openView = {
+      classrooms: [{
+        classroomId: classroomOne,
+        state: 'open',
+        opensAt: '2026-08-23T13:00:00.000Z',
+        closesAt: '2026-08-23T14:00:00.000Z',
+      }],
+      nextRefreshAt: '2026-08-23T13:01:02.000Z',
+      serverNow: '2026-08-23T13:01:01.000Z',
+    }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse(openView))
+      .mockResolvedValueOnce(statusFailure(studentTwo))
+      .mockResolvedValueOnce(statusResponse({ ...openView, nextRefreshAt: null }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000)
+    })
+    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
+
+    const recovered = await fetchStudentAttendanceStatus(studentOne)
+    expect(recovered.classrooms[0]?.state).toBe('open')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('clears the handoff when attendance becomes unavailable for the classroom', async () => {

@@ -83,8 +83,9 @@ instructions or a prior occurrence's confirmation visible.
   windows, and records whose `student_id` is the signed-in student. Return Pika
   classroom IDs, public state, session times, own status, own confirmation time,
   a refresh hint, and the GET-authenticated student ID as a response binding.
-- Reject, clear, and do not cache or render a response whose authenticated
-  student binding differs from the student identity that owns the page.
+- Bind every post-auth response, including service failures, to the authenticated
+  student. Reject, clear, and do not cache or render a response whose binding
+  differs from the student identity that owns the page.
 - Never return QR/check-in tokens, opaque roster/participant/occurrence refs,
   provider IDs, other students, roster rows, teacher identity, entitlement
   records, or arbitrary caller-selected classroom results.

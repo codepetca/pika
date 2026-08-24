@@ -16,6 +16,7 @@ vi.mock('@/lib/server/bara-attendance-student-view', async () => {
 })
 
 import { GET } from '@/app/api/student/attendance/status/route'
+import { StudentAttendanceStatusReadError } from '@/lib/server/bara-attendance-student-view'
 
 describe('GET /api/student/attendance/status', () => {
   beforeEach(() => {
@@ -43,8 +44,23 @@ describe('GET /api/student/attendance/status', () => {
       studentId: '30000000-0000-4000-8000-000000000001',
     })
     expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(response.headers.get('x-pika-student-id')).toBe(
+      '30000000-0000-4000-8000-000000000001',
+    )
     await expect(response.json()).resolves.toMatchObject({
       studentId: '30000000-0000-4000-8000-000000000001',
     })
+  })
+
+  it('binds authenticated read failures to the same student', async () => {
+    mocks.load.mockRejectedValueOnce(new StudentAttendanceStatusReadError('read_failed'))
+
+    const response = await GET(new Request('https://pika.codepet.ca/api/student/attendance/status'))
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(response.headers.get('x-pika-student-id')).toBe(
+      '30000000-0000-4000-8000-000000000001',
+    )
   })
 })
