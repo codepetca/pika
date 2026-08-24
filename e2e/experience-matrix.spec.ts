@@ -454,6 +454,7 @@ test.describe('student experience matrix', () => {
     await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.getByTestId('student-attendance-status')).toHaveCount(0)
 
+    attendanceState = 'open'
     await page.route('**/api/student/attendance/check-in', async (route) => {
       await route.fulfill({
         status: 200,
@@ -480,6 +481,11 @@ test.describe('student experience matrix', () => {
       path: testInfo.outputPath('student-attendance-confirmed.png'),
       fullPage: true,
       animations: 'disabled',
+    })
+
+    attendanceState = 'closed'
+    await expect(page.getByTestId('student-attendance-status')).toHaveCount(0, {
+      timeout: 10_000,
     })
   })
 })
