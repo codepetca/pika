@@ -1224,9 +1224,11 @@ no attendance behavior, API contract, schema, flag, entitlement, or deployment c
 - Replaced the scheduled-state Open attendance text button with an accessible
   DoorOpen icon button and shared tooltip while preserving its command behavior,
   loading state, disabled state, and accessible name.
-- Increased mobile action-bar clearance so the wider center FAB does not overlap
-  the session summary.
-- Focused component tests (17), lint, design policy, and UI policy pass.
-  Playwright visual verification passed for teacher desktop/mobile, light/dark,
-  default, tooltip-hover, and keyboard-focus states; student is not applicable
-  to this teacher-only surface.
+- Kept the open-state QR and Close actions icon-only below the `sm` breakpoint,
+  with accessible names and keyboard-disclosed tooltips, and increased mobile
+  action-bar clearance so the center FAB does not overlap the session summary.
+- All 11 focused component tests, lint, design policy, and UI policy pass; the
+  Pika audit found no violations. Playwright verification passed at exact 320px
+  and 375px widths in
+  light and dark modes, including keyboard tooltip disclosure; student is not
+  applicable to this teacher-only surface.
