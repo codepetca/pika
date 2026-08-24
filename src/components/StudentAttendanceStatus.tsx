@@ -13,6 +13,20 @@ const MIN_REFRESH_DELAY_MS = 1_000
 const MAX_REFRESH_DELAY_MS = 24 * 60 * 60 * 1_000
 const FAILED_REFRESH_RETRY_MS = 15_000
 
+type ServerClockAnchor = {
+  serverEpochMs: number
+  monotonicEpochMs: number
+}
+
+function monotonicNow(): number {
+  return typeof performance === 'undefined' ? 0 : performance.now()
+}
+
+function anchoredServerNow(anchor: ServerClockAnchor | null): number {
+  if (!anchor) return Date.now()
+  return anchor.serverEpochMs + Math.max(0, monotonicNow() - anchor.monotonicEpochMs)
+}
+
 function formatTorontoTime(value: string): string {
   return new Intl.DateTimeFormat('en-CA', {
     hour: 'numeric',
@@ -48,13 +62,24 @@ export function useStudentAttendanceStatusView(studentId?: string) {
   const mountedRef = useRef(true)
   const activeStudentIdRef = useRef(studentId)
   const handledBoundaryTimesRef = useRef(new Set<number>())
+  const serverClockRef = useRef<ServerClockAnchor | null>(null)
+
+  const currentServerNow = useCallback(
+    () => anchoredServerNow(serverClockRef.current),
+    [],
+  )
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (!studentId) return
     if (isRefresh) setRefreshing(true)
     try {
       const next = await fetchStudentAttendanceStatus(studentId, { forceNetwork: isRefresh })
-      if (mountedRef.current && activeStudentIdRef.current === studentId) setView(next)
+      if (mountedRef.current && activeStudentIdRef.current === studentId) {
+        const serverEpochMs = Date.parse(next.serverNow)
+        serverClockRef.current = { serverEpochMs, monotonicEpochMs: monotonicNow() }
+        setNowMs(serverEpochMs)
+        setView(next)
+      }
     } catch {
       // Keep the last safe snapshot. A failed attendance read must not become
       // an empty state or an unearned confirmation.
@@ -70,6 +95,7 @@ export function useStudentAttendanceStatusView(studentId?: string) {
     mountedRef.current = true
     activeStudentIdRef.current = studentId
     handledBoundaryTimesRef.current.clear()
+    serverClockRef.current = null
     setView(null)
     setNowMs(Date.now())
     if (studentId) void load(false)
@@ -96,16 +122,16 @@ export function useStudentAttendanceStatusView(studentId?: string) {
       ? nextRefreshTime
       : Number.POSITIVE_INFINITY
     if (!Number.isFinite(targetTime)) return
-    const timeUntilTarget = targetTime - Date.now()
+    const timeUntilTarget = targetTime - currentServerNow()
     const delay = timeUntilTarget <= 0
       ? FAILED_REFRESH_RETRY_MS
       : Math.min(MAX_REFRESH_DELAY_MS, Math.max(MIN_REFRESH_DELAY_MS, timeUntilTarget))
     const timer = window.setTimeout(() => {
-      setNowMs(Date.now())
+      setNowMs(currentServerNow())
       void load(true)
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [load, refreshCycle, view])
+  }, [currentServerNow, load, refreshCycle, view])
 
   useEffect(() => {
     if (!view) return
@@ -124,15 +150,16 @@ export function useStudentAttendanceStatusView(studentId?: string) {
       return Math.min(earliest, boundaryTime)
     }, Number.POSITIVE_INFINITY)
     if (!Number.isFinite(nextUnhandledBoundary)) return
-    const remaining = Math.max(0, nextUnhandledBoundary - Date.now())
+    const remaining = Math.max(0, nextUnhandledBoundary - currentServerNow())
     const timer = window.setTimeout(() => {
-      setNowMs(Date.now())
-      if (Date.now() < nextUnhandledBoundary) return
+      const serverNow = currentServerNow()
+      setNowMs(serverNow)
+      if (serverNow < nextUnhandledBoundary) return
       handledBoundaryTimesRef.current.add(nextUnhandledBoundary)
       void load(true)
     }, Math.min(MAX_REFRESH_DELAY_MS, remaining))
     return () => window.clearTimeout(timer)
-  }, [load, nowMs, refreshCycle, view])
+  }, [currentServerNow, load, nowMs, refreshCycle, view])
 
   return { view, refreshing, now: new Date(nowMs) }
 }

@@ -2,8 +2,23 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StudentAttendanceCheckIn } from '@/app/attendance/check-in/[token]/StudentAttendanceCheckIn'
 
+const attendanceClientMocks = vi.hoisted(() => ({
+  invalidate: vi.fn(),
+  preserve: vi.fn(),
+}))
+
+vi.mock('@/lib/student-attendance-client', () => ({
+  invalidateStudentAttendanceStatus: attendanceClientMocks.invalidate,
+  preserveAuthoritativeStudentAttendanceConfirmation: attendanceClientMocks.preserve,
+}))
+
+const studentId = '30000000-0000-4000-8000-000000000001'
+
 describe('StudentAttendanceCheckIn', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllGlobals()
+  })
 
   it('renders Bara authoritative success inside Pika', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
@@ -16,7 +31,11 @@ describe('StudentAttendanceCheckIn', () => {
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
-    render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn />)
+    render(<StudentAttendanceCheckIn
+      entryToken="sealed-entry-token"
+      canCheckIn
+      studentId={studentId}
+    />)
 
     expect(await screen.findByRole('heading', { name: 'You are checked in' })).toBeInTheDocument()
     expect(screen.getByText('Your attendance was recorded.')).toBeInTheDocument()
@@ -30,6 +49,13 @@ describe('StudentAttendanceCheckIn', () => {
       'href',
       '/classrooms/20000000-0000-4000-8000-000000000001?tab=today',
     )
+    expect(attendanceClientMocks.preserve).toHaveBeenCalledWith({
+      studentId,
+      classroomId: '20000000-0000-4000-8000-000000000001',
+      attendanceStatus: 'present',
+      confirmedAt: '2026-09-02T13:01:00.000Z',
+    })
+    expect(attendanceClientMocks.invalidate).toHaveBeenCalledWith(studentId)
   })
 
   it('never claims success for an uncertain response and allows an explicit retry', async () => {

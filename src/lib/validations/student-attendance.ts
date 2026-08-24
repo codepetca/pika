@@ -29,6 +29,7 @@ export const studentAttendanceClassroomStateSchema = z.object({
 export const studentAttendanceStatusViewSchema = z.object({
   classrooms: z.array(studentAttendanceClassroomStateSchema).max(50),
   nextRefreshAt: z.string().datetime({ offset: true }).nullable(),
+  serverNow: z.string().datetime({ offset: true }),
 }).strict()
 
 export type StudentAttendanceClassroomState = z.infer<

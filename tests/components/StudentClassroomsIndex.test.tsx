@@ -70,6 +70,7 @@ describe('StudentClassroomsIndex', () => {
         closesAt: '2099-08-23T14:00:00.000Z',
       }],
       nextRefreshAt: null,
+      serverNow: '2026-08-23T13:30:00.000Z',
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
 
     render(<StudentClassroomsIndex

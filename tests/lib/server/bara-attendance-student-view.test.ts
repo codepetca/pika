@@ -149,6 +149,7 @@ describe('student attendance status view', () => {
       expect.objectContaining({ classroomId: classroomOne, state: 'open' }),
       expect.objectContaining({ classroomId: classroomTwo, state: 'unavailable' }),
     ])
+    expect(result.serverNow).toBe('2026-08-23T13:30:00.000Z')
     expect(calls).toContainEqual({
       table: 'attendance_record_projection',
       method: 'eq',

@@ -418,7 +418,11 @@ test.describe('student experience matrix', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ classrooms, nextRefreshAt: null }),
+        body: JSON.stringify({
+          classrooms,
+          nextRefreshAt: null,
+          serverNow: '2026-08-23T13:30:00.000Z',
+        }),
       })
     })
 
@@ -464,7 +468,6 @@ test.describe('student experience matrix', () => {
     await page.goto(`/attendance/check-in/${'A'.repeat(100)}`, { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
 
-    attendanceState = 'confirmed'
     await page.getByRole('link', { name: 'Back to classroom' }).click()
     await expect(page.getByText('Checked in — Present')).toBeVisible()
     await expect(page.getByText(/Confirmed at 9:01/)).toBeVisible()

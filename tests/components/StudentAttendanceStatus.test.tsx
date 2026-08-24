@@ -6,13 +6,20 @@ import {
   StudentAttendanceStatus,
   useStudentAttendanceStatusView,
 } from '@/components/StudentAttendanceStatus'
-import { invalidateStudentAttendanceStatus } from '@/lib/student-attendance-client'
+import {
+  clearAuthoritativeStudentAttendanceConfirmation,
+  fetchStudentAttendanceStatus,
+  invalidateStudentAttendanceStatus,
+  preserveAuthoritativeStudentAttendanceConfirmation,
+} from '@/lib/student-attendance-client'
 
 const classroomOne = '20000000-0000-4000-8000-000000000001'
+const studentOne = '30000000-0000-4000-8000-000000000001'
 
 describe('StudentAttendanceStatus', () => {
   afterEach(() => {
     invalidateStudentAttendanceStatus()
+    clearAuthoritativeStudentAttendanceConfirmation()
     vi.clearAllMocks()
     vi.unstubAllGlobals()
     vi.useRealTimers()
@@ -20,7 +27,7 @@ describe('StudentAttendanceStatus', () => {
 
   function HookHarness() {
     const { view, refreshing, now } = useStudentAttendanceStatusView(
-      '30000000-0000-4000-8000-000000000001',
+      studentOne,
     )
     return <StudentAttendanceStatus
       state={view?.classrooms.find((item) => item.classroomId === classroomOne)}
@@ -110,6 +117,7 @@ describe('StudentAttendanceStatus', () => {
           closesAt: '2026-08-23T14:00:00.000Z',
         }],
         nextRefreshAt: '2026-08-23T13:00:02.000Z',
+        serverNow: '2026-08-23T13:00:00.000Z',
       }))
       .mockResolvedValueOnce(statusResponse({
         classrooms: [{
@@ -119,6 +127,7 @@ describe('StudentAttendanceStatus', () => {
           closesAt: '2026-08-23T14:00:00.000Z',
         }],
         nextRefreshAt: '2026-08-23T13:00:17.000Z',
+        serverNow: '2026-08-23T13:00:02.000Z',
       }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -146,6 +155,7 @@ describe('StudentAttendanceStatus', () => {
           closesAt: '2026-08-23T14:00:00.000Z',
         }],
         nextRefreshAt: '2026-08-23T14:00:00.000Z',
+        serverNow: '2026-08-23T13:59:59.900Z',
       }))
       .mockRejectedValue(new Error('service unavailable'))
     vi.stubGlobal('fetch', fetchMock)
@@ -200,6 +210,7 @@ describe('StudentAttendanceStatus', () => {
           validUntil,
         }],
         nextRefreshAt: validUntil,
+        serverNow: now,
       }))
       .mockRejectedValue(new Error('service unavailable'))
     vi.stubGlobal('fetch', fetchMock)
@@ -220,5 +231,144 @@ describe('StudentAttendanceStatus', () => {
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['two hours ahead', '2026-08-23T15:59:59.900Z'],
+    ['two hours behind', '2026-08-23T11:59:59.900Z'],
+  ])('uses server time when the device clock is %s', async (_label, clientNow) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(clientNow))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'open',
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt: '2026-08-23T14:00:00.000Z',
+        }],
+        nextRefreshAt: '2026-08-23T14:00:00.000Z',
+        serverNow: '2026-08-23T13:59:59.900Z',
+      }))
+      .mockRejectedValue(new Error('service unavailable'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
+  })
+
+  it('preserves an authoritative duplicate-scan confirmation while projection remains open', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2036-08-23T13:00:00.000Z'))
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: studentOne,
+      classroomId: classroomOne,
+      attendanceStatus: 'present',
+      confirmedAt: '2026-08-23T13:01:00.000Z',
+    })
+    const fetchMock = vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne,
+        state: 'open',
+        opensAt: '2026-08-23T13:00:00.000Z',
+        closesAt: '2026-08-23T14:00:00.000Z',
+      }],
+      nextRefreshAt: '2026-08-23T13:00:15.000Z',
+      serverNow: '2026-08-23T13:01:01.000Z',
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+
+    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+  })
+
+  it('bounds projection-convergence reads to one refresh per five seconds', async () => {
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: studentOne,
+      classroomId: classroomOne,
+      attendanceStatus: 'present',
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne,
+        state: 'open',
+        opensAt: '2026-08-23T13:00:00.000Z',
+        closesAt: '2026-08-23T14:00:00.000Z',
+      }],
+      nextRefreshAt: '2026-08-23T13:01:16.000Z',
+      serverNow: '2026-08-23T13:01:01.000Z',
+    })))
+
+    const view = await fetchStudentAttendanceStatus(studentOne, { forceNetwork: true })
+
+    expect(view.classrooms[0]).toEqual(expect.objectContaining({
+      state: 'confirmed',
+      attendanceStatus: 'present',
+    }))
+    expect(view.nextRefreshAt).toBe('2026-08-23T13:01:06.000Z')
+  })
+
+  it('never transfers an authoritative confirmation to another student', async () => {
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: '30000000-0000-4000-8000-000000000002',
+      classroomId: classroomOne,
+      attendanceStatus: 'present',
+      confirmedAt: '2026-08-23T13:01:00.000Z',
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne,
+        state: 'open',
+        opensAt: '2026-08-23T13:00:00.000Z',
+        closesAt: '2026-08-23T14:00:00.000Z',
+      }],
+      nextRefreshAt: null,
+      serverNow: '2026-08-23T13:01:01.000Z',
+    })))
+
+    render(<HookHarness />)
+    await flushAsyncState()
+
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+  })
+
+  it('clears the handoff when attendance becomes unavailable for the classroom', async () => {
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: studentOne,
+      classroomId: classroomOne,
+      attendanceStatus: 'present',
+      confirmedAt: '2026-08-23T13:01:00.000Z',
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne,
+        state: 'unavailable',
+        opensAt: null,
+        closesAt: null,
+      }],
+      nextRefreshAt: null,
+      serverNow: '2026-08-23T13:01:01.000Z',
+    })))
+
+    render(<HookHarness />)
+    await flushAsyncState()
+
+    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
   })
 })

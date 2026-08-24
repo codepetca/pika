@@ -6,6 +6,104 @@ import {
 
 const STUDENT_ATTENDANCE_CACHE_PREFIX = 'student-attendance-status:'
 const STUDENT_ATTENDANCE_CACHE_TTL_MS = 5_000
+const AUTHORITATIVE_CONFIRMATION_TTL_MS = 2 * 60_000
+const PROJECTION_RECONCILIATION_MS = 5_000
+
+type AuthoritativeConfirmation = {
+  classroomId: string
+  attendanceStatus: 'present' | 'late'
+  confirmedAt?: string
+  expiresAtMonotonicMs: number
+}
+
+const authoritativeConfirmations = new Map<
+  string,
+  Map<string, AuthoritativeConfirmation>
+>()
+
+function monotonicNow(): number {
+  return typeof performance === 'undefined' ? 0 : performance.now()
+}
+
+function earlierInstant(first: string | null, second: string): string {
+  if (!first) return second
+  return Date.parse(first) <= Date.parse(second) ? first : second
+}
+
+function reconcileAuthoritativeConfirmation(
+  studentId: string,
+  view: StudentAttendanceStatusView,
+): StudentAttendanceStatusView {
+  const studentConfirmations = authoritativeConfirmations.get(studentId)
+  if (!studentConfirmations) return view
+
+  const currentMonotonicMs = monotonicNow()
+  const serverNowMs = Date.parse(view.serverNow)
+  const projectedClassroomIds = new Set(view.classrooms.map((state) => state.classroomId))
+  let nextRefreshAt = view.nextRefreshAt
+  let reconciled = false
+  const classrooms = view.classrooms.map((state) => {
+    const confirmation = studentConfirmations.get(state.classroomId)
+    if (!confirmation) return state
+
+    const remainingMs = confirmation.expiresAtMonotonicMs - currentMonotonicMs
+    if (
+      remainingMs <= 0
+      || state.state === 'unavailable'
+      || state.state === 'confirmed'
+    ) {
+      studentConfirmations.delete(state.classroomId)
+      return state
+    }
+
+    reconciled = true
+    const validUntil = new Date(serverNowMs + remainingMs).toISOString()
+    const reconcileAt = new Date(
+      serverNowMs + Math.min(PROJECTION_RECONCILIATION_MS, remainingMs),
+    ).toISOString()
+    nextRefreshAt = earlierInstant(nextRefreshAt, reconcileAt)
+    return {
+      classroomId: state.classroomId,
+      state: 'confirmed' as const,
+      opensAt: state.opensAt,
+      closesAt: state.closesAt,
+      attendanceStatus: confirmation.attendanceStatus,
+      ...(confirmation.confirmedAt ? { confirmedAt: confirmation.confirmedAt } : {}),
+      validUntil,
+    }
+  })
+  for (const classroomId of studentConfirmations.keys()) {
+    if (!projectedClassroomIds.has(classroomId)) studentConfirmations.delete(classroomId)
+  }
+  if (studentConfirmations.size === 0) authoritativeConfirmations.delete(studentId)
+  if (!reconciled) return view
+  return {
+    ...view,
+    classrooms,
+    nextRefreshAt,
+  }
+}
+
+export function preserveAuthoritativeStudentAttendanceConfirmation(input: {
+  studentId: string
+  classroomId: string
+  attendanceStatus: 'present' | 'late'
+  confirmedAt?: string
+}) {
+  const studentConfirmations = authoritativeConfirmations.get(input.studentId) ?? new Map()
+  studentConfirmations.set(input.classroomId, {
+    classroomId: input.classroomId,
+    attendanceStatus: input.attendanceStatus,
+    confirmedAt: input.confirmedAt,
+    expiresAtMonotonicMs: monotonicNow() + AUTHORITATIVE_CONFIRMATION_TTL_MS,
+  })
+  authoritativeConfirmations.set(input.studentId, studentConfirmations)
+}
+
+export function clearAuthoritativeStudentAttendanceConfirmation(studentId?: string) {
+  if (studentId) authoritativeConfirmations.delete(studentId)
+  else authoritativeConfirmations.clear()
+}
 
 export async function fetchStudentAttendanceStatus(
   studentId: string,
@@ -20,7 +118,10 @@ export async function fetchStudentAttendanceStatus(
       const response = await fetch('/api/student/attendance/status', { cache: 'no-store' })
       const body = await response.json().catch(() => null) as unknown
       if (!response.ok) throw new Error('Attendance status is temporarily unavailable')
-      return studentAttendanceStatusViewSchema.parse(body)
+      return reconcileAuthoritativeConfirmation(
+        studentId,
+        studentAttendanceStatusViewSchema.parse(body),
+      )
     },
     STUDENT_ATTENDANCE_CACHE_TTL_MS,
   )

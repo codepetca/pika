@@ -22445,3 +22445,19 @@ production, dependency, or UI change.
   fail as `invalid_manifest` before adaptation.
 - Full verification passes 4,529 tests across 502 files, lint, and the
   production build. Pika audit and diff checks pass.
+
+<!-- pika-session-log-archive-batch:d680ff660a0c76f7904ec0571c8594c8d776343894a9ae3417410c8ab741e1d1 -->
+## 2026-08-18 — Preserve both strict v3 planned-site forms
+
+**Risk profile:** high — historical package compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Kept the v3 planned-site schema strict while allowing only the historically
+  evidenced `quizzes` key to be omitted or supplied as a boolean.
+- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
+  proved it adapts to the same portable content as the original seven-key form
+  while preserving distinct raw source manifests.
+- Retained rejection coverage for arbitrary v3 configuration keys and updated
+  the package contract documentation.
+- Full verification passes 4,530 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.

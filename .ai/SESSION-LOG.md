@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-18 — Preserve both strict v3 planned-site forms
-
-**Risk profile:** high — historical package compatibility boundary; no schema,
-production, dependency, or UI change.
-
-- Kept the v3 planned-site schema strict while allowing only the historically
-  evidenced `quizzes` key to be omitted or supplied as a boolean.
-- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
-  proved it adapts to the same portable content as the original seven-key form
-  while preserving distinct raw source manifests.
-- Retained rejection coverage for arbitrary v3 configuration keys and updated
-  the package contract documentation.
-- Full verification passes 4,530 tests across 502 files, lint, and the
-  production build. Pika audit and diff checks pass.
-
 ## 2026-08-18 — Emit Pal adaptive term calendars prospectively
 
 **Risk profile:** runtime-platform — additive external contract and
@@ -1210,3 +1195,28 @@ authorization, schema, flag, deployment, or production state changed.
   desktop/mobile light/dark attendance browser matrix pass. Visual verification
   passed for student open/closed/confirmed states and teacher/student regression
   views without overflow.
+
+## 2026-08-23 — Close student attendance confirmation and clock-skew review gaps
+
+**Risk profile:** runtime-platform — student-only attendance read reconciliation
+and expiry timing; no attendance mutation, schema migration, flag, entitlement,
+deployment, credential, or production state changed.
+
+- Preserved validated successful and idempotent check-in results in a
+  student-and-classroom-scoped, in-memory handoff while the asynchronous record
+  projection converges. The handoff lasts at most two minutes, polls no faster
+  than every five seconds, and clears for unavailable, unenrolled, archived, or
+  projection-confirmed classrooms.
+- Added validated server time to the private attendance status contract and
+  anchored client refresh and visibility deadlines to monotonic elapsed time,
+  preventing ahead or behind mobile clocks from retaining or hiding prompts at
+  the wrong instant.
+- Added component and browser regressions for stale-open navigation after an
+  idempotent duplicate scan, client clocks two hours ahead and behind, bounded
+  reconciliation, cross-student isolation, and automatic disabled-scope hiding.
+- Focused tests, TypeScript, the full Vitest suite, lint, production build,
+  architecture/design/UI guards, Pika audit, and the six-test desktop/mobile
+  light/dark attendance matrix pass. Visual artifacts were inspected. The local
+  database-type guard remains unavailable because the existing local Supabase
+  schema predates already-merged attendance migrations; no migration or type
+  rewrite was performed without authorization, and CI must use ephemeral replay.

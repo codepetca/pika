@@ -25,7 +25,11 @@ describe('GET /api/student/attendance/status', () => {
       role: 'student',
       email: 'student@example.com',
     })
-    mocks.load.mockResolvedValue({ classrooms: [], nextRefreshAt: null })
+    mocks.load.mockResolvedValue({
+      classrooms: [],
+      nextRefreshAt: null,
+      serverNow: '2026-08-23T13:30:00.000Z',
+    })
   })
 
   it('derives all scope from the signed-in student and accepts no classroom input', async () => {
