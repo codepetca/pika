@@ -15,6 +15,7 @@ import {
 
 const classroomOne = '20000000-0000-4000-8000-000000000001'
 const studentOne = '30000000-0000-4000-8000-000000000001'
+const studentTwo = '30000000-0000-4000-8000-000000000002'
 
 describe('StudentAttendanceStatus', () => {
   afterEach(() => {
@@ -38,7 +39,10 @@ describe('StudentAttendanceStatus', () => {
   }
 
   function statusResponse(body: unknown) {
-    return new Response(JSON.stringify(body), {
+    return new Response(JSON.stringify({
+      studentId: studentOne,
+      ...(body as Record<string, unknown>),
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -434,6 +438,44 @@ describe('StudentAttendanceStatus', () => {
 
     expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
     expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+  })
+
+  it('rejects and does not cache a status response authenticated as another student', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse({
+        studentId: studentTwo,
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'confirmed',
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt: '2026-08-23T14:00:00.000Z',
+          attendanceStatus: 'present',
+          confirmedAt: '2026-08-23T13:01:00.000Z',
+          validUntil: '2026-08-24T04:00:00.000Z',
+        }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:01:01.000Z',
+      }))
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'open',
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt: '2026-08-23T14:00:00.000Z',
+        }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:01:02.000Z',
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+
+    const recovered = await fetchStudentAttendanceStatus(studentOne)
+    expect(recovered.studentId).toBe(studentOne)
+    expect(recovered.classrooms[0]?.state).toBe('open')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('clears the handoff when attendance becomes unavailable for the classroom', async () => {

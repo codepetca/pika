@@ -82,7 +82,9 @@ instructions or a prior occurrence's confirmation visible.
   immediately preceding Toronto class dates, supporting bounded next-day close
   windows, and records whose `student_id` is the signed-in student. Return Pika
   classroom IDs, public state, session times, own status, own confirmation time,
-  and a refresh hint.
+  a refresh hint, and the GET-authenticated student ID as a response binding.
+- Reject, clear, and do not cache or render a response whose authenticated
+  student binding differs from the student identity that owns the page.
 - Never return QR/check-in tokens, opaque roster/participant/occurrence refs,
   provider IDs, other students, roster rows, teacher identity, entitlement
   records, or arbitrary caller-selected classroom results.

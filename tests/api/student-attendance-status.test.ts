@@ -26,6 +26,7 @@ describe('GET /api/student/attendance/status', () => {
       email: 'student@example.com',
     })
     mocks.load.mockResolvedValue({
+      studentId: '30000000-0000-4000-8000-000000000001',
       classrooms: [],
       nextRefreshAt: null,
       serverNow: '2026-08-23T13:30:00.000Z',
@@ -42,5 +43,8 @@ describe('GET /api/student/attendance/status', () => {
       studentId: '30000000-0000-4000-8000-000000000001',
     })
     expect(response.headers.get('cache-control')).toBe('private, no-store')
+    await expect(response.json()).resolves.toMatchObject({
+      studentId: '30000000-0000-4000-8000-000000000001',
+    })
   })
 })

@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, ScanQrCode } from 'lucide-react'
 
-import { fetchStudentAttendanceStatus } from '@/lib/student-attendance-client'
+import {
+  fetchStudentAttendanceStatus,
+  StudentAttendanceIdentityMismatchError,
+} from '@/lib/student-attendance-client'
 import type {
   StudentAttendanceClassroomState,
   StudentAttendanceStatusView,
@@ -80,7 +83,16 @@ export function useStudentAttendanceStatusView(studentId?: string) {
         setNowMs(serverEpochMs)
         setView(next)
       }
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof StudentAttendanceIdentityMismatchError
+        && mountedRef.current
+        && activeStudentIdRef.current === studentId
+      ) {
+        serverClockRef.current = null
+        setView(null)
+        setNowMs(Date.now())
+      }
       // Keep the last safe snapshot. A failed attendance read must not become
       // an empty state or an unearned confirmation.
     } finally {

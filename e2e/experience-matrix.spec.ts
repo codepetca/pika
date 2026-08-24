@@ -422,6 +422,7 @@ test.describe('student experience matrix', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
+          studentId: authPayload.user.id,
           classrooms,
           nextRefreshAt: null,
           serverNow: '2026-08-23T13:30:00.000Z',

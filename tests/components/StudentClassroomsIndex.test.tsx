@@ -63,6 +63,7 @@ describe('StudentClassroomsIndex', () => {
     const mathId = '20000000-0000-4000-8000-000000000001'
     const scienceId = '20000000-0000-4000-8000-000000000002'
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      studentId: '30000000-0000-4000-8000-000000000001',
       classrooms: [{
         classroomId: mathId,
         state: 'open',

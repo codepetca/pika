@@ -26,6 +26,13 @@ type CachedStudentAttendanceStatus = {
   receivedAtMonotonicMs: number
 }
 
+export class StudentAttendanceIdentityMismatchError extends Error {
+  constructor() {
+    super('Attendance status identity changed')
+    this.name = 'StudentAttendanceIdentityMismatchError'
+  }
+}
+
 function monotonicNow(): number {
   return typeof performance === 'undefined' ? 0 : performance.now()
 }
@@ -129,8 +136,13 @@ export async function fetchStudentAttendanceStatus(
       const response = await fetch('/api/student/attendance/status', { cache: 'no-store' })
       const body = await response.json().catch(() => null) as unknown
       if (!response.ok) throw new Error('Attendance status is temporarily unavailable')
+      const view = studentAttendanceStatusViewSchema.parse(body)
+      if (view.studentId !== studentId) {
+        clearAuthoritativeStudentAttendanceConfirmation(studentId)
+        throw new StudentAttendanceIdentityMismatchError()
+      }
       return {
-        view: studentAttendanceStatusViewSchema.parse(body),
+        view,
         receivedAtMonotonicMs: monotonicNow(),
       }
     },

@@ -203,7 +203,9 @@ export async function loadStudentAttendanceStatusView(input: {
   assertRead(enrollmentResult)
   const enrollments = parseRows(enrollmentRowsSchema, enrollmentResult.data)
   const enrolledIds = enrollments.map((row) => row.classroom_id)
-  if (enrolledIds.length === 0) return { classrooms: [], nextRefreshAt: null, serverNow }
+  if (enrolledIds.length === 0) {
+    return { studentId: input.studentId, classrooms: [], nextRefreshAt: null, serverNow }
+  }
 
   const classroomResult = await input.supabase
     .from('classrooms')
@@ -216,6 +218,7 @@ export async function loadStudentAttendanceStatusView(input: {
   const integration = input.integrationState ?? getBaraAttendanceIntegrationState()
   if (integration !== 'ready') {
     return {
+      studentId: input.studentId,
       classrooms: classrooms.map((row) => unavailableState(row.id)),
       nextRefreshAt: null,
       serverNow,
@@ -270,6 +273,7 @@ export async function loadStudentAttendanceStatusView(input: {
   const readySet = new Set(readyClassroomIds)
   if (readyClassroomIds.length === 0) {
     return {
+      studentId: input.studentId,
       classrooms: classrooms.map((row) => unavailableState(row.id)),
       nextRefreshAt: null,
       serverNow,
@@ -353,5 +357,5 @@ export async function loadStudentAttendanceStatusView(input: {
     return built.state
   })
 
-  return { classrooms: states, nextRefreshAt, serverNow }
+  return { studentId: input.studentId, classrooms: states, nextRefreshAt, serverNow }
 }

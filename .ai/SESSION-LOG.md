@@ -1221,6 +1221,9 @@ deployment, credential, or production state changed.
 - A final integration re-review found that the short-lived scan handoff could
   override a newly closed/scheduled/no-session projection. The handoff now only
   overlays a still-open projection and is capped at its server-authored close.
+- A fresh security pass found the status snapshot lacked a response-to-session
+  identity binding. Status views now carry the GET-authenticated student ID and
+  mismatches are rejected, cleared, and never cached or rendered.
 - Focused tests, TypeScript, the full Vitest suite, lint, production build,
   architecture/design/UI guards, Pika audit, and the six-test desktop/mobile
   light/dark attendance matrix pass. Visual artifacts were inspected. The local

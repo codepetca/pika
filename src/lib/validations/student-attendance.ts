@@ -28,6 +28,7 @@ export const studentAttendanceClassroomStateSchema = z.object({
 }).strict()
 
 export const studentAttendanceStatusViewSchema = z.object({
+  studentId: z.string().uuid(),
   classrooms: z.array(studentAttendanceClassroomStateSchema).max(50),
   nextRefreshAt: z.string().datetime({ offset: true }).nullable(),
   serverNow: z.string().datetime({ offset: true }),
