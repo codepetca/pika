@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-18 — Emit Pal adaptive term calendars prospectively
-
-**Risk profile:** runtime-platform — additive external contract and
-transactional delivery behavior; no migration, historical backfill,
-dependency, or UI change.
-
-- Updated the vendored Pal v1 contract and fixtures to Pal main commit
-  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
-  term calendar accepted by the guaranteed weekly story scheduler.
-- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
-  tokens. Current open weekly configurations gain one monotonic calendar
-  revision; historical calendar-less catch-up weeks remain calendar-less, while
-  later closures preserve any calendar already emitted.
-- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
-  privacy allow-list, stable idempotency keys, leases, retry classification,
-  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
-  achievement calculations.
-- Added contract, calendar, planner, outbox, vertical integration, and guarded
-  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
-  TypeScript, lint, architecture/UI/design policy, production build, real
-  outbox recovery, and PostgreSQL concurrency checks pass.
-- After the initial registry lookup returned 404, alpha.3 was published and the
-  public `alpha` dist-tag moved to it. Pika now pins
-  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
-  title, and roadmap collectible presentation through the existing Pika hosts.
-  Playwright verification covers student desktop/mobile, light/dark,
-  sketch/full-color roadmap states, and the open story reward dialog; teacher
-  views remain unaffected.
-- Independent review added winter-term and Toronto DST boundary coverage,
-  proved retries preserve the original producer timestamp, and made the real
-  recovery smoke remove and verify every fixture row. Pal main still compares
-  story eligibility with ingestion time instead of the preserved producer
-  timestamp; correcting that cross-service cutoff and proving the delayed
-  boundary case is a rollout blocker outside this Pika-only PR.
-
 ## 2026-08-18 — Verify Pal source-timestamp rollout dependency
 
 **Risk profile:** documentation and cross-service verification only; no Pika
@@ -1236,3 +1201,17 @@ deployment, credential, or production state changed.
   database-type guard remains unavailable because the existing local Supabase
   schema predates already-merged attendance migrations; no migration or type
   rewrite was performed without authorization, and CI must use ephemeral replay.
+
+## 2026-08-24 — Simplify attendance-hours guidance
+
+**Risk profile:** none — teacher-only copy and contextual-help refinement; no
+attendance behavior, API contract, schema, flag, entitlement, or deployment changed.
+
+- Removed the attendance-hours dialog subtitle and moved the Closing day and
+  automatic scheduling explanations into accessible help-icon tooltips.
+- Kept both concise labels visible, preserved checkbox/select behavior, and
+  retained shared semantic tokens, tooltip ownership, focus treatment, and
+  minimum control targets.
+- The focused dialog suite, lint, and UI policy checks pass. Playwright visual
+  verification passed for teacher desktop/mobile, light/dark, and both hover or
+  keyboard-focus tooltip states; student is not applicable to this teacher-only dialog.
