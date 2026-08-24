@@ -62,10 +62,12 @@ export function StudentAttendanceCheckIn({
           parsed.data.studentId
           && parsed.data.classroomId
           && parsed.data.attendanceStatus
+          && parsed.data.occurrenceBinding
         ) {
           preserveAuthoritativeStudentAttendanceConfirmation({
             studentId: parsed.data.studentId,
             classroomId: parsed.data.classroomId,
+            occurrenceBinding: parsed.data.occurrenceBinding,
             attendanceStatus: parsed.data.attendanceStatus,
             ...(parsed.data.recordedAt ? { confirmedAt: parsed.data.recordedAt } : {}),
           })

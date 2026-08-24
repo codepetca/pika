@@ -13,6 +13,7 @@ vi.mock('@/lib/student-attendance-client', () => ({
 }))
 
 const studentId = '30000000-0000-4000-8000-000000000001'
+const occurrenceBinding = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 
 describe('StudentAttendanceCheckIn', () => {
   afterEach(() => {
@@ -29,6 +30,7 @@ describe('StudentAttendanceCheckIn', () => {
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId: '20000000-0000-4000-8000-000000000001',
       studentId,
+      occurrenceBinding,
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetcher)
 
@@ -49,6 +51,7 @@ describe('StudentAttendanceCheckIn', () => {
     expect(attendanceClientMocks.preserve).toHaveBeenCalledWith({
       studentId,
       classroomId: '20000000-0000-4000-8000-000000000001',
+      occurrenceBinding,
       attendanceStatus: 'present',
       confirmedAt: '2026-09-02T13:01:00.000Z',
     })

@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
 import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import {
+  AttendanceEntryTokenError,
+  deriveStudentAttendanceOccurrenceBinding,
+} from '@/lib/server/bara-attendance-entry-token'
 import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 import { addDaysToDateString } from '@/lib/date-string'
 import { formatDateInToronto, toTorontoStartOfDayIso } from '@/lib/timezone'
@@ -354,7 +358,21 @@ export async function loadStudentAttendanceStatusView(input: {
       now,
     })
     nextRefreshAt = minInstant(nextRefreshAt, built.nextRefreshAt)
-    return built.state
+    if (!occurrence) return built.state
+    try {
+      return {
+        ...built.state,
+        occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
+          studentId: input.studentId,
+          occurrenceRef: occurrence.occurrence_ref,
+        }),
+      }
+    } catch (error) {
+      if (error instanceof AttendanceEntryTokenError) {
+        throw new StudentAttendanceStatusReadError('read_failed')
+      }
+      throw error
+    }
   })
 
   return { studentId: input.studentId, classrooms: states, nextRefreshAt, serverNow }

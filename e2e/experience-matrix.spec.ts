@@ -394,6 +394,7 @@ test.describe('student experience matrix', () => {
     if (!classroom) throw new Error('Student browser fixture is missing Test Classroom')
 
     const otherClassroomId = '20000000-0000-4000-8000-000000000099'
+    const occurrenceBinding = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     let attendanceState: 'isolated' | 'open' | 'closed' | 'confirmed' = 'isolated'
     await page.route('**/api/student/attendance/status', async (route) => {
       const common = { opensAt: null, closesAt: null }
@@ -406,6 +407,7 @@ test.describe('student experience matrix', () => {
           ? [{
               classroomId: classroom.id,
               state: 'open',
+              occurrenceBinding,
               opensAt: '2026-08-23T13:00:00.000Z',
               closesAt: '2099-08-23T14:00:00.000Z',
             }]
@@ -469,6 +471,7 @@ test.describe('student experience matrix', () => {
           recordedAt: '2026-08-23T13:01:00.000Z',
           classroomId: classroom.id,
           studentId: authPayload.user.id,
+          occurrenceBinding,
         }),
       })
     })

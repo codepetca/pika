@@ -62,6 +62,7 @@ export function useStudentAttendanceStatusView(studentId?: string) {
   const [refreshing, setRefreshing] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [refreshCycle, setRefreshCycle] = useState(0)
+  const [retryWithoutView, setRetryWithoutView] = useState(false)
   const mountedRef = useRef(true)
   const activeStudentIdRef = useRef(studentId)
   const handledBoundaryTimesRef = useRef(new Set<number>())
@@ -82,6 +83,7 @@ export function useStudentAttendanceStatusView(studentId?: string) {
         serverClockRef.current = { serverEpochMs, monotonicEpochMs: monotonicNow() }
         setNowMs(serverEpochMs)
         setView(next)
+        setRetryWithoutView(false)
       }
     } catch (error) {
       if (
@@ -92,6 +94,9 @@ export function useStudentAttendanceStatusView(studentId?: string) {
         serverClockRef.current = null
         setView(null)
         setNowMs(Date.now())
+        setRetryWithoutView(false)
+      } else if (mountedRef.current && activeStudentIdRef.current === studentId) {
+        setRetryWithoutView(true)
       }
       // Keep the last safe snapshot. A failed attendance read must not become
       // an empty state or an unearned confirmation.
@@ -110,9 +115,18 @@ export function useStudentAttendanceStatusView(studentId?: string) {
     serverClockRef.current = null
     setView(null)
     setNowMs(Date.now())
+    setRetryWithoutView(false)
     if (studentId) void load(false)
     return () => { mountedRef.current = false }
   }, [load, studentId])
+
+  useEffect(() => {
+    if (!studentId || view || !retryWithoutView) return
+    const timer = window.setTimeout(() => {
+      void load(true)
+    }, FAILED_REFRESH_RETRY_MS)
+    return () => window.clearTimeout(timer)
+  }, [load, refreshCycle, retryWithoutView, studentId, view])
 
   useEffect(() => {
     if (!view) return

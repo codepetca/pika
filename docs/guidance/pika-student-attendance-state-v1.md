@@ -45,13 +45,15 @@ no experimental pattern is introduced, and no human promotion is needed.
 | Own record is `present` or `late` | `confirmed` | Show the private status and Toronto confirmation time in that classroom. |
 | Session closed, cancelled, or past `closesAt` without a record | `closed` | Remove the open prompt immediately; no check-in action is offered. |
 | Attendance read fails after a prior safe snapshot | client-only `service_unavailable` | Preserve the last safe snapshot and do not convert failure to empty or confirmed. |
-| Attendance read fails without a safe snapshot | client-only `service_unavailable` | Show no attendance claim; the rest of the page remains available. |
+| Attendance read fails without a safe snapshot | client-only `service_unavailable` | Show no attendance claim; retry single-flight at the bounded failure interval while the rest of the page remains available. |
 | Classroom archived | omitted | Archived classrooms are excluded before attendance reads and render no state. |
 | Multiple active enrollments | one state per enrolled classroom | Never combine or transfer state between classroom IDs. |
 
 A validated positive check-in response is handed off in memory only for the
 POST-authenticated student identity returned by the server and that classroom
-while the read projection converges. It never trusts an identity captured by an
+occurrence while the read projection converges. A student-scoped, non-reversible
+binding tag joins the positive POST to the matching status occurrence without
+exposing a Bara occurrence reference. It never trusts an identity captured by an
 earlier page render. The handoff
 is bounded to two minutes and the open occurrence's server-authored close,
 revalidates at most every five seconds, and is cleared immediately unless the
@@ -82,16 +84,17 @@ instructions or a prior occurrence's confirmation visible.
   immediately preceding Toronto class dates, supporting bounded next-day close
   windows, and records whose `student_id` is the signed-in student. Return Pika
   classroom IDs, public state, session times, own status, own confirmation time,
-  a refresh hint, and the GET-authenticated student ID as a response binding.
+  a refresh hint, the GET-authenticated student ID as a response binding, and a
+  student-scoped one-way occurrence binding for occurrence-backed states.
 - Bind every post-auth response, including service failures, to the authenticated
   student. Reject, clear, and do not cache or render a response whose binding
   differs from the student identity that owns the page.
 - Never return QR/check-in tokens, opaque roster/participant/occurrence refs,
   provider IDs, other students, roster rows, teacher identity, entitlement
   records, or arbitrary caller-selected classroom results.
-- Reads are cache-safe and mutation-free. Polling is single-flight, bounded,
-  stops when no state requires it, and never invokes Bara or attendance command
-  routes.
+- Reads are cache-safe and mutation-free. Polling and transient-failure retry
+  are single-flight and bounded, stop when no state requires them, and never
+  invoke Bara or attendance command routes.
 
 Pika continues to map its local user UUID to WorkOS without changing Bara's
 `app_users` plus `auth_identities` identity ownership or

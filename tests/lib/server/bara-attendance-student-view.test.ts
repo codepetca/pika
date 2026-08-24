@@ -4,12 +4,14 @@ import {
   buildStudentAttendanceClassroomState,
   loadStudentAttendanceStatusView,
 } from '@/lib/server/bara-attendance-student-view'
+import { deriveStudentAttendanceOccurrenceBinding } from '@/lib/server/bara-attendance-entry-token'
 
 const classroomOne = '20000000-0000-4000-8000-000000000001'
 const classroomTwo = '20000000-0000-4000-8000-000000000002'
 const teacherOne = '10000000-0000-4000-8000-000000000001'
 const teacherTwo = '10000000-0000-4000-8000-000000000002'
 const studentOne = '30000000-0000-4000-8000-000000000001'
+const entrySecret = 'entry-token-secret-that-is-long-enough-for-tests'
 
 function queryClient(rows: Record<string, unknown>) {
   const calls: Array<{ table: string; method: string; args: unknown[] }> = []
@@ -34,6 +36,7 @@ describe('student attendance status view', () => {
   beforeEach(() => {
     vi.stubEnv('PIKA_BARA_ATTENDANCE_SCOPE_MODE', 'teacher_entitlements')
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'pika_test')
+    vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', entrySecret)
   })
 
   afterEach(() => vi.unstubAllEnvs())
@@ -146,7 +149,15 @@ describe('student attendance status view', () => {
     })
 
     expect(result.classrooms).toEqual([
-      expect.objectContaining({ classroomId: classroomOne, state: 'open' }),
+      expect.objectContaining({
+        classroomId: classroomOne,
+        state: 'open',
+        occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
+          studentId: studentOne,
+          occurrenceRef: 'occurrence_one',
+          secret: entrySecret,
+        }),
+      }),
       expect.objectContaining({ classroomId: classroomTwo, state: 'unavailable' }),
     ])
     expect(result.serverNow).toBe('2026-08-23T13:30:00.000Z')

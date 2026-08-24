@@ -1225,6 +1225,11 @@ deployment, credential, or production state changed.
   identity binding. Status views now carry the GET-authenticated student ID and
   every post-auth response carries the same binding; success or failure
   mismatches are rejected, cleared, and never cached or rendered.
+- A subsequent fresh security pass bound that handoff to the exact attendance
+  occurrence with a student-scoped one-way tag, so a later open occurrence in
+  the same classroom cannot inherit an earlier confirmation. Initial transient
+  read failures now retry single-flight every 15 seconds while remaining
+  claim-free until a validated private snapshot arrives.
 - Focused tests, TypeScript, the full Vitest suite, lint, production build,
   architecture/design/UI guards, Pika audit, and the six-test desktop/mobile
   light/dark attendance matrix pass. Visual artifacts were inspected. The local

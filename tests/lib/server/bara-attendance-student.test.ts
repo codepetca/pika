@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
-import { sealAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
+import {
+  deriveStudentAttendanceOccurrenceBinding,
+  sealAttendanceEntryToken,
+} from '@/lib/server/bara-attendance-entry-token'
 import {
   executeStudentAttendanceCheckIn,
   resolveVerifiedPikaAttendanceStudent,
@@ -116,6 +119,11 @@ describe('native Pika student attendance check-in', () => {
       recordedAt: '2026-09-02T13:01:00.000Z',
       classroomId,
       studentId,
+      occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
+        studentId,
+        occurrenceRef: 'occurrence_one',
+        secret: entrySecret,
+      }),
     })
   })
 

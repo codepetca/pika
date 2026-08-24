@@ -16,6 +16,8 @@ import {
 const classroomOne = '20000000-0000-4000-8000-000000000001'
 const studentOne = '30000000-0000-4000-8000-000000000001'
 const studentTwo = '30000000-0000-4000-8000-000000000002'
+const occurrenceOneBinding = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+const occurrenceTwoBinding = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
 describe('StudentAttendanceStatus', () => {
   afterEach(() => {
@@ -147,6 +149,40 @@ describe('StudentAttendanceStatus', () => {
       await vi.advanceTimersByTimeAsync(2_000)
     })
 
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+  })
+
+  it('retries an initial transient failure without rendering an attendance claim', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('service unavailable'))
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'open',
+          occurrenceBinding: occurrenceOneBinding,
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt: '2026-08-23T14:00:00.000Z',
+        }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:01:01.000Z',
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(14_999)
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
   })
@@ -315,6 +351,7 @@ describe('StudentAttendanceStatus', () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: studentOne,
       classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
       attendanceStatus: 'present',
       confirmedAt: '2026-08-23T13:01:00.000Z',
     })
@@ -322,6 +359,7 @@ describe('StudentAttendanceStatus', () => {
       classrooms: [{
         classroomId: classroomOne,
         state: 'open',
+        occurrenceBinding: occurrenceOneBinding,
         opensAt: '2026-08-23T13:00:00.000Z',
         closesAt: '2026-08-23T14:00:00.000Z',
       }],
@@ -345,12 +383,14 @@ describe('StudentAttendanceStatus', () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: studentOne,
       classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
       attendanceStatus: 'present',
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
       classrooms: [{
         classroomId: classroomOne,
         state: 'open',
+        occurrenceBinding: occurrenceOneBinding,
         opensAt: '2026-08-23T13:00:00.000Z',
         closesAt: '2026-08-23T14:00:00.000Z',
       }],
@@ -367,17 +407,63 @@ describe('StudentAttendanceStatus', () => {
     expect(view.nextRefreshAt).toBe('2026-08-23T13:01:06.000Z')
   })
 
+  it('never transfers a handoff to a different open occurrence in the classroom', async () => {
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: studentOne,
+      classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
+      attendanceStatus: 'present',
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'open',
+          occurrenceBinding: occurrenceTwoBinding,
+          opensAt: '2026-08-24T13:00:00.000Z',
+          closesAt: '2026-08-24T14:00:00.000Z',
+        }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-24T13:01:01.000Z',
+      }))
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state: 'open',
+          occurrenceBinding: occurrenceOneBinding,
+          opensAt: '2026-08-23T13:00:00.000Z',
+          closesAt: '2026-08-23T14:00:00.000Z',
+        }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:01:01.000Z',
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const changedOccurrence = await fetchStudentAttendanceStatus(studentOne, {
+      forceNetwork: true,
+    })
+    expect(changedOccurrence.classrooms[0]?.state).toBe('open')
+
+    const priorOccurrence = await fetchStudentAttendanceStatus(studentOne, {
+      forceNetwork: true,
+    })
+    expect(priorOccurrence.classrooms[0]?.state).toBe('open')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('caps a positive handoff at the open occurrence close', async () => {
     vi.useFakeTimers()
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: studentOne,
       classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
       attendanceStatus: 'present',
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
       classrooms: [{
         classroomId: classroomOne,
         state: 'open',
+        occurrenceBinding: occurrenceOneBinding,
         opensAt: '2026-08-23T13:00:00.000Z',
         closesAt: '2026-08-23T14:00:00.000Z',
       }],
@@ -400,6 +486,7 @@ describe('StudentAttendanceStatus', () => {
       preserveAuthoritativeStudentAttendanceConfirmation({
         studentId: studentOne,
         classroomId: classroomOne,
+        occurrenceBinding: occurrenceOneBinding,
         attendanceStatus: 'present',
       })
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
@@ -423,6 +510,7 @@ describe('StudentAttendanceStatus', () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: '30000000-0000-4000-8000-000000000002',
       classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
       attendanceStatus: 'present',
       confirmedAt: '2026-08-23T13:01:00.000Z',
     })
@@ -487,12 +575,14 @@ describe('StudentAttendanceStatus', () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: studentOne,
       classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
       attendanceStatus: 'present',
     })
     const openView = {
       classrooms: [{
         classroomId: classroomOne,
         state: 'open',
+        occurrenceBinding: occurrenceOneBinding,
         opensAt: '2026-08-23T13:00:00.000Z',
         closesAt: '2026-08-23T14:00:00.000Z',
       }],
@@ -531,6 +621,7 @@ describe('StudentAttendanceStatus', () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: studentOne,
       classroomId: classroomOne,
+      occurrenceBinding: occurrenceOneBinding,
       attendanceStatus: 'present',
       confirmedAt: '2026-08-23T13:01:00.000Z',
     })

@@ -11,6 +11,7 @@ const PROJECTION_RECONCILIATION_MS = 5_000
 
 type AuthoritativeConfirmation = {
   classroomId: string
+  occurrenceBinding: string
   attendanceStatus: 'present' | 'late'
   confirmedAt?: string
   expiresAtMonotonicMs: number
@@ -63,6 +64,7 @@ function reconcileAuthoritativeConfirmation(
     if (
       remainingMs <= 0
       || state.state !== 'open'
+      || state.occurrenceBinding !== confirmation.occurrenceBinding
       || !Number.isFinite(closesAtMs)
       || closesAtMs <= serverNowMs
     ) {
@@ -105,12 +107,14 @@ function reconcileAuthoritativeConfirmation(
 export function preserveAuthoritativeStudentAttendanceConfirmation(input: {
   studentId: string
   classroomId: string
+  occurrenceBinding: string
   attendanceStatus: 'present' | 'late'
   confirmedAt?: string
 }) {
   const studentConfirmations = authoritativeConfirmations.get(input.studentId) ?? new Map()
   studentConfirmations.set(input.classroomId, {
     classroomId: input.classroomId,
+    occurrenceBinding: input.occurrenceBinding,
     attendanceStatus: input.attendanceStatus,
     confirmedAt: input.confirmedAt,
     expiresAtMonotonicMs: monotonicNow() + AUTHORITATIVE_CONFIRMATION_TTL_MS,
