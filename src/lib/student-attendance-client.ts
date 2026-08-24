@@ -52,19 +52,25 @@ function reconcileAuthoritativeConfirmation(
     if (!confirmation) return state
 
     const remainingMs = confirmation.expiresAtMonotonicMs - currentMonotonicMs
+    const closesAtMs = state.closesAt ? Date.parse(state.closesAt) : Number.NaN
     if (
       remainingMs <= 0
-      || state.state === 'unavailable'
-      || state.state === 'confirmed'
+      || state.state !== 'open'
+      || !Number.isFinite(closesAtMs)
+      || closesAtMs <= serverNowMs
     ) {
       studentConfirmations.delete(state.classroomId)
       return state
     }
 
     reconciled = true
-    const validUntil = new Date(serverNowMs + remainingMs).toISOString()
+    const validUntilMs = Math.min(serverNowMs + remainingMs, closesAtMs)
+    const validUntil = new Date(validUntilMs).toISOString()
     const reconcileAt = new Date(
-      serverNowMs + Math.min(PROJECTION_RECONCILIATION_MS, remainingMs),
+      Math.min(
+        serverNowMs + Math.min(PROJECTION_RECONCILIATION_MS, remainingMs),
+        validUntilMs,
+      ),
     ).toISOString()
     nextRefreshAt = earlierInstant(nextRefreshAt, reconcileAt)
     return {

@@ -1218,6 +1218,9 @@ deployment, credential, or production state changed.
   race by binding the handoff to the route-authenticated student returned in the
   positive response. Cached status views also retain their original monotonic
   receipt so remounting cannot re-age server time near close or expiry.
+- A final integration re-review found that the short-lived scan handoff could
+  override a newly closed/scheduled/no-session projection. The handoff now only
+  overlays a still-open projection and is capped at its server-authored close.
 - Focused tests, TypeScript, the full Vitest suite, lint, production build,
   architecture/design/UI guards, Pika audit, and the six-test desktop/mobile
   light/dark attendance matrix pass. Visual artifacts were inspected. The local

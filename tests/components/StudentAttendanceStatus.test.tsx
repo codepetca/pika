@@ -359,6 +359,58 @@ describe('StudentAttendanceStatus', () => {
     expect(view.nextRefreshAt).toBe('2026-08-23T13:01:06.000Z')
   })
 
+  it('caps a positive handoff at the open occurrence close', async () => {
+    vi.useFakeTimers()
+    preserveAuthoritativeStudentAttendanceConfirmation({
+      studentId: studentOne,
+      classroomId: classroomOne,
+      attendanceStatus: 'present',
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne,
+        state: 'open',
+        opensAt: '2026-08-23T13:00:00.000Z',
+        closesAt: '2026-08-23T14:00:00.000Z',
+      }],
+      nextRefreshAt: '2026-08-23T14:00:00.000Z',
+      serverNow: '2026-08-23T13:59:59.900Z',
+    })))
+
+    const view = await fetchStudentAttendanceStatus(studentOne, { forceNetwork: true })
+
+    expect(view.classrooms[0]).toEqual(expect.objectContaining({
+      state: 'confirmed',
+      validUntil: '2026-08-23T14:00:00.000Z',
+    }))
+    expect(view.nextRefreshAt).toBe('2026-08-23T14:00:00.000Z')
+  })
+
+  it.each(['closed', 'scheduled', 'no_session'] as const)(
+    'clears a prior-occurrence handoff when the projection becomes %s',
+    async (state) => {
+      preserveAuthoritativeStudentAttendanceConfirmation({
+        studentId: studentOne,
+        classroomId: classroomOne,
+        attendanceStatus: 'present',
+      })
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne,
+          state,
+          opensAt: state === 'no_session' ? null : '2026-08-24T13:00:00.000Z',
+          closesAt: state === 'no_session' ? null : '2026-08-24T14:00:00.000Z',
+        }],
+        nextRefreshAt: '2026-08-24T04:00:00.000Z',
+        serverNow: '2026-08-24T04:00:00.000Z',
+      })))
+
+      const view = await fetchStudentAttendanceStatus(studentOne, { forceNetwork: true })
+
+      expect(view.classrooms[0]?.state).toBe(state)
+    },
+  )
+
   it('never transfers an authoritative confirmation to another student', async () => {
     preserveAuthoritativeStudentAttendanceConfirmation({
       studentId: '30000000-0000-4000-8000-000000000002',

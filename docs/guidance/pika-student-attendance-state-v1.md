@@ -53,9 +53,11 @@ A validated positive check-in response is handed off in memory only for the
 POST-authenticated student identity returned by the server and that classroom
 while the read projection converges. It never trusts an identity captured by an
 earlier page render. The handoff
-is bounded to two minutes, revalidates at most every five seconds, and is cleared
-immediately if the classroom becomes unavailable, unenrolled, archived, or
-projection-confirmed. It cannot survive a reload, contain a token, or mutate
+is bounded to two minutes and the open occurrence's server-authored close,
+revalidates at most every five seconds, and is cleared immediately unless the
+read projection still reports that classroom occurrence open (including when it
+becomes closed, cancelled, scheduled, unavailable, unenrolled, archived, or
+projection-confirmed). It cannot survive a reload, contain a token, or mutate
 attendance. A confirmed state may remain visible for the current occurrence after close;
 only the stale open prompt must disappear. Closed confirmations revalidate at
 the next Toronto midnight, while an occurrence that legitimately closes the
