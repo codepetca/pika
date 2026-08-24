@@ -52,18 +52,6 @@ describe('StudentAttendanceStatus', () => {
     })
   }
 
-  function statusFailure(studentId: string) {
-    return new Response(JSON.stringify({
-      error: 'Attendance status is temporarily unavailable',
-    }), {
-      status: 503,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Pika-Student-Id': studentId,
-      },
-    })
-  }
-
   async function flushAsyncState() {
     await act(async () => {
       await Promise.resolve()
@@ -511,9 +499,15 @@ describe('StudentAttendanceStatus', () => {
       nextRefreshAt: '2026-08-23T13:01:02.000Z',
       serverNow: '2026-08-23T13:01:01.000Z',
     }
+    const mismatchedBodyRead = vi.fn(() => new Promise<unknown>(() => {}))
+    const mismatchedFailure = {
+      headers: new Headers({ 'X-Pika-Student-Id': studentTwo }),
+      ok: false,
+      json: mismatchedBodyRead,
+    } as Response
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(statusResponse(openView))
-      .mockResolvedValueOnce(statusFailure(studentTwo))
+      .mockResolvedValueOnce(mismatchedFailure)
       .mockResolvedValueOnce(statusResponse({ ...openView, nextRefreshAt: null }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -526,6 +520,7 @@ describe('StudentAttendanceStatus', () => {
     })
     expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
     expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
+    expect(mismatchedBodyRead).not.toHaveBeenCalled()
 
     const recovered = await fetchStudentAttendanceStatus(studentOne)
     expect(recovered.classrooms[0]?.state).toBe('open')
