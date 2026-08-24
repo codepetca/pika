@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AttendanceWindowDialog } from '@/app/classrooms/[classroomId]/AttendanceWindowDialog'
-import { AppMessageProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2026-08-17',
@@ -31,17 +31,24 @@ function savedPolicy(overrides: Record<string, unknown> = {}) {
 }
 
 function renderDialog(onSaved = vi.fn(), onClose = vi.fn()) {
-  render(
-    <AppMessageProvider>
-      <AttendanceWindowDialog
-        classroomId={classroomId}
-        isOpen
-        onSaved={onSaved}
-        onClose={onClose}
-      />
-    </AppMessageProvider>,
+  const dialog = (isOpen: boolean) => (
+    <TooltipProvider>
+      <AppMessageProvider>
+        <AttendanceWindowDialog
+          classroomId={classroomId}
+          isOpen={isOpen}
+          onSaved={onSaved}
+          onClose={onClose}
+        />
+      </AppMessageProvider>
+    </TooltipProvider>
   )
-  return { onSaved, onClose }
+  const view = render(dialog(true))
+  return {
+    onSaved,
+    onClose,
+    rerenderDialog: (isOpen: boolean) => view.rerender(dialog(isOpen)),
+  }
 }
 
 describe('AttendanceWindowDialog', () => {
@@ -125,6 +132,67 @@ describe('AttendanceWindowDialog', () => {
       close_day_offset: 1,
       expected_revision: 4,
     })
+  })
+
+  it('keeps optional attendance guidance in help tooltips', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    renderDialog()
+
+    await screen.findByDisplayValue('08:45')
+
+    expect(screen.queryByText('Applied automatically on scheduled class days')).not.toBeInTheDocument()
+    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Pika sends concrete Toronto-time windows/)).not.toBeInTheDocument()
+    const closingDayHelp = screen.getByRole('button', { name: 'About closing day' })
+    const automaticHelp = screen.getByRole('button', { name: 'About automatic attendance hours' })
+    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(automaticHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(closingDayHelp).not.toHaveAttribute('aria-controls')
+    expect(automaticHelp).not.toHaveAttribute('aria-controls')
+
+    fireEvent.pointerMove(closingDayHelp, { pointerType: 'mouse' })
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Use next day only')
+    fireEvent.pointerLeave(closingDayHelp)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
+
+    fireEvent.focus(automaticHelp)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Pika sends concrete Toronto-time windows')
+    fireEvent.blur(automaticHelp)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
+
+    fireEvent.click(closingDayHelp)
+    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'true')
+    expect(closingDayHelp).toHaveAttribute('aria-controls', 'closing-day-help')
+    expect(document.getElementById('closing-day-help')).toBeVisible()
+    expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
+
+    fireEvent.click(closingDayHelp)
+    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(closingDayHelp).not.toHaveAttribute('aria-controls')
+    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
+
+    fireEvent.click(automaticHelp)
+    expect(automaticHelp).toHaveAttribute('aria-expanded', 'true')
+    expect(automaticHelp).toHaveAttribute('aria-controls', 'automatic-hours-help')
+    expect(document.getElementById('automatic-hours-help')).toBeVisible()
+  })
+
+  it('collapses tapped help when the dialog is reopened', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    const { rerenderDialog } = renderDialog()
+
+    await screen.findByDisplayValue('08:45')
+    fireEvent.click(screen.getByRole('button', { name: 'About closing day' }))
+    expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
+
+    rerenderDialog(false)
+    rerenderDialog(true)
+
+    await screen.findByDisplayValue('08:45')
+    expect(screen.getByRole('button', { name: 'About closing day' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
   })
 
   it('keeps the saved policy and reports recovery when immediate sync is unavailable', async () => {
