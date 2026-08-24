@@ -2,17 +2,12 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TeacherLiveAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherLiveAttendanceTab'
-import { AppMessageProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { TeacherAttendanceView } from '@/lib/teacher-attendance'
 import type { Classroom } from '@/types'
 
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2026-08-17',
-}))
-
-vi.mock('@/ui/Tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
 const classroom: Classroom = {
@@ -82,9 +77,11 @@ function jsonResponse(body: unknown, status = 200) {
 
 function renderTab(classroomOverride: Classroom = classroom) {
   return render(
-    <AppMessageProvider>
-      <TeacherLiveAttendanceTab classroom={classroomOverride} isActive />
-    </AppMessageProvider>,
+    <TooltipProvider>
+      <AppMessageProvider>
+        <TeacherLiveAttendanceTab classroom={classroomOverride} isActive />
+      </AppMessageProvider>
+    </TooltipProvider>,
   )
 }
 
@@ -133,7 +130,7 @@ describe('TeacherLiveAttendanceTab', () => {
   })
 
   it('groups the date selector and icon-only open action in the center FAB', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+    const scheduledView = attendanceView({
       session: {
         state: 'scheduled',
         opensAt: '2026-08-17T12:45:00.000Z',
@@ -141,7 +138,17 @@ describe('TeacherLiveAttendanceTab', () => {
         revision: 1,
         commandFailed: false,
       },
-    })))
+    })
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(scheduledView))
+      .mockResolvedValueOnce(jsonResponse({ outcome: 'applied' }))
+      .mockResolvedValueOnce(jsonResponse(attendanceView({
+        session: {
+          ...scheduledView.session,
+          state: 'open',
+          revision: 2,
+        },
+      })))
 
     renderTab()
     await screen.findByText('Lovelace, Ada')
@@ -155,6 +162,19 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(openAttendance).toBeEnabled()
     expect(openAttendance).toHaveTextContent('')
     expect(screen.queryByText('Open attendance')).not.toBeInTheDocument()
+
+    fireEvent.focus(openAttendance)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open attendance')
+    fireEvent.click(openAttendance)
+
+    await waitFor(() => expect(screen.getByText('Attendance opened')).toBeInTheDocument())
+    const commandWrite = vi.mocked(fetch).mock.calls[1]
+    expect(commandWrite[0]).toBe('/api/teacher/attendance/session')
+    expect(JSON.parse(String(commandWrite[1]?.body))).toMatchObject({
+      classroom_id: classroom.id,
+      date: '2026-08-17',
+      command: 'open',
+    })
   })
 
   it('loads a Pika-owned QR presentation only when requested and copies its exact entry URL', async () => {
