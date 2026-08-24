@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
+import { CircleHelp } from 'lucide-react'
 import { fetchJSON } from '@/lib/request-cache'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
@@ -12,6 +13,7 @@ import {
   PageState,
   Select,
   TableSelectionCheckbox,
+  Tooltip,
   useAppMessage,
 } from '@/ui'
 
@@ -48,6 +50,9 @@ const POLICY_KEYS = [
   'revision',
   'updatedAt',
 ].sort()
+
+const CLOSING_DAY_HELP = 'Use next day only for classes that continue past midnight.'
+const AUTOMATIC_HOURS_HELP = 'Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.'
 
 function isPolicy(value: unknown, expectedClassroomId: string): value is AttendanceWindowPolicy {
   if (!value || typeof value !== 'object') return false
@@ -97,6 +102,7 @@ export function AttendanceWindowDialog({
   const [closesLocal, setClosesLocal] = useState('')
   const [closeDayOffset, setCloseDayOffset] = useState<0 | 1>(0)
   const [enabled, setEnabled] = useState(true)
+  const [expandedHelp, setExpandedHelp] = useState<'closing-day' | 'automatic' | null>(null)
 
   const loadPolicy = useCallback(async () => {
     setLoading(true)
@@ -119,7 +125,10 @@ export function AttendanceWindowDialog({
   }, [classroomId])
 
   useEffect(() => {
-    if (isOpen) void loadPolicy()
+    if (isOpen) {
+      setExpandedHelp(null)
+      void loadPolicy()
+    }
   }, [isOpen, loadPolicy])
 
   const validationError = !opensLocal || !closesLocal
@@ -192,7 +201,6 @@ export function AttendanceWindowDialog({
       isOpen={isOpen}
       onClose={onClose}
       title="Attendance hours"
-      subtitle="Applied automatically on scheduled class days"
       maxWidth="max-w-md"
       showHeaderClose={!saving}
       showFooterClose={false}
@@ -234,36 +242,71 @@ export function AttendanceWindowDialog({
             </FormField>
           </div>
 
-          <FormField
-            label="Closing day"
-            hint="Use next day only for classes that continue past midnight."
-          >
-            <Select
-              value={String(closeDayOffset)}
-              disabled={saving}
-              options={[
-                { value: '0', label: 'Same class day' },
-                { value: '1', label: 'Next day' },
-              ]}
-              onChange={(event) => setCloseDayOffset(event.target.value === '1' ? 1 : 0)}
-            />
-          </FormField>
+          <div>
+            <FormField
+              label="Closing day"
+              labelAccessory={
+                <Tooltip content={CLOSING_DAY_HELP}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    aria-label="About closing day"
+                    aria-expanded={expandedHelp === 'closing-day'}
+                    aria-controls={expandedHelp === 'closing-day' ? 'closing-day-help' : undefined}
+                    disabled={saving}
+                    onClick={() => setExpandedHelp((current) => current === 'closing-day' ? null : 'closing-day')}
+                  >
+                    <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Tooltip>
+              }
+            >
+              <Select
+                value={String(closeDayOffset)}
+                disabled={saving}
+                options={[
+                  { value: '0', label: 'Same class day' },
+                  { value: '1', label: 'Next day' },
+                ]}
+                onChange={(event) => setCloseDayOffset(event.target.value === '1' ? 1 : 0)}
+              />
+            </FormField>
+            {expandedHelp === 'closing-day' ? (
+              <p id="closing-day-help" className="mt-1 text-sm text-text-muted">{CLOSING_DAY_HELP}</p>
+            ) : null}
+          </div>
 
-          <label className="flex items-start gap-3 rounded-control border border-border bg-surface-2 px-3 py-3 text-sm text-text-default">
-            <TableSelectionCheckbox
-              checked={enabled}
-              disabled={saving}
-              ariaLabel="Open and close automatically"
-              className="mt-0.5"
-              onChange={setEnabled}
-            />
-            <span>
-              <span className="block font-medium">Open and close automatically</span>
-              <span className="mt-1 block text-text-muted">
-                Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.
-              </span>
-            </span>
-          </label>
+          <div>
+            <div className="flex items-center gap-2 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-default">
+              <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3 font-medium">
+                <TableSelectionCheckbox
+                  checked={enabled}
+                  disabled={saving}
+                  ariaLabel="Open and close automatically"
+                  onChange={setEnabled}
+                />
+                <span>Open and close automatically</span>
+              </label>
+              <Tooltip content={AUTOMATIC_HOURS_HELP}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="About automatic attendance hours"
+                  aria-expanded={expandedHelp === 'automatic'}
+                  aria-controls={expandedHelp === 'automatic' ? 'automatic-hours-help' : undefined}
+                  disabled={saving}
+                  onClick={() => setExpandedHelp((current) => current === 'automatic' ? null : 'automatic')}
+                >
+                  <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Tooltip>
+            </div>
+            {expandedHelp === 'automatic' ? (
+              <p id="automatic-hours-help" className="mt-1 text-sm text-text-muted">{AUTOMATIC_HOURS_HELP}</p>
+            ) : null}
+          </div>
 
           <p className="text-xs text-text-muted">Timezone: America/Toronto</p>
           {validationError && (opensLocal || closesLocal) ? (
