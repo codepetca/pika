@@ -11,127 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-17 — Harden Bara's eager-auth browser boundary
-
-**Risk profile:** local Bara security headers and documentation only. No hosted
-WorkOS, Vercel, Convex, or Supabase configuration changed.
-
-**Completed:**
-- Added a per-request nonce Content Security Policy around Bara's AuthKit eager
-  auth path. Scripts require the nonce, inline event handlers and framing are
-  blocked, and browser connections are limited to Bara plus the exact configured
-  Convex cloud/site HTTP and WebSocket origins.
-- Kept only the development exceptions required by React debugging and local
-  HMR. The production policy contains no `unsafe-eval` and upgrades insecure
-  subresource requests.
-- Re-smoked the signed-in Bara dashboard, roster import, and public unavailable
-  attendance state in Chrome with no CSP violations; production-mode Bara also
-  retained the shared WorkOS session and authenticated Convex UI.
-
-**Validation:**
-- Bara passes 136 tests across 29 files, TypeScript, production build, brand
-  guard, diff hygiene, and lint with only existing generated Convex warnings.
-
-**Next gate:**
-- Configure isolated hosted Preview, verify the emitted policy there, then run
-  logout, exact QR return-path, second-account isolation, and bounded classroom
-  contract smokes before enabling rollout flags.
-
-## 2026-08-17 — Reaffirm separate WorkOS application boundaries
-
-**Risk profile:** read-only hosted audit and documentation correction. No
-WorkOS, Vercel, Convex, Supabase, DNS, or production configuration changed.
-
-**Model recommendation:** frontier reasoning model — this phase spans WorkOS,
-Vercel, Convex, Supabase, and two application security boundaries.
-
-**Findings and decision:**
-- Codepet Platform Staging and Production each contain separate Bara and Pika
-  AuthKit Applications. Codepet Labs remains a separate WorkOS project.
-- The boundary-preserving target is Pika authentication under its Application,
-  a one-time WorkOS cross-application code, and exchange into Bara's own
-  Application session before Convex resolves the subject locally.
-- The same-client/shared-cookie local proof remains useful fallback evidence,
-  but it is not the production architecture. Pika and Bara keep distinct client
-  IDs, API keys, cookies, refresh tokens, token audiences, internal users,
-  databases, and authorization.
-- Bara Vercel Preview currently reuses development Convex and an obsolete
-  callback. Pika Preview has no WorkOS/Bara variables and points at the only
-  hosted Pika Supabase project. Deploying the attendance migration there would
-  violate the isolated-preview gate.
-- Pika Staging has a short-lived pilot key; Pika Production has no active key.
-  No hosted settings were changed.
-
-**Next gate:**
-- Obtain WorkOS's exact issuance conditions for
-  `authkit_authorization_code`, provision an explicitly isolated Pika Preview
-  data target, then create Preview-only deploy credentials and run the complete
-  no-prompt/auth/attendance smoke. Keep all rollout flags disabled meanwhile.
-
-## 2026-08-18 — Tighten the v3 Course Package manifest contract
-
-**Risk profile:** high — strict historical compatibility boundary; no schema,
-production, dependency, or UI change.
-
-- Replaced the permissive v3 planned-site catchall with the exact historical
-  seven-key shape, including the retired `quizzes` key.
-- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
-  and TAR fixtures and updated their locked SHA-256 digests.
-- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
-  fail as `invalid_manifest` before adaptation.
-- Full verification passes 4,529 tests across 502 files, lint, and the
-  production build. Pika audit and diff checks pass.
-
-## 2026-08-18 — Preserve both strict v3 planned-site forms
-
-**Risk profile:** high — historical package compatibility boundary; no schema,
-production, dependency, or UI change.
-
-- Kept the v3 planned-site schema strict while allowing only the historically
-  evidenced `quizzes` key to be omitted or supplied as a boolean.
-- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
-  proved it adapts to the same portable content as the original seven-key form
-  while preserving distinct raw source manifests.
-- Retained rejection coverage for arbitrary v3 configuration keys and updated
-  the package contract documentation.
-- Full verification passes 4,530 tests across 502 files, lint, and the
-  production build. Pika audit and diff checks pass.
-
-## 2026-08-18 — Emit Pal adaptive term calendars prospectively
-
-**Risk profile:** runtime-platform — additive external contract and
-transactional delivery behavior; no migration, historical backfill,
-dependency, or UI change.
-
-- Updated the vendored Pal v1 contract and fixtures to Pal main commit
-  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
-  term calendar accepted by the guaranteed weekly story scheduler.
-- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
-  tokens. Current open weekly configurations gain one monotonic calendar
-  revision; historical calendar-less catch-up weeks remain calendar-less, while
-  later closures preserve any calendar already emitted.
-- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
-  privacy allow-list, stable idempotency keys, leases, retry classification,
-  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
-  achievement calculations.
-- Added contract, calendar, planner, outbox, vertical integration, and guarded
-  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
-  TypeScript, lint, architecture/UI/design policy, production build, real
-  outbox recovery, and PostgreSQL concurrency checks pass.
-- After the initial registry lookup returned 404, alpha.3 was published and the
-  public `alpha` dist-tag moved to it. Pika now pins
-  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
-  title, and roadmap collectible presentation through the existing Pika hosts.
-  Playwright verification covers student desktop/mobile, light/dark,
-  sketch/full-color roadmap states, and the open story reward dialog; teacher
-  views remain unaffected.
-- Independent review added winter-term and Toronto DST boundary coverage,
-  proved retries preserve the original producer timestamp, and made the real
-  recovery smoke remove and verify every fixture row. Pal main still compares
-  story eligibility with ingestion time instead of the preserved producer
-  timestamp; correcting that cross-service cutoff and proving the delayed
-  boundary case is a rollout blocker outside this Pika-only PR.
-
 ## 2026-08-18 — Verify Pal source-timestamp rollout dependency
 
 **Risk profile:** documentation and cross-service verification only; no Pika
@@ -1216,3 +1095,140 @@ credential, or attendance state changed.
   binding without executing an RPC.
 - Focused tests, the full Vitest suite, lint, architecture guard, production
   build, and diff check pass.
+
+## 2026-08-23 — Make student mobile attendance state obvious
+
+**Risk profile:** student-facing attendance read UX — private tenant-scoped
+status reads, bounded revalidation, and QR check-in confirmation; no migration,
+hosted data, deployment, flag, entitlement, credential, or production state
+changed.
+
+- Added a signed-in-student-only attendance status endpoint and bounded batch
+  reader for active enrolled classrooms. It preserves teacher entitlement and
+  exact-canary scope and returns no token, roster, other-student, or arbitrary
+  classroom data.
+- Added a prominent mobile Today banner and compact classroom-index status for
+  open check-in, plus the student's own present/late confirmation and Toronto
+  timestamp. The banner remains informational and scanning the teacher's QR is
+  still required.
+- Invalidated the private client snapshot after successful or idempotent
+  duplicate scans, linked back to the matching classroom, and bounded refreshes
+  while suppressing stale prompts at the exact close time. Review remediation
+  added forced boundary reads, bounded failure retries, next-day-close support,
+  exact local close/confirmation validity timers, and Toronto-midnight rollover
+  for closed confirmations even when status refreshes fail.
+- Added unit, API, component, and teacher/student experience-matrix coverage for
+  entitlement and classroom isolation, unavailable and closed states, mobile
+  rendering, and duplicate-scan confirmation. Visual checks passed across
+  desktop/mobile and light/dark student views plus the prescribed teacher and
+  student smoke screenshots.
+- The full 5,049-test suite plus two later boundary regressions, lint,
+  TypeScript, production build, architecture,
+  design, UI, Pika audit, browser matrix, and diff checks pass. Local database
+  runtime/type-parity guards remain intentionally unavailable because the local
+  schema does not include unapplied migration 132; no migration was applied
+  without fresh authorization.
+
+## 2026-08-23 — Refine the student classroom attendance signal
+
+**Risk profile:** student-only visual refinement; no attendance behavior,
+authorization, schema, flag, deployment, or production state changed.
+
+- Replaced the classroom-list attendance sentence with an icon-only Lucide
+  QR-scan indicator in the card's upper-right corner. The open indicator uses a
+  restrained reduced-motion-safe pulse; confirmed attendance uses the existing
+  static success icon. Full scanning instructions remain on Today.
+- Kept a polite named status for assistive technology and preserved the entire
+  classroom card as the only interaction on the index.
+- Focused component tests, TypeScript, lint, Pika audit, and the six-test
+  desktop/mobile light/dark browser matrix pass. Visual verification passed for
+  teacher/student smoke views and the student open state in every required
+  viewport/theme combination.
+
+## 2026-08-23 — Compact and statically highlight student attendance prompts
+
+**Risk profile:** student-only visual refinement; no attendance behavior,
+authorization, schema, flag, deployment, or production state changed.
+
+- Shortened the open-state Today banner to the single line “Scan QR for
+  Attendance” beside the QR-scan icon while preserving the private confirmed
+  Present/Late state and timestamp.
+- Replaced the classroom-list pulse with a static semantic accent ring and soft
+  highlight, and applied the same non-interactive emphasis to the compact Today
+  status. No attendance indicator now uses looping motion.
+- Focused component tests (13), TypeScript, lint, Pika audit, and the six-test
+  desktop/mobile light/dark attendance browser matrix pass. Visual verification
+  passed for student open/closed/confirmed states and teacher/student regression
+  views without overflow.
+
+## 2026-08-23 — Close student attendance confirmation and clock-skew review gaps
+
+**Risk profile:** runtime-platform — student-only attendance read reconciliation
+and expiry timing; no attendance mutation, schema migration, flag, entitlement,
+deployment, credential, or production state changed.
+
+- Preserved validated successful and idempotent check-in results in a
+  student-and-classroom-scoped, in-memory handoff while the asynchronous record
+  projection converges. The handoff lasts at most two minutes, polls no faster
+  than every five seconds, and clears for unavailable, unenrolled, archived, or
+  projection-confirmed classrooms.
+- Added validated server time to the private attendance status contract and
+  anchored client refresh and visibility deadlines to monotonic elapsed time,
+  preventing ahead or behind mobile clocks from retaining or hiding prompts at
+  the wrong instant.
+- Added component and browser regressions for stale-open navigation after an
+  idempotent duplicate scan, client clocks two hours ahead and behind, bounded
+  reconciliation, cross-student isolation, and automatic disabled-scope hiding.
+- Independent re-review found and remediation removed an SSR-to-POST identity
+  race by binding the handoff to the route-authenticated student returned in the
+  positive response. Cached status views also retain their original monotonic
+  receipt so remounting cannot re-age server time near close or expiry.
+- A final integration re-review found that the short-lived scan handoff could
+  override a newly closed/scheduled/no-session projection. The handoff now only
+  overlays a still-open projection and is capped at its server-authored close.
+- A fresh security pass found the status snapshot lacked a response-to-session
+  identity binding. Status views now carry the GET-authenticated student ID and
+  every post-auth response carries the same binding; success or failure
+  mismatches are rejected, cleared, and never cached or rendered.
+- A subsequent fresh security pass bound that handoff to the exact attendance
+  occurrence with a student-scoped one-way tag, so a later open occurrence in
+  the same classroom cannot inherit an earlier confirmation. Initial transient
+  read failures now retry single-flight every 15 seconds while remaining
+  claim-free until a validated private snapshot arrives.
+- Focused tests, TypeScript, the full Vitest suite, lint, production build,
+  architecture/design/UI guards, Pika audit, and the six-test desktop/mobile
+  light/dark attendance matrix pass. Visual artifacts were inspected. The local
+  database-type guard remains unavailable because the existing local Supabase
+  schema predates already-merged attendance migrations; no migration or type
+  rewrite was performed without authorization, and CI must use ephemeral replay.
+
+## 2026-08-24 — Hide the titlebar fullscreen control on mobile
+
+**Risk profile:** none — responsive presentation only; fullscreen behavior,
+authorization, data, schema, and deployment state are unchanged.
+
+- Hid the shared titlebar fullscreen/maximize control below the existing `sm`
+  breakpoint while preserving the same desktop control and keyboard shortcut.
+- Added a focused AppHeader regression assertion for the responsive visibility
+  contract.
+- Focused component tests, lint, and the design-policy check pass. Playwright
+  visual verification passed for teacher and student titlebars at 390px and
+  1440px in light and dark themes, with no horizontal overflow.
+## 2026-08-24 — Consolidate live-attendance center FAB
+
+**Risk profile:** none — teacher-only attendance navigation and action layout;
+no attendance behavior, API contract, schema, flag, entitlement, or deployment changed.
+
+- Moved the live-attendance date navigator from the action-bar label slot into
+  the center floating action cluster alongside session actions.
+- Replaced the scheduled-state Open attendance text button with an accessible
+  DoorOpen icon button and shared tooltip while preserving its command behavior,
+  loading state, disabled state, and accessible name.
+- Kept the open-state QR and Close actions icon-only below the `sm` breakpoint,
+  with accessible names and keyboard-disclosed tooltips, and increased mobile
+  action-bar clearance so the center FAB does not overlap the session summary.
+- All 11 focused component tests, lint, design policy, and UI policy pass; the
+  Pika audit found no violations. Playwright verification passed at exact 320px
+  and 375px widths in
+  light and dark modes, including keyboard tooltip disclosure; student is not
+  applicable to this teacher-only surface.

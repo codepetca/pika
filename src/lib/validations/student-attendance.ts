@@ -11,6 +11,32 @@ export const studentAttendanceCheckInViewSchema = z.object({
   description: z.string().min(1).max(240),
   attendanceStatus: z.enum(['present', 'late']).optional(),
   recordedAt: z.string().datetime({ offset: true }).optional(),
+  classroomId: z.string().uuid().optional(),
+  studentId: z.string().uuid().optional(),
+  occurrenceBinding: z.string().regex(/^[A-Za-z0-9_-]{32}$/).optional(),
 }).strict()
 
 export type StudentAttendanceCheckInView = z.infer<typeof studentAttendanceCheckInViewSchema>
+
+export const studentAttendanceClassroomStateSchema = z.object({
+  classroomId: z.string().uuid(),
+  state: z.enum(['unavailable', 'no_session', 'scheduled', 'open', 'confirmed', 'closed']),
+  opensAt: z.string().datetime({ offset: true }).nullable(),
+  closesAt: z.string().datetime({ offset: true }).nullable(),
+  attendanceStatus: z.enum(['present', 'late']).optional(),
+  confirmedAt: z.string().datetime({ offset: true }).optional(),
+  validUntil: z.string().datetime({ offset: true }).optional(),
+  occurrenceBinding: z.string().regex(/^[A-Za-z0-9_-]{32}$/).optional(),
+}).strict()
+
+export const studentAttendanceStatusViewSchema = z.object({
+  studentId: z.string().uuid(),
+  classrooms: z.array(studentAttendanceClassroomStateSchema).max(50),
+  nextRefreshAt: z.string().datetime({ offset: true }).nullable(),
+  serverNow: z.string().datetime({ offset: true }),
+}).strict()
+
+export type StudentAttendanceClassroomState = z.infer<
+  typeof studentAttendanceClassroomStateSchema
+>
+export type StudentAttendanceStatusView = z.infer<typeof studentAttendanceStatusViewSchema>

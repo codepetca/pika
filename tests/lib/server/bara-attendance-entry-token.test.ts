@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AttendanceEntryTokenError,
+  deriveStudentAttendanceOccurrenceBinding,
   openAttendanceEntryToken,
   sealAttendanceEntryToken,
 } from '@/lib/server/bara-attendance-entry-token'
@@ -40,5 +41,26 @@ describe('Pika attendance entry tokens', () => {
       secret,
       now: Date.parse(payload.expiresAt),
     })).toThrowError(new AttendanceEntryTokenError('expired'))
+  })
+
+  it('derives a student-scoped non-reversible occurrence binding', () => {
+    const binding = deriveStudentAttendanceOccurrenceBinding({
+      studentId: '30000000-0000-4000-8000-000000000001',
+      occurrenceRef: payload.occurrenceRef,
+      secret,
+    })
+
+    expect(binding).toMatch(/^[A-Za-z0-9_-]{32}$/)
+    expect(binding).not.toContain(payload.occurrenceRef)
+    expect(deriveStudentAttendanceOccurrenceBinding({
+      studentId: '30000000-0000-4000-8000-000000000001',
+      occurrenceRef: payload.occurrenceRef,
+      secret,
+    })).toBe(binding)
+    expect(deriveStudentAttendanceOccurrenceBinding({
+      studentId: '30000000-0000-4000-8000-000000000002',
+      occurrenceRef: payload.occurrenceRef,
+      secret,
+    })).not.toBe(binding)
   })
 })

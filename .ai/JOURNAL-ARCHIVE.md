@@ -22371,3 +22371,129 @@ WorkOS, Vercel, Convex production, or Supabase configuration changed.
 - Configure and verify the same model in isolated Preview, then prove logout,
   exact QR return-path preservation, second-account tenant isolation, and the
   first native attendance contract slice before enabling pilot flags.
+
+<!-- pika-session-log-archive-batch:156dda3d48ec4b8c40b92de0f8227804a0224a7d3c90f8080cb124b9d4921258 -->
+## 2026-08-17 — Harden Bara's eager-auth browser boundary
+
+**Risk profile:** local Bara security headers and documentation only. No hosted
+WorkOS, Vercel, Convex, or Supabase configuration changed.
+
+**Completed:**
+- Added a per-request nonce Content Security Policy around Bara's AuthKit eager
+  auth path. Scripts require the nonce, inline event handlers and framing are
+  blocked, and browser connections are limited to Bara plus the exact configured
+  Convex cloud/site HTTP and WebSocket origins.
+- Kept only the development exceptions required by React debugging and local
+  HMR. The production policy contains no `unsafe-eval` and upgrades insecure
+  subresource requests.
+- Re-smoked the signed-in Bara dashboard, roster import, and public unavailable
+  attendance state in Chrome with no CSP violations; production-mode Bara also
+  retained the shared WorkOS session and authenticated Convex UI.
+
+**Validation:**
+- Bara passes 136 tests across 29 files, TypeScript, production build, brand
+  guard, diff hygiene, and lint with only existing generated Convex warnings.
+
+**Next gate:**
+- Configure isolated hosted Preview, verify the emitted policy there, then run
+  logout, exact QR return-path, second-account isolation, and bounded classroom
+  contract smokes before enabling rollout flags.
+
+<!-- pika-session-log-archive-batch:fd7fa3f3b1533f7a7576f6b7820ea1ae09ddbf6fe987fdc6779a0f18c9c44328 -->
+## 2026-08-17 — Reaffirm separate WorkOS application boundaries
+
+**Risk profile:** read-only hosted audit and documentation correction. No
+WorkOS, Vercel, Convex, Supabase, DNS, or production configuration changed.
+
+**Model recommendation:** frontier reasoning model — this phase spans WorkOS,
+Vercel, Convex, Supabase, and two application security boundaries.
+
+**Findings and decision:**
+- Codepet Platform Staging and Production each contain separate Bara and Pika
+  AuthKit Applications. Codepet Labs remains a separate WorkOS project.
+- The boundary-preserving target is Pika authentication under its Application,
+  a one-time WorkOS cross-application code, and exchange into Bara's own
+  Application session before Convex resolves the subject locally.
+- The same-client/shared-cookie local proof remains useful fallback evidence,
+  but it is not the production architecture. Pika and Bara keep distinct client
+  IDs, API keys, cookies, refresh tokens, token audiences, internal users,
+  databases, and authorization.
+- Bara Vercel Preview currently reuses development Convex and an obsolete
+  callback. Pika Preview has no WorkOS/Bara variables and points at the only
+  hosted Pika Supabase project. Deploying the attendance migration there would
+  violate the isolated-preview gate.
+- Pika Staging has a short-lived pilot key; Pika Production has no active key.
+  No hosted settings were changed.
+
+**Next gate:**
+- Obtain WorkOS's exact issuance conditions for
+  `authkit_authorization_code`, provision an explicitly isolated Pika Preview
+  data target, then create Preview-only deploy credentials and run the complete
+  no-prompt/auth/attendance smoke. Keep all rollout flags disabled meanwhile.
+
+<!-- pika-session-log-archive-batch:4c10fdcea79d27ef010aa468db70a1331b4c4a07748d1f373c5cf8c38eaf91c2 -->
+## 2026-08-18 — Tighten the v3 Course Package manifest contract
+
+**Risk profile:** high — strict historical compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Replaced the permissive v3 planned-site catchall with the exact historical
+  seven-key shape, including the retired `quizzes` key.
+- Removed unsupported `retired_navigation` evidence from the immutable v3 JSON
+  and TAR fixtures and updated their locked SHA-256 digests.
+- Added direct JSON/TAR parity coverage proving unknown v3 planned-site keys
+  fail as `invalid_manifest` before adaptation.
+- Full verification passes 4,529 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.
+
+<!-- pika-session-log-archive-batch:d680ff660a0c76f7904ec0571c8594c8d776343894a9ae3417410c8ab741e1d1 -->
+## 2026-08-18 — Preserve both strict v3 planned-site forms
+
+**Risk profile:** high — historical package compatibility boundary; no schema,
+production, dependency, or UI change.
+
+- Kept the v3 planned-site schema strict while allowing only the historically
+  evidenced `quizzes` key to be omitted or supplied as a boolean.
+- Added JSON/TAR parity coverage for the six-key v3 compatibility form and
+  proved it adapts to the same portable content as the original seven-key form
+  while preserving distinct raw source manifests.
+- Retained rejection coverage for arbitrary v3 configuration keys and updated
+  the package contract documentation.
+- Full verification passes 4,530 tests across 502 files, lint, and the
+  production build. Pika audit and diff checks pass.
+
+<!-- pika-session-log-archive-batch:44284a7c9bb332e62fb35b2c4f1840580b91487e3895562e964b985b2b1c6214 -->
+## 2026-08-18 — Emit Pal adaptive term calendars prospectively
+
+**Risk profile:** runtime-platform — additive external contract and
+transactional delivery behavior; no migration, historical backfill,
+dependency, or UI change.
+
+- Updated the vendored Pal v1 contract and fixtures to Pal main commit
+  `88bab8e30319089e45d7f5e129e76dd265bc2b4c`, including the complete adaptive
+  term calendar accepted by the guaranteed weekly story scheduler.
+- Added a stable Monday-aligned Toronto academic calendar and opaque HMAC term
+  tokens. Current open weekly configurations gain one monotonic calendar
+  revision; historical calendar-less catch-up weeks remain calendar-less, while
+  later closures preserve any calendar already emitted.
+- Preserved the atomic weekly-configuration/outbox RPC, existing Pal sync cron,
+  privacy allow-list, stable idempotency keys, leases, retry classification,
+  and bounded recovery. Pika emits no collectible, finish-tier, XP, or
+  achievement calculations.
+- Added contract, calendar, planner, outbox, vertical integration, and guarded
+  local Postgres/HTTP recovery coverage. All 4,544 tests across 504 files,
+  TypeScript, lint, architecture/UI/design policy, production build, real
+  outbox recovery, and PostgreSQL concurrency checks pass.
+- After the initial registry lookup returned 404, alpha.3 was published and the
+  public `alpha` dist-tag moved to it. Pika now pins
+  `@codepet/pal-widget@0.1.0-alpha.3` exactly and tests Pal-owned story finish,
+  title, and roadmap collectible presentation through the existing Pika hosts.
+  Playwright verification covers student desktop/mobile, light/dark,
+  sketch/full-color roadmap states, and the open story reward dialog; teacher
+  views remain unaffected.
+- Independent review added winter-term and Toronto DST boundary coverage,
+  proved retries preserve the original producer timestamp, and made the real
+  recovery smoke remove and verify every fixture row. Pal main still compares
+  story eligibility with ingestion time instead of the preserved producer
+  timestamp; correcting that cross-service cutoff and proving the delayed
+  boundary case is a rollout blocker outside this Pika-only PR.
