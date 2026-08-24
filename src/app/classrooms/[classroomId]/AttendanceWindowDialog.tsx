@@ -51,6 +51,9 @@ const POLICY_KEYS = [
   'updatedAt',
 ].sort()
 
+const CLOSING_DAY_HELP = 'Use next day only for classes that continue past midnight.'
+const AUTOMATIC_HOURS_HELP = 'Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.'
+
 function isPolicy(value: unknown, expectedClassroomId: string): value is AttendanceWindowPolicy {
   if (!value || typeof value !== 'object') return false
   const policy = value as Record<string, unknown>
@@ -99,6 +102,7 @@ export function AttendanceWindowDialog({
   const [closesLocal, setClosesLocal] = useState('')
   const [closeDayOffset, setCloseDayOffset] = useState<0 | 1>(0)
   const [enabled, setEnabled] = useState(true)
+  const [expandedHelp, setExpandedHelp] = useState<'closing-day' | 'automatic' | null>(null)
 
   const loadPolicy = useCallback(async () => {
     setLoading(true)
@@ -235,54 +239,70 @@ export function AttendanceWindowDialog({
             </FormField>
           </div>
 
-          <FormField
-            label="Closing day"
-            labelAccessory={
-              <Tooltip content="Use next day only for classes that continue past midnight.">
+          <div>
+            <FormField
+              label="Closing day"
+              labelAccessory={
+                <Tooltip content={CLOSING_DAY_HELP}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    aria-label="About closing day"
+                    aria-expanded={expandedHelp === 'closing-day'}
+                    aria-controls="closing-day-help"
+                    disabled={saving}
+                    onClick={() => setExpandedHelp((current) => current === 'closing-day' ? null : 'closing-day')}
+                  >
+                    <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Tooltip>
+              }
+            >
+              <Select
+                value={String(closeDayOffset)}
+                disabled={saving}
+                options={[
+                  { value: '0', label: 'Same class day' },
+                  { value: '1', label: 'Next day' },
+                ]}
+                onChange={(event) => setCloseDayOffset(event.target.value === '1' ? 1 : 0)}
+              />
+            </FormField>
+            {expandedHelp === 'closing-day' ? (
+              <p id="closing-day-help" className="mt-1 text-sm text-text-muted">{CLOSING_DAY_HELP}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-default">
+              <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3 font-medium">
+                <TableSelectionCheckbox
+                  checked={enabled}
+                  disabled={saving}
+                  ariaLabel="Open and close automatically"
+                  onChange={setEnabled}
+                />
+                <span>Open and close automatically</span>
+              </label>
+              <Tooltip content={AUTOMATIC_HOURS_HELP}>
                 <Button
                   type="button"
                   variant="ghost"
                   size="xs"
-                  aria-label="About closing day"
+                  aria-label="About automatic attendance hours"
+                  aria-expanded={expandedHelp === 'automatic'}
+                  aria-controls="automatic-hours-help"
                   disabled={saving}
+                  onClick={() => setExpandedHelp((current) => current === 'automatic' ? null : 'automatic')}
                 >
                   <CircleHelp className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </Tooltip>
-            }
-          >
-            <Select
-              value={String(closeDayOffset)}
-              disabled={saving}
-              options={[
-                { value: '0', label: 'Same class day' },
-                { value: '1', label: 'Next day' },
-              ]}
-              onChange={(event) => setCloseDayOffset(event.target.value === '1' ? 1 : 0)}
-            />
-          </FormField>
-
-          <div className="flex items-center gap-2 rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-default">
-            <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3 font-medium">
-              <TableSelectionCheckbox
-                checked={enabled}
-                disabled={saving}
-                ariaLabel="Open and close automatically"
-                onChange={setEnabled}
-              />
-              <span>Open and close automatically</span>
-            </label>
-            <Tooltip content="Pika sends concrete Toronto-time windows for scheduled class days. Teachers can still override an active session.">
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                aria-label="About automatic attendance hours"
-                disabled={saving}
-              >
-                <CircleHelp className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </Tooltip>
+            </div>
+            {expandedHelp === 'automatic' ? (
+              <p id="automatic-hours-help" className="mt-1 text-sm text-text-muted">{AUTOMATIC_HOURS_HELP}</p>
+            ) : null}
           </div>
 
           <p className="text-xs text-text-muted">Timezone: America/Toronto</p>

@@ -1244,4 +1244,7 @@ attendance behavior, API contract, schema, flag, entitlement, or deployment chan
   minimum control targets.
 - The focused dialog suite, lint, and UI policy checks pass. Playwright visual
   verification passed for teacher desktop/mobile, light/dark, and both hover or
-  keyboard-focus tooltip states; student is not applicable to this teacher-only dialog.
+  keyboard-focus tooltip states. Independent review found that touch taps do not
+  open Radix tooltips, so each help icon now also toggles an accessible inline
+  disclosure with verified first-tap open and second-tap dismissal. Student is
+  not applicable to this teacher-only dialog.

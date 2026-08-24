@@ -138,8 +138,28 @@ describe('AttendanceWindowDialog', () => {
     expect(screen.queryByText('Applied automatically on scheduled class days')).not.toBeInTheDocument()
     expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
     expect(screen.queryByText(/Pika sends concrete Toronto-time windows/)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About closing day' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'About automatic attendance hours' })).toBeEnabled()
+    const closingDayHelp = screen.getByRole('button', { name: 'About closing day' })
+    const automaticHelp = screen.getByRole('button', { name: 'About automatic attendance hours' })
+    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(automaticHelp).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.pointerMove(closingDayHelp, { pointerType: 'mouse' })
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Use next day only')
+    fireEvent.pointerLeave(closingDayHelp)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
+
+    fireEvent.focus(automaticHelp)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Pika sends concrete Toronto-time windows')
+    fireEvent.blur(automaticHelp)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument())
+
+    fireEvent.click(closingDayHelp)
+    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
+
+    fireEvent.click(closingDayHelp)
+    expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
   })
 
   it('keeps the saved policy and reports recovery when immediate sync is unavailable', async () => {
