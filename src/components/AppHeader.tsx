@@ -219,7 +219,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
-              className="mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default"
+              className="mr-1 hidden min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default sm:flex"
               aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
