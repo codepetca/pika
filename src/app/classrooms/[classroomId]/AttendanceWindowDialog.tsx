@@ -253,7 +253,7 @@ export function AttendanceWindowDialog({
                     size="xs"
                     aria-label="About closing day"
                     aria-expanded={expandedHelp === 'closing-day'}
-                    aria-controls="closing-day-help"
+                    aria-controls={expandedHelp === 'closing-day' ? 'closing-day-help' : undefined}
                     disabled={saving}
                     onClick={() => setExpandedHelp((current) => current === 'closing-day' ? null : 'closing-day')}
                   >
@@ -295,7 +295,7 @@ export function AttendanceWindowDialog({
                   size="xs"
                   aria-label="About automatic attendance hours"
                   aria-expanded={expandedHelp === 'automatic'}
-                  aria-controls="automatic-hours-help"
+                  aria-controls={expandedHelp === 'automatic' ? 'automatic-hours-help' : undefined}
                   disabled={saving}
                   onClick={() => setExpandedHelp((current) => current === 'automatic' ? null : 'automatic')}
                 >

@@ -147,6 +147,8 @@ describe('AttendanceWindowDialog', () => {
     const automaticHelp = screen.getByRole('button', { name: 'About automatic attendance hours' })
     expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
     expect(automaticHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(closingDayHelp).not.toHaveAttribute('aria-controls')
+    expect(automaticHelp).not.toHaveAttribute('aria-controls')
 
     fireEvent.pointerMove(closingDayHelp, { pointerType: 'mouse' })
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Use next day only')
@@ -160,11 +162,19 @@ describe('AttendanceWindowDialog', () => {
 
     fireEvent.click(closingDayHelp)
     expect(closingDayHelp).toHaveAttribute('aria-expanded', 'true')
+    expect(closingDayHelp).toHaveAttribute('aria-controls', 'closing-day-help')
+    expect(document.getElementById('closing-day-help')).toBeVisible()
     expect(screen.getByText('Use next day only for classes that continue past midnight.')).toBeVisible()
 
     fireEvent.click(closingDayHelp)
     expect(closingDayHelp).toHaveAttribute('aria-expanded', 'false')
+    expect(closingDayHelp).not.toHaveAttribute('aria-controls')
     expect(screen.queryByText('Use next day only for classes that continue past midnight.')).not.toBeInTheDocument()
+
+    fireEvent.click(automaticHelp)
+    expect(automaticHelp).toHaveAttribute('aria-expanded', 'true')
+    expect(automaticHelp).toHaveAttribute('aria-controls', 'automatic-hours-help')
+    expect(document.getElementById('automatic-hours-help')).toBeVisible()
   })
 
   it('collapses tapped help when the dialog is reopened', async () => {

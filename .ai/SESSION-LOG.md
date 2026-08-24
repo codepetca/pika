@@ -1146,3 +1146,8 @@ flag, entitlement, or deployment state changed.
 - Playwright verification passed for teacher desktop/mobile, light/dark,
   hover, keyboard-focus, and both touch-disclosure states. Student remains not
   applicable to this teacher-only dialog.
+- Fresh rebased-head review found collapsed help buttons retained `aria-controls`
+  references to absent disclosure elements. The relationships are now emitted
+  only while expanded, with focused assertions covering both help controls.
+- The remediated focused suite remains 7/7 passing; lint, UI policy, design
+  policy, continuity-log validation, and diff checks pass.
