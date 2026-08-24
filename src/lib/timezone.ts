@@ -42,6 +42,15 @@ export function toTorontoEndOfDayIso(dateString: string): string {
 }
 
 /**
+ * Converts a Toronto date string (YYYY-MM-DD) to its start-of-day ISO timestamp.
+ */
+export function toTorontoStartOfDayIso(dateString: string): string {
+  const date = parse(dateString, 'yyyy-MM-dd', new Date())
+  date.setHours(0, 0, 0, 0)
+  return fromTorontoTime(date).toISOString()
+}
+
+/**
  * Checks if an entry was submitted on time
  * On-time = updated_at (Toronto time) < midnight of next day (i.e., before the date changes)
  */

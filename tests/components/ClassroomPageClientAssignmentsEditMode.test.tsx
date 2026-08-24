@@ -10,6 +10,7 @@ const mockPrefetchJSON = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
+const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -245,7 +246,8 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
   const React = await import('react')
 
   return {
-    StudentTodayTab: ({ classroom, onLessonPlanLoad }: any) => {
+    StudentTodayTab: ({ classroom, onLessonPlanLoad, ...props }: any) => {
+      mockStudentTodayTabProps({ classroom, onLessonPlanLoad, ...props })
       React.useEffect(() => {
         if (classroom?.id !== 'classroom-1') return
         onLessonPlanLoad?.({
@@ -454,6 +456,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockAssignmentsToMarkdown.mockReset()
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
+    mockStudentTodayTabProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -479,6 +482,21 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     expect(screen.queryByRole('button', { name: 'Go Attendance' })).not.toBeInTheDocument()
     expect(screen.queryByText('Live attendance')).not.toBeInTheDocument()
+  })
+
+  it('scopes the student Today attendance status to the signed-in student', async () => {
+    renderStudentClient({
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+    })
+
+    await waitFor(() => {
+      expect(mockStudentTodayTabProps).toHaveBeenCalledWith(expect.objectContaining({
+        classroom,
+        layout: 'pane',
+        studentId: 'student-1',
+      }))
+    })
   })
 
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {

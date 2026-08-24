@@ -9,6 +9,10 @@ import {
   studentAttendanceCheckInViewSchema,
   type StudentAttendanceCheckInView,
 } from '@/lib/validations/student-attendance'
+import {
+  invalidateStudentAttendanceStatus,
+  preserveAuthoritativeStudentAttendanceConfirmation,
+} from '@/lib/student-attendance-client'
 
 type ViewState =
   | { kind: 'loading' }
@@ -50,6 +54,26 @@ export function StudentAttendanceCheckIn({
       const parsed = studentAttendanceCheckInViewSchema.safeParse(body)
       if (!response.ok || !parsed.success) throw new Error('unavailable')
       attemptIdRef.current = null
+      if (
+        parsed.data.state === 'checked_in'
+        || parsed.data.state === 'already_checked_in'
+      ) {
+        if (
+          parsed.data.studentId
+          && parsed.data.classroomId
+          && parsed.data.attendanceStatus
+          && parsed.data.occurrenceBinding
+        ) {
+          preserveAuthoritativeStudentAttendanceConfirmation({
+            studentId: parsed.data.studentId,
+            classroomId: parsed.data.classroomId,
+            occurrenceBinding: parsed.data.occurrenceBinding,
+            attendanceStatus: parsed.data.attendanceStatus,
+            ...(parsed.data.recordedAt ? { confirmedAt: parsed.data.recordedAt } : {}),
+          })
+        }
+        invalidateStudentAttendanceStatus(parsed.data.studentId)
+      }
       setView({ kind: 'result', result: parsed.data })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -106,8 +130,13 @@ export function StudentAttendanceCheckIn({
             ) : null}
           </div>
         ) : null}
-        <Link className="mt-8 inline-block text-sm font-medium text-primary hover:underline" href="/classrooms">
-          Back to classrooms
+        <Link
+          className="mt-8 inline-block text-sm font-medium text-primary hover:underline"
+          href={positive && result?.classroomId
+            ? `/classrooms/${result.classroomId}?tab=today`
+            : '/classrooms'}
+        >
+          {positive && result?.classroomId ? 'Back to classroom' : 'Back to classrooms'}
         </Link>
       </Card>
     </main>

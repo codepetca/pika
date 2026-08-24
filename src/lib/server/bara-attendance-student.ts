@@ -8,6 +8,7 @@ import {
 } from '@/lib/server/bara-attendance-client'
 import {
   AttendanceEntryTokenError,
+  deriveStudentAttendanceOccurrenceBinding,
   openAttendanceEntryToken,
 } from '@/lib/server/bara-attendance-entry-token'
 import type { V1StudentCheckIn } from '@/vendor/attendance-contract/v1/types'
@@ -247,5 +248,16 @@ export async function executeStudentAttendanceCheckIn(input: {
       throw new StudentAttendanceCheckInError('upstream_unavailable')
     }
   }
-  return mapResult(result)
+  const mapped = mapResult(result)
+  return mapped.state === 'checked_in' || mapped.state === 'already_checked_in'
+    ? {
+        ...mapped,
+        classroomId: entry.classroomId,
+        studentId: input.pikaUser.id,
+        occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
+          studentId: input.pikaUser.id,
+          occurrenceRef: entry.occurrenceRef,
+        }),
+      }
+    : mapped
 }
