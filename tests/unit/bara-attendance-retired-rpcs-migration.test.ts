@@ -75,12 +75,23 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(currentContext).toContain('Attendance enabled in teacher_entitlements')
     expect(currentContext).toContain('signed smoke 4/4 passed 2026-08-24')
     expect(operationalRecovery).toContain('records Pika migrations through 132')
-    expect(operationalRecovery).toContain('--mode enabled')
-    expect(operationalRecovery).toContain('--scope-mode teacher_entitlements')
-    expect(operationalRecovery).toContain('--target-scope-mode teacher_entitlements')
+    expect(operationalRecovery).toContain(
+      'enabled `teacher_entitlements` 4/4 deployed smoke on 2026-08-24',
+    )
+    expect(operationalRecovery).toContain(
+      'pnpm attendance:smoke:deployed -- \\\n' +
+        '     --mode enabled \\\n' +
+        '     --scope-mode teacher_entitlements \\\n' +
+        '     --target-scope-mode teacher_entitlements \\\n' +
+        '     --stage production \\\n' +
+        '     --expected-pika-origin "https://pika.codepet.ca"',
+    )
     expect(operationalRecovery).not.toContain('With both attendance flags still false')
     expect(operationalRecovery).not.toContain(
       'Keep every non-canary teacher/classroom disabled',
+    )
+    expect(operationalRecovery).not.toContain(
+      '--mode pre-enable \\\n     --scope-mode exact_canary',
     )
   })
 })

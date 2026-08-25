@@ -22680,3 +22680,65 @@ change.
 - Full verification passes 4,611 tests across 505 files, lint, type checking,
   and the production build. Visual verification is not applicable because this
   change has no UI surface.
+
+<!-- pika-session-log-archive-batch:64902b318df9026a9787cb3a85f8eb70bd5b6b27f0765f09cb1c3af45ada2e27 -->
+## 2026-08-19 — Close proposal TAR transport parity gap
+
+**Risk profile:** high — untrusted package transport dispatch at both
+application entry points; no schema migration, production operation,
+dependency, or UI change.
+
+- Centralized content-type-aware JSON/TAR planning in the bounded package
+  request module and made both import and repository-proposal routes call it.
+  Valid exported TAR packages can now reach proposal construction through the
+  same verified canonical plan as direct JSON packages.
+- Expanded entry-point coverage so every portable semantic rejection case runs
+  through JSON and an independently encoded TAR at both routes, remains
+  response-identical, and cannot reach server or managed-storage operations.
+- Added valid JSON/TAR assertions proving import and proposal entry points pass
+  the same canonical plan downstream.
+- Full verification passes 4,613 tests across 505 files, lint, type checking,
+  and the production build. Pika audit and diff checks pass. Visual verification
+  is not applicable because this change has no UI surface.
+
+## 2026-08-19 — Verify native attendance against disposable local databases
+
+**Risk profile:** runtime-platform and disposable local data. The user
+explicitly authorized resetting and discarding the shared local Pika database.
+No hosted database, WorkOS dashboard, deployment, rollout flag, production
+write, commit, merge, or promotion changed.
+
+**Model recommendation:** frontier reasoning model — this verification spans
+real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
+roles, standalone regression, and concurrent authoritative writes.
+
+**Completed:**
+- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
+  and used distinct staging WorkOS Applications with localhost callbacks.
+- Signed in a real teacher and student through Pika, created and joined a
+  rostered classroom, configured attendance hours, opened automatically,
+  checked in through the native Pika QR path, reconciled the projection,
+  corrected the student to Late, and closed the session without leaving Pika.
+- Signed into standalone Bara through its own WorkOS Application, opened an
+  independent ad-hoc session on the mapped roster, marked the student through
+  Bara's tap UI, and closed it.
+- Added a guarded loopback-only signed-adapter/engine load runner and recorded
+  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
+  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
+  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
+
+**Verification:**
+- Pika passes 542 files and 4,567 tests, TypeScript, production build,
+  architecture, design-policy, UI-policy, and diff checks.
+- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
+  diff checks. The hosted rollout command correctly refuses to run without a
+  named Preview/Production stage and exact HTTPS origins; no staging target
+  exists to satisfy that gate.
+- Browser screenshots were visually checked for native student success,
+  teacher correction and closed state, and standalone Bara attendance.
+
+**Remaining gates:**
+- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
+  backfill, tenant-isolation/canary proof, and real teacher/student approval
+  remain blocked on provisioning an isolated Preview or explicitly approving a
+  different non-production target. Production remains disabled.

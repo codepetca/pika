@@ -11,67 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-19 — Close proposal TAR transport parity gap
-
-**Risk profile:** high — untrusted package transport dispatch at both
-application entry points; no schema migration, production operation,
-dependency, or UI change.
-
-- Centralized content-type-aware JSON/TAR planning in the bounded package
-  request module and made both import and repository-proposal routes call it.
-  Valid exported TAR packages can now reach proposal construction through the
-  same verified canonical plan as direct JSON packages.
-- Expanded entry-point coverage so every portable semantic rejection case runs
-  through JSON and an independently encoded TAR at both routes, remains
-  response-identical, and cannot reach server or managed-storage operations.
-- Added valid JSON/TAR assertions proving import and proposal entry points pass
-  the same canonical plan downstream.
-- Full verification passes 4,613 tests across 505 files, lint, type checking,
-  and the production build. Pika audit and diff checks pass. Visual verification
-  is not applicable because this change has no UI surface.
-
-## 2026-08-19 — Verify native attendance against disposable local databases
-
-**Risk profile:** runtime-platform and disposable local data. The user
-explicitly authorized resetting and discarding the shared local Pika database.
-No hosted database, WorkOS dashboard, deployment, rollout flag, production
-write, commit, merge, or promotion changed.
-
-**Model recommendation:** frontier reasoning model — this verification spans
-real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
-roles, standalone regression, and concurrent authoritative writes.
-
-**Completed:**
-- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
-  and used distinct staging WorkOS Applications with localhost callbacks.
-- Signed in a real teacher and student through Pika, created and joined a
-  rostered classroom, configured attendance hours, opened automatically,
-  checked in through the native Pika QR path, reconciled the projection,
-  corrected the student to Late, and closed the session without leaving Pika.
-- Signed into standalone Bara through its own WorkOS Application, opened an
-  independent ad-hoc session on the mapped roster, marked the student through
-  Bara's tap UI, and closed it.
-- Added a guarded loopback-only signed-adapter/engine load runner and recorded
-  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
-  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
-  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
-
-**Verification:**
-- Pika passes 542 files and 4,567 tests, TypeScript, production build,
-  architecture, design-policy, UI-policy, and diff checks.
-- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
-  diff checks. The hosted rollout command correctly refuses to run without a
-  named Preview/Production stage and exact HTTPS origins; no staging target
-  exists to satisfy that gate.
-- Browser screenshots were visually checked for native student success,
-  teacher correction and closed state, and standalone Bara attendance.
-
-**Remaining gates:**
-- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
-  backfill, tenant-isolation/canary proof, and real teacher/student approval
-  remain blocked on provisioning an isolated Preview or explicitly approving a
-  different non-production target. Production remains disabled.
-
 ## 2026-08-19 — Verify native attendance against disposable local databases
 
 **Risk profile:** runtime-platform and disposable local data. The user
@@ -1116,26 +1055,6 @@ content, resizing behavior, API contracts, schema, and student surfaces are unch
   isolated exact-class harness because the shared local environment has no
   Supabase test credentials. Student is not applicable to this teacher-only panel.
 
-## 2026-08-25 — Adopt relative assignment timestamps
-
-**Risk profile:** none — teacher/student assignment timestamp presentation only;
-no assignment state, API contract, schema, persistence, or layout behavior changed.
-
-- Adopted the shared Toronto-relative date formatter for the live teacher
-  saved-version preview, student returned-feedback timestamps, and student
-  submission labels. The unreferenced legacy `TeacherStudentWorkModal` remains
-  unchanged rather than broadening this work into its unrelated audit debt.
-- Preserved the student's exact saved-version date in the restore confirmation,
-  where an unambiguous historical identifier remains more useful than relative copy.
-- Focused teacher/student component and timezone tests pass (51/51), the full
-  Vitest suite passes (5,079/5,079), and lint, build, architecture, design, UI,
-  audit, continuity, and diff gates are clean apart from the existing WorkOS
-  Edge-runtime build warnings. Playwright verification passed for the affected
-  teacher/student compositions on desktop and mobile in light and dark themes
-  using a temporary Pika-token harness because the shared local environment has
-  no Supabase credentials; the harness was removed. The composite-widget
-  checklist was reviewed: keyboard and semantic behavior are unchanged, with
-  no remaining manual follow-up.
 ## 2026-08-24 — Verify the enabled attendance entitlement rollout
 
 **Risk profile:** runtime-platform — authorized local database reset and
@@ -1156,6 +1075,27 @@ flag, entitlement, cleanup, or attendance-data mutation was performed.
   with `teacher_entitlements` as current and target scope, proving canary scope,
   transition-queue health, and both signed Pika/Bara directions.
 
+## 2026-08-25 — Adopt relative assignment timestamps
+
+**Risk profile:** none — teacher/student assignment timestamp presentation only;
+no assignment state, API contract, schema, persistence, or layout behavior changed.
+
+- Adopted the shared Toronto-relative date formatter for the live teacher
+  saved-version preview, student returned-feedback timestamps, and student
+  submission labels. The unreferenced legacy `TeacherStudentWorkModal` remains
+  unchanged rather than broadening this work into its unrelated audit debt.
+- Preserved the student's exact saved-version date in the restore confirmation,
+  where an unambiguous historical identifier remains more useful than relative copy.
+- Focused teacher/student component and timezone tests pass (51/51), the full
+  Vitest suite passes (5,079/5,079), and lint, build, architecture, design, UI,
+  audit, continuity, and diff gates are clean apart from the existing WorkOS
+  Edge-runtime build warnings. Playwright verification passed for the affected
+  teacher/student compositions on desktop and mobile in light and dark themes
+  using a temporary Pika-token harness because the shared local environment has
+  no Supabase credentials; the harness was removed. The composite-widget
+  checklist was reviewed: keyboard and semantic behavior are unchanged, with
+  no remaining manual follow-up.
+
 ## 2026-08-25 — Reconcile attendance rollout documentation
 
 **Risk profile:** none — documentation consistency only; no migration,
@@ -1171,3 +1111,6 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
 - Review remediation rewrote the operational-recovery procedure from the
   current enabled state and extended the rollout regression to cover the
   compact handoff plus production smoke instructions.
+- Final remediation made the regression pin the runbook's dated 4/4 status and
+  complete enabled production command, preventing a partial command or stale
+  pre-enable block from satisfying the rollout-continuity gate.
