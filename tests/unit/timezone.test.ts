@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { isOnTime, formatDateInToronto, getTodayInToronto, nowInToronto } from '@/lib/timezone'
+import {
+  formatDateInToronto,
+  formatRelativeDateTimeInToronto,
+  getTodayInToronto,
+  isOnTime,
+  nowInToronto,
+} from '@/lib/timezone'
 
 describe('timezone utilities', () => {
   afterEach(() => {
@@ -93,6 +99,39 @@ describe('timezone utilities', () => {
       vi.setSystemTime(new Date('2024-11-16T05:30:00Z')) // 2024-11-16 00:30 in Toronto (UTC-5)
 
       expect(getTodayInToronto()).toBe('2024-11-16')
+    })
+  })
+
+  describe('formatRelativeDateTimeInToronto', () => {
+    const referenceDate = new Date('2026-06-25T16:00:00.000Z') // Thu Jun 25, noon in Toronto
+
+    it('uses Today for the current Toronto calendar day', () => {
+      expect(formatRelativeDateTimeInToronto('2026-06-25T14:36:00.000Z', referenceDate))
+        .toBe('Today 10:36 AM')
+    })
+
+    it('accepts a Date value', () => {
+      expect(formatRelativeDateTimeInToronto(
+        new Date('2026-06-25T14:36:00.000Z'),
+        referenceDate,
+      )).toBe('Today 10:36 AM')
+    })
+
+    it('uses Yesterday for the previous Toronto calendar day', () => {
+      expect(formatRelativeDateTimeInToronto('2026-06-24T15:34:00.000Z', referenceDate))
+        .toBe('Yesterday 11:34 AM')
+    })
+
+    it('uses a compact weekday, date, and time for older timestamps', () => {
+      expect(formatRelativeDateTimeInToronto('2026-06-23T12:21:00.000Z', referenceDate))
+        .toBe('Tue Jun 23 8:21 AM')
+    })
+
+    it('uses Toronto calendar days across daylight-saving transitions', () => {
+      const afterFallback = new Date('2026-11-02T05:00:00.000Z') // Nov 2, midnight EST
+
+      expect(formatRelativeDateTimeInToronto('2026-11-01T05:30:00.000Z', afterFallback))
+        .toBe('Yesterday 1:30 AM')
     })
   })
 })

@@ -1439,7 +1439,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.hover(screen.getByRole('button', { name: 'history-older' }))
 
     expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Older saved work')
-    expect(screen.getByText('Previewing save from Feb 20, 6:00 AM')).toBeInTheDocument()
+    expect(screen.getByText('Previewing save from Fri Feb 20 6:00 AM')).toBeInTheDocument()
   })
 
   it('shows no comments summary pills when collapsed and keeps expanded returned feedback details', async () => {

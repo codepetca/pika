@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { LogSummary } from '@/app/classrooms/[classroomId]/LogSummary'
 
 function mockJson(data: unknown, ok = true) {
@@ -20,6 +20,7 @@ function deferred<T>() {
 describe('LogSummary', () => {
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -61,5 +62,38 @@ describe('LogSummary', () => {
       expect(screen.queryByText('Old summary should stay hidden.')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Summary will be available after the nightly run.')).toBeInTheDocument()
+  })
+
+  it('aligns summary copy with its title and omits internal horizontal rules', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-05T15:00:00.000Z'))
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({
+      summary: {
+        overview: 'Students reflected on their project progress.',
+        action_items: [{
+          studentName: 'Student One',
+          text: 'Student One needs support with the final section.',
+        }],
+        generated_at: '2026-05-05T14:36:00.000Z',
+      },
+      summary_status: 'ready',
+    })))
+
+    render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    const overview = screen.getByText('Students reflected on their project progress.')
+    const summaryContent = overview.parentElement
+    const generatedAt = screen.getByText('Generated Today 10:36 AM')
+
+    expect(summaryContent).toHaveClass('px-3')
+    expect(summaryContent).not.toHaveClass('p-4')
+    expect(generatedAt).not.toHaveClass('border-t', 'border-border')
+    expect(screen.queryByText('Needs Attention')).not.toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Needs attention' })).toBeInTheDocument()
+    expect(screen.getByText(/Student One needs support/)).toBeInTheDocument()
   })
 })

@@ -918,7 +918,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               className={
                 summaryPanelCollapsed
                   ? 'flex h-10 shrink-0 cursor-ns-resize items-center justify-center gap-2 px-3 text-sm font-semibold text-text-default outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg'
-                  : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center border-b border-border text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
+                  : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
               }
               onPointerDown={handleSummaryResizeStart}
               onKeyDown={handleSummaryResizeKeyDown}
@@ -928,7 +928,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </div>
             {!summaryPanelCollapsed && (
               <>
-                <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+                <div className="flex items-center px-3 pt-3">
                   <h3 className="truncate text-sm font-semibold text-text-default">
                     Class Log Summary
                   </h3>

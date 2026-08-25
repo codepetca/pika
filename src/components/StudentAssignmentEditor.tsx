@@ -23,6 +23,7 @@ import { isValidTiptapContent } from '@/lib/tiptap-content'
 import { areJsonDocumentsEqual } from '@/lib/json-patch'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
+import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import {
   safeLocalGetJson,
   safeLocalRemove,
@@ -1723,7 +1724,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   <div key={entry.id} className="rounded-md border border-border bg-page px-3 py-2">
                     <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
                       {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Returned Comments'} . {' '}
-                      {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
+                      {formatRelativeDateTimeInToronto(entry.returned_at)}
                     </div>
                     <div className="text-sm text-text-default whitespace-pre-wrap">
                       {entry.body}
@@ -1743,12 +1744,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       {/* Submission info */}
       {isSubmitted && doc?.submitted_at && (
         <div className="text-sm text-text-muted text-center">
-          Submitted on{' '}
-          {new Date(doc.submitted_at).toLocaleString('en-CA', {
-            timeZone: 'America/Toronto',
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })}
+          Submitted {formatRelativeDateTimeInToronto(doc.submitted_at)}
         </div>
       )}
     </div>

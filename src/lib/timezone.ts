@@ -1,4 +1,4 @@
-import { format, parse } from 'date-fns'
+import { format, parse, subDays } from 'date-fns'
 import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz'
 
 const TIMEZONE = 'America/Toronto'
@@ -74,4 +74,24 @@ export function isOnTime(updatedAt: Date, dateString: string): boolean {
  */
 export function getTodayInToronto(): string {
   return formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd')
+}
+
+/**
+ * Formats a timestamp relative to the current Toronto calendar day.
+ *
+ * Examples: "Today 10:36 AM", "Yesterday 11:34 AM", "Tue Jun 23 8:21 AM".
+ */
+export function formatRelativeDateTimeInToronto(
+  value: Date | string,
+  referenceDate = new Date(),
+): string {
+  const date = typeof value === 'string' ? new Date(value) : value
+  const dateKey = formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd')
+  const todayKey = formatInTimeZone(referenceDate, TIMEZONE, 'yyyy-MM-dd')
+  const yesterdayKey = format(subDays(toTorontoTime(referenceDate), 1), 'yyyy-MM-dd')
+  const time = formatInTimeZone(date, TIMEZONE, 'h:mm a')
+
+  if (dateKey === todayKey) return `Today ${time}`
+  if (dateKey === yesterdayKey) return `Yesterday ${time}`
+  return formatInTimeZone(date, TIMEZONE, 'EEE MMM d h:mm a')
 }

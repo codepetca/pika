@@ -1,12 +1,12 @@
 # Pika–Bara attendance canary boundary
 
-Pika's default production attendance runtime remains limited to one exact Pika
-teacher and one exact Pika classroom. The global attendance flag is necessary
-but not sufficient: both UUID-valued canary variables must match the verified
-request context before Pika reads, stages, sends, receives, or reconciles
-attendance.
+In `exact_canary` mode, Pika attendance is limited to one exact Pika teacher and
+one exact Pika classroom. Production now runs in `teacher_entitlements` mode;
+an active audited teacher entitlement admits that teacher's active classrooms,
+while the exact pair remains the deployed signed-smoke scope. The global
+attendance flag is necessary but not sufficient in either mode.
 
-Required variables:
+Exact-canary mode variables:
 
 - `PIKA_BARA_ATTENDANCE_ENABLED=true`
 - `PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID=<Pika users.id>`
@@ -31,25 +31,19 @@ the authorization race, new teacher commands, QR issuance/check-in, ingress,
 claims, reconciliation selection, and attendance reads fail closed. Pika does
 not hold a database transaction or expiring lease across a Bara network call.
 
-Changing the canary requires changing both variables and redeploying. As of
-2026-08-22, production migrations through 131 are recorded as applied and the
-exact Codepet Labs canary
-completed one end-to-end roster, schedule, session, QR mark, projection, and
-duplicate-idempotency proof after both directional HMAC pairs were aligned.
-That evidence does not authorize expansion. Verify migration 131 remains
-recorded; do not reapply it, and stop for fresh authorization if it is absent.
-The deployed bidirectional smoke in
-`pika-bara-attendance-operational-recovery.md` must pass before another
-enablement or rollout-expansion decision. Run the aggregate
-deployed `--mode pre-enable` audit and smoke with both flags false for a new
-deployment; after separate enablement authorization, rerun the deployed gate
-with `--mode enabled` before the controlled flow. This boundary is intentionally
-Pika-local: Bara continues to authorize the Pika installation and never receives
-Pika internal IDs.
+Changing the canary requires changing both variables and redeploying. The exact
+Codepet Labs canary completed one end-to-end roster, schedule, session, QR mark,
+projection, and duplicate-idempotency proof on 2026-08-22 after both directional
+HMAC pairs were aligned. Production migrations through 132 are recorded as
+applied; production is enabled in `teacher_entitlements` mode, and its deployed
+signed smoke passed 4/4 on 2026-08-24. Further deployments or rollout expansion
+must use the deployed mode in the operational-recovery gate and require separate
+authorization. This boundary is intentionally Pika-local: Bara continues to
+authorize the Pika installation and never receives Pika internal IDs.
 
 The entitlement expansion keeps this exact pair as the deployed signed-smoke
-scope even when runtime admission is explicitly changed to
-`teacher_entitlements`. See
-`pika-bara-attendance-entitlement-rollout.md`. The new mode does not authorize
-all teachers: it admits only active, audited Pika teacher entitlements, and its
-flag change remains a separately authorized rollout action.
+scope while runtime admission uses `teacher_entitlements`. See
+`pika-bara-attendance-entitlement-rollout.md`. The mode does not authorize all
+teachers: it admits only active, audited Pika teacher entitlements. Additional
+entitlements and later flag changes remain separately authorized rollout
+actions.

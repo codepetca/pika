@@ -1,34 +1,36 @@
 # Pika–Bara attendance operational recovery
 
+Status: production completed this sequence through migration 132 and the
+enabled `teacher_entitlements` 4/4 deployed smoke on 2026-08-24. The steps below
+remain the control sequence for future deployments or recovery.
+
 This runbook is a control document, not authorization to deploy, migrate,
 change flags, or requeue hosted events.
 
 ## Release and smoke order
 
-1. Review and merge the Bara PR first. It adds the internal bounded event
-   recovery operation and the signed smoke endpoint, which is attendance-domain
-   mutation-free but writes bounded replay-protection state. Do not run hosted
-   recovery.
-2. Review and merge the Pika PR second. Pika main already contains migration
-   131 and the reverse signed smoke ingress; the companion PR adds the pinned
-   deployed environment gate and explicit rollout-mode proof.
-3. With both attendance flags still false, verify that the named production
-   project records Pika migration 131 as applied under the prior authorization;
-   do not reapply it. If that record is missing, stop and obtain fresh migration
-   authorization. Deploy matching Bara and Pika commits only with fresh
-   deployment authorization.
-4. Confirm the Bara production deployment completed its guarded Vercel build,
-   then invoke the deployed gate from a trusted operator environment. Bara's
-   attendance values live in Convex and are proven by this runtime round trip,
-   not by the Vercel build or a downloaded environment. The Pika
-   route runs the full Pika `pre-enable` environment audit inside the deployed
-   runtime before creating smoke replay-protection state:
+1. For future changes, review and merge the Bara change before its companion
+   Pika change so the receiving contract exists before Pika can call it. Do not
+   run hosted recovery as part of a normal release.
+2. Read-only verification must confirm that the named production project
+   records Pika migrations through 132 and that the intended runtime remains
+   `enabled` in `teacher_entitlements` mode. Do not reapply a recorded migration
+   or infer flag, entitlement, or scope authorization from this runbook. Any
+   missing record or unexpected runtime state requires a stop and a new review.
+3. Deploy matching Bara and Pika commits only with fresh deployment
+   authorization. Confirm the Bara production deployment completed its guarded
+   Vercel build before invoking the deployed gate from a trusted operator
+   environment. Bara's attendance values live in Convex and are proven by this
+   runtime round trip, not by the Vercel build or a downloaded environment.
+4. For a verification that does not change the current scope, run the deployed
+   gate with the current and target scope both fixed to
+   `teacher_entitlements`:
 
    ```bash
    pnpm attendance:smoke:deployed -- \
-     --mode pre-enable \
-     --scope-mode exact_canary \
-     --target-scope-mode exact_canary \
+     --mode enabled \
+     --scope-mode teacher_entitlements \
+     --target-scope-mode teacher_entitlements \
      --stage production \
      --expected-pika-origin "https://pika.codepet.ca"
    ```
@@ -45,7 +47,7 @@ change flags, or requeue hosted events.
    callback only for the active rate-bounded run's five-minute challenge,
    persisted as a hash and atomically consumed with its transport nonce. Output
    is aggregate only. Any skip, 401, 409, 429, 5xx, scope failure, malformed
-   response, or failed direction blocks enablement and rollout expansion.
+   response, or failed direction blocks deployment and rollout expansion.
    After successful operator authentication, a deployed-environment audit
    failure returns only fixed check identifiers and aggregate pass/total counts;
    it never returns configured values. Unauthorized responses contain neither
@@ -58,14 +60,12 @@ change flags, or requeue hosted events.
    `vercel env pull` and `vercel env run` intentionally return empty values for
    Vercel Sensitive variables. A local static audit using those downloads is
    advisory and is expected to fail closed; it is not hosted rollout evidence.
-5. Enable or expand only after separate explicit authorization, then rerun the
-   deployed smoke with `--mode enabled --scope-mode <current-runtime-mode>
-   --target-scope-mode <authorized-target-mode>`
-   before the exact controlled canary.
-   Keep every non-canary teacher/classroom disabled until the reviewed
-   entitlement migration, deployment, initial audited entitlement, and explicit
-   scope-mode change in
-   `pika-bara-attendance-entitlement-rollout.md` are separately authorized.
+5. The exact reviewed teacher/Classroom pair remains the smoke scope, while
+   runtime admission remains limited to active, audited teacher entitlements.
+   An unentitled teacher must remain disabled. Any entitlement change, flag or
+   scope-mode change, recovery operation, or rollout expansion needs separate
+   explicit authorization and must follow
+   `pika-bara-attendance-entitlement-rollout.md`.
 
 ## Preview rule when no staging database exists
 
@@ -76,7 +76,7 @@ The reverse callback also rejects before configuration or database access in
 Preview.
 That skip is expected for preview build evidence but never satisfies a
 production rollout gate. A production invocation must return `passed` with all
-three aggregate checks true.
+four aggregate checks true.
 
 Smoke runs and nonces are aggregate-only operational evidence. Each new
 production challenge removes at most 100 runs and 100 nonces older than 24

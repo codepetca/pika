@@ -175,6 +175,24 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     expect(screen.getByText('Strong effort and clear structure.')).toBeInTheDocument()
   })
 
+  it('uses relative Toronto timestamps for returned grades and submissions', async () => {
+    mockLoadResponses(
+      makeDoc({
+        feedback: 'Returned feedback.',
+        feedback_returned_at: '2026-02-20T14:00:00Z',
+        returned_at: '2026-02-20T14:00:00Z',
+        is_submitted: true,
+        submitted_at: '2026-02-20T12:00:00Z',
+        score_completion: 8,
+      }),
+    )
+
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
+
+    expect(await screen.findByText('Grade Return . Fri Feb 20 9:00 AM')).toBeInTheDocument()
+    expect(screen.getByText('Submitted Fri Feb 20 7:00 AM')).toBeInTheDocument()
+  })
+
   it('does not show saved repo metadata as separate assignment chrome', async () => {
     mockLoadResponses(
       makeDoc({
