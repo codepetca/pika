@@ -1117,3 +1117,7 @@ configuration, flag, cleanup, or attendance-data mutation was performed.
   coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
   boundaries, and the production build pass. Production remains through
   migration 132 and was not modified.
+- Targeted re-review caught and fixed a database-test false positive where the
+  allowed `roster_mappings` key matched a broad `roster_` leak substring. The
+  assertion now requires exactly the eight aggregate keys with numeric values;
+  migration 133 remains unapplied pending exact authorization.

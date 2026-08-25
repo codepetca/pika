@@ -1453,9 +1453,22 @@ begin
   if (v_after->>'fully_synced_configured_classrooms')::integer <> 1 then
     raise exception 'Pilot readiness missed the configured synced mapping: %', v_after;
   end if;
-  if v_after::text like '%a1330000%'
-    or v_after::text like '%roster_%'
-    or v_after::text like '%revision%'
+  if (select count(*) from jsonb_object_keys(v_after)) <> 8
+    or exists (
+      select 1
+      from jsonb_each(v_after) field
+      where field.key not in (
+        'effective_entitlement_count',
+        'active_classrooms',
+        'configured_classrooms',
+        'enabled_policies',
+        'unconfigured_classrooms',
+        'roster_mappings',
+        'active_mappings',
+        'fully_synced_configured_classrooms'
+      )
+        or jsonb_typeof(field.value) <> 'number'
+    )
   then
     raise exception 'Pilot readiness leaked identifiers or revisions: %', v_after;
   end if;

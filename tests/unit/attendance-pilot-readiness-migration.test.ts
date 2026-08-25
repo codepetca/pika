@@ -6,6 +6,10 @@ const migration = readFileSync(resolve(
   process.cwd(),
   'supabase/migrations/133_attendance_pilot_readiness.sql',
 ), 'utf8')
+const databaseCheck = readFileSync(resolve(
+  process.cwd(),
+  'scripts/check-bara-attendance-database.sh',
+), 'utf8')
 
 describe('attendance pilot readiness migration', () => {
   it('uses one stable aggregate statement and keeps execution service-only', () => {
@@ -23,5 +27,12 @@ describe('attendance pilot readiness migration', () => {
     expect(migration).toContain(
       'mapping.schedule_synced_revision >= mapping.schedule_source_revision',
     )
+  })
+
+  it('checks identifier-free output by exact keys and numeric values', () => {
+    expect(databaseCheck).toContain("from jsonb_each(v_after) field")
+    expect(databaseCheck).toContain("field.key not in (")
+    expect(databaseCheck).toContain("jsonb_typeof(field.value) <> 'number'")
+    expect(databaseCheck).not.toContain("v_after::text like '%roster_%'")
   })
 })
