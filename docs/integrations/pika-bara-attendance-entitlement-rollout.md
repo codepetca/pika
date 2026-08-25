@@ -122,6 +122,29 @@ for the exact new operation.
    teacher entitlements, never by adding classroom UUIDs or weakening the
    global flags.
 
+### Active-class pilot readiness
+
+Run the aggregate-only readiness check before attempting step 8. It is
+read-only, pins the production Pika and Supabase targets, scopes itself to the
+existing exact-canary teacher, and emits no teacher, classroom, roster, or
+student identifiers:
+
+```bash
+ENV_FILE="<production-env-file>" pnpm attendance:pilot:readiness -- \
+  --stage production
+```
+
+The 2026-08-25 production run confirmed one effective entitlement, one active
+classroom, one enabled attendance policy, and one fully synced opaque
+roster/schedule mapping. The teacher's production UI also showed Attendance in
+that active classroom. The check correctly remained blocked by
+`requires_at_least_two_active_classrooms` and
+`requires_unconfigured_active_classroom`. No production data, entitlement,
+configuration, flag, or schedule was changed. Complete the normal-flow save
+isolation check only when the teacher has a second intended active classroom,
+or after separate authorization naming the exact temporary production setup
+and restoration operations.
+
 ## Kill switch and rollback
 
 For an immediate incident, disable both global attendance flags. This denies
