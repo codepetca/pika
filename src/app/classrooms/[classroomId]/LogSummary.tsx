@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import type { LogSummaryActionItem } from '@/types'
 
 interface LogSummaryProps {
@@ -94,7 +95,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
   if (error) {
     return (
-      <div className="p-4">
+      <div className="px-3 pb-4 pt-2">
         <p className="text-sm text-danger">{error}</p>
       </div>
     )
@@ -106,7 +107,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
       : 'No student logs for this date.'
 
     return (
-      <div className="p-4">
+      <div className="px-3 pb-4 pt-2">
         <p className="text-sm text-text-muted">
           {message}
         </p>
@@ -116,7 +117,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
   if (!summary.overview && summary.action_items.length === 0) {
     return (
-      <div className="p-4">
+      <div className="px-3 pb-4 pt-2">
         <p className="text-sm text-text-muted">
           No notable items found in student logs.
         </p>
@@ -125,7 +126,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-3 px-3 pb-4 pt-2">
       {summary.overview && (
         <p className="text-sm text-text-default leading-relaxed">
           {summary.overview}
@@ -134,10 +135,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
       {summary.action_items.length > 0 && (
         <div>
-          <h4 className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
-            Needs Attention
-          </h4>
-          <ul className="space-y-1.5">
+          <ul aria-label="Needs attention" className="space-y-1.5">
             {summary.action_items.map((item, index) => {
               // The text starts with the student name — make it clickable
               const startsWithName = item.text.startsWith(item.studentName)
@@ -147,7 +145,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
               return (
                 <li key={index} className="text-sm text-text-default">
-                  <span className="text-warning mr-1.5">&#x25CF;</span>
+                  <span aria-hidden="true" className="text-warning mr-1.5">&#x25CF;</span>
                   {startsWithName && onStudentClick ? (
                     <>
                       <button
@@ -169,8 +167,8 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
         </div>
       )}
 
-      <p className="text-xs text-text-muted pt-2 border-t border-border">
-        Generated {new Date(summary.generated_at).toLocaleString()}
+      <p className="pt-2 text-xs text-text-muted">
+        Generated {formatRelativeDateTimeInToronto(summary.generated_at)}
       </p>
     </div>
   )

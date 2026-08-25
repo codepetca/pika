@@ -1,11 +1,11 @@
 # Native Pika attendance powered by Bara
 
-Status: local implementation and production migrations through 131 are recorded
-as applied.
-The exact production canary passed on 2026-08-22 after both HMAC pairs were
-aligned. Expansion remains blocked on completing the reviewed operational
-recovery rollout, the deployed bidirectional credential smoke, and fresh
-authorization.
+Status: local implementation and production migrations through 132 are
+recorded as applied. The exact production canary passed on 2026-08-22 after
+both HMAC pairs were aligned. Production is enabled in `teacher_entitlements`
+mode, and the deployed bidirectional smoke passed 4/4 in that mode on
+2026-08-24. Additional entitlements and remaining hosted workflow or pilot
+gates still require explicit evidence and authorization.
 
 Risk profile: `runtime-platform`.
 
@@ -88,29 +88,23 @@ that principal through the installation-scoped adapter.
 
 ## Remaining gates
 
-1. Review Bara recovery/smoke first, then Pika no-claim handling and smoke gate.
-   Verify the named production project still records migration 131 as applied;
-   do not edit, dry-run, or reapply migrations 129-131. If 131 is absent, stop
-   and obtain fresh migration authorization.
-2. Deploy matching reviewed commits only under separate authorization. Run the
-   guarded Bara production build and the deployed Pika `--mode pre-enable`
-   environment audit plus bidirectional smoke before any later enablement or
-   expansion decision. Downloaded Vercel Sensitive values are not audit
-   evidence because Vercel redacts them.
-3. Preserve the exact canary only. Its roster, schedule, session, QR mark,
-   projection, and duplicate-idempotency path passed on 2026-08-22. Nine
-   credential-era failed events remain untouched; snapshot reconciliation
-   restored current state. Recover them only under the separately authorized,
-   bounded requeue/supersede runbook.
-4. There is no staging database. Preview records a production-only smoke skip
+1. Preserve the exact pair as the deployed smoke scope. Its roster, schedule,
+   session, QR mark, projection, and duplicate-idempotency path passed on
+   2026-08-22; the enabled teacher-entitlement smoke passed on 2026-08-24. Nine
+   credential-era failed events remain untouched. Recover them only under the
+   separately authorized, bounded requeue/supersede runbook.
+2. Verify the entitled teacher sees Attendance in every active classroom, a
+   classroom without hours reports not configured, and saving hours produces
+   only that classroom's opaque roster and schedule.
+3. There is no staging database. Preview records a production-only smoke skip
    and must never target production. Hosted load testing remains blocked until
    an isolated non-production database is explicitly provisioned.
-5. Visually and functionally verify teacher and student flows on desktop/mobile
+4. Visually and functionally verify teacher and student flows on desktop/mobile
    and light/dark, including loading, success, duplicate, unmatched, invalid,
    closed, and unavailable states.
-6. Before another exact-canary run, rerun the deployed gate with `--mode
-   enabled`; it performs the Pika runtime preflight before the signed smoke.
-   Expansion beyond that pair is a separate decision.
+5. Grant additional teacher entitlements only under separate authorization and
+   rerun the deployed `enabled`/`teacher_entitlements` gate for future releases
+   or scope-sensitive changes.
 
 Archive-v2 does not yet know how to decommission Bara authority. Soft
 archive/restore preserves attendance rows, but compaction and permanent purge
