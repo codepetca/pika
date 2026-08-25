@@ -1,8 +1,10 @@
 # Bara attendance adapter v1
 
-Status: local adapter and native student flow implemented; hosted gates remain.
+Status: local adapter and native student flow implemented; the production
+teacher-entitlement rollout is enabled, while hosted workflow and pilot gates
+remain.
 Pure v1 types, validators, provider fixtures, and signing are vendored
-from Bara, and the disabled Pika server client can send a signed roster
+from Bara, and the feature-gated Pika server client can send a signed roster
 or materialized schedule snapshot plus authorized open/close commands to
 Bara's tested adapter. Pika now has a signed event-ingress route, transactional
 inbox, and monotonic session/record projections; Bara delivers through a leased
@@ -23,13 +25,13 @@ entry URL, and keeps the raw Bara token out of Pika persistence and logs. The
 student stays in Pika, which derives the actor from its verified server session
 and renders Bara's synchronous authoritative result.
 The additive Supabase history was replayed from scratch against the disposable
-local stack before hosted use. Production migrations through 131 are now
-recorded as applied to the named Pika project under separate authorization, and
-the exact canary has prior evidence; no broader production rollout is enabled.
-The additive teacher-entitlement design is documented in
-`pika-bara-attendance-entitlement-rollout.md`; it remains exact-canary by
-default and requires migration 132 plus separate deployment, entitlement, and
-scope-mode authorizations.
+local stack before hosted use. Production migrations through 132 are recorded
+as applied to the named Pika project under separate authorization. The exact
+canary passed its real workflow on 2026-08-22, and the deployed signed smoke
+passed 4/4 on 2026-08-24 with `teacher_entitlements` as both current and target
+scope. The entitlement design and authorization rules remain documented in
+`pika-bara-attendance-entitlement-rollout.md`; active audited entitlements, not
+the mode flag alone, admit teachers.
 
 Automatic schedule materialization is now wired locally: a daily,
 secret-protected Pika worker advances a rolling 90-day class-day horizon for
@@ -51,11 +53,11 @@ read-only teacher route joins authoritative projections through those mappings
 and strips all opaque service references before returning browser-facing state.
 It returns a disabled view without touching integration tables while the
 feature is not ready. Migration 127 provides the base schema; the completed
-production canary proof additionally used migrations 129 and 130. This
-operational-recovery release requires verifying that the prior authorized
-migration 131 remains recorded as applied, without reapplying it, and both
-global attendance flags remaining false until the exact-pair deployed
-pre-enable gate passes. If 131 is absent, stop for fresh authorization.
+production canary proof additionally used migrations 129 and 130. Migration 131
+added the deployed bidirectional smoke, and migration 132 added audited teacher
+entitlements. Production records all four, and the enabled teacher-entitlement
+smoke passed on 2026-08-24. Future migration, deployment, flag, or entitlement
+changes still require their own authorization.
 
 Pika also exposes an authenticated owner-only attendance-policy API backed by
 an optimistic-concurrency RPC. This supplies the missing local class window for
@@ -174,15 +176,12 @@ such as a Convex ID fails the request.
 
 The complete ownership, privacy, route, event, versioning, and acceptance
 baseline is maintained in Bara's
-`docs/system/pika-bara-contract-v1.md`. The current recovery gate verifies the
-prior authorized production application of Pika migration 131 while attendance
-is disabled and never reapplies it, followed by the deployed signed
-`pre-enable` round trip. If 131 is absent, stop for fresh authorization. Only
-after that gate passes and enablement is
-separately authorized may the exact canary rerun its real
-roster/schedule/session/mark/event/snapshot/QR flow. The Attendance UI remains
-disabled by configuration until those gates pass. Its teacher flow, state
-family, and Pika-owned view-model boundary are maintained in
+`docs/system/pika-bara-contract-v1.md`. The production recovery and entitlement
+gates have completed through migration 132: attendance is enabled in
+`teacher_entitlements` mode and the deployed signed 4/4 smoke passed on
+2026-08-24. The exact pair remains the smoke scope, while runtime admission
+requires an active audited teacher entitlement. Its teacher flow, state family,
+and Pika-owned view-model boundary are maintained in
 `docs/guidance/pika-attendance-teacher-surface-v1.md`.
 
 Attendance integration state is intentionally nonportable in archive-v2.
@@ -216,12 +215,12 @@ omits the Brevo delivery contract, or reuses session/cron/transport/event/entry
 secrets. Output contains only aggregate
 counts and failed check identifiers; it never includes configured values.
 
-Example operator shape:
+Current production operator shape:
 
 ```bash
 pnpm attendance:rollout:preflight -- \
-  --mode pre-enable \
-  --scope-mode exact_canary \
+  --mode enabled \
+  --scope-mode teacher_entitlements \
   --stage production \
   --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
   --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
@@ -240,11 +239,11 @@ and aggregate zero counts of unresolved legacy outbox rows with missing or
 stale entitlement revisions. A failed local audit must not be rewritten as a pass.
 
 This environment preflight does not replace the database gate. Production
-migrations through 131 are recorded as applied under prior authorization.
-Before enabling this operational-recovery release, verify remote migration
-history still includes 131 while both global flags remain false; do not dry-run
-or reapply it. If that record is missing, stop and obtain fresh migration
-authorization. Otherwise continue with the deployed pre-enable gate.
+migrations through 132 are recorded as applied under prior authorization, and
+the enabled `teacher_entitlements` smoke passed on 2026-08-24. Do not rerun the
+completed pre-enable sequence or reapply those migrations. For a future
+deployment or scope transition, verify current migration and runtime state,
+then use the mode that is actually deployed under fresh authorization.
 
 The hosted scan measurement procedure is deliberately separate from this
 environment audit. Follow `docs/integrations/bara-attendance-scan-load.md`
@@ -266,7 +265,7 @@ count toward that limit or incur compute charges. Do not resume or repurpose
 no-charge route to a future hosted load test is to obtain explicit permission
 to pause one named active project, provision a fresh Pika Preview target, and
 then obtain the separate one-time authorization required by the schema rollout
-checklist to apply the complete migration history through 131 to that target.
+checklist to apply the complete migration history through 132 to that target.
 
 References: [Supabase Free Plan billing](https://supabase.com/docs/guides/platform/billing-on-supabase)
 and [project pausing](https://supabase.com/docs/guides/platform/free-project-pausing).
