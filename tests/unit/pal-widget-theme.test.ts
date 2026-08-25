@@ -75,6 +75,20 @@ describe('Pika to Pal widget theme adapter', () => {
     expect(adapter).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|\d+(?:\.\d+)?(?:px|rem|ms)\b/i)
   })
 
+  it('keeps the companion fixed, non-interactive, and inside mobile safe areas', () => {
+    const placement = adapter.match(/\.bottomRight\s*\{([^}]+)\}/)?.[1]
+
+    expect(placement).toContain('position: fixed;')
+    expect(placement).toContain('pointer-events: none;')
+    expect(placement).toContain('z-index: var(--layer-floating);')
+    expect(placement).toContain(
+      'right: calc(var(--density-comfortable-gutter) + env(safe-area-inset-right));',
+    )
+    expect(placement).toContain(
+      'bottom: calc(var(--density-comfortable-gutter) + env(safe-area-inset-bottom));',
+    )
+  })
+
   it('tracks the scoped appearance values Pika must pass to PalProvider', () => {
     expect(PAL_THEME_ATTRIBUTES).toEqual({
       density: ['compact', 'comfortable'],

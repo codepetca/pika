@@ -1056,9 +1056,10 @@ cross-browser verification and a bounded independent review.
 - Made the Pika-owned companion host explicitly use a non-interactive
   bottom-right placement contract backed by Pika spacing/layer tokens and iOS
   safe-area insets.
-- Added focused coverage for the placement contract while preserving the
-  existing test-surface suppression and Pal failure boundary behavior.
-- The focused suite passes (13/13), the full Vitest suite passes
+- Added component and stylesheet contract coverage for the placement invariant
+  while preserving the existing test-surface suppression and Pal failure
+  boundary behavior.
+- The focused suites pass (19/19), the full Vitest suite passes
   (5,081/5,081), and lint, TypeScript, architecture, design, UI, and diff gates
   are clean after rebasing onto current `main`.
 - Playwright visual verification passed for student desktop/mobile in light and
