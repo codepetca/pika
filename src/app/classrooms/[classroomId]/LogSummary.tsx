@@ -135,7 +135,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
       {summary.action_items.length > 0 && (
         <div>
-          <ul className="space-y-1.5">
+          <ul aria-label="Needs attention" className="space-y-1.5">
             {summary.action_items.map((item, index) => {
               // The text starts with the student name — make it clickable
               const startsWithName = item.text.startsWith(item.studentName)
@@ -145,7 +145,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
 
               return (
                 <li key={index} className="text-sm text-text-default">
-                  <span className="text-warning mr-1.5">&#x25CF;</span>
+                  <span aria-hidden="true" className="text-warning mr-1.5">&#x25CF;</span>
                   {startsWithName && onStudentClick ? (
                     <>
                       <button

@@ -93,6 +93,7 @@ describe('LogSummary', () => {
     expect(summaryContent).not.toHaveClass('p-4')
     expect(generatedAt).not.toHaveClass('border-t', 'border-border')
     expect(screen.queryByText('Needs Attention')).not.toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Needs attention' })).toBeInTheDocument()
     expect(screen.getByText(/Student One needs support/)).toBeInTheDocument()
   })
 })

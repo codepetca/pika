@@ -1127,7 +1127,8 @@ content, resizing behavior, API contracts, schema, and student surfaces are unch
   left edge across ready, pending, empty, and error states, with a normal 8px
   title-to-copy gap.
 - Removed the redundant Needs Attention label while preserving the warning dot
-  and linked student name.
+  and linked student name. The list retains a nonvisual accessible name and the
+  decorative dot is hidden from assistive technology.
 - Added the shared Toronto-aware `formatRelativeDateTimeInToronto` helper for
   `Today`, `Yesterday`, and compact older timestamps, including DST-boundary
   coverage, and adopted it for the generated-summary label.
