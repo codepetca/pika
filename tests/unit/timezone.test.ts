@@ -110,6 +110,13 @@ describe('timezone utilities', () => {
         .toBe('Today 10:36 AM')
     })
 
+    it('accepts a Date value', () => {
+      expect(formatRelativeDateTimeInToronto(
+        new Date('2026-06-25T14:36:00.000Z'),
+        referenceDate,
+      )).toBe('Today 10:36 AM')
+    })
+
     it('uses Yesterday for the previous Toronto calendar day', () => {
       expect(formatRelativeDateTimeInToronto('2026-06-24T15:34:00.000Z', referenceDate))
         .toBe('Yesterday 11:34 AM')
