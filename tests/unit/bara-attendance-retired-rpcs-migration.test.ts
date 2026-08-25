@@ -31,45 +31,39 @@ const operationalRecovery = readFileSync(
   resolve(process.cwd(), 'docs/integrations/pika-bara-attendance-operational-recovery.md'),
   'utf8',
 )
+const entitlementRollout = readFileSync(
+  resolve(process.cwd(), 'docs/integrations/pika-bara-attendance-entitlement-rollout.md'),
+  'utf8',
+)
 
-function extractShellCommands(markdown: string): string[] {
-  const blocks = Array.from(
-    markdown.matchAll(/```(?:bash|sh|shell|zsh)\s*\n([\s\S]*?)\n```/g),
-    ([, block]) => block,
+const currentProductionPreflight =
+  'pnpm attendance:rollout:preflight -- \\\n' +
+  '  --mode enabled \\\n' +
+  '  --scope-mode teacher_entitlements \\\n' +
+  '  --stage production \\\n' +
+  '  --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \\\n' +
+  '  --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \\\n' +
+  '  --expected-pika-origin "https://pika.codepet.ca" \\\n' +
+  '  --expected-bara-api-origin "$BARA_PRODUCTION_CONVEX_SITE_ORIGIN"'
+
+function extractShellFences(markdown: string): Array<{ language: string; body: string }> {
+  return Array.from(
+    markdown.matchAll(/```(bash|sh|shell|zsh)\s*\n([\s\S]*?)\n```/g),
+    ([, language, body]) => ({ language, body }),
   )
-
-  return blocks.flatMap((block) => {
-    const commands: string[] = []
-    let continuedCommand = ''
-
-    for (const rawLine of block.split('\n')) {
-      const line = rawLine.trim()
-      if (!line || line.startsWith('#')) continue
-
-      const continues = /\\\s*$/.test(line)
-      const fragment = line.replace(/\\\s*$/, '').trim()
-      continuedCommand = `${continuedCommand} ${fragment}`.trim()
-
-      if (!continues) {
-        commands.push(continuedCommand)
-        continuedCommand = ''
-      }
-    }
-
-    if (continuedCommand) commands.push(continuedCommand)
-    return commands
-  })
 }
 
-function hasStaleProductionPreflight(markdown: string): boolean {
-  const commands = extractShellCommands(markdown)
+function hasExactCurrentProductionPreflight(markdown: string): boolean {
+  const invocationCount = (markdown.match(/pnpm attendance:rollout:preflight --/g) ?? []).length
+  const preflightFences = extractShellFences(markdown).filter(({ body }) =>
+    body.includes('pnpm attendance:rollout:preflight --'),
+  )
 
-  return commands.some(
-    (command) =>
-      command.includes('pnpm attendance:rollout:preflight --') &&
-      /(?:^|\s)--stage(?:\s+|=)production(?:\s|$)/.test(command) &&
-      /(?:^|\s)--mode(?:\s+|=)pre-enable(?:\s|$)/.test(command) &&
-      /(?:^|\s)--scope-mode(?:\s+|=)exact_canary(?:\s|$)/.test(command),
+  return (
+    invocationCount === 1 &&
+    preflightFences.length === 1 &&
+    preflightFences[0]?.language === 'bash' &&
+    preflightFences[0]?.body === currentProductionPreflight
   )
 }
 
@@ -109,18 +103,8 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(v1Guide).toContain('Production migrations through 132 are recorded\nas applied to the named Pika project')
     expect(v1Guide).not.toContain('It has not been applied to a\nhosted environment')
     expect(v1Guide).not.toContain('hosted configured reads remain gated on applying migration 127')
-    expect(v1Guide).toContain(
-      'Current production operator shape:\n\n```bash\n' +
-        'pnpm attendance:rollout:preflight -- \\\n' +
-        '  --mode enabled \\\n' +
-        '  --scope-mode teacher_entitlements \\\n' +
-        '  --stage production \\\n' +
-        '  --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \\\n' +
-        '  --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \\\n' +
-        '  --expected-pika-origin "https://pika.codepet.ca" \\\n' +
-        '  --expected-bara-api-origin "$BARA_PRODUCTION_CONVEX_SITE_ORIGIN"\n```',
-    )
-    expect(hasStaleProductionPreflight(v1Guide)).toBe(false)
+    expect(v1Guide).toContain('Current production operator shape:')
+    expect(hasExactCurrentProductionPreflight(v1Guide)).toBe(true)
     expect(canaryRunbook).toContain('Production migrations through 132 are recorded as\napplied')
     expect(canaryRunbook).toContain('signed smoke passed 4/4 on 2026-08-24')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
@@ -146,53 +130,29 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(operationalRecovery).not.toContain(
       '--mode pre-enable \\\n     --scope-mode exact_canary',
     )
+    expect(entitlementRollout).toContain('## Completed initial release record')
+    expect(entitlementRollout).toContain(
+      'Do not execute it as a current production checklist or reapply migration 132',
+    )
+    expect(entitlementRollout).not.toContain(
+      'below remains the control sequence for future transitions',
+    )
   })
 
-  it('rejects stale production preflight blocks regardless of option order', () => {
-    expect(
-      hasStaleProductionPreflight(
-        '```bash\npnpm attendance:rollout:preflight -- \\\n' +
-          '  --mode pre-enable \\\n' +
-          '  --scope-mode exact_canary \\\n' +
-          '  --stage production\n```',
-      ),
-    ).toBe(true)
-    expect(
-      hasStaleProductionPreflight(
-        '```bash\npnpm attendance:rollout:preflight -- \\\n' +
-          '  --stage production \\\n' +
-          '  --scope-mode exact_canary \\\n' +
-          '  --mode pre-enable\n```',
-      ),
-    ).toBe(true)
-    expect(
-      hasStaleProductionPreflight(
-        'Historical pre-enable exact_canary production sequence.\n\n' +
-          '```bash\npnpm attendance:rollout:preflight -- \\\n' +
-          '  --mode pre-enable \\\n' +
-          '  --scope-mode exact_canary \\\n' +
-          '  --stage preview\n```',
-      ),
-    ).toBe(false)
-    expect(
-      hasStaleProductionPreflight(
-        '```bash\npnpm attendance:rollout:preflight -- \\\n' +
-          '  --mode enabled \\\n' +
-          '  --scope-mode teacher_entitlements \\\n' +
-          '  --stage production\n' +
-          'pnpm attendance:rollout:preflight -- \\\n' +
-          '  --mode pre-enable \\\n' +
-          '  --scope-mode exact_canary \\\n' +
-          '  --stage preview\n```',
-      ),
-    ).toBe(false)
-    expect(
-      hasStaleProductionPreflight(
-        '```sh\npnpm attendance:rollout:preflight -- \\\n' +
-          '  --stage=production \\\n' +
-          '  --scope-mode=exact_canary \\\n' +
-          '  --mode=pre-enable\n```',
-      ),
-    ).toBe(true)
+  it('enforces a single-purpose current production preflight block', () => {
+    const historicalProse = 'Historical pre-enable exact_canary production sequence.\n\n'
+    const currentGuide = `${historicalProse}\`\`\`bash\n${currentProductionPreflight}\n\`\`\``
+    expect(hasExactCurrentProductionPreflight(currentGuide)).toBe(true)
+
+    const mixedCommands =
+      `${currentGuide}\n\n\`\`\`sh\n` +
+      'pnpm attendance:rollout:preflight -- --mode pre-enable --scope-mode exact_canary --stage preview\n```'
+    expect(hasExactCurrentProductionPreflight(mixedCommands)).toBe(false)
+
+    for (const language of ['bash', 'sh', 'shell', 'zsh']) {
+      expect(extractShellFences(`\`\`\`${language}\necho verified\n\`\`\``)).toEqual([
+        { language, body: 'echo verified' },
+      ])
+    }
   })
 })

@@ -1,8 +1,9 @@
 # Pika–Bara attendance entitlement rollout
 
 Status: production records migration 132, runs in `teacher_entitlements` mode,
-and passed the enabled 4/4 deployed smoke on 2026-08-24. The ordered procedure
-below remains the control sequence for future transitions.
+and passed the enabled 4/4 deployed smoke on 2026-08-24. The completed initial
+release sequence below is retained as audit history, not as a checklist for
+future transitions.
 
 This runbook is a control document. It does not authorize a migration,
 deployment, entitlement change, flag change, smoke invocation, or production
@@ -55,7 +56,14 @@ An entitlement ending during the 90-day horizon is scheduled conservatively
 only through the Toronto calendar day before expiry. The worker later performs
 the same deactivation path after expiry.
 
-## Release order
+## Completed initial release record
+
+The following sequence records how the initial entitlement rollout completed.
+Do not execute it as a current production checklist or reapply migration 132.
+Future deployments, scope changes, or migrations must start with read-only
+verification of the current migration and runtime state, follow
+`pika-bara-attendance-operational-recovery.md`, and receive fresh authorization
+for the exact new operation.
 
 1. Review and merge the Bara contract/test PR first. It proves empty-schedule
    cancellation preserves an already-open occurrence and adds no Pika IDs or

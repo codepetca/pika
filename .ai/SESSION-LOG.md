@@ -1124,3 +1124,7 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
 - Final parser remediation reconstructs individual continued commands across
   common shell fence labels, preventing cross-command false positives and
   catching reordered or equals-form stale production flags.
+- With an explicitly extended review budget, replaced the growing shell parser
+  with an exact single-purpose preflight-fence contract and labeled the
+  migration-132 rollout sequence as completed audit history rather than future
+  operator instructions.
