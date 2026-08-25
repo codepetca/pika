@@ -5,7 +5,8 @@ directional HMAC pairs were aligned. Production migrations through 132 are
 recorded as applied, production is enabled in `teacher_entitlements` mode, and
 the deployed signed smoke passed 4/4 in that mode on 2026-08-24. Additional
 entitlements and remaining hosted workflow or pilot gates require separate
-evidence and authorization.
+evidence and authorization. The atomic aggregate readiness RPC in proposed
+migration 133 has not been applied.
 
 This ledger prevents local test evidence from being mistaken for a rollout.
 Paths are relative to the owning repository: this Pika worktree or the sibling
@@ -24,7 +25,7 @@ Bara worktree.
 | Immediate events plus recovery | Complete. Bara attempts delivery after commit and keeps leased cron/outbox recovery. Pika commits inbox receipt and monotonic projection atomically and reconciles from authoritative snapshots. Local Supabase reset/replay proves migration execution, RLS/privileges, dependency ordering, and deletion guards. | Hosted event reordering and outage recovery remain unproved; an adequately frequent hosted outbox trigger is not configured. |
 | Exact-time schedule jobs plus recovery | Complete. Bara owns exact open/close jobs and a recovery sweep; Pika sends concrete UTC intent generated from its class days and teacher policy. Schedule revision/removal tests preserve opened/closed history. | Hosted scheduler timing and schedule-change round trips remain unproved. |
 | Timeout and retention policy | Complete and documented in the v1 contract. Bara retains request nonces for 24 hours and idempotency results for 30 days with bounded cleanup. Pika distinguishes definitive results from uncertain transport outcomes. | Operational cron cadence/alerting remains a pilot gate. |
-| Native Pika teacher client | Complete locally. The Attendance surface, policy, sync, QR, session, marks, corrections, durable pending state, projection, and recovery workers are Pika-owned. WorkOS is verified locally; outbound commands carry only the mapped Pika principal. Retryable delivery uncertainty returns pending and survives reload from the durable outbox. | Real teacher correction and lifecycle flows remain unproved. |
+| Native Pika teacher client | Complete locally. The Attendance surface, policy, sync, QR, session, marks, corrections, durable pending state, projection, and recovery workers are Pika-owned. WorkOS is verified locally; outbound commands carry only the mapped Pika principal. Retryable delivery uncertainty returns pending and survives reload from the durable outbox. | The entitled teacher saw Attendance in the sole active production classroom on 2026-08-25. That classroom's enabled policy and opaque roster/schedule mapping were fully synced. The unconfigured and cross-class save checks remain blocked because this teacher has no second active classroom. Real teacher correction and lifecycle flows remain unproved. |
 | Native Pika student client | Complete locally. The QR opens a Pika URL; the raw Bara token is encrypted in a Pika-owned entry token and is not persisted. The server derives the student only from the verified Pika session and renders Bara's authoritative success/duplicate/invalid/closed/needs-help/unavailable state. | Real student mobile/login/scan flows remain unproved. |
 | Exact production canary boundary | Complete locally. The global flag is combined with an exact Pika teacher/classroom UUID pair in `exact_canary` mode; `teacher_entitlements` mode instead requires an active audited teacher grant. Student tokens bind the classroom; inbound events and schedule/reconciliation/outbox workers use scoped RPCs. Focused tests and a full local reset prove fail-closed behavior. | Production migrations through 132 are recorded as applied. The exact canary passed roster, schedule, session, QR mark revision 1, Pika projection, and duplicate-idempotency proof on 2026-08-22. Production now uses `teacher_entitlements`; the exact pair remains the smoke scope. |
 | Versioned contract fixtures and isolation | Complete. Bara is the v1 source and Pika vendors byte-identical closed types, validators, signing, and fixtures. Tests cover replay, idempotency conflicts, revision ordering, opaque mappings, tenant fences, and forbidden internal identifiers. A deployed bidirectional smoke gate is implemented with exact-canary database binding, separate HMAC legs, replay/rate bounds, and aggregate-only output. | The enabled `teacher_entitlements` gate passed 4/4 in production on 2026-08-24. Future deployments and scope-sensitive changes still require the authorized deployed gate; local tests are not hosted evidence. |
@@ -36,7 +37,13 @@ Bara worktree.
 
 1. Verify the entitled teacher sees Attendance in every active classroom, a
    classroom without hours reports not configured, and saving hours produces
-   only that classroom's opaque roster and schedule.
+   only that classroom's opaque roster and schedule. The aggregate-only
+   initial read-only inventory recorded one configured, fully synced active
+   classroom on 2026-08-25 and made no production changes. The hardened
+   `attendance:pilot:readiness` operator requires proposed migration 133. The
+   workflow remains blocked until a second intended active classroom is
+   available or an exact temporary setup and restoration is separately
+   authorized.
 2. Prove real teacher and student roster/schedule/lifecycle/mark/correction/QR,
    duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
    flows under the enabled entitlement boundary.

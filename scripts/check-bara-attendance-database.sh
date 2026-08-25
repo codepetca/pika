@@ -66,6 +66,13 @@ begin
   ) is null then
     raise exception 'Migration 132 is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '133'
+  ) or to_regprocedure(
+    'public.get_attendance_pilot_readiness_v1(uuid,timestamptz)'
+  ) is null then
+    raise exception 'Migration 133 is not applied to the local database';
+  end if;
 end;
 $migration$;
 
@@ -192,6 +199,18 @@ begin
     )
   then
     raise exception 'Attendance entitlement functions are exposed';
+  end if;
+  if has_function_privilege(
+      'authenticated',
+      'public.get_attendance_pilot_readiness_v1(uuid,timestamptz)',
+      'execute'
+    ) or not has_function_privilege(
+      'service_role',
+      'public.get_attendance_pilot_readiness_v1(uuid,timestamptz)',
+      'execute'
+    )
+  then
+    raise exception 'Attendance pilot readiness function is exposed';
   end if;
 end;
 $privileges$;
@@ -1357,6 +1376,104 @@ begin
   end if;
 end;
 $smoke_challenge$;
+
+do $pilot_readiness$
+declare
+  v_before jsonb;
+  v_after jsonb;
+begin
+  insert into public.users (id, email, role, workos_user_id) values (
+    'a1330000-0000-4000-8000-000000000001',
+    'attendance-pilot-readiness@example.test',
+    'teacher',
+    'user_attendance_pilot_readiness'
+  );
+  insert into public.classrooms (id, teacher_id, title, class_code) values
+    (
+      'a1330000-0000-4000-8000-000000000010',
+      'a1330000-0000-4000-8000-000000000001',
+      'Configured attendance pilot Class',
+      'A13310'
+    ),
+    (
+      'a1330000-0000-4000-8000-000000000011',
+      'a1330000-0000-4000-8000-000000000001',
+      'Unconfigured attendance pilot Class',
+      'A13311'
+    );
+  insert into public.attendance_teacher_entitlements (
+    teacher_id, status, valid_from, valid_until, revision, source
+  ) values (
+    'a1330000-0000-4000-8000-000000000001',
+    'active',
+    '2026-08-01T00:00:00Z',
+    null,
+    1,
+    'database_guard'
+  );
+  insert into public.attendance_window_policies (
+    classroom_id, opens_local, closes_local
+  ) values (
+    'a1330000-0000-4000-8000-000000000010', '09:00', '10:00'
+  );
+  insert into public.attendance_roster_mappings (
+    classroom_id, source_revision, synced_revision,
+    schedule_source_revision, schedule_synced_revision
+  ) values (
+    'a1330000-0000-4000-8000-000000000011', 2, 2, 3, 3
+  );
+
+  select public.get_attendance_pilot_readiness_v1(
+    'a1330000-0000-4000-8000-000000000001',
+    '2026-08-25T16:00:00Z'
+  ) into v_before;
+  if v_before <> jsonb_build_object(
+    'effective_entitlement_count', 1,
+    'active_classrooms', 2,
+    'configured_classrooms', 1,
+    'enabled_policies', 1,
+    'unconfigured_classrooms', 1,
+    'roster_mappings', 1,
+    'active_mappings', 1,
+    'fully_synced_configured_classrooms', 0
+  ) then
+    raise exception 'Pilot readiness counted an unconfigured mapping as configured: %', v_before;
+  end if;
+
+  insert into public.attendance_roster_mappings (
+    classroom_id, source_revision, synced_revision,
+    schedule_source_revision, schedule_synced_revision
+  ) values (
+    'a1330000-0000-4000-8000-000000000010', 4, 4, 5, 5
+  );
+  select public.get_attendance_pilot_readiness_v1(
+    'a1330000-0000-4000-8000-000000000001',
+    '2026-08-25T16:00:00Z'
+  ) into v_after;
+  if (v_after->>'fully_synced_configured_classrooms')::integer <> 1 then
+    raise exception 'Pilot readiness missed the configured synced mapping: %', v_after;
+  end if;
+  if (select count(*) from jsonb_object_keys(v_after)) <> 8
+    or exists (
+      select 1
+      from jsonb_each(v_after) field
+      where field.key not in (
+        'effective_entitlement_count',
+        'active_classrooms',
+        'configured_classrooms',
+        'enabled_policies',
+        'unconfigured_classrooms',
+        'roster_mappings',
+        'active_mappings',
+        'fully_synced_configured_classrooms'
+      )
+        or jsonb_typeof(field.value) <> 'number'
+    )
+  then
+    raise exception 'Pilot readiness leaked identifiers or revisions: %', v_after;
+  end if;
+end;
+$pilot_readiness$;
 
 rollback;
 SQL
