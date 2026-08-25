@@ -32,15 +32,44 @@ const operationalRecovery = readFileSync(
   'utf8',
 )
 
-function hasStaleProductionPreflight(markdown: string): boolean {
-  const bashBlocks = Array.from(markdown.matchAll(/```bash\s*\n([\s\S]*?)\n```/g), ([, block]) => block)
+function extractShellCommands(markdown: string): string[] {
+  const blocks = Array.from(
+    markdown.matchAll(/```(?:bash|sh|shell|zsh)\s*\n([\s\S]*?)\n```/g),
+    ([, block]) => block,
+  )
 
-  return bashBlocks.some(
-    (block) =>
-      block.includes('pnpm attendance:rollout:preflight --') &&
-      block.includes('--stage production') &&
-      block.includes('--mode pre-enable') &&
-      block.includes('--scope-mode exact_canary'),
+  return blocks.flatMap((block) => {
+    const commands: string[] = []
+    let continuedCommand = ''
+
+    for (const rawLine of block.split('\n')) {
+      const line = rawLine.trim()
+      if (!line || line.startsWith('#')) continue
+
+      const continues = /\\\s*$/.test(line)
+      const fragment = line.replace(/\\\s*$/, '').trim()
+      continuedCommand = `${continuedCommand} ${fragment}`.trim()
+
+      if (!continues) {
+        commands.push(continuedCommand)
+        continuedCommand = ''
+      }
+    }
+
+    if (continuedCommand) commands.push(continuedCommand)
+    return commands
+  })
+}
+
+function hasStaleProductionPreflight(markdown: string): boolean {
+  const commands = extractShellCommands(markdown)
+
+  return commands.some(
+    (command) =>
+      command.includes('pnpm attendance:rollout:preflight --') &&
+      /(?:^|\s)--stage(?:\s+|=)production(?:\s|$)/.test(command) &&
+      /(?:^|\s)--mode(?:\s+|=)pre-enable(?:\s|$)/.test(command) &&
+      /(?:^|\s)--scope-mode(?:\s+|=)exact_canary(?:\s|$)/.test(command),
   )
 }
 
@@ -145,5 +174,25 @@ describe('retired unscoped Bara attendance RPC migration', () => {
           '  --stage preview\n```',
       ),
     ).toBe(false)
+    expect(
+      hasStaleProductionPreflight(
+        '```bash\npnpm attendance:rollout:preflight -- \\\n' +
+          '  --mode enabled \\\n' +
+          '  --scope-mode teacher_entitlements \\\n' +
+          '  --stage production\n' +
+          'pnpm attendance:rollout:preflight -- \\\n' +
+          '  --mode pre-enable \\\n' +
+          '  --scope-mode exact_canary \\\n' +
+          '  --stage preview\n```',
+      ),
+    ).toBe(false)
+    expect(
+      hasStaleProductionPreflight(
+        '```sh\npnpm attendance:rollout:preflight -- \\\n' +
+          '  --stage=production \\\n' +
+          '  --scope-mode=exact_canary \\\n' +
+          '  --mode=pre-enable\n```',
+      ),
+    ).toBe(true)
   })
 })

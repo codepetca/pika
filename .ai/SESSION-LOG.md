@@ -1121,3 +1121,6 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
 - Rereview hardened that regression to inspect fenced preflight commands
   independent of option order while allowing historical prose and preview-only
   pre-enable examples.
+- Final parser remediation reconstructs individual continued commands across
+  common shell fence labels, preventing cross-command false positives and
+  catching reordered or equals-form stale production flags.
