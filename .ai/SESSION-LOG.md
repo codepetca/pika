@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-19 — Close unbounded encoded-path package bypass
-
-**Risk profile:** high — untrusted package semantic boundary and write-path
-authorization; no schema migration, production operation, dependency, or UI
-change.
-
-- Rebased PR B onto `origin/main` at `370750d7`; the only conflict was historical
-  continuity archive content, resolved in favor of current `main`. No migrations
-  were added or renamed and no task stash remains.
-- Replaced fixed encoded-slash depth enumeration with a grammar-based candidate
-  recognizer: a boundary-leading percent sign, any number of encoded-percent
-  `25` layers, and a final encoded slash `2f` are handed to the centralized
-  bounded decoder. Over-depth values therefore reach its fail-closed policy.
-- Added direct bundle/JSON/TAR parity and import/proposal no-write coverage for a
-  four-times-encoded managed path, while proving ordinary percent text remains
-  portable.
-- Refreshed this worktree from the already-committed frozen lockfile after the
-  rebase so current `main`'s Pal alpha.3 tests used alpha.3 instead of stale
-  alpha.2 installation state; this PR changes no dependency declarations.
-- Full verification passes 4,611 tests across 505 files, lint, type checking,
-  and the production build. Visual verification is not applicable because this
-  change has no UI surface.
-
 ## 2026-08-19 — Close proposal TAR transport parity gap
 
 **Risk profile:** high — untrusted package transport dispatch at both
@@ -1138,3 +1115,24 @@ content, resizing behavior, API contracts, schema, and student surfaces are unch
   verification passed for teacher desktop/mobile in light/dark themes using an
   isolated exact-class harness because the shared local environment has no
   Supabase test credentials. Student is not applicable to this teacher-only panel.
+
+## 2026-08-25 — Adopt relative assignment timestamps
+
+**Risk profile:** none — teacher/student assignment timestamp presentation only;
+no assignment state, API contract, schema, persistence, or layout behavior changed.
+
+- Adopted the shared Toronto-relative date formatter for the live teacher
+  saved-version preview, student returned-feedback timestamps, and student
+  submission labels. The unreferenced legacy `TeacherStudentWorkModal` remains
+  unchanged rather than broadening this work into its unrelated audit debt.
+- Preserved the student's exact saved-version date in the restore confirmation,
+  where an unambiguous historical identifier remains more useful than relative copy.
+- Focused teacher/student component and timezone tests pass (51/51), the full
+  Vitest suite passes (5,079/5,079), and lint, build, architecture, design, UI,
+  audit, continuity, and diff gates are clean apart from the existing WorkOS
+  Edge-runtime build warnings. Playwright verification passed for the affected
+  teacher/student compositions on desktop and mobile in light and dark themes
+  using a temporary Pika-token harness because the shared local environment has
+  no Supabase credentials; the harness was removed. The composite-widget
+  checklist was reviewed: keyboard and semantic behavior are unchanged, with
+  no remaining manual follow-up.
