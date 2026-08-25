@@ -1114,3 +1114,7 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
 - Final remediation made the regression pin the runbook's dated 4/4 status and
   complete enabled production command, preventing a partial command or stale
   pre-enable block from satisfying the rollout-continuity gate.
+- Rebased onto current `main`, retained its assignment timestamp work and
+  canonical continuity history, then corrected the v1 guide's production
+  preflight example to the enabled entitlement state and pinned the full command
+  in regression coverage.

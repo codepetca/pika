@@ -68,6 +68,23 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(v1Guide).toContain('Production migrations through 132 are recorded\nas applied to the named Pika project')
     expect(v1Guide).not.toContain('It has not been applied to a\nhosted environment')
     expect(v1Guide).not.toContain('hosted configured reads remain gated on applying migration 127')
+    expect(v1Guide).toContain(
+      'Current production operator shape:\n\n```bash\n' +
+        'pnpm attendance:rollout:preflight -- \\\n' +
+        '  --mode enabled \\\n' +
+        '  --scope-mode teacher_entitlements \\\n' +
+        '  --stage production \\\n' +
+        '  --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \\\n' +
+        '  --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \\\n' +
+        '  --expected-pika-origin "https://pika.codepet.ca" \\\n' +
+        '  --expected-bara-api-origin "$BARA_PRODUCTION_CONVEX_SITE_ORIGIN"\n```',
+    )
+    expect(v1Guide).not.toContain(
+      'pnpm attendance:rollout:preflight -- \\\n' +
+        '  --mode pre-enable \\\n' +
+        '  --scope-mode exact_canary \\\n' +
+        '  --stage production',
+    )
     expect(canaryRunbook).toContain('Production migrations through 132 are recorded as\napplied')
     expect(canaryRunbook).toContain('signed smoke passed 4/4 on 2026-08-24')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')

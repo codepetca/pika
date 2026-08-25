@@ -215,12 +215,12 @@ omits the Brevo delivery contract, or reuses session/cron/transport/event/entry
 secrets. Output contains only aggregate
 counts and failed check identifiers; it never includes configured values.
 
-Example operator shape:
+Current production operator shape:
 
 ```bash
 pnpm attendance:rollout:preflight -- \
-  --mode pre-enable \
-  --scope-mode exact_canary \
+  --mode enabled \
+  --scope-mode teacher_entitlements \
   --stage production \
   --expected-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
   --production-supabase-ref "$PIKA_PRODUCTION_SUPABASE_REF" \
