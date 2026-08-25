@@ -22619,3 +22619,40 @@ hosted configuration, rollout flag, production write, merge, or promotion.
 - Hosted p50/p95/p99 latency and roughly 30–100 concurrent scan load evidence,
   tenant-isolation smoke, and pilot approval remain outstanding. Keep this
   feature marked failing until those gates pass.
+
+<!-- pika-session-log-archive-batch:5a74b1e50d9a047140752c3f878ad7caeeb777fce0e67dc969c79f3ace6b9e52 -->
+## 2026-08-18 — Harden native attendance actors and make the hosted load gate runnable
+
+**Risk profile:** runtime-platform and preview test tooling. No Supabase or
+Convex migration, hosted setting, rollout flag, production write, deployment,
+commit, merge, or promotion.
+
+**Completed:**
+- Made every Pika teacher-originated Bara command derive its actor from the
+  live verified WorkOS server session. The server now exact-matches the stored
+  Pika WorkOS subject and normalized email before session, mark, QR, or manual
+  sync operations; mismatch fails closed before a Bara request or outbox write.
+- Added a preview-only native scan measurement harness. It requires 30–100
+  distinct authenticated student sessions in a mode-0600 gitignored manifest,
+  exact matching HTTPS Preview origins, and a case count equal to concurrency.
+  It refuses production and prints only aggregate closed-state counts,
+  throughput, and min/p50/p95/p99/max latency.
+- Added the hosted measurement runbook and a requirement-by-requirement
+  completion ledger. Updated Bara's roadmap so the engine and native-student
+  slices are accurately marked complete locally while hosted proof stays open.
+
+**Verification:**
+- Pika focused identity/load coverage passes 28/28. The complete Vitest run
+  passes 542 files and 4,566 tests; ESLint, TypeScript, production build,
+  architecture, design, UI-policy, session-log, and diff checks pass.
+- Bara passes 32 files and 148 tests, TypeScript, production build, brand and
+  12/12 synthetic Preview rollout guards, and diff hygiene. ESLint has only
+  four generated Convex warnings after correcting a test-helper false positive.
+
+**Remaining gates:**
+- Pika migration 127 and Bara's roster-owner backfill remain unapplied. No
+  isolated Preview, real cross-service teacher/student round trip, executable
+  Supabase event-reordering proof, or hosted latency/load result exists yet.
+- Obtain explicit target and migration authorization, then follow the ordered
+  release sequence in the completion audit. Keep native attendance failing and
+  all production flags off until those gates and a canary pass.

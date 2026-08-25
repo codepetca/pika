@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-18 — Harden native attendance actors and make the hosted load gate runnable
-
-**Risk profile:** runtime-platform and preview test tooling. No Supabase or
-Convex migration, hosted setting, rollout flag, production write, deployment,
-commit, merge, or promotion.
-
-**Completed:**
-- Made every Pika teacher-originated Bara command derive its actor from the
-  live verified WorkOS server session. The server now exact-matches the stored
-  Pika WorkOS subject and normalized email before session, mark, QR, or manual
-  sync operations; mismatch fails closed before a Bara request or outbox write.
-- Added a preview-only native scan measurement harness. It requires 30–100
-  distinct authenticated student sessions in a mode-0600 gitignored manifest,
-  exact matching HTTPS Preview origins, and a case count equal to concurrency.
-  It refuses production and prints only aggregate closed-state counts,
-  throughput, and min/p50/p95/p99/max latency.
-- Added the hosted measurement runbook and a requirement-by-requirement
-  completion ledger. Updated Bara's roadmap so the engine and native-student
-  slices are accurately marked complete locally while hosted proof stays open.
-
-**Verification:**
-- Pika focused identity/load coverage passes 28/28. The complete Vitest run
-  passes 542 files and 4,566 tests; ESLint, TypeScript, production build,
-  architecture, design, UI-policy, session-log, and diff checks pass.
-- Bara passes 32 files and 148 tests, TypeScript, production build, brand and
-  12/12 synthetic Preview rollout guards, and diff hygiene. ESLint has only
-  four generated Convex warnings after correcting a test-helper false positive.
-
-**Remaining gates:**
-- Pika migration 127 and Bara's roster-owner backfill remain unapplied. No
-  isolated Preview, real cross-service teacher/student round trip, executable
-  Supabase event-reordering proof, or hosted latency/load result exists yet.
-- Obtain explicit target and migration authorization, then follow the ordered
-  release sequence in the completion audit. Keep native attendance failing and
-  all production flags off until those gates and a canary pass.
-
 ## 2026-08-19 — Close unbounded encoded-path package bypass
 
 **Risk profile:** high — untrusted package semantic boundary and write-path
@@ -1151,3 +1115,26 @@ flag, entitlement, or deployment state changed.
   only while expanded, with focused assertions covering both help controls.
 - The remediated focused suite remains 7/7 passing; lint, UI policy, design
   policy, continuity-log validation, and diff checks pass.
+
+## 2026-08-24 — Simplify teacher Daily class-log summary
+
+**Risk profile:** none — teacher-only presentation refinement; summary loading,
+content, resizing behavior, API contracts, schema, and student surfaces are unchanged.
+
+- Removed the horizontal dividers from the expanded Class Log Summary resize
+  handle, title row, and generated timestamp.
+- Standardized summary content and state padding so the copy shares the title's
+  left edge across ready, pending, empty, and error states, with a normal 8px
+  title-to-copy gap.
+- Removed the redundant Needs Attention label while preserving the warning dot
+  and linked student name. The list retains a nonvisual accessible name and the
+  decorative dot is hidden from assistive technology.
+- Added the shared Toronto-aware `formatRelativeDateTimeInToronto` helper for
+  `Today`, `Yesterday`, and compact older timestamps, including DST-boundary
+  coverage, and adopted it for the generated-summary label.
+- The focused component and timezone suites pass (34/34), the full Vitest suite
+  passes (5,077/5,077), lint and the production build are clean apart from the
+  existing WorkOS Edge-runtime warnings, and diff checks pass. Playwright visual
+  verification passed for teacher desktop/mobile in light/dark themes using an
+  isolated exact-class harness because the shared local environment has no
+  Supabase test credentials. Student is not applicable to this teacher-only panel.
