@@ -22656,3 +22656,27 @@ commit, merge, or promotion.
 - Obtain explicit target and migration authorization, then follow the ordered
   release sequence in the completion audit. Keep native attendance failing and
   all production flags off until those gates and a canary pass.
+
+<!-- pika-session-log-archive-batch:836afc3e4679fb2142ca42fc50fbd20b602f128b9efe49de5d969fc88746d361 -->
+## 2026-08-19 — Close unbounded encoded-path package bypass
+
+**Risk profile:** high — untrusted package semantic boundary and write-path
+authorization; no schema migration, production operation, dependency, or UI
+change.
+
+- Rebased PR B onto `origin/main` at `370750d7`; the only conflict was historical
+  continuity archive content, resolved in favor of current `main`. No migrations
+  were added or renamed and no task stash remains.
+- Replaced fixed encoded-slash depth enumeration with a grammar-based candidate
+  recognizer: a boundary-leading percent sign, any number of encoded-percent
+  `25` layers, and a final encoded slash `2f` are handed to the centralized
+  bounded decoder. Over-depth values therefore reach its fail-closed policy.
+- Added direct bundle/JSON/TAR parity and import/proposal no-write coverage for a
+  four-times-encoded managed path, while proving ordinary percent text remains
+  portable.
+- Refreshed this worktree from the already-committed frozen lockfile after the
+  rebase so current `main`'s Pal alpha.3 tests used alpha.3 instead of stale
+  alpha.2 installation state; this PR changes no dependency declarations.
+- Full verification passes 4,611 tests across 505 files, lint, type checking,
+  and the production build. Visual verification is not applicable because this
+  change has no UI surface.

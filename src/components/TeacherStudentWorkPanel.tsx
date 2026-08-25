@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { formatInTimeZone } from 'date-fns-tz'
 import { FolderGit2, Image as ImageIcon, Link2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
@@ -22,6 +21,7 @@ import {
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
 
@@ -476,11 +476,7 @@ export function TeacherStudentWorkPanel({
         >
           <div className="text-xs font-medium text-primary">
             Previewing save from{' '}
-            {formatInTimeZone(
-              new Date(previewEntry.created_at),
-              'America/Toronto',
-              'MMM d, h:mm a',
-            )}
+            {formatRelativeDateTimeInToronto(previewEntry.created_at)}
           </div>
         </div>
       )}
