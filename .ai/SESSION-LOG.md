@@ -1118,3 +1118,6 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
   canonical continuity history, then corrected the v1 guide's production
   preflight example to the enabled entitlement state and pinned the full command
   in regression coverage.
+- Rereview hardened that regression to inspect fenced preflight commands
+  independent of option order while allowing historical prose and preview-only
+  pre-enable examples.

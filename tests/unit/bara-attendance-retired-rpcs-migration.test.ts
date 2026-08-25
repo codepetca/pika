@@ -32,6 +32,18 @@ const operationalRecovery = readFileSync(
   'utf8',
 )
 
+function hasStaleProductionPreflight(markdown: string): boolean {
+  const bashBlocks = Array.from(markdown.matchAll(/```bash\s*\n([\s\S]*?)\n```/g), ([, block]) => block)
+
+  return bashBlocks.some(
+    (block) =>
+      block.includes('pnpm attendance:rollout:preflight --') &&
+      block.includes('--stage production') &&
+      block.includes('--mode pre-enable') &&
+      block.includes('--scope-mode exact_canary'),
+  )
+}
+
 describe('retired unscoped Bara attendance RPC migration', () => {
   it('removes every superseded worker and event capability from service role', () => {
     for (const signature of [
@@ -79,12 +91,7 @@ describe('retired unscoped Bara attendance RPC migration', () => {
         '  --expected-pika-origin "https://pika.codepet.ca" \\\n' +
         '  --expected-bara-api-origin "$BARA_PRODUCTION_CONVEX_SITE_ORIGIN"\n```',
     )
-    expect(v1Guide).not.toContain(
-      'pnpm attendance:rollout:preflight -- \\\n' +
-        '  --mode pre-enable \\\n' +
-        '  --scope-mode exact_canary \\\n' +
-        '  --stage production',
-    )
+    expect(hasStaleProductionPreflight(v1Guide)).toBe(false)
     expect(canaryRunbook).toContain('Production migrations through 132 are recorded as\napplied')
     expect(canaryRunbook).toContain('signed smoke passed 4/4 on 2026-08-24')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
@@ -110,5 +117,33 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(operationalRecovery).not.toContain(
       '--mode pre-enable \\\n     --scope-mode exact_canary',
     )
+  })
+
+  it('rejects stale production preflight blocks regardless of option order', () => {
+    expect(
+      hasStaleProductionPreflight(
+        '```bash\npnpm attendance:rollout:preflight -- \\\n' +
+          '  --mode pre-enable \\\n' +
+          '  --scope-mode exact_canary \\\n' +
+          '  --stage production\n```',
+      ),
+    ).toBe(true)
+    expect(
+      hasStaleProductionPreflight(
+        '```bash\npnpm attendance:rollout:preflight -- \\\n' +
+          '  --stage production \\\n' +
+          '  --scope-mode exact_canary \\\n' +
+          '  --mode pre-enable\n```',
+      ),
+    ).toBe(true)
+    expect(
+      hasStaleProductionPreflight(
+        'Historical pre-enable exact_canary production sequence.\n\n' +
+          '```bash\npnpm attendance:rollout:preflight -- \\\n' +
+          '  --mode pre-enable \\\n' +
+          '  --scope-mode exact_canary \\\n' +
+          '  --stage preview\n```',
+      ),
+    ).toBe(false)
   })
 })
