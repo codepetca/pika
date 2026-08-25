@@ -1,5 +1,9 @@
 # Pika–Bara attendance operational recovery
 
+Status: production completed this sequence through migration 132 and the
+enabled `teacher_entitlements` 4/4 deployed smoke on 2026-08-24. The steps below
+remain the control sequence for future deployments or recovery.
+
 This runbook is a control document, not authorization to deploy, migrate,
 change flags, or requeue hosted events.
 

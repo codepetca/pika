@@ -1,5 +1,9 @@
 # Pika–Bara attendance entitlement rollout
 
+Status: production records migration 132, runs in `teacher_entitlements` mode,
+and passed the enabled 4/4 deployed smoke on 2026-08-24. The ordered procedure
+below remains the control sequence for future transitions.
+
 This runbook is a control document. It does not authorize a migration,
 deployment, entitlement change, flag change, smoke invocation, or production
 mutation.

@@ -1155,3 +1155,16 @@ flag, entitlement, cleanup, or attendance-data mutation was performed.
 - The separately authorized deployed smoke then passed 4/4 in `enabled` mode
   with `teacher_entitlements` as current and target scope, proving canary scope,
   transition-queue health, and both signed Pika/Bara directions.
+
+## 2026-08-25 — Reconcile attendance rollout documentation
+
+**Risk profile:** none — documentation consistency only; no migration,
+deployment, configuration, entitlement, smoke, or hosted data changed.
+
+- Reconciled the adapter status, control runbooks, native-attendance roadmap,
+  canary boundary, and completion audit with the verified production state:
+  migrations through 132, enabled `teacher_entitlements`, and the passing 4/4
+  deployed smoke.
+- Preserved the exact pair as the signed-smoke scope, retained separate
+  authorization for future changes, and replaced completed pre-enable steps
+  with the remaining entitled-teacher workflow, UI, isolation, and pilot gates.
