@@ -2,8 +2,11 @@ import { config } from 'dotenv'
 import { z } from 'zod'
 
 import { PIKA_ATTENDANCE_PRODUCTION_TARGET } from '@/lib/server/bara-attendance-deployed-preflight'
-import { readBaraAttendancePilotReadiness } from '@/lib/server/bara-attendance-pilot-readiness'
-import { createTargetBoundFetch, verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
+import {
+  createAttendancePilotReadOnlyFetch,
+  readBaraAttendancePilotReadiness,
+} from '@/lib/server/bara-attendance-pilot-readiness'
+import { verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 config({ path: process.env.ENV_FILE || '.env.local' })
@@ -15,19 +18,32 @@ function readArgument(name: string): string | undefined {
   return value || undefined
 }
 
+type OperatorFailure =
+  | 'attendance_pilot_invalid_stage'
+  | 'attendance_pilot_invalid_environment'
+  | 'attendance_pilot_invalid_target'
+  | 'attendance_pilot_read_failed'
+
+class AttendancePilotOperatorError extends Error {
+  constructor(readonly code: OperatorFailure) {
+    super(code)
+    this.name = 'AttendancePilotOperatorError'
+  }
+}
+
 async function main() {
   const stage = readArgument('--stage')
   if (stage !== 'production') {
-    throw new Error('Attendance pilot readiness requires --stage production')
+    throw new AttendancePilotOperatorError('attendance_pilot_invalid_stage')
   }
   if (process.env.NEXT_PUBLIC_APP_URL !== PIKA_ATTENDANCE_PRODUCTION_TARGET.expectedPikaOrigin) {
-    throw new Error('Attendance pilot readiness target is not the pinned Pika production origin')
+    throw new AttendancePilotOperatorError('attendance_pilot_invalid_target')
   }
   if (process.env.PIKA_BARA_ATTENDANCE_ENABLED !== 'true') {
-    throw new Error('Attendance pilot readiness requires the enabled production runtime')
+    throw new AttendancePilotOperatorError('attendance_pilot_invalid_environment')
   }
   if (process.env.PIKA_BARA_ATTENDANCE_SCOPE_MODE !== 'teacher_entitlements') {
-    throw new Error('Attendance pilot readiness requires teacher_entitlements scope')
+    throw new AttendancePilotOperatorError('attendance_pilot_invalid_environment')
   }
 
   const teacherId = z.string().uuid().parse(
@@ -35,7 +51,7 @@ async function main() {
   )
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!supabaseUrl || !process.env.SUPABASE_SECRET_KEY) {
-    throw new Error('Attendance pilot readiness requires production Supabase credentials')
+    throw new AttendancePilotOperatorError('attendance_pilot_invalid_environment')
   }
   const verifiedOrigin = verifyHostedSupabaseApiOrigin(
     supabaseUrl,
@@ -43,7 +59,12 @@ async function main() {
   )
   process.env.NEXT_PUBLIC_SUPABASE_URL = verifiedOrigin
   const result = await readBaraAttendancePilotReadiness({
-    supabase: getServiceRoleClient({ fetch: createTargetBoundFetch(verifiedOrigin) }),
+    supabase: getServiceRoleClient({
+      fetch: createAttendancePilotReadOnlyFetch({
+        expectedOrigin: verifiedOrigin,
+        teacherId,
+      }),
+    }),
     teacherId,
   })
 
@@ -52,7 +73,9 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Unknown readiness failure'
-  process.stderr.write(`Attendance pilot readiness failed: ${message}\n`)
+  const code = error instanceof AttendancePilotOperatorError
+    ? error.code
+    : 'attendance_pilot_read_failed'
+  process.stderr.write(`Attendance pilot readiness failed: ${code}\n`)
   process.exitCode = 1
 })

@@ -5,7 +5,8 @@ directional HMAC pairs were aligned. Production migrations through 132 are
 recorded as applied, production is enabled in `teacher_entitlements` mode, and
 the deployed signed smoke passed 4/4 in that mode on 2026-08-24. Additional
 entitlements and remaining hosted workflow or pilot gates require separate
-evidence and authorization.
+evidence and authorization. The atomic aggregate readiness RPC in proposed
+migration 133 has not been applied.
 
 This ledger prevents local test evidence from being mistaken for a rollout.
 Paths are relative to the owning repository: this Pika worktree or the sibling
@@ -37,10 +38,12 @@ Bara worktree.
 1. Verify the entitled teacher sees Attendance in every active classroom, a
    classroom without hours reports not configured, and saving hours produces
    only that classroom's opaque roster and schedule. The aggregate-only
-   `attendance:pilot:readiness` check recorded one configured, fully synced
-   active classroom on 2026-08-25 and made no production changes. It remains
-   blocked until a second intended active classroom is available or an exact
-   temporary setup and restoration is separately authorized.
+   initial read-only inventory recorded one configured, fully synced active
+   classroom on 2026-08-25 and made no production changes. The hardened
+   `attendance:pilot:readiness` operator requires proposed migration 133. The
+   workflow remains blocked until a second intended active classroom is
+   available or an exact temporary setup and restoration is separately
+   authorized.
 2. Prove real teacher and student roster/schedule/lifecycle/mark/correction/QR,
    duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
    flows under the enabled entitlement boundary.

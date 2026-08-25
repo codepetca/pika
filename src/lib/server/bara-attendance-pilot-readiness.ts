@@ -1,25 +1,21 @@
 import { z } from 'zod'
 
-const entitlementSchema = z.object({
-  status: z.enum(['active', 'revoked']),
-  valid_from: z.string().datetime({ offset: true }),
-  valid_until: z.string().datetime({ offset: true }).nullable(),
-  revision: z.number().int().positive(),
+import { createTargetBoundFetch } from '@/lib/server/supabase-target'
+
+const aggregateSchema = z.object({
+  effective_entitlement_count: z.number().int().min(0).max(1),
+  active_classrooms: z.number().int().nonnegative(),
+  configured_classrooms: z.number().int().nonnegative(),
+  enabled_policies: z.number().int().nonnegative(),
+  unconfigured_classrooms: z.number().int().nonnegative(),
+  roster_mappings: z.number().int().nonnegative(),
+  active_mappings: z.number().int().nonnegative(),
+  fully_synced_configured_classrooms: z.number().int().nonnegative(),
 }).strict()
 
-const classroomSchema = z.object({ id: z.string().uuid() }).strict()
-const policySchema = z.object({
-  classroom_id: z.string().uuid(),
-  enabled: z.boolean(),
-}).strict()
-const mappingSchema = z.object({
-  classroom_id: z.string().uuid(),
-  integration_state: z.enum(['active', 'deactivating', 'inactive']),
-  roster_ref: z.string().regex(/^roster_[A-Za-z0-9_-]{32,128}$/),
-  source_revision: z.number().int().nonnegative(),
-  synced_revision: z.number().int().nonnegative().nullable(),
-  schedule_source_revision: z.number().int().nonnegative(),
-  schedule_synced_revision: z.number().int().nonnegative().nullable(),
+const readRequestSchema = z.object({
+  p_teacher_id: z.string().uuid(),
+  p_at: z.string().datetime({ offset: true }),
 }).strict()
 
 export type BaraAttendancePilotReadinessBlocker =
@@ -31,72 +27,52 @@ export type BaraAttendancePilotReadinessBlocker =
 
 export interface BaraAttendancePilotReadiness {
   readyForScopedSaveVerification: boolean
-  entitlementRevision: number | null
+  effectiveEntitlements: number
   activeClassrooms: number
   configuredClassrooms: number
   enabledPolicies: number
   unconfiguredClassrooms: number
   rosterMappings: number
   activeMappings: number
-  fullySyncedMappings: number
+  fullySyncedConfiguredClassrooms: number
   blockers: BaraAttendancePilotReadinessBlocker[]
 }
 
-interface BaraAttendancePilotRows {
-  entitlement: unknown
-  classrooms: unknown[]
-  policies: unknown[]
-  mappings: unknown[]
-  at: Date
-}
-
 export function summarizeBaraAttendancePilotReadiness(
-  input: BaraAttendancePilotRows,
+  value: unknown,
 ): BaraAttendancePilotReadiness {
-  const entitlement = input.entitlement === null
-    ? null
-    : entitlementSchema.parse(input.entitlement)
-  const classrooms = z.array(classroomSchema).parse(input.classrooms)
-  const policies = z.array(policySchema).parse(input.policies)
-  const mappings = z.array(mappingSchema).parse(input.mappings)
-  const classroomIds = new Set(classrooms.map((classroom) => classroom.id))
-  const scopedPolicies = policies.filter((policy) => classroomIds.has(policy.classroom_id))
-  const scopedMappings = mappings.filter((mapping) => classroomIds.has(mapping.classroom_id))
-  const configuredClassroomIds = new Set(scopedPolicies.map((policy) => policy.classroom_id))
-  const effectiveEntitlement = entitlement !== null
-    && entitlement.status === 'active'
-    && Date.parse(entitlement.valid_from) <= input.at.getTime()
-    && (entitlement.valid_until === null
-      || Date.parse(entitlement.valid_until) > input.at.getTime())
-  const fullySyncedMappings = scopedMappings.filter((mapping) => (
-    mapping.integration_state === 'active'
-    && mapping.synced_revision !== null
-    && mapping.synced_revision >= mapping.source_revision
-    && mapping.schedule_synced_revision !== null
-    && mapping.schedule_synced_revision >= mapping.schedule_source_revision
-  )).length
+  const aggregate = aggregateSchema.parse(value)
   const blockers: BaraAttendancePilotReadinessBlocker[] = []
 
-  if (!effectiveEntitlement) blockers.push('teacher_entitlement_not_effective')
-  if (classrooms.length < 2) blockers.push('requires_at_least_two_active_classrooms')
-  if (configuredClassroomIds.size === 0) blockers.push('requires_configured_active_classroom')
-  if (configuredClassroomIds.size === classrooms.length) {
+  if (aggregate.effective_entitlement_count !== 1) {
+    blockers.push('teacher_entitlement_not_effective')
+  }
+  if (aggregate.active_classrooms < 2) {
+    blockers.push('requires_at_least_two_active_classrooms')
+  }
+  if (aggregate.configured_classrooms === 0) {
+    blockers.push('requires_configured_active_classroom')
+  }
+  if (aggregate.unconfigured_classrooms === 0) {
     blockers.push('requires_unconfigured_active_classroom')
   }
-  if (configuredClassroomIds.size > 0 && fullySyncedMappings < configuredClassroomIds.size) {
+  if (
+    aggregate.configured_classrooms > 0
+    && aggregate.fully_synced_configured_classrooms < aggregate.configured_classrooms
+  ) {
     blockers.push('configured_classroom_not_fully_synced')
   }
 
   return {
     readyForScopedSaveVerification: blockers.length === 0,
-    entitlementRevision: effectiveEntitlement ? entitlement.revision : null,
-    activeClassrooms: classrooms.length,
-    configuredClassrooms: configuredClassroomIds.size,
-    enabledPolicies: scopedPolicies.filter((policy) => policy.enabled).length,
-    unconfiguredClassrooms: classrooms.length - configuredClassroomIds.size,
-    rosterMappings: scopedMappings.length,
-    activeMappings: scopedMappings.filter((mapping) => mapping.integration_state === 'active').length,
-    fullySyncedMappings,
+    effectiveEntitlements: aggregate.effective_entitlement_count,
+    activeClassrooms: aggregate.active_classrooms,
+    configuredClassrooms: aggregate.configured_classrooms,
+    enabledPolicies: aggregate.enabled_policies,
+    unconfiguredClassrooms: aggregate.unconfigured_classrooms,
+    rosterMappings: aggregate.roster_mappings,
+    activeMappings: aggregate.active_mappings,
+    fullySyncedConfiguredClassrooms: aggregate.fully_synced_configured_classrooms,
     blockers,
   }
 }
@@ -106,54 +82,50 @@ export async function readBaraAttendancePilotReadiness(input: {
   teacherId: string
   at?: Date
 }): Promise<BaraAttendancePilotReadiness> {
-  const at = input.at ?? new Date()
-  const { data: entitlement, error: entitlementError } = await input.supabase
-    .from('attendance_teacher_entitlements')
-    .select('status,valid_from,valid_until,revision')
-    .eq('teacher_id', input.teacherId)
-    .maybeSingle()
-  if (entitlementError) throw new Error('Attendance pilot entitlement could not be read')
-
-  const { data: classrooms, error: classroomError } = await input.supabase
-    .from('classrooms')
-    .select('id')
-    .eq('teacher_id', input.teacherId)
-    .is('archived_at', null)
-  if (classroomError) throw new Error('Attendance pilot classrooms could not be read')
-
-  const classroomIds = (classrooms ?? []).map((classroom: { id: string }) => classroom.id)
-  if (classroomIds.length === 0) {
-    return summarizeBaraAttendancePilotReadiness({
-      entitlement,
-      classrooms: [],
-      policies: [],
-      mappings: [],
-      at,
-    })
-  }
-
-  const [{ data: policies, error: policyError }, { data: mappings, error: mappingError }] =
-    await Promise.all([
-      input.supabase
-        .from('attendance_window_policies')
-        .select('classroom_id,enabled')
-        .in('classroom_id', classroomIds),
-      input.supabase
-        .from('attendance_roster_mappings')
-        .select(
-          'classroom_id,integration_state,roster_ref,source_revision,synced_revision,' +
-          'schedule_source_revision,schedule_synced_revision',
-        )
-        .in('classroom_id', classroomIds),
-    ])
-  if (policyError) throw new Error('Attendance pilot policies could not be read')
-  if (mappingError) throw new Error('Attendance pilot mappings could not be read')
-
-  return summarizeBaraAttendancePilotReadiness({
-    entitlement,
-    classrooms: classrooms ?? [],
-    policies: policies ?? [],
-    mappings: mappings ?? [],
-    at,
+  const { data, error } = await input.supabase.rpc('get_attendance_pilot_readiness_v1', {
+    p_teacher_id: input.teacherId,
+    p_at: (input.at ?? new Date()).toISOString(),
   })
+  if (error) throw new Error('Attendance pilot readiness could not be read')
+  return summarizeBaraAttendancePilotReadiness(data)
+}
+
+function requestUrl(input: RequestInfo | URL): URL {
+  if (typeof input === 'string') return new URL(input)
+  if (input instanceof URL) return input
+  return new URL(input.url)
+}
+
+async function requestBody(input: RequestInfo | URL, init?: RequestInit): Promise<unknown> {
+  if (typeof init?.body === 'string') return JSON.parse(init.body)
+  if (typeof Request !== 'undefined' && input instanceof Request) {
+    return await input.clone().json()
+  }
+  throw new Error('Attendance pilot read transport rejected request')
+}
+
+export function createAttendancePilotReadOnlyFetch(input: {
+  expectedOrigin: string
+  teacherId: string
+  fetchImpl?: typeof fetch
+}): typeof fetch {
+  const targetFetch = createTargetBoundFetch(input.expectedOrigin, input.fetchImpl)
+  return async (request, init) => {
+    const url = requestUrl(request)
+    const method = (init?.method
+      ?? (typeof Request !== 'undefined' && request instanceof Request ? request.method : 'GET'))
+      .toUpperCase()
+    if (
+      method !== 'POST'
+      || url.pathname !== '/rest/v1/rpc/get_attendance_pilot_readiness_v1'
+      || url.search !== ''
+    ) {
+      throw new Error('Attendance pilot read transport rejected request')
+    }
+    const body = readRequestSchema.parse(await requestBody(request, init))
+    if (body.p_teacher_id !== input.teacherId) {
+      throw new Error('Attendance pilot read transport rejected request')
+    }
+    return await targetFetch(request, init)
+  }
 }

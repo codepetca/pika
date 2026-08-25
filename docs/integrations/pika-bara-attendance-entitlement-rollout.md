@@ -3,7 +3,8 @@
 Status: production records migration 132, runs in `teacher_entitlements` mode,
 and passed the enabled 4/4 deployed smoke on 2026-08-24. The completed initial
 release sequence below is retained as audit history, not as a checklist for
-future transitions.
+future transitions. Migration 133, which hardens the pilot-readiness inventory
+into one aggregate SQL snapshot, is proposed but not applied.
 
 This runbook is a control document. It does not authorize a migration,
 deployment, entitlement change, flag change, smoke invocation, or production
@@ -124,26 +125,29 @@ for the exact new operation.
 
 ### Active-class pilot readiness
 
-Run the aggregate-only readiness check before attempting step 8. It is
-read-only, pins the production Pika and Supabase targets, scopes itself to the
-existing exact-canary teacher, and emits no teacher, classroom, roster, or
-student identifiers:
+After reviewed migration 133 is applied under exact authorization, run the
+aggregate-only readiness check before attempting step 8. It performs one
+stable, service-role-only SQL read, pins the production Pika and Supabase
+targets, scopes itself to the existing exact-canary teacher, and emits no
+teacher, classroom, roster, student, or entitlement-revision identifiers:
 
 ```bash
 ENV_FILE="<production-env-file>" pnpm attendance:pilot:readiness -- \
   --stage production
 ```
 
-The 2026-08-25 production run confirmed one effective entitlement, one active
-classroom, one enabled attendance policy, and one fully synced opaque
-roster/schedule mapping. The teacher's production UI also showed Attendance in
-that active classroom. The check correctly remained blocked by
+The initial read-only production inventory on 2026-08-25 confirmed one
+effective entitlement, one active classroom, one enabled attendance policy,
+and one fully synced opaque roster/schedule mapping. The teacher's production
+UI also showed Attendance in that active classroom. That inventory correctly
+remained blocked by
 `requires_at_least_two_active_classrooms` and
 `requires_unconfigured_active_classroom`. No production data, entitlement,
 configuration, flag, or schedule was changed. Complete the normal-flow save
 isolation check only when the teacher has a second intended active classroom,
 or after separate authorization naming the exact temporary production setup
-and restoration operations.
+and restoration operations. Do not run the hardened operator against a target
+that has not recorded migration 133.
 
 ## Kill switch and rollback
 

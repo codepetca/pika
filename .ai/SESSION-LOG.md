@@ -1107,3 +1107,13 @@ configuration, flag, cleanup, or attendance-data mutation was performed.
 - Added focused readiness, service-role read-path, and operator-contract
   coverage. The full suite passes (5,085/5,085); lint, TypeScript, and the
   production build pass with only the existing WorkOS Edge-runtime warnings.
+- Independent review found that separate REST reads could observe inconsistent
+  states, an unconfigured Class mapping could mask a missing configured-Class
+  mapping, the service-role transport was not operation-read-only, and output
+  could expose unstable error or revision detail.
+- Remediated those findings with proposed, unapplied migration 133: one stable
+  aggregate SQL RPC, configured-Class mapping association, an exact RPC/teacher
+  transport allowlist, stable operator failure codes, and database regression
+  coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
+  boundaries, and the production build pass. Production remains through
+  migration 132 and was not modified.
