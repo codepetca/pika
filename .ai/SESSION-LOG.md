@@ -1136,3 +1136,22 @@ no assignment state, API contract, schema, persistence, or layout behavior chang
   no Supabase credentials; the harness was removed. The composite-widget
   checklist was reviewed: keyboard and semantic behavior are unchanged, with
   no remaining manual follow-up.
+## 2026-08-24 — Verify the enabled attendance entitlement rollout
+
+**Risk profile:** runtime-platform — authorized local database reset and
+production signed smoke verification; no production migration, deployment,
+flag, entitlement, cleanup, or attendance-data mutation was performed.
+
+- Reset the shared local database and replayed migrations 001-132 from current
+  `main`, repairing an older installed migration-131 smoke-function definition.
+  The complete Bara attendance database contract now passes; local remains
+  intentionally unseeded.
+- Read-only production checks confirmed migrations 001-132 are recorded and
+  the installed migration-131 smoke cleanup plus migration-132 entitlement
+  contracts are present.
+- An authorized pre-enable exact-canary diagnostic failed before smoke state
+  with `attendance_disabled_for_preflight` and `attendance_scope_mode`, proving
+  production had already advanced beyond the stale continuity record.
+- The separately authorized deployed smoke then passed 4/4 in `enabled` mode
+  with `teacher_entitlements` as current and target scope, proving canary scope,
+  transition-queue health, and both signed Pika/Bara directions.
