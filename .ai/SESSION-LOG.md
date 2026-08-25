@@ -1168,3 +1168,6 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
 - Preserved the exact pair as the signed-smoke scope, retained separate
   authorization for future changes, and replaced completed pre-enable steps
   with the remaining entitled-teacher workflow, UI, isolation, and pilot gates.
+- Review remediation rewrote the operational-recovery procedure from the
+  current enabled state and extended the rollout regression to cover the
+  compact handoff plus production smoke instructions.

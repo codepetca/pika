@@ -26,6 +26,11 @@ const canaryRunbook = readFileSync(
   resolve(process.cwd(), 'docs/integrations/pika-bara-attendance-canary.md'),
   'utf8',
 )
+const currentContext = readFileSync(resolve(process.cwd(), '.ai/CURRENT.md'), 'utf8')
+const operationalRecovery = readFileSync(
+  resolve(process.cwd(), 'docs/integrations/pika-bara-attendance-operational-recovery.md'),
+  'utf8',
+)
 
 describe('retired unscoped Bara attendance RPC migration', () => {
   it('removes every superseded worker and event capability from service role', () => {
@@ -66,5 +71,16 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(canaryRunbook).toContain('Production migrations through 132 are recorded as\napplied')
     expect(canaryRunbook).toContain('signed smoke passed 4/4 on 2026-08-24')
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
+    expect(currentContext).toContain('Prod 001-132 applied')
+    expect(currentContext).toContain('Attendance enabled in teacher_entitlements')
+    expect(currentContext).toContain('signed smoke 4/4 passed 2026-08-24')
+    expect(operationalRecovery).toContain('records Pika migrations through 132')
+    expect(operationalRecovery).toContain('--mode enabled')
+    expect(operationalRecovery).toContain('--scope-mode teacher_entitlements')
+    expect(operationalRecovery).toContain('--target-scope-mode teacher_entitlements')
+    expect(operationalRecovery).not.toContain('With both attendance flags still false')
+    expect(operationalRecovery).not.toContain(
+      'Keep every non-canary teacher/classroom disabled',
+    )
   })
 })
