@@ -4,6 +4,7 @@ import { LeftSidebar } from '@/components/layout/LeftSidebar'
 import { TooltipProvider } from '@/ui'
 
 const close = vi.fn()
+const onNavigateHome = vi.fn(() => true)
 let isLeftOpen = true
 
 vi.mock('@/components/layout/ThreePanelProvider', () => ({
@@ -14,6 +15,7 @@ vi.mock('@/components/layout/ThreePanelProvider', () => ({
 describe('LeftSidebar mobile drawer', () => {
   beforeEach(() => {
     close.mockReset()
+    onNavigateHome.mockClear()
     isLeftOpen = true
   })
 
@@ -36,5 +38,47 @@ describe('LeftSidebar mobile drawer', () => {
 
     unmount()
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('offers a Pika home link in the mobile drawer', () => {
+    render(
+      <TooltipProvider>
+        <LeftSidebar mobileHomeHref="/classrooms" onNavigateHome={onNavigateHome}>
+          <a href="/attendance">Attendance</a>
+        </LeftSidebar>
+      </TooltipProvider>,
+    )
+
+    const homeLink = within(screen.getByRole('dialog', { name: 'Navigation menu' }))
+      .getByRole('link', { name: 'All classrooms' })
+
+    expect(homeLink).toHaveAttribute('href', '/classrooms')
+    expect(homeLink).toHaveTextContent('All classrooms')
+    expect(homeLink).toHaveClass('bg-surface-2', 'hover:bg-surface-hover')
+    expect(within(homeLink).getByAltText('Pika')).toBeInTheDocument()
+    expect(homeLink.querySelector('.lucide-chevron-right')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: 'Navigation menu' })).getByText('Navigation'))
+      .toBeInTheDocument()
+
+    homeLink.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(homeLink)
+
+    expect(onNavigateHome).toHaveBeenCalledWith('/classrooms')
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the drawer open when home navigation is blocked', () => {
+    onNavigateHome.mockReturnValueOnce(false)
+    render(
+      <TooltipProvider>
+        <LeftSidebar mobileHomeHref="/classrooms" onNavigateHome={onNavigateHome}>
+          <a href="/attendance">Attendance</a>
+        </LeftSidebar>
+      </TooltipProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'All classrooms' }))
+
+    expect(close).not.toHaveBeenCalled()
   })
 })

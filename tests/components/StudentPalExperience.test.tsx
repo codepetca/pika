@@ -148,7 +148,7 @@ describe('StudentPalExperience', () => {
     })
   })
 
-  it('hosts Pal minimal title presentation in the Pika-owned reward modal', async () => {
+  it('hosts Pal minimal collectible presentation in the Pika-owned reward modal', async () => {
     const snapshot = withStoryReward()
     renderExperience({
       getSnapshot: async () => snapshot,
@@ -156,10 +156,10 @@ describe('StudentPalExperience', () => {
     })
 
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
-    expect(screen.getByText('Story Keeper')).toBeVisible()
+    expect(screen.getByText('The Clockwork Lantern')).toBeVisible()
+    expect(screen.queryByText('Story Keeper')).toBeNull()
     expect(screen.queryByText('Story unlocked')).toBeNull()
-    expect(screen.queryByText('The Clockwork Lantern')).toBeNull()
-    expect(document.querySelector('[data-collectible-finish="sketch"]')).toBeNull()
+    expect(document.querySelector('[data-collectible-finish="sketch"]')).not.toBeNull()
   })
 
   it('acknowledges an Escape close and removes the modal only after success', async () => {

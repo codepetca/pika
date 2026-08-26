@@ -27,6 +27,7 @@
     "attendance:local:configure": "tsx scripts/configure-local-bara-attendance.ts",
     "attendance:local:rehearse": "tsx scripts/rehearse-local-bara-attendance.ts",
     "attendance:entitlement:set": "tsx scripts/set-bara-attendance-teacher-entitlement.ts",
+    "attendance:pilot:readiness": "tsx scripts/check-bara-attendance-pilot-readiness.ts",
     "check:bara-attendance-db": "bash scripts/check-bara-attendance-database.sh",
     "check:architecture": "tsx scripts/check-architecture.ts",
     "check:design-policy": "tsx scripts/check-design-policy.ts",
@@ -63,7 +64,7 @@
     "smoke:pika-cli": "tsx scripts/pika-cli-smoke.ts"
   },
   "dependencies": {
-    "@codepet/pal-widget": "0.1.0-alpha.4",
+    "@codepet/pal-widget": "0.1.0-alpha.5",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

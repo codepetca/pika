@@ -5,7 +5,8 @@ recorded as applied. The exact production canary passed on 2026-08-22 after
 both HMAC pairs were aligned. Production is enabled in `teacher_entitlements`
 mode, and the deployed bidirectional smoke passed 4/4 in that mode on
 2026-08-24. Additional entitlements and remaining hosted workflow or pilot
-gates still require explicit evidence and authorization.
+gates still require explicit evidence and authorization. Proposed migration
+133 adds an atomic aggregate pilot-readiness RPC and is not applied.
 
 Risk profile: `runtime-platform`.
 
@@ -95,7 +96,12 @@ that principal through the installation-scoped adapter.
    separately authorized, bounded requeue/supersede runbook.
 2. Verify the entitled teacher sees Attendance in every active classroom, a
    classroom without hours reports not configured, and saving hours produces
-   only that classroom's opaque roster and schedule.
+   only that classroom's opaque roster and schedule. A read-only production
+   check on 2026-08-25 confirmed the sole active classroom is visible,
+   configured, and fully synced, but there is no second or unconfigured active
+   classroom for the isolation check. No production mutation was performed.
+   The hardened readiness operator can run only after proposed migration 133 is
+   reviewed and applied under exact authorization.
 3. There is no staging database. Preview records a production-only smoke skip
    and must never target production. Hosted load testing remains blocked until
    an isolated non-production database is explicitly provisioned.

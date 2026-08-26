@@ -1,9 +1,13 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomPageClient } from '@/app/classrooms/[classroomId]/ClassroomPageClient'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom } from '@/types'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
+import {
+  STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
+  STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
+} from '@/lib/events'
 
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
@@ -11,6 +15,8 @@ const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
+const mockLeftSidebarProps = vi.hoisted(() => vi.fn())
+const mockAppShellProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -57,7 +63,9 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherLiveAttendanceTab', () => ({
 }))
 
 vi.mock('@/components/AppShell', () => ({
-  AppShell: ({ children, classrooms, constrainToViewport, currentClassroomId, pageTitle }: any) => {
+  AppShell: (props: any) => {
+    mockAppShellProps(props)
+    const { children, classrooms, constrainToViewport, currentClassroomId, pageTitle } = props
     const currentClassroom = classrooms?.find((c: any) => c.id === currentClassroomId)
     return (
       <div data-testid="app-shell" data-constrain-to-viewport={constrainToViewport || undefined}>
@@ -100,7 +108,10 @@ vi.mock('@/components/layout', async () => {
       return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>
     },
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
-    LeftSidebar: ({ children }: any) => <div>{children}</div>,
+    LeftSidebar: ({ children, ...props }: any) => {
+      mockLeftSidebarProps(props)
+      return <div data-testid="left-sidebar">{children}</div>
+    },
     MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
     NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility }: any) => (
       <nav>
@@ -457,6 +468,8 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
     mockStudentTodayTabProps.mockReset()
+    mockLeftSidebarProps.mockReset()
+    mockAppShellProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -511,6 +524,52 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
         isActive: true,
       })
     })
+  })
+
+  it('removes mobile classroom navigation and blocks home exits during active student exam mode', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests')
+    renderStudentClient({
+      initialTab: 'tests',
+      initialSearchParams: { tab: 'tests' },
+    })
+
+    expect(screen.getByTestId('left-sidebar')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, {
+        detail: {
+          active: true,
+          classroomId: classroom.id,
+          testId: 'test-1',
+          testTitle: 'Test One',
+          exitsCount: 0,
+          awayTotalSeconds: 0,
+        },
+      }))
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('left-sidebar')).not.toBeInTheDocument()
+      expect(mockAppShellProps.mock.lastCall?.[0].onOpenSidebar).toBeUndefined()
+    })
+
+    const routeExitHandler = vi.fn()
+    window.addEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, routeExitHandler)
+    try {
+      const onNavigateHome = mockAppShellProps.mock.lastCall?.[0].onNavigateHome
+      expect(onNavigateHome('/classrooms')).toBe(false)
+      expect(routeExitHandler).toHaveBeenCalledOnce()
+      expect((routeExitHandler.mock.calls[0][0] as CustomEvent).detail).toMatchObject({
+        classroomId: classroom.id,
+        source: 'home_navigation',
+        metadata: {
+          blocked: true,
+          target: 'home',
+        },
+      })
+    } finally {
+      window.removeEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, routeExitHandler)
+    }
   })
 
   it('mounts the Pal achievements destination only when enabled for a student', async () => {
@@ -677,6 +736,15 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
     expect(screen.getByText('Mon May 11')).toBeInTheDocument()
     expect(await screen.findByText('Last class calendar entry')).toBeInTheDocument()
+  })
+
+  it('wires the mobile classroom-list link through guarded home navigation', () => {
+    renderClient()
+
+    expect(mockLeftSidebarProps).toHaveBeenCalledWith(expect.objectContaining({
+      mobileHomeHref: '/classrooms',
+      onNavigateHome: expect.any(Function),
+    }))
   })
 
   it('clears the student today sidebar plan when the classroom route changes', async () => {

@@ -22742,3 +22742,149 @@ roles, standalone regression, and concurrent authoritative writes.
   backfill, tenant-isolation/canary proof, and real teacher/student approval
   remain blocked on provisioning an isolated Preview or explicitly approving a
   different non-production target. Production remains disabled.
+
+<!-- pika-session-log-archive-batch:cd4e67253fb4b41c0e54adae01b3b814c9740112f05562dd341704ac50cfb4e1 -->
+## 2026-08-19 — Verify native attendance against disposable local databases
+
+**Risk profile:** runtime-platform and disposable local data. The user
+explicitly authorized resetting and discarding the shared local Pika database.
+No hosted database, WorkOS dashboard, deployment, rollout flag, production
+write, commit, merge, or promotion changed.
+
+**Model recommendation:** frontier reasoning model — this verification spans
+real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
+roles, standalone regression, and concurrent authoritative writes.
+
+**Completed:**
+- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
+  and used distinct staging WorkOS Applications with localhost callbacks.
+- Signed in a real teacher and student through Pika, created and joined a
+  rostered classroom, configured attendance hours, opened automatically,
+  checked in through the native Pika QR path, reconciled the projection,
+  corrected the student to Late, and closed the session without leaving Pika.
+- Signed into standalone Bara through its own WorkOS Application, opened an
+  independent ad-hoc session on the mapped roster, marked the student through
+  Bara's tap UI, and closed it.
+- Added a guarded loopback-only signed-adapter/engine load runner and recorded
+  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
+  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
+  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
+
+**Verification:**
+- Pika passes 542 files and 4,567 tests, TypeScript, production build,
+  architecture, design-policy, UI-policy, and diff checks.
+- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
+  diff checks. The hosted rollout command correctly refuses to run without a
+  named Preview/Production stage and exact HTTPS origins; no staging target
+  exists to satisfy that gate.
+- Browser screenshots were visually checked for native student success,
+  teacher correction and closed state, and standalone Bara attendance.
+
+**Remaining gates:**
+- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
+  backfill, tenant-isolation/canary proof, and real teacher/student approval
+  remain blocked on provisioning an isolated Preview or explicitly approving a
+  different non-production target. Production remains disabled.
+
+<!-- pika-session-log-archive-batch:8eccbd405900ce334e8948b5813de04ebe6ffa7f92ef01eebb90c08a2826f082 -->
+## 2026-08-19 — Verify native attendance against disposable local databases
+
+**Risk profile:** runtime-platform and disposable local data. The user
+explicitly authorized resetting and discarding the shared local Pika database.
+No hosted database, WorkOS dashboard, deployment, rollout flag, production
+write, commit, merge, or promotion changed.
+
+**Model recommendation:** frontier reasoning model — this verification spans
+real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
+roles, standalone regression, and concurrent authoritative writes.
+
+**Completed:**
+- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
+  and used distinct staging WorkOS Applications with localhost callbacks.
+- Signed in a real teacher and student through Pika, created and joined a
+  rostered classroom, configured attendance hours, opened automatically,
+  checked in through the native Pika QR path, reconciled the projection,
+  corrected the student to Late, and closed the session without leaving Pika.
+- Signed into standalone Bara through its own WorkOS Application, opened an
+  independent ad-hoc session on the mapped roster, marked the student through
+  Bara's tap UI, and closed it.
+- Added a guarded loopback-only signed-adapter/engine load runner and recorded
+  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
+  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
+  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
+
+**Verification:**
+- Pika passes 542 files and 4,567 tests, TypeScript, production build,
+  architecture, design-policy, UI-policy, and diff checks.
+- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
+  diff checks. The hosted rollout command correctly refuses to run without a
+  named Preview/Production stage and exact HTTPS origins; no staging target
+  exists to satisfy that gate.
+- Browser screenshots were visually checked for native student success,
+  teacher correction and closed state, and standalone Bara attendance.
+
+**Remaining gates:**
+- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
+  backfill, tenant-isolation/canary proof, and real teacher/student approval
+  remain blocked on provisioning an isolated Preview or explicitly approving a
+  different non-production target. Production remains disabled.
+
+<!-- pika-session-log-archive-batch:3fc2b454e9818765198b073c0bfd000d4e45df6ab80cb0bb02552962d29ba40e -->
+## 2026-08-20 — Verify public planned-course sites
+
+**Risk profile:** runtime-platform — public content-exposure and publication
+lifecycle behavior; no migration, production operation, dependency, archive
+cleanup, or Gradex change.
+
+**Completed:**
+- Added deterministic published and unpublished planned-course fixtures to the
+  standard local/CI seed path without coupling them to the legacy seed runner.
+- Reworked `/planned/[slug]` into a scan-friendly section layout with semantic
+  headings, keyboard-visible section navigation, responsive containment, and
+  consistent Tests terminology.
+- Added a route-specific generic not-found state so unpublished and unknown
+  slugs share the same privacy-preserving response.
+- Added component and Playwright coverage for publish/unpublish behavior,
+  desktop/mobile light/dark rendering, keyboard focus, overflow, safe resource
+  links, and exclusion of private prompts, answer keys, documents, and IDs.
+
+**Validation:**
+- `pnpm seed` passes with the isolated planned-course fixture runner.
+- Full verification passes 4,616 tests across 507 files, lint, type checking,
+  and the production build. Architecture, UI policy, design policy, Pika audit,
+  and diff checks pass.
+- The final Playwright experience matrix passes 36 tests with 14 intentional
+  project skips. All eight published/not-found desktop/mobile light/dark
+  screenshots were visually reviewed with no overflow or overlap findings.
+- Composite-widget checklist reviewed: keyboard behavior and semantic section
+  navigation are covered; no manual follow-up remains.
+
+**Model recommendation:** Sol with high reasoning for the public content-
+exposure boundary and cross-route publication lifecycle.
+
+**Independent review remediation:**
+- Replaced private database-row React keys with server-only positional keys and
+  expanded the raw-response denylist to every fixture Blueprint, child,
+  embedded-content, and artifact UUID. Direct response inspection confirms all
+  nine identifiers are absent.
+- Added fixed assignment, Test, and lesson artifact identities. Both reserved
+  Blueprints now reconcile all five child tables before inserting the exact
+  fixture set, so stale local fixture content cannot survive a reseed.
+- Added drift-injection idempotency coverage, verified two consecutive real
+  local seeds, and brought `seed:fresh` onto the same planned-course fixture
+  path as `seed`.
+- Changed fixture reconciliation to read the complete canonical state first and
+  perform no writes when it is already exact, preventing unchanged seeds from
+  incrementing Blueprint content revisions. A real-database replay preserved
+  the complete fixture fingerprint and content revision 30.
+- Made drift repair fail closed: the public Blueprint is unpublished before
+  child reconciliation and published only after every canonical write succeeds.
+  An injected child-write failure verifies that the public site remains private.
+- The final targeted review found that subset comparison could miss same-ID
+  drift in grading, submission, authenticity, or nested JSON fields. Fixture
+  rows now project every teacher-editable canonical field and require exact
+  nested JSON equality; same-ID drift correction and fail-closed failure paths
+  are covered directly.
+- Remediated full verification passes 4,616 tests across 507 files, lint, type
+  checking, and the production build. The final browser matrix remains 36
+  passing with 14 intentional skips.

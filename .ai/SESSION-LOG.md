@@ -11,149 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-19 — Verify native attendance against disposable local databases
-
-**Risk profile:** runtime-platform and disposable local data. The user
-explicitly authorized resetting and discarding the shared local Pika database.
-No hosted database, WorkOS dashboard, deployment, rollout flag, production
-write, commit, merge, or promotion changed.
-
-**Model recommendation:** frontier reasoning model — this verification spans
-real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
-roles, standalone regression, and concurrent authoritative writes.
-
-**Completed:**
-- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
-  and used distinct staging WorkOS Applications with localhost callbacks.
-- Signed in a real teacher and student through Pika, created and joined a
-  rostered classroom, configured attendance hours, opened automatically,
-  checked in through the native Pika QR path, reconciled the projection,
-  corrected the student to Late, and closed the session without leaving Pika.
-- Signed into standalone Bara through its own WorkOS Application, opened an
-  independent ad-hoc session on the mapped roster, marked the student through
-  Bara's tap UI, and closed it.
-- Added a guarded loopback-only signed-adapter/engine load runner and recorded
-  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
-  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
-  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
-
-**Verification:**
-- Pika passes 542 files and 4,567 tests, TypeScript, production build,
-  architecture, design-policy, UI-policy, and diff checks.
-- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
-  diff checks. The hosted rollout command correctly refuses to run without a
-  named Preview/Production stage and exact HTTPS origins; no staging target
-  exists to satisfy that gate.
-- Browser screenshots were visually checked for native student success,
-  teacher correction and closed state, and standalone Bara attendance.
-
-**Remaining gates:**
-- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
-  backfill, tenant-isolation/canary proof, and real teacher/student approval
-  remain blocked on provisioning an isolated Preview or explicitly approving a
-  different non-production target. Production remains disabled.
-
-## 2026-08-19 — Verify native attendance against disposable local databases
-
-**Risk profile:** runtime-platform and disposable local data. The user
-explicitly authorized resetting and discarding the shared local Pika database.
-No hosted database, WorkOS dashboard, deployment, rollout flag, production
-write, commit, merge, or promotion changed.
-
-**Model recommendation:** frontier reasoning model — this verification spans
-real WorkOS sessions, Pika/Supabase, Bara/Convex, signed adapters, two browser
-roles, standalone regression, and concurrent authoritative writes.
-
-**Completed:**
-- Replayed Pika migrations 001–127 on shared local Supabase, ran local Convex,
-  and used distinct staging WorkOS Applications with localhost callbacks.
-- Signed in a real teacher and student through Pika, created and joined a
-  rostered classroom, configured attendance hours, opened automatically,
-  checked in through the native Pika QR path, reconciled the projection,
-  corrected the student to Late, and closed the session without leaving Pika.
-- Signed into standalone Bara through its own WorkOS Application, opened an
-  independent ad-hoc session on the mapped roster, marked the student through
-  Bara's tap UI, and closed it.
-- Added a guarded loopback-only signed-adapter/engine load runner and recorded
-  aggregate local evidence in the scan runbook. Thirty concurrent scans passed
-  30/30 at p50 120.4 ms, p95 223.0 ms, p99 226.6 ms; 100 concurrent scans
-  passed 100/100 at p50 339.7 ms, p95 589.0 ms, p99 606.3 ms.
-
-**Verification:**
-- Pika passes 542 files and 4,567 tests, TypeScript, production build,
-  architecture, design-policy, UI-policy, and diff checks.
-- Bara passes 32 files and 148 tests, TypeScript, production build, brand, and
-  diff checks. The hosted rollout command correctly refuses to run without a
-  named Preview/Production stage and exact HTTPS origins; no staging target
-  exists to satisfy that gate.
-- Browser screenshots were visually checked for native student success,
-  teacher correction and closed state, and standalone Bara attendance.
-
-**Remaining gates:**
-- Local latency is not hosted latency. Hosted p50/p95/p99, hosted migration and
-  backfill, tenant-isolation/canary proof, and real teacher/student approval
-  remain blocked on provisioning an isolated Preview or explicitly approving a
-  different non-production target. Production remains disabled.
-
-## 2026-08-20 — Verify public planned-course sites
-
-**Risk profile:** runtime-platform — public content-exposure and publication
-lifecycle behavior; no migration, production operation, dependency, archive
-cleanup, or Gradex change.
-
-**Completed:**
-- Added deterministic published and unpublished planned-course fixtures to the
-  standard local/CI seed path without coupling them to the legacy seed runner.
-- Reworked `/planned/[slug]` into a scan-friendly section layout with semantic
-  headings, keyboard-visible section navigation, responsive containment, and
-  consistent Tests terminology.
-- Added a route-specific generic not-found state so unpublished and unknown
-  slugs share the same privacy-preserving response.
-- Added component and Playwright coverage for publish/unpublish behavior,
-  desktop/mobile light/dark rendering, keyboard focus, overflow, safe resource
-  links, and exclusion of private prompts, answer keys, documents, and IDs.
-
-**Validation:**
-- `pnpm seed` passes with the isolated planned-course fixture runner.
-- Full verification passes 4,616 tests across 507 files, lint, type checking,
-  and the production build. Architecture, UI policy, design policy, Pika audit,
-  and diff checks pass.
-- The final Playwright experience matrix passes 36 tests with 14 intentional
-  project skips. All eight published/not-found desktop/mobile light/dark
-  screenshots were visually reviewed with no overflow or overlap findings.
-- Composite-widget checklist reviewed: keyboard behavior and semantic section
-  navigation are covered; no manual follow-up remains.
-
-**Model recommendation:** Sol with high reasoning for the public content-
-exposure boundary and cross-route publication lifecycle.
-
-**Independent review remediation:**
-- Replaced private database-row React keys with server-only positional keys and
-  expanded the raw-response denylist to every fixture Blueprint, child,
-  embedded-content, and artifact UUID. Direct response inspection confirms all
-  nine identifiers are absent.
-- Added fixed assignment, Test, and lesson artifact identities. Both reserved
-  Blueprints now reconcile all five child tables before inserting the exact
-  fixture set, so stale local fixture content cannot survive a reseed.
-- Added drift-injection idempotency coverage, verified two consecutive real
-  local seeds, and brought `seed:fresh` onto the same planned-course fixture
-  path as `seed`.
-- Changed fixture reconciliation to read the complete canonical state first and
-  perform no writes when it is already exact, preventing unchanged seeds from
-  incrementing Blueprint content revisions. A real-database replay preserved
-  the complete fixture fingerprint and content revision 30.
-- Made drift repair fail closed: the public Blueprint is unpublished before
-  child reconciliation and published only after every canonical write succeeds.
-  An injected child-write failure verifies that the public site remains private.
-- The final targeted review found that subset comparison could miss same-ID
-  drift in grading, submission, authenticity, or nested JSON fields. Fixture
-  rows now project every teacher-editable canonical field and require exact
-  nested JSON equality; same-ID drift correction and fail-closed failure paths
-  are covered directly.
-- Remediated full verification passes 4,616 tests across 507 files, lint, type
-  checking, and the production build. The final browser matrix remains 36
-  passing with 14 intentional skips.
-
 ## 2026-08-20 — Streamline Blueprint-to-Classroom creation
 
 **Risk profile:** runtime-platform — Blueprint materialization, immutable
@@ -1128,3 +985,96 @@ deployment, configuration, entitlement, smoke, or hosted data changed.
   with an exact single-purpose preflight-fence contract and labeled the
   migration-132 rollout sequence as completed audit history rather than future
   operator instructions.
+
+## 2026-08-25 — Verify entitled-teacher active-class readiness
+
+**Risk profile:** runtime-platform — read-only production UI and aggregate
+database verification; no production migration, deployment, entitlement,
+configuration, flag, cleanup, or attendance-data mutation was performed.
+
+- Confirmed the entitled teacher sees Attendance in the sole active production
+  classroom and that its enabled policy plus opaque roster/schedule mapping are
+  fully synced.
+- Added the target-pinned, aggregate-only `attendance:pilot:readiness` operator.
+  It emits no teacher, classroom, roster, or student identifiers and fails
+  closed unless configured and unconfigured active classrooms both exist.
+- The production run correctly reported
+  `requires_at_least_two_active_classrooms` and
+  `requires_unconfigured_active_classroom`; the save-isolation gate therefore
+  remains open until a second intended active classroom exists or an exact
+  temporary setup and restoration is separately authorized.
+- Added focused readiness, service-role read-path, and operator-contract
+  coverage. The full suite passes (5,085/5,085); lint, TypeScript, and the
+  production build pass with only the existing WorkOS Edge-runtime warnings.
+- Independent review found that separate REST reads could observe inconsistent
+  states, an unconfigured Class mapping could mask a missing configured-Class
+  mapping, the service-role transport was not operation-read-only, and output
+  could expose unstable error or revision detail.
+- Remediated those findings with proposed, unapplied migration 133: one stable
+  aggregate SQL RPC, configured-Class mapping association, an exact RPC/teacher
+  transport allowlist, stable operator failure codes, and database regression
+  coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
+  boundaries, and the production build pass. Production remains through
+  migration 132 and was not modified.
+- Targeted re-review caught and fixed a database-test false positive where the
+  allowed `roster_mappings` key matched a broad `roster_` leak substring. The
+  assertion now requires exactly the eight aggregate keys with numeric values;
+  migration 133 remains unapplied pending exact authorization.
+
+## 2026-08-26 — Adopt Pal widget alpha.5
+
+**Risk profile:** none — pinned widget package and compatibility assertions only;
+no schema, API, persistence, authentication, or production state changed.
+
+- Published and installed the immutable registry release
+  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
+  and the regenerated lockfile records its npm registry integrity rather than a
+  temporary tarball path.
+- Updated the package pin and compatibility assertions for concealed achievement
+  titles and collectible-focused story celebrations. The Pika-owned reward modal
+  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
+  `Story Keeper` title.
+- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
+  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
+  boundaries, and the production build pass.
+- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
+  remains centered and responsive with the collectible-only presentation. The
+  temporary unauthenticated review route was removed; teacher review is n/a
+  because the integration is student-only.
+
+## 2026-08-26 — Stabilize unsaved-grade action test
+
+**Risk profile:** none — test synchronization only; no application behavior,
+schema, API, persistence, authentication, or production state changed.
+
+- Confirmed the intermittent `TeacherClassroomView` failure was an assertion
+  race: the mocked grading panel renders before its passive effect reports the
+  pending-grade state to the parent.
+- Moved the panel predicate and all three disabled-action assertions into one
+  `waitFor`, so the test awaits the observable contract instead of assuming
+  effect timing.
+- The focused test passes 20/20 repetitions, all 50 tests in the component file
+  pass under coverage, the full 5,090-test coverage suite passes, and lint is
+  clean.
+
+**Model recommendation:** GPT-5.6 Sol for precise React effect and async-test
+reasoning.
+## 2026-08-26 — Improve mobile classroom navigation
+
+**Risk profile:** none — shared classroom-shell navigation and responsive
+presentation only; no API, schema, persistence, dependency, or hosted state changed.
+
+- Added Pika's home affordance to the mobile classroom drawer as a distinct
+  `All classrooms` navigation row beneath the `Navigation` heading, with its
+  own surface, hover state, and focus ring. The desktop header logo is unchanged.
+- Reclaimed the unused mobile header center column for the classroom selector,
+  so the seeded `Test Classroom` label renders in full instead of collapsing to
+  its first character.
+- Added regression coverage for mobile layout ownership, drawer home navigation,
+  blocked navigation, the Pika brand link, and active student exam mode hiding
+  the mobile navigation while rejecting direct home-exit attempts.
+- Full Vitest passes (5,096/5,096), lint, design policy, UI policy, and diff
+  checks pass. Playwright visual verification passed for teacher and student,
+  desktop and mobile, light and dark, including drawer-open and keyboard-focus
+  states. Mobile captures had no horizontal overflow, and both roles navigated
+  from the drawer to `/classrooms`.
