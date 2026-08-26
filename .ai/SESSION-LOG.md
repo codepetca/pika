@@ -730,6 +730,41 @@ staging or production migration was applied.
   tests, and the full Vitest suite pass (5,093/5,093). Staging and production
   remain unchanged, and the worktree has no production project binding.
 
+## 2026-08-25 — Repair Blueprint Test question identity mapping
+
+**Risk profile:** runtime-platform — the initial database RPC replacement was
+applied locally; its review revision awaits authorized local reapplication. No
+staging or production migration was applied.
+
+- Traced production Blueprint capture operation
+  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
+  confirmed Test draft questions intentionally use JSON array order rather than
+  a persisted `position` field.
+- Added proposed migration 134 so active Classroom capture and archived
+  Classroom reuse map Test question identities by zero-based JSON ordinality,
+  preserving the managed-storage wrapper, RPC signatures, privileges, and all
+  unrelated function behavior.
+- Added rollback/replay database coverage and CI wiring. The new rollback-only
+  harness reproduces the production `23505` artifact-identity collision against
+  the pre-134 schema; the local dry run contains only migration 134.
+- After exact one-time authorization, migration 134 applied locally as the sole
+  pending migration. The post-migration database harness passes active capture,
+  archived reuse, rollback, identity order, and replay; adjacent atomic
+  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
+- Initial PR review found that valid source positions can contain gaps after a
+  question deletion. Fix batch 1 now maps each JSON question to the nth source
+  row ordered by `(position, id)` and gives both active and archived fixtures
+  positions `0,2`; the strengthened harness failed against the installed
+  pre-review function as expected.
+- After exact destructive-reset authorization, local was reset without seeding
+  and migrations 001-134 replayed from the reviewed branch. The strengthened
+  active/archived gap-position harness, adjacent atomic and versioned Blueprint
+  contracts, managed-storage contract, generated types, lint, architecture,
+  audit, and 48 focused tests all pass.
+- Lint, architecture boundaries, generated database types, focused Blueprint
+  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
+  remain unchanged, and the worktree has no production project binding.
+
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1208,3 +1243,25 @@ authorized local database was reset, while hosted state remained untouched.
   and assert the current post-check-in copy. The full matrix passes (40 passed,
   14 intentionally skipped), as do the full Vitest suite (5,114/5,114), focused
   identity tests, lint, TypeScript, the Pika audit, and the production build.
+
+## 2026-08-26 — Close PR 1066 active-generation and ledger replay blockers
+
+**Risk profile:** runtime-platform — migration function selection, operation
+idempotency/recovery, and rollback-only database contracts; no database was
+reset or migrated and no hosted state was changed.
+
+- Rebased the dedicated PR worktree onto current `origin/main`; migration 134
+  remains sequential after main's 133 with no duplicate migration prefixes.
+- Restricted active Blueprint capture to non-archived assignment, Test, lesson,
+  material, and survey generations. Added a real database fixture with an
+  archived Test generation and active replacement sharing portable identity and
+  position, including a colliding archived question identity.
+- Moved archived Classroom operation identity validation ahead of the winner
+  shortcut. A same-key/different-hash replay now returns
+  `idempotency_conflict`, while a compatible retained failed operation is
+  reconciled to the winner Blueprint and completed ledger evidence.
+- Full Vitest passes 5,114 tests across 586 files. Focused migration guards,
+  lint, TypeScript, architecture boundaries, generated database type parity,
+  shell syntax, diff checks, and the production build pass. The revised SQL
+  fixture remains for fresh-database CI because migration application/reset was
+  explicitly prohibited for this task.

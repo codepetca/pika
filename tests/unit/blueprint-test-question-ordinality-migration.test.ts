@@ -89,6 +89,21 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain("set search_path = ''")
     expectReadOnlyStableQuestionIdentityValidation(definition, 'Captured')
     expectDurableIdentityFailureLedger(definition)
+    expect(definition).toMatch(
+      /update public\.assignments[\s\S]{0,420}where classroom_id = p_source_classroom_id\s+and blueprint_archived_at is null\s+and position = v_position/,
+    )
+    expect(definition).toMatch(
+      /from public\.tests as source_test\s+where source_test\.classroom_id = p_source_classroom_id\s+and source_test\.blueprint_archived_at is null\s+and \(/,
+    )
+    expect(definition).toMatch(
+      /from public\.lesson_plans lesson\s+where lesson\.classroom_id = p_source_classroom_id\s+and lesson\.blueprint_archived_at is null/,
+    )
+    expect(definition).toMatch(
+      /update public\.classwork_materials[\s\S]{0,340}where classroom_id = p_source_classroom_id\s+and blueprint_archived_at is null\s+and position = coalesce/,
+    )
+    expect(definition).toMatch(
+      /update public\.surveys[\s\S]{0,340}where classroom_id = p_source_classroom_id\s+and blueprint_archived_at is null\s+and position = coalesce/,
+    )
   })
 
   it('maps archived classroom reuse questions by stable identity', () => {
@@ -100,6 +115,26 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain("set search_path = ''")
     expectReadOnlyStableQuestionIdentityValidation(definition, 'Archived')
     expectDurableIdentityFailureLedger(definition)
+    const ledgerValidation = definition.indexOf(
+      'select *\n  into v_operation\n  from public.course_blueprint_operations',
+    )
+    const winnerReplay = definition.indexOf(
+      'if v_classroom.source_blueprint_id is not null then',
+    )
+    expect(ledgerValidation).toBeGreaterThanOrEqual(0)
+    expect(winnerReplay).toBeGreaterThan(ledgerValidation)
+    expect(definition.slice(ledgerValidation, winnerReplay)).toContain(
+      "v_operation.operation_type <> 'import'",
+    )
+    expect(definition.slice(ledgerValidation, winnerReplay)).toContain(
+      'v_operation.request_sha256 <> p_request_sha256',
+    )
+    expect(definition.slice(ledgerValidation, winnerReplay)).toContain(
+      "'error_code', 'idempotency_conflict'",
+    )
+    expect(definition.slice(winnerReplay)).toMatch(
+      /update public\.course_blueprint_operations\s+set\s+status = 'completed',[\s\S]{0,500}result_blueprint_id = v_classroom\.source_blueprint_id[\s\S]{0,500}where id = p_operation_id\s+and status = 'failed'/,
+    )
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
     )

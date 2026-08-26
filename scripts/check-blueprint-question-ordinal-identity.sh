@@ -40,35 +40,54 @@ insert into public.classrooms (
   );
 
 insert into public.tests (
-  id, classroom_id, artifact_id, title, status, show_results,
-  points_possible, created_by, position
+  id, classroom_id, artifact_id, source_artifact_id, title, status,
+  show_results, points_possible, created_by, position, blueprint_archived_at
 ) values
   (
     'b1340000-0000-4000-8000-000000000011',
     'b1340000-0000-4000-8000-000000000010',
     'b1340000-0000-4000-8000-000000000111',
+    null,
     'Active multi-question Test',
     'draft',
     false,
     2,
     'b1340000-0000-4000-8000-000000000001',
-    0
+    0,
+    null
+  ),
+  -- A retained archived generation may share the portable source identity and
+  -- position with its active replacement. Active capture must ignore it.
+  (
+    'b1340000-0000-4000-8000-000000000015',
+    'b1340000-0000-4000-8000-000000000010',
+    'b1340000-0000-4000-8000-000000000115',
+    'b1340000-0000-4000-8000-000000000111',
+    'Retained archived Test generation',
+    'draft',
+    false,
+    1,
+    'b1340000-0000-4000-8000-000000000001',
+    0,
+    clock_timestamp()
   ),
   (
     'b1340000-0000-4000-8000-000000000021',
     'b1340000-0000-4000-8000-000000000020',
     'b1340000-0000-4000-8000-000000000211',
+    null,
     'Archived multi-question Test',
     'draft',
     false,
     2,
     'b1340000-0000-4000-8000-000000000001',
-    0
+    0,
+    null
   );
 
 insert into public.test_questions (
-  id, test_id, artifact_id, question_type, question_text, options,
-  correct_option, points, response_max_chars, response_monospace, position
+  id, test_id, artifact_id, source_artifact_id, question_type, question_text,
+  options, correct_option, points, response_max_chars, response_monospace, position
 ) values
   -- Position gaps are valid after question deletion. Stable identity matching
   -- must not infer question identity from ordinal position.
@@ -76,6 +95,7 @@ insert into public.test_questions (
     'b1340000-0000-4000-8000-000000000012',
     'b1340000-0000-4000-8000-000000000011',
     'b1340000-0000-4000-8000-000000000112',
+    null,
     'multiple_choice',
     'Active question one',
     '["A","B"]'::jsonb,
@@ -89,8 +109,23 @@ insert into public.test_questions (
     'b1340000-0000-4000-8000-000000000013',
     'b1340000-0000-4000-8000-000000000011',
     'b1340000-0000-4000-8000-000000000113',
+    null,
     'open_response',
     'Active question two',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    2
+  ),
+  (
+    'b1340000-0000-4000-8000-000000000016',
+    'b1340000-0000-4000-8000-000000000015',
+    'b1340000-0000-4000-8000-000000000116',
+    'b1340000-0000-4000-8000-000000000113',
+    'open_response',
+    'Retained archived question generation',
     '[]'::jsonb,
     null,
     1,
@@ -102,6 +137,7 @@ insert into public.test_questions (
     'b1340000-0000-4000-8000-000000000022',
     'b1340000-0000-4000-8000-000000000021',
     'b1340000-0000-4000-8000-000000000212',
+    null,
     'multiple_choice',
     'Archived question one',
     '["A","B"]'::jsonb,
@@ -115,6 +151,7 @@ insert into public.test_questions (
     'b1340000-0000-4000-8000-000000000023',
     'b1340000-0000-4000-8000-000000000021',
     'b1340000-0000-4000-8000-000000000213',
+    null,
     'open_response',
     'Archived question two',
     '[]'::jsonb,
@@ -158,11 +195,14 @@ declare
   v_active_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000113';
   v_active_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000114';
   v_active_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000012';
+  v_active_archived_test_row_id constant uuid := 'b1340000-0000-4000-8000-000000000015';
+  v_active_archived_question_row_id constant uuid := 'b1340000-0000-4000-8000-000000000016';
   v_archived_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000211';
   v_archived_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000212';
   v_archived_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000213';
   v_archived_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000214';
   v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
+  v_archived_winner_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000221';
   v_instantiation_blueprint_id constant uuid := 'b1340000-0000-4000-8000-000000000301';
   v_instantiation_version_id constant uuid := 'b1340000-0000-4000-8000-000000000302';
   v_instantiation_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000303';
@@ -389,6 +429,23 @@ begin
   ) then
     raise exception 'Active capture rewrote persisted Test identity';
   end if;
+  if not exists (
+    select 1
+    from public.tests
+    where id = v_active_archived_test_row_id
+      and artifact_id = 'b1340000-0000-4000-8000-000000000115'::uuid
+      and source_artifact_id = v_active_test_artifact_id
+      and blueprint_archived_at is not null
+  ) or not exists (
+    select 1
+    from public.test_questions
+    where id = v_active_archived_question_row_id
+      and test_id = v_active_archived_test_row_id
+      and artifact_id = 'b1340000-0000-4000-8000-000000000116'::uuid
+      and source_artifact_id = v_active_question_two_id
+  ) then
+    raise exception 'Active capture included the retained archived Test generation';
+  end if;
 
   select content
   into v_content
@@ -570,26 +627,27 @@ begin
     raise exception 'Archived identity repair did not advance the source revision';
   end if;
 
-  -- The revision is a stale-read precondition, not part of the stable request
-  -- identity, so a repaired source can retry the retained operation key.
+  -- Operation B wins after the source repair while failed operation A remains
+  -- retained. A mismatched replay must conflict before the classroom winner
+  -- shortcut, then a compatible retry of A must reconcile its failed ledger.
   v_result := public.create_archived_classroom_blueprint_atomic(
-    v_archived_failed_operation_id,
+    v_archived_winner_operation_id,
     v_teacher_id,
-    repeat('b', 64),
+    repeat('c', 64),
     v_archived_classroom_id,
     v_archived_revision,
     v_archived_failure_plan
   );
   if not coalesce((v_result->>'ok')::boolean, false) then
-    raise exception 'Archived same-key retry after repair failed: %', v_result;
+    raise exception 'Archived winner operation after repair failed: %', v_result;
   end if;
   v_blueprint_id := (v_result->>'blueprint_id')::uuid;
   select count(*)
   into v_count
   from public.course_blueprint_operations
-  where id = v_archived_failed_operation_id
+  where id = v_archived_winner_operation_id
     and status = 'completed'
-    and attempt_count = 2
+    and attempt_count = 1
     and source_classroom_id = v_archived_classroom_id
     and result_blueprint_id = v_blueprint_id
     and result_classroom_id = v_archived_classroom_id
@@ -598,7 +656,66 @@ begin
     and error_sqlstate is null
     and completed_at is not null;
   if v_count <> 1 then
-    raise exception 'Archived retry did not complete the retained operation ledger';
+    raise exception 'Archived winner operation did not complete its ledger';
+  end if;
+
+  v_replay := public.create_archived_classroom_blueprint_atomic(
+    v_archived_failed_operation_id,
+    v_teacher_id,
+    repeat('c', 64),
+    v_archived_classroom_id,
+    v_archived_revision,
+    v_archived_failure_plan
+  );
+  if coalesce((v_replay->>'ok')::boolean, true)
+    or v_replay->>'status' is distinct from '409'
+    or v_replay->>'error_code' is distinct from 'idempotency_conflict'
+    or coalesce((v_replay->>'retryable')::boolean, true)
+  then
+    raise exception 'Archived winner shortcut bypassed hash validation: %', v_replay;
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_archived_failed_operation_id
+      and request_sha256 = repeat('b', 64)
+      and status = 'failed'
+      and attempt_count = 1
+      and error_code = 'test_question_identity_ambiguous'
+  ) then
+    raise exception 'Archived hash conflict mutated the retained failed ledger';
+  end if;
+
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    v_archived_failed_operation_id,
+    v_teacher_id,
+    repeat('b', 64),
+    v_archived_classroom_id,
+    v_archived_revision,
+    v_archived_failure_plan
+  );
+  if not coalesce((v_result->>'ok')::boolean, false)
+    or not coalesce((v_result->>'replayed')::boolean, false)
+    or v_result->>'blueprint_id' is distinct from v_blueprint_id::text
+  then
+    raise exception 'Archived failed operation did not reconcile to the winner: %', v_result;
+  end if;
+  select count(*)
+  into v_count
+  from public.course_blueprint_operations
+  where id = v_archived_failed_operation_id
+    and status = 'completed'
+    and attempt_count = 2
+    and request_sha256 = repeat('b', 64)
+    and source_classroom_id = v_archived_classroom_id
+    and result_blueprint_id = v_blueprint_id
+    and result_classroom_id = v_archived_classroom_id
+    and result = v_result
+    and error_code is null
+    and error_sqlstate is null
+    and completed_at is not null;
+  if v_count <> 1 then
+    raise exception 'Archived winner replay did not reconcile the failed ledger';
   end if;
 
   select

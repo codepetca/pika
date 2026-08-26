@@ -201,6 +201,7 @@ begin
         artifact_id = (v_item->>'artifact_id')::uuid,
         source_artifact_id = (v_item->>'artifact_id')::uuid
       where classroom_id = p_source_classroom_id
+        and blueprint_archived_at is null
         and position = v_position
       returning id into v_parent_id;
       if not found then
@@ -246,6 +247,7 @@ begin
       into v_question_row_ids
       from public.tests as source_test
       where source_test.classroom_id = p_source_classroom_id
+        and source_test.blueprint_archived_at is null
         and (
           source_test.artifact_id = (v_item->>'artifact_id')::uuid
           or source_test.source_artifact_id = (v_item->>'artifact_id')::uuid
@@ -301,6 +303,7 @@ begin
         select lesson.id
         from public.lesson_plans lesson
         where lesson.classroom_id = p_source_classroom_id
+          and lesson.blueprint_archived_at is null
         order by lesson.date, lesson.id
         offset v_position
         limit 1
@@ -336,6 +339,7 @@ begin
         artifact_id = (v_item->>'artifact_id')::uuid,
         source_artifact_id = (v_item->>'artifact_id')::uuid
       where classroom_id = p_source_classroom_id
+        and blueprint_archived_at is null
         and position = coalesce((v_item->>'position')::integer, 0);
       get diagnostics v_updated = row_count;
       if v_updated <> 1 then
@@ -372,6 +376,7 @@ begin
         artifact_id = (v_item->>'artifact_id')::uuid,
         source_artifact_id = (v_item->>'artifact_id')::uuid
       where classroom_id = p_source_classroom_id
+        and blueprint_archived_at is null
         and position = coalesce((v_item->>'position')::integer, 0)
       returning id into v_parent_id;
       if not found then
@@ -603,6 +608,7 @@ set search_path = ''
 as $$
 declare
   v_classroom public.classrooms;
+  v_operation public.course_blueprint_operations;
   v_result jsonb;
   v_blueprint_id uuid;
   v_blueprint_revision bigint;
@@ -650,6 +656,31 @@ begin
     );
   end if;
 
+  -- The classroom winner is authoritative only after the caller's operation
+  -- identity has been validated. Otherwise the shortcut can turn a conflicting
+  -- reuse of an existing key into an apparent success.
+  select *
+  into v_operation
+  from public.course_blueprint_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.id is not null and (
+    v_operation.teacher_id <> p_teacher_id
+    or v_operation.operation_type <> 'import'
+    or v_operation.request_sha256 <> p_request_sha256
+  ) then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'operation_type', 'import',
+      'error_code', 'idempotency_conflict',
+      'error', 'Idempotency key was already used for a different blueprint request',
+      'retryable', false
+    );
+  end if;
+
   -- A distinct concurrent request that waited on this row reuses the winner.
   -- No second Blueprint or operation row is created.
   if v_classroom.source_blueprint_id is not null then
@@ -664,7 +695,7 @@ begin
         using errcode = '23503';
     end if;
 
-    return jsonb_build_object(
+    v_result := jsonb_build_object(
       'ok', true,
       'status', 201,
       'operation_id', p_operation_id,
@@ -679,6 +710,27 @@ begin
         'lesson_templates', 0
       )
     );
+
+    -- Operation A can fail durably before operation B establishes the
+    -- classroom winner. A compatible retry of A must converge both the result
+    -- and its retained ledger row on B's winner.
+    update public.course_blueprint_operations
+    set
+      status = 'completed',
+      attempt_count = attempt_count + 1,
+      source_classroom_id = p_source_classroom_id,
+      result_blueprint_id = v_classroom.source_blueprint_id,
+      result_classroom_id = p_source_classroom_id,
+      result = v_result,
+      resource_counts = v_result->'counts',
+      error_code = null,
+      error_sqlstate = null,
+      completed_at = now(),
+      updated_at = now()
+    where id = p_operation_id
+      and status = 'failed';
+
+    return v_result;
   end if;
 
   if v_classroom.blueprint_source_revision <> p_expected_source_revision then
