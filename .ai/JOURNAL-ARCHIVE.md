@@ -22888,3 +22888,99 @@ exposure boundary and cross-route publication lifecycle.
 - Remediated full verification passes 4,616 tests across 507 files, lint, type
   checking, and the production build. The final browser matrix remains 36
   passing with 14 intentional skips.
+
+<!-- pika-session-log-archive-batch:db87b77ebe640138252d2c56cbee225f9238897933fb70ee5f5fce49fbce2973 -->
+## 2026-08-20 — Streamline Blueprint-to-Classroom creation
+
+**Risk profile:** runtime-platform — Blueprint materialization, immutable
+lineage, and student-visibility defaults; no migration, production operation,
+dependency, deletion endpoint, or archive-lifecycle change.
+
+**Completed:**
+- A Blueprint preselected from `/teacher/blueprints` now moves directly from
+  classroom name to calendar. Dashboard/classroom entry paths without a
+  preselection still require choosing a Blueprint. Back navigation, unsaved
+  editor confirmation, retry idempotency, the post-create handoff, overflow
+  reporting, and assignments-tab navigation remain covered.
+- The real rollover drill now verifies draft/unreleased assignments, Tests,
+  materials, and surveys; an unpublished actual classroom site; authenticated
+  student API denial; immutable Version lineage; complete reusable content;
+  live-data exclusion; and cleanup.
+- The drill exposed a pre-existing nested Test-question lineage defect when a
+  source had no assessment-draft row. Blueprint source loading now normalizes
+  saved-draft and fallback question IDs to portable artifact identities.
+- Current/audit/evidence docs record the reviewed decision: no pre-create
+  preview or teacher-facing Version picker, and no immediate active-classroom
+  deletion. Remaining Phase 5 work is the existing archive/purge lifecycle UI.
+
+**Validation:**
+- Focused component/server/verification coverage passes 64 tests; the real
+  browser/API/database rollover drill passes all 54 checks with clean rollback.
+- Full verification passes 4,620 tests across 507 files, lint, type checking,
+  and the production build. Architecture/UI/design policy checks, Pika audit,
+  and diff checks pass.
+- Teacher desktop/mobile light/dark calendar-step captures were visually
+  reviewed with no picker, overflow, overlap, or legibility findings. Student
+  UI did not change; non-visibility is verified through browser/API/database
+  coverage. Composite-widget checklist reviewed with no remaining follow-up.
+
+**Model recommendation:** Sol with high reasoning for final atomic creation,
+lineage, and student-visibility review; Terra with high reasoning for broad
+compatibility, test, UX, and documentation review.
+
+## 2026-08-20 — Productize hot archive recovery copies
+
+**Risk profile:** data-security — authenticated archive status, revision-fenced
+export, and the existing gated archive operation. Migration 126 adds the atomic
+expected-source-revision fence. Its final reviewed definition is applied to
+shared local only. Nothing was applied to production.
+
+**Completed:**
+- Added a strict teacher-scoped recovery summary for hot archived Classrooms.
+  It exposes only export availability, latest operation state, verified date,
+  compressed size, and retention policy; private paths, checksums, identities,
+  and Classroom content remain server-only.
+- Archived Classroom rows now distinguish database-only, rollout-unavailable,
+  interrupted/retryable, failed, and verified recovery-copy states. Eligible
+  teachers explicitly confirm creation, and retries preserve the durable
+  operation UUID across browser failures and page reloads.
+- Verified recovery copies suppress duplicate creation and show their size and
+  retention policy. Export still retains every hot row and source object; this
+  slice does not compact a Classroom or free database space.
+- Independent review hardened the slice so verified evidence must match the
+  Classroom's current source revision, resumable exports replay their original
+  retention contract, same-lifecycle tabs derive one operation UUID, successful
+  exports retain that UUID until status reconciliation, and a status-only outage
+  cannot hide unarchive, reuse, restore, or purge actions.
+- Targeted review found that an old tab could submit its prior lifecycle UUID
+  after another tab rearchived the Classroom. Migration 126 now locks the
+  Classroom and revision rows, rejects a mismatched expected revision before
+  operation creation, and leaves the existing archive-v2 writer unchanged.
+- Narrowed remaining Phase 5 archive work to hot-to-cold eligibility/progress,
+  followed by cold-restore progress and quota/retention policy.
+
+**Validation:**
+- Focused client, API, component, deterministic-ID, retry, stale-revision,
+  malformed-data, and missing-migration coverage passes 59 tests.
+- Full verification passes 4,638 tests across 509 files, lint, type checking,
+  and the production build. Architecture, design/UI policy, Pika audit, and
+  diff checks pass.
+- The focused CI Playwright matrix passes with teacher rollout-unavailable,
+  status-outage, available, confirmation, stale, and verified states at
+  desktop/mobile in light/dark, plus the student absence boundary. Screenshots
+  were visually reviewed with no overflow, overlap, contrast, wrapping, or
+  hierarchy findings.
+- Composite-widget checklist reviewed: existing segmented-control and dialog
+  keyboard/semantic contracts are unchanged and covered; recovery state is
+  text-plus-icon, confirmation uses the canonical dialog, and no manual
+  follow-up remains.
+- Shared local Supabase was reset on this branch and replayed migrations
+  001-126. Review then found and fixed prior-revision operation replay; the final
+  migration replays and passes the live contract in both disposable and shared
+  local 001-126 databases. The concurrent Bara migration is resequenced to 127
+  on its rebased branch.
+- The migration-126 assertions now run only when its RPC exists, so the legacy
+  migration-108 Quiz compatibility database contract continues to pass.
+
+**Model recommendation:** Sol with high reasoning for the final archive
+authorization, idempotency, privacy, and lifecycle-state review.
