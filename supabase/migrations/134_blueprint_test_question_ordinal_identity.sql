@@ -24,7 +24,9 @@ declare
 begin
   -- Backfill and version fencing must be one atomic schema operation. This
   -- blocks application writes from racing the scan and either being overwritten
-  -- by the migration or restoring a legacy row ID after it.
+  -- by the migration or restoring a legacy row ID after it. Question writers
+  -- precede Draft synchronization in the lifecycle, so preserve that lock order.
+  lock table public.test_questions in share row exclusive mode;
   lock table public.assessment_drafts in share row exclusive mode;
 
   for v_draft in
@@ -486,12 +488,64 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_operation public.course_blueprint_operations;
   v_result jsonb;
   v_classroom_id uuid;
   v_parent_id uuid;
   v_item jsonb;
   v_child jsonb;
+  v_error_code text;
+  v_error_sqlstate text;
+  v_resource_counts jsonb := '{}'::jsonb;
 begin
+  -- Retain the operation row outside the rematerialization savepoint. The
+  -- compatibility RPC completes its own ledger before this wrapper replaces
+  -- positional question rows, so a later identity failure must roll back the
+  -- complete Classroom graph without erasing durable failure evidence.
+  insert into public.course_blueprint_operations (
+    id,
+    teacher_id,
+    operation_type,
+    request_sha256,
+    status,
+    source_blueprint_id
+  )
+  values (
+    p_operation_id,
+    p_teacher_id,
+    'instantiate',
+    p_request_sha256,
+    'running',
+    p_blueprint_id
+  )
+  on conflict (id) do nothing;
+
+  select *
+  into v_operation
+  from public.course_blueprint_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.teacher_id <> p_teacher_id
+    or v_operation.operation_type <> 'instantiate'
+    or v_operation.request_sha256 <> p_request_sha256
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'operation_type', 'instantiate',
+      'error_code', 'idempotency_conflict',
+      'error', 'Idempotency key was already used for a different blueprint request',
+      'retryable', false
+    );
+  end if;
+
+  if v_operation.status = 'completed' and v_operation.result is not null then
+    return jsonb_set(v_operation.result, '{replayed}', 'true'::jsonb, true);
+  end if;
+
+  begin
   v_result := public.instantiate_course_blueprint_atomic_v2_pre_question_identity(
     p_operation_id,
     p_teacher_id,
@@ -506,9 +560,11 @@ begin
   then
     return v_result;
   end if;
+  v_resource_counts := coalesce(v_result->'counts', '{}'::jsonb);
 
   v_classroom_id := (v_result->>'classroom_id')::uuid;
   perform set_config('pika.identity_mapping', 'on', true);
+  v_error_code := 'test_question_identity_mapping_failed';
 
   for v_item in
     select value from jsonb_array_elements(coalesce(p_plan->'tests', '[]'::jsonb))
@@ -567,9 +623,46 @@ begin
 
   perform set_config('pika.identity_mapping', 'off', true);
   return v_result;
-exception when others then
-  perform set_config('pika.identity_mapping', 'off', true);
-  raise;
+  exception when others then
+    get stacked diagnostics
+      v_error_sqlstate = returned_sqlstate;
+    if v_error_sqlstate = '23505' then
+      v_error_code := 'test_question_identity_conflict';
+    else
+      v_error_code := coalesce(
+        v_error_code,
+        'test_question_identity_mapping_failed'
+      );
+    end if;
+    v_result := jsonb_build_object(
+      'ok', false,
+      'status', case when v_error_sqlstate = '23505' then 409 else 500 end,
+      'operation_id', p_operation_id,
+      'operation_type', 'instantiate',
+      'error_code', v_error_code,
+      'error', case
+        when v_error_sqlstate = '23505'
+          then 'Test question identity conflicts with another Version question'
+        else 'Test question identity mapping failed'
+      end,
+      'retryable', v_error_sqlstate <> '23505'
+    );
+    update public.course_blueprint_operations
+    set
+      status = 'failed',
+      attempt_count = case when status = 'failed' then attempt_count + 1 else attempt_count end,
+      result_blueprint_id = null,
+      result_classroom_id = null,
+      result = v_result,
+      resource_counts = v_resource_counts,
+      error_code = v_error_code,
+      error_sqlstate = v_error_sqlstate,
+      completed_at = now(),
+      updated_at = now()
+    where id = p_operation_id;
+    perform set_config('pika.identity_mapping', 'off', true);
+    return v_result;
+  end;
 end;
 $$;
 

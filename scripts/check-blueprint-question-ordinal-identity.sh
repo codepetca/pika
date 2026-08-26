@@ -11,6 +11,53 @@ if [[ -z "$DB_CONTAINER" ]]; then
   exit 2
 fi
 
+# Rehearse the migration's two-table write fence with two database sessions.
+# A question writer must wait while both backfill source tables carry the exact
+# lock mode declared by migration 134.
+docker exec -e PGAPPNAME=b134_backfill_lock_contract -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+lock table public.test_questions in share row exclusive mode;
+lock table public.assessment_drafts in share row exclusive mode;
+select pg_sleep(5);
+rollback;
+SQL
+backfill_locker_pid=$!
+backfill_lock_ready=false
+for _attempt in {1..40}; do
+  held_backfill_locks="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(distinct c.relname) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation join pg_catalog.pg_stat_activity a on a.pid = l.pid where a.application_name = 'b134_backfill_lock_contract' and l.granted and l.mode = 'ShareRowExclusiveLock' and c.relname in ('assessment_drafts', 'test_questions')")"
+  if [[ "$held_backfill_locks" == "2" ]]; then
+    backfill_lock_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$backfill_lock_ready" != "true" ]]; then
+  kill "$backfill_locker_pid" 2>/dev/null || true
+  wait "$backfill_locker_pid" 2>/dev/null || true
+  echo "Migration backfill lock rehearsal did not acquire both source-table locks." >&2
+  exit 1
+fi
+
+set +e
+blocked_writer_output="$(docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 2>&1 <<'SQL'
+set lock_timeout = '500ms';
+update public.test_questions set position = position where false;
+SQL
+)"
+blocked_writer_status=$?
+set -e
+wait "$backfill_locker_pid"
+if [[ "$blocked_writer_status" -eq 0 ]] \
+  || [[ "$blocked_writer_output" != *"lock timeout"* ]]; then
+  echo "Question writes were not fenced by the migration backfill locks." >&2
+  echo "$blocked_writer_output" >&2
+  exit 1
+fi
+
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
@@ -182,6 +229,30 @@ insert into public.course_blueprint_versions (
   repeat('d', 64),
   'b1340000-0000-4000-8000-000000000001'
 );
+
+-- Fail only the explicit-identity reinsertion performed by migration 134. The
+-- compatibility RPC's initial positional rows have no source_artifact_id, so
+-- this proves a failure after the base RPC returned still retains its ledger.
+create function public.b134_fail_question_rematerialization_once()
+returns trigger
+language plpgsql
+set search_path = ''
+as $failure$
+begin
+  if coalesce(
+    current_setting('pika.b134_force_rematerialization_failure', true),
+    'off'
+  ) = 'on' and new.source_artifact_id is not null then
+    raise exception 'Forced question rematerialization failure'
+      using errcode = '40001';
+  end if;
+  return new;
+end;
+$failure$;
+
+create trigger b134_fail_question_rematerialization_once
+before insert on public.test_questions
+for each row execute function public.b134_fail_question_rematerialization_once();
 
 do $contract$
 declare
@@ -883,6 +954,50 @@ begin
     'surveys', '[]'::jsonb
   );
 
+  perform set_config(
+    'pika.b134_force_rematerialization_failure',
+    'on',
+    true
+  );
+  v_result := public.instantiate_course_blueprint_atomic_v2(
+    v_instantiation_operation_id,
+    v_teacher_id,
+    v_instantiation_blueprint_id,
+    v_instantiation_version_id,
+    repeat('d', 64),
+    1,
+    v_instantiation_plan
+  );
+  perform set_config(
+    'pika.b134_force_rematerialization_failure',
+    'off',
+    true
+  );
+  if coalesce((v_result->>'ok')::boolean, false)
+    or v_result->>'error_code' <> 'test_question_identity_mapping_failed'
+  then
+    raise exception 'Forced Version question rematerialization did not fail: %', v_result;
+  end if;
+  select count(*)
+  into v_count
+  from public.classrooms
+  where class_code = 'B134I1';
+  if v_count <> 0 then
+    raise exception 'Failed Version rematerialization retained a partial Classroom';
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_instantiation_operation_id
+      and status = 'failed'
+      and attempt_count = 1
+      and result_classroom_id is null
+      and error_code = 'test_question_identity_mapping_failed'
+      and error_sqlstate = '40001'
+  ) then
+    raise exception 'Failed Version rematerialization did not retain its ledger';
+  end if;
+
   v_result := public.instantiate_course_blueprint_atomic_v2(
     v_instantiation_operation_id,
     v_teacher_id,
@@ -896,6 +1011,31 @@ begin
     raise exception 'Version question identity instantiation failed: %', v_result;
   end if;
   v_instantiated_classroom_id := (v_result->>'classroom_id')::uuid;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_instantiation_operation_id
+      and status = 'completed'
+      and attempt_count = 2
+      and result_classroom_id = v_instantiated_classroom_id
+  ) then
+    raise exception 'Version rematerialization retry did not complete its ledger';
+  end if;
+
+  v_replay := public.instantiate_course_blueprint_atomic_v2(
+    v_instantiation_operation_id,
+    v_teacher_id,
+    v_instantiation_blueprint_id,
+    v_instantiation_version_id,
+    repeat('d', 64),
+    1,
+    v_instantiation_plan
+  );
+  if not coalesce((v_replay->>'replayed')::boolean, false)
+    or v_replay->>'classroom_id' <> v_instantiated_classroom_id::text
+  then
+    raise exception 'Version rematerialization same-key replay diverged: %', v_replay;
+  end if;
 
   select
     array_agg(question.artifact_id order by question.position),
@@ -928,6 +1068,9 @@ begin
   end if;
 end;
 $contract$;
+
+drop trigger b134_fail_question_rematerialization_once on public.test_questions;
+drop function public.b134_fail_question_rematerialization_once();
 
 rollback;
 SQL

@@ -1260,6 +1260,14 @@ reset or migrated and no hosted state was changed.
   shortcut. A same-key/different-hash replay now returns
   `idempotency_conflict`, while a compatible retained failed operation is
   reconciled to the winner Blueprint and completed ledger evidence.
+- Independent SQL review found two structural gaps in the same lifecycle. The
+  migration backfill now fences `test_questions` before `assessment_drafts`,
+  matching question-before-Draft synchronization order, and its database
+  contract rehearses that a concurrent question writer blocks.
+- Instantiation now seeds and validates its operation ledger outside the
+  question-rematerialization savepoint. A forced post-base failure proves the
+  Classroom graph rolls back while the failed ledger survives, then the same
+  operation key retries successfully and replays the completed result.
 - Full Vitest passes 5,114 tests across 586 files. Focused migration guards,
   lint, TypeScript, architecture boundaries, generated database type parity,
   shell syntax, diff checks, and the production build pass. The revised SQL

@@ -166,12 +166,43 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).not.toMatch(
       /update public\.test_questions[\s\S]{0,220}position = coalesce\(\(v_child->>'position'/,
     )
+    const ledgerSeed = definition.indexOf(
+      'insert into public.course_blueprint_operations (',
+    )
+    const rematerializationSavepoint = definition.indexOf(
+      '\n  begin\n',
+      ledgerSeed,
+    )
+    const compatibilityCall = definition.indexOf(
+      'v_result := public.instantiate_course_blueprint_atomic_v2_pre_question_identity(',
+    )
+    expect(ledgerSeed).toBeGreaterThanOrEqual(0)
+    expect(rematerializationSavepoint).toBeGreaterThan(ledgerSeed)
+    expect(compatibilityCall).toBeGreaterThan(rematerializationSavepoint)
+    expect(definition).toContain('exception when others then')
+    expect(definition).toContain('v_error_sqlstate = returned_sqlstate')
+    expect(definition).toContain(
+      "v_error_code := 'test_question_identity_mapping_failed'",
+    )
+    expect(definition).toMatch(
+      /status = 'failed',[\s\S]{0,180}attempt_count = case when status = 'failed' then attempt_count \+ 1 else attempt_count end/,
+    )
+    expect(definition).toContain('result_classroom_id = null')
+    expect(definition).toContain('resource_counts = v_resource_counts')
+    expect(definition).not.toMatch(
+      /exception when others then\s+perform set_config\('pika\.identity_mapping', 'off', true\);\s+raise;/,
+    )
   })
 
   it('backfills legacy draft row IDs to portable identity transactionally', () => {
-    expect(migration).toContain(
+    const questionLock = migration.indexOf(
+      'lock table public.test_questions in share row exclusive mode;',
+    )
+    const draftLock = migration.indexOf(
       'lock table public.assessment_drafts in share row exclusive mode;',
     )
+    expect(questionLock).toBeGreaterThanOrEqual(0)
+    expect(draftLock).toBeGreaterThan(questionLock)
     expect(migration).toContain(
       "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
     )
