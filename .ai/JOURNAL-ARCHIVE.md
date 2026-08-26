@@ -23099,3 +23099,42 @@ guarding only. No database, environment, or deployment state changed.
 **Verification:**
 - Migration filename and focused attendance-migration tests pass; local dry-run
   identifies only migration 127 as pending.
+
+<!-- pika-session-log-archive-batch:2ae8726145bcd5fa9fb24b17e45d3564b46811ba3c38d003ee91a3e76cf2626c -->
+## 2026-08-20 — Close Pika attendance PR review blockers
+
+**Risk profile:** runtime-platform — durable cross-service ordering, snapshot
+idempotency, migration replay, and scan/load evidence. The user authorized
+discarding Pika's local data. No hosted database, deployment, flag, or secret
+changed; the shared Bara development selectors were restored after local
+Convex startup.
+
+**Completed:**
+- Made roster snapshot retries byte-identical across manual and automated sync
+  by using one persisted-contract display value and enforcing it in migration
+  127.
+- Serialized outbox enqueue commits per classroom and made both exact and batch
+  claims wait for earlier snapshot revisions, session commands, or corrections
+  in the same causal stream.
+- Updated hosted and local load runners for current scan attempt IDs and opaque
+  principal mappings, and corrected the runbook to distinguish the local
+  server-helper path from the hosted HTTP endpoint.
+- Replaced obsolete local load figures with current-contract measurements:
+  30/30 confirmed at p50 91.8 ms, p95 161.8 ms, p99 163.9 ms; 100/100 confirmed
+  at p50 276.7 ms, p95 498.8 ms, p99 513.1 ms.
+
+**Verification:**
+- Reset disposable local Supabase and replayed migrations 001–127; database
+  types, migration dry-run, causal-order/idempotency contract, privacy fences,
+  and two-session purge concurrency checks pass.
+- Guarded loopback rehearsal passed roster/schedule sync, open, student scan and
+  duplicate retry, teacher correction, close, closed scan, duplicate event, and
+  stale reordered event handling.
+- Independent security and architecture re-reviews found no remaining P0–P2
+  issue. Full coverage passes 556 files and 4,862 tests; TypeScript, production
+  build, architecture, design-policy, UI-policy, and diff checks pass.
+
+**Remaining gates:**
+- Hosted preview/database verification, real hosted teacher/student smoke,
+  hosted endpoint latency, scheduler-capacity proof, and canary remain rollout
+  gates. Production integration remains disabled.
