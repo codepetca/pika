@@ -3,6 +3,7 @@ import {
   buildCreateBlueprintWritePlan,
   buildClassroomBlueprintUpdateWritePlan,
   buildInstantiateBlueprintWritePlan,
+  createArchivedClassroomBlueprintAtomic,
   createBlueprintWritePlanSchema,
   createCourseBlueprintAtomic,
   hashBlueprintOperationRequest,
@@ -256,6 +257,46 @@ describe('atomic blueprint operation contracts', () => {
         p_expected_source_revision: 12,
       }),
     )
+  })
+
+  it('keeps archived reuse idempotency stable across a revision-only repair', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    const supabase = {
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          ok: false,
+          status: 409,
+          operation_id: operationId,
+          operation_type: 'import',
+          error_code: 'test_question_identity_ambiguous',
+          error: 'Test question identity mapping is ambiguous',
+          retryable: true,
+        },
+        error: null,
+      }),
+    }
+    const args = {
+      supabase,
+      operationId,
+      teacherId: '30000000-0000-4000-8000-000000000020',
+      sourceClassroomId: '40000000-0000-4000-8000-000000000020',
+      plan: createPlan(),
+    }
+
+    await createArchivedClassroomBlueprintAtomic({
+      ...args,
+      expectedSourceRevision: 12,
+    })
+    await createArchivedClassroomBlueprintAtomic({
+      ...args,
+      expectedSourceRevision: 14,
+    })
+
+    const firstRequest = supabase.rpc.mock.calls[0][1]
+    const retryRequest = supabase.rpc.mock.calls[1][1]
+    expect(firstRequest.p_expected_source_revision).toBe(12)
+    expect(retryRequest.p_expected_source_revision).toBe(14)
+    expect(retryRequest.p_request_sha256).toBe(firstRequest.p_request_sha256)
   })
 
   it('rejects capture calls without a complete source revision guard', async () => {

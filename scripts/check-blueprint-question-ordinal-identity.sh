@@ -147,6 +147,7 @@ declare
   v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
   v_archived_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000023';
   v_active_revision bigint;
+  v_archived_failed_revision bigint;
   v_archived_revision bigint;
   v_active_plan jsonb;
   v_active_failure_plan jsonb;
@@ -498,7 +499,7 @@ begin
   where id = v_archived_question_one_row_id;
 
   select blueprint_source_revision
-  into v_archived_revision
+  into v_archived_failed_revision
   from public.classrooms
   where id = v_archived_classroom_id;
 
@@ -507,7 +508,7 @@ begin
     v_teacher_id,
     repeat('b', 64),
     v_archived_classroom_id,
-    v_archived_revision,
+    v_archived_failed_revision,
     v_archived_failure_plan
   );
   if coalesce((v_result->>'ok')::boolean, true)
@@ -568,7 +569,12 @@ begin
   into v_archived_revision
   from public.classrooms
   where id = v_archived_classroom_id;
+  if v_archived_revision <= v_archived_failed_revision then
+    raise exception 'Archived identity repair did not advance the source revision';
+  end if;
 
+  -- The revision is a stale-read precondition, not part of the stable request
+  -- identity, so a repaired source can retry the retained operation key.
   v_result := public.create_archived_classroom_blueprint_atomic(
     v_archived_failed_operation_id,
     v_teacher_id,
