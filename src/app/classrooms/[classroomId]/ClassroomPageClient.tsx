@@ -317,7 +317,6 @@ function StudentTodayPlanSidebar({
 }) {
   const viewerClassName = 'min-h-0 flex-1 overflow-y-auto [&_.simple-viewer-content_.tiptap.ProseMirror.simple-editor]:!p-0'
   const lastClassHeading = getLastClassHeading(lastClassDate)
-  const missingLessonPlanLabel = lastClassHeading === 'Yesterday' ? 'yesterday' : 'last class'
 
   return (
     <div className="flex h-full min-h-0 flex-col divide-y divide-border">
@@ -327,11 +326,7 @@ function StudentTodayPlanSidebar({
           <div className={viewerClassName}>
             <RichTextViewer content={todayLessonPlan!.content} chrome="flush" />
           </div>
-        ) : (
-          <p className="text-sm text-text-muted">
-            No lesson plan for today.
-          </p>
-        )}
+        ) : null}
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
@@ -355,11 +350,7 @@ function StudentTodayPlanSidebar({
           <div className={viewerClassName}>
             <RichTextViewer content={lastClassLessonPlan!.content} chrome="flush" />
           </div>
-        ) : (
-          <p className="text-sm text-text-muted">
-            No lesson plan for {missingLessonPlanLabel}.
-          </p>
-        )}
+        ) : null}
       </section>
     </div>
   )

@@ -986,3 +986,20 @@ persistence, authentication, dependency, or hosted state changed.
   plus sidebar suite passes (11/11).
 
 **Model recommendation:** GPT-5.6 Sol for exact semantic-theme and visual review.
+## 2026-08-26 — Leave missing student Today lesson plans blank
+
+**Risk profile:** none — student-facing empty-state copy only; no lesson-plan
+data, loading behavior, API, schema, persistence, or teacher UI changed.
+
+- Removed the `No lesson plan for today` and missing previous-class lesson-plan
+  messages from the student Today sidebar while preserving its Today/Yesterday
+  headings, dates, real lesson content, loading state, and no-previous-class copy.
+- Updated the classroom-page regression coverage to assert both empty lesson
+  messages remain absent after a classroom route change.
+- The focused 30-test component suite, lint, and environment verification pass.
+  Playwright review of the exact sidebar component passed at desktop/mobile in
+  light/dark with no overflow or browser console errors; the temporary review
+  route was removed after capture. Teacher review is n/a because the changed
+  sidebar is student-only.
+
+**Model recommendation:** GPT-5.6 for a narrow, copy-only UI refinement.

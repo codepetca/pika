@@ -747,7 +747,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     }))
   })
 
-  it('clears the student today sidebar plan when the classroom route changes', async () => {
+  it('leaves missing student today and yesterday lesson plans blank after a classroom route change', async () => {
     const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
 
@@ -769,7 +769,8 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     )
 
     expect(screen.queryByText('Today calendar entry')).not.toBeInTheDocument()
-    expect(screen.getByText('No lesson plan for today.')).toBeInTheDocument()
+    expect(screen.queryByText('No lesson plan for today.')).not.toBeInTheDocument()
+    expect(screen.queryByText('No lesson plan for yesterday.')).not.toBeInTheDocument()
   })
 
   it('falls back from the legacy quizzes tab to the default teacher tab', async () => {
