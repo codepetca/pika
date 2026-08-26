@@ -977,3 +977,26 @@ schema, persistence, authentication, dependency, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for a shared-shell behavior removal with
 cross-role visual verification.
+## 2026-08-25 — Repair Blueprint Test question identity mapping
+
+**Risk profile:** runtime-platform — database RPC replacement applied and
+verified locally; no staging or production migration was applied.
+
+- Traced production Blueprint capture operation
+  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
+  confirmed Test draft questions intentionally use JSON array order rather than
+  a persisted `position` field.
+- Added proposed migration 134 so active Classroom capture and archived
+  Classroom reuse map Test question identities by zero-based JSON ordinality,
+  preserving the managed-storage wrapper, RPC signatures, privileges, and all
+  unrelated function behavior.
+- Added rollback/replay database coverage and CI wiring. The new rollback-only
+  harness reproduces the production `23505` artifact-identity collision against
+  the pre-134 schema; the local dry run contains only migration 134.
+- After exact one-time authorization, migration 134 applied locally as the sole
+  pending migration. The post-migration database harness passes active capture,
+  archived reuse, rollback, identity order, and replay; adjacent atomic
+  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
+- Lint, architecture boundaries, generated database types, focused Blueprint
+  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
+  remain unchanged, and the worktree has no production project binding.
