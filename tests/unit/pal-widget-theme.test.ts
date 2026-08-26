@@ -35,8 +35,8 @@ describe('Pika to Pal widget theme adapter', () => {
       'utf8',
     )) as { version?: string }
 
-    expect(pikaPackage.dependencies?.['@codepet/pal-widget']).toBe('0.1.0-alpha.4')
-    expect(widgetPackage.version).toBe('0.1.0-alpha.4')
+    expect(pikaPackage.dependencies?.['@codepet/pal-widget']).toBe('0.1.0-alpha.5')
+    expect(widgetPackage.version).toBe('0.1.0-alpha.5')
   })
 
   it('uses the package contract without retaining a second vendored authority', () => {
