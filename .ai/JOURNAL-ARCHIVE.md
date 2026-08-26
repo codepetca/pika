@@ -22828,3 +22828,63 @@ roles, standalone regression, and concurrent authoritative writes.
   backfill, tenant-isolation/canary proof, and real teacher/student approval
   remain blocked on provisioning an isolated Preview or explicitly approving a
   different non-production target. Production remains disabled.
+
+<!-- pika-session-log-archive-batch:3fc2b454e9818765198b073c0bfd000d4e45df6ab80cb0bb02552962d29ba40e -->
+## 2026-08-20 — Verify public planned-course sites
+
+**Risk profile:** runtime-platform — public content-exposure and publication
+lifecycle behavior; no migration, production operation, dependency, archive
+cleanup, or Gradex change.
+
+**Completed:**
+- Added deterministic published and unpublished planned-course fixtures to the
+  standard local/CI seed path without coupling them to the legacy seed runner.
+- Reworked `/planned/[slug]` into a scan-friendly section layout with semantic
+  headings, keyboard-visible section navigation, responsive containment, and
+  consistent Tests terminology.
+- Added a route-specific generic not-found state so unpublished and unknown
+  slugs share the same privacy-preserving response.
+- Added component and Playwright coverage for publish/unpublish behavior,
+  desktop/mobile light/dark rendering, keyboard focus, overflow, safe resource
+  links, and exclusion of private prompts, answer keys, documents, and IDs.
+
+**Validation:**
+- `pnpm seed` passes with the isolated planned-course fixture runner.
+- Full verification passes 4,616 tests across 507 files, lint, type checking,
+  and the production build. Architecture, UI policy, design policy, Pika audit,
+  and diff checks pass.
+- The final Playwright experience matrix passes 36 tests with 14 intentional
+  project skips. All eight published/not-found desktop/mobile light/dark
+  screenshots were visually reviewed with no overflow or overlap findings.
+- Composite-widget checklist reviewed: keyboard behavior and semantic section
+  navigation are covered; no manual follow-up remains.
+
+**Model recommendation:** Sol with high reasoning for the public content-
+exposure boundary and cross-route publication lifecycle.
+
+**Independent review remediation:**
+- Replaced private database-row React keys with server-only positional keys and
+  expanded the raw-response denylist to every fixture Blueprint, child,
+  embedded-content, and artifact UUID. Direct response inspection confirms all
+  nine identifiers are absent.
+- Added fixed assignment, Test, and lesson artifact identities. Both reserved
+  Blueprints now reconcile all five child tables before inserting the exact
+  fixture set, so stale local fixture content cannot survive a reseed.
+- Added drift-injection idempotency coverage, verified two consecutive real
+  local seeds, and brought `seed:fresh` onto the same planned-course fixture
+  path as `seed`.
+- Changed fixture reconciliation to read the complete canonical state first and
+  perform no writes when it is already exact, preventing unchanged seeds from
+  incrementing Blueprint content revisions. A real-database replay preserved
+  the complete fixture fingerprint and content revision 30.
+- Made drift repair fail closed: the public Blueprint is unpublished before
+  child reconciliation and published only after every canonical write succeeds.
+  An injected child-write failure verifies that the public site remains private.
+- The final targeted review found that subset comparison could miss same-ID
+  drift in grading, submission, authenticity, or nested JSON fields. Fixture
+  rows now project every teacher-editable canonical field and require exact
+  nested JSON equality; same-ID drift correction and fail-closed failure paths
+  are covered directly.
+- Remediated full verification passes 4,616 tests across 507 files, lint, type
+  checking, and the production build. The final browser matrix remains 36
+  passing with 14 intentional skips.
