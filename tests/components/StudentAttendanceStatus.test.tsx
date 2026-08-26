@@ -102,8 +102,8 @@ describe('StudentAttendanceStatus', () => {
       variant="banner"
     />)
 
-    expect(screen.getByText('Checked in — Late')).toBeInTheDocument()
-    expect(screen.getByText(/Confirmed at 9:07 a\.m\. EDT\./i)).toBeInTheDocument()
+    expect(screen.getByText('Checked in at 9:07 AM')).toBeInTheDocument()
+    expect(screen.queryByText(/Late|Present/)).not.toBeInTheDocument()
   })
 
   it('suppresses an open prompt at the known close instant', () => {
@@ -261,20 +261,20 @@ describe('StudentAttendanceStatus', () => {
 
     render(<HookHarness />)
     await flushAsyncState()
-    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+    expect(screen.getByText(/^Checked in at /)).toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100)
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15_000)
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
   })
 
   it.each([
@@ -371,11 +371,11 @@ describe('StudentAttendanceStatus', () => {
     render(<HookHarness />)
     await flushAsyncState()
 
-    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+    expect(screen.getByText(/^Checked in at /)).toBeInTheDocument()
     expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+    expect(screen.getByText(/^Checked in at /)).toBeInTheDocument()
   })
 
   it('bounds projection-convergence reads to one refresh per five seconds', async () => {
@@ -529,7 +529,7 @@ describe('StudentAttendanceStatus', () => {
     await flushAsyncState()
 
     expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
-    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
   })
 
   it('rejects and does not cache a status response authenticated as another student', async () => {
@@ -562,7 +562,7 @@ describe('StudentAttendanceStatus', () => {
 
     render(<HookHarness />)
     await flushAsyncState()
-    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
 
     const recovered = await fetchStudentAttendanceStatus(studentOne)
     expect(recovered.studentId).toBe(studentOne)
@@ -603,12 +603,12 @@ describe('StudentAttendanceStatus', () => {
 
     render(<HookHarness />)
     await flushAsyncState()
-    expect(screen.getByText('Checked in — Present')).toBeInTheDocument()
+    expect(screen.getByText('Checked in')).toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000)
     })
-    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText('Checked in')).not.toBeInTheDocument()
     expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
     expect(mismatchedBodyRead).not.toHaveBeenCalled()
 
@@ -639,7 +639,7 @@ describe('StudentAttendanceStatus', () => {
     render(<HookHarness />)
     await flushAsyncState()
 
-    expect(screen.queryByText('Checked in — Present')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
     expect(screen.queryByText('Scan QR for Attendance')).not.toBeInTheDocument()
   })
 })

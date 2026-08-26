@@ -23062,3 +23062,40 @@ Supabase database was reset; no hosted or production state changed.
 - All 4,829 tests across 552 files pass, along with TypeScript, production
   build, architecture, design-policy, UI-policy, database type parity, feature
   metadata, shell syntax, and diff checks.
+
+<!-- pika-session-log-archive-batch:f2b252b35e0cf986c793a696203dffafebedb6ce5957695b1c4e0f707d7e9c7e -->
+## 2026-08-20 — Keep attendance rollback failures recoverable
+
+**Risk profile:** runtime-platform — cross-service rollback and durable delivery
+classification. No schema, database, environment, or deployment state changed.
+
+**Completed:**
+- Standardized disabled adapters on `503 temporarily_unavailable`, keeping
+  resource-specific and contract-specific 404s as permanent failures.
+- Made disabled Pika attendance event ingress return a retryable
+  `503 temporarily_unavailable`, so Bara retains and replays authoritative
+  events instead of poisoning its outbox during a rollback.
+- Added regressions for both transport directions and proved Pika can reuse the
+  same durable idempotency key after Bara becomes available again.
+- Documented the asymmetric rollback response rules in the native-attendance
+  roadmap.
+
+**Verification:**
+- Focused client, outbox, and event-ingress coverage passes 27 tests.
+- The full test suite, TypeScript, lint, production build, architecture,
+  design-policy, UI-policy, session-log validation, and diff checks pass.
+
+## 2026-08-20 — Align attendance verifiers with migration 127
+
+**Risk profile:** runtime-platform — migration evidence and local rollout
+guarding only. No database, environment, or deployment state changed.
+
+**Completed:**
+- Updated the Bara attendance database guard to require migration 127 rather
+  than the unrelated archive migration 126.
+- Updated local rehearsal evidence to report the complete 001–127 migration
+  range and added a regression that binds both operational verifiers to 127.
+
+**Verification:**
+- Migration filename and focused attendance-migration tests pass; local dry-run
+  identifies only migration 127 as pending.

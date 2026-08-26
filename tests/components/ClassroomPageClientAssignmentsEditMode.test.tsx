@@ -15,6 +15,7 @@ const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
+const mockUseStudentAttendanceStatusView = vi.hoisted(() => vi.fn())
 const mockLeftSidebarProps = vi.hoisted(() => vi.fn())
 const mockAppShellProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
@@ -190,6 +191,12 @@ vi.mock('@/components/StudentNotificationsProvider', () => ({
   StudentNotificationsProvider: ({ children }: any) => <>{children}</>,
 }))
 
+vi.mock('@/components/StudentAttendanceStatus', () => ({
+  useStudentAttendanceStatusView: (studentId: string) =>
+    mockUseStudentAttendanceStatusView(studentId),
+  StudentAttendanceStatus: () => <div data-testid="student-attendance-status">Checked in</div>,
+}))
+
 vi.mock('@/hooks/useClassDays', () => ({
   ClassDaysProvider: ({ children }: any) => <>{children}</>,
   useClassDaysContext: () => ({
@@ -280,7 +287,7 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
         }, classroom.id)
       }, [classroom?.id, onLessonPlanLoad])
 
-      return <div />
+      return <div data-testid="student-today-primary" />
     },
   }
 })
@@ -468,6 +475,14 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
     mockStudentTodayTabProps.mockReset()
+    mockUseStudentAttendanceStatusView.mockReset()
+    mockUseStudentAttendanceStatusView.mockReturnValue({
+      view: {
+        classrooms: [],
+      },
+      refreshing: false,
+      now: new Date('2026-05-12T14:00:00.000Z'),
+    })
     mockLeftSidebarProps.mockReset()
     mockAppShellProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
@@ -497,7 +512,8 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.queryByText('Live attendance')).not.toBeInTheDocument()
   })
 
-  it('scopes the student Today attendance status to the signed-in student', async () => {
+  it('puts the signed-in student attendance status in the Today plan section', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
     renderStudentClient({
       initialTab: 'today',
       initialSearchParams: { tab: 'today' },
@@ -507,9 +523,20 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(mockStudentTodayTabProps).toHaveBeenCalledWith(expect.objectContaining({
         classroom,
         layout: 'pane',
-        studentId: 'student-1',
       }))
+      expect(mockUseStudentAttendanceStatusView).toHaveBeenCalledWith('student-1')
     })
+
+    const todaySections = screen.getAllByRole('heading', { name: 'Today' })
+      .map((heading) => heading.closest('section'))
+    const mobileTodaySection = todaySections[0]
+    const desktopTodaySection = todaySections[1]
+    const primary = screen.getByTestId('student-today-primary')
+
+    expect(mobileTodaySection).toContainElement(screen.getAllByTestId('student-attendance-status')[0])
+    expect(mobileTodaySection?.parentElement?.parentElement).toHaveClass('lg:hidden')
+    expect(desktopTodaySection?.parentElement?.parentElement).toHaveClass('hidden', 'lg:block')
+    expect(mobileTodaySection?.compareDocumentPosition(primary)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
   it('renders the student Tests tab without a legacy assessment discriminator', async () => {
@@ -731,11 +758,11 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
 
-    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
-    expect(screen.getByText('Today calendar entry')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
-    expect(screen.getByText('Mon May 11')).toBeInTheDocument()
-    expect(await screen.findByText('Last class calendar entry')).toBeInTheDocument()
+    expect(await screen.findAllByRole('heading', { name: 'Today' })).toHaveLength(2)
+    expect(screen.getAllByText('Today calendar entry')).toHaveLength(2)
+    expect(screen.getAllByRole('heading', { name: 'Yesterday' })).toHaveLength(2)
+    expect(screen.getAllByText('Mon May 11')).toHaveLength(2)
+    expect(await screen.findAllByText('Last class calendar entry')).toHaveLength(2)
   })
 
   it('wires the mobile classroom-list link through guarded home navigation', () => {
@@ -753,7 +780,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     const view = renderStudentClient({ classroom, initialTab: 'today', initialSearchParams: { tab: 'today' } })
 
-    expect(await screen.findByText('Today calendar entry')).toBeInTheDocument()
+    expect(await screen.findAllByText('Today calendar entry')).toHaveLength(2)
 
     window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
     view.rerender(

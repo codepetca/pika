@@ -22,6 +22,11 @@ import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
+import {
+  StudentAttendanceStatus,
+  useStudentAttendanceStatusView,
+} from '@/components/StudentAttendanceStatus'
+import type { StudentAttendanceClassroomState } from '@/lib/validations/student-attendance'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
 import {
@@ -305,11 +310,17 @@ function getLastClassHeading(lastClassDate: string | null) {
 }
 
 function StudentTodayPlanSidebar({
+  attendanceState,
+  attendanceRefreshing,
+  attendanceNow,
   todayLessonPlan,
   lastClassLessonPlan,
   lastClassDate,
   lastClassLoading,
 }: {
+  attendanceState: StudentAttendanceClassroomState | undefined
+  attendanceRefreshing: boolean
+  attendanceNow: Date
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
@@ -322,6 +333,12 @@ function StudentTodayPlanSidebar({
     <div className="flex h-full min-h-0 flex-col divide-y divide-border">
       <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
         <h3 className="text-sm font-semibold text-text-default">Today</h3>
+        <StudentAttendanceStatus
+          state={attendanceState}
+          refreshing={attendanceRefreshing}
+          now={attendanceNow}
+          variant="banner"
+        />
         {hasLessonPlanContent(todayLessonPlan) ? (
           <div className={viewerClassName}>
             <RichTextViewer content={todayLessonPlan!.content} chrome="flush" />
@@ -374,6 +391,22 @@ function StudentTodayWorkspace({
   onLessonPlanLoad: (plan: LessonPlan | null, classroomId: string) => void
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
+  const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
+    useStudentAttendanceStatusView(studentId)
+  const attendanceState = attendanceView?.classrooms.find(
+    (item) => item.classroomId === classroom.id,
+  )
+  const planSidebar = (
+    <StudentTodayPlanSidebar
+      attendanceState={attendanceState}
+      attendanceRefreshing={attendanceRefreshing}
+      attendanceNow={attendanceNow}
+      todayLessonPlan={todayLessonPlan}
+      lastClassLessonPlan={lastClassLessonPlan}
+      lastClassDate={lastClassDate}
+      lastClassLoading={lastClassLoading}
+    />
+  )
 
   return (
     <TeacherWorkspaceSplit
@@ -392,19 +425,12 @@ function StudentTodayWorkspace({
       primary={
         <StudentTodayTab
           classroom={classroom}
-          studentId={studentId}
           layout="pane"
           onLessonPlanLoad={onLessonPlanLoad}
         />
       }
-      inspector={
-        <StudentTodayPlanSidebar
-          todayLessonPlan={todayLessonPlan}
-          lastClassLessonPlan={lastClassLessonPlan}
-          lastClassDate={lastClassDate}
-          lastClassLoading={lastClassLoading}
-        />
-      }
+      mobileInspector={planSidebar}
+      inspector={planSidebar}
     />
   )
 }

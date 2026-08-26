@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-20 — Keep attendance rollback failures recoverable
-
-**Risk profile:** runtime-platform — cross-service rollback and durable delivery
-classification. No schema, database, environment, or deployment state changed.
-
-**Completed:**
-- Standardized disabled adapters on `503 temporarily_unavailable`, keeping
-  resource-specific and contract-specific 404s as permanent failures.
-- Made disabled Pika attendance event ingress return a retryable
-  `503 temporarily_unavailable`, so Bara retains and replays authoritative
-  events instead of poisoning its outbox during a rollback.
-- Added regressions for both transport directions and proved Pika can reuse the
-  same durable idempotency key after Bara becomes available again.
-- Documented the asymmetric rollback response rules in the native-attendance
-  roadmap.
-
-**Verification:**
-- Focused client, outbox, and event-ingress coverage passes 27 tests.
-- The full test suite, TypeScript, lint, production build, architecture,
-  design-policy, UI-policy, session-log validation, and diff checks pass.
-
-## 2026-08-20 — Align attendance verifiers with migration 127
-
-**Risk profile:** runtime-platform — migration evidence and local rollout
-guarding only. No database, environment, or deployment state changed.
-
-**Completed:**
-- Updated the Bara attendance database guard to require migration 127 rather
-  than the unrelated archive migration 126.
-- Updated local rehearsal evidence to report the complete 001–127 migration
-  range and added a regression that binds both operational verifiers to 127.
-
-**Verification:**
-- Migration filename and focused attendance-migration tests pass; local dry-run
-  identifies only migration 127 as pending.
-
 ## 2026-08-20 — Close Pika attendance PR review blockers
 
 **Risk profile:** runtime-platform — durable cross-service ordering, snapshot
@@ -949,6 +913,7 @@ persistence, authentication, dependency, or hosted state changed.
   plus sidebar suite passes (11/11).
 
 **Model recommendation:** GPT-5.6 Sol for exact semantic-theme and visual review.
+
 ## 2026-08-26 — Leave missing student Today lesson plans blank
 
 **Risk profile:** none — student-facing empty-state copy only; no lesson-plan
@@ -987,3 +952,34 @@ no API, schema, persistence, dependency, or hosted state changed.
 
 **Model recommendation:** GPT-5.6 Sol for the small shared-shell layout change
 and bounded PR review.
+
+## 2026-08-26 — Move student check-in status into Today side card
+
+**Risk profile:** none — student Today-tab composition only; no attendance
+logic, API, schema, persistence, authentication, or hosted state changed.
+
+- Moved the existing `StudentAttendanceStatus` banner from above the daily-log
+  editor into the right-side lesson-plan card's `Today` section. The signed-in
+  student identity and classroom-scoped status selection remain unchanged.
+- Kept the open state as the one-line `Scan QR for Attendance` prompt and
+  simplified confirmation to one line: `Checked in at 9:07 AM`. The visible
+  Present/Late taxonomy, timezone suffix, and secondary confirmation line were
+  removed from this student surface.
+- Added focused coverage proving the attendance hook receives the signed-in
+  student and the rendered status is contained by the `Today` side-card
+  section. A dedicated mobile inspector keeps the side card before the Daily
+  Log in both visual and assistive-technology reading order below `lg`, while
+  desktop keeps the Daily Log before the right-side inspector. Attendance
+  status and Today-history regressions remain covered.
+- Focused Vitest passes (82/82), lint and design policy pass. Playwright
+  captures of the real component and side-card markup cover QR-open and
+  confirmed states on desktop/mobile in light/dark with no banner overflow,
+  wrapping, or legibility issues. The temporary visual
+  fixture was removed; the authenticated app matrix was unavailable because
+  the shared local environment has no Supabase URL or keys. Teacher UI is n/a
+  because this composition renders only for the student Today workspace. A
+  focused responsive-order capture also confirms Today-first stacking on
+  mobile and the unchanged right-side placement on desktop.
+
+**Model recommendation:** current model for a localized React composition and
+visual-verification change.

@@ -31,10 +31,6 @@ import { useStudentNotifications } from '@/components/StudentNotificationsProvid
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
-import {
-  StudentAttendanceStatus,
-  useStudentAttendanceStatusView,
-} from '@/components/StudentAttendanceStatus'
 import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
@@ -67,20 +63,16 @@ const DAILY_PLAN_PROMPT = "What's your plan for today?"
 
 interface StudentTodayTabProps {
   classroom: Classroom
-  studentId?: string
   layout?: 'page' | 'pane'
   onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
 }
 
 export function StudentTodayTab({
   classroom,
-  studentId,
   layout = 'page',
   onLessonPlanLoad,
 }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
-  const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
-    useStudentAttendanceStatusView(studentId)
   const {
     classDays,
     error: classDaysError,
@@ -650,14 +642,6 @@ export function StudentTodayTab({
 
   const todayContent = (
     <PageStack>
-      {studentId ? (
-        <StudentAttendanceStatus
-          state={attendanceView?.classrooms.find((item) => item.classroomId === classroom.id)}
-          refreshing={attendanceRefreshing}
-          now={attendanceNow}
-          variant="banner"
-        />
-      ) : null}
       {classDaysError && hasClassDaysSnapshot && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
           <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
