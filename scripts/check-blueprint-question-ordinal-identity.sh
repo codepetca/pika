@@ -136,9 +136,11 @@ declare
   v_active_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000111';
   v_active_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000112';
   v_active_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000113';
+  v_active_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000114';
   v_archived_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000211';
   v_archived_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000212';
   v_archived_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000213';
+  v_archived_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000214';
   v_active_revision bigint;
   v_archived_revision bigint;
   v_active_plan jsonb;
@@ -149,6 +151,7 @@ declare
   v_blueprint_id uuid;
   v_artifact_ids uuid[];
   v_source_artifact_ids uuid[];
+  v_blueprint_question_ids uuid[];
   v_content jsonb;
   v_count integer;
 begin
@@ -179,24 +182,24 @@ begin
         'show_results', false,
         'questions', jsonb_build_array(
           jsonb_build_object(
-            'id', v_active_question_one_id,
-            'question_type', 'multiple_choice',
-            'question_text', 'Active question one',
-            'options', '["A","B"]'::jsonb,
-            'correct_option', 0,
-            'answer_key', null,
-            'sample_solution', null,
-            'points', 1,
-            'response_max_chars', 5000,
-            'response_monospace', false
-          ),
-          jsonb_build_object(
             'id', v_active_question_two_id,
             'question_type', 'open_response',
             'question_text', 'Active question two',
             'options', '[]'::jsonb,
             'correct_option', null,
             'answer_key', 'A concise explanation',
+            'sample_solution', null,
+            'points', 1,
+            'response_max_chars', 5000,
+            'response_monospace', false
+          ),
+          jsonb_build_object(
+            'id', v_active_draft_only_question_id,
+            'question_type', 'open_response',
+            'question_text', 'Active draft-only question',
+            'options', '[]'::jsonb,
+            'correct_option', null,
+            'answer_key', null,
             'sample_solution', null,
             'points', 1,
             'response_max_chars', 5000,
@@ -243,14 +246,13 @@ begin
   into v_artifact_ids, v_source_artifact_ids
   from public.test_questions
   where test_id = 'b1340000-0000-4000-8000-000000000011';
-  if v_artifact_ids <> array[
+  if v_artifact_ids is distinct from array[
     v_active_question_one_id,
     v_active_question_two_id
-  ] or v_source_artifact_ids <> array[
-    v_active_question_one_id,
-    v_active_question_two_id
-  ] then
-    raise exception 'Active capture did not map question identities by array order';
+  ] or v_source_artifact_ids[1] is not null
+    or v_source_artifact_ids[2] is distinct from v_active_question_two_id
+  then
+    raise exception 'Active capture did not map persisted questions by identity';
   end if;
 
   select content
@@ -264,6 +266,19 @@ begin
     where question.value ? 'position'
   ) then
     raise exception 'Active capture persisted a redundant Test question position';
+  end if;
+  select array_agg(
+    (question.value->>'id')::uuid
+    order by question.ordinality
+  )
+  into v_blueprint_question_ids
+  from jsonb_array_elements(v_content->'questions')
+    with ordinality as question(value, ordinality);
+  if v_blueprint_question_ids is distinct from array[
+    v_active_question_two_id,
+    v_active_draft_only_question_id
+  ] then
+    raise exception 'Active capture did not preserve reordered and draft-only questions';
   end if;
 
   v_replay := public.create_course_blueprint_atomic_v2(
@@ -309,24 +324,24 @@ begin
       'show_results', false,
       'questions', jsonb_build_array(
         jsonb_build_object(
-          'id', v_archived_question_one_id,
-          'question_type', 'multiple_choice',
-          'question_text', 'Archived question one',
-          'options', '["A","B"]'::jsonb,
-          'correct_option', 0,
-          'answer_key', null,
-          'sample_solution', null,
-          'points', 1,
-          'response_max_chars', 5000,
-          'response_monospace', false
-        ),
-        jsonb_build_object(
           'id', v_archived_question_two_id,
           'question_type', 'open_response',
           'question_text', 'Archived question two',
           'options', '[]'::jsonb,
           'correct_option', null,
           'answer_key', 'A concise explanation',
+          'sample_solution', null,
+          'points', 1,
+          'response_max_chars', 5000,
+          'response_monospace', false
+        ),
+        jsonb_build_object(
+          'id', v_archived_draft_only_question_id,
+          'question_type', 'open_response',
+          'question_text', 'Archived draft-only question',
+          'options', '[]'::jsonb,
+          'correct_option', null,
+          'answer_key', null,
           'sample_solution', null,
           'points', 1,
           'response_max_chars', 5000,
@@ -342,20 +357,8 @@ begin
       '{blueprint,title}',
       to_jsonb('Archived ordinal rollback'::text)
     ),
-    '{assessments,0,content,questions}',
-    (v_archived_plan #> '{assessments,0,content,questions}')
-      || jsonb_build_array(jsonb_build_object(
-        'id', 'b1340000-0000-4000-8000-000000000214'::uuid,
-        'question_type', 'open_response',
-        'question_text', 'Missing source question',
-        'options', '[]'::jsonb,
-        'correct_option', null,
-        'answer_key', null,
-        'sample_solution', null,
-        'points', 1,
-        'response_max_chars', 5000,
-        'response_monospace', false
-      ))
+    '{assessments,0,position}',
+    '99'::jsonb
   );
 
   select blueprint_source_revision
@@ -372,7 +375,7 @@ begin
       v_archived_revision,
       v_archived_failure_plan
     );
-    raise exception 'Archived ordinal mismatch unexpectedly succeeded';
+    raise exception 'Archived source mismatch unexpectedly succeeded';
   exception when sqlstate '22023' then
     null;
   end;
@@ -391,7 +394,7 @@ begin
     where id = v_archived_classroom_id
       and source_blueprint_id is not null
   ) then
-    raise exception 'Archived ordinal mismatch was not rolled back atomically';
+    raise exception 'Archived source mismatch was not rolled back atomically';
   end if;
 
   v_result := public.create_archived_classroom_blueprint_atomic(
@@ -413,14 +416,13 @@ begin
   into v_artifact_ids, v_source_artifact_ids
   from public.test_questions
   where test_id = 'b1340000-0000-4000-8000-000000000021';
-  if v_artifact_ids <> array[
+  if v_artifact_ids is distinct from array[
     v_archived_question_one_id,
     v_archived_question_two_id
-  ] or v_source_artifact_ids <> array[
-    v_archived_question_one_id,
-    v_archived_question_two_id
-  ] then
-    raise exception 'Archived reuse did not map question identities by array order';
+  ] or v_source_artifact_ids[1] is not null
+    or v_source_artifact_ids[2] is distinct from v_archived_question_two_id
+  then
+    raise exception 'Archived reuse did not map persisted questions by identity';
   end if;
 
   select content
@@ -434,6 +436,19 @@ begin
     where question.value ? 'position'
   ) then
     raise exception 'Archived reuse persisted a redundant Test question position';
+  end if;
+  select array_agg(
+    (question.value->>'id')::uuid
+    order by question.ordinality
+  )
+  into v_blueprint_question_ids
+  from jsonb_array_elements(v_content->'questions')
+    with ordinality as question(value, ordinality);
+  if v_blueprint_question_ids is distinct from array[
+    v_archived_question_two_id,
+    v_archived_draft_only_question_id
+  ] then
+    raise exception 'Archived reuse did not preserve reordered and draft-only questions';
   end if;
 
   v_replay := public.create_archived_classroom_blueprint_atomic(
@@ -463,4 +478,4 @@ $contract$;
 rollback;
 SQL
 
-echo "Blueprint test-question ordinal identity database contract passed."
+echo "Blueprint test-question stable identity database contract passed."

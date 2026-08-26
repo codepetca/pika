@@ -22,14 +22,20 @@ function functionDefinition(name: string): string {
   return migration.slice(start, end)
 }
 
-function expectOrderedQuestionIdentityMapping(definition: string) {
+function expectStableQuestionIdentityMapping(definition: string) {
   expect(definition).toMatch(
-    /for v_child, v_question_index in\s+select\s+question\.value,\s+\(question\.ordinality - 1\)::integer\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}with ordinality as question\(value, ordinality\)/,
+    /for v_child in\s+select question\.value\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}as question\(value\)/,
   )
   expect(definition).toMatch(
-    /update public\.test_questions as target_question[\s\S]{0,300}where target_question\.id = \(\s+select source_question\.id\s+from public\.test_questions as source_question\s+where source_question\.test_id = v_parent_id\s+order by source_question\.position, source_question\.id\s+offset v_question_index\s+limit 1\s+\)/,
+    /select array_agg\(source_question\.id order by source_question\.id\)[\s\S]{0,260}source_question\.artifact_id = \(v_child->>'id'\)::uuid[\s\S]{0,180}source_question\.source_artifact_id = \(v_child->>'id'\)::uuid[\s\S]{0,180}source_question\.id = \(v_child->>'id'\)::uuid/,
   )
-  expect(definition).not.toMatch(/position = v_question_index/)
+  expect(definition).toContain(
+    'if coalesce(cardinality(v_question_row_ids), 0) > 1 then',
+  )
+  expect(definition).toContain(
+    'elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then',
+  )
+  expect(definition).not.toMatch(/offset v_question_index/)
 }
 
 describe('Blueprint test-question ordinal identity migration', () => {
@@ -40,7 +46,7 @@ describe('Blueprint test-question ordinal identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectOrderedQuestionIdentityMapping(definition)
+    expectStableQuestionIdentityMapping(definition)
   })
 
   it('maps archived classroom reuse questions by canonical array order', () => {
@@ -50,7 +56,7 @@ describe('Blueprint test-question ordinal identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectOrderedQuestionIdentityMapping(definition)
+    expectStableQuestionIdentityMapping(definition)
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
     )

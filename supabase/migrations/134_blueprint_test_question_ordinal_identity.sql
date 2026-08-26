@@ -1,14 +1,15 @@
--- Map test-question identities by their canonical JSON array order.
+-- Map test-question identities without treating missing draft positions as zero.
 --
 -- TestDraftQuestion intentionally has no persisted position field. Migrations 112
 -- and 114 treated a missing position as zero while attaching stable identities,
 -- so a multi-question Test repeatedly updated question zero and collided with the
 -- per-Test artifact-id uniqueness constraint. Keep the public managed-storage
 -- wrapper from migration 117 intact and replace its private implementation plus
--- the archived-Classroom reuse RPC with ordinal mapping. Persisted question
--- positions can contain gaps after deletion, so pair each JSON question with the
--- nth source row ordered by position and id instead of equating ordinality with
--- the stored position value.
+-- the archived-Classroom reuse RPC with stable-identity mapping. Persisted question
+-- positions can contain gaps after deletion, and saved drafts can add, remove,
+-- or reorder questions before test_questions is synchronized on activation.
+-- Match existing source rows by portable identity and tolerate draft-only
+-- questions, whose UUID already becomes their artifact identity if activated.
 
 create or replace function public.create_course_blueprint_atomic_v2_pre_managed_storage(
   p_operation_id uuid,
@@ -31,7 +32,7 @@ declare
   v_child jsonb;
   v_parent_id uuid;
   v_position integer;
-  v_question_index integer;
+  v_question_row_ids uuid[];
   v_updated integer;
 begin
   perform set_config('pika.identity_mapping', 'on', true);
@@ -145,30 +146,36 @@ begin
         raise exception 'Captured Test identity mapping failed'
           using errcode = '22023';
       end if;
-      for v_child, v_question_index in
-        select
-          question.value,
-          (question.ordinality - 1)::integer
+      for v_child in
+        select question.value
         from jsonb_array_elements(
           coalesce(v_item->'content'->'questions', '[]'::jsonb)
-        ) with ordinality as question(value, ordinality)
+        ) as question(value)
       loop
-        update public.test_questions as target_question
-        set
-          artifact_id = (v_child->>'id')::uuid,
-          source_artifact_id = (v_child->>'id')::uuid
-        where target_question.id = (
-          select source_question.id
-          from public.test_questions as source_question
-          where source_question.test_id = v_parent_id
-          order by source_question.position, source_question.id
-          offset v_question_index
-          limit 1
-        );
-        get diagnostics v_updated = row_count;
-        if v_updated <> 1 then
-          raise exception 'Captured Test question identity mapping failed'
+        select array_agg(source_question.id order by source_question.id)
+        into v_question_row_ids
+        from public.test_questions as source_question
+        where source_question.test_id = v_parent_id
+          and (
+            source_question.artifact_id = (v_child->>'id')::uuid
+            or source_question.source_artifact_id = (v_child->>'id')::uuid
+            or source_question.id = (v_child->>'id')::uuid
+          );
+
+        if coalesce(cardinality(v_question_row_ids), 0) > 1 then
+          raise exception 'Captured Test question identity mapping is ambiguous'
             using errcode = '22023';
+        elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
+          update public.test_questions
+          set
+            artifact_id = (v_child->>'id')::uuid,
+            source_artifact_id = (v_child->>'id')::uuid
+          where id = v_question_row_ids[1];
+          get diagnostics v_updated = row_count;
+          if v_updated <> 1 then
+            raise exception 'Captured Test question identity mapping failed'
+              using errcode = '22023';
+          end if;
         end if;
       end loop;
     end if;
@@ -337,7 +344,7 @@ declare
   v_child jsonb;
   v_parent_id uuid;
   v_position integer;
-  v_question_index integer;
+  v_question_row_ids uuid[];
   v_updated integer;
 begin
   select *
@@ -491,30 +498,36 @@ begin
         using errcode = '22023';
     end if;
 
-    for v_child, v_question_index in
-      select
-        question.value,
-        (question.ordinality - 1)::integer
+    for v_child in
+      select question.value
       from jsonb_array_elements(
         coalesce(v_item->'content'->'questions', '[]'::jsonb)
-      ) with ordinality as question(value, ordinality)
+      ) as question(value)
     loop
-      update public.test_questions as target_question
-      set
-        artifact_id = (v_child->>'id')::uuid,
-        source_artifact_id = (v_child->>'id')::uuid
-      where target_question.id = (
-        select source_question.id
-        from public.test_questions as source_question
-        where source_question.test_id = v_parent_id
-        order by source_question.position, source_question.id
-        offset v_question_index
-        limit 1
-      );
-      get diagnostics v_updated = row_count;
-      if v_updated <> 1 then
-        raise exception 'Archived Test question identity mapping failed'
+      select array_agg(source_question.id order by source_question.id)
+      into v_question_row_ids
+      from public.test_questions as source_question
+      where source_question.test_id = v_parent_id
+        and (
+          source_question.artifact_id = (v_child->>'id')::uuid
+          or source_question.source_artifact_id = (v_child->>'id')::uuid
+          or source_question.id = (v_child->>'id')::uuid
+        );
+
+      if coalesce(cardinality(v_question_row_ids), 0) > 1 then
+        raise exception 'Archived Test question identity mapping is ambiguous'
           using errcode = '22023';
+      elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
+        update public.test_questions
+        set
+          artifact_id = (v_child->>'id')::uuid,
+          source_artifact_id = (v_child->>'id')::uuid
+        where id = v_question_row_ids[1];
+        get diagnostics v_updated = row_count;
+        if v_updated <> 1 then
+          raise exception 'Archived Test question identity mapping failed'
+            using errcode = '22023';
+        end if;
       end if;
     end loop;
   end loop;
