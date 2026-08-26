@@ -1,13 +1,17 @@
 'use client'
 
+import Link from 'next/link'
 import { useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
+import { PikaLogo } from '@/components/PikaLogo'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { ModalLayer, Tooltip } from '@/ui'
 
 export interface LeftSidebarProps {
   children: ReactNode
   className?: string
+  mobileHomeHref?: string
+  onNavigateHome?: (href: string) => boolean
 }
 
 /**
@@ -15,7 +19,12 @@ export interface LeftSidebarProps {
  * - Desktop: Docked sidebar that pushes main content
  * - Mobile: Full-screen drawer overlay with backdrop
  */
-export function LeftSidebar({ children, className }: LeftSidebarProps) {
+export function LeftSidebar({
+  children,
+  className,
+  mobileHomeHref,
+  onNavigateHome,
+}: LeftSidebarProps) {
   const { isExpanded, toggle } = useLeftSidebar()
   const { isLeftOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
@@ -114,7 +123,29 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         </div>
 
         {/* Nav content */}
-        <div className="flex-1 overflow-y-auto p-3">{children}</div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {mobileHomeHref && (
+            <div className="mb-3 border-b border-border pb-3">
+              <Link
+                href={mobileHomeHref}
+                onClick={(event) => {
+                  const allow = onNavigateHome?.(mobileHomeHref)
+                  if (allow === false) {
+                    event.preventDefault()
+                    return
+                  }
+                  close()
+                }}
+                className="flex h-12 w-full min-w-0 items-center gap-3 rounded-control bg-surface-2 px-3 font-medium text-text-default transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
+                aria-label="All classrooms"
+              >
+                <PikaLogo className="h-8 w-8 flex-shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-left">All classrooms</span>
+              </Link>
+            </div>
+          )}
+          {children}
+        </div>
       </ModalLayer>
     </>
   )

@@ -1059,3 +1059,22 @@ schema, API, persistence, authentication, or production state changed.
 
 **Model recommendation:** GPT-5.6 Sol for precise React effect and async-test
 reasoning.
+## 2026-08-26 — Improve mobile classroom navigation
+
+**Risk profile:** none — shared classroom-shell navigation and responsive
+presentation only; no API, schema, persistence, dependency, or hosted state changed.
+
+- Added Pika's home affordance to the mobile classroom drawer as a distinct
+  `All classrooms` navigation row beneath the `Navigation` heading, with its
+  own surface, hover state, and focus ring. The desktop header logo is unchanged.
+- Reclaimed the unused mobile header center column for the classroom selector,
+  so the seeded `Test Classroom` label renders in full instead of collapsing to
+  its first character.
+- Added regression coverage for mobile layout ownership, drawer home navigation,
+  blocked navigation, the Pika brand link, and active student exam mode hiding
+  the mobile navigation while rejecting direct home-exit attempts.
+- Full Vitest passes (5,096/5,096), lint, design policy, UI policy, and diff
+  checks pass. Playwright visual verification passed for teacher and student,
+  desktop and mobile, light and dark, including drawer-open and keyboard-focus
+  states. Mobile captures had no horizontal overflow, and both roles navigated
+  from the drawer to `/classrooms`.

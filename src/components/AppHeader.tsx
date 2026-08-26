@@ -83,6 +83,7 @@ export function AppHeader({
   const themedClassroom = classrooms?.find((classroom) => classroom.id === currentClassroomId)
   const classroomTheme = themedClassroom ? getClassroomThemeDefinition(themedClassroom.themeColor) : null
   const headerStyle = classroomTheme ? getClassroomThemeStyle(classroomTheme.value) : undefined
+  const usesMobileClassroomNavigation = Boolean(onOpenSidebar) && !isExamMode && !pageTitle
 
   useEffect(() => {
     if (isExamMode) return
@@ -135,7 +136,12 @@ export function AppHeader({
       style={headerStyle}
     >
       {/* Left section */}
-      <div className="flex min-w-0 items-center gap-3">
+      <div
+        className={[
+          'flex min-w-0 items-center gap-3',
+          usesMobileClassroomNavigation ? 'col-span-2 lg:col-span-1' : '',
+        ].filter(Boolean).join(' ')}
+      >
         {/* Mobile sidebar trigger (classroom pages) */}
         {onOpenSidebar && (
           <Tooltip content="Open navigation">
@@ -155,7 +161,10 @@ export function AppHeader({
           <Link
             href="/classrooms"
             aria-label="Home"
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
+            className={[
+              'h-11 w-11 flex-shrink-0 items-center justify-center',
+              usesMobileClassroomNavigation ? 'hidden lg:flex' : 'flex',
+            ].join(' ')}
             onClick={(event) => {
               const allow = onNavigateHome?.('/classrooms')
               if (allow === false) {
@@ -180,7 +189,12 @@ export function AppHeader({
       </div>
 
       {/* Center section - page title or exam mode status */}
-      <div className="min-w-0 px-2 flex items-center justify-center">
+      <div
+        className={[
+          'min-w-0 items-center justify-center px-2',
+          usesMobileClassroomNavigation ? 'hidden lg:flex' : 'flex',
+        ].join(' ')}
+      >
         {examModeHeader ? (
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
             <span className="truncate font-semibold">{examModeHeader.testTitle}</span>
