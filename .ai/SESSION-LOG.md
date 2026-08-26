@@ -999,3 +999,23 @@ editor, API, persistence, authentication, or teacher behavior changed.
   the unchanged teacher desktop/mobile views.
 
 **Model recommendation:** GPT-5.6 for small, judgment-sensitive UI refinements.
+## 2026-08-26 — Match the Pika logo to theme text
+
+**Risk profile:** none — shared brand presentation only; no layout, API, schema,
+persistence, authentication, dependency, or hosted state changed.
+
+- Replaced the logo's warm dark-mode image filter with a semantic mask colored
+  by `--color-text-default`, so the mark exactly matches primary text in light
+  and dark themes.
+- Preserved the logo's accessible image name and existing dimensions while
+  updating shared-header regression coverage for the semantic token contract.
+- Focused component and semantic-token tests pass (16/16); lint, design policy,
+  diff checks, and the production build pass (with existing WorkOS Edge-runtime
+  warnings).
+- Playwright screenshots were visually reviewed for teacher and student
+  contexts at desktop/mobile in light/dark. Authenticated routes were unavailable
+  because the shared env lacks Supabase configuration, so the real shared header
+  and logo were rendered in a temporary local verification route that was removed
+  after capture.
+
+**Model recommendation:** GPT-5.6 Sol for exact semantic-theme and visual review.

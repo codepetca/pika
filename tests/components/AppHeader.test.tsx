@@ -95,7 +95,7 @@ describe('AppHeader classroom theme', () => {
     expect(header).not.toHaveClass('border')
     expect(header.getAttribute('style')).toContain('--classroom-accent-light')
     expect(header.getAttribute('style')).toContain('--classroom-accent-dark')
-    expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+    expect(screen.getByRole('img', { name: 'Pika' })).toHaveClass('pika-logo')
   })
 
   it('gives the classroom name more mobile space and moves home into the drawer', () => {
@@ -119,7 +119,7 @@ describe('AppHeader classroom theme', () => {
   it('keeps the brand logo on unthemed appbars', () => {
     render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
 
-    expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+    expect(screen.getByRole('img', { name: 'Pika' })).toHaveClass('pika-logo')
     expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('h-11', 'w-11')
     expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toHaveClass(
       'hidden',
@@ -136,9 +136,9 @@ describe('AppHeader classroom theme', () => {
 
     expect(logoSource).toContain('pika-logo')
     expect(logoSource).not.toContain('dark:')
-    expect(tokens).toContain('--pika-logo-filter: none;')
-    expect(tokens).toContain('--pika-logo-filter: brightness(0) hue-rotate(15deg) invert(1) saturate(0.3) sepia(1);')
-    expect(tokens).toContain('filter: var(--pika-logo-filter);')
+    expect(tokens).toContain('background-color: var(--color-text-default);')
+    expect(tokens).toContain("mask: url('/pika.png') center / contain no-repeat;")
+    expect(tokens).not.toContain('--pika-logo-filter')
   })
 
   it('keeps appbar classroom theme to the gradient without an accent underline', () => {
