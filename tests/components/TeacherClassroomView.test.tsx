@@ -3242,10 +3242,10 @@ describe('TeacherClassroomView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+      expect(screen.getByRole('button', { name: /Return/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Apply Grade to Selected Students' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Apply Comments to Selected Students' })).toBeDisabled()
     })
-    expect(screen.getByRole('button', { name: /Return/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Apply Grade to Selected Students' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Apply Comments to Selected Students' })).toBeDisabled()
   })
 
   it('disables batch return when selected students have nothing returnable', async () => {

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -57,6 +57,22 @@ describe('AppHeader exam mode', () => {
     expect(screen.getByLabelText('Exits 2')).toHaveClass('text-text-muted')
     expect(screen.queryByText('Exit detected')).not.toBeInTheDocument()
   })
+
+  it('prevents the exam-mode Home link when guarded navigation is blocked', () => {
+    const onNavigateHome = vi.fn(() => false)
+
+    render(
+      <AppHeader
+        examModeHeader={{ testTitle: 'Unit Test', exitsCount: 0, awayTotalSeconds: 0 }}
+        onNavigateHome={onNavigateHome}
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const homeLink = screen.getByRole('link', { name: 'Home' })
+    expect(fireEvent.click(homeLink)).toBe(false)
+    expect(onNavigateHome).toHaveBeenCalledWith('/classrooms')
+  })
 })
 
 describe('AppHeader classroom theme', () => {
@@ -80,6 +96,24 @@ describe('AppHeader classroom theme', () => {
     expect(header.getAttribute('style')).toContain('--classroom-accent-light')
     expect(header.getAttribute('style')).toContain('--classroom-accent-dark')
     expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+  })
+
+  it('gives the classroom name more mobile space and moves home into the drawer', () => {
+    render(
+      <AppHeader
+        classrooms={[
+          { id: 'class-1', title: 'A Longer Classroom Name', code: 'AAA111', themeColor: 'teal' },
+        ]}
+        currentClassroomId="class-1"
+        onOpenSidebar={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    const leftSection = screen.getByRole('button', { name: 'Open classroom navigation' }).parentElement
+    expect(leftSection).toHaveClass('col-span-2', 'lg:col-span-1')
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('hidden', 'lg:flex')
+    expect(screen.getByText('A Longer Classroom Name').closest('div')).toHaveClass('max-w-full')
   })
 
   it('keeps the brand logo on unthemed appbars', () => {

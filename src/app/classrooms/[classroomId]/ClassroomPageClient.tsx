@@ -1264,7 +1264,10 @@ function ClassroomPageContent({
         {hideLeftRailForExamMode ? (
           <div aria-hidden="true" className="hidden lg:block" />
         ) : (
-          <LeftSidebar>
+          <LeftSidebar
+            mobileHomeHref="/classrooms"
+            onNavigateHome={handleHomeNavigationAttempt}
+          >
             <NavItems
               classroomId={classroom.id}
               role={user.role}
