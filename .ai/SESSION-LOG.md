@@ -1071,8 +1071,9 @@ presentation only; no API, schema, persistence, dependency, or hosted state chan
   so the seeded `Test Classroom` label renders in full instead of collapsing to
   its first character.
 - Added regression coverage for mobile layout ownership, drawer home navigation,
-  blocked navigation, and the Pika brand link.
-- Full Vitest passes (5,094/5,094), lint, design policy, UI policy, and diff
+  blocked navigation, the Pika brand link, and active student exam mode hiding
+  the mobile navigation while rejecting direct home-exit attempts.
+- Full Vitest passes (5,095/5,095), lint, design policy, UI policy, and diff
   checks pass. Playwright visual verification passed for teacher and student,
   desktop and mobile, light and dark, including drawer-open and keyboard-focus
   states. Mobile captures had no horizontal overflow, and both roles navigated
