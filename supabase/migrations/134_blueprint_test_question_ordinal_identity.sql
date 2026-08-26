@@ -93,6 +93,557 @@ begin
 end;
 $$;
 
+-- Question rows are the student-facing source of truth after activation. Keep
+-- them editable while an active/closed Test has no student work, but freeze the
+-- set as soon as an attempt exists. Locking the Test first makes this check
+-- serialize with the attempt RPCs from migration 088.
+create or replace function public.lock_test_parent_for_child_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_test_id uuid;
+  v_test_ids uuid[];
+begin
+  if tg_op = 'DELETE' then
+    v_test_id := old.test_id;
+  else
+    v_test_id := new.test_id;
+  end if;
+
+  -- Parent cascades already own the Test row and must remain recoverable.
+  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE' and old.test_id is distinct from new.test_id then
+    v_test_ids := array[old.test_id, new.test_id];
+  else
+    v_test_ids := array[v_test_id];
+  end if;
+
+  perform 1
+  from public.tests test
+  where test.id = any(v_test_ids)
+  order by test.id
+  for update;
+
+  if tg_table_name = 'test_questions'
+    and exists (
+      select 1
+      from public.tests test
+      where test.id = any(v_test_ids)
+        and test.status in ('active', 'closed')
+        and (
+          exists (
+            select 1
+            from public.test_attempts attempt
+            where attempt.test_id = test.id
+          )
+          or exists (
+            select 1
+            from public.test_responses response
+            where response.test_id = test.id
+          )
+        )
+    )
+  then
+    raise exception using
+      errcode = '55000',
+      message = 'test_questions_locked: Test questions cannot be changed after student work exists';
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+-- Test authoring writes and activation share the same parent-row lock. This
+-- makes their order explicit: a draft save that owns the lock first is included
+-- in activation, while stale activation fails its draft-version fence. Saves
+-- after activation synchronize the already-materialized rows instead.
+create or replace function public.save_test_draft_atomic(
+  p_teacher_id uuid,
+  p_test_id uuid,
+  p_expected_draft_version integer,
+  p_content jsonb,
+  p_update_documents boolean,
+  p_expected_documents jsonb,
+  p_documents jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_archived_at timestamptz;
+  v_cleanup_paths jsonb := '[]'::jsonb;
+  v_draft public.assessment_drafts%rowtype;
+  v_matched_row_id uuid;
+  v_matched_row_ids uuid[];
+  v_owner_id uuid;
+  v_portable_id uuid;
+  v_question jsonb;
+  v_question_id uuid;
+  v_retained_row_ids uuid[] := array[]::uuid[];
+  v_seen_question_ids uuid[] := array[]::uuid[];
+  v_test public.tests%rowtype;
+begin
+  if p_expected_draft_version is null or p_expected_draft_version < 1 then
+    raise exception using errcode = '22023', message = 'invalid_draft_version';
+  end if;
+  if jsonb_typeof(p_content) is distinct from 'object'
+    or jsonb_typeof(p_content->'questions') is distinct from 'array'
+    or jsonb_typeof(p_content->'show_results') is distinct from 'boolean'
+    or nullif(btrim(p_content->>'title'), '') is null
+  then
+    raise exception using errcode = '22023', message = 'invalid_draft_content';
+  end if;
+  if p_update_documents and (
+    jsonb_typeof(coalesce(p_expected_documents, '[]'::jsonb)) <> 'array'
+    or jsonb_typeof(coalesce(p_documents, '[]'::jsonb)) <> 'array'
+  ) then
+    raise exception using errcode = '22023', message = 'invalid_documents';
+  end if;
+
+  select test.* into v_test
+  from public.tests test
+  where test.id = p_test_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_not_found';
+  end if;
+
+  -- Keep archive and authoring mutually exclusive through commit. Classroom
+  -- archive updates this same row, so evaluating authorization under a share
+  -- lock prevents a save from crossing the active-to-archived boundary.
+  select classroom.teacher_id, classroom.archived_at
+    into v_owner_id, v_archived_at
+  from public.classrooms classroom
+  where classroom.id = v_test.classroom_id
+  for share;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_classroom_not_found';
+  end if;
+  if v_owner_id is distinct from p_teacher_id then
+    raise exception using errcode = '42501', message = 'forbidden';
+  end if;
+
+  if v_archived_at is not null or v_test.blueprint_archived_at is not null then
+    raise exception using errcode = '55000', message = 'test_archived';
+  end if;
+  if v_test.status not in ('draft', 'active', 'closed') then
+    raise exception using errcode = '22023', message = 'invalid_test_status';
+  end if;
+
+  select draft.*
+    into v_draft
+  from public.assessment_drafts draft
+  where draft.assessment_type = 'test'
+    and draft.assessment_id = p_test_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_draft_not_found';
+  end if;
+  if v_draft.version is distinct from p_expected_draft_version then
+    raise exception using errcode = '40001', message = 'draft_version_conflict';
+  end if;
+  if p_update_documents and coalesce(v_test.documents, '[]'::jsonb)
+    is distinct from coalesce(p_expected_documents, '[]'::jsonb)
+  then
+    raise exception using errcode = '40001', message = 'document_conflict';
+  end if;
+
+  if p_update_documents then
+    select coalesce(jsonb_agg(path order by path), '[]'::jsonb)
+      into v_cleanup_paths
+    from (
+      select distinct old_document.value->>'snapshot_path' as path
+      from jsonb_array_elements(coalesce(v_test.documents, '[]'::jsonb)) old_document(value)
+      where old_document.value->>'snapshot_path' like 'link-docs/%/snapshots/%'
+        and not exists (
+          select 1
+          from jsonb_array_elements(coalesce(p_documents, '[]'::jsonb)) new_document(value)
+          where new_document.value->>'snapshot_path'
+            = old_document.value->>'snapshot_path'
+        )
+    ) obsolete;
+  end if;
+
+  if v_test.status in ('active', 'closed') then
+    if jsonb_array_length(p_content->'questions') < 1 then
+      raise exception using errcode = '22023', message = 'invalid_draft_content';
+    end if;
+
+    -- Reopening an already materialized Test uses the same portable identity
+    -- contract as activation. No position/content heuristic is permitted.
+    perform question.id
+    from public.test_questions question
+    where question.test_id = p_test_id
+    order by question.id
+    for update;
+
+    for v_question in
+      select question.value || jsonb_build_object('position', question.ordinality - 1)
+      from jsonb_array_elements(p_content->'questions')
+        with ordinality as question(value, ordinality)
+      order by question.ordinality
+    loop
+      v_question_id := (v_question->>'id')::uuid;
+      if v_question_id = any(v_seen_question_ids) then
+        raise exception using errcode = '22023', message = 'duplicate_question_identity';
+      end if;
+      if nullif(btrim(v_question->>'question_text'), '') is null then
+        raise exception using errcode = '22023', message = 'invalid_draft_content';
+      end if;
+      v_seen_question_ids := array_append(v_seen_question_ids, v_question_id);
+
+      select array_agg(question.id order by question.id)
+        into v_matched_row_ids
+      from public.test_questions question
+      where question.test_id = p_test_id
+        and (
+          question.artifact_id = v_question_id
+          or question.source_artifact_id = v_question_id
+          or question.id = v_question_id
+        );
+
+      if coalesce(cardinality(v_matched_row_ids), 0) > 1 then
+        raise exception using errcode = '22023', message = 'question_identity_ambiguous';
+      end if;
+
+      v_matched_row_id := v_matched_row_ids[1];
+      if v_matched_row_id is null then
+        insert into public.test_questions (
+          test_id,
+          artifact_id,
+          question_type,
+          question_text,
+          options,
+          correct_option,
+          answer_key,
+          sample_solution,
+          points,
+          response_max_chars,
+          response_monospace,
+          position
+        ) values (
+          p_test_id,
+          v_question_id,
+          v_question->>'question_type',
+          btrim(v_question->>'question_text'),
+          coalesce(v_question->'options', '[]'::jsonb),
+          (v_question->>'correct_option')::integer,
+          nullif(btrim(v_question->>'answer_key'), ''),
+          nullif(btrim(v_question->>'sample_solution'), ''),
+          (v_question->>'points')::numeric,
+          (v_question->>'response_max_chars')::integer,
+          coalesce((v_question->>'response_monospace')::boolean, false),
+          (v_question->>'position')::integer
+        )
+        returning id into v_matched_row_id;
+      else
+        select coalesce(question.source_artifact_id, question.artifact_id, question.id)
+          into v_portable_id
+        from public.test_questions question
+        where question.id = v_matched_row_id;
+        if v_portable_id is distinct from v_question_id then
+          raise exception using errcode = '22023', message = 'question_identity_mismatch';
+        end if;
+
+        update public.test_questions question
+        set
+          question_type = v_question->>'question_type',
+          question_text = btrim(v_question->>'question_text'),
+          options = coalesce(v_question->'options', '[]'::jsonb),
+          correct_option = (v_question->>'correct_option')::integer,
+          answer_key = nullif(btrim(v_question->>'answer_key'), ''),
+          sample_solution = nullif(btrim(v_question->>'sample_solution'), ''),
+          points = (v_question->>'points')::numeric,
+          response_max_chars = (v_question->>'response_max_chars')::integer,
+          response_monospace = coalesce((v_question->>'response_monospace')::boolean, false),
+          position = (v_question->>'position')::integer
+        where question.id = v_matched_row_id
+          and (
+            question.question_type is distinct from v_question->>'question_type'
+            or question.question_text is distinct from btrim(v_question->>'question_text')
+            or question.options is distinct from coalesce(v_question->'options', '[]'::jsonb)
+            or question.correct_option is distinct from (v_question->>'correct_option')::integer
+            or question.answer_key is distinct from nullif(btrim(v_question->>'answer_key'), '')
+            or question.sample_solution is distinct from nullif(btrim(v_question->>'sample_solution'), '')
+            or question.points is distinct from (v_question->>'points')::numeric
+            or question.response_max_chars is distinct from (v_question->>'response_max_chars')::integer
+            or question.response_monospace is distinct from coalesce((v_question->>'response_monospace')::boolean, false)
+            or question.position is distinct from (v_question->>'position')::integer
+          );
+      end if;
+
+      v_retained_row_ids := array_append(v_retained_row_ids, v_matched_row_id);
+    end loop;
+
+    delete from public.test_questions question
+    where question.test_id = p_test_id
+      and not (question.id = any(v_retained_row_ids));
+  end if;
+
+  update public.assessment_drafts draft
+  set
+    content = p_content,
+    version = draft.version + 1,
+    updated_by = p_teacher_id
+  where draft.id = v_draft.id
+    and draft.version = p_expected_draft_version
+  returning draft.* into strict v_draft;
+
+  update public.tests test
+  set
+    title = btrim(p_content->>'title'),
+    show_results = (p_content->>'show_results')::boolean,
+    documents = case
+      when p_update_documents then coalesce(p_documents, '[]'::jsonb)
+      else test.documents
+    end
+  where test.id = p_test_id
+    and test.status = v_test.status
+  returning test.* into strict v_test;
+
+  return jsonb_build_object(
+    'cleanup_paths', v_cleanup_paths,
+    'draft', to_jsonb(v_draft),
+    'test', to_jsonb(v_test)
+  );
+end;
+$$;
+
+create or replace function public.activate_test_from_draft_atomic(
+  p_teacher_id uuid,
+  p_test_id uuid,
+  p_expected_draft_version integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_archived_at timestamptz;
+  v_draft public.assessment_drafts%rowtype;
+  v_matched_row_id uuid;
+  v_matched_row_ids uuid[];
+  v_owner_id uuid;
+  v_portable_id uuid;
+  v_question jsonb;
+  v_question_id uuid;
+  v_retained_row_ids uuid[] := array[]::uuid[];
+  v_seen_question_ids uuid[] := array[]::uuid[];
+  v_test public.tests%rowtype;
+begin
+  if p_expected_draft_version is null or p_expected_draft_version < 1 then
+    raise exception using errcode = '22023', message = 'invalid_draft_version';
+  end if;
+
+  select test.* into v_test
+  from public.tests test
+  where test.id = p_test_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_not_found';
+  end if;
+
+  -- Activation uses the same Test -> Classroom -> draft -> questions lock
+  -- order as saving. Holding the Classroom share lock through commit prevents
+  -- activation from completing after a concurrent archive wins.
+  select classroom.teacher_id, classroom.archived_at
+    into v_owner_id, v_archived_at
+  from public.classrooms classroom
+  where classroom.id = v_test.classroom_id
+  for share;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_classroom_not_found';
+  end if;
+  if v_owner_id is distinct from p_teacher_id then
+    raise exception using errcode = '42501', message = 'forbidden';
+  end if;
+
+  if v_archived_at is not null or v_test.blueprint_archived_at is not null then
+    raise exception using errcode = '55000', message = 'test_archived';
+  end if;
+  if v_test.status is distinct from 'draft' then
+    raise exception using errcode = '40001', message = 'test_not_draft';
+  end if;
+
+  select draft.*
+    into v_draft
+  from public.assessment_drafts draft
+  where draft.assessment_type = 'test'
+    and draft.assessment_id = p_test_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'test_draft_not_found';
+  end if;
+  if v_draft.version is distinct from p_expected_draft_version then
+    raise exception using errcode = '40001', message = 'draft_version_conflict';
+  end if;
+  if jsonb_typeof(v_draft.content) is distinct from 'object'
+    or jsonb_typeof(v_draft.content->'questions') is distinct from 'array'
+    or jsonb_array_length(v_draft.content->'questions') < 1
+    or jsonb_typeof(v_draft.content->'show_results') is distinct from 'boolean'
+    or nullif(btrim(v_draft.content->>'title'), '') is null
+  then
+    raise exception using errcode = '22023', message = 'invalid_draft_content';
+  end if;
+
+  -- Lock existing question rows only after the parent Test and draft. Every
+  -- writer follows this order so activation cannot observe a partial save.
+  perform question.id
+  from public.test_questions question
+  where question.test_id = p_test_id
+  order by question.id
+  for update;
+
+  for v_question in
+    select question.value || jsonb_build_object('position', question.ordinality - 1)
+    from jsonb_array_elements(v_draft.content->'questions')
+      with ordinality as question(value, ordinality)
+    order by question.ordinality
+  loop
+    v_question_id := (v_question->>'id')::uuid;
+    if v_question_id = any(v_seen_question_ids) then
+      raise exception using errcode = '22023', message = 'duplicate_question_identity';
+    end if;
+    v_seen_question_ids := array_append(v_seen_question_ids, v_question_id);
+
+    select array_agg(question.id order by question.id)
+      into v_matched_row_ids
+    from public.test_questions question
+    where question.test_id = p_test_id
+      and (
+        question.artifact_id = v_question_id
+        or question.source_artifact_id = v_question_id
+        or question.id = v_question_id
+      );
+
+    if coalesce(cardinality(v_matched_row_ids), 0) > 1 then
+      raise exception using errcode = '22023', message = 'question_identity_ambiguous';
+    end if;
+
+    v_matched_row_id := v_matched_row_ids[1];
+    if v_matched_row_id is null then
+      insert into public.test_questions (
+        test_id,
+        artifact_id,
+        question_type,
+        question_text,
+        options,
+        correct_option,
+        answer_key,
+        sample_solution,
+        points,
+        response_max_chars,
+        response_monospace,
+        position
+      ) values (
+        p_test_id,
+        v_question_id,
+        v_question->>'question_type',
+        btrim(v_question->>'question_text'),
+        coalesce(v_question->'options', '[]'::jsonb),
+        (v_question->>'correct_option')::integer,
+        nullif(btrim(v_question->>'answer_key'), ''),
+        nullif(btrim(v_question->>'sample_solution'), ''),
+        (v_question->>'points')::numeric,
+        (v_question->>'response_max_chars')::integer,
+        coalesce((v_question->>'response_monospace')::boolean, false),
+        (v_question->>'position')::integer
+      )
+      returning id into v_matched_row_id;
+    else
+      select coalesce(question.source_artifact_id, question.artifact_id, question.id)
+        into v_portable_id
+      from public.test_questions question
+      where question.id = v_matched_row_id;
+      if v_portable_id is distinct from v_question_id then
+        raise exception using errcode = '22023', message = 'question_identity_mismatch';
+      end if;
+
+      update public.test_questions question
+      set
+        question_type = v_question->>'question_type',
+        question_text = btrim(v_question->>'question_text'),
+        options = coalesce(v_question->'options', '[]'::jsonb),
+        correct_option = (v_question->>'correct_option')::integer,
+        answer_key = nullif(btrim(v_question->>'answer_key'), ''),
+        sample_solution = nullif(btrim(v_question->>'sample_solution'), ''),
+        points = (v_question->>'points')::numeric,
+        response_max_chars = (v_question->>'response_max_chars')::integer,
+        response_monospace = coalesce((v_question->>'response_monospace')::boolean, false),
+        position = (v_question->>'position')::integer
+      where question.id = v_matched_row_id;
+    end if;
+
+    v_retained_row_ids := array_append(v_retained_row_ids, v_matched_row_id);
+  end loop;
+
+  delete from public.test_questions question
+  where question.test_id = p_test_id
+    and not (question.id = any(v_retained_row_ids));
+
+  update public.tests test
+  set
+    title = btrim(v_draft.content->>'title'),
+    show_results = (v_draft.content->>'show_results')::boolean,
+    status = 'active'
+  where test.id = p_test_id
+    and test.status = 'draft'
+  returning test.* into strict v_test;
+
+  return jsonb_build_object(
+    'draft_version', v_draft.version,
+    'test', to_jsonb(v_test)
+  );
+end;
+$$;
+
+revoke all on function public.save_test_draft_atomic(
+  uuid,
+  uuid,
+  integer,
+  jsonb,
+  boolean,
+  jsonb,
+  jsonb
+) from public, anon, authenticated;
+grant execute on function public.save_test_draft_atomic(
+  uuid,
+  uuid,
+  integer,
+  jsonb,
+  boolean,
+  jsonb,
+  jsonb
+) to service_role;
+
+revoke all on function public.activate_test_from_draft_atomic(
+  uuid,
+  uuid,
+  integer
+) from public, anon, authenticated;
+grant execute on function public.activate_test_from_draft_atomic(
+  uuid,
+  uuid,
+  integer
+) to service_role;
+
 create or replace function public.create_course_blueprint_atomic_v2_pre_managed_storage(
   p_operation_id uuid,
   p_teacher_id uuid,

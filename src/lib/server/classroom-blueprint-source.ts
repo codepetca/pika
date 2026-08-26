@@ -7,6 +7,7 @@ import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
+import { buildTestDraftContentFromRows } from '@/lib/server/assessment-drafts'
 import type {
   Announcement,
   AssignmentSubmissionRequirement,
@@ -274,11 +275,17 @@ export async function loadClassroomBlueprintSource(
   const tests: Array<Record<string, any> & { content: TestDraftContent }> = []
   for (const test of testRows) {
     const questions = questionsByTestId.get(String(test.id)) || []
-    const content = draftsByTestId.get(String(test.id)) ?? {
-      title: test.title,
-      show_results: !!test.show_results,
-      questions: questions as TestDraftContent['questions'],
+    const persistedTestContentSource = {
+      title: String(test.title || ''),
+      show_results: test.show_results === true,
     }
+    // Draft JSON is authoritative only while the Test is editable. Once the
+    // Test is active or closed, capture the rows materialized by activation so
+    // a stale or rejected draft save cannot leak into a Blueprint.
+    const content = test.status === 'draft'
+      ? draftsByTestId.get(String(test.id))
+        ?? buildTestDraftContentFromRows(persistedTestContentSource, questions)
+      : buildTestDraftContentFromRows(persistedTestContentSource, questions)
     const projectedContent = projectPortableTestQuestionIds(content, questions.map((question) => ({
       id: String(question.id),
       artifact_id: question.artifact_id ?? null,

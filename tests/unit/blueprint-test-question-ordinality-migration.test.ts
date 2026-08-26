@@ -80,6 +80,70 @@ function expectDurableIdentityFailureLedger(definition: string) {
 }
 
 describe('Blueprint test-question identity migration', () => {
+  it('serializes draft saves before version-bound activation', () => {
+    const saveDefinition = functionDefinition('save_test_draft_atomic')
+    const activationDefinition = functionDefinition('activate_test_from_draft_atomic')
+
+    for (const definition of [saveDefinition, activationDefinition]) {
+      expect(definition).toContain('security definer')
+      expect(definition).toContain("set search_path = ''")
+      const testLock = definition.indexOf('from public.tests test')
+      const classroomLock = definition.indexOf('from public.classrooms classroom')
+      const draftLock = definition.indexOf('from public.assessment_drafts draft')
+      expect(testLock).toBeGreaterThanOrEqual(0)
+      expect(classroomLock).toBeGreaterThan(testLock)
+      expect(draftLock).toBeGreaterThan(classroomLock)
+      expect(definition.slice(testLock, classroomLock)).toContain('for update;')
+      expect(definition.slice(classroomLock, draftLock)).toContain('for share;')
+      expect(definition.slice(classroomLock, draftLock)).toContain(
+        'classroom.id = v_test.classroom_id',
+      )
+      expect(definition).toMatch(
+        /from public\.assessment_drafts draft[\s\S]{0,180}assessment_type = 'test'[\s\S]{0,100}for update;/,
+      )
+      expect(definition).toContain('v_draft.version is distinct from p_expected_draft_version')
+      expect(definition).toContain("message = 'draft_version_conflict'")
+    }
+
+    expect(saveDefinition).toMatch(
+      /update public\.assessment_drafts draft[\s\S]{0,220}version = draft\.version \+ 1[\s\S]{0,180}draft\.version = p_expected_draft_version/,
+    )
+    expect(saveDefinition).toContain("v_test.status in ('active', 'closed')")
+    expect(saveDefinition).toMatch(
+      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id[\s\S]{0,100}question\.id = v_question_id/,
+    )
+    expect(saveDefinition).toMatch(
+      /update public\.tests test[\s\S]{0,260}where test\.id = p_test_id[\s\S]{0,80}test\.status = v_test\.status/,
+    )
+    expect(activationDefinition).toContain("v_test.status is distinct from 'draft'")
+    expect(activationDefinition).toContain("message = 'test_not_draft'")
+    expect(activationDefinition).toMatch(
+      /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id[\s\S]{0,100}question\.id = v_question_id/,
+    )
+    expect(activationDefinition).toMatch(
+      /insert into public\.test_questions \([\s\S]{0,180}artifact_id[\s\S]{0,320}p_test_id,[\s\S]{0,80}v_question_id/,
+    )
+    expect(activationDefinition).toMatch(
+      /update public\.tests test[\s\S]{0,240}status = 'active'[\s\S]{0,120}test\.status = 'draft'/,
+    )
+    expect(migration).toContain('grant execute on function public.save_test_draft_atomic(')
+    expect(migration).toContain('grant execute on function public.activate_test_from_draft_atomic(')
+  })
+
+  it('freezes materialized questions once student work exists', () => {
+    const definition = functionDefinition('lock_test_parent_for_child_mutation')
+
+    expect(definition).toMatch(
+      /from public\.tests test[\s\S]{0,180}for update;/,
+    )
+    expect(definition).toContain("tg_table_name = 'test_questions'")
+    expect(definition).toContain("test.status in ('active', 'closed')")
+    expect(definition).toContain('from public.test_attempts attempt')
+    expect(definition).toContain('from public.test_responses response')
+    expect(definition).toContain("errcode = '55000'")
+    expect(definition).toContain('message = \'test_questions_locked: Test questions cannot be changed after student work exists\'')
+  })
+
   it('maps active classroom capture questions by stable identity', () => {
     const definition = functionDefinition(
       'create_course_blueprint_atomic_v2_pre_managed_storage',

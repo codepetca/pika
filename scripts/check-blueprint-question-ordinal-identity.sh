@@ -58,6 +58,710 @@ if [[ "$blocked_writer_status" -eq 0 ]] \
   exit 1
 fi
 
+# Prove the application ordering contract with two real sessions. The saver
+# owns the Test lock first and deliberately keeps its transaction open;
+# activation must wait, then consume the newly committed draft version.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.users (id, email, role) values (
+  'b1341000-0000-4000-8000-000000000001',
+  'blueprint-question-activation-order@example.test',
+  'teacher'
+);
+insert into public.classrooms (
+  id, teacher_id, title, class_code
+) values (
+  'b1341000-0000-4000-8000-000000000010',
+  'b1341000-0000-4000-8000-000000000001',
+  'Draft activation ordering contract',
+  'B134S1'
+);
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values
+  (
+    'b1341000-0000-4000-8000-000000000011',
+    'b1341000-0000-4000-8000-000000000010',
+    'Question A',
+    'draft',
+    false,
+    1,
+    'b1341000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1341000-0000-4000-8000-000000000021',
+    'b1341000-0000-4000-8000-000000000010',
+    'Rollback Test',
+    'draft',
+    false,
+    1,
+    'b1341000-0000-4000-8000-000000000001'
+  );
+insert into public.test_questions (
+  id, test_id, artifact_id, question_type, question_text, options,
+  correct_option, points, response_max_chars, response_monospace, position
+) values (
+  'b1341000-0000-4000-8000-000000000023',
+  'b1341000-0000-4000-8000-000000000021',
+  'b1341000-0000-4000-8000-000000000123',
+  'open_response',
+  'Original rollback question',
+  '[]'::jsonb,
+  null,
+  1,
+  5000,
+  false,
+  0
+);
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values (
+  'b1341000-0000-4000-8000-000000000012',
+  'test',
+  'b1341000-0000-4000-8000-000000000011',
+  'b1341000-0000-4000-8000-000000000010',
+  '{"title":"Question A","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  1,
+  'b1341000-0000-4000-8000-000000000001',
+  'b1341000-0000-4000-8000-000000000001'
+), (
+  'b1341000-0000-4000-8000-000000000022',
+  'test',
+  'b1341000-0000-4000-8000-000000000021',
+  'b1341000-0000-4000-8000-000000000010',
+  '{"title":"Rollback Test","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000123","question_type":"open_response","question_text":"Partially changed question","options":[],"correct_option":null,"answer_key":"changed","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false},{"id":"b1341000-0000-4000-8000-000000000124","question_type":"multiple_choice","question_text":"Invalid second question","options":["only one"],"correct_option":0,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  1,
+  'b1341000-0000-4000-8000-000000000001',
+  'b1341000-0000-4000-8000-000000000001'
+);
+SQL
+
+docker exec -e PGAPPNAME=b134_draft_save_first -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.save_test_draft_atomic(
+  'b1341000-0000-4000-8000-000000000001',
+  'b1341000-0000-4000-8000-000000000011',
+  1,
+  '{"title":"Question B","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+select pg_sleep(3);
+commit;
+SQL
+draft_saver_pid=$!
+draft_save_ready=false
+for _attempt in {1..40}; do
+  saver_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_draft_save_first' and wait_event = 'PgSleep'")"
+  if [[ "$saver_sleeping" == "1" ]]; then
+    draft_save_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$draft_save_ready" != "true" ]]; then
+  kill "$draft_saver_pid" 2>/dev/null || true
+  wait "$draft_saver_pid" 2>/dev/null || true
+  echo "Atomic draft save did not reach the lock-holding checkpoint." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+select public.activate_test_from_draft_atomic(
+  'b1341000-0000-4000-8000-000000000001',
+  'b1341000-0000-4000-8000-000000000011',
+  2
+);
+SQL
+wait "$draft_saver_pid"
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $contract$
+declare
+  v_error_message text;
+begin
+  begin
+    perform public.activate_test_from_draft_atomic(
+      'b1341000-0000-4000-8000-000000000001',
+      'b1341000-0000-4000-8000-000000000021',
+      1
+    );
+    raise exception 'Invalid activation unexpectedly succeeded';
+  exception when check_violation then
+    null;
+  end;
+  if not exists (
+    select 1
+    from public.tests test
+    where test.id = 'b1341000-0000-4000-8000-000000000021'
+      and test.status = 'draft'
+  ) or not exists (
+    select 1
+    from public.test_questions question
+    where question.id = 'b1341000-0000-4000-8000-000000000023'
+      and question.question_text = 'Original rollback question'
+      and question.points = 1
+  ) or (
+    select count(*)
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000021'
+  ) <> 1 then
+    raise exception 'Failed activation did not roll back its partial question synchronization';
+  end if;
+
+  if not exists (
+    select 1
+    from public.tests test
+    where test.id = 'b1341000-0000-4000-8000-000000000011'
+      and test.status = 'active'
+      and test.title = 'Question B'
+      and test.show_results
+  ) then
+    raise exception 'Activation did not consume the completed draft save';
+  end if;
+  if not exists (
+    select 1
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+      and question.artifact_id = 'b1341000-0000-4000-8000-000000000013'
+      and question.question_text = 'Question B'
+      and question.answer_key = 'B'
+      and question.points = 2
+  ) then
+    raise exception 'Activation materialized stale question content';
+  end if;
+
+  begin
+    perform public.save_test_draft_atomic(
+      'b1341000-0000-4000-8000-000000000001',
+      'b1341000-0000-4000-8000-000000000011',
+      2,
+      '{"title":"Question C","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      false,
+      '[]'::jsonb,
+      '[]'::jsonb
+    );
+  exception when others then
+    raise exception 'Post-activation authoring save failed: %', sqlerrm;
+  end;
+
+  if not exists (
+    select 1
+    from public.tests test
+    where test.id = 'b1341000-0000-4000-8000-000000000011'
+      and test.status = 'active'
+      and test.title = 'Question C'
+      and not test.show_results
+  ) or not exists (
+    select 1
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+      and question.artifact_id = 'b1341000-0000-4000-8000-000000000013'
+      and question.question_text = 'Question C'
+      and question.answer_key = 'C'
+      and question.points = 3
+  ) then
+    raise exception 'Post-activation authoring did not synchronize materialized rows';
+  end if;
+
+  insert into public.test_attempts (test_id, student_id)
+  values (
+    'b1341000-0000-4000-8000-000000000011',
+    'b1341000-0000-4000-8000-000000000001'
+  );
+
+  -- Metadata-only saves remain valid after student work because unchanged
+  -- question rows are not rewritten and therefore cannot distort responses.
+  perform public.save_test_draft_atomic(
+    'b1341000-0000-4000-8000-000000000001',
+    'b1341000-0000-4000-8000-000000000011',
+    3,
+    '{"title":"Metadata only","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    false,
+    '[]'::jsonb,
+    '[]'::jsonb
+  );
+
+  begin
+    perform public.save_test_draft_atomic(
+      'b1341000-0000-4000-8000-000000000001',
+      'b1341000-0000-4000-8000-000000000011',
+      4,
+      '{"title":"Unsafe question edit","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question D","options":[],"correct_option":null,"answer_key":"D","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      false,
+      '[]'::jsonb,
+      '[]'::jsonb
+    );
+    raise exception 'Question mutation with student work unexpectedly succeeded';
+  exception when sqlstate '55000' then
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message not like 'test_questions_locked:%' then
+      raise;
+    end if;
+  end;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.assessment_type = 'test'
+      and draft.assessment_id = 'b1341000-0000-4000-8000-000000000011'
+      and draft.version = 4
+      and draft.content->>'title' = 'Metadata only'
+  ) or not exists (
+    select 1
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+      and question.question_text = 'Question C'
+      and question.answer_key = 'C'
+      and question.points = 3
+  ) then
+    raise exception 'Rejected question mutation did not roll back atomically';
+  end if;
+end;
+$contract$;
+
+delete from public.classrooms
+where id = 'b1341000-0000-4000-8000-000000000010';
+delete from public.users
+where id = 'b1341000-0000-4000-8000-000000000001';
+SQL
+
+# Save/activation and classroom archive must serialize on the classroom row.
+# These fixtures exercise both winners for each RPC: authoring-first keeps the
+# archive waiting until commit, while archive-first makes authoring fail closed
+# without changing draft, question, or Test state.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.users (id, email, role) values (
+  'b1342000-0000-4000-8000-000000000001',
+  'blueprint-question-archive-order@example.test',
+  'teacher'
+);
+insert into public.classrooms (id, teacher_id, title, class_code) values
+  (
+    'b1342000-0000-4000-8000-000000000010',
+    'b1342000-0000-4000-8000-000000000001',
+    'Save before archive',
+    'B134S2'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000020',
+    'b1342000-0000-4000-8000-000000000001',
+    'Archive before save',
+    'B134S3'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000030',
+    'b1342000-0000-4000-8000-000000000001',
+    'Activation before archive',
+    'B134A2'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000040',
+    'b1342000-0000-4000-8000-000000000001',
+    'Archive before activation',
+    'B134A3'
+  );
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values
+  (
+    'b1342000-0000-4000-8000-000000000011',
+    'b1342000-0000-4000-8000-000000000010',
+    'Save-first seed',
+    'draft',
+    false,
+    1,
+    'b1342000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000021',
+    'b1342000-0000-4000-8000-000000000020',
+    'Archive-first save seed',
+    'draft',
+    false,
+    1,
+    'b1342000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000031',
+    'b1342000-0000-4000-8000-000000000030',
+    'Activation-first seed',
+    'draft',
+    false,
+    1,
+    'b1342000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000041',
+    'b1342000-0000-4000-8000-000000000040',
+    'Archive-first activation seed',
+    'draft',
+    false,
+    1,
+    'b1342000-0000-4000-8000-000000000001'
+  );
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values
+  (
+    'b1342000-0000-4000-8000-000000000012',
+    'test',
+    'b1342000-0000-4000-8000-000000000011',
+    'b1342000-0000-4000-8000-000000000010',
+    '{"title":"Save-first seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Save-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1342000-0000-4000-8000-000000000001',
+    'b1342000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000022',
+    'test',
+    'b1342000-0000-4000-8000-000000000021',
+    'b1342000-0000-4000-8000-000000000020',
+    '{"title":"Archive-first save seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Archive-first save question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1342000-0000-4000-8000-000000000001',
+    'b1342000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000032',
+    'test',
+    'b1342000-0000-4000-8000-000000000031',
+    'b1342000-0000-4000-8000-000000000030',
+    '{"title":"Activation-first seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Activation-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1342000-0000-4000-8000-000000000001',
+    'b1342000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1342000-0000-4000-8000-000000000042',
+    'test',
+    'b1342000-0000-4000-8000-000000000041',
+    'b1342000-0000-4000-8000-000000000040',
+    '{"title":"Archive-first activation seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000043","question_type":"open_response","question_text":"Archive-first activation question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1342000-0000-4000-8000-000000000001',
+    'b1342000-0000-4000-8000-000000000001'
+  );
+SQL
+
+docker exec -e PGAPPNAME=b134_save_holds_classroom -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.save_test_draft_atomic(
+  'b1342000-0000-4000-8000-000000000001',
+  'b1342000-0000-4000-8000-000000000011',
+  1,
+  '{"title":"Saved before archive","show_results":true,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Saved before archive","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+select pg_sleep(3);
+commit;
+SQL
+save_before_archive_pid=$!
+save_classroom_lock_ready=false
+for _attempt in {1..40}; do
+  saver_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_save_holds_classroom' and wait_event = 'PgSleep'")"
+  if [[ "$saver_sleeping" == "1" ]]; then
+    save_classroom_lock_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$save_classroom_lock_ready" != "true" ]]; then
+  kill "$save_before_archive_pid" 2>/dev/null || true
+  wait "$save_before_archive_pid" 2>/dev/null || true
+  echo "Draft save did not reach its classroom-lock checkpoint." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_archive_waits_for_save -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = 'b1342000-0000-4000-8000-000000000010';
+SQL
+archive_after_save_pid=$!
+archive_waited_for_save=false
+for _attempt in {1..40}; do
+  archive_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_archive_waits_for_save' and wait_event_type = 'Lock'")"
+  if [[ "$archive_waiting" == "1" ]]; then
+    archive_waited_for_save=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$archive_waited_for_save" != "true" ]]; then
+  kill "$archive_after_save_pid" 2>/dev/null || true
+  kill "$save_before_archive_pid" 2>/dev/null || true
+  wait "$archive_after_save_pid" 2>/dev/null || true
+  wait "$save_before_archive_pid" 2>/dev/null || true
+  echo "Classroom archive did not wait for the in-flight draft save." >&2
+  exit 1
+fi
+wait "$save_before_archive_pid"
+wait "$archive_after_save_pid"
+
+docker exec -e PGAPPNAME=b134_archive_holds_before_save -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = 'b1342000-0000-4000-8000-000000000020';
+select pg_sleep(3);
+commit;
+SQL
+archive_before_save_pid=$!
+archive_before_save_ready=false
+for _attempt in {1..40}; do
+  archiver_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_archive_holds_before_save' and wait_event = 'PgSleep'")"
+  if [[ "$archiver_sleeping" == "1" ]]; then
+    archive_before_save_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$archive_before_save_ready" != "true" ]]; then
+  kill "$archive_before_save_pid" 2>/dev/null || true
+  wait "$archive_before_save_pid" 2>/dev/null || true
+  echo "Archive-first save fixture did not reach its lock checkpoint." >&2
+  exit 1
+fi
+
+set +e
+archive_first_save_output="$(docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 2>&1 <<'SQL'
+select public.save_test_draft_atomic(
+  'b1342000-0000-4000-8000-000000000001',
+  'b1342000-0000-4000-8000-000000000021',
+  1,
+  '{"title":"Must not save","show_results":true,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Must not save","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+SQL
+)"
+archive_first_save_status=$?
+set -e
+wait "$archive_before_save_pid"
+if [[ "$archive_first_save_status" -eq 0 ]] \
+  || [[ "$archive_first_save_output" != *"test_archived"* ]]; then
+  echo "Archive-first draft save did not fail closed." >&2
+  echo "$archive_first_save_output" >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_activation_holds_classroom -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select public.activate_test_from_draft_atomic(
+  'b1342000-0000-4000-8000-000000000001',
+  'b1342000-0000-4000-8000-000000000031',
+  1
+);
+select pg_sleep(3);
+commit;
+SQL
+activation_before_archive_pid=$!
+activation_classroom_lock_ready=false
+for _attempt in {1..40}; do
+  activator_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_activation_holds_classroom' and wait_event = 'PgSleep'")"
+  if [[ "$activator_sleeping" == "1" ]]; then
+    activation_classroom_lock_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$activation_classroom_lock_ready" != "true" ]]; then
+  kill "$activation_before_archive_pid" 2>/dev/null || true
+  wait "$activation_before_archive_pid" 2>/dev/null || true
+  echo "Activation did not reach its classroom-lock checkpoint." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_archive_waits_for_activation -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = 'b1342000-0000-4000-8000-000000000030';
+SQL
+archive_after_activation_pid=$!
+archive_waited_for_activation=false
+for _attempt in {1..40}; do
+  archive_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_archive_waits_for_activation' and wait_event_type = 'Lock'")"
+  if [[ "$archive_waiting" == "1" ]]; then
+    archive_waited_for_activation=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$archive_waited_for_activation" != "true" ]]; then
+  kill "$archive_after_activation_pid" 2>/dev/null || true
+  kill "$activation_before_archive_pid" 2>/dev/null || true
+  wait "$archive_after_activation_pid" 2>/dev/null || true
+  wait "$activation_before_archive_pid" 2>/dev/null || true
+  echo "Classroom archive did not wait for in-flight activation." >&2
+  exit 1
+fi
+wait "$activation_before_archive_pid"
+wait "$archive_after_activation_pid"
+
+docker exec -e PGAPPNAME=b134_archive_holds_before_activation -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+update public.classrooms
+set archived_at = clock_timestamp()
+where id = 'b1342000-0000-4000-8000-000000000040';
+select pg_sleep(3);
+commit;
+SQL
+archive_before_activation_pid=$!
+archive_before_activation_ready=false
+for _attempt in {1..40}; do
+  archiver_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_archive_holds_before_activation' and wait_event = 'PgSleep'")"
+  if [[ "$archiver_sleeping" == "1" ]]; then
+    archive_before_activation_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$archive_before_activation_ready" != "true" ]]; then
+  kill "$archive_before_activation_pid" 2>/dev/null || true
+  wait "$archive_before_activation_pid" 2>/dev/null || true
+  echo "Archive-first activation fixture did not reach its lock checkpoint." >&2
+  exit 1
+fi
+
+set +e
+archive_first_activation_output="$(docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 2>&1 <<'SQL'
+select public.activate_test_from_draft_atomic(
+  'b1342000-0000-4000-8000-000000000001',
+  'b1342000-0000-4000-8000-000000000041',
+  1
+);
+SQL
+)"
+archive_first_activation_status=$?
+set -e
+wait "$archive_before_activation_pid"
+if [[ "$archive_first_activation_status" -eq 0 ]] \
+  || [[ "$archive_first_activation_output" != *"test_archived"* ]]; then
+  echo "Archive-first activation did not fail closed." >&2
+  echo "$archive_first_activation_output" >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    join public.tests test on test.id = draft.assessment_id
+    join public.classrooms classroom on classroom.id = test.classroom_id
+    where draft.assessment_type = 'test'
+      and test.id = 'b1342000-0000-4000-8000-000000000011'
+      and draft.version = 2
+      and draft.content->>'title' = 'Saved before archive'
+      and test.title = 'Saved before archive'
+      and test.status = 'draft'
+      and classroom.archived_at is not null
+  ) then
+    raise exception 'Save-first ordering did not commit before archive';
+  end if;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    join public.tests test on test.id = draft.assessment_id
+    join public.classrooms classroom on classroom.id = test.classroom_id
+    where draft.assessment_type = 'test'
+      and test.id = 'b1342000-0000-4000-8000-000000000021'
+      and draft.version = 1
+      and draft.content->>'title' = 'Archive-first save seed'
+      and test.title = 'Archive-first save seed'
+      and test.status = 'draft'
+      and classroom.archived_at is not null
+      and not exists (
+        select 1 from public.test_questions question where question.test_id = test.id
+      )
+  ) then
+    raise exception 'Archive-first save changed protected Test state';
+  end if;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    join public.tests test on test.id = draft.assessment_id
+    join public.classrooms classroom on classroom.id = test.classroom_id
+    where draft.assessment_type = 'test'
+      and test.id = 'b1342000-0000-4000-8000-000000000031'
+      and draft.version = 1
+      and test.status = 'active'
+      and classroom.archived_at is not null
+      and exists (
+        select 1
+        from public.test_questions question
+        where question.test_id = test.id
+          and question.artifact_id = 'b1342000-0000-4000-8000-000000000033'
+      )
+  ) then
+    raise exception 'Activation-first ordering did not commit before archive';
+  end if;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    join public.tests test on test.id = draft.assessment_id
+    join public.classrooms classroom on classroom.id = test.classroom_id
+    where draft.assessment_type = 'test'
+      and test.id = 'b1342000-0000-4000-8000-000000000041'
+      and draft.version = 1
+      and draft.content->>'title' = 'Archive-first activation seed'
+      and test.title = 'Archive-first activation seed'
+      and test.status = 'draft'
+      and classroom.archived_at is not null
+      and not exists (
+        select 1 from public.test_questions question where question.test_id = test.id
+      )
+  ) then
+    raise exception 'Archive-first activation changed protected Test state';
+  end if;
+end;
+$contract$;
+
+delete from public.classrooms
+where teacher_id = 'b1342000-0000-4000-8000-000000000001';
+delete from public.users
+where id = 'b1342000-0000-4000-8000-000000000001';
+SQL
+
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;

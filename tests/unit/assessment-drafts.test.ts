@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  activateTestFromDraftAtomic,
   buildNextDraftContent,
   buildTestDraftContentFromRows,
   createAssessmentDraft,
   ensureAssessmentDraft,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
+  saveTestDraftAtomic,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
@@ -274,6 +276,12 @@ describe('assessment drafts', () => {
           maybeSingle: vi.fn().mockResolvedValue({ data: expectedDraft, error: null }),
           single: vi.fn().mockResolvedValue({ data: expectedDraft, error: null }),
         }
+        const updateChain: any = {
+          eq: vi.fn(() => updateChain),
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({ data: expectedDraft, error: null }),
+          })),
+        }
 
         return {
           select: vi.fn(() => selectChain),
@@ -282,13 +290,7 @@ describe('assessment drafts', () => {
               single: vi.fn().mockResolvedValue({ data: expectedDraft, error: null }),
             })),
           })),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({ data: expectedDraft, error: null }),
-              })),
-            })),
-          })),
+          update: vi.fn(() => updateChain),
         }
       }),
     }
@@ -312,7 +314,7 @@ describe('assessment drafts', () => {
     })
 
     await expect(
-      updateAssessmentDraft(successSupabase, 'draft-1', 2, 'teacher-1', expectedDraft.content)
+      updateAssessmentDraft(successSupabase, 'draft-1', 1, 'teacher-1', expectedDraft.content)
     ).resolves.toEqual({
       draft: expectedDraft,
       error: null,
@@ -351,10 +353,92 @@ describe('assessment drafts', () => {
     })
 
     await expect(
-      updateAssessmentDraft(throwingSupabase, 'draft-1', 2, 'teacher-1', expectedDraft.content)
+      updateAssessmentDraft(throwingSupabase, 'draft-1', 1, 'teacher-1', expectedDraft.content)
     ).resolves.toMatchObject({
       draft: null,
       error: { code: 'PGRST205', message: 'relation missing' },
+    })
+  })
+
+  it('writes a Test draft through the versioned atomic RPC', async () => {
+    const content = {
+      title: 'Saved Test',
+      show_results: false,
+      questions: [],
+    }
+    const draft = {
+      id: 'draft-1',
+      assessment_type: 'test',
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content,
+      version: 4,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-02T00:00:00.000Z',
+    }
+    const rpc = vi.fn().mockResolvedValue({
+      data: { cleanup_paths: [], draft, test: { id: 'test-1', status: 'draft' } },
+      error: null,
+    })
+
+    await expect(saveTestDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content,
+    })).resolves.toEqual({
+      ok: true,
+      draft,
+      test: { id: 'test-1', status: 'draft' },
+    })
+    expect(rpc).toHaveBeenCalledWith('save_test_draft_atomic', {
+      p_content: content,
+      p_documents: [],
+      p_expected_documents: [],
+      p_expected_draft_version: 3,
+      p_teacher_id: 'teacher-1',
+      p_test_id: 'test-1',
+      p_update_documents: false,
+    })
+  })
+
+  it('maps an activation version conflict to a reviewable 409', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '40001', message: 'draft_version_conflict' },
+    })
+
+    await expect(activateTestFromDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'The Test changed after activation was requested. Review and try again.',
+    })
+  })
+
+  it('maps a materialized question lock to a reviewable 409', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: '55000',
+        message: 'test_questions_locked: Test questions cannot be changed after student work exists',
+      },
+    })
+
+    await expect(saveTestDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content: { title: 'Test', show_results: false, questions: [] },
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Test questions cannot be changed after student work exists',
     })
   })
 
@@ -484,6 +568,85 @@ describe('assessment drafts', () => {
       draft: {
         version: 7,
         content: { questions: [{ id: ARTIFACT_ID_1 }] },
+      },
+    })
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('reopens a materialized Test from persisted rows without changing its draft version', async () => {
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: {
+        title: 'Stale draft',
+        show_results: false,
+        questions: [],
+      },
+      version: 7,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const questionSelect: any = {
+      eq: vi.fn(() => questionSelect),
+      order: vi.fn().mockResolvedValue({
+        data: [{
+          id: TEST_ID_1,
+          artifact_id: ARTIFACT_ID_1,
+          source_artifact_id: null,
+          question_type: 'open_response',
+          question_text: 'Materialized question',
+          options: [],
+          correct_option: null,
+          answer_key: null,
+          sample_solution: null,
+          points: 2,
+          response_max_chars: 5000,
+          response_monospace: false,
+        }],
+        error: null,
+      }),
+    }
+    const update = vi.fn()
+    const supabase = {
+      from: vi.fn((table: string) => table === 'assessment_drafts'
+        ? { select: vi.fn(() => draftSelect), update }
+        : { select: vi.fn(() => questionSelect) }),
+    }
+
+    const result = await ensureAssessmentDraft(supabase, {
+      assessmentType: 'test',
+      assessment: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Materialized Test',
+        show_results: true,
+      },
+      userId: 'teacher-1',
+      questionsTable: 'test_questions',
+      questionsForeignKey: 'test_id',
+      questionsSelect: 'id, artifact_id, source_artifact_id',
+      validateContent: validateTestDraftContent,
+      buildFromRows: buildTestDraftContentFromRows,
+      preferPersistedRows: true,
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      draft: {
+        version: 7,
+        content: {
+          title: 'Materialized Test',
+          show_results: true,
+          questions: [{ id: ARTIFACT_ID_1, question_text: 'Materialized question' }],
+        },
       },
     })
     expect(update).not.toHaveBeenCalled()

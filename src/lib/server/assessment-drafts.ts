@@ -1,4 +1,6 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
+import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
+import { removeQueuedTestDocumentSnapshotPath } from '@/lib/server/test-document-snapshot-storage-cleanup'
 import {
   getPortableTestQuestionIdentity,
   resolveTestQuestionIdentities,
@@ -200,7 +202,7 @@ export async function createAssessmentDraft<TContent>(
 export async function updateAssessmentDraft<TContent>(
   supabase: SupabaseLike,
   draftId: string,
-  version: number,
+  expectedVersion: number,
   userId: string,
   content: TContent
 ): Promise<{ draft: AssessmentDraftRow<TContent> | null; error: any }> {
@@ -209,10 +211,11 @@ export async function updateAssessmentDraft<TContent>(
       .from('assessment_drafts')
       .update({
         content,
-        version,
+        version: expectedVersion + 1,
         updated_by: userId,
       })
       .eq('id', draftId)
+      .eq('version', expectedVersion)
       .select('*')
       .single()
 
@@ -226,6 +229,178 @@ export async function updateAssessmentDraft<TContent>(
       },
     }
   }
+}
+
+type AtomicTestDraftWriteResult =
+  | {
+      ok: true
+      draft: AssessmentDraftRow<TestDraftContent>
+      test: Record<string, unknown>
+    }
+  | { ok: false; status: number; error: string }
+
+type AtomicTestActivationResult =
+  | {
+      ok: true
+      draftVersion: number
+      test: Record<string, unknown>
+    }
+  | { ok: false; status: number; error: string }
+
+function getRpcErrorText(error: {
+  message?: string
+  details?: string | null
+  hint?: string | null
+}): string {
+  return `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+}
+
+function mapTestDraftRpcError(
+  error: { code?: string; message?: string; details?: string | null; hint?: string | null },
+  operation: 'save' | 'activate',
+): { ok: false; status: number; error: string } {
+  const details = getRpcErrorText(error)
+  if (error.code === '42883' || error.code === 'PGRST202') {
+    return {
+      ok: false,
+      status: 503,
+      error: `Atomic Test draft ${operation} requires migration 134 to be applied`,
+    }
+  }
+  if (details.includes('draft_version_conflict')) {
+    return {
+      ok: false,
+      status: 409,
+      error: operation === 'save'
+        ? 'Draft updated elsewhere'
+        : 'The Test changed after activation was requested. Review and try again.',
+    }
+  }
+  if (details.includes('test_not_draft')) {
+    return {
+      ok: false,
+      status: 409,
+      error: operation === 'save'
+        ? 'This Test is no longer a draft'
+        : 'Only draft Tests can be activated',
+    }
+  }
+  if (details.includes('document_conflict')) {
+    return { ok: false, status: 409, error: 'The test documents changed elsewhere. Reload and try again.' }
+  }
+  if (details.includes('test_questions_locked')) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Test questions cannot be changed after student work exists',
+    }
+  }
+  if (details.includes('test_archived')) {
+    return { ok: false, status: 403, error: 'Classroom is archived' }
+  }
+  if (details.includes('forbidden')) {
+    return { ok: false, status: 403, error: 'Forbidden' }
+  }
+  if (details.includes('test_not_found') || details.includes('test_draft_not_found')) {
+    return { ok: false, status: 404, error: 'Test draft not found' }
+  }
+  if (
+    details.includes('invalid_draft')
+    || details.includes('duplicate_question_identity')
+    || details.includes('question_identity_')
+  ) {
+    return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }
+  }
+  return {
+    ok: false,
+    status: 500,
+    error: operation === 'save' ? 'Failed to save draft' : 'Failed to activate Test',
+  }
+}
+
+function parseCleanupPaths(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((path): path is string => (
+    typeof path === 'string' && path.startsWith('link-docs/')
+  ))
+}
+
+export async function saveTestDraftAtomic(
+  supabase: SupabaseLike,
+  input: {
+    teacherId: string
+    testId: string
+    expectedDraftVersion: number
+    content: TestDraftContent
+    expectedDocuments?: unknown
+    documents?: import('@/types').TestDocument[]
+  },
+): Promise<AtomicTestDraftWriteResult> {
+  const updatesDocuments = input.documents !== undefined
+  const documents = updatesDocuments
+    ? preserveCurrentTestDocumentSnapshots(input.expectedDocuments, input.documents || [])
+    : []
+  const { data, error } = await supabase.rpc('save_test_draft_atomic', {
+    p_content: input.content,
+    p_documents: documents,
+    p_expected_documents: input.expectedDocuments ?? [],
+    p_expected_draft_version: input.expectedDraftVersion,
+    p_teacher_id: input.teacherId,
+    p_test_id: input.testId,
+    p_update_documents: updatesDocuments,
+  })
+
+  if (error) return mapTestDraftRpcError(error, 'save')
+
+  const result = data as {
+    cleanup_paths?: unknown
+    draft?: AssessmentDraftRow<TestDraftContent>
+    test?: Record<string, unknown>
+  } | null
+  if (!result?.draft || !result.test) {
+    return { ok: false, status: 500, error: 'Failed to save draft' }
+  }
+
+  for (const storagePath of parseCleanupPaths(result.cleanup_paths)) {
+    try {
+      await removeQueuedTestDocumentSnapshotPath({ supabase, storagePath })
+    } catch (cleanupError) {
+      console.error('Failed to run immediate test snapshot cleanup:', {
+        storagePath,
+        cleanupError,
+      })
+    }
+  }
+
+  return { ok: true, draft: result.draft, test: result.test }
+}
+
+export async function activateTestFromDraftAtomic(
+  supabase: SupabaseLike,
+  input: {
+    teacherId: string
+    testId: string
+    expectedDraftVersion: number
+  },
+): Promise<AtomicTestActivationResult> {
+  const { data, error } = await supabase.rpc('activate_test_from_draft_atomic', {
+    p_expected_draft_version: input.expectedDraftVersion,
+    p_teacher_id: input.teacherId,
+    p_test_id: input.testId,
+  })
+
+  if (error) return mapTestDraftRpcError(error, 'activate')
+
+  const result = data as {
+    draft_version?: unknown
+    test?: Record<string, unknown>
+  } | null
+  const draftVersion = Number(result?.draft_version)
+  if (!result?.test || !Number.isInteger(draftVersion) || draftVersion < 1) {
+    return { ok: false, status: 500, error: 'Failed to activate Test' }
+  }
+
+  return { ok: true, draftVersion, test: result.test }
 }
 
 export async function syncTestQuestionsFromDraft(
@@ -407,6 +582,13 @@ export type EnsureDraftConfig<TContent> = {
     content: TContent,
     rows: unknown[],
   ) => { ok: true; content: TContent } | { ok: false }
+  /**
+   * Treat persisted rows as authoritative when reopening an already materialized
+   * assessment. The returned draft keeps its optimistic-lock version, but its
+   * content is rebuilt from the rows instead of trusting a stale pre-activation
+   * draft snapshot.
+   */
+  preferPersistedRows?: boolean
 }
 
 /**
@@ -424,6 +606,7 @@ export async function ensureAssessmentDraft<TContent>(
     assessment, assessmentType, userId,
     questionsTable, questionsForeignKey, questionsSelect,
     validateContent, validateOptions, buildFromRows, projectContent,
+    preferPersistedRows = false,
   } = config
 
   const { draft, error } = await getAssessmentDraftByType<TContent>(
@@ -447,7 +630,7 @@ export async function ensureAssessmentDraft<TContent>(
   const validDraft = draft
     ? validateContent(draft.content, validateOptions)
     : null
-  if (draft && validDraft?.valid && !projectContent) {
+  if (draft && validDraft?.valid && !projectContent && !preferPersistedRows) {
     return { ok: true, draft: { ...draft, content: validDraft.value } }
   }
 
@@ -462,6 +645,16 @@ export async function ensureAssessmentDraft<TContent>(
     return { ok: false, status: 500, error: 'Failed to build draft' }
   }
 
+  if (draft && preferPersistedRows) {
+    return {
+      ok: true,
+      draft: {
+        ...draft,
+        content: buildFromRows(assessment, questions || []),
+      },
+    }
+  }
+
   if (draft && validDraft?.valid && projectContent) {
     const projected = projectContent(validDraft.value, questions || [])
     if (!projected.ok) {
@@ -474,7 +667,7 @@ export async function ensureAssessmentDraft<TContent>(
 
   if (draft) {
     const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
-      supabase, draft.id, draft.version + 1, userId, content
+      supabase, draft.id, draft.version, userId, content
     )
     if (updateError || !updatedDraft) {
       console.error(`Error repairing ${assessmentType} draft:`, updateError)

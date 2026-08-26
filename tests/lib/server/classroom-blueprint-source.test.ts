@@ -309,6 +309,66 @@ describe('classroom blueprint source loader', () => {
     ])
   })
 
+  it('captures materialized questions for an active Test instead of a stale draft', async () => {
+    seedSourceSupabase({
+      tests: [{
+        id: 't-1',
+        artifact_id: '10000000-0000-4000-8000-000000000001',
+        title: 'Activated Test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+      }],
+      testQuestions: [{
+        id: 'question-row-1',
+        artifact_id: '20000000-0000-4000-8000-000000000001',
+        test_id: 't-1',
+        question_type: 'open_response',
+        question_text: 'Materialized question A',
+        options: [],
+        correct_option: null,
+        answer_key: 'A',
+        sample_solution: null,
+        points: 5,
+        response_max_chars: 5000,
+        response_monospace: false,
+        position: 0,
+      }],
+      assessmentDrafts: [{
+        assessment_id: 't-1',
+        content: {
+          title: 'Stale draft title',
+          show_results: true,
+          questions: [{
+            id: '30000000-0000-4000-8000-000000000001',
+            question_type: 'open_response',
+            question_text: 'Never activated question B',
+            options: [],
+            correct_option: null,
+            answer_key: 'B',
+            sample_solution: null,
+            points: 5,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests[0].content).toEqual(expect.objectContaining({
+      title: 'Activated Test',
+      show_results: false,
+      questions: [expect.objectContaining({
+        id: '20000000-0000-4000-8000-000000000001',
+        question_text: 'Materialized question A',
+      })],
+    }))
+  })
+
   it('preserves draft-only identity and fails closed on ambiguous persisted identity', () => {
     const content = {
       title: 'Identity contract',
