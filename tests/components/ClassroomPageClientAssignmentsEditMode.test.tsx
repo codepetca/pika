@@ -11,6 +11,7 @@ const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
+const mockLeftSidebarProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -100,7 +101,10 @@ vi.mock('@/components/layout', async () => {
       return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>
     },
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
-    LeftSidebar: ({ children }: any) => <div>{children}</div>,
+    LeftSidebar: ({ children, ...props }: any) => {
+      mockLeftSidebarProps(props)
+      return <div>{children}</div>
+    },
     MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
     NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility }: any) => (
       <nav>
@@ -457,6 +461,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
     mockStudentTodayTabProps.mockReset()
+    mockLeftSidebarProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -677,6 +682,15 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
     expect(screen.getByText('Mon May 11')).toBeInTheDocument()
     expect(await screen.findByText('Last class calendar entry')).toBeInTheDocument()
+  })
+
+  it('wires the mobile classroom-list link through guarded home navigation', () => {
+    renderClient()
+
+    expect(mockLeftSidebarProps).toHaveBeenCalledWith(expect.objectContaining({
+      mobileHomeHref: '/classrooms',
+      onNavigateHome: expect.any(Function),
+    }))
   })
 
   it('clears the student today sidebar plan when the classroom route changes', async () => {

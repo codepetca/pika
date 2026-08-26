@@ -82,6 +82,24 @@ describe('AppHeader classroom theme', () => {
     expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
   })
 
+  it('gives the classroom name more mobile space and moves home into the drawer', () => {
+    render(
+      <AppHeader
+        classrooms={[
+          { id: 'class-1', title: 'A Longer Classroom Name', code: 'AAA111', themeColor: 'teal' },
+        ]}
+        currentClassroomId="class-1"
+        onOpenSidebar={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    const leftSection = screen.getByRole('button', { name: 'Open classroom navigation' }).parentElement
+    expect(leftSection).toHaveClass('col-span-2', 'lg:col-span-1')
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('hidden', 'lg:flex')
+    expect(screen.getByText('A Longer Classroom Name').closest('div')).toHaveClass('max-w-full')
+  })
+
   it('keeps the brand logo on unthemed appbars', () => {
     render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
 
