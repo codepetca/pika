@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-20 — Isolate Pika principals and harden attendance recovery
-
-**Risk profile:** high — cross-service identity, idempotency, durable delivery,
-Supabase migration, archive/purge containment, and native attendance behavior.
-The user explicitly authorized discarding and resetting only Pika's local
-Supabase data. No hosted database, dashboard, deployment, flag, or production
-state changed.
-
-**Completed:**
-- Replaced WorkOS subjects in the v1 boundary with random Pika principal refs.
-  Pika still verifies WorkOS locally; Bara namespaces each principal by signed
-  installation and cannot reuse a standalone WorkOS identity or organization.
-- Gave each logical student scan a fresh attempt ID while preserving one stable
-  idempotency key across uncertain transport retries of that attempt.
-- Made retryable teacher delivery uncertainty return durable `pending`, and
-  rebuilt pending session/mark state from the private outbox after reload.
-- Made outbox claims enforce roster-before-schedule and
-  roster/schedule-before-command dependencies rather than creation order.
-- Added classroom/student lineage to the event inbox and projections. Removed
-  service-role delete authority and fail-closed archive compaction, hot purge,
-  and final classroom deletion until a versioned Bara decommission/reseed
-  protocol exists; ordinary soft archive/restore remains intact.
-- Added a CI database regression that proves privileges, all eight delete-guard
-  row families, no-state deletion, early compaction/purge rejection, and
-  reversed-order delivery dependencies on local Supabase.
-
-**Verification:**
-- Local Supabase reset replayed migrations 001–127 cleanly; generated database
-  types match; `pnpm run check:bara-attendance-db` passes.
-- Pika passes 548 files and 4,818 tests, TypeScript, production build,
-  architecture, design-policy, UI-policy, database type, shell, and diff checks.
-- The four vendored Pika v1 contract files are byte-identical to Bara.
-
-**Remaining gates:**
-- No hosted staging database exists. Provisioning one, applying migration 127,
-  configuring a frequent hosted recovery trigger, running cross-service
-  teacher/student/tenant-isolation flows, measuring hosted p50/p95/p99, and a
-  canary all remain explicit rollout work. Production stays disabled.
-
 ## 2026-08-20 — Close attendance privacy and operator-state review findings
 
 **Risk profile:** high — student privacy deletion, archive schema inventory,
@@ -999,6 +960,7 @@ editor, API, persistence, authentication, or teacher behavior changed.
   the unchanged teacher desktop/mobile views.
 
 **Model recommendation:** GPT-5.6 for small, judgment-sensitive UI refinements.
+
 ## 2026-08-26 — Match the Pika logo to theme text
 
 **Risk profile:** none — shared brand presentation only; no layout, API, schema,
@@ -1009,7 +971,7 @@ persistence, authentication, dependency, or hosted state changed.
   and dark themes.
 - Preserved the logo's accessible image name and existing dimensions while
   updating shared-header regression coverage for the semantic token contract.
-- Focused component and semantic-token tests pass (16/16); lint, design policy,
+- Focused component and semantic-token tests pass (19/19); lint, design policy,
   diff checks, and the production build pass (with existing WorkOS Edge-runtime
   warnings).
 - Playwright screenshots were visually reviewed for teacher and student
@@ -1017,5 +979,10 @@ persistence, authentication, dependency, or hosted state changed.
   because the shared env lacks Supabase configuration, so the real shared header
   and logo were rendered in a temporary local verification route that was removed
   after capture.
+
+- PR #1072 independent review found no implementation blockers. Initial CI
+  exposed one stale `getByAltText` assertion in the mobile sidebar test; it now
+  verifies the preserved accessible image role and name, and the focused header
+  plus sidebar suite passes (11/11).
 
 **Model recommendation:** GPT-5.6 Sol for exact semantic-theme and visual review.
