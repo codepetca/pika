@@ -19,6 +19,7 @@ const GAPPED_SPLIT_HANDLE_WIDTH_PX = 12
 interface TeacherWorkspaceSplitProps {
   primary: ReactNode
   inspector?: ReactNode
+  mobileInspector?: ReactNode
   inspectorWidth: number
   onInspectorWidthChange: (nextWidth: number) => void
   inspectorCollapsed: boolean
@@ -78,6 +79,7 @@ function clampInspectorWidthPercent(
 export function TeacherWorkspaceSplit({
   primary,
   inspector,
+  mobileInspector,
   inspectorWidth,
   onInspectorWidthChange,
   inspectorCollapsed,
@@ -260,6 +262,17 @@ export function TeacherWorkspaceSplit({
         ref={splitRef}
         className={cn('flex min-h-0 flex-1 flex-col gap-3 bg-page lg:h-full lg:overflow-hidden lg:flex-row lg:gap-0', className)}
       >
+        {inspectorVisible && mobileInspector ? (
+          <div
+            className={cn(
+              'min-h-0 w-full overflow-hidden lg:hidden',
+              inspectorClassName,
+            )}
+          >
+            {mobileInspector}
+          </div>
+        ) : null}
+
         <div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryClassName)}>
           {primary}
         </div>
@@ -286,6 +299,7 @@ export function TeacherWorkspaceSplit({
           <div
             className={cn(
               'min-h-0 w-full overflow-hidden lg:shrink-0 lg:basis-[var(--teacher-workspace-inspector-width)]',
+              mobileInspector && 'hidden lg:block',
               inspectorClassName,
             )}
             style={inspectorPaneStyle}
