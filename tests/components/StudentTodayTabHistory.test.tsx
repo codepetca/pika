@@ -205,6 +205,8 @@ describe('StudentTodayTab history section', () => {
 
     await screen.findByText('Past logs')
 
+    expect(screen.getByText("What's your plan for today?")).toHaveClass('font-medium')
+    expect(screen.queryByText('What do you want to get better at?')).not.toBeInTheDocument()
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /hide history/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /show history/i })).not.toBeInTheDocument()
