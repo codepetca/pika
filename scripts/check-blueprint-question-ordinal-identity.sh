@@ -130,6 +130,7 @@ declare
   v_teacher_id constant uuid := 'b1340000-0000-4000-8000-000000000001';
   v_active_classroom_id constant uuid := 'b1340000-0000-4000-8000-000000000010';
   v_archived_classroom_id constant uuid := 'b1340000-0000-4000-8000-000000000020';
+  v_active_failed_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000200';
   v_active_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000210';
   v_archived_failed_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000220';
   v_archived_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000230';
@@ -137,13 +138,18 @@ declare
   v_active_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000112';
   v_active_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000113';
   v_active_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000114';
+  v_active_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000012';
+  v_active_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000013';
   v_archived_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000211';
   v_archived_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000212';
   v_archived_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000213';
   v_archived_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000214';
+  v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
+  v_archived_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000023';
   v_active_revision bigint;
   v_archived_revision bigint;
   v_active_plan jsonb;
+  v_active_failure_plan jsonb;
   v_archived_plan jsonb;
   v_archived_failure_plan jsonb;
   v_result jsonb;
@@ -220,12 +226,69 @@ begin
     'source_package_exported_at', null
   );
 
+  v_active_failure_plan := jsonb_set(
+    jsonb_set(
+      v_active_plan,
+      '{blueprint,title}',
+      to_jsonb('Active identity rollback'::text)
+    ),
+    '{assessments,0,content,questions,1,id}',
+    to_jsonb(v_active_question_two_row_id)
+  );
+
+  -- The second planned identity now matches row one by artifact_id and row two
+  -- by physical id. The first question maps uniquely before the ambiguity, so
+  -- the exception must also roll back that earlier source_artifact_id write.
+  update public.test_questions
+  set artifact_id = v_active_question_two_row_id
+  where id = v_active_question_one_row_id;
+
   select blueprint_source_revision
   into v_active_revision
   from public.classrooms
   where id = v_active_classroom_id;
 
   perform set_config('request.jwt.claim.role', 'service_role', true);
+  begin
+    perform public.create_course_blueprint_atomic_v2(
+      v_active_failed_operation_id,
+      v_teacher_id,
+      'capture',
+      repeat('0', 64),
+      v_active_classroom_id,
+      v_active_revision,
+      v_active_failure_plan
+    );
+    raise exception 'Active ambiguous identity unexpectedly succeeded';
+  exception when sqlstate '22023' then
+    null;
+  end;
+  if exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_active_failed_operation_id
+  ) or exists (
+    select 1
+    from public.course_blueprints
+    where teacher_id = v_teacher_id
+      and title = 'Active identity rollback'
+  ) or exists (
+    select 1
+    from public.test_questions
+    where test_id = 'b1340000-0000-4000-8000-000000000011'
+      and source_artifact_id is not null
+  ) then
+    raise exception 'Active ambiguous identity was not rolled back atomically';
+  end if;
+
+  update public.test_questions
+  set artifact_id = v_active_question_one_id
+  where id = v_active_question_one_row_id;
+  select blueprint_source_revision
+  into v_active_revision
+  from public.classrooms
+  where id = v_active_classroom_id;
+
   v_result := public.create_course_blueprint_atomic_v2(
     v_active_operation_id,
     v_teacher_id,
@@ -357,9 +420,13 @@ begin
       '{blueprint,title}',
       to_jsonb('Archived ordinal rollback'::text)
     ),
-    '{assessments,0,position}',
-    '99'::jsonb
+    '{assessments,0,content,questions,1,id}',
+    to_jsonb(v_archived_question_two_row_id)
   );
+
+  update public.test_questions
+  set artifact_id = v_archived_question_two_row_id
+  where id = v_archived_question_one_row_id;
 
   select blueprint_source_revision
   into v_archived_revision
@@ -375,7 +442,7 @@ begin
       v_archived_revision,
       v_archived_failure_plan
     );
-    raise exception 'Archived source mismatch unexpectedly succeeded';
+    raise exception 'Archived ambiguous identity unexpectedly succeeded';
   exception when sqlstate '22023' then
     null;
   end;
@@ -393,9 +460,22 @@ begin
     from public.classrooms
     where id = v_archived_classroom_id
       and source_blueprint_id is not null
+  ) or exists (
+    select 1
+    from public.test_questions
+    where test_id = 'b1340000-0000-4000-8000-000000000021'
+      and source_artifact_id is not null
   ) then
-    raise exception 'Archived source mismatch was not rolled back atomically';
+    raise exception 'Archived ambiguous identity was not rolled back atomically';
   end if;
+
+  update public.test_questions
+  set artifact_id = v_archived_question_one_id
+  where id = v_archived_question_one_row_id;
+  select blueprint_source_revision
+  into v_archived_revision
+  from public.classrooms
+  where id = v_archived_classroom_id;
 
   v_result := public.create_archived_classroom_blueprint_atomic(
     v_archived_operation_id,

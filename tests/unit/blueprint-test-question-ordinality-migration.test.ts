@@ -22,7 +22,10 @@ function functionDefinition(name: string): string {
   return migration.slice(start, end)
 }
 
-function expectStableQuestionIdentityMapping(definition: string) {
+function expectStableQuestionIdentityMapping(
+  definition: string,
+  failurePrefix: 'Captured' | 'Archived',
+) {
   expect(definition).toMatch(
     /for v_child in\s+select question\.value\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}as question\(value\)/,
   )
@@ -33,30 +36,38 @@ function expectStableQuestionIdentityMapping(definition: string) {
     'if coalesce(cardinality(v_question_row_ids), 0) > 1 then',
   )
   expect(definition).toContain(
+    `raise exception '${failurePrefix} Test question identity mapping is ambiguous'`,
+  )
+  expect(definition).toMatch(
+    new RegExp(
+      `raise exception '${failurePrefix} Test question identity mapping is ambiguous'\\s+using errcode = '22023'`,
+    ),
+  )
+  expect(definition).toContain(
     'elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then',
   )
   expect(definition).not.toMatch(/offset v_question_index/)
 }
 
-describe('Blueprint test-question ordinal identity migration', () => {
-  it('maps active classroom capture questions by canonical array order', () => {
+describe('Blueprint test-question identity migration', () => {
+  it('maps active classroom capture questions by stable identity', () => {
     const definition = functionDefinition(
       'create_course_blueprint_atomic_v2_pre_managed_storage',
     )
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectStableQuestionIdentityMapping(definition)
+    expectStableQuestionIdentityMapping(definition, 'Captured')
   })
 
-  it('maps archived classroom reuse questions by canonical array order', () => {
+  it('maps archived classroom reuse questions by stable identity', () => {
     const definition = functionDefinition(
       'create_archived_classroom_blueprint_atomic',
     )
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectStableQuestionIdentityMapping(definition)
+    expectStableQuestionIdentityMapping(definition, 'Archived')
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
     )
