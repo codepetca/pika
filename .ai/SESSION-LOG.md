@@ -963,6 +963,9 @@ layout, API, schema, persistence, dependency, or hosted state changed.
   in light/dark. The mobile drawer was captured immediately after opening; the
   Pika mark is present in all four cold-open mobile captures with correct theme
   color and no overflow.
+- PR CI exposed stale attendance-matrix assertions from the preceding Today-card
+  merge. The test now targets the visible responsive inspector and the current
+  one-line confirmation copy; its desktop/mobile, light/dark matrix passes (6/6).
 
 **Model recommendation:** current frontier coding model for a narrow visual-load
 regression with cross-role and cross-theme verification.
