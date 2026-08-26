@@ -11,44 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-20 — Close Pika attendance PR review blockers
-
-**Risk profile:** runtime-platform — durable cross-service ordering, snapshot
-idempotency, migration replay, and scan/load evidence. The user authorized
-discarding Pika's local data. No hosted database, deployment, flag, or secret
-changed; the shared Bara development selectors were restored after local
-Convex startup.
-
-**Completed:**
-- Made roster snapshot retries byte-identical across manual and automated sync
-  by using one persisted-contract display value and enforcing it in migration
-  127.
-- Serialized outbox enqueue commits per classroom and made both exact and batch
-  claims wait for earlier snapshot revisions, session commands, or corrections
-  in the same causal stream.
-- Updated hosted and local load runners for current scan attempt IDs and opaque
-  principal mappings, and corrected the runbook to distinguish the local
-  server-helper path from the hosted HTTP endpoint.
-- Replaced obsolete local load figures with current-contract measurements:
-  30/30 confirmed at p50 91.8 ms, p95 161.8 ms, p99 163.9 ms; 100/100 confirmed
-  at p50 276.7 ms, p95 498.8 ms, p99 513.1 ms.
-
-**Verification:**
-- Reset disposable local Supabase and replayed migrations 001–127; database
-  types, migration dry-run, causal-order/idempotency contract, privacy fences,
-  and two-session purge concurrency checks pass.
-- Guarded loopback rehearsal passed roster/schedule sync, open, student scan and
-  duplicate retry, teacher correction, close, closed scan, duplicate event, and
-  stale reordered event handling.
-- Independent security and architecture re-reviews found no remaining P0–P2
-  issue. Full coverage passes 556 files and 4,862 tests; TypeScript, production
-  build, architecture, design-policy, UI-policy, and diff checks pass.
-
-**Remaining gates:**
-- Hosted preview/database verification, real hosted teacher/student smoke,
-  hosted endpoint latency, scheduler-capacity proof, and canary remain rollout
-  gates. Production integration remains disabled.
-
 ## 2026-08-21 — Stop false local-edit warnings after assignment submission
 
 **Risk profile:** workspace-state — student assignment autosave, recovery, and
@@ -983,3 +945,27 @@ logic, API, schema, persistence, authentication, or hosted state changed.
 
 **Model recommendation:** current model for a localized React composition and
 visual-verification change.
+
+## 2026-08-26 — Prevent the mobile Pika logo from flashing blank
+
+**Risk profile:** none — shared brand rendering only; no navigation behavior,
+layout, API, schema, persistence, dependency, or hosted state changed.
+
+- Replaced the network-backed `/pika.png` CSS mask with the existing compact
+  brand image embedded as a shared CSS data-URI token. This preserves semantic
+  light/dark coloring while making the mask available on the first drawer paint.
+- Added regression coverage for the inline mask contract and explicitly rejects
+  restoring the delayed external mask.
+- Full Vitest passes (5,097/5,097); focused header/sidebar tests pass (11/11).
+  Lint, architecture, design policy, UI policy, Pika audit, diff checks, and the
+  production build pass (with existing WorkOS Edge-runtime warnings).
+- Playwright visual verification passed for teacher and student at desktop/mobile
+  in light/dark. The mobile drawer was captured immediately after opening; the
+  Pika mark is present in all four cold-open mobile captures with correct theme
+  color and no overflow.
+- PR CI exposed stale attendance-matrix assertions from the preceding Today-card
+  merge. The test now targets the visible responsive inspector and the current
+  one-line confirmation copy; its desktop/mobile, light/dark matrix passes (6/6).
+
+**Model recommendation:** current frontier coding model for a narrow visual-load
+regression with cross-role and cross-theme verification.

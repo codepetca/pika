@@ -445,7 +445,7 @@ test.describe('student experience matrix', () => {
       animations: 'disabled',
     })
     await page.goto(`/classrooms/${classroom.id}?tab=today`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText('Scan QR for Attendance')).toBeVisible()
+    await expect(page.getByText('Scan QR for Attendance').filter({ visible: true })).toBeVisible()
     await expect(page.getByText('Attendance check-in is open')).toHaveCount(0)
     await verifyProjectContract(page, testInfo)
     await page.screenshot({
@@ -479,8 +479,9 @@ test.describe('student experience matrix', () => {
     await expect(page.getByRole('heading', { name: 'You are already checked in' })).toBeVisible()
 
     await page.getByRole('link', { name: 'Back to classroom' }).click()
-    await expect(page.getByText('Checked in — Present')).toBeVisible()
-    await expect(page.getByText(/Confirmed at 9:01/)).toBeVisible()
+    await expect(page.getByText('Checked in at 9:01 AM').filter({ visible: true })).toBeVisible()
+    await expect(page.getByText('Checked in — Present')).toHaveCount(0)
+    await expect(page.getByText(/Confirmed at 9:01/)).toHaveCount(0)
     await verifyProjectContract(page, testInfo)
     await page.screenshot({
       path: testInfo.outputPath('student-attendance-confirmed.png'),
