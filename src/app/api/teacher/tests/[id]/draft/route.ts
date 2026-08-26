@@ -11,6 +11,10 @@ import {
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import {
+  projectPortableTestQuestionIds,
+  type PersistedTestQuestionIdentity,
+} from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TestDraftContent } from '@/types'
 
@@ -26,6 +30,12 @@ const TEST_DRAFT_CONFIG = {
   validateContent: validateTestDraftContent,
   validateOptions: { allowEmptyQuestionText: true },
   buildFromRows: buildTestDraftContentFromRows,
+  projectContent: (content: TestDraftContent, rows: unknown[]) => (
+    projectPortableTestQuestionIds(
+      content,
+      rows as PersistedTestQuestionIdentity[],
+    )
+  ),
 }
 
 export const GET = withErrorHandler('GetTestDraft', async (request, context) => {

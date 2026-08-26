@@ -135,6 +135,9 @@ describe('Blueprint test-question identity migration', () => {
 
   it('backfills legacy draft row IDs to portable identity transactionally', () => {
     expect(migration).toContain(
+      'lock table public.assessment_drafts in share row exclusive mode;',
+    )
+    expect(migration).toContain(
       "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
     )
     expect(migration).toMatch(
@@ -144,7 +147,7 @@ describe('Blueprint test-question identity migration', () => {
       /coalesce\(\s*source_question\.source_artifact_id,\s*source_question\.artifact_id,\s*source_question\.id\s*\)/,
     )
     expect(migration).toMatch(
-      /update public\.assessment_drafts\s+set content = jsonb_set\(content, '\{questions\}', v_questions, false\)/,
+      /update public\.assessment_drafts\s+set\s+content = jsonb_set\(content, '\{questions\}', v_questions, false\),\s+version = public\.assessment_drafts\.version \+ 1/,
     )
   })
 

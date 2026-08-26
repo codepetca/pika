@@ -17,7 +17,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseUuid(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  return UUID_RE.test(value) ? value : null
+  return UUID_RE.test(value) ? value.toLowerCase() : null
 }
 
 function parseTitle(value: unknown): string | null {

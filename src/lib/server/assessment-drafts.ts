@@ -1,4 +1,9 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
+import {
+  getPortableTestQuestionIdentity,
+  resolveTestQuestionIdentities,
+  type PersistedTestQuestionIdentity,
+} from '@/lib/test-question-identity'
 import type { AssessmentDraftValidationResult } from '@/lib/validations/assessment-drafts'
 import type {
   AssessmentDraftType,
@@ -106,7 +111,7 @@ export function buildTestDraftContentFromRows(
     questions: (questions || []).map((question) => ({
       // Draft question IDs are portable artifact identities. Persisted row IDs
       // are an internal database contract and must not escape into draft JSON.
-      id: question.source_artifact_id ?? question.artifact_id ?? question.id,
+      id: getPortableTestQuestionIdentity(question),
       question_type: question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
       question_text: question.question_text,
       options: parseStringArray(question.options) || [],
@@ -234,10 +239,6 @@ export async function syncTestQuestionsFromDraft(
     parentId: testId,
     questions: content.questions,
     existingColumns: 'id, artifact_id, source_artifact_id',
-    getPortableIdentityCandidates: (row) => [
-      row.source_artifact_id,
-      row.artifact_id,
-    ],
     buildUpdatePayload: (question, position) => ({
       question_type: question.question_type,
       question_text: question.question_text,
@@ -276,19 +277,12 @@ export async function syncTestQuestionsFromDraft(
   })
 }
 
-type ExistingQuestionIdentityRow = {
-  id: string
-  artifact_id?: string | null
-  source_artifact_id?: string | null
-}
-
 type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
   table: string
   foreignKey: string
   parentId: string
   questions: TQuestion[]
   existingColumns: string
-  getPortableIdentityCandidates: (row: ExistingQuestionIdentityRow) => Array<string | null | undefined>
   buildUpdatePayload: (question: TQuestion, position: number) => Record<string, unknown>
   buildInsertPayload: (question: TQuestion, position: number) => Record<string, unknown>
   errorMessages: {
@@ -313,21 +307,17 @@ async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: strin
     return { ok: false, status: 500, error: config.errorMessages.load }
   }
 
-  const rows = (existingRows || []) as ExistingQuestionIdentityRow[]
+  const rows = (existingRows || []) as PersistedTestQuestionIdentity[]
   const existingIds = new Set<string>(rows.map((row) => row.id))
-  const rowsByPortableIdentity = new Map<string, Set<string>>()
-  const rowsByInternalId = new Map(rows.map((row) => [row.id, row]))
-
-  for (const row of rows) {
-    for (const identity of new Set(config.getPortableIdentityCandidates(row).filter(Boolean))) {
-      const rowIds = rowsByPortableIdentity.get(identity as string) ?? new Set<string>()
-      rowIds.add(row.id)
-      rowsByPortableIdentity.set(identity as string, rowIds)
-    }
+  const identityResolution = resolveTestQuestionIdentities(
+    config.questions.map((question) => question.id),
+    rows,
+  )
+  if (!identityResolution.ok) {
+    return { ok: false, status: 409, error: config.errorMessages.identity }
   }
 
   const matchedExistingIds = new Set<string>()
-  const incomingQuestionIds = new Set<string>()
   const resolvedQuestions: Array<{
     question: TQuestion
     position: number
@@ -335,31 +325,13 @@ async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: strin
   }> = []
 
   for (const [position, question] of config.questions.entries()) {
-    if (incomingQuestionIds.has(question.id)) {
-      return { ok: false, status: 409, error: config.errorMessages.identity }
-    }
-    incomingQuestionIds.add(question.id)
-
-    const matchingRowIds = [...(rowsByPortableIdentity.get(question.id) ?? [])]
-    if (matchingRowIds.length > 1) {
-      return { ok: false, status: 409, error: config.errorMessages.identity }
-    }
-
-    const matchingRowId = matchingRowIds[0]
-    if (matchingRowId) {
-      if (matchedExistingIds.has(matchingRowId)) {
-        return { ok: false, status: 409, error: config.errorMessages.identity }
-      }
-      matchedExistingIds.add(matchingRowId)
-    }
-
-    // A draft that still points at an internal row ID predates the portable
-    // identity backfill. Fail closed instead of silently changing identity.
-    if (!matchingRowId && rowsByInternalId.has(question.id)) {
-      return { ok: false, status: 409, error: config.errorMessages.identity }
-    }
-
-    resolvedQuestions.push({ question, position, matchingRowId })
+    const identity = identityResolution.identities[position]!
+    if (identity.matchingRowId) matchedExistingIds.add(identity.matchingRowId)
+    resolvedQuestions.push({
+      question: { ...question, id: identity.portableId },
+      position,
+      matchingRowId: identity.matchingRowId,
+    })
   }
 
   // Resolve the complete identity graph before changing content so a later
@@ -430,6 +402,11 @@ export type EnsureDraftConfig<TContent> = {
     assessment: { id: string; classroom_id: string; title: string; show_results: boolean },
     rows: unknown[]
   ) => TContent
+  /** Read-only projection from exact persisted identities into portable draft IDs. */
+  projectContent?: (
+    content: TContent,
+    rows: unknown[],
+  ) => { ok: true; content: TContent } | { ok: false }
 }
 
 /**
@@ -446,7 +423,7 @@ export async function ensureAssessmentDraft<TContent>(
   const {
     assessment, assessmentType, userId,
     questionsTable, questionsForeignKey, questionsSelect,
-    validateContent, validateOptions, buildFromRows,
+    validateContent, validateOptions, buildFromRows, projectContent,
   } = config
 
   const { draft, error } = await getAssessmentDraftByType<TContent>(
@@ -467,11 +444,11 @@ export async function ensureAssessmentDraft<TContent>(
     return { ok: false, status: 500, error: 'Failed to fetch draft' }
   }
 
-  if (draft) {
-    const valid = validateContent(draft.content, validateOptions)
-    if (valid.valid) {
-      return { ok: true, draft: { ...draft, content: valid.value } }
-    }
+  const validDraft = draft
+    ? validateContent(draft.content, validateOptions)
+    : null
+  if (draft && validDraft?.valid && !projectContent) {
+    return { ok: true, draft: { ...draft, content: validDraft.value } }
   }
 
   const { data: questions, error: questionsError } = await supabase
@@ -483,6 +460,14 @@ export async function ensureAssessmentDraft<TContent>(
   if (questionsError) {
     console.error(`Error building baseline ${assessmentType} draft:`, questionsError)
     return { ok: false, status: 500, error: 'Failed to build draft' }
+  }
+
+  if (draft && validDraft?.valid && projectContent) {
+    const projected = projectContent(validDraft.value, questions || [])
+    if (!projected.ok) {
+      return { ok: false, status: 409, error: 'Test draft question identity is ambiguous' }
+    }
+    return { ok: true, draft: { ...draft, content: projected.content } }
   }
 
   const content = buildFromRows(assessment, questions || [])

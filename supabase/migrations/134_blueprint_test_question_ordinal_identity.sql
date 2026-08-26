@@ -22,6 +22,11 @@ declare
   v_questions jsonb;
   v_changed boolean;
 begin
+  -- Backfill and version fencing must be one atomic schema operation. This
+  -- blocks application writes from racing the scan and either being overwritten
+  -- by the migration or restoring a legacy row ID after it.
+  lock table public.assessment_drafts in share row exclusive mode;
+
   for v_draft in
     select id, assessment_id, content
     from public.assessment_drafts
@@ -77,7 +82,9 @@ begin
 
     if v_changed then
       update public.assessment_drafts
-      set content = jsonb_set(content, '{questions}', v_questions, false)
+      set
+        content = jsonb_set(content, '{questions}', v_questions, false),
+        version = public.assessment_drafts.version + 1
       where id = v_draft.id;
     end if;
   end loop;

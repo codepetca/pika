@@ -14,6 +14,7 @@ import {
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
@@ -72,6 +73,8 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
     .select(`
       id,
       test_id,
+      artifact_id,
+      source_artifact_id,
       question_type,
       question_text,
       options,
@@ -116,9 +119,20 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
       allowEmptyQuestionText: true,
     })
     if (validated.valid) {
-      title = validated.value.title
-      showResults = validated.value.show_results
-      responseQuestions = validated.value.questions.map((question, index) => ({
+      const projected = projectPortableTestQuestionIds(
+        validated.value,
+        questions || [],
+      )
+      if (!projected.ok) {
+        return NextResponse.json(
+          { error: 'Test draft question identity is ambiguous' },
+          { status: 409 },
+        )
+      }
+
+      title = projected.content.title
+      showResults = projected.content.show_results
+      responseQuestions = projected.content.questions.map((question, index) => ({
         id: question.id,
         test_id: id,
         question_type: question.question_type,

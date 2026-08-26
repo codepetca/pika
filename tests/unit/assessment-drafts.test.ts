@@ -10,11 +10,13 @@ import {
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 
 const TEST_ID_1 = '33333333-3333-4333-8333-333333333333'
 const TEST_ID_2 = '44444444-4444-4444-8444-444444444444'
 const ARTIFACT_ID_1 = '55555555-5555-4555-8555-555555555555'
 const ARTIFACT_ID_2 = '66666666-6666-4666-8666-666666666666'
+const MIXED_CASE_ARTIFACT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
 describe('assessment drafts', () => {
   it('validates test draft content and allows empty question text when requested', () => {
@@ -59,6 +61,37 @@ describe('assessment drafts', () => {
           },
         ],
       },
+    })
+  })
+
+  it('canonicalizes UUID case and rejects case-only duplicate question IDs', () => {
+    const question = {
+      question_type: 'open_response',
+      question_text: 'Explain',
+      points: 1,
+    }
+
+    expect(validateTestDraftContent({
+      title: 'Canonical UUIDs',
+      show_results: false,
+      questions: [{ id: MIXED_CASE_ARTIFACT_ID.toUpperCase(), ...question }],
+    })).toMatchObject({
+      valid: true,
+      value: {
+        questions: [{ id: MIXED_CASE_ARTIFACT_ID }],
+      },
+    })
+
+    expect(validateTestDraftContent({
+      title: 'Duplicate UUIDs',
+      show_results: false,
+      questions: [
+        { id: MIXED_CASE_ARTIFACT_ID, ...question },
+        { id: MIXED_CASE_ARTIFACT_ID.toUpperCase(), ...question },
+      ],
+    })).toEqual({
+      valid: false,
+      error: `Duplicate question id: ${MIXED_CASE_ARTIFACT_ID}`,
     })
   })
 
@@ -379,6 +412,83 @@ describe('assessment drafts', () => {
     })).resolves.toEqual({ ok: true, draft: createdDraft })
   })
 
+  it('projects a valid pre-migration draft to portable IDs without persisting it', async () => {
+    const legacyContent = {
+      title: 'Legacy Test',
+      show_results: false,
+      questions: [{
+        id: TEST_ID_1,
+        question_type: 'open_response' as const,
+        question_text: 'Legacy identity',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+    const storedDraft = {
+      id: 'draft-1',
+      assessment_type: 'test' as const,
+      assessment_id: 'test-1',
+      classroom_id: 'classroom-1',
+      content: legacyContent,
+      version: 7,
+      created_by: 'teacher-1',
+      updated_by: 'teacher-1',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    }
+    const draftSelect: any = {
+      eq: vi.fn(() => draftSelect),
+      maybeSingle: vi.fn().mockResolvedValue({ data: storedDraft, error: null }),
+    }
+    const questionSelect: any = {
+      eq: vi.fn(() => questionSelect),
+      order: vi.fn().mockResolvedValue({
+        data: [{ id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null }],
+        error: null,
+      }),
+    }
+    const update = vi.fn()
+    const supabase = {
+      from: vi.fn((table: string) => table === 'assessment_drafts'
+        ? { select: vi.fn(() => draftSelect), update }
+        : { select: vi.fn(() => questionSelect) }),
+    }
+
+    const result = await ensureAssessmentDraft(supabase, {
+      assessmentType: 'test',
+      assessment: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Legacy Test',
+        show_results: false,
+      },
+      userId: 'teacher-1',
+      questionsTable: 'test_questions',
+      questionsForeignKey: 'test_id',
+      questionsSelect: 'id, artifact_id, source_artifact_id',
+      validateContent: validateTestDraftContent,
+      buildFromRows: buildTestDraftContentFromRows,
+      projectContent: (content, rows) => projectPortableTestQuestionIds(
+        content,
+        rows as Array<{ id: string; artifact_id?: string | null; source_artifact_id?: string | null }>,
+      ),
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      draft: {
+        version: 7,
+        content: { questions: [{ id: ARTIFACT_ID_1 }] },
+      },
+    })
+    expect(update).not.toHaveBeenCalled()
+  })
+
   it('returns a 500 error when syncing test questions fails during update', async () => {
     const supabase = {
       from: vi.fn((_table: string) => ({
@@ -529,7 +639,10 @@ describe('assessment drafts', () => {
     expect(deletes).toEqual([TEST_ID_2])
   })
 
-  it('fails closed when a draft still uses an internal row id', async () => {
+  it('updates the exact persisted row when a pre-migration draft uses its internal id', async () => {
+    const updateEq = vi.fn().mockResolvedValue({ error: null })
+    const parentEq = vi.fn(() => ({ eq: updateEq }))
+    const update = vi.fn(() => ({ eq: parentEq }))
     const supabase = {
       from: vi.fn(() => ({
         select: vi.fn(() => ({
@@ -537,6 +650,10 @@ describe('assessment drafts', () => {
             data: [{ id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null }],
             error: null,
           }),
+        })),
+        update,
+        delete: vi.fn(() => ({
+          eq: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
         })),
       })),
     }
@@ -558,11 +675,49 @@ describe('assessment drafts', () => {
           response_monospace: false,
         }],
       })
-    ).resolves.toEqual({
-      ok: false,
-      status: 409,
-      error: 'Test draft question identity is ambiguous or requires backfill',
-    })
+    ).resolves.toEqual({ ok: true })
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(parentEq).toHaveBeenCalledWith('test_id', 'test-1')
+    expect(updateEq).toHaveBeenCalledWith('id', TEST_ID_1)
+  })
+
+  it('matches an uppercase portable UUID to the existing persisted row', async () => {
+    const updateEq = vi.fn().mockResolvedValue({ error: null })
+    const update = vi.fn(() => ({
+      eq: vi.fn(() => ({ eq: updateEq })),
+    }))
+    const supabase = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ id: TEST_ID_1, artifact_id: MIXED_CASE_ARTIFACT_ID, source_artifact_id: null }],
+            error: null,
+          }),
+        })),
+        update,
+        delete: vi.fn(() => ({
+          eq: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
+        })),
+      })),
+    }
+
+    await expect(syncTestQuestionsFromDraft(supabase, 'test-1', {
+      title: 'Case normalized',
+      show_results: false,
+      questions: [{
+        id: MIXED_CASE_ARTIFACT_ID.toUpperCase(),
+        question_type: 'open_response',
+        question_text: 'Explain',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    })).resolves.toEqual({ ok: true })
+    expect(updateEq).toHaveBeenCalledWith('id', TEST_ID_1)
   })
 
   it('preserves a draft-only artifact identity through activation and draft reconstruction', async () => {

@@ -4,6 +4,7 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { stripTestDocumentSnapshots } from '@/lib/test-documents'
+import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import type {
@@ -88,57 +89,7 @@ type LoadClassroomBlueprintSourceOptions = {
   lessonTemplateTitleMode?: 'dated' | 'generic'
 }
 
-type PersistedTestQuestionIdentity = {
-  id: string
-  artifact_id?: string | null
-  source_artifact_id?: string | null
-}
-
-export function projectPortableTestQuestionIds(
-  content: TestDraftContent,
-  persistedQuestions: PersistedTestQuestionIdentity[],
-): { ok: true; content: TestDraftContent } | { ok: false } {
-  const rowIdsByKnownIdentity = new Map<string, Set<string>>()
-  const portableIdByRowId = new Map<string, string>()
-
-  for (const question of persistedQuestions) {
-    const portableId = question.source_artifact_id ?? question.artifact_id ?? question.id
-    portableIdByRowId.set(question.id, portableId)
-
-    for (const identity of new Set([
-      question.source_artifact_id,
-      question.artifact_id,
-    ].filter(Boolean))) {
-      const rowIds = rowIdsByKnownIdentity.get(identity as string) ?? new Set<string>()
-      rowIds.add(question.id)
-      rowIdsByKnownIdentity.set(identity as string, rowIds)
-    }
-  }
-
-  const questions = [] as TestDraftContent['questions']
-  for (const question of content.questions) {
-    const questionId = String(question.id)
-    const matchingRowIds = new Set(
-      rowIdsByKnownIdentity.get(questionId) ?? [],
-    )
-    if (portableIdByRowId.has(questionId)) matchingRowIds.add(questionId)
-    if (matchingRowIds.size > 1) return { ok: false }
-
-    const [matchingRowId] = matchingRowIds
-    const portableId = matchingRowId
-      ? portableIdByRowId.get(matchingRowId)
-      : undefined
-
-    questions.push({
-      ...question,
-      // The row-id branch is a read-only compatibility path for legacy draft
-      // JSON. Migration 134 persists this normalization once.
-      id: portableId ?? question.id,
-    })
-  }
-
-  return { ok: true, content: { ...content, questions } }
-}
+export { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 
 function getSupabase() {
   return getServiceRoleClient()
