@@ -979,8 +979,9 @@ schema, persistence, authentication, dependency, or hosted state changed.
 cross-role visual verification.
 ## 2026-08-25 — Repair Blueprint Test question identity mapping
 
-**Risk profile:** runtime-platform — database RPC replacement applied and
-verified locally; no staging or production migration was applied.
+**Risk profile:** runtime-platform — the initial database RPC replacement was
+applied locally; its review revision awaits authorized local reapplication. No
+staging or production migration was applied.
 
 - Traced production Blueprint capture operation
   `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
@@ -997,6 +998,16 @@ verified locally; no staging or production migration was applied.
   pending migration. The post-migration database harness passes active capture,
   archived reuse, rollback, identity order, and replay; adjacent atomic
   Blueprint, versioned Blueprint, and managed-storage contracts also pass.
+- Initial PR review found that valid source positions can contain gaps after a
+  question deletion. Fix batch 1 now maps each JSON question to the nth source
+  row ordered by `(position, id)` and gives both active and archived fixtures
+  positions `0,2`; the strengthened harness failed against the installed
+  pre-review function as expected.
+- After exact destructive-reset authorization, local was reset without seeding
+  and migrations 001-134 replayed from the reviewed branch. The strengthened
+  active/archived gap-position harness, adjacent atomic and versioned Blueprint
+  contracts, managed-storage contract, generated types, lint, architecture,
+  audit, and 48 focused tests all pass.
 - Lint, architecture boundaries, generated database types, focused Blueprint
   tests, and the full Vitest suite pass (5,093/5,093). Staging and production
   remain unchanged, and the worktree has no production project binding.

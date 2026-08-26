@@ -70,6 +70,8 @@ insert into public.test_questions (
   id, test_id, artifact_id, question_type, question_text, options,
   correct_option, points, response_max_chars, response_monospace, position
 ) values
+  -- Position gaps are valid after question deletion. The Blueprint JSON array
+  -- remains canonical and must map to rows ordered by (position, id).
   (
     'b1340000-0000-4000-8000-000000000012',
     'b1340000-0000-4000-8000-000000000011',
@@ -94,7 +96,7 @@ insert into public.test_questions (
     1,
     5000,
     false,
-    1
+    2
   ),
   (
     'b1340000-0000-4000-8000-000000000022',
@@ -120,7 +122,7 @@ insert into public.test_questions (
     1,
     5000,
     false,
-    1
+    2
   );
 
 do $contract$

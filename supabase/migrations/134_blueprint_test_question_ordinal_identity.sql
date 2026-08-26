@@ -5,7 +5,10 @@
 -- so a multi-question Test repeatedly updated question zero and collided with the
 -- per-Test artifact-id uniqueness constraint. Keep the public managed-storage
 -- wrapper from migration 117 intact and replace its private implementation plus
--- the archived-Classroom reuse RPC with ordinal mapping.
+-- the archived-Classroom reuse RPC with ordinal mapping. Persisted question
+-- positions can contain gaps after deletion, so pair each JSON question with the
+-- nth source row ordered by position and id instead of equating ordinality with
+-- the stored position value.
 
 create or replace function public.create_course_blueprint_atomic_v2_pre_managed_storage(
   p_operation_id uuid,
@@ -28,7 +31,7 @@ declare
   v_child jsonb;
   v_parent_id uuid;
   v_position integer;
-  v_question_position integer;
+  v_question_index integer;
   v_updated integer;
 begin
   perform set_config('pika.identity_mapping', 'on', true);
@@ -142,7 +145,7 @@ begin
         raise exception 'Captured Test identity mapping failed'
           using errcode = '22023';
       end if;
-      for v_child, v_question_position in
+      for v_child, v_question_index in
         select
           question.value,
           (question.ordinality - 1)::integer
@@ -150,12 +153,18 @@ begin
           coalesce(v_item->'content'->'questions', '[]'::jsonb)
         ) with ordinality as question(value, ordinality)
       loop
-        update public.test_questions
+        update public.test_questions as target_question
         set
           artifact_id = (v_child->>'id')::uuid,
           source_artifact_id = (v_child->>'id')::uuid
-        where test_id = v_parent_id
-          and position = v_question_position;
+        where target_question.id = (
+          select source_question.id
+          from public.test_questions as source_question
+          where source_question.test_id = v_parent_id
+          order by source_question.position, source_question.id
+          offset v_question_index
+          limit 1
+        );
         get diagnostics v_updated = row_count;
         if v_updated <> 1 then
           raise exception 'Captured Test question identity mapping failed'
@@ -328,7 +337,7 @@ declare
   v_child jsonb;
   v_parent_id uuid;
   v_position integer;
-  v_question_position integer;
+  v_question_index integer;
   v_updated integer;
 begin
   select *
@@ -482,7 +491,7 @@ begin
         using errcode = '22023';
     end if;
 
-    for v_child, v_question_position in
+    for v_child, v_question_index in
       select
         question.value,
         (question.ordinality - 1)::integer
@@ -490,12 +499,18 @@ begin
         coalesce(v_item->'content'->'questions', '[]'::jsonb)
       ) with ordinality as question(value, ordinality)
     loop
-      update public.test_questions
+      update public.test_questions as target_question
       set
         artifact_id = (v_child->>'id')::uuid,
         source_artifact_id = (v_child->>'id')::uuid
-      where test_id = v_parent_id
-        and position = v_question_position;
+      where target_question.id = (
+        select source_question.id
+        from public.test_questions as source_question
+        where source_question.test_id = v_parent_id
+        order by source_question.position, source_question.id
+        offset v_question_index
+        limit 1
+      );
       get diagnostics v_updated = row_count;
       if v_updated <> 1 then
         raise exception 'Archived Test question identity mapping failed'

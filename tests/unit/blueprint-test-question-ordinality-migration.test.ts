@@ -22,13 +22,14 @@ function functionDefinition(name: string): string {
   return migration.slice(start, end)
 }
 
-function expectOrdinalQuestionIdentityMapping(definition: string) {
+function expectOrderedQuestionIdentityMapping(definition: string) {
   expect(definition).toMatch(
-    /for v_child, v_question_position in\s+select\s+question\.value,\s+\(question\.ordinality - 1\)::integer\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}with ordinality as question\(value, ordinality\)/,
+    /for v_child, v_question_index in\s+select\s+question\.value,\s+\(question\.ordinality - 1\)::integer\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}with ordinality as question\(value, ordinality\)/,
   )
   expect(definition).toMatch(
-    /update public\.test_questions[\s\S]{0,260}where test_id = v_parent_id\s+and position = v_question_position/,
+    /update public\.test_questions as target_question[\s\S]{0,300}where target_question\.id = \(\s+select source_question\.id\s+from public\.test_questions as source_question\s+where source_question\.test_id = v_parent_id\s+order by source_question\.position, source_question\.id\s+offset v_question_index\s+limit 1\s+\)/,
   )
+  expect(definition).not.toMatch(/position = v_question_index/)
 }
 
 describe('Blueprint test-question ordinal identity migration', () => {
@@ -39,7 +40,7 @@ describe('Blueprint test-question ordinal identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectOrdinalQuestionIdentityMapping(definition)
+    expectOrderedQuestionIdentityMapping(definition)
   })
 
   it('maps archived classroom reuse questions by canonical array order', () => {
@@ -49,7 +50,7 @@ describe('Blueprint test-question ordinal identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectOrdinalQuestionIdentityMapping(definition)
+    expectOrderedQuestionIdentityMapping(definition)
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
     )
