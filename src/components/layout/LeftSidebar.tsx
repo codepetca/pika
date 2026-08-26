@@ -48,7 +48,7 @@ export function LeftSidebar({
         {/* Nav content */}
         <div
           className={[
-            'flex-1 overflow-y-auto overflow-x-hidden',
+            'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden',
             isExpanded ? 'p-3' : 'py-3 px-0.5',
           ].join(' ')}
         >
@@ -123,7 +123,7 @@ export function LeftSidebar({
         </div>
 
         {/* Nav content */}
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
           {mobileHomeHref && (
             <div className="mb-3 border-b border-border pb-3">
               <Link

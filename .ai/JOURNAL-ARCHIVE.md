@@ -23024,3 +23024,41 @@ state changed.
   configuring a frequent hosted recovery trigger, running cross-service
   teacher/student/tenant-isolation flows, measuring hosted p50/p95/p99, and a
   canary all remain explicit rollout work. Production stays disabled.
+
+<!-- pika-session-log-archive-batch:eee7b42da040dc78b79ff955f83cf78a598755f8e9d4358941543a68603f7bf3 -->
+## 2026-08-20 — Close attendance privacy and operator-state review findings
+
+**Risk profile:** high — student privacy deletion, archive schema inventory,
+and permanent cross-service command failures. Only the disposable local Pika
+Supabase database was reset; no hosted or production state changed.
+
+**Completed:**
+- Blocked individual-student purge at both begin and finalization whenever the
+  target has attendance mappings or projections, and rejected new attendance
+  subject state once a student purge fence exists.
+- Serialized attendance writes, purge begin, and purge finalization on the same
+  per-student advisory lock. A two-session database regression proves a writer
+  that started first commits while both competing purge paths wait and then
+  fail closed, eliminating the MVCC check-then-commit race.
+- Classified every attendance FK as provider-owned blocking state so the live
+  schema audit does not treat inbox/projections as portable or rebuildable.
+- Mapped classroom decommission fences to stable 409/non-retryable outcomes.
+- Kept the private classroom-state helper unexposed while making its two
+  fully-qualified, empty-search-path trigger callers security-definer; this
+  preserves the fence for restricted database roles used by existing flows.
+- Split permanent session/mark delivery failures from retryable pending work;
+  teachers see a sanitized previous-failure state and may issue a fresh command.
+- Corrected both repositories' identity documentation to state that WorkOS is
+  verified only in Pika and only an installation-scoped opaque principal ref
+  crosses to Bara.
+
+**Verification:**
+- Local migrations 001–127 replayed cleanly and the database harness proved
+  begin/finalize privacy fences, two-session concurrency serialization,
+  in-flight write rejection, deletion guards, privileges, and dependency
+  ordering.
+- The existing Gradex extract/retention database contract passes with the
+  classroom decommission trigger active under its restricted fixture role.
+- All 4,829 tests across 552 files pass, along with TypeScript, production
+  build, architecture, design-policy, UI-policy, database type parity, feature
+  metadata, shell syntax, and diff checks.
