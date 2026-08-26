@@ -34,7 +34,33 @@ declare
   v_position integer;
   v_question_row_ids uuid[];
   v_updated integer;
+  v_error_code text;
+  v_error_sqlstate text;
+  v_resource_counts jsonb := '{}'::jsonb;
 begin
+  -- The base RPC owns its own domain-write savepoint, but this wrapper performs
+  -- additional identity writes after the base RPC returns. Seed the ledger
+  -- outside a wider savepoint so a wrapper failure can roll back the complete
+  -- Blueprint graph while retaining durable failure evidence.
+  insert into public.course_blueprint_operations (
+    id,
+    teacher_id,
+    operation_type,
+    request_sha256,
+    status,
+    source_classroom_id
+  )
+  values (
+    p_operation_id,
+    p_teacher_id,
+    p_operation_type,
+    p_request_sha256,
+    'running',
+    p_source_classroom_id
+  )
+  on conflict (id) do nothing;
+
+  begin
   perform set_config('pika.identity_mapping', 'on', true);
   v_result := public.create_course_blueprint_atomic(
     p_operation_id,
@@ -53,6 +79,7 @@ begin
     perform set_config('pika.identity_mapping', 'off', true);
     return v_result;
   end if;
+  v_resource_counts := coalesce(v_result->'counts', '{}'::jsonb);
 
   v_blueprint_id := (v_result->>'blueprint_id')::uuid;
   update public.course_blueprints
@@ -163,6 +190,7 @@ begin
           );
 
         if coalesce(cardinality(v_question_row_ids), 0) > 1 then
+          v_error_code := 'test_question_identity_ambiguous';
           raise exception 'Captured Test question identity mapping is ambiguous'
             using errcode = '22023';
         elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
@@ -316,6 +344,39 @@ begin
 
   perform set_config('pika.identity_mapping', 'off', true);
   return v_result;
+  exception when others then
+    get stacked diagnostics
+      v_error_sqlstate = returned_sqlstate;
+    v_error_code := coalesce(v_error_code, 'blueprint_identity_mapping_failed');
+    v_result := jsonb_build_object(
+      'ok', false,
+      'status', case when v_error_code = 'test_question_identity_ambiguous' then 409 else 500 end,
+      'operation_id', p_operation_id,
+      'operation_type', p_operation_type,
+      'error_code', v_error_code,
+      'error', case
+        when v_error_code = 'test_question_identity_ambiguous'
+          then 'Test question identity mapping is ambiguous'
+        else 'Blueprint identity mapping failed'
+      end,
+      'retryable', true
+    );
+    update public.course_blueprint_operations
+    set
+      status = 'failed',
+      attempt_count = case when status = 'failed' then attempt_count + 1 else attempt_count end,
+      result_blueprint_id = null,
+      result_classroom_id = null,
+      result = v_result,
+      resource_counts = v_resource_counts,
+      error_code = v_error_code,
+      error_sqlstate = v_error_sqlstate,
+      completed_at = now(),
+      updated_at = now()
+    where id = p_operation_id;
+    perform set_config('pika.identity_mapping', 'off', true);
+    return v_result;
+  end;
 end;
 $$;
 
@@ -346,6 +407,9 @@ declare
   v_position integer;
   v_question_row_ids uuid[];
   v_updated integer;
+  v_error_code text;
+  v_error_sqlstate text;
+  v_resource_counts jsonb := '{}'::jsonb;
 begin
   select *
   into v_classroom
@@ -421,8 +485,31 @@ begin
     );
   end if;
 
-  -- The nested RPC participates in this transaction. Any failure after it
-  -- returns rolls back its Blueprint graph and operation-ledger write too.
+  -- Retain the operation row outside the domain-write savepoint. The nested
+  -- Blueprint creation and all archived-source identity writes then roll back
+  -- together while a structured failure remains available for recovery.
+  insert into public.course_blueprint_operations (
+    id,
+    teacher_id,
+    operation_type,
+    request_sha256,
+    status,
+    source_classroom_id
+  )
+  values (
+    p_operation_id,
+    p_teacher_id,
+    'import',
+    p_request_sha256,
+    'running',
+    p_source_classroom_id
+  )
+  on conflict (id) do nothing;
+
+  begin
+
+  -- The nested RPC participates in this savepoint. Any failure after it
+  -- returns rolls back its Blueprint graph while preserving the outer ledger.
   v_result := public.create_course_blueprint_atomic_v2(
     p_operation_id,
     p_teacher_id,
@@ -435,6 +522,7 @@ begin
   if coalesce((v_result->>'ok')::boolean, false) is false then
     return v_result;
   end if;
+  v_resource_counts := coalesce(v_result->'counts', '{}'::jsonb);
 
   v_blueprint_id := (v_result->>'blueprint_id')::uuid;
   v_blueprint_revision := (v_result->>'result_content_revision')::bigint;
@@ -515,6 +603,7 @@ begin
         );
 
       if coalesce(cardinality(v_question_row_ids), 0) > 1 then
+        v_error_code := 'test_question_identity_ambiguous';
         raise exception 'Archived Test question identity mapping is ambiguous'
           using errcode = '22023';
       elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then
@@ -731,6 +820,40 @@ begin
 
   perform set_config('pika.identity_mapping', 'off', true);
   return v_result;
+  exception when others then
+    get stacked diagnostics
+      v_error_sqlstate = returned_sqlstate;
+    v_error_code := coalesce(v_error_code, 'blueprint_identity_mapping_failed');
+    v_result := jsonb_build_object(
+      'ok', false,
+      'status', case when v_error_code = 'test_question_identity_ambiguous' then 409 else 500 end,
+      'operation_id', p_operation_id,
+      'operation_type', 'import',
+      'error_code', v_error_code,
+      'error', case
+        when v_error_code = 'test_question_identity_ambiguous'
+          then 'Test question identity mapping is ambiguous'
+        else 'Blueprint identity mapping failed'
+      end,
+      'retryable', true
+    );
+    update public.course_blueprint_operations
+    set
+      status = 'failed',
+      attempt_count = case when status = 'failed' then attempt_count + 1 else attempt_count end,
+      source_classroom_id = p_source_classroom_id,
+      result_blueprint_id = null,
+      result_classroom_id = null,
+      result = v_result,
+      resource_counts = v_resource_counts,
+      error_code = v_error_code,
+      error_sqlstate = v_error_sqlstate,
+      completed_at = now(),
+      updated_at = now()
+    where id = p_operation_id;
+    perform set_config('pika.identity_mapping', 'off', true);
+    return v_result;
+  end;
 end;
 $$;
 

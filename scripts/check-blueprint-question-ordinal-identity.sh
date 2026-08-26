@@ -70,8 +70,8 @@ insert into public.test_questions (
   id, test_id, artifact_id, question_type, question_text, options,
   correct_option, points, response_max_chars, response_monospace, position
 ) values
-  -- Position gaps are valid after question deletion. The Blueprint JSON array
-  -- remains canonical and must map to rows ordered by (position, id).
+  -- Position gaps are valid after question deletion. Stable identity matching
+  -- must not infer question identity from ordinal position.
   (
     'b1340000-0000-4000-8000-000000000012',
     'b1340000-0000-4000-8000-000000000011',
@@ -131,19 +131,19 @@ declare
   v_active_classroom_id constant uuid := 'b1340000-0000-4000-8000-000000000010';
   v_archived_classroom_id constant uuid := 'b1340000-0000-4000-8000-000000000020';
   v_active_failed_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000200';
-  v_active_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000210';
   v_archived_failed_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000220';
-  v_archived_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000230';
   v_active_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000111';
   v_active_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000112';
   v_active_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000113';
   v_active_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000114';
+  v_active_collision_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000115';
   v_active_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000012';
   v_active_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000013';
   v_archived_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000211';
   v_archived_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000212';
   v_archived_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000213';
   v_archived_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000214';
+  v_archived_collision_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000215';
   v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
   v_archived_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000023';
   v_active_revision bigint;
@@ -160,7 +160,6 @@ declare
   v_blueprint_question_ids uuid[];
   v_content jsonb;
   v_count integer;
-  v_error_message text;
 begin
   v_active_plan := jsonb_build_object(
     'blueprint', jsonb_build_object(
@@ -228,20 +227,32 @@ begin
   );
 
   v_active_failure_plan := jsonb_set(
-    jsonb_set(
-      v_active_plan,
-      '{blueprint,title}',
-      to_jsonb('Active identity rollback'::text)
-    ),
-    '{assessments,0,content,questions,1,id}',
-    to_jsonb(v_active_question_two_row_id)
+    v_active_plan,
+    '{blueprint,title}',
+    to_jsonb('Active identity rollback'::text)
   );
 
-  -- The second planned identity now matches row one by artifact_id and row two
-  -- by physical id. The first question maps uniquely before the ambiguity, so
-  -- the exception must also roll back that earlier source_artifact_id write.
+  -- The draft-only identity matches row one by artifact_id and this temporary
+  -- row by physical id. The first planned question maps uniquely before the
+  -- ambiguity, so the failure must roll back that earlier identity write too.
+  insert into public.test_questions (
+    id, test_id, artifact_id, question_type, question_text, options,
+    correct_option, points, response_max_chars, response_monospace, position
+  ) values (
+    v_active_draft_only_question_id,
+    'b1340000-0000-4000-8000-000000000011',
+    v_active_collision_artifact_id,
+    'open_response',
+    'Active collision sentinel',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    4
+  );
   update public.test_questions
-  set artifact_id = v_active_question_two_row_id
+  set artifact_id = v_active_draft_only_question_id
   where id = v_active_question_one_row_id;
 
   select blueprint_source_revision
@@ -250,31 +261,46 @@ begin
   where id = v_active_classroom_id;
 
   perform set_config('request.jwt.claim.role', 'service_role', true);
-  begin
-    perform public.create_course_blueprint_atomic_v2(
-      v_active_failed_operation_id,
-      v_teacher_id,
-      'capture',
-      repeat('0', 64),
-      v_active_classroom_id,
-      v_active_revision,
-      v_active_failure_plan
-    );
-    raise exception 'Active ambiguous identity unexpectedly succeeded';
-  exception when sqlstate '22023' then
-    get stacked diagnostics v_error_message = message_text;
-    if v_error_message is distinct from
-      'Captured Test question identity mapping is ambiguous'
-    then
-      raise exception 'Active ambiguity raised unexpected message: %',
-        v_error_message;
-    end if;
-  end;
+  v_result := public.create_course_blueprint_atomic_v2(
+    v_active_failed_operation_id,
+    v_teacher_id,
+    'capture',
+    repeat('0', 64),
+    v_active_classroom_id,
+    v_active_revision,
+    v_active_failure_plan
+  );
+  if coalesce((v_result->>'ok')::boolean, true)
+    or v_result->>'status' is distinct from '409'
+    or v_result->>'operation_id' is distinct from v_active_failed_operation_id::text
+    or v_result->>'operation_type' is distinct from 'capture'
+    or v_result->>'error_code' is distinct from 'test_question_identity_ambiguous'
+    or v_result->>'error' is distinct from 'Test question identity mapping is ambiguous'
+    or not coalesce((v_result->>'retryable')::boolean, false)
+  then
+    raise exception 'Active ambiguity did not return a structured failure: %', v_result;
+  end if;
+  select count(*)
+  into v_count
+  from public.course_blueprint_operations
+  where id = v_active_failed_operation_id
+    and teacher_id = v_teacher_id
+    and operation_type = 'capture'
+    and request_sha256 = repeat('0', 64)
+    and status = 'failed'
+    and attempt_count = 1
+    and source_classroom_id = v_active_classroom_id
+    and result_blueprint_id is null
+    and result_classroom_id is null
+    and result = v_result
+    and resource_counts->>'assessments' = '1'
+    and error_code = 'test_question_identity_ambiguous'
+    and error_sqlstate = '22023'
+    and completed_at is not null;
+  if v_count <> 1 then
+    raise exception 'Active ambiguity did not retain its failed operation ledger';
+  end if;
   if exists (
-    select 1
-    from public.course_blueprint_operations
-    where id = v_active_failed_operation_id
-  ) or exists (
     select 1
     from public.course_blueprints
     where teacher_id = v_teacher_id
@@ -299,24 +325,40 @@ begin
   update public.test_questions
   set artifact_id = v_active_question_one_id
   where id = v_active_question_one_row_id;
+  delete from public.test_questions
+  where id = v_active_draft_only_question_id;
   select blueprint_source_revision
   into v_active_revision
   from public.classrooms
   where id = v_active_classroom_id;
 
   v_result := public.create_course_blueprint_atomic_v2(
-    v_active_operation_id,
+    v_active_failed_operation_id,
     v_teacher_id,
     'capture',
-    repeat('a', 64),
+    repeat('0', 64),
     v_active_classroom_id,
     v_active_revision,
-    v_active_plan
+    v_active_failure_plan
   );
   if not coalesce((v_result->>'ok')::boolean, false) then
-    raise exception 'Active ordinal Blueprint capture failed: %', v_result;
+    raise exception 'Active same-key retry after repair failed: %', v_result;
   end if;
   v_blueprint_id := (v_result->>'blueprint_id')::uuid;
+  select count(*)
+  into v_count
+  from public.course_blueprint_operations
+  where id = v_active_failed_operation_id
+    and status = 'completed'
+    and attempt_count = 2
+    and result_blueprint_id = v_blueprint_id
+    and result = v_result
+    and error_code is null
+    and error_sqlstate is null
+    and completed_at is not null;
+  if v_count <> 1 then
+    raise exception 'Active retry did not complete the retained operation ledger';
+  end if;
 
   select
     array_agg(artifact_id order by position),
@@ -360,13 +402,13 @@ begin
   end if;
 
   v_replay := public.create_course_blueprint_atomic_v2(
-    v_active_operation_id,
+    v_active_failed_operation_id,
     v_teacher_id,
     'capture',
-    repeat('a', 64),
+    repeat('0', 64),
     v_active_classroom_id,
     v_active_revision,
-    v_active_plan
+    v_active_failure_plan
   );
   if not coalesce((v_replay->>'replayed')::boolean, false)
     or v_replay->>'blueprint_id' <> v_blueprint_id::text
@@ -377,9 +419,9 @@ begin
   into v_count
   from public.course_blueprints
   where teacher_id = v_teacher_id
-    and title = 'Active ordinal Blueprint';
+    and title = 'Active identity rollback';
   if v_count <> 1 then
-    raise exception 'Active ordinal replay created duplicate Blueprints';
+    raise exception 'Active same-key replay created duplicate Blueprints';
   end if;
 
   v_archived_plan := jsonb_set(
@@ -430,17 +472,29 @@ begin
   );
 
   v_archived_failure_plan := jsonb_set(
-    jsonb_set(
-      v_archived_plan,
-      '{blueprint,title}',
-      to_jsonb('Archived ordinal rollback'::text)
-    ),
-    '{assessments,0,content,questions,1,id}',
-    to_jsonb(v_archived_question_two_row_id)
+    v_archived_plan,
+    '{blueprint,title}',
+    to_jsonb('Archived identity rollback'::text)
   );
 
+  insert into public.test_questions (
+    id, test_id, artifact_id, question_type, question_text, options,
+    correct_option, points, response_max_chars, response_monospace, position
+  ) values (
+    v_archived_draft_only_question_id,
+    'b1340000-0000-4000-8000-000000000021',
+    v_archived_collision_artifact_id,
+    'open_response',
+    'Archived collision sentinel',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    4
+  );
   update public.test_questions
-  set artifact_id = v_archived_question_two_row_id
+  set artifact_id = v_archived_draft_only_question_id
   where id = v_archived_question_one_row_id;
 
   select blueprint_source_revision
@@ -448,34 +502,49 @@ begin
   from public.classrooms
   where id = v_archived_classroom_id;
 
-  begin
-    perform public.create_archived_classroom_blueprint_atomic(
-      v_archived_failed_operation_id,
-      v_teacher_id,
-      repeat('b', 64),
-      v_archived_classroom_id,
-      v_archived_revision,
-      v_archived_failure_plan
-    );
-    raise exception 'Archived ambiguous identity unexpectedly succeeded';
-  exception when sqlstate '22023' then
-    get stacked diagnostics v_error_message = message_text;
-    if v_error_message is distinct from
-      'Archived Test question identity mapping is ambiguous'
-    then
-      raise exception 'Archived ambiguity raised unexpected message: %',
-        v_error_message;
-    end if;
-  end;
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    v_archived_failed_operation_id,
+    v_teacher_id,
+    repeat('b', 64),
+    v_archived_classroom_id,
+    v_archived_revision,
+    v_archived_failure_plan
+  );
+  if coalesce((v_result->>'ok')::boolean, true)
+    or v_result->>'status' is distinct from '409'
+    or v_result->>'operation_id' is distinct from v_archived_failed_operation_id::text
+    or v_result->>'operation_type' is distinct from 'import'
+    or v_result->>'error_code' is distinct from 'test_question_identity_ambiguous'
+    or v_result->>'error' is distinct from 'Test question identity mapping is ambiguous'
+    or not coalesce((v_result->>'retryable')::boolean, false)
+  then
+    raise exception 'Archived ambiguity did not return a structured failure: %', v_result;
+  end if;
+  select count(*)
+  into v_count
+  from public.course_blueprint_operations
+  where id = v_archived_failed_operation_id
+    and teacher_id = v_teacher_id
+    and operation_type = 'import'
+    and request_sha256 = repeat('b', 64)
+    and status = 'failed'
+    and attempt_count = 1
+    and source_classroom_id = v_archived_classroom_id
+    and result_blueprint_id is null
+    and result_classroom_id is null
+    and result = v_result
+    and resource_counts->>'assessments' = '1'
+    and error_code = 'test_question_identity_ambiguous'
+    and error_sqlstate = '22023'
+    and completed_at is not null;
+  if v_count <> 1 then
+    raise exception 'Archived ambiguity did not retain its failed operation ledger';
+  end if;
   if exists (
-    select 1
-    from public.course_blueprint_operations
-    where id = v_archived_failed_operation_id
-  ) or exists (
     select 1
     from public.course_blueprints
     where teacher_id = v_teacher_id
-      and title = 'Archived ordinal rollback'
+      and title = 'Archived identity rollback'
   ) or exists (
     select 1
     from public.classrooms
@@ -493,23 +562,41 @@ begin
   update public.test_questions
   set artifact_id = v_archived_question_one_id
   where id = v_archived_question_one_row_id;
+  delete from public.test_questions
+  where id = v_archived_draft_only_question_id;
   select blueprint_source_revision
   into v_archived_revision
   from public.classrooms
   where id = v_archived_classroom_id;
 
   v_result := public.create_archived_classroom_blueprint_atomic(
-    v_archived_operation_id,
+    v_archived_failed_operation_id,
     v_teacher_id,
-    repeat('c', 64),
+    repeat('b', 64),
     v_archived_classroom_id,
     v_archived_revision,
-    v_archived_plan
+    v_archived_failure_plan
   );
   if not coalesce((v_result->>'ok')::boolean, false) then
-    raise exception 'Archived ordinal Blueprint reuse failed: %', v_result;
+    raise exception 'Archived same-key retry after repair failed: %', v_result;
   end if;
   v_blueprint_id := (v_result->>'blueprint_id')::uuid;
+  select count(*)
+  into v_count
+  from public.course_blueprint_operations
+  where id = v_archived_failed_operation_id
+    and status = 'completed'
+    and attempt_count = 2
+    and source_classroom_id = v_archived_classroom_id
+    and result_blueprint_id = v_blueprint_id
+    and result_classroom_id = v_archived_classroom_id
+    and result = v_result
+    and error_code is null
+    and error_sqlstate is null
+    and completed_at is not null;
+  if v_count <> 1 then
+    raise exception 'Archived retry did not complete the retained operation ledger';
+  end if;
 
   select
     array_agg(artifact_id order by position),
@@ -553,12 +640,12 @@ begin
   end if;
 
   v_replay := public.create_archived_classroom_blueprint_atomic(
-    v_archived_operation_id,
+    v_archived_failed_operation_id,
     v_teacher_id,
-    repeat('c', 64),
+    repeat('b', 64),
     v_archived_classroom_id,
     v_archived_revision,
-    v_archived_plan
+    v_archived_failure_plan
   );
   if not coalesce((v_replay->>'replayed')::boolean, false)
     or v_replay->>'blueprint_id' <> v_blueprint_id::text
@@ -569,9 +656,9 @@ begin
   into v_count
   from public.course_blueprints
   where teacher_id = v_teacher_id
-    and title = 'Archived ordinal Blueprint';
+    and title = 'Archived identity rollback';
   if v_count <> 1 then
-    raise exception 'Archived ordinal replay created duplicate Blueprints';
+    raise exception 'Archived same-key replay created duplicate Blueprints';
   end if;
 end;
 $contract$;

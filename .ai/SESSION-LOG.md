@@ -1055,3 +1055,21 @@ coverage; no staging or production migration, deployment, or merge occurred.
   database types, and the production build pass. The installed local function
   is an earlier 134 revision, so fresh-database CI remains the authoritative SQL
   replay gate; local migration state was not changed without new authorization.
+
+## 2026-08-26 — Preserve Blueprint identity failure evidence
+
+**Risk profile:** runtime-platform — proposed migration and transactional
+database regression changes only; no local, staging, or production migration,
+deployment, or merge occurred.
+
+- Wrapped the active-capture and archived-reuse identity writes in an outer
+  ledger-owned transaction boundary. Identity ambiguity now rolls back the full
+  Blueprint graph while retaining a structured failed operation with stable
+  `test_question_identity_ambiguous` code and SQLSTATE `22023`.
+- Strengthened the database contract to assert the failed ledger, rolled-back
+  domain writes, a successful same-key retry after repairing the source
+  collision, and idempotent replay for both active and archived sources.
+- The full Vitest suite passes (5,093/5,093), as do lint, architecture
+  boundaries, generated database types, the Pika audit, and the production
+  build. The database regression still requires fresh-database CI because the
+  installed local function is an earlier migration 134 revision.

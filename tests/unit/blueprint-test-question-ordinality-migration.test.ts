@@ -49,6 +49,33 @@ function expectStableQuestionIdentityMapping(
   expect(definition).not.toMatch(/offset v_question_index/)
 }
 
+function expectDurableIdentityFailureLedger(definition: string) {
+  expect(definition).toMatch(
+    /insert into public\.course_blueprint_operations \([\s\S]{0,700}on conflict \(id\) do nothing;\s+begin/,
+  )
+  expect(definition).toContain(
+    "v_error_code := 'test_question_identity_ambiguous'",
+  )
+  expect(definition).toContain('exception when others then')
+  expect(definition).toContain('v_error_sqlstate = returned_sqlstate')
+  expect(definition).toContain(
+    "v_error_code := coalesce(v_error_code, 'blueprint_identity_mapping_failed')",
+  )
+  expect(definition).toContain(
+    "'status', case when v_error_code = 'test_question_identity_ambiguous' then 409 else 500 end",
+  )
+  expect(definition).toContain("'error_code', v_error_code")
+  expect(definition).toMatch(
+    /status = 'failed',[\s\S]{0,180}attempt_count = case when status = 'failed' then attempt_count \+ 1 else attempt_count end/,
+  )
+  expect(definition).toContain('result_blueprint_id = null')
+  expect(definition).toContain('result_classroom_id = null')
+  expect(definition).toContain('result = v_result')
+  expect(definition).toContain('resource_counts = v_resource_counts')
+  expect(definition).toContain('error_code = v_error_code')
+  expect(definition).toContain('error_sqlstate = v_error_sqlstate')
+}
+
 describe('Blueprint test-question identity migration', () => {
   it('maps active classroom capture questions by stable identity', () => {
     const definition = functionDefinition(
@@ -58,6 +85,7 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
     expectStableQuestionIdentityMapping(definition, 'Captured')
+    expectDurableIdentityFailureLedger(definition)
   })
 
   it('maps archived classroom reuse questions by stable identity', () => {
@@ -68,6 +96,7 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
     expectStableQuestionIdentityMapping(definition, 'Archived')
+    expectDurableIdentityFailureLedger(definition)
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
     )
