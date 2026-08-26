@@ -43,9 +43,6 @@
   --color-qr-background: #ffffff;
   --color-qr-foreground: #111827;
 
-  /* Brand assets */
-  --pika-logo-filter: none;
-
   /* Typography */
   --font-family-ui: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -152,9 +149,6 @@
   --color-text-muted: #9ca3af;
   --color-text-inverse: #ffffff;
 
-  /* Brand assets - dark mode */
-  --pika-logo-filter: brightness(0) hue-rotate(15deg) invert(1) saturate(0.3) sepia(1);
-
   /* Primary accent - dark mode */
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
@@ -240,5 +234,7 @@
 }
 
 .pika-logo {
-  filter: var(--pika-logo-filter);
+  background-color: var(--color-text-default);
+  mask: url('/pika.png') center / contain no-repeat;
+  -webkit-mask: url('/pika.png') center / contain no-repeat;
 }

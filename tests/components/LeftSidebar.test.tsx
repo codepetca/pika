@@ -55,7 +55,7 @@ describe('LeftSidebar mobile drawer', () => {
     expect(homeLink).toHaveAttribute('href', '/classrooms')
     expect(homeLink).toHaveTextContent('All classrooms')
     expect(homeLink).toHaveClass('bg-surface-2', 'hover:bg-surface-hover')
-    expect(within(homeLink).getByAltText('Pika')).toBeInTheDocument()
+    expect(within(homeLink).getByRole('img', { name: 'Pika' })).toBeInTheDocument()
     expect(homeLink.querySelector('.lucide-chevron-right')).not.toBeInTheDocument()
     expect(within(screen.getByRole('dialog', { name: 'Navigation menu' })).getByText('Navigation'))
       .toBeInTheDocument()

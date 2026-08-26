@@ -1,5 +1,3 @@
-import Image from 'next/image'
-
 interface PikaLogoProps {
   className?: string
 }
@@ -9,13 +7,10 @@ interface PikaLogoProps {
  */
 export function PikaLogo({ className = 'w-8 h-8' }: PikaLogoProps) {
   return (
-    <Image
-      src="/pika.png"
-      alt="Pika"
-      width={32}
-      height={32}
-      priority
-      className={`${className} pika-logo block object-contain`}
+    <span
+      role="img"
+      aria-label="Pika"
+      className={`${className} pika-logo block`}
     />
   )
 }
