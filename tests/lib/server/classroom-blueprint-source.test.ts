@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
+import {
+  loadClassroomBlueprintSource,
+  projectPortableTestQuestionIds,
+} from '@/lib/server/classroom-blueprint-source'
 import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
 
 let mockSupabase: any
@@ -304,6 +307,65 @@ describe('classroom blueprint source loader', () => {
     expect(result.source.tests[0].content.questions).toEqual([
       expect.objectContaining({ id: '20000000-0000-4000-8000-000000000001' }),
     ])
+  })
+
+  it('preserves draft-only identity and fails closed on ambiguous persisted identity', () => {
+    const content = {
+      title: 'Identity contract',
+      show_results: false,
+      questions: [{
+        id: '20000000-0000-4000-8000-000000000001',
+        question_type: 'open_response' as const,
+        question_text: 'Persisted',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }, {
+        id: '30000000-0000-4000-8000-000000000001',
+        question_type: 'open_response' as const,
+        question_text: 'Draft only',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+
+    expect(projectPortableTestQuestionIds(content, [{
+      id: 'question-row-1',
+      artifact_id: '20000000-0000-4000-8000-000000000001',
+      source_artifact_id: null,
+    }])).toEqual({ ok: true, content })
+
+    expect(projectPortableTestQuestionIds(content, [{
+      id: 'question-row-1',
+      artifact_id: '20000000-0000-4000-8000-000000000001',
+      source_artifact_id: null,
+    }, {
+      id: 'question-row-2',
+      artifact_id: '40000000-0000-4000-8000-000000000001',
+      source_artifact_id: '20000000-0000-4000-8000-000000000001',
+    }])).toEqual({ ok: false })
+
+    expect(projectPortableTestQuestionIds({
+      ...content,
+      questions: [{ ...content.questions[0], id: 'question-row-1' }],
+    }, [{
+      id: 'question-row-1',
+      artifact_id: '20000000-0000-4000-8000-000000000001',
+      source_artifact_id: null,
+    }, {
+      id: 'question-row-2',
+      artifact_id: 'question-row-1',
+      source_artifact_id: null,
+    }])).toEqual({ ok: false })
   })
 
   it('does not carry classroom snapshot ownership into a reusable blueprint', async () => {

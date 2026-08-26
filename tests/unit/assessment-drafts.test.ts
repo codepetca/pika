@@ -13,6 +13,8 @@ import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 
 const TEST_ID_1 = '33333333-3333-4333-8333-333333333333'
 const TEST_ID_2 = '44444444-4444-4444-8444-444444444444'
+const ARTIFACT_ID_1 = '55555555-5555-4555-8555-555555555555'
+const ARTIFACT_ID_2 = '66666666-6666-4666-8666-666666666666'
 
 describe('assessment drafts', () => {
   it('validates test draft content and allows empty question text when requested', () => {
@@ -164,6 +166,7 @@ describe('assessment drafts', () => {
         [
           {
             id: TEST_ID_1,
+            artifact_id: ARTIFACT_ID_1,
             question_type: 'open_response',
             question_text: 'Explain',
             options: ['Ignored'],
@@ -182,7 +185,7 @@ describe('assessment drafts', () => {
       source_format: 'markdown',
       questions: [
         {
-          id: TEST_ID_1,
+          id: ARTIFACT_ID_1,
           question_type: 'open_response',
           question_text: 'Explain',
           options: ['Ignored'],
@@ -381,7 +384,7 @@ describe('assessment drafts', () => {
       from: vi.fn((_table: string) => ({
         select: vi.fn(() => ({
           eq: vi.fn().mockResolvedValue({
-            data: [{ id: TEST_ID_1 }],
+            data: [{ id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null }],
             error: null,
           }),
         })),
@@ -401,7 +404,7 @@ describe('assessment drafts', () => {
         show_results: false,
         questions: [
           {
-            id: TEST_ID_1,
+            id: ARTIFACT_ID_1,
             question_type: 'multiple_choice',
             question_text: 'Updated',
             options: ['A', 'B'],
@@ -430,7 +433,10 @@ describe('assessment drafts', () => {
       from: vi.fn((_table: string) => ({
         select: vi.fn(() => ({
           eq: vi.fn().mockResolvedValue({
-            data: [{ id: TEST_ID_1 }, { id: TEST_ID_2 }],
+            data: [
+              { id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null },
+              { id: TEST_ID_2, artifact_id: ARTIFACT_ID_2, source_artifact_id: null },
+            ],
             error: null,
           }),
         })),
@@ -463,7 +469,7 @@ describe('assessment drafts', () => {
         show_results: false,
         questions: [
           {
-            id: TEST_ID_1,
+            id: ARTIFACT_ID_1,
             question_type: 'multiple_choice',
             question_text: 'Updated',
             options: ['A', 'B'],
@@ -475,7 +481,7 @@ describe('assessment drafts', () => {
             response_monospace: false,
           },
           {
-            id: '66666666-6666-4666-8666-666666666666',
+            id: '77777777-7777-4777-8777-777777777777',
             question_type: 'open_response',
             question_text: 'New',
             options: [],
@@ -506,8 +512,8 @@ describe('assessment drafts', () => {
     ])
     expect(inserts).toEqual([
       {
-        id: '66666666-6666-4666-8666-666666666666',
         test_id: 'test-1',
+        artifact_id: '77777777-7777-4777-8777-777777777777',
         question_type: 'open_response',
         question_text: 'New',
         options: [],
@@ -521,5 +527,147 @@ describe('assessment drafts', () => {
       },
     ])
     expect(deletes).toEqual([TEST_ID_2])
+  })
+
+  it('fails closed when a draft still uses an internal row id', async () => {
+    const supabase = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null }],
+            error: null,
+          }),
+        })),
+      })),
+    }
+
+    await expect(
+      syncTestQuestionsFromDraft(supabase, 'test-1', {
+        title: 'Legacy draft',
+        show_results: false,
+        questions: [{
+          id: TEST_ID_1,
+          question_type: 'multiple_choice',
+          question_text: 'Legacy identity',
+          options: ['A', 'B'],
+          correct_option: 0,
+          answer_key: null,
+          sample_solution: null,
+          points: 1,
+          response_max_chars: 5000,
+          response_monospace: false,
+        }],
+      })
+    ).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Test draft question identity is ambiguous or requires backfill',
+    })
+  })
+
+  it('preserves a draft-only artifact identity through activation and draft reconstruction', async () => {
+    const draftOnlyId = '77777777-7777-4777-8777-777777777777'
+    let inserted: Record<string, unknown> | null = null
+    const supabase = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
+        insert: vi.fn((payload: Record<string, unknown>) => {
+          inserted = payload
+          return Promise.resolve({ error: null })
+        }),
+      })),
+    }
+
+    const draft: Parameters<typeof syncTestQuestionsFromDraft>[2] = {
+      title: 'Lifecycle Test',
+      show_results: false,
+      questions: [{
+        id: draftOnlyId,
+        question_type: 'open_response',
+        question_text: 'Explain the lifecycle',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      }],
+    }
+
+    await expect(syncTestQuestionsFromDraft(supabase, 'test-1', draft))
+      .resolves.toEqual({ ok: true })
+    expect(inserted).toMatchObject({
+      test_id: 'test-1',
+      artifact_id: draftOnlyId,
+    })
+    expect(inserted).not.toHaveProperty('id')
+
+    const recaptured = buildTestDraftContentFromRows(
+      { title: draft.title, show_results: draft.show_results },
+      [{
+        ...(inserted as Record<string, unknown>),
+        id: '88888888-8888-4888-8888-888888888888',
+      }],
+    )
+    expect(recaptured.questions[0]?.id).toBe(draftOnlyId)
+  })
+
+  it('fails closed when portable identity matches multiple persisted rows', async () => {
+    const updateSpy = vi.fn()
+    const supabase = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: [
+              { id: TEST_ID_1, artifact_id: ARTIFACT_ID_1, source_artifact_id: null },
+              { id: TEST_ID_2, artifact_id: ARTIFACT_ID_2, source_artifact_id: ARTIFACT_ID_1 },
+            ],
+            error: null,
+          }),
+        })),
+        update: updateSpy,
+      })),
+    }
+
+    await expect(
+      syncTestQuestionsFromDraft(supabase, 'test-1', {
+        title: 'Ambiguous draft',
+        show_results: false,
+        questions: [
+          {
+            id: ARTIFACT_ID_2,
+            question_type: 'open_response',
+            question_text: 'Unique identity before the conflict',
+            options: [],
+            correct_option: null,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          },
+          {
+            id: ARTIFACT_ID_1,
+            question_type: 'multiple_choice',
+            question_text: 'Ambiguous identity',
+            options: ['A', 'B'],
+            correct_option: 0,
+            answer_key: null,
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          },
+        ],
+      })
+    ).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Test draft question identity is ambiguous or requires backfill',
+    })
+    expect(updateSpy).not.toHaveBeenCalled()
   })
 })

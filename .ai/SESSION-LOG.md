@@ -695,6 +695,41 @@ staging or production migration was applied.
   tests, and the full Vitest suite pass (5,093/5,093). Staging and production
   remain unchanged, and the worktree has no production project binding.
 
+## 2026-08-25 — Repair Blueprint Test question identity mapping
+
+**Risk profile:** runtime-platform — the initial database RPC replacement was
+applied locally; its review revision awaits authorized local reapplication. No
+staging or production migration was applied.
+
+- Traced production Blueprint capture operation
+  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
+  confirmed Test draft questions intentionally use JSON array order rather than
+  a persisted `position` field.
+- Added proposed migration 134 so active Classroom capture and archived
+  Classroom reuse map Test question identities by zero-based JSON ordinality,
+  preserving the managed-storage wrapper, RPC signatures, privileges, and all
+  unrelated function behavior.
+- Added rollback/replay database coverage and CI wiring. The new rollback-only
+  harness reproduces the production `23505` artifact-identity collision against
+  the pre-134 schema; the local dry run contains only migration 134.
+- After exact one-time authorization, migration 134 applied locally as the sole
+  pending migration. The post-migration database harness passes active capture,
+  archived reuse, rollback, identity order, and replay; adjacent atomic
+  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
+- Initial PR review found that valid source positions can contain gaps after a
+  question deletion. Fix batch 1 now maps each JSON question to the nth source
+  row ordered by `(position, id)` and gives both active and archived fixtures
+  positions `0,2`; the strengthened harness failed against the installed
+  pre-review function as expected.
+- After exact destructive-reset authorization, local was reset without seeding
+  and migrations 001-134 replayed from the reviewed branch. The strengthened
+  active/archived gap-position harness, adjacent atomic and versioned Blueprint
+  contracts, managed-storage contract, generated types, lint, architecture,
+  audit, and 48 focused tests all pass.
+- Lint, architecture boundaries, generated database types, focused Blueprint
+  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
+  remain unchanged, and the worktree has no production project binding.
+
 ## 2026-08-26 — Adopt Pal widget alpha.5
 
 **Risk profile:** none — pinned widget package and compatibility assertions only;
@@ -1067,6 +1102,31 @@ no schema, API, persistence, authentication, or production state changed.
   remains centered and responsive with the collectible-only presentation. The
   temporary unauthenticated review route was removed; teacher review is n/a
   because the integration is student-only.
+
+## 2026-08-26 — Canonicalize Test-question identity from draft creation
+
+**Risk profile:** runtime-platform — application identity synchronization,
+transactional migration/backfill, immutable-Version instantiation, and database
+contract changes; no hosted migration, deployment, or merge occurred.
+
+- Defined `TestDraftQuestion.id` as the portable Artifact ID assigned when the
+  question is created; `test_questions.id` remains an internal row identity.
+  New persisted questions now store the draft UUID in `artifact_id`, and draft
+  reconstruction prefers source/artifact identity over row identity.
+- Made activation preflight and synchronize by artifact/source identity without
+  positional matching or partial updates on identity ambiguity. Blueprint
+  capture and archived reuse now validate source identity read-only; draft-only
+  IDs remain portable without creating or rewriting source rows.
+- Migration 134 transactionally backfills legacy row-ID draft JSON, fails closed
+  on ambiguous matches, and rematerializes newly instantiated Version questions
+  with explicit artifact/source IDs rather than inferring them by position.
+- Rebased the worktree onto PR #1066 head `cc7c14d7` while retaining the
+  separately completed durable failure-ledger remediation. The authorized local
+  database was reset without seed to replay the final migration; hosted state
+  was untouched.
+- The canonical identity and broader Versioned Blueprint database contracts
+  pass. The full Vitest suite passes (5,106/5,106), as do lint, the production
+  build, generated Supabase type checks, diff checks, and the Pika audit.
 
 ## 2026-08-26 — Make Blueprint question identity capture draft-safe
 

@@ -77,6 +77,9 @@ describe('POST /api/teacher/tests/[id]/questions', () => {
     expect(insertSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         test_id: 'test-1',
+        artifact_id: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        ),
         question_text: '',
       })
     )

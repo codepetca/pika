@@ -82,6 +82,8 @@ export function buildNextDraftContent<TContent extends object>(
 
 type TestQuestionRow = {
   id: string
+  artifact_id?: string | null
+  source_artifact_id?: string | null
   question_type: unknown
   question_text: string
   options: unknown
@@ -102,7 +104,9 @@ export function buildTestDraftContentFromRows(
     title: test.title,
     show_results: test.show_results,
     questions: (questions || []).map((question) => ({
-      id: question.id,
+      // Draft question IDs are portable artifact identities. Persisted row IDs
+      // are an internal database contract and must not escape into draft JSON.
+      id: question.source_artifact_id ?? question.artifact_id ?? question.id,
       question_type: question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
       question_text: question.question_text,
       options: parseStringArray(question.options) || [],
@@ -229,6 +233,11 @@ export async function syncTestQuestionsFromDraft(
     foreignKey: 'test_id',
     parentId: testId,
     questions: content.questions,
+    existingColumns: 'id, artifact_id, source_artifact_id',
+    getPortableIdentityCandidates: (row) => [
+      row.source_artifact_id,
+      row.artifact_id,
+    ],
     buildUpdatePayload: (question, position) => ({
       question_type: question.question_type,
       question_text: question.question_text,
@@ -242,8 +251,10 @@ export async function syncTestQuestionsFromDraft(
       position,
     }),
     buildInsertPayload: (question, position) => ({
-      id: question.id,
       test_id: testId,
+      // A new row gets an independent database ID. The draft UUID is the
+      // stable identity carried into Blueprints, Versions, and Classrooms.
+      artifact_id: question.id,
       question_type: question.question_type,
       question_text: question.question_text,
       options: question.options,
@@ -260,8 +271,15 @@ export async function syncTestQuestionsFromDraft(
       update: 'Failed to update synced test question',
       insert: 'Failed to insert synced test question',
       delete: 'Failed to delete removed test question',
+      identity: 'Test draft question identity is ambiguous or requires backfill',
     },
   })
+}
+
+type ExistingQuestionIdentityRow = {
+  id: string
+  artifact_id?: string | null
+  source_artifact_id?: string | null
 }
 
 type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
@@ -269,6 +287,8 @@ type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
   foreignKey: string
   parentId: string
   questions: TQuestion[]
+  existingColumns: string
+  getPortableIdentityCandidates: (row: ExistingQuestionIdentityRow) => Array<string | null | undefined>
   buildUpdatePayload: (question: TQuestion, position: number) => Record<string, unknown>
   buildInsertPayload: (question: TQuestion, position: number) => Record<string, unknown>
   errorMessages: {
@@ -276,6 +296,7 @@ type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
     update: string
     insert: string
     delete: string
+    identity: string
   }
 }
 
@@ -285,23 +306,71 @@ async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: strin
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const { data: existingRows, error: existingError } = await supabase
     .from(config.table)
-    .select('id')
+    .select(config.existingColumns)
     .eq(config.foreignKey, config.parentId)
 
   if (existingError) {
     return { ok: false, status: 500, error: config.errorMessages.load }
   }
 
-  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
-  const nextIds = new Set(config.questions.map((question) => question.id))
+  const rows = (existingRows || []) as ExistingQuestionIdentityRow[]
+  const existingIds = new Set<string>(rows.map((row) => row.id))
+  const rowsByPortableIdentity = new Map<string, Set<string>>()
+  const rowsByInternalId = new Map(rows.map((row) => [row.id, row]))
+
+  for (const row of rows) {
+    for (const identity of new Set(config.getPortableIdentityCandidates(row).filter(Boolean))) {
+      const rowIds = rowsByPortableIdentity.get(identity as string) ?? new Set<string>()
+      rowIds.add(row.id)
+      rowsByPortableIdentity.set(identity as string, rowIds)
+    }
+  }
+
+  const matchedExistingIds = new Set<string>()
+  const incomingQuestionIds = new Set<string>()
+  const resolvedQuestions: Array<{
+    question: TQuestion
+    position: number
+    matchingRowId?: string
+  }> = []
 
   for (const [position, question] of config.questions.entries()) {
-    if (existingIds.has(question.id)) {
+    if (incomingQuestionIds.has(question.id)) {
+      return { ok: false, status: 409, error: config.errorMessages.identity }
+    }
+    incomingQuestionIds.add(question.id)
+
+    const matchingRowIds = [...(rowsByPortableIdentity.get(question.id) ?? [])]
+    if (matchingRowIds.length > 1) {
+      return { ok: false, status: 409, error: config.errorMessages.identity }
+    }
+
+    const matchingRowId = matchingRowIds[0]
+    if (matchingRowId) {
+      if (matchedExistingIds.has(matchingRowId)) {
+        return { ok: false, status: 409, error: config.errorMessages.identity }
+      }
+      matchedExistingIds.add(matchingRowId)
+    }
+
+    // A draft that still points at an internal row ID predates the portable
+    // identity backfill. Fail closed instead of silently changing identity.
+    if (!matchingRowId && rowsByInternalId.has(question.id)) {
+      return { ok: false, status: 409, error: config.errorMessages.identity }
+    }
+
+    resolvedQuestions.push({ question, position, matchingRowId })
+  }
+
+  // Resolve the complete identity graph before changing content so a later
+  // ambiguity cannot leave earlier rows partially synchronized.
+  for (const { question, position, matchingRowId } of resolvedQuestions) {
+    if (matchingRowId) {
       const { error } = await supabase
         .from(config.table)
         .update(config.buildUpdatePayload(question, position))
         .eq(config.foreignKey, config.parentId)
-        .eq('id', question.id)
+        .eq('id', matchingRowId)
 
       if (error) {
         return { ok: false, status: 500, error: config.errorMessages.update }
@@ -317,7 +386,7 @@ async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: strin
   }
 
   for (const existingId of existingIds) {
-    if (nextIds.has(existingId)) continue
+    if (matchedExistingIds.has(existingId)) continue
 
     const { error } = await supabase
       .from(config.table)

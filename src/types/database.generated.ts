@@ -8841,6 +8841,18 @@ export type Database = {
         }
         Returns: Json
       }
+      instantiate_course_blueprint_atomic_v2_pre_question_identity: {
+        Args: {
+          p_blueprint_id: string
+          p_blueprint_version_id: string
+          p_expected_content_revision: number
+          p_operation_id: string
+          p_plan: Json
+          p_request_sha256: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       is_classroom_archive_maintenance_mode: {
         Args: { p_mode: string }
         Returns: boolean

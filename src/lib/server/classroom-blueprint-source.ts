@@ -88,6 +88,58 @@ type LoadClassroomBlueprintSourceOptions = {
   lessonTemplateTitleMode?: 'dated' | 'generic'
 }
 
+type PersistedTestQuestionIdentity = {
+  id: string
+  artifact_id?: string | null
+  source_artifact_id?: string | null
+}
+
+export function projectPortableTestQuestionIds(
+  content: TestDraftContent,
+  persistedQuestions: PersistedTestQuestionIdentity[],
+): { ok: true; content: TestDraftContent } | { ok: false } {
+  const rowIdsByKnownIdentity = new Map<string, Set<string>>()
+  const portableIdByRowId = new Map<string, string>()
+
+  for (const question of persistedQuestions) {
+    const portableId = question.source_artifact_id ?? question.artifact_id ?? question.id
+    portableIdByRowId.set(question.id, portableId)
+
+    for (const identity of new Set([
+      question.source_artifact_id,
+      question.artifact_id,
+    ].filter(Boolean))) {
+      const rowIds = rowIdsByKnownIdentity.get(identity as string) ?? new Set<string>()
+      rowIds.add(question.id)
+      rowIdsByKnownIdentity.set(identity as string, rowIds)
+    }
+  }
+
+  const questions = [] as TestDraftContent['questions']
+  for (const question of content.questions) {
+    const questionId = String(question.id)
+    const matchingRowIds = new Set(
+      rowIdsByKnownIdentity.get(questionId) ?? [],
+    )
+    if (portableIdByRowId.has(questionId)) matchingRowIds.add(questionId)
+    if (matchingRowIds.size > 1) return { ok: false }
+
+    const [matchingRowId] = matchingRowIds
+    const portableId = matchingRowId
+      ? portableIdByRowId.get(matchingRowId)
+      : undefined
+
+    questions.push({
+      ...question,
+      // The row-id branch is a read-only compatibility path for legacy draft
+      // JSON. Migration 134 persists this normalization once.
+      id: portableId ?? question.id,
+    })
+  }
+
+  return { ok: true, content: { ...content, questions } }
+}
+
 function getSupabase() {
   return getServiceRoleClient()
 }
@@ -268,31 +320,32 @@ export async function loadClassroomBlueprintSource(
   for (const draft of draftRows) {
     draftsByTestId.set(String(draft.assessment_id), draft.content as TestDraftContent)
   }
-  const tests: Array<Record<string, any> & { content: TestDraftContent }> = testRows.map((test) => {
+  const tests: Array<Record<string, any> & { content: TestDraftContent }> = []
+  for (const test of testRows) {
     const questions = questionsByTestId.get(String(test.id)) || []
-    const portableQuestionIds = new Map(
-      questions.map((question) => [
-        String(question.id),
-        question.source_artifact_id ?? question.artifact_id ?? question.id,
-      ])
-    )
     const content = draftsByTestId.get(String(test.id)) ?? {
       title: test.title,
       show_results: !!test.show_results,
       questions: questions as TestDraftContent['questions'],
     }
-
-    return {
-      ...test,
-      content: {
-        ...content,
-        questions: content.questions.map((question) => ({
-          ...question,
-          id: portableQuestionIds.get(String(question.id)) ?? question.id,
-        })),
-      },
+    const projectedContent = projectPortableTestQuestionIds(content, questions.map((question) => ({
+      id: String(question.id),
+      artifact_id: question.artifact_id ?? null,
+      source_artifact_id: question.source_artifact_id ?? null,
+    })))
+    if (!projectedContent.ok) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Test question identity is ambiguous; resolve it before creating a Blueprint',
+      }
     }
-  })
+
+    tests.push({
+      ...test,
+      content: projectedContent.content,
+    })
+  }
 
   const surveyRows = (surveysResult.data || []) as Array<Record<string, any>>
   const surveyIds = surveyRows.map((survey) => String(survey.id))

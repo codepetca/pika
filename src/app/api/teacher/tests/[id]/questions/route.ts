@@ -35,11 +35,13 @@ export const POST = withErrorHandler('CreateTeacherTestQuestion', async (request
     .maybeSingle()
 
   const nextPosition = typeof lastQuestion?.position === 'number' ? lastQuestion.position + 1 : 0
+  const artifactId = crypto.randomUUID()
 
   const { data: question, error } = await supabase
     .from('test_questions')
     .insert({
       test_id: testId,
+      artifact_id: artifactId,
       ...validation.value,
       position: nextPosition,
     })

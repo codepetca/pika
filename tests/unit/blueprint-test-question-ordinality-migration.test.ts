@@ -22,7 +22,7 @@ function functionDefinition(name: string): string {
   return migration.slice(start, end)
 }
 
-function expectStableQuestionIdentityMapping(
+function expectReadOnlyStableQuestionIdentityValidation(
   definition: string,
   failurePrefix: 'Captured' | 'Archived',
 ) {
@@ -30,7 +30,7 @@ function expectStableQuestionIdentityMapping(
     /for v_child in\s+select question\.value\s+from jsonb_array_elements\([\s\S]{0,180}v_item->'content'->'questions'[\s\S]{0,120}as question\(value\)/,
   )
   expect(definition).toMatch(
-    /select array_agg\(source_question\.id order by source_question\.id\)[\s\S]{0,260}source_question\.artifact_id = \(v_child->>'id'\)::uuid[\s\S]{0,180}source_question\.source_artifact_id = \(v_child->>'id'\)::uuid[\s\S]{0,180}source_question\.id = \(v_child->>'id'\)::uuid/,
+    /select array_agg\(source_question\.id order by source_question\.id\)[\s\S]{0,260}source_question\.artifact_id = \(v_child->>'id'\)::uuid[\s\S]{0,180}source_question\.source_artifact_id = \(v_child->>'id'\)::uuid/,
   )
   expect(definition).toContain(
     'if coalesce(cardinality(v_question_row_ids), 0) > 1 then',
@@ -43,8 +43,11 @@ function expectStableQuestionIdentityMapping(
       `raise exception '${failurePrefix} Test question identity mapping is ambiguous'\\s+using errcode = '22023'`,
     ),
   )
-  expect(definition).toContain(
-    'elsif coalesce(cardinality(v_question_row_ids), 0) = 1 then',
+  expect(definition).not.toMatch(
+    /source_question\.id = \(v_child->>'id'\)::uuid/,
+  )
+  expect(definition).not.toMatch(
+    /update public\.test_questions\s+set\s+artifact_id = \(v_child->>'id'\)::uuid/,
   )
   expect(definition).not.toMatch(/offset v_question_index/)
 }
@@ -84,7 +87,7 @@ describe('Blueprint test-question identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectStableQuestionIdentityMapping(definition, 'Captured')
+    expectReadOnlyStableQuestionIdentityValidation(definition, 'Captured')
     expectDurableIdentityFailureLedger(definition)
   })
 
@@ -95,10 +98,53 @@ describe('Blueprint test-question identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
-    expectStableQuestionIdentityMapping(definition, 'Archived')
+    expectReadOnlyStableQuestionIdentityValidation(definition, 'Archived')
     expectDurableIdentityFailureLedger(definition)
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
+    )
+  })
+
+  it('rematerializes instantiated Version questions from explicit artifact identity', () => {
+    const definition = functionDefinition(
+      'instantiate_course_blueprint_atomic_v2_pre_managed_storage',
+    )
+
+    expect(migration).toContain(
+      ') rename to instantiate_course_blueprint_atomic_v2_pre_question_identity;',
+    )
+    expect(definition).toContain(
+      'public.instantiate_course_blueprint_atomic_v2_pre_question_identity(',
+    )
+    expect(definition).toMatch(
+      /source_test\.source_artifact_id = \(v_item->>'artifact_id'\)::uuid/,
+    )
+    expect(definition).toMatch(
+      /delete from public\.test_questions\s+where test_id = v_parent_id/,
+    )
+    expect(definition).toMatch(
+      /insert into public\.test_questions \([\s\S]{0,260}artifact_id,[\s\S]{0,100}source_artifact_id,[\s\S]{0,100}source_blueprint_version_id/,
+    )
+    expect(definition).toMatch(
+      /\(v_child->>'artifact_id'\)::uuid,[\s\S]{0,80}\(v_child->>'artifact_id'\)::uuid,[\s\S]{0,80}p_blueprint_version_id/,
+    )
+    expect(definition).not.toMatch(
+      /update public\.test_questions[\s\S]{0,220}position = coalesce\(\(v_child->>'position'/,
+    )
+  })
+
+  it('backfills legacy draft row IDs to portable identity transactionally', () => {
+    expect(migration).toContain(
+      "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
+    )
+    expect(migration).toMatch(
+      /from public\.assessment_drafts[\s\S]{0,120}assessment_type = 'test'/,
+    )
+    expect(migration).toMatch(
+      /coalesce\(\s*source_question\.source_artifact_id,\s*source_question\.artifact_id,\s*source_question\.id\s*\)/,
+    )
+    expect(migration).toMatch(
+      /update public\.assessment_drafts\s+set content = jsonb_set\(content, '\{questions\}', v_questions, false\)/,
     )
   })
 

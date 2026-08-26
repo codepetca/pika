@@ -125,6 +125,27 @@ insert into public.test_questions (
     2
   );
 
+insert into public.course_blueprints (
+  id, teacher_id, title
+) values (
+  'b1340000-0000-4000-8000-000000000301',
+  'b1340000-0000-4000-8000-000000000001',
+  'Question identity instantiation source'
+);
+
+insert into public.course_blueprint_versions (
+  id, course_blueprint_id, version_number, source_draft_revision,
+  snapshot_json, snapshot_sha256, created_by
+) values (
+  'b1340000-0000-4000-8000-000000000302',
+  'b1340000-0000-4000-8000-000000000301',
+  1,
+  1,
+  '{}'::jsonb,
+  repeat('d', 64),
+  'b1340000-0000-4000-8000-000000000001'
+);
+
 do $contract$
 declare
   v_teacher_id constant uuid := 'b1340000-0000-4000-8000-000000000001';
@@ -136,16 +157,18 @@ declare
   v_active_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000112';
   v_active_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000113';
   v_active_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000114';
-  v_active_collision_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000115';
   v_active_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000012';
-  v_active_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000013';
   v_archived_test_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000211';
   v_archived_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000212';
   v_archived_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000213';
   v_archived_draft_only_question_id constant uuid := 'b1340000-0000-4000-8000-000000000214';
-  v_archived_collision_artifact_id constant uuid := 'b1340000-0000-4000-8000-000000000215';
   v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
-  v_archived_question_two_row_id constant uuid := 'b1340000-0000-4000-8000-000000000023';
+  v_instantiation_blueprint_id constant uuid := 'b1340000-0000-4000-8000-000000000301';
+  v_instantiation_version_id constant uuid := 'b1340000-0000-4000-8000-000000000302';
+  v_instantiation_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000303';
+  v_instantiation_test_id constant uuid := 'b1340000-0000-4000-8000-000000000311';
+  v_instantiation_question_one_id constant uuid := 'b1340000-0000-4000-8000-000000000312';
+  v_instantiation_question_two_id constant uuid := 'b1340000-0000-4000-8000-000000000313';
   v_active_revision bigint;
   v_archived_failed_revision bigint;
   v_archived_revision bigint;
@@ -153,9 +176,11 @@ declare
   v_active_failure_plan jsonb;
   v_archived_plan jsonb;
   v_archived_failure_plan jsonb;
+  v_instantiation_plan jsonb;
   v_result jsonb;
   v_replay jsonb;
   v_blueprint_id uuid;
+  v_instantiated_classroom_id uuid;
   v_artifact_ids uuid[];
   v_source_artifact_ids uuid[];
   v_blueprint_question_ids uuid[];
@@ -233,27 +258,10 @@ begin
     to_jsonb('Active identity rollback'::text)
   );
 
-  -- The draft-only identity matches row one by artifact_id and this temporary
-  -- row by physical id. The first planned question maps uniquely before the
-  -- ambiguity, so the failure must roll back that earlier identity write too.
-  insert into public.test_questions (
-    id, test_id, artifact_id, question_type, question_text, options,
-    correct_option, points, response_max_chars, response_monospace, position
-  ) values (
-    v_active_draft_only_question_id,
-    'b1340000-0000-4000-8000-000000000011',
-    v_active_collision_artifact_id,
-    'open_response',
-    'Active collision sentinel',
-    '[]'::jsonb,
-    null,
-    1,
-    5000,
-    false,
-    4
-  );
+  -- Duplicate portable identity is ambiguous even though row IDs and positions
+  -- are distinct. Capture must fail without rewriting either source row.
   update public.test_questions
-  set artifact_id = v_active_draft_only_question_id
+  set source_artifact_id = v_active_question_two_id
   where id = v_active_question_one_row_id;
 
   select blueprint_source_revision
@@ -314,20 +322,19 @@ begin
         source_blueprint_id is not null
         or source_blueprint_origin is not null
       )
-  ) or exists (
+  ) or not exists (
     select 1
     from public.test_questions
-    where test_id = 'b1340000-0000-4000-8000-000000000011'
-      and source_artifact_id is not null
+    where id = v_active_question_one_row_id
+      and artifact_id = v_active_question_one_id
+      and source_artifact_id = v_active_question_two_id
   ) then
     raise exception 'Active ambiguous identity was not rolled back atomically';
   end if;
 
   update public.test_questions
-  set artifact_id = v_active_question_one_id
+  set source_artifact_id = null
   where id = v_active_question_one_row_id;
-  delete from public.test_questions
-  where id = v_active_draft_only_question_id;
   select blueprint_source_revision
   into v_active_revision
   from public.classrooms
@@ -370,10 +377,17 @@ begin
   if v_artifact_ids is distinct from array[
     v_active_question_one_id,
     v_active_question_two_id
-  ] or v_source_artifact_ids[1] is not null
-    or v_source_artifact_ids[2] is distinct from v_active_question_two_id
+  ] or v_source_artifact_ids is distinct from array[null::uuid, null::uuid]
   then
-    raise exception 'Active capture did not map persisted questions by identity';
+    raise exception 'Active capture rewrote persisted question identity';
+  end if;
+  if exists (
+    select 1
+    from public.tests
+    where id = 'b1340000-0000-4000-8000-000000000011'
+      and source_artifact_id is not null
+  ) then
+    raise exception 'Active capture rewrote persisted Test identity';
   end if;
 
   select content
@@ -478,24 +492,8 @@ begin
     to_jsonb('Archived identity rollback'::text)
   );
 
-  insert into public.test_questions (
-    id, test_id, artifact_id, question_type, question_text, options,
-    correct_option, points, response_max_chars, response_monospace, position
-  ) values (
-    v_archived_draft_only_question_id,
-    'b1340000-0000-4000-8000-000000000021',
-    v_archived_collision_artifact_id,
-    'open_response',
-    'Archived collision sentinel',
-    '[]'::jsonb,
-    null,
-    1,
-    5000,
-    false,
-    4
-  );
   update public.test_questions
-  set artifact_id = v_archived_draft_only_question_id
+  set source_artifact_id = v_archived_question_two_id
   where id = v_archived_question_one_row_id;
 
   select blueprint_source_revision
@@ -551,20 +549,19 @@ begin
     from public.classrooms
     where id = v_archived_classroom_id
       and source_blueprint_id is not null
-  ) or exists (
+  ) or not exists (
     select 1
     from public.test_questions
-    where test_id = 'b1340000-0000-4000-8000-000000000021'
-      and source_artifact_id is not null
+    where id = v_archived_question_one_row_id
+      and artifact_id = v_archived_question_one_id
+      and source_artifact_id = v_archived_question_two_id
   ) then
     raise exception 'Archived ambiguous identity was not rolled back atomically';
   end if;
 
   update public.test_questions
-  set artifact_id = v_archived_question_one_id
+  set source_artifact_id = null
   where id = v_archived_question_one_row_id;
-  delete from public.test_questions
-  where id = v_archived_draft_only_question_id;
   select blueprint_source_revision
   into v_archived_revision
   from public.classrooms
@@ -613,10 +610,17 @@ begin
   if v_artifact_ids is distinct from array[
     v_archived_question_one_id,
     v_archived_question_two_id
-  ] or v_source_artifact_ids[1] is not null
-    or v_source_artifact_ids[2] is distinct from v_archived_question_two_id
+  ] or v_source_artifact_ids is distinct from array[null::uuid, null::uuid]
   then
-    raise exception 'Archived reuse did not map persisted questions by identity';
+    raise exception 'Archived reuse rewrote persisted question identity';
+  end if;
+  if exists (
+    select 1
+    from public.tests
+    where id = 'b1340000-0000-4000-8000-000000000021'
+      and source_artifact_id is not null
+  ) then
+    raise exception 'Archived reuse rewrote persisted Test identity';
   end if;
 
   select content
@@ -665,6 +669,145 @@ begin
     and title = 'Archived identity rollback';
   if v_count <> 1 then
     raise exception 'Archived same-key replay created duplicate Blueprints';
+  end if;
+
+  v_instantiation_plan := jsonb_build_object(
+    'expected_content_revision', 0,
+    'manifest_version', '3',
+    'classroom', jsonb_build_object(
+      'title', 'Question identity classroom',
+      'class_code', 'B134I1',
+      'term_label', null,
+      'theme_color', 'blue',
+      'start_date', '2026-09-08',
+      'end_date', '2027-01-29',
+      'course_overview_markdown', '',
+      'course_outline_markdown', '',
+      'actual_site_config', '{}'::jsonb
+    ),
+    'class_days', '[]'::jsonb,
+    'resources_content', null,
+    'grading', jsonb_build_object(
+      'use_weights', false,
+      'assignments_weight', 70,
+      'tests_weight', 30
+    ),
+    'assignments', '[]'::jsonb,
+    'tests', jsonb_build_array(jsonb_build_object(
+      'artifact_id', v_instantiation_test_id,
+      'title', 'Versioned identity Test',
+      'position', 0,
+      'show_results', false,
+      'documents', '[]'::jsonb,
+      'points_possible', 2,
+      'gradebook_weight', 10,
+      'include_in_final', true,
+      'questions', jsonb_build_array(
+        jsonb_build_object(
+          'artifact_id', v_instantiation_question_two_id,
+          'question_type', 'open_response',
+          'question_text', 'Second artifact, first in the plan',
+          'options', '[]'::jsonb,
+          'correct_option', null,
+          'answer_key', null,
+          'sample_solution', null,
+          'points', 1,
+          'response_max_chars', 5000,
+          'response_monospace', false,
+          'position', 4
+        ),
+        jsonb_build_object(
+          'artifact_id', v_instantiation_question_one_id,
+          'question_type', 'multiple_choice',
+          'question_text', 'First artifact, second in the plan',
+          'options', '["A","B"]'::jsonb,
+          'correct_option', 0,
+          'answer_key', null,
+          'sample_solution', null,
+          'points', 1,
+          'response_max_chars', 5000,
+          'response_monospace', false,
+          'position', 1
+        )
+      ),
+      'draft_content', jsonb_build_object(
+        'title', 'Versioned identity Test',
+        'show_results', false,
+        'questions', jsonb_build_array(
+          jsonb_build_object(
+            'id', v_instantiation_question_two_id,
+            'question_type', 'open_response',
+            'question_text', 'Second artifact, first in the plan',
+            'options', '[]'::jsonb,
+            'correct_option', null,
+            'answer_key', null,
+            'sample_solution', null,
+            'points', 1,
+            'response_max_chars', 5000,
+            'response_monospace', false
+          ),
+          jsonb_build_object(
+            'id', v_instantiation_question_one_id,
+            'question_type', 'multiple_choice',
+            'question_text', 'First artifact, second in the plan',
+            'options', '["A","B"]'::jsonb,
+            'correct_option', 0,
+            'answer_key', null,
+            'sample_solution', null,
+            'points', 1,
+            'response_max_chars', 5000,
+            'response_monospace', false
+          )
+        )
+      )
+    )),
+    'lesson_plans', '[]'::jsonb,
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb
+  );
+
+  v_result := public.instantiate_course_blueprint_atomic_v2(
+    v_instantiation_operation_id,
+    v_teacher_id,
+    v_instantiation_blueprint_id,
+    v_instantiation_version_id,
+    repeat('d', 64),
+    1,
+    v_instantiation_plan
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Version question identity instantiation failed: %', v_result;
+  end if;
+  v_instantiated_classroom_id := (v_result->>'classroom_id')::uuid;
+
+  select
+    array_agg(question.artifact_id order by question.position),
+    array_agg(question.source_artifact_id order by question.position)
+  into v_artifact_ids, v_source_artifact_ids
+  from public.test_questions question
+  join public.tests test on test.id = question.test_id
+  where test.classroom_id = v_instantiated_classroom_id
+    and test.source_artifact_id = v_instantiation_test_id;
+  if v_artifact_ids is distinct from array[
+    v_instantiation_question_one_id,
+    v_instantiation_question_two_id
+  ] or v_source_artifact_ids is distinct from array[
+    v_instantiation_question_one_id,
+    v_instantiation_question_two_id
+  ] then
+    raise exception 'Version instantiation did not preserve explicit question identity';
+  end if;
+  if exists (
+    select 1
+    from public.test_questions question
+    join public.tests test on test.id = question.test_id
+    where test.classroom_id = v_instantiated_classroom_id
+      and question.id in (
+        v_instantiation_question_one_id,
+        v_instantiation_question_two_id
+      )
+  ) then
+    raise exception 'Version instantiation reused portable identity as row identity';
   end if;
 end;
 $contract$;
