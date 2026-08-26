@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -56,6 +56,22 @@ describe('AppHeader exam mode', () => {
 
     expect(screen.getByLabelText('Exits 2')).toHaveClass('text-text-muted')
     expect(screen.queryByText('Exit detected')).not.toBeInTheDocument()
+  })
+
+  it('prevents the exam-mode Home link when guarded navigation is blocked', () => {
+    const onNavigateHome = vi.fn(() => false)
+
+    render(
+      <AppHeader
+        examModeHeader={{ testTitle: 'Unit Test', exitsCount: 0, awayTotalSeconds: 0 }}
+        onNavigateHome={onNavigateHome}
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const homeLink = screen.getByRole('link', { name: 'Home' })
+    expect(fireEvent.click(homeLink)).toBe(false)
+    expect(onNavigateHome).toHaveBeenCalledWith('/classrooms')
   })
 })
 

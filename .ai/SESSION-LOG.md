@@ -1073,7 +1073,7 @@ presentation only; no API, schema, persistence, dependency, or hosted state chan
 - Added regression coverage for mobile layout ownership, drawer home navigation,
   blocked navigation, the Pika brand link, and active student exam mode hiding
   the mobile navigation while rejecting direct home-exit attempts.
-- Full Vitest passes (5,095/5,095), lint, design policy, UI policy, and diff
+- Full Vitest passes (5,096/5,096), lint, design policy, UI policy, and diff
   checks pass. Playwright visual verification passed for teacher and student,
   desktop and mobile, light and dark, including drawer-open and keyboard-focus
   states. Mobile captures had no horizontal overflow, and both roles navigated
