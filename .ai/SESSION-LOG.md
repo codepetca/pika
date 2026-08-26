@@ -1011,3 +1011,47 @@ staging or production migration was applied.
 - Lint, architecture boundaries, generated database types, focused Blueprint
   tests, and the full Vitest suite pass (5,093/5,093). Staging and production
   remain unchanged, and the worktree has no production project binding.
+
+## 2026-08-26 — Adopt Pal widget alpha.5
+
+**Risk profile:** none — pinned widget package and compatibility assertions only;
+no schema, API, persistence, authentication, or production state changed.
+
+- Published and installed the immutable registry release
+  `@codepet/pal-widget@0.1.0-alpha.5`; the `alpha` dist-tag resolves to alpha.5
+  and the regenerated lockfile records its npm registry integrity rather than a
+  temporary tarball path.
+- Updated the package pin and compatibility assertions for concealed achievement
+  titles and collectible-focused story celebrations. The Pika-owned reward modal
+  now asserts `The Clockwork Lantern`, sketch art, and the absence of the retired
+  `Story Keeper` title.
+- Focused Pal integration tests pass (19/19), the registry-backed full Vitest
+  suite passes (5,090/5,090), and frozen install, lint, TypeScript, architecture
+  boundaries, and the production build pass.
+- Playwright desktop (1440x900) and mobile (390x844) review confirmed the modal
+  remains centered and responsive with the collectible-only presentation. The
+  temporary unauthenticated review route was removed; teacher review is n/a
+  because the integration is student-only.
+
+## 2026-08-26 — Make Blueprint question identity capture draft-safe
+
+**Risk profile:** runtime-platform — proposed migration and rollback-only test
+coverage; no staging or production migration, deployment, or merge occurred.
+
+- Replaced ordinal row lookup in proposed migration 134 with stable identity
+  matching across physical, artifact, and source-artifact IDs. Missing rows are
+  accepted for draft-only additions; multiple matching rows fail closed with
+  SQLSTATE `22023`.
+- Added active and archived regressions for deleted and reordered questions,
+  draft-only additions, ambiguity after an earlier identity write, atomic
+  rollback, successful capture/reuse, and idempotent replay.
+- The ambiguity fixture now requires the exact active/archived error message and
+  verifies active classroom Blueprint linkage, operation, Blueprint, and source
+  identity writes all roll back.
+- Rebasing onto `origin/main` preserved migration number 134 because main ends
+  at 133. Continuity-history conflicts were resolved without restoring the
+  duplicate archived attendance entry.
+- Focused Blueprint tests (30/30), lint, architecture boundaries, generated
+  database types, and the production build pass. The installed local function
+  is an earlier 134 revision, so fresh-database CI remains the authoritative SQL
+  replay gate; local migration state was not changed without new authorization.

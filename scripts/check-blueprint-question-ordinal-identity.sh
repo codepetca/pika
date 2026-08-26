@@ -160,6 +160,7 @@ declare
   v_blueprint_question_ids uuid[];
   v_content jsonb;
   v_count integer;
+  v_error_message text;
 begin
   v_active_plan := jsonb_build_object(
     'blueprint', jsonb_build_object(
@@ -261,7 +262,13 @@ begin
     );
     raise exception 'Active ambiguous identity unexpectedly succeeded';
   exception when sqlstate '22023' then
-    null;
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message is distinct from
+      'Captured Test question identity mapping is ambiguous'
+    then
+      raise exception 'Active ambiguity raised unexpected message: %',
+        v_error_message;
+    end if;
   end;
   if exists (
     select 1
@@ -272,6 +279,14 @@ begin
     from public.course_blueprints
     where teacher_id = v_teacher_id
       and title = 'Active identity rollback'
+  ) or exists (
+    select 1
+    from public.classrooms
+    where id = v_active_classroom_id
+      and (
+        source_blueprint_id is not null
+        or source_blueprint_origin is not null
+      )
   ) or exists (
     select 1
     from public.test_questions
@@ -444,7 +459,13 @@ begin
     );
     raise exception 'Archived ambiguous identity unexpectedly succeeded';
   exception when sqlstate '22023' then
-    null;
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message is distinct from
+      'Archived Test question identity mapping is ambiguous'
+    then
+      raise exception 'Archived ambiguity raised unexpected message: %',
+        v_error_message;
+    end if;
   end;
   if exists (
     select 1
