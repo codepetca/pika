@@ -63,6 +63,18 @@
   width: 100%;
 }
 
+// History scrubber previews use the existing document surface as a miniature
+// whole-document overview. Pinned previews remove the transform and retain the
+// normal scrolling behavior supplied by the editor/viewer classes above.
+[data-history-preview-mode="fit"] {
+  overflow: hidden;
+}
+
+[data-history-preview-mode="fit"] > .tiptap.ProseMirror {
+  transform: scale(var(--history-preview-scale, 1));
+  transform-origin: top center;
+}
+
 // Editor padding (reasonable, no viewport-based sizing)
 .simple-editor-content .tiptap.ProseMirror.simple-editor {
   flex: 1;

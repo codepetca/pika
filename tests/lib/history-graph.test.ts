@@ -6,6 +6,9 @@ import {
   computeBaselineY,
   computeStemLayout,
   findNearestStem,
+  buildWorkSessions,
+  computeLifecycleWindow,
+  positionInLifecycle,
 } from '@/lib/history-graph'
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -94,6 +97,64 @@ describe('computeCharDiffs', () => {
 
     expect(result[0].charDiff).toBe(0) // baseline
     expect(result[1].charDiff).toBe(0) // no change
+  })
+})
+
+describe('assignment lifecycle and sessions', () => {
+  it('preserves empty time between assignment release and a late first save', () => {
+    const entries = makeEntries([
+      { charCount: 120, time: '2025-01-20T02:00:00Z' },
+      { charCount: 20, time: '2025-01-20T01:40:00Z' },
+    ])
+
+    const window = computeLifecycleWindow(entries, {
+      startAt: '2025-01-13T14:00:00Z',
+      dueAt: '2025-01-20T03:00:00Z',
+      submittedAt: null,
+    })
+
+    expect(window).toEqual({
+      startMs: Date.parse('2025-01-13T14:00:00Z'),
+      endMs: Date.parse('2025-01-20T03:00:00Z'),
+    })
+    expect(positionInLifecycle(Date.parse(entries[1].created_at), window!)).toBeGreaterThan(0.98)
+  })
+
+  it('uses submission as the lifecycle end and still includes saves after it', () => {
+    const entries = makeEntries([
+      { charCount: 140, time: '2025-01-20T04:00:00Z' },
+      { charCount: 100, time: '2025-01-20T02:00:00Z' },
+    ])
+
+    expect(computeLifecycleWindow(entries, {
+      startAt: '2025-01-19T12:00:00Z',
+      dueAt: '2025-01-20T03:00:00Z',
+      submittedAt: '2025-01-20T02:30:00Z',
+    })).toEqual({
+      startMs: Date.parse('2025-01-19T12:00:00Z'),
+      endMs: Date.parse('2025-01-20T04:00:00Z'),
+    })
+  })
+
+  it('groups saves separated by thirty minutes into distinct sessions', () => {
+    const diffs = computeCharDiffs(makeEntries([
+      { charCount: 200, time: '2025-01-15T16:05:00Z', id: 'third' },
+      { charCount: 120, time: '2025-01-15T15:10:00Z', id: 'second' },
+      { charCount: 50, time: '2025-01-15T15:00:00Z', id: 'first' },
+    ]))
+
+    const sessions = buildWorkSessions(diffs)
+
+    expect(sessions).toHaveLength(2)
+    expect(sessions[0].entries.map((entry) => entry.entry.id)).toEqual(['first', 'second'])
+    expect(sessions[1].entries.map((entry) => entry.entry.id)).toEqual(['third'])
+  })
+
+  it('clamps timestamps outside the lifecycle window', () => {
+    const window = { startMs: 100, endMs: 200 }
+    expect(positionInLifecycle(0, window)).toBe(0)
+    expect(positionInLifecycle(150, window)).toBe(0.5)
+    expect(positionInLifecycle(300, window)).toBe(1)
   })
 })
 

@@ -1,279 +1,61 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { AssignmentDocHistoryEntry } from '@/types'
 import {
+  buildWorkSessions,
   computeCharDiffs,
-  computeStemLayout,
-  findNearestStem,
-  groupByDate,
-  type Stem,
-  type StemLayout,
+  computeLifecycleWindow,
+  positionInLifecycle,
+  type EntryWithDiff,
+  type HistoryLifecycle,
 } from '@/lib/history-graph'
-
-// ── Props ──────────────────────────────────────────────────────────
 
 export interface HistoryGraphProps {
   entries: AssignmentDocHistoryEntry[]
   activeEntryId: string | null
   onEntryClick: (entry: AssignmentDocHistoryEntry) => void
   onEntryHover?: (entry: AssignmentDocHistoryEntry) => void
+  lifecycle?: HistoryLifecycle
+  audience?: 'teacher' | 'student'
+  showHeading?: boolean
   variant?: 'desktop' | 'mobile'
 }
 
-// ── Constants ──────────────────────────────────────────────────────
-
-const CHART_HEIGHT = 32
 const TZ = 'America/Toronto'
-const MIN_TAP_WIDTH = 44
+const CHART_WIDTH = 256
+const CHART_HEIGHT = 78
+const CHART_INSET = 5
+const BASELINE_Y = 68
 
-// ── Color helpers ──────────────────────────────────────────────────
-
-function stemColor(color: Stem['color']): string {
-  switch (color) {
-    case 'success':
-      return 'var(--color-success)'
-    case 'danger':
-      return 'var(--color-danger)'
-    case 'warning':
-      return 'var(--color-warning)'
-    case 'muted':
-      return 'var(--color-text-muted)'
-  }
+function pluralize(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
 }
 
-function diffColorClass(color: Stem['color']): string {
-  switch (color) {
-    case 'success':
-      return 'text-success'
-    case 'danger':
-      return 'text-danger'
-    case 'warning':
-      return 'text-warning'
-    case 'muted':
-      return 'text-text-muted'
-  }
+function formatDate(timestamp: number): string {
+  return formatInTimeZone(new Date(timestamp), TZ, 'MMM d')
 }
 
-// ── HourChart sub-component ─────────────────────────────────────────
-
-interface HourChartProps {
-  layout: StemLayout
-  width: number
-  activeEntryId: string | null
-  onEntryClick: (entry: AssignmentDocHistoryEntry) => void
-  onEntryHover?: (entry: AssignmentDocHistoryEntry) => void
-  variant: 'desktop' | 'mobile'
+function formatTime(timestamp: number): string {
+  return formatInTimeZone(new Date(timestamp), TZ, 'h:mm a')
 }
 
-function HourChart({
-  layout,
-  width,
-  activeEntryId,
-  onEntryClick,
-  onEntryHover,
-  variant,
-}: HourChartProps) {
-  const { stems, baselineY } = layout
-  const [hoveredIndex, setHoveredIndex] = useState<number>(-1)
-  const lastHoveredRef = useRef<number>(-1)
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
-      if (variant === 'mobile') return
-      const rect = e.currentTarget.getBoundingClientRect()
-      const mouseX = e.clientX - rect.left
-      const idx = findNearestStem(mouseX, stems)
-      if (idx !== lastHoveredRef.current) {
-        lastHoveredRef.current = idx
-        setHoveredIndex(idx)
-        if (idx >= 0 && onEntryHover) {
-          onEntryHover(stems[idx].entry)
-        }
-      }
-    },
-    [stems, onEntryHover, variant]
-  )
-
-  const handleMouseLeave = useCallback(() => {
-    lastHoveredRef.current = -1
-    setHoveredIndex(-1)
-  }, [])
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
-      if (variant === 'mobile') return
-      const rect = e.currentTarget.getBoundingClientRect()
-      const mouseX = e.clientX - rect.left
-      const idx = findNearestStem(mouseX, stems)
-      if (idx >= 0) {
-        onEntryClick(stems[idx].entry)
-      }
-    },
-    [stems, onEntryClick, variant]
-  )
-
-  const handleTap = useCallback(
-    (entry: AssignmentDocHistoryEntry) => {
-      onEntryClick(entry)
-    },
-    [onEntryClick]
-  )
-
-  if (stems.length === 0) return null
-
-  const margin = 3
-  const usableHeight = CHART_HEIGHT / 2 - margin
-
-  // Compute tap target width for mobile
-  const tapWidth = Math.max(MIN_TAP_WIDTH, width / stems.length)
-
-  const hoveredStem = hoveredIndex >= 0 ? stems[hoveredIndex] : null
-
-  return (
-    <div className="relative">
-      <svg
-        width={width}
-        height={CHART_HEIGHT}
-        className="block"
-        onMouseMove={variant === 'desktop' ? handleMouseMove : undefined}
-        onMouseLeave={variant === 'desktop' ? handleMouseLeave : undefined}
-        onClick={variant === 'desktop' ? handleClick : undefined}
-        style={{ cursor: variant === 'desktop' ? 'crosshair' : undefined }}
-      >
-        {/* Baseline */}
-        <line
-          x1={0}
-          y1={baselineY}
-          x2={width}
-          y2={baselineY}
-          stroke="var(--color-border)"
-          strokeWidth={1}
-        />
-
-        {/* Active entry highlight */}
-        {stems.map((stem, i) =>
-          stem.entry.id === activeEntryId ? (
-            <rect
-              key={`active-${i}`}
-              x={stem.x - 4}
-              y={0}
-              width={8}
-              height={CHART_HEIGHT}
-              fill="var(--color-info-bg)"
-              rx={2}
-            />
-          ) : null
-        )}
-
-        {/* Stems */}
-        {stems.map((stem, i) => {
-          const pixelHeight = stem.height * usableHeight
-          const y1 = baselineY
-          const y2 =
-            stem.direction === 'up'
-              ? baselineY - pixelHeight
-              : baselineY + pixelHeight
-          const color = stemColor(stem.color)
-
-          return (
-            <g key={`stem-${i}`}>
-              <line
-                x1={stem.x}
-                y1={y1}
-                x2={stem.x}
-                y2={y2}
-                stroke={color}
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-              {stem.hasPaste && (
-                <circle
-                  cx={stem.x}
-                  cy={y2}
-                  r={2.5}
-                  fill={color}
-                />
-              )}
-            </g>
-          )
-        })}
-
-        {/* Hover cursor line */}
-        {hoveredStem && (
-          <line
-            x1={hoveredStem.x}
-            y1={0}
-            x2={hoveredStem.x}
-            y2={CHART_HEIGHT}
-            stroke="var(--color-text-muted)"
-            strokeWidth={1}
-            strokeDasharray="2 2"
-            style={{ pointerEvents: 'none' }}
-          />
-        )}
-
-        {/* Mobile tap targets */}
-        {variant === 'mobile' &&
-          stems.map((stem, i) => (
-            <rect
-              key={`tap-${i}`}
-              x={stem.x - tapWidth / 2}
-              y={0}
-              width={tapWidth}
-              height={CHART_HEIGHT}
-              fill="transparent"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleTap(stem.entry)
-              }}
-            />
-          ))}
-      </svg>
-
-      {/* Tooltip (desktop hover only) */}
-      {hoveredStem && variant === 'desktop' && (
-        <div
-          className="absolute pointer-events-none bg-surface border border-border rounded px-2 py-1 shadow-sm text-xs whitespace-nowrap"
-          style={{
-            bottom: CHART_HEIGHT + 4,
-            left: Math.max(
-              0,
-              Math.min(hoveredStem.x - 40, width - 80)
-            ),
-          }}
-        >
-          <span className="font-mono text-text-muted">
-            {formatInTimeZone(
-              new Date(hoveredStem.entry.created_at),
-              TZ,
-              'h:mmaaa'
-            )}
-          </span>
-          <span className={`ml-2 font-medium ${diffColorClass(hoveredStem.color)}`}>
-            {hoveredStem.charDiff > 0 ? '+' : ''}
-            {hoveredStem.charDiff}
-          </span>
-          {hoveredStem.hasPaste && (
-            <span className="ml-2 text-warning font-medium">paste</span>
-          )}
-        </div>
-      )}
-    </div>
-  )
+function entryLabel(entry: EntryWithDiff): string {
+  const change = entry.charDiff === 0
+    ? 'first save'
+    : `${entry.charDiff > 0 ? '+' : ''}${entry.charDiff} characters since previous`
+  return `${formatTime(Date.parse(entry.entry.created_at))}, ${entry.entry.word_count} words, ${change}`
 }
 
-// ── Main HistoryGraph component ────────────────────────────────────
+function pointX(entry: EntryWithDiff, lifecycle: { startMs: number; endMs: number }): number {
+  return CHART_INSET
+    + positionInLifecycle(Date.parse(entry.entry.created_at), lifecycle)
+    * (CHART_WIDTH - CHART_INSET * 2)
+}
 
-/** Width reserved for the hour label on the left side */
-const HOUR_LABEL_WIDTH = 24
-
-/** Convert 24h hour to 12h display number */
-function displayHour(h: number): number {
-  if (h === 0) return 12
-  if (h > 12) return h - 12
-  return h
+function pointY(entry: EntryWithDiff, maxWords: number): number {
+  return BASELINE_Y - (entry.entry.word_count / maxWords) * 52
 }
 
 export function HistoryGraph({
@@ -281,90 +63,208 @@ export function HistoryGraph({
   activeEntryId,
   onEntryClick,
   onEntryHover,
+  lifecycle = { startAt: null, dueAt: null, submittedAt: null },
+  audience = 'student',
+  showHeading = true,
   variant = 'desktop',
 }: HistoryGraphProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(0)
+  const diffs = useMemo(() => computeCharDiffs(entries), [entries])
+  const sessions = useMemo(() => buildWorkSessions(diffs), [diffs])
+  const window = useMemo(
+    () => computeLifecycleWindow(entries, lifecycle),
+    [entries, lifecycle]
+  )
+  const heading = audience === 'teacher' ? 'Student activity' : 'Version history'
+  const [hoveredIndex, setHoveredIndex] = useState(-1)
+  const lastHoveredRef = useRef(-1)
 
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
+  const activeIndex = diffs.findIndex((entry) => entry.entry.id === activeEntryId)
+  const selectedIndex = hoveredIndex >= 0
+    ? hoveredIndex
+    : activeIndex >= 0
+      ? activeIndex
+      : diffs.length - 1
+  const selectedEntry = diffs[selectedIndex]
 
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setWidth(Math.floor(entry.contentRect.width))
+  const selectByIndex = useCallback((index: number) => {
+    const next = diffs[Math.max(0, Math.min(diffs.length - 1, index))]
+    if (next) onEntryClick(next.entry)
+  }, [diffs, onEntryClick])
+
+  const maxWords = Math.max(1, ...diffs.map((entry) => entry.entry.word_count))
+
+  const findNearestIndex = useCallback((clientX: number, clientY: number, bounds: DOMRect) => {
+    if (!window || bounds.width <= 0) return -1
+    let nearestIndex = -1
+    let nearestDistance = Number.POSITIVE_INFINITY
+
+    diffs.forEach((entry, index) => {
+      const entryX = bounds.left + (pointX(entry, window) / CHART_WIDTH) * bounds.width
+      const entryY = bounds.top + (pointY(entry, maxWords) / CHART_HEIGHT) * bounds.height
+      const distance = Math.hypot(clientX - entryX, clientY - entryY)
+      if (distance < nearestDistance) {
+        nearestIndex = index
+        nearestDistance = distance
       }
     })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
-  const diffs = useMemo(() => computeCharDiffs(entries), [entries])
-  const dayGroups = useMemo(() => groupByDate(diffs), [diffs])
+    return nearestIndex
+  }, [diffs, maxWords, window])
 
-  // Compute layouts per hour within each day
-  const dayLayouts = useMemo(() => {
-    if (width === 0) return []
-    const chartWidth = width - 24 - HOUR_LABEL_WIDTH // px-3 padding + hour label
-    if (chartWidth <= 0) return []
-    return dayGroups.map((group) =>
-      group.hours.map((hour) =>
-        computeStemLayout(hour.entries, chartWidth)
-      )
+  const handlePointer = useCallback((event: React.MouseEvent<SVGSVGElement>, select: boolean) => {
+    const index = findNearestIndex(
+      event.clientX,
+      event.clientY,
+      event.currentTarget.getBoundingClientRect()
     )
-  }, [dayGroups, width])
+    const entry = diffs[index]
+    if (!entry) return
 
-  if (entries.length === 0) {
+    if (select) {
+      onEntryClick(entry.entry)
+      return
+    }
+
+    if (index !== lastHoveredRef.current) {
+      lastHoveredRef.current = index
+      setHoveredIndex(index)
+      onEntryHover?.(entry.entry)
+    }
+  }, [diffs, findNearestIndex, onEntryClick, onEntryHover])
+
+  if (entries.length === 0 || !window || !selectedEntry) {
     return (
-      <div ref={containerRef} className="px-3 py-2">
-        <p className="text-xs text-text-muted">No saves yet</p>
-      </div>
+      <section className="px-3 py-2" aria-label={heading}>
+        {showHeading && <h3 className="text-sm font-semibold text-text-default">{heading}</h3>}
+        <p className={showHeading ? 'mt-1 text-xs text-text-muted' : 'text-xs text-text-muted'}>
+          No saves yet
+        </p>
+      </section>
     )
   }
 
-  const chartWidth = width - 24 - HOUR_LABEL_WIDTH
+  const points = diffs.map((entry) => {
+    const x = pointX(entry, window)
+    const y = pointY(entry, maxWords)
+    return `${x},${y}`
+  }).join(' ')
+  const endLabel = lifecycle.submittedAt ? 'Submitted' : lifecycle.dueAt ? 'Due' : 'Latest'
 
   return (
-    <div ref={containerRef}>
-      {dayGroups.map((group, dayIdx) => (
-        <div key={group.date} className="px-3 py-2">
-          <div className="text-[10px] font-medium text-text-muted bg-surface-2 rounded px-1.5 py-0.5 mb-1">
-            {group.date}
-          </div>
-          <div className="space-y-0.5">
-            {group.hours.map((hour, hourIdx) => {
-              const layout = dayLayouts[dayIdx]?.[hourIdx]
-              const isPM = hour.hour >= 12
-              return (
-                <div key={hour.hour} className="flex relative" style={{ height: CHART_HEIGHT }}>
-                  <span
-                    className={`text-[10px] font-mono shrink-0 absolute leading-none w-6 text-right ${
-                      isPM ? 'font-bold text-text-default' : 'text-text-muted'
-                    }`}
-                    style={{
-                      top: (layout?.baselineY ?? CHART_HEIGHT / 2) - 5,
-                    }}
-                  >
-                    {displayHour(hour.hour)}
-                  </span>
-                  <div style={{ marginLeft: HOUR_LABEL_WIDTH }}>
-                    {width > 0 && layout && (
-                      <HourChart
-                        layout={layout}
-                        width={chartWidth}
-                        activeEntryId={activeEntryId}
-                        onEntryClick={onEntryClick}
-                        onEntryHover={onEntryHover}
-                        variant={variant}
-                      />
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
+    <section className="px-3 py-2" aria-label={heading}>
+      {showHeading && <h3 className="text-sm font-semibold text-text-default">{heading}</h3>}
+      <p className={`text-xs text-text-muted ${showHeading ? 'mt-0.5' : ''}`}>
+          {pluralize(entries.length, 'save')} · {pluralize(sessions.length, 'work session')}
+      </p>
+
+      <div className="relative mt-2">
+        <svg
+          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+          className="block h-20 w-full cursor-crosshair overflow-visible outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+          role="slider"
+          tabIndex={0}
+          aria-label="Complete save history"
+          aria-valuemin={1}
+          aria-valuemax={diffs.length}
+          aria-valuenow={selectedIndex + 1}
+          aria-valuetext={entryLabel(selectedEntry)}
+          preserveAspectRatio="none"
+          onMouseMove={variant === 'desktop' ? (event) => handlePointer(event, false) : undefined}
+          onMouseLeave={() => {
+            lastHoveredRef.current = -1
+            setHoveredIndex(-1)
+          }}
+          onClick={(event) => handlePointer(event, true)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault()
+              selectByIndex(selectedIndex - 1)
+            } else if (event.key === 'ArrowRight') {
+              event.preventDefault()
+              selectByIndex(selectedIndex + 1)
+            } else if (event.key === 'Home') {
+              event.preventDefault()
+              selectByIndex(0)
+            } else if (event.key === 'End') {
+              event.preventDefault()
+              selectByIndex(diffs.length - 1)
+            }
+          }}
+        >
+          {Array.from({ length: 5 }, (_, index) => {
+            const x = CHART_INSET + (index / 4) * (CHART_WIDTH - CHART_INSET * 2)
+            return (
+              <line
+                key={x}
+                x1={x}
+                y1={5}
+                x2={x}
+                y2={BASELINE_Y}
+                stroke="var(--color-border)"
+                strokeWidth={1}
+                strokeDasharray="5 8"
+              />
+            )
+          })}
+          <line
+            x1={CHART_INSET}
+            y1={BASELINE_Y}
+            x2={CHART_WIDTH - CHART_INSET}
+            y2={BASELINE_Y}
+            stroke="var(--color-border-strong)"
+            strokeWidth={2}
+          />
+          <polyline
+            points={points}
+            fill="none"
+            stroke="var(--color-primary)"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {diffs.map((entry, index) => {
+            const x = pointX(entry, window)
+            const y = pointY(entry, maxWords)
+            const isSelected = index === selectedIndex
+            return (
+              <g key={entry.entry.id}>
+                {isSelected && (
+                  <line
+                    x1={x}
+                    y1={4}
+                    x2={x}
+                    y2={BASELINE_Y + 5}
+                    stroke="var(--color-primary)"
+                    strokeWidth={2}
+                  />
+                )}
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={isSelected ? 6 : 3.5}
+                  fill="var(--color-primary)"
+                  stroke="var(--color-surface)"
+                  strokeWidth={isSelected ? 3 : 0}
+                />
+              </g>
+            )
+          })}
+          <circle cx={CHART_INSET} cy={BASELINE_Y} r={4} fill="var(--color-text-muted)" />
+          <circle
+            cx={CHART_WIDTH - CHART_INSET}
+            cy={BASELINE_Y}
+            r={4}
+            fill="var(--color-surface)"
+            stroke="var(--color-text-muted)"
+            strokeWidth={2}
+          />
+        </svg>
+      </div>
+
+      <div className="mt-0.5 flex items-start justify-between gap-3 text-xs leading-tight text-text-muted">
+        <span>Assigned<br />{formatDate(window.startMs)}</span>
+        <span className="text-right">{endLabel}<br />{formatDate(window.endMs)}</span>
+      </div>
+    </section>
   )
 }

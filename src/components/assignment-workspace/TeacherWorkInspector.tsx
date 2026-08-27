@@ -506,6 +506,12 @@ export function TeacherWorkInspector({
                 activeEntryId={previewEntry?.id ?? null}
                 onEntryClick={onEntryClick}
                 onEntryHover={onEntryHover}
+                audience="teacher"
+                lifecycle={{
+                  startAt: data.assignment.released_at ?? data.assignment.created_at,
+                  dueAt: data.assignment.due_at,
+                  submittedAt: data.doc?.submitted_at ?? null,
+                }}
               />
             )}
           </div>

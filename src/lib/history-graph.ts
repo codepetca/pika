@@ -35,6 +35,24 @@ export interface StemLayout {
   baselineY: number // pixel y of the zero-line
 }
 
+export interface HistoryLifecycle {
+  startAt: string | null
+  dueAt: string | null
+  submittedAt: string | null
+}
+
+export interface LifecycleWindow {
+  startMs: number
+  endMs: number
+}
+
+export interface WorkSession {
+  id: string
+  startMs: number
+  endMs: number
+  entries: EntryWithDiff[]
+}
+
 // ── Constants ──────────────────────────────────────────────────────
 
 const TZ = 'America/Toronto'
@@ -43,6 +61,8 @@ const MAX_DIFF_FOR_SCALE = 200
 const STEM_PADDING_X = 2 // px from left/right edges
 const STEM_WIDTH = 2
 const STEM_GAP = 1 // 1px gap between stems
+export const HISTORY_SESSION_GAP_MS = 30 * 60 * 1000
+const MIN_LIFECYCLE_WINDOW_MS = 60 * 60 * 1000
 
 // ── Pure functions ─────────────────────────────────────────────────
 
@@ -69,6 +89,78 @@ export function computeCharDiffs(
       charDiff: entry.char_count - oldest[i - 1].char_count,
     }
   })
+}
+
+/**
+ * Resolve the full time window shown in the work footprint.
+ * Assignment release/creation anchors the beginning; submission anchors the end
+ * when present, otherwise the due date does. Recorded saves always remain visible.
+ */
+export function computeLifecycleWindow(
+  entries: AssignmentDocHistoryEntry[],
+  lifecycle: HistoryLifecycle
+): LifecycleWindow | null {
+  const entryTimes = entries
+    .map((entry) => Date.parse(entry.created_at))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+  const firstEntryMs = entryTimes[0]
+  const lastEntryMs = entryTimes[entryTimes.length - 1]
+  const requestedStartMs = lifecycle.startAt ? Date.parse(lifecycle.startAt) : Number.NaN
+  const requestedEndValue = lifecycle.submittedAt ?? lifecycle.dueAt
+  const requestedEndMs = requestedEndValue ? Date.parse(requestedEndValue) : Number.NaN
+
+  const startCandidates = [requestedStartMs, firstEntryMs].filter(Number.isFinite)
+  const endCandidates = [requestedEndMs, lastEntryMs].filter(Number.isFinite)
+  if (startCandidates.length === 0 || endCandidates.length === 0) return null
+
+  const startMs = Math.min(...startCandidates)
+  const naturalEndMs = Math.max(...endCandidates)
+  return {
+    startMs,
+    endMs: Math.max(naturalEndMs, startMs + MIN_LIFECYCLE_WINDOW_MS),
+  }
+}
+
+/** Group chronological saves into sessions separated by at least 30 minutes. */
+export function buildWorkSessions(
+  entries: EntryWithDiff[],
+  gapMs: number = HISTORY_SESSION_GAP_MS
+): WorkSession[] {
+  if (entries.length === 0) return []
+
+  const chronological = [...entries].sort(
+    (a, b) => Date.parse(a.entry.created_at) - Date.parse(b.entry.created_at)
+  )
+  const sessions: WorkSession[] = []
+
+  for (const entry of chronological) {
+    const entryMs = Date.parse(entry.entry.created_at)
+    if (!Number.isFinite(entryMs)) continue
+    const current = sessions[sessions.length - 1]
+
+    if (!current || entryMs - current.endMs >= gapMs) {
+      sessions.push({
+        id: entry.entry.id,
+        startMs: entryMs,
+        endMs: entryMs,
+        entries: [entry],
+      })
+      continue
+    }
+
+    current.entries.push(entry)
+    current.endMs = entryMs
+  }
+
+  return sessions
+}
+
+/** Return a clamped 0–1 position for a timestamp inside a lifecycle window. */
+export function positionInLifecycle(timestampMs: number, window: LifecycleWindow): number {
+  const duration = window.endMs - window.startMs
+  if (duration <= 0) return 0
+  return Math.max(0, Math.min(1, (timestampMs - window.startMs) / duration))
 }
 
 /**

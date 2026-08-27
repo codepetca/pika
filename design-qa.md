@@ -98,3 +98,80 @@ No actionable P0, P1, or P2 mismatch remains.
 None required. Durable teacher work-surface guidance already covers the reusable hierarchy; the status-disc opacity, clickable session range, time formatting, and no-time fallback are Attendance-specific.
 
 final result: passed
+
+# Compact assignment-history chart design QA
+
+## Source and corrected target
+
+- Visual source: `/Users/stew/.codex/generated_images/01a04365-9db0-7262-9354-812a99bbfd74/exec-abee179a-fe6b-470a-be25-3c17705fdc2b.png` (1536 × 1024 px).
+- Corrected user direction: retain the source's full-lifecycle work-footprint idea, but show the whole history in one chart at the existing 240–256 px sidebar size. Do not include the source's second session-detail chart.
+- Intended state: a teacher or student can immediately see whether work began late or happened in one clump, then inspect the individual saves from that same chart.
+
+## Implementation evidence
+
+- Desktop light, final typography: `artifacts/history-compact-final.jpg`.
+- Desktop dark: `artifacts/history-compact-desktop-dark.jpg`.
+- Mobile light: `artifacts/history-compact-mobile-light.jpg`.
+- Mobile dark: `artifacts/history-compact-mobile-dark.jpg`.
+- Teacher target width: 256 px.
+- Student target width: 240 px, matching the original desktop history column.
+
+The source and the final implementation screenshots were inspected together in one comparison input. The compact chart intentionally adapts the concept to Pika's real sidebar width instead of reproducing the concept's large inspector and lower detail view.
+
+## Comparison
+
+- Layout: one compact chart contains the complete assigned-to-due/submitted lifecycle. The empty portion remains the dominant signal and the late work appears as a narrow blue cluster.
+- Data: every save is represented as a point on a word-growth line. Saves close in time stack into the same visible cluster rather than being expanded into a second chart.
+- Interaction: two-dimensional nearest-point selection lets vertical movement through a tight cluster preview individual saves. Click pins the nearest save. The same chart supports Arrow, Home, and End navigation as a labelled slider.
+- Typography and spacing: titles and metadata no longer compete on one row. The chart fits the original narrow history column without cramped labels or an enlarged inspector.
+- Color: semantic Pika tokens provide clear hierarchy in both light and dark themes. Blue is reserved for saved work and the active save; neutral endpoints and grid lines remain subordinate.
+- Responsive behavior: teacher and student examples stack cleanly on mobile. The responsive viewport reported equal document scroll and client widths, with no horizontal overflow.
+- Assets and icons: the chart is the product's existing code-native data visualization; no raster assets or icons are required for this compact state.
+- Copy: teachers see `Student activity`; students see `Version history`. Both see a factual save/session count without judgmental labels.
+
+## Accessibility and states
+
+- The chart is a single focusable slider labelled `Complete save history`.
+- `aria-valuenow` and `aria-valuetext` identify the selected save.
+- Arrow, Home, and End behavior is covered by component tests.
+- Hover preview, click pinning, role language, empty state, dense history, multi-session history, desktop/mobile, and light/dark states were checked.
+- Student restore confirmation and teacher preview/pin wiring remain in the existing callers and are unchanged.
+
+## Findings
+
+- No P0, P1, or P2 findings remain.
+- The earlier two-level explorer was removed after the user clarified that the entire history must remain in one small chart.
+
+## Final result
+
+passed
+
+## History preview framing follow-up
+
+The compact chart and its dimensions remain unchanged. The document pane now has
+three deliberate states:
+
+- current: normal scale and the reader's existing scroll position;
+- hover: the complete historical document is scaled into the available pane;
+- pinned: normal readable scale, starting at the top, with ordinary scrolling.
+
+Ending a transient hover or exiting a pinned preview restores the current
+document and the scroll position captured before preview began. Selecting a
+different pinned save returns that save to the top. The fit calculation responds
+to viewport resizing and image loading.
+
+Playwright evidence was reviewed for teacher and student roles at 1440 × 900 and
+390 × 844 in light and dark themes. The affected hover and pinned states are in:
+
+- `artifacts/history-preview-teacher-desktop-light-hover.png`
+- `artifacts/history-preview-teacher-desktop-dark-locked.png`
+- `artifacts/history-preview-student-desktop-light-hover.png`
+- `artifacts/history-preview-student-desktop-dark-locked.png`
+- `artifacts/history-preview-teacher-mobile-light-hover.png`
+- `artifacts/history-preview-teacher-mobile-dark-locked.png`
+- `artifacts/history-preview-student-mobile-light-hover.png`
+- `artifacts/history-preview-student-mobile-dark-locked.png`
+
+The whole-document signal is clear at desktop size, pinned text remains readable,
+the narrow layout contains both panes without horizontal overflow, and semantic
+colors remain legible in both themes. No P0, P1, or P2 findings remain.

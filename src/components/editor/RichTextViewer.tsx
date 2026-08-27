@@ -4,6 +4,10 @@ import { useEffect } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
+import {
+  useHistoryPreviewViewport,
+  type HistoryPreviewMode,
+} from '@/hooks/useHistoryPreviewViewport'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -30,6 +34,8 @@ export interface RichTextViewerProps {
   showPlainText?: boolean
   fillHeight?: boolean
   chrome?: 'default' | 'flush'
+  /** Controls whole-document framing while inspecting assignment history. */
+  historyPreviewMode?: HistoryPreviewMode
 }
 
 export function RichTextViewer({
@@ -37,7 +43,9 @@ export function RichTextViewer({
   showPlainText = false,
   fillHeight = false,
   chrome = 'default',
+  historyPreviewMode = 'current',
 }: RichTextViewerProps) {
+  const contentViewportRef = useHistoryPreviewViewport(historyPreviewMode, content)
   const editor = useEditor({
     immediatelyRender: false,
     editable: false,
@@ -115,8 +123,10 @@ export function RichTextViewer({
       ].join(' ')}
     >
       <EditorContent
+        ref={contentViewportRef}
         editor={editor}
         className={fillHeight ? 'simple-editor-content' : 'simple-viewer-content'}
+        data-history-preview-mode={historyPreviewMode}
       />
     </div>
   )

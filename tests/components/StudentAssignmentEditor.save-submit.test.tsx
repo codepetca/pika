@@ -26,10 +26,14 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: ({ entries, onEntryClick }: any) => (
+  HistoryList: ({ entries, onEntryClick, onEntryHover }: any) => (
     <div data-testid="history-list">
       {entries[0] && (
-        <button type="button" onClick={() => onEntryClick(entries[0])}>
+        <button
+          type="button"
+          onMouseEnter={() => onEntryHover?.(entries[0])}
+          onClick={() => onEntryClick(entries[0])}
+        >
           Select saved version
         </button>
       )}
@@ -65,10 +69,11 @@ const largeDraft = {
 }
 
 vi.mock('@/components/editor', () => ({
-  RichTextEditor: ({ assignmentDocId, content, onBlur, onChange, onKeystroke }: any) => (
+  RichTextEditor: ({ assignmentDocId, content, historyPreviewMode, onBlur, onChange, onKeystroke }: any) => (
     <div>
       <output data-testid="editor-content">{JSON.stringify(content)}</output>
       <output data-testid="editor-assignment-doc-id">{assignmentDocId}</output>
+      <output data-testid="editor-history-preview-mode">{historyPreviewMode || 'current'}</output>
       <button type="button" onClick={() => onChange(olderInFlightDraft)}>Edit older response</button>
       <button type="button" onClick={() => onChange(latestDraft)}>Edit response</button>
       <button type="button" onClick={() => onChange(savedDraft)}>Revert response</button>
@@ -3259,6 +3264,65 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(ref.current?.isSubmitted).toBe(false)
     expect(screen.queryByText(/unsubmit timed out/i)).not.toBeInTheDocument()
     expect(docReads).toBe(2)
+  })
+
+  it('fits hovered history, pins clicked history at reading size, and exits to the draft', async () => {
+    const historyEntry = {
+      id: 'history-1',
+      assignment_doc_id: 'doc-1',
+      patch: null,
+      snapshot: savedDraft,
+      word_count: 3,
+      char_count: 18,
+      paste_word_count: 0,
+      keystroke_count: 0,
+      trigger: 'autosave',
+      created_at: '2026-07-01T11:00:00.000Z',
+    }
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) {
+        return { ok: true, json: async () => ({ history: [historyEntry] }) }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(),
+            doc: makeDoc(),
+            feedback_entries: [],
+            submission_requirements: [],
+            submission_artifacts: [],
+            wasFirstView: false,
+          }),
+        }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    const savedVersionButtons = await screen.findAllByRole('button', { name: 'Select saved version' })
+
+    await user.hover(savedVersionButtons[0])
+    expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('fit')
+    expect(screen.getByTestId('editor-content')).toHaveTextContent('Restored answer')
+
+    await user.click(savedVersionButtons[0])
+    expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('locked')
+
+    await user.click(screen.getAllByRole('button', { name: 'Cancel' })[0])
+    expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('current')
+    expect(screen.getByTestId('editor-content')).toHaveTextContent('Older saved answer')
   })
 
   it('saves a debounce-pending draft before restoring history', async () => {

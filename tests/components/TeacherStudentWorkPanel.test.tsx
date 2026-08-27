@@ -8,8 +8,12 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
-  RichTextViewer: ({ chrome, content }: any) => (
-    <div data-testid="rich-text-viewer" data-chrome={chrome || 'default'}>
+  RichTextViewer: ({ chrome, content, historyPreviewMode }: any) => (
+    <div
+      data-testid="rich-text-viewer"
+      data-chrome={chrome || 'default'}
+      data-history-preview-mode={historyPreviewMode || 'current'}
+    >
       {JSON.stringify(content)}
     </div>
   ),
@@ -1451,7 +1455,15 @@ describe('TeacherStudentWorkPanel', () => {
     await user.hover(screen.getByRole('button', { name: 'history-older' }))
 
     expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Older saved work')
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'fit')
     expect(screen.getByText('Previewing save from Fri Feb 20 6:00 AM')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'history-older' }))
+
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'locked')
+    await user.click(screen.getByRole('button', { name: 'Exit preview' }))
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'current')
+    expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Work for student-1')
   })
 
   it('shows no comments summary pills when collapsed and keeps expanded returned feedback details', async () => {

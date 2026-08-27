@@ -57,6 +57,10 @@ import { LinkIcon } from '@/components/tiptap-icons/link-icon'
 
 // --- Hooks ---
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
+import {
+  useHistoryPreviewViewport,
+  type HistoryPreviewMode,
+} from '@/hooks/useHistoryPreviewViewport'
 
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss'
@@ -235,6 +239,8 @@ export interface RichTextEditorProps {
   'aria-errormessage'?: string
   'aria-label'?: string
   'aria-labelledby'?: string
+  /** Controls whole-document framing while inspecting assignment history. */
+  historyPreviewMode?: HistoryPreviewMode
 }
 
 export type RichTextToolbarPreset =
@@ -353,6 +359,7 @@ export function RichTextEditor({
   'aria-errormessage': ariaErrorMessage,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
+  historyPreviewMode = 'current',
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const resolvedToolbarPreset: RichTextToolbarPreset =
@@ -365,6 +372,7 @@ export function RichTextEditor({
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const contentViewportRef = useHistoryPreviewViewport(historyPreviewMode, content)
 
   const editorAttributes = useMemo(() => {
     const attributes: Record<string, string> = {
@@ -648,9 +656,11 @@ export function RichTextEditor({
         )}
 
         <EditorContent
+          ref={contentViewportRef}
           editor={editor}
           role="presentation"
           className="simple-editor-content"
+          data-history-preview-mode={historyPreviewMode}
         />
       </EditorContext.Provider>
     </div>

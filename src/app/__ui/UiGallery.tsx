@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { Card, EmptyState } from '@/ui'
-import type { AssignmentDocHistoryEntry, Classroom } from '@/types'
+import { Button, Card, EmptyState } from '@/ui'
+import type { AssignmentDocHistoryEntry, Classroom, TiptapContent } from '@/types'
 import { HistoryGraph } from '@/components/HistoryGraph'
+import { RichTextEditor, RichTextViewer } from '@/components/editor'
+import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 
 type Role = 'teacher' | 'student'
 
@@ -152,12 +154,121 @@ export function UiGallery({ role }: Props) {
         )}
       </Card>
 
+      <HistoryPreviewGallery role={role} />
       <HistoryGraphGallery />
     </div>
   )
 }
 
 // ── History Graph Gallery ──────────────────────────────────────────
+
+const PREVIEW_CONTENT: TiptapContent = {
+  type: 'doc',
+  content: [
+    {
+      type: 'heading',
+      attrs: { level: 1 },
+      content: [{ type: 'text', text: 'Field Study Reflection' }],
+    },
+    ...Array.from({ length: 15 }, (_, index) => ({
+      type: 'paragraph',
+      content: [{
+        type: 'text',
+        text: `Section ${index + 1}. This saved response records an observation, the evidence that supports it, and the student’s developing interpretation of what happened during the field study.`,
+      }],
+    })),
+  ],
+}
+
+function HistoryPreviewGallery({ role }: { role: Role }) {
+  const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
+  const entries = SCENARIOS[0].entries
+  const isTeacher = role === 'teacher'
+
+  return (
+    <div data-testid="history-preview-gallery" className="bg-surface rounded-lg shadow-sm p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-text-default">
+            {isTeacher ? 'Teacher' : 'Student'} history preview
+          </h2>
+          <p className="mt-1 text-sm text-text-muted">
+            Hover the chart for the whole-document overview. Click to pin at reading size.
+          </p>
+        </div>
+        {previewMode !== 'current' ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setPreviewMode('current')
+              setActiveEntryId(null)
+            }}
+          >
+            Exit preview
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex h-96 min-h-0 flex-col overflow-hidden rounded-lg border border-border md:flex-row">
+        <div
+          data-testid="history-preview-document-pane"
+          className={previewMode === 'current'
+            ? 'min-h-0 flex-1 bg-surface'
+            : 'min-h-0 flex-1 bg-surface ring-2 ring-inset ring-warning'}
+        >
+          {isTeacher ? (
+            <RichTextViewer
+              content={PREVIEW_CONTENT}
+              fillHeight
+              chrome="flush"
+              historyPreviewMode={previewMode}
+            />
+          ) : (
+            <RichTextEditor
+              content={PREVIEW_CONTENT}
+              onChange={() => undefined}
+              editable={false}
+              className="h-full"
+              historyPreviewMode={previewMode}
+            />
+          )}
+        </div>
+        <div
+          className="w-full shrink-0 border-t border-border bg-page md:w-60 md:border-l md:border-t-0"
+          onMouseLeave={() => {
+            if (previewMode === 'fit') {
+              setPreviewMode('current')
+              setActiveEntryId(null)
+            }
+          }}
+        >
+          <HistoryGraph
+            entries={entries}
+            activeEntryId={activeEntryId}
+            audience={role}
+            showHeading={false}
+            lifecycle={{
+              startAt: '2025-01-10T14:00:00Z',
+              dueAt: '2025-01-16T22:00:00Z',
+              submittedAt: null,
+            }}
+            onEntryHover={(entry) => {
+              if (previewMode === 'locked') return
+              setActiveEntryId(entry.id)
+              setPreviewMode('fit')
+            }}
+            onEntryClick={(entry) => {
+              setActiveEntryId(entry.id)
+              setPreviewMode('locked')
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function makeEntry(
   id: string,
@@ -291,7 +402,8 @@ function HistoryGraphGallery() {
     <div className="bg-surface rounded-lg shadow-sm p-4">
       <h2 className="text-lg font-semibold text-text-default">History Graph</h2>
       <p className="text-text-muted text-sm mt-1">
-        SVG timeline charts at sidebar widths. Hover to see tooltips, click stems to select.
+        One compact chart shows every save across the assignment lifecycle. Hover to
+        preview a save; click to pin it.
       </p>
 
       {lastEvent && (
@@ -307,18 +419,27 @@ function HistoryGraphGallery() {
               {scenario.label}
             </div>
             <div className="flex gap-4 flex-wrap">
-              {[256, 240].map((w) => (
+              {([
+                [256, 'teacher'],
+                [240, 'student'],
+              ] as const).map(([w, audience]) => (
                 <div
                   key={w}
-                  className="border border-border rounded"
+                  className={`border border-border rounded ${audience === 'student' ? 'order-1 md:order-2' : 'order-2 md:order-1'}`}
                   style={{ width: w }}
                 >
                   <div className="text-[10px] text-text-muted px-2 pt-1">
-                    {w}px
+                      {audience} · {w}px
                   </div>
                   <HistoryGraph
                     entries={scenario.entries}
                     activeEntryId={activeId}
+                    audience={audience}
+                    lifecycle={{
+                      startAt: '2025-01-10T14:00:00Z',
+                      dueAt: '2025-01-16T22:00:00Z',
+                      submittedAt: null,
+                    }}
                     onEntryClick={(entry) => {
                       setActiveId(entry.id)
                       setLastEvent(`click: ${entry.id} (${entry.char_count} chars)`)

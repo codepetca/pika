@@ -1496,6 +1496,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             <div className={previewEntry ? 'ring-2 ring-warning rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
               <RichTextEditor
                 content={previewContent || content}
+                historyPreviewMode={previewEntry ? (isPreviewLocked ? 'locked' : 'fit') : 'current'}
                 onChange={handleContentChange}
                 placeholder="Write your response here..."
                 disabled={submitting || !!previewEntry}
@@ -1527,7 +1528,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             >
               <div className="p-3 border-b border-border">
                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-                  History
+                  Version history
                 </h3>
               </div>
               <div className="flex-1 min-h-0 overflow-y-auto">
@@ -1549,6 +1550,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                     activeEntryId={previewEntry?.id ?? null}
                     onEntryClick={handlePreviewLock}
                     onEntryHover={handlePreviewHover}
+                    audience="student"
+                    showHeading={false}
+                    lifecycle={{
+                      startAt: assignment.released_at ?? assignment.created_at,
+                      dueAt: assignment.due_at,
+                      submittedAt: doc?.submitted_at ?? null,
+                    }}
                   />
                 )}
               </div>
@@ -1602,6 +1610,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   entries={historyEntries}
                   activeEntryId={previewEntry?.id ?? null}
                   onEntryClick={handlePreviewLock}
+                  audience="student"
+                  showHeading={false}
+                  lifecycle={{
+                    startAt: assignment.released_at ?? assignment.created_at,
+                    dueAt: assignment.due_at,
+                    submittedAt: doc?.submitted_at ?? null,
+                  }}
                   variant="mobile"
                 />
               )}
