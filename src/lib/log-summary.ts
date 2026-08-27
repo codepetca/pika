@@ -16,7 +16,7 @@ const SUMMARY_ACTION_CATEGORIES = [
   'serious_incident',
   'severe_participation_blocker',
 ] as const
-type SummaryActionCategory = typeof SUMMARY_ACTION_CATEGORIES[number]
+export type SummaryActionCategory = typeof SUMMARY_ACTION_CATEGORIES[number]
 
 const modelSummaryResponseSchema = z.object({
   action_items: z.array(z.object({
@@ -98,6 +98,7 @@ Return only high-priority "action_items". Include at most one item per source_re
    - "category": one of "safety_or_abuse", "urgent_wellbeing", "bullying_or_harassment", "serious_incident", or "severe_participation_blocker"
 
 Include an action item only when the log explicitly reports an immediate safety or wellbeing concern, bullying, harassment, abuse, a serious incident, or a severe blocker preventing participation that requires prompt teacher intervention.
+Classify peer bullying, repeated peer threats, intimidation, or harassment as "bullying_or_harassment", including when the bullying involves hitting. Classify caregiver or adult abuse and other immediate safety reports not covered by a more specific category as "safety_or_abuse". Classify an acute serious event such as a fight or injury as "serious_incident" when it is not a bullying or abuse report.
 Do not flag routine difficulty, mild frustration, ordinary questions, incomplete work, neutral updates, achievements, vague wording, or concerns inferred from tone. Do not provide advice or speculate. When uncertain, leave it out. Use an empty array if nothing meets this threshold.
 
 Respond with ONLY valid JSON. No markdown, no code blocks.`
@@ -116,7 +117,12 @@ Respond with ONLY valid JSON. No markdown, no code blocks.`
 
 export interface RawSummaryResponse {
   overview: string
-  action_items: { text: string; initials: string }[]
+  action_items: {
+    text: string
+    initials: string
+    source_ref?: string
+    category?: SummaryActionCategory
+  }[]
 }
 
 /**
@@ -171,6 +177,13 @@ export async function callOpenAIForSummary(
   }
 
   const payload = await res.json()
+  if (payload?.status !== 'completed' || payload?.incomplete_details) {
+    throw new Error('OpenAI response was incomplete')
+  }
+  if (responseContainsRefusal(payload)) {
+    throw new Error('OpenAI response was refused')
+  }
+
   const outputText = extractResponseOutputText(payload)
   if (!outputText) {
     throw new Error('OpenAI response missing output text')
@@ -202,6 +215,8 @@ export async function callOpenAIForSummary(
     return {
       text: `${initials} ${ACTION_ITEM_COPY[item.category]}`,
       initials,
+      source_ref: item.source_ref,
+      category: item.category,
     }
   })
 
@@ -267,6 +282,16 @@ function extractResponseOutputText(payload: any): string | null {
   }
 
   return null
+}
+
+function responseContainsRefusal(payload: any): boolean {
+  if (!Array.isArray(payload?.output)) return false
+
+  return payload.output.some((item: any) =>
+    Array.isArray(item?.content) && item.content.some((content: any) =>
+      content?.type === 'refusal' || typeof content?.refusal === 'string'
+    )
+  )
 }
 
 /**

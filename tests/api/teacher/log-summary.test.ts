@@ -25,6 +25,73 @@ vi.mock('@/lib/log-summary', () => ({
   })),
 }))
 
+function mockExistingEntryWithCachedSummary(summaryItems: unknown) {
+  ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+    if (table === 'classrooms') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: { teacher_id: 'teacher-1' },
+              error: null,
+            }),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'entries') {
+      return {
+        select: vi.fn((columns: string, options?: Record<string, unknown>) => {
+          if (columns === 'updated_at') {
+            const updatedAtQuery: any = {
+              eq: vi.fn(() => updatedAtQuery),
+              order: vi.fn(() => ({
+                limit: vi.fn().mockResolvedValue({
+                  data: [{ updated_at: '2026-03-15T12:00:00.000Z' }],
+                  error: null,
+                }),
+              })),
+            }
+            return updatedAtQuery
+          }
+
+          if (options?.head) {
+            const countQuery: any = {
+              eq: vi.fn(() => countQuery),
+              then: vi.fn((resolve: any) =>
+                Promise.resolve(resolve({ count: 1, error: null }))
+              ),
+            }
+            return countQuery
+          }
+
+          throw new Error(`Unexpected entries select: ${columns}`)
+        }),
+      }
+    }
+
+    if (table === 'log_summaries') {
+      const cacheQuery: any = {
+        eq: vi.fn(() => cacheQuery),
+        single: vi.fn().mockResolvedValue({
+          data: {
+            summary_items: summaryItems,
+            initials_map: {},
+            entry_count: 1,
+            entries_updated_at: '2026-03-15T11:00:00.000Z',
+            generated_at: '2026-03-15T11:05:00.000Z',
+          },
+          error: null,
+        }),
+      }
+      return { select: vi.fn(() => cacheQuery) }
+    }
+
+    throw new Error(`Unexpected table: ${table}`)
+  })
+}
+
 describe('GET /api/teacher/log-summary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -212,6 +279,29 @@ describe('GET /api/teacher/log-summary', () => {
 
       throw new Error(`Unexpected table: ${table}`)
     })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      summary: null,
+      summary_status: 'unavailable',
+    })
+  })
+
+  it.each([
+    ['a stale legacy object', { overview: 'Older summary', action_items: [] }],
+    ['a legacy array', [{ text: 'Older summary' }]],
+    ['a malformed object', { unexpected: true }],
+    ['an explicitly old policy', {
+      policy_version: 'high-priority-v0',
+      overview: 'Older summary',
+      action_items: [],
+    }],
+  ])('retires %s instead of leaving historical data pending', async (_label, summaryItems) => {
+    mockExistingEntryWithCachedSummary(summaryItems)
 
     const response = await GET(
       new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
@@ -436,6 +526,7 @@ describe('GET /api/teacher/log-summary', () => {
           single: vi.fn().mockResolvedValue({
             data: {
               summary_items: {
+                policy_version: 'high-priority-v1',
                 overview: 'Older summary',
                 action_items: [],
               },

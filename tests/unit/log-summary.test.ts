@@ -175,6 +175,7 @@ describe('buildSummaryPrompt', () => {
 
     expect(system).toContain('Do not infer emotions, motivation, intent, diagnoses, or causes')
     expect(system).toContain('Include an action item only when the log explicitly reports')
+    expect(system).toContain('Classify peer bullying, repeated peer threats')
     expect(system).toContain('When uncertain, leave it out')
     expect(system).toContain('Do not flag routine difficulty, mild frustration, ordinary questions')
     expect(system).not.toContain('overall sentiment and themes')
@@ -298,7 +299,7 @@ describe('callOpenAIForSummary', () => {
 
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ output_text: JSON.stringify(mockResponse) }),
+      json: async () => ({ status: 'completed', output_text: JSON.stringify(mockResponse) }),
     } as Response)
 
     const result = await callOpenAIForSummary(
@@ -308,7 +309,12 @@ describe('callOpenAIForSummary', () => {
     )
     expect(result.overview).toBe('High-priority items were identified by this automated summary.')
     expect(result.action_items).toEqual([
-      { text: 'J.S. reported an urgent safety or abuse concern.', initials: 'J.S.' },
+      {
+        text: 'J.S. reported an urgent safety or abuse concern.',
+        initials: 'J.S.',
+        source_ref: 'log_1',
+        category: 'safety_or_abuse',
+      },
     ])
 
     const requestInit = fetchMock.mock.calls[0][1] as RequestInit
@@ -330,7 +336,7 @@ describe('callOpenAIForSummary', () => {
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ output_text: wrappedResponse }),
+      json: async () => ({ status: 'completed', output_text: wrappedResponse }),
     } as Response)
 
     await expect(
@@ -353,7 +359,7 @@ describe('callOpenAIForSummary', () => {
   it('throws on invalid JSON response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ output_text: 'not valid json' }),
+      json: async () => ({ status: 'completed', output_text: 'not valid json' }),
     } as Response)
 
     await expect(
@@ -364,7 +370,7 @@ describe('callOpenAIForSummary', () => {
   it('throws when response is an array instead of object', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ output_text: '[{"text": "item"}]' }),
+      json: async () => ({ status: 'completed', output_text: '[{"text": "item"}]' }),
     } as Response)
 
     await expect(
@@ -377,6 +383,7 @@ describe('callOpenAIForSummary', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          status: 'completed',
           output_text: JSON.stringify({
             action_items: [{ source_ref: 'log_2', category: 'serious_incident' }],
           }),
@@ -385,6 +392,7 @@ describe('callOpenAIForSummary', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          status: 'completed',
           output_text: JSON.stringify({
             action_items: [
               { source_ref: 'log_1', category: 'serious_incident' },
@@ -413,7 +421,7 @@ describe('callOpenAIForSummary', () => {
     for (const response of invalidResponses) {
       fetchMock.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ output_text: JSON.stringify(response) }),
+        json: async () => ({ status: 'completed', output_text: JSON.stringify(response) }),
       } as Response)
     }
 
@@ -422,5 +430,39 @@ describe('callOpenAIForSummary', () => {
         callOpenAIForSummary('system', 'user', { log_1: 'J.S.' })
       ).rejects.toThrow('Summary response did not match the required schema')
     }
+  })
+
+  it('rejects an incomplete response even when it contains schema-valid output', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'incomplete',
+        incomplete_details: { reason: 'max_output_tokens' },
+        output_text: JSON.stringify({ action_items: [] }),
+      }),
+    } as Response)
+
+    await expect(
+      callOpenAIForSummary('system', 'user', { log_1: 'J.S.' })
+    ).rejects.toThrow('OpenAI response was incomplete')
+  })
+
+  it('rejects a refusal even when it also contains schema-valid output', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'completed',
+        output: [{
+          content: [
+            { type: 'refusal', refusal: 'Unable to comply.' },
+            { type: 'output_text', text: JSON.stringify({ action_items: [] }) },
+          ],
+        }],
+      }),
+    } as Response)
+
+    await expect(
+      callOpenAIForSummary('system', 'user', { log_1: 'J.S.' })
+    ).rejects.toThrow('OpenAI response was refused')
   })
 })
