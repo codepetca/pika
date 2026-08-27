@@ -11,47 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-24 — Verify the enabled attendance entitlement rollout
-
-**Risk profile:** runtime-platform — authorized local database reset and
-production signed smoke verification; no production migration, deployment,
-flag, entitlement, cleanup, or attendance-data mutation was performed.
-
-- Reset the shared local database and replayed migrations 001-132 from current
-  `main`, repairing an older installed migration-131 smoke-function definition.
-  The complete Bara attendance database contract now passes; local remains
-  intentionally unseeded.
-- Read-only production checks confirmed migrations 001-132 are recorded and
-  the installed migration-131 smoke cleanup plus migration-132 entitlement
-  contracts are present.
-- An authorized pre-enable exact-canary diagnostic failed before smoke state
-  with `attendance_disabled_for_preflight` and `attendance_scope_mode`, proving
-  production had already advanced beyond the stale continuity record.
-- The separately authorized deployed smoke then passed 4/4 in `enabled` mode
-  with `teacher_entitlements` as current and target scope, proving canary scope,
-  transition-queue health, and both signed Pika/Bara directions.
-
-## 2026-08-25 — Adopt relative assignment timestamps
-
-**Risk profile:** none — teacher/student assignment timestamp presentation only;
-no assignment state, API contract, schema, persistence, or layout behavior changed.
-
-- Adopted the shared Toronto-relative date formatter for the live teacher
-  saved-version preview, student returned-feedback timestamps, and student
-  submission labels. The unreferenced legacy `TeacherStudentWorkModal` remains
-  unchanged rather than broadening this work into its unrelated audit debt.
-- Preserved the student's exact saved-version date in the restore confirmation,
-  where an unambiguous historical identifier remains more useful than relative copy.
-- Focused teacher/student component and timezone tests pass (51/51), the full
-  Vitest suite passes (5,079/5,079), and lint, build, architecture, design, UI,
-  audit, continuity, and diff gates are clean apart from the existing WorkOS
-  Edge-runtime build warnings. Playwright verification passed for the affected
-  teacher/student compositions on desktop and mobile in light and dark themes
-  using a temporary Pika-token harness because the shared local environment has
-  no Supabase credentials; the harness was removed. The composite-widget
-  checklist was reviewed: keyboard and semantic behavior are unchanged, with
-  no remaining manual follow-up.
-
 ## 2026-08-25 — Reconcile attendance rollout documentation
 
 **Risk profile:** none — documentation consistency only; no migration,
@@ -850,6 +809,7 @@ regression coverage; no data, API, or student-facing behavior changes.
 - Preserved authenticity flag details in the existing tooltip and kept the
   section headers keyboard-accessible.
 - Added focused assertions for typography, alignment, and Enter-key toggling.
+
 ## 2026-08-27 — Simplify Attendance status presentation
 
 **Risk profile:** none — teacher Attendance presentation and pending guidance
@@ -1027,3 +987,19 @@ UI is n/a because this is a teacher-only surface.
 
 **Model recommendation:** current GPT-5 coding model for a bounded responsive
 interaction remediation with browser verification.
+
+## 2026-08-27 — Keep Attendance browser fixture reachable in local development
+
+**Risk profile:** none — local browser-test fixture gating only; no product UI,
+business behavior, API, schema, persistence, authentication, dependency, or
+hosted state changed.
+
+- Kept the Attendance fixture closed in production unless explicitly enabled,
+  while allowing it automatically on development servers so Playwright can
+  reuse a normal unflagged local server.
+- Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
+  existing Attendance-hours regression passed on desktop/mobile in light/dark
+  and opened the real dialog in all four cases.
+
+**Model recommendation:** current GPT-5 coding model for a contained test-harness
+compatibility correction and exact-workflow verification.

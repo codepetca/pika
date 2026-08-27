@@ -32,7 +32,9 @@ const classroom: Classroom = {
 }
 
 export default function TeacherLiveAttendanceFixturePage() {
-  if (process.env.PIKA_E2E_FIXTURES !== 'true') notFound()
+  if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
+    notFound()
+  }
 
   return (
     <main className="flex h-screen min-h-0 flex-col px-3 pb-3">

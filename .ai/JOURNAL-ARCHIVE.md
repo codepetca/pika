@@ -24061,3 +24061,46 @@ content, resizing behavior, API contracts, schema, and student surfaces are unch
   verification passed for teacher desktop/mobile in light/dark themes using an
   isolated exact-class harness because the shared local environment has no
   Supabase test credentials. Student is not applicable to this teacher-only panel.
+
+<!-- pika-session-log-archive-batch:44364d0028e3233a3846abc3a359a7cc5cc81c1b71f4724761ec7abd3524784f -->
+## 2026-08-24 — Verify the enabled attendance entitlement rollout
+
+**Risk profile:** runtime-platform — authorized local database reset and
+production signed smoke verification; no production migration, deployment,
+flag, entitlement, cleanup, or attendance-data mutation was performed.
+
+- Reset the shared local database and replayed migrations 001-132 from current
+  `main`, repairing an older installed migration-131 smoke-function definition.
+  The complete Bara attendance database contract now passes; local remains
+  intentionally unseeded.
+- Read-only production checks confirmed migrations 001-132 are recorded and
+  the installed migration-131 smoke cleanup plus migration-132 entitlement
+  contracts are present.
+- An authorized pre-enable exact-canary diagnostic failed before smoke state
+  with `attendance_disabled_for_preflight` and `attendance_scope_mode`, proving
+  production had already advanced beyond the stale continuity record.
+- The separately authorized deployed smoke then passed 4/4 in `enabled` mode
+  with `teacher_entitlements` as current and target scope, proving canary scope,
+  transition-queue health, and both signed Pika/Bara directions.
+
+<!-- pika-session-log-archive-batch:d2c46ec89f366c32a8cad27cf582de77814748f0fcc13b41285c0768d5e5ab4d -->
+## 2026-08-25 — Adopt relative assignment timestamps
+
+**Risk profile:** none — teacher/student assignment timestamp presentation only;
+no assignment state, API contract, schema, persistence, or layout behavior changed.
+
+- Adopted the shared Toronto-relative date formatter for the live teacher
+  saved-version preview, student returned-feedback timestamps, and student
+  submission labels. The unreferenced legacy `TeacherStudentWorkModal` remains
+  unchanged rather than broadening this work into its unrelated audit debt.
+- Preserved the student's exact saved-version date in the restore confirmation,
+  where an unambiguous historical identifier remains more useful than relative copy.
+- Focused teacher/student component and timezone tests pass (51/51), the full
+  Vitest suite passes (5,079/5,079), and lint, build, architecture, design, UI,
+  audit, continuity, and diff gates are clean apart from the existing WorkOS
+  Edge-runtime build warnings. Playwright verification passed for the affected
+  teacher/student compositions on desktop and mobile in light and dark themes
+  using a temporary Pika-token harness because the shared local environment has
+  no Supabase credentials; the harness was removed. The composite-widget
+  checklist was reviewed: keyboard and semantic behavior are unchanged, with
+  no remaining manual follow-up.
