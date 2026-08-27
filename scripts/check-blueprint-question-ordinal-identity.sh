@@ -2010,6 +2010,12 @@ begin
     to_jsonb('Active identity rollback'::text)
   );
 
+  -- The canonical unique index normally prevents this corruption at write
+  -- time. Suspend it only inside this rolled-back fixture to prove capture's
+  -- defense-in-depth still fails closed if pre-constraint or manually
+  -- corrupted data reaches the RPC.
+  execute 'drop index public.test_questions_test_portable_identity_unique';
+
   -- Duplicate portable identity is ambiguous even though row IDs and positions
   -- are distinct. Capture must fail without rewriting either source row.
   update public.test_questions
@@ -2087,6 +2093,15 @@ begin
   update public.test_questions
   set source_artifact_id = null
   where id = v_active_question_one_row_id;
+
+  execute $index$
+    create unique index test_questions_test_portable_identity_unique
+      on public.test_questions (
+        test_id,
+        (coalesce(source_artifact_id, artifact_id))
+      )
+  $index$;
+
   select blueprint_source_revision
   into v_active_revision
   from public.classrooms
