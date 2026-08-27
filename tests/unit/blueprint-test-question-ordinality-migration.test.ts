@@ -152,6 +152,11 @@ describe('Blueprint test-question identity migration', () => {
       /update public\.assessment_drafts draft[\s\S]{0,220}version = draft\.version \+ 1[\s\S]{0,180}draft\.version = p_expected_draft_version/,
     )
     expect(saveDefinition).toContain("v_test.status in ('active', 'closed')")
+    expect(
+      saveDefinition.indexOf("coalesce(v_question->>'id', '') !~*"),
+    ).toBeLessThan(
+      saveDefinition.indexOf("if v_test.status in ('active', 'closed') then"),
+    )
     expect(saveDefinition).toMatch(
       /question\.artifact_id = v_question_id[\s\S]{0,100}question\.source_artifact_id = v_question_id[\s\S]{0,100}question\.id = v_question_id/,
     )
@@ -351,10 +356,10 @@ describe('Blueprint test-question identity migration', () => {
       'bash scripts/check-blueprint-question-ordinal-identity.sh',
     )
     expect(databaseContract).toContain(
-      'Non-UUIDv4 question identity unexpectedly saved',
+      'Non-UUIDv4 draft question identity unexpectedly saved',
     )
     expect(databaseContract).toContain(
-      'Rejected non-UUIDv4 identity changed persisted Test state',
+      'Rejected non-UUIDv4 draft identity changed persisted Test state',
     )
     expect(databaseContract).toContain(
       'Stale archived request did not retain its failed ledger',

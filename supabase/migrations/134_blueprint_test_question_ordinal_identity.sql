@@ -291,6 +291,28 @@ begin
     raise exception using errcode = '40001', message = 'document_conflict';
   end if;
 
+  -- Portable identity is a draft-document invariant, not merely a
+  -- materialization invariant. Validate it before either draft-only persistence
+  -- or active/closed row synchronization so activation can never inherit an
+  -- identity that this function itself accepted but cannot later consume.
+  for v_question in
+    select question.value
+    from jsonb_array_elements(p_content->'questions')
+      with ordinality as question(value, ordinality)
+    order by question.ordinality
+  loop
+    if coalesce(v_question->>'id', '') !~*
+      '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    then
+      raise exception using errcode = '22023', message = 'invalid_draft_content';
+    end if;
+    v_question_id := (v_question->>'id')::uuid;
+    if v_question_id = any(v_seen_question_ids) then
+      raise exception using errcode = '22023', message = 'duplicate_question_identity';
+    end if;
+    v_seen_question_ids := array_append(v_seen_question_ids, v_question_id);
+  end loop;
+
   if p_update_documents then
     select coalesce(jsonb_agg(path order by path), '[]'::jsonb)
       into v_cleanup_paths
@@ -326,19 +348,10 @@ begin
         with ordinality as question(value, ordinality)
       order by question.ordinality
     loop
-      if coalesce(v_question->>'id', '') !~*
-        '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-      then
-        raise exception using errcode = '22023', message = 'invalid_draft_content';
-      end if;
       v_question_id := (v_question->>'id')::uuid;
-      if v_question_id = any(v_seen_question_ids) then
-        raise exception using errcode = '22023', message = 'duplicate_question_identity';
-      end if;
       if nullif(btrim(v_question->>'question_text'), '') is null then
         raise exception using errcode = '22023', message = 'invalid_draft_content';
       end if;
-      v_seen_question_ids := array_append(v_seen_question_ids, v_question_id);
 
       select array_agg(question.id order by question.id)
         into v_matched_row_ids

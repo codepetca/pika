@@ -135,6 +135,47 @@ insert into public.assessment_drafts (
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000001'
 );
+
+do $contract$
+declare
+  v_error_message text;
+begin
+  begin
+    perform public.save_test_draft_atomic(
+      'b1341000-0000-4000-8000-000000000001',
+      'b1341000-0000-4000-8000-000000000011',
+      1,
+      '{"title":"Invalid legacy identity","show_results":false,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      false,
+      '[]'::jsonb,
+      '[]'::jsonb
+    );
+    raise exception 'Non-UUIDv4 draft question identity unexpectedly saved';
+  exception when invalid_parameter_value then
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message is distinct from 'invalid_draft_content' then
+      raise;
+    end if;
+  end;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.assessment_type = 'test'
+      and draft.assessment_id = 'b1341000-0000-4000-8000-000000000011'
+      and draft.version = 1
+      and draft.content->>'title' = 'Question A'
+      and draft.content->'questions'->0->>'id'
+        = 'b1341000-0000-4000-8000-000000000013'
+  ) or exists (
+    select 1
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+  ) then
+    raise exception 'Rejected non-UUIDv4 draft identity changed persisted Test state';
+  end if;
+end;
+$contract$;
 SQL
 
 docker exec -e PGAPPNAME=b134_draft_save_first -i "$DB_CONTAINER" psql \
@@ -269,43 +310,6 @@ begin
       and question.points = 3
   ) then
     raise exception 'Post-activation authoring did not synchronize materialized rows';
-  end if;
-
-  begin
-    perform public.save_test_draft_atomic(
-      'b1341000-0000-4000-8000-000000000001',
-      'b1341000-0000-4000-8000-000000000011',
-      3,
-      '{"title":"Invalid legacy identity","show_results":false,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
-      false,
-      '[]'::jsonb,
-      '[]'::jsonb
-    );
-    raise exception 'Non-UUIDv4 question identity unexpectedly saved';
-  exception when invalid_parameter_value then
-    get stacked diagnostics v_error_message = message_text;
-    if v_error_message is distinct from 'invalid_draft_content' then
-      raise;
-    end if;
-  end;
-
-  if not exists (
-    select 1
-    from public.assessment_drafts draft
-    where draft.assessment_type = 'test'
-      and draft.assessment_id = 'b1341000-0000-4000-8000-000000000011'
-      and draft.version = 3
-      and draft.content->>'title' = 'Question C'
-  ) or not exists (
-    select 1
-    from public.test_questions question
-    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
-      and question.artifact_id = 'b1341000-0000-4000-8000-000000000013'
-      and question.question_text = 'Question C'
-      and question.answer_key = 'C'
-      and question.points = 3
-  ) then
-    raise exception 'Rejected non-UUIDv4 identity changed persisted Test state';
   end if;
 
   insert into public.test_attempts (test_id, student_id)
