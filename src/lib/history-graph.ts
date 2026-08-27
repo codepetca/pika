@@ -1,4 +1,4 @@
-import { formatInTimeZone } from 'date-fns-tz'
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 import type { AssignmentDocHistoryEntry } from '@/types'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -35,13 +35,7 @@ export interface StemLayout {
   baselineY: number // pixel y of the zero-line
 }
 
-export interface HistoryLifecycle {
-  startAt: string | null
-  dueAt: string | null
-  submittedAt: string | null
-}
-
-export interface LifecycleWindow {
+export interface ActivityWindow {
   startMs: number
   endMs: number
 }
@@ -62,7 +56,6 @@ const STEM_PADDING_X = 2 // px from left/right edges
 const STEM_WIDTH = 2
 const STEM_GAP = 1 // 1px gap between stems
 export const HISTORY_SESSION_GAP_MS = 30 * 60 * 1000
-const MIN_LIFECYCLE_WINDOW_MS = 60 * 60 * 1000
 
 // ── Pure functions ─────────────────────────────────────────────────
 
@@ -92,33 +85,27 @@ export function computeCharDiffs(
 }
 
 /**
- * Resolve the full time window shown in the work footprint.
- * Assignment release/creation anchors the beginning; submission anchors the end
- * when present, otherwise the due date does. Recorded saves always remain visible.
+ * Resolve the calendar-day window containing every recorded save.
+ * The window begins at Toronto midnight on the first activity day and ends at
+ * Toronto midnight after the final activity day, including DST-length days.
  */
-export function computeLifecycleWindow(
-  entries: AssignmentDocHistoryEntry[],
-  lifecycle: HistoryLifecycle
-): LifecycleWindow | null {
+export function computeActivityWindow(
+  entries: AssignmentDocHistoryEntry[]
+): ActivityWindow | null {
   const entryTimes = entries
     .map((entry) => Date.parse(entry.created_at))
     .filter(Number.isFinite)
     .sort((a, b) => a - b)
-  const firstEntryMs = entryTimes[0]
-  const lastEntryMs = entryTimes[entryTimes.length - 1]
-  const requestedStartMs = lifecycle.startAt ? Date.parse(lifecycle.startAt) : Number.NaN
-  const requestedEndValue = lifecycle.submittedAt ?? lifecycle.dueAt
-  const requestedEndMs = requestedEndValue ? Date.parse(requestedEndValue) : Number.NaN
+  if (entryTimes.length === 0) return null
 
-  const startCandidates = [requestedStartMs, firstEntryMs].filter(Number.isFinite)
-  const endCandidates = [requestedEndMs, lastEntryMs].filter(Number.isFinite)
-  if (startCandidates.length === 0 || endCandidates.length === 0) return null
+  const firstDay = formatInTimeZone(new Date(entryTimes[0]), TZ, 'yyyy-MM-dd')
+  const lastDay = formatInTimeZone(new Date(entryTimes[entryTimes.length - 1]), TZ, 'yyyy-MM-dd')
+  const [year, month, day] = lastDay.split('-').map(Number)
+  const nextDay = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10)
 
-  const startMs = Math.min(...startCandidates)
-  const naturalEndMs = Math.max(...endCandidates)
   return {
-    startMs,
-    endMs: Math.max(naturalEndMs, startMs + MIN_LIFECYCLE_WINDOW_MS),
+    startMs: fromZonedTime(`${firstDay}T00:00:00`, TZ).getTime(),
+    endMs: fromZonedTime(`${nextDay}T00:00:00`, TZ).getTime(),
   }
 }
 
@@ -156,11 +143,48 @@ export function buildWorkSessions(
   return sessions
 }
 
-/** Return a clamped 0–1 position for a timestamp inside a lifecycle window. */
-export function positionInLifecycle(timestampMs: number, window: LifecycleWindow): number {
+/** Return a clamped 0–1 position for a timestamp inside the activity-day window. */
+export function positionInActivityWindow(timestampMs: number, window: ActivityWindow): number {
   const duration = window.endMs - window.startMs
   if (duration <= 0) return 0
   return Math.max(0, Math.min(1, (timestampMs - window.startMs) / duration))
+}
+
+/**
+ * Position saves across the activity-day window while preserving a small
+ * minimum separation for bursts that would otherwise land on the same pixel.
+ */
+export function computeActivityPositions(
+  entries: EntryWithDiff[],
+  window: ActivityWindow,
+  chartWidth: number,
+  inset: number = 5,
+  minSpacing: number = 4
+): number[] {
+  if (entries.length === 0) return []
+
+  const usableWidth = Math.max(0, chartWidth - inset * 2)
+  const positions = entries.map((entry) => (
+    inset
+    + positionInActivityWindow(Date.parse(entry.entry.created_at), window) * usableWidth
+  ))
+
+  for (let index = 1; index < positions.length; index += 1) {
+    positions[index] = Math.max(positions[index], positions[index - 1] + minSpacing)
+  }
+
+  const rightEdge = chartWidth - inset
+  positions[positions.length - 1] = Math.min(positions[positions.length - 1], rightEdge)
+  for (let index = positions.length - 2; index >= 0; index -= 1) {
+    positions[index] = Math.min(positions[index], positions[index + 1] - minSpacing)
+  }
+
+  if (positions[0] < inset) {
+    const availableSpacing = entries.length > 1 ? usableWidth / (entries.length - 1) : 0
+    return entries.map((_, index) => inset + index * availableSpacing)
+  }
+
+  return positions
 }
 
 /**

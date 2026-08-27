@@ -24,16 +24,10 @@ function entry(
 }
 
 const entries = [
-  entry('third', '2025-01-20T02:05:00Z', 120, 720),
+  entry('third', '2025-01-20T02:05:00Z', 50, 300),
   entry('second', '2025-01-20T01:10:00Z', 60, 360),
   entry('first', '2025-01-20T01:00:00Z', 20, 120),
 ]
-
-const lifecycle = {
-  startAt: '2025-01-10T14:00:00Z',
-  dueAt: '2025-01-20T03:00:00Z',
-  submittedAt: null,
-}
 
 describe('HistoryGraph', () => {
   it('shows a calm empty state when no saves exist yet', () => {
@@ -43,7 +37,6 @@ describe('HistoryGraph', () => {
         activeEntryId={null}
         onEntryClick={vi.fn()}
         audience="student"
-        lifecycle={lifecycle}
       />
     )
 
@@ -51,27 +44,27 @@ describe('HistoryGraph', () => {
     expect(screen.getByText('No saves yet')).toBeInTheDocument()
   })
 
-  it('shows every teacher save in one compact full-lifecycle chart', () => {
+  it('shows additions and deletions across the actual activity days with minimal copy', () => {
     render(
       <HistoryGraph
         entries={entries}
         activeEntryId={null}
         onEntryClick={vi.fn()}
         audience="teacher"
-        lifecycle={lifecycle}
       />
     )
 
     expect(screen.getByRole('region', { name: 'Student activity' })).toBeInTheDocument()
-    expect(screen.getByText('3 saves · 2 work sessions')).toBeInTheDocument()
     expect(screen.getAllByRole('slider', { name: 'Complete save history' })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument()
-    expect(screen.getByText((_content, element) => (
-      element?.tagName === 'SPAN' && element.textContent === 'AssignedJan 10'
-    ))).toBeInTheDocument()
-    expect(screen.getByText((_content, element) => (
-      element?.tagName === 'SPAN' && element.textContent === 'DueJan 19'
-    ))).toBeInTheDocument()
+    expect(screen.queryByText(/work session/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/assigned|due|submitted/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Jan 19')).toBeInTheDocument()
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    expect(chart).toHaveAttribute('aria-valuetext', expect.stringContaining('-60 characters since previous'))
+    expect(chart.querySelectorAll('[data-change-direction="up"]')).toHaveLength(1)
+    expect(chart.querySelectorAll('[data-change-direction="down"]')).toHaveLength(1)
   })
 
   it('uses student language without duplicating a caller-owned heading', () => {
@@ -82,7 +75,6 @@ describe('HistoryGraph', () => {
         onEntryClick={vi.fn()}
         audience="student"
         showHeading={false}
-        lifecycle={lifecycle}
       />
     )
 
@@ -98,7 +90,6 @@ describe('HistoryGraph', () => {
         activeEntryId="first"
         onEntryClick={onEntryClick}
         audience="teacher"
-        lifecycle={lifecycle}
       />
     )
 
@@ -125,7 +116,6 @@ describe('HistoryGraph', () => {
         onEntryClick={onEntryClick}
         onEntryHover={onEntryHover}
         audience="teacher"
-        lifecycle={lifecycle}
       />
     )
 
@@ -158,7 +148,6 @@ describe('HistoryGraph', () => {
         onEntryClick={vi.fn()}
         onEntryHover={onEntryHover}
         audience="teacher"
-        lifecycle={lifecycle}
       />
     )
 
@@ -188,7 +177,6 @@ describe('HistoryGraph', () => {
         onEntryClick={vi.fn()}
         onEntryHover={onEntryHover}
         audience="teacher"
-        lifecycle={lifecycle}
       />
     )
 

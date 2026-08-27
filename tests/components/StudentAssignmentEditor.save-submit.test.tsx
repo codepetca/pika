@@ -26,8 +26,8 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: ({ entries, onEntryClick, onEntryHover }: any) => (
-    <div data-testid="history-list">
+  HistoryList: ({ entries, onEntryClick, onEntryHover, ...props }: any) => (
+    <div data-testid="history-list" data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}>
       {entries[0] && (
         <button
           type="button"
@@ -3312,6 +3312,9 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
 
     await screen.findByText('Assignment Title')
     const savedVersionButtons = await screen.findAllByRole('button', { name: 'Select saved version' })
+    expect(
+      screen.getAllByTestId('history-list').every((element) => element.dataset.hasLifecycle === 'no'),
+    ).toBe(true)
 
     await user.hover(savedVersionButtons[0])
     expect(screen.getByTestId('editor-history-preview-mode')).toHaveTextContent('fit')

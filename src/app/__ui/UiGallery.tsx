@@ -249,11 +249,6 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
             activeEntryId={activeEntryId}
             audience={role}
             showHeading={false}
-            lifecycle={{
-              startAt: '2025-01-10T14:00:00Z',
-              dueAt: '2025-01-16T22:00:00Z',
-              submittedAt: null,
-            }}
             onEntryHover={(entry) => {
               if (previewMode === 'locked') return
               setActiveEntryId(entry.id)
@@ -402,8 +397,8 @@ function HistoryGraphGallery() {
     <div className="bg-surface rounded-lg shadow-sm p-4">
       <h2 className="text-lg font-semibold text-text-default">History Graph</h2>
       <p className="text-text-muted text-sm mt-1">
-        One compact chart shows every save across the assignment lifecycle. Hover to
-        preview a save; click to pin it.
+        One compact chart shows additions and deletions across the actual activity
+        days. Hover to preview a save; click to pin it.
       </p>
 
       {lastEvent && (
@@ -435,11 +430,6 @@ function HistoryGraphGallery() {
                     entries={scenario.entries}
                     activeEntryId={activeId}
                     audience={audience}
-                    lifecycle={{
-                      startAt: '2025-01-10T14:00:00Z',
-                      dueAt: '2025-01-16T22:00:00Z',
-                      submittedAt: null,
-                    }}
                     onEntryClick={(entry) => {
                       setActiveId(entry.id)
                       setLastEvent(`click: ${entry.id} (${entry.char_count} chars)`)

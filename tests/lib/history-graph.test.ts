@@ -7,8 +7,9 @@ import {
   computeStemLayout,
   findNearestStem,
   buildWorkSessions,
-  computeLifecycleWindow,
-  positionInLifecycle,
+  computeActivityPositions,
+  computeActivityWindow,
+  positionInActivityWindow,
 } from '@/lib/history-graph'
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -100,39 +101,31 @@ describe('computeCharDiffs', () => {
   })
 })
 
-describe('assignment lifecycle and sessions', () => {
-  it('preserves empty time between assignment release and a late first save', () => {
+describe('activity days and sessions', () => {
+  it('uses the full Toronto calendar days containing the save history', () => {
     const entries = makeEntries([
-      { charCount: 120, time: '2025-01-20T02:00:00Z' },
-      { charCount: 20, time: '2025-01-20T01:40:00Z' },
+      { charCount: 120, time: '2025-01-13T16:00:00Z' },
+      { charCount: 20, time: '2025-01-10T15:00:00Z' },
     ])
 
-    const window = computeLifecycleWindow(entries, {
-      startAt: '2025-01-13T14:00:00Z',
-      dueAt: '2025-01-20T03:00:00Z',
-      submittedAt: null,
-    })
+    const window = computeActivityWindow(entries)
 
     expect(window).toEqual({
-      startMs: Date.parse('2025-01-13T14:00:00Z'),
-      endMs: Date.parse('2025-01-20T03:00:00Z'),
+      startMs: Date.parse('2025-01-10T05:00:00Z'),
+      endMs: Date.parse('2025-01-14T05:00:00Z'),
     })
-    expect(positionInLifecycle(Date.parse(entries[1].created_at), window!)).toBeGreaterThan(0.98)
+    expect(positionInActivityWindow(Date.parse(entries[1].created_at), window!)).toBeCloseTo(10 / 96)
   })
 
-  it('uses submission as the lifecycle end and still includes saves after it', () => {
+  it('shows one complete day when every save is on the same day', () => {
     const entries = makeEntries([
-      { charCount: 140, time: '2025-01-20T04:00:00Z' },
-      { charCount: 100, time: '2025-01-20T02:00:00Z' },
+      { charCount: 140, time: '2025-01-20T20:00:00Z' },
+      { charCount: 100, time: '2025-01-20T15:00:00Z' },
     ])
 
-    expect(computeLifecycleWindow(entries, {
-      startAt: '2025-01-19T12:00:00Z',
-      dueAt: '2025-01-20T03:00:00Z',
-      submittedAt: '2025-01-20T02:30:00Z',
-    })).toEqual({
-      startMs: Date.parse('2025-01-19T12:00:00Z'),
-      endMs: Date.parse('2025-01-20T04:00:00Z'),
+    expect(computeActivityWindow(entries)).toEqual({
+      startMs: Date.parse('2025-01-20T05:00:00Z'),
+      endMs: Date.parse('2025-01-21T05:00:00Z'),
     })
   })
 
@@ -150,11 +143,27 @@ describe('assignment lifecycle and sessions', () => {
     expect(sessions[1].entries.map((entry) => entry.entry.id)).toEqual(['third'])
   })
 
-  it('clamps timestamps outside the lifecycle window', () => {
+  it('clamps timestamps outside the activity window', () => {
     const window = { startMs: 100, endMs: 200 }
-    expect(positionInLifecycle(0, window)).toBe(0)
-    expect(positionInLifecycle(150, window)).toBe(0.5)
-    expect(positionInLifecycle(300, window)).toBe(1)
+    expect(positionInActivityWindow(0, window)).toBe(0)
+    expect(positionInActivityWindow(150, window)).toBe(0.5)
+    expect(positionInActivityWindow(300, window)).toBe(1)
+  })
+
+  it('keeps tightly clustered saves individually visible without leaving the chart', () => {
+    const diffs = computeCharDiffs(makeEntries([
+      { charCount: 140, time: '2025-01-20T15:00:02Z' },
+      { charCount: 130, time: '2025-01-20T15:00:01Z' },
+      { charCount: 120, time: '2025-01-20T15:00:00Z' },
+    ]))
+    const window = computeActivityWindow(diffs.map((entry) => entry.entry))!
+
+    const positions = computeActivityPositions(diffs, window, 256, 5, 4)
+
+    expect(positions[1] - positions[0]).toBeGreaterThanOrEqual(4)
+    expect(positions[2] - positions[1]).toBeGreaterThanOrEqual(4)
+    expect(positions[0]).toBeGreaterThanOrEqual(5)
+    expect(positions[2]).toBeLessThanOrEqual(251)
   })
 })
 

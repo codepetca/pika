@@ -2763,27 +2763,26 @@ stability review; no broad product or CI-policy redesign is indicated.
 interaction only; no API, schema, persistence, authentication, dependency,
 migration, deployment, or hosted state changed.
 
-- Replaced the per-day save-snapshot charts with one compact full-lifecycle
-  chart at the original 240–256 px sidebar size. Quiet time is preserved, so
-  late starts and concentrated work are visible without adding judgmental
-  labels or expanding into a second detail timeline.
-- Grouped saves into work sessions at 30-minute gaps and anchored the overview
-  to release/creation, due, submission, and save timestamps. Added focused
-  unit coverage for lifecycle bounds, positions, grouping, empty state, role
-  language, and keyboard interaction.
+- Replaced the per-day save-snapshot charts with one compact chart at the
+  original 240–256 px sidebar size. Its horizontal range uses the student's
+  actual first and last activity days, so saves outside assigned and due dates
+  remain visible without adding lifecycle labels or a second detail timeline.
+- Each save now appears as a vertical change mark around zero: additions rise
+  in semantic success green and deletions fall in semantic danger red. Closely
+  timed saves keep chronological order and a small minimum visual separation,
+  preserving work clumps at compact widths.
 - Kept one implementation for both audiences. Teachers see `Student activity`;
   students see `Version history`. Existing hover-to-preview, click-to-pin, and
   student restore confirmation behavior remains connected.
 - Exposed the one complete-history chart as a labelled slider with
-  Arrow/Home/End navigation. Two-dimensional nearest-point selection makes
-  individual saves inside a narrow work clump available to hover and click.
+  Arrow/Home/End navigation. Horizontal nearest-save selection makes individual
+  saves inside a narrow work clump available to hover and click.
 - Verified teacher and student examples at desktop/mobile widths in light/dark.
   The final screenshots had no console errors or horizontal overflow; the
   source comparison and accessibility review are recorded in `design-qa.md`.
-- Focused tests pass (73/73, including restore behavior); lint, TypeScript,
-  design policy, UI policy, production build, and diff checks pass. The build
-  retains the repository's existing Browserslist-age and WorkOS Edge Runtime
-  warnings.
+- Focused tests pass (123/123, including restore behavior); lint and TypeScript
+  pass. The design QA records default, hover, pinned, keyboard-focus, empty,
+  desktop/mobile, and light/dark verification with no horizontal overflow.
 
 **Model recommendation:** GPT-5.6 Sol for a shared, role-aware data
 visualization with responsive and keyboard interaction requirements.

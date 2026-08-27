@@ -54,6 +54,7 @@ describe('UiGallery history preview fixture', () => {
     const user = userEvent.setup()
     render(<UiGallery role="teacher" />)
 
+    expect(screen.getByText(/additions and deletions across the actual activity days/i)).toBeInTheDocument()
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
 

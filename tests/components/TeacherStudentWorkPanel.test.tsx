@@ -20,8 +20,8 @@ vi.mock('@/components/editor', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: ({ entries, onEntryClick, onEntryHover }: any) => (
-    <div data-testid="history-list">
+  HistoryList: ({ entries, onEntryClick, onEntryHover, ...props }: any) => (
+    <div data-testid="history-list" data-has-lifecycle={'lifecycle' in props ? 'yes' : 'no'}>
       {entries.map((entry: any) => (
         <button
           key={entry.id}
@@ -1235,7 +1235,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'History' }))
     await user.click(screen.getByRole('button', { name: 'Grade' }))
 
-    expect(await screen.findByTestId('history-list')).toBeInTheDocument()
+    expect(await screen.findByTestId('history-list')).toHaveAttribute('data-has-lifecycle', 'no')
     await waitFor(() => {
       expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
     })

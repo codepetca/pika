@@ -105,8 +105,12 @@ final result: passed
 
 - Visual source: the user-provided 1536 × 1024 concept image reviewed during
   this task. It is not stored in the repository.
-- Corrected user direction: retain the source's full-lifecycle work-footprint idea, but show the whole history in one chart at the existing 240–256 px sidebar size. Do not include the source's second session-detail chart.
-- Intended state: a teacher or student can immediately see whether work began late or happened in one clump, then inspect the individual saves from that same chart.
+- Corrected user direction: show the complete save history in one chart at the
+  existing 240–256 px sidebar size. The horizontal axis covers the student's
+  actual activity days, including work outside assigned and due dates.
+- Intended state: a teacher or student can immediately see whether work happened
+  in one clump and whether each save added or deleted content, then inspect the
+  individual saves from that same chart.
 
 ## Implementation evidence
 
@@ -121,21 +125,32 @@ The source and the final implementation screenshots were inspected together in o
 
 ## Comparison
 
-- Layout: one compact chart contains the complete assigned-to-due/submitted lifecycle. The empty portion remains the dominant signal and the late work appears as a narrow blue cluster.
-- Data: every save is represented as a point on a word-growth line. Saves close in time stack into the same visible cluster rather than being expanded into a second chart.
-- Interaction: two-dimensional nearest-point selection lets vertical movement through a tight cluster preview individual saves. Click pins the nearest save. The same chart supports Arrow, Home, and End navigation as a labelled slider.
+- Layout: one compact chart contains the complete save history across the first
+  through last activity days. Assignment, due, and submission dates do not crop
+  or extend the horizontal range.
+- Data: each save is a vertical mark around a centered zero line. Additions rise
+  in semantic success green and deletions fall in semantic danger red. Closely
+  timed saves retain chronological order and a small minimum visual separation.
+- Interaction: horizontal nearest-save selection previews individual saves.
+  Click pins the nearest save. The same chart supports Arrow, Home, and End
+  navigation as a labelled slider.
 - Typography and spacing: titles and metadata no longer compete on one row. The chart fits the original narrow history column without cramped labels or an enlarged inspector.
-- Color: semantic Pika tokens provide clear hierarchy in both light and dark themes. Blue is reserved for saved work and the active save; neutral endpoints and grid lines remain subordinate.
+- Color: semantic Pika tokens provide clear hierarchy in both light and dark
+  themes. Green and red encode change direction; the selected save receives the
+  only point marker and the zero baseline remains subordinate.
 - Responsive behavior: teacher and student examples stack cleanly on mobile. The responsive viewport reported equal document scroll and client widths, with no horizontal overflow.
 - Assets and icons: the chart is the product's existing code-native data visualization; no raster assets or icons are required for this compact state.
-- Copy: teachers see `Student activity`; students see `Version history`. Both see a factual save/session count without judgmental labels.
+- Copy: teachers see `Student activity`; students see `Version history`. The
+  only chart labels are the first and last activity dates, or one centered date
+  when the history spans a single day.
 
 ## Accessibility and states
 
 - The chart is a single focusable slider labelled `Complete save history`.
 - `aria-valuenow` and `aria-valuetext` identify the selected save.
 - Arrow, Home, and End behavior is covered by component tests.
-- Hover preview, click pinning, role language, empty state, dense history, multi-session history, desktop/mobile, and light/dark states were checked.
+- Hover preview, click pinning, keyboard focus, role language, empty state,
+  clustered history, desktop/mobile, and light/dark states were checked.
 - Student restore confirmation and teacher preview/pin wiring remain in the existing callers and are unchanged.
 
 ## Findings
@@ -169,3 +184,43 @@ the explicit matrix and review result.
 The whole-document signal is clear at desktop size, pinned text remains readable,
 the narrow layout contains both panes without horizontal overflow, and semantic
 colors remain legible in both themes. No P0, P1, or P2 findings remain.
+
+## Activity-day addition/deletion refinement
+
+### Change brief
+
+- Surface: the existing compact assignment-history chart shared by the teacher
+  student-work inspector and student assignment editor.
+- Reference: the established 240–256 px Pika history sidebar and its existing
+  hover-preview/click-lock interaction.
+- Affected roles: teacher and student.
+- Required viewports and themes: desktop/mobile and light/dark.
+- Key states: default, hover preview, keyboard focus, pinned preview, and empty.
+- Primary signal: vertical save marks above a centered zero line for additions
+  and below it for deletions, positioned across the actual activity days.
+- Must not add: assignment/due boundaries, judgments, legends, duplicate detail
+  charts, session summaries, or decorative labels.
+- Composite widget accessibility review: yes; the existing labelled slider and
+  Arrow/Home/End behavior remain the governing interaction.
+
+This is a refinement of the existing history chart, not a new history surface.
+The visible copy is limited to the role-owned heading, empty state when needed,
+and the first/last activity dates.
+
+### Verification result
+
+- Reviewed teacher and student screenshots at 1440 × 900 and 390 × 844 in
+  light and dark themes, plus hover, pinned, keyboard-focus, and empty states.
+- The day-based clumps and addition/deletion direction remain legible at the
+  compact sidebar size. The keyboard focus ring is visible and no tested
+  viewport has horizontal overflow.
+- Focused component and graph coverage passes 123/123. TypeScript and lint pass.
+- No P0, P1, or P2 visual or interaction findings remain.
+
+### Composite-widget accessibility checklist
+
+- Checklist reviewed: yes.
+- Keyboard behavior covered: yes; Arrow keys, Home, and End select saves.
+- Semantic state covered by tests: yes; the slider name, range position, and
+  text alternative for character change are asserted.
+- Remaining manual follow-up: none; visible focus was checked in Playwright.

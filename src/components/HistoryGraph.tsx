@@ -4,12 +4,10 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { AssignmentDocHistoryEntry } from '@/types'
 import {
-  buildWorkSessions,
+  computeActivityPositions,
+  computeActivityWindow,
   computeCharDiffs,
-  computeLifecycleWindow,
-  positionInLifecycle,
   type EntryWithDiff,
-  type HistoryLifecycle,
 } from '@/lib/history-graph'
 
 export interface HistoryGraphProps {
@@ -17,7 +15,6 @@ export interface HistoryGraphProps {
   activeEntryId: string | null
   onEntryClick: (entry: AssignmentDocHistoryEntry) => void
   onEntryHover?: (entry: AssignmentDocHistoryEntry) => void
-  lifecycle?: HistoryLifecycle
   audience?: 'teacher' | 'student'
   showHeading?: boolean
   variant?: 'desktop' | 'mobile'
@@ -27,11 +24,8 @@ const TZ = 'America/Toronto'
 const CHART_WIDTH = 256
 const CHART_HEIGHT = 78
 const CHART_INSET = 5
-const BASELINE_Y = 68
-
-function pluralize(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`
-}
+const BASELINE_Y = CHART_HEIGHT / 2
+const MAX_CHANGE_HEIGHT = 28
 
 function formatDate(timestamp: number): string {
   return formatInTimeZone(new Date(timestamp), TZ, 'MMM d')
@@ -45,17 +39,13 @@ function entryLabel(entry: EntryWithDiff): string {
   const change = entry.charDiff === 0
     ? 'first save'
     : `${entry.charDiff > 0 ? '+' : ''}${entry.charDiff} characters since previous`
-  return `${formatTime(Date.parse(entry.entry.created_at))}, ${entry.entry.word_count} words, ${change}`
+  return `${formatDate(Date.parse(entry.entry.created_at))}, ${formatTime(Date.parse(entry.entry.created_at))}, ${change}`
 }
 
-function pointX(entry: EntryWithDiff, lifecycle: { startMs: number; endMs: number }): number {
-  return CHART_INSET
-    + positionInLifecycle(Date.parse(entry.entry.created_at), lifecycle)
-    * (CHART_WIDTH - CHART_INSET * 2)
-}
-
-function pointY(entry: EntryWithDiff, maxWords: number): number {
-  return BASELINE_Y - (entry.entry.word_count / maxWords) * 52
+function pointY(entry: EntryWithDiff, maxAbsDiff: number): number {
+  if (entry.charDiff === 0) return BASELINE_Y
+  const height = Math.sqrt(Math.abs(entry.charDiff) / maxAbsDiff) * MAX_CHANGE_HEIGHT
+  return BASELINE_Y - Math.sign(entry.charDiff) * height
 }
 
 export function HistoryGraph({
@@ -63,17 +53,12 @@ export function HistoryGraph({
   activeEntryId,
   onEntryClick,
   onEntryHover,
-  lifecycle = { startAt: null, dueAt: null, submittedAt: null },
   audience = 'student',
   showHeading = true,
   variant = 'desktop',
 }: HistoryGraphProps) {
   const diffs = useMemo(() => computeCharDiffs(entries), [entries])
-  const sessions = useMemo(() => buildWorkSessions(diffs), [diffs])
-  const window = useMemo(
-    () => computeLifecycleWindow(entries, lifecycle),
-    [entries, lifecycle]
-  )
+  const window = useMemo(() => computeActivityWindow(entries), [entries])
   const heading = audience === 'teacher' ? 'Student activity' : 'Version history'
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const lastHoveredEntryIdRef = useRef<string | null>(null)
@@ -86,13 +71,17 @@ export function HistoryGraph({
       ? activeIndex
       : diffs.length - 1
   const selectedEntry = diffs[selectedIndex]
+  const positions = useMemo(
+    () => window ? computeActivityPositions(diffs, window, CHART_WIDTH, CHART_INSET) : [],
+    [diffs, window]
+  )
 
   const selectByIndex = useCallback((index: number) => {
     const next = diffs[Math.max(0, Math.min(diffs.length - 1, index))]
     if (next) onEntryClick(next.entry)
   }, [diffs, onEntryClick])
 
-  const maxWords = Math.max(1, ...diffs.map((entry) => entry.entry.word_count))
+  const maxAbsDiff = Math.max(1, ...diffs.map((entry) => Math.abs(entry.charDiff)))
 
   const findNearestIndex = useCallback((clientX: number, clientY: number, bounds: DOMRect) => {
     if (!window || bounds.width <= 0) return -1
@@ -100,8 +89,8 @@ export function HistoryGraph({
     let nearestDistance = Number.POSITIVE_INFINITY
 
     diffs.forEach((entry, index) => {
-      const entryX = bounds.left + (pointX(entry, window) / CHART_WIDTH) * bounds.width
-      const entryY = bounds.top + (pointY(entry, maxWords) / CHART_HEIGHT) * bounds.height
+      const entryX = bounds.left + (positions[index] / CHART_WIDTH) * bounds.width
+      const entryY = bounds.top + (pointY(entry, maxAbsDiff) / CHART_HEIGHT) * bounds.height
       const distance = Math.hypot(clientX - entryX, clientY - entryY)
       if (distance < nearestDistance) {
         nearestIndex = index
@@ -110,7 +99,7 @@ export function HistoryGraph({
     })
 
     return nearestIndex
-  }, [diffs, maxWords, window])
+  }, [diffs, maxAbsDiff, positions, window])
 
   const handlePointer = useCallback((event: React.MouseEvent<SVGSVGElement>, select: boolean) => {
     const index = findNearestIndex(
@@ -144,21 +133,15 @@ export function HistoryGraph({
     )
   }
 
-  const points = diffs.map((entry) => {
-    const x = pointX(entry, window)
-    const y = pointY(entry, maxWords)
-    return `${x},${y}`
-  }).join(' ')
-  const endLabel = lifecycle.submittedAt ? 'Submitted' : lifecycle.dueAt ? 'Due' : 'Latest'
+  const firstEntryMs = Date.parse(diffs[0].entry.created_at)
+  const lastEntryMs = Date.parse(diffs[diffs.length - 1].entry.created_at)
+  const firstDay = formatInTimeZone(new Date(firstEntryMs), TZ, 'yyyy-MM-dd')
+  const lastDay = formatInTimeZone(new Date(lastEntryMs), TZ, 'yyyy-MM-dd')
 
   return (
     <section className="px-3 py-2" aria-label={heading}>
       {showHeading && <h3 className="text-sm font-semibold text-text-default">{heading}</h3>}
-      <p className={`text-xs text-text-muted ${showHeading ? 'mt-0.5' : ''}`}>
-          {pluralize(entries.length, 'save')} · {pluralize(sessions.length, 'work session')}
-      </p>
-
-      <div className="relative mt-2">
+      <div className={`relative ${showHeading ? 'mt-1' : ''}`}>
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           className="block h-20 w-full cursor-crosshair overflow-visible outline-none focus-visible:ring-foundation focus-visible:ring-focus"
@@ -192,21 +175,6 @@ export function HistoryGraph({
             }
           }}
         >
-          {Array.from({ length: 5 }, (_, index) => {
-            const x = CHART_INSET + (index / 4) * (CHART_WIDTH - CHART_INSET * 2)
-            return (
-              <line
-                key={x}
-                x1={x}
-                y1={5}
-                x2={x}
-                y2={BASELINE_Y}
-                stroke="var(--color-border)"
-                strokeWidth={1}
-                strokeDasharray="5 8"
-              />
-            )
-          })}
           <line
             x1={CHART_INSET}
             y1={BASELINE_Y}
@@ -215,57 +183,53 @@ export function HistoryGraph({
             stroke="var(--color-border-strong)"
             strokeWidth={2}
           />
-          <polyline
-            points={points}
-            fill="none"
-            stroke="var(--color-primary)"
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
           {diffs.map((entry, index) => {
-            const x = pointX(entry, window)
-            const y = pointY(entry, maxWords)
+            const x = positions[index]
+            const y = pointY(entry, maxAbsDiff)
             const isSelected = index === selectedIndex
+            const direction = entry.charDiff > 0 ? 'up' : entry.charDiff < 0 ? 'down' : 'none'
+            const color = entry.charDiff > 0
+              ? 'var(--color-success)'
+              : entry.charDiff < 0
+                ? 'var(--color-danger)'
+                : 'var(--color-text-muted)'
             return (
-              <g key={entry.entry.id}>
+              <g key={entry.entry.id} data-change-direction={direction}>
+                <line
+                  x1={x}
+                  y1={BASELINE_Y}
+                  x2={x}
+                  y2={y}
+                  stroke={color}
+                  strokeWidth={isSelected ? 4 : 3}
+                  strokeLinecap="round"
+                />
                 {isSelected && (
-                  <line
-                    x1={x}
-                    y1={4}
-                    x2={x}
-                    y2={BASELINE_Y + 5}
-                    stroke="var(--color-primary)"
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={4}
+                    fill={color}
+                    stroke="var(--color-surface)"
                     strokeWidth={2}
                   />
                 )}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={isSelected ? 6 : 3.5}
-                  fill="var(--color-primary)"
-                  stroke="var(--color-surface)"
-                  strokeWidth={isSelected ? 3 : 0}
-                />
               </g>
             )
           })}
-          <circle cx={CHART_INSET} cy={BASELINE_Y} r={4} fill="var(--color-text-muted)" />
-          <circle
-            cx={CHART_WIDTH - CHART_INSET}
-            cy={BASELINE_Y}
-            r={4}
-            fill="var(--color-surface)"
-            stroke="var(--color-text-muted)"
-            strokeWidth={2}
-          />
         </svg>
       </div>
 
-      <div className="mt-0.5 flex items-start justify-between gap-3 text-xs leading-tight text-text-muted">
-        <span>Assigned<br />{formatDate(window.startMs)}</span>
-        <span className="text-right">{endLabel}<br />{formatDate(window.endMs)}</span>
-      </div>
+      {firstDay === lastDay ? (
+        <p className="mt-0.5 text-center text-xs leading-tight text-text-muted">
+          {formatDate(firstEntryMs)}
+        </p>
+      ) : (
+        <div className="mt-0.5 flex justify-between gap-3 text-xs leading-tight text-text-muted">
+          <span>{formatDate(firstEntryMs)}</span>
+          <span>{formatDate(lastEntryMs)}</span>
+        </div>
+      )}
     </section>
   )
 }

@@ -1552,11 +1552,6 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                     onEntryHover={handlePreviewHover}
                     audience="student"
                     showHeading={false}
-                    lifecycle={{
-                      startAt: assignment.released_at ?? assignment.created_at,
-                      dueAt: assignment.due_at,
-                      submittedAt: doc?.submitted_at ?? null,
-                    }}
                   />
                 )}
               </div>
@@ -1612,11 +1607,6 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   onEntryClick={handlePreviewLock}
                   audience="student"
                   showHeading={false}
-                  lifecycle={{
-                    startAt: assignment.released_at ?? assignment.created_at,
-                    dueAt: assignment.due_at,
-                    submittedAt: doc?.submitted_at ?? null,
-                  }}
                   variant="mobile"
                 />
               )}
