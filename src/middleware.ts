@@ -6,6 +6,17 @@ import {
   partitionAuthkitHeaders,
 } from '@workos-inc/authkit-nextjs'
 import { getRequestPath, PIKA_REQUEST_PATH_HEADER } from '@/lib/auth-redirect'
+import {
+  isLegacyPasswordAuthEnabled,
+  shouldUseWorkOSAuthKit,
+} from '@/lib/auth-mode'
+
+const LEGACY_PASSWORD_PATHS = new Set([
+  '/create-password',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-signup',
+])
 
 function withTrustedRequestPath(headers: Headers, request: NextRequest): Headers {
   const requestHeaders = new Headers(headers)
@@ -15,7 +26,14 @@ function withTrustedRequestPath(headers: Headers, request: NextRequest): Headers
 }
 
 export default async function middleware(request: NextRequest) {
-  if (process.env.WORKOS_MAGIC_AUTH_PILOT !== 'true') {
+  if (
+    !isLegacyPasswordAuthEnabled()
+    && LEGACY_PASSWORD_PATHS.has(request.nextUrl.pathname)
+  ) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  if (!shouldUseWorkOSAuthKit()) {
     return NextResponse.next({
       request: { headers: withTrustedRequestPath(request.headers, request) },
     })

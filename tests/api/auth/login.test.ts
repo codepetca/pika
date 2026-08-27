@@ -2,7 +2,7 @@
  * API tests for POST /api/auth/login
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/login/route'
 import { NextRequest } from 'next/server'
 
@@ -44,6 +44,21 @@ const mockSupabaseClient = {
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('is unavailable unless the legacy password override is explicit', async () => {
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
+    const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'test@example.com', password: 'ValidPassword123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(404)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   // ==========================================================================

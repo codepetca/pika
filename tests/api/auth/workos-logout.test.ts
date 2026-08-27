@@ -34,7 +34,7 @@ function request(
 describe('POST /api/auth/workos/logout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
     vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://pika.example.test')
     vi.stubEnv('WORKOS_COOKIE_NAME', 'pika-wos-session')
     mocks.withAuth.mockResolvedValue({ sessionId: 'session_workos_1' })
@@ -63,8 +63,8 @@ describe('POST /api/auth/workos/logout', () => {
     )
   })
 
-  it('returns to login without invoking WorkOS when the pilot is disabled', async () => {
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+  it('returns to login without invoking WorkOS in explicit legacy mode', async () => {
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
 
     const response = await POST(request(), { params: Promise.resolve({}) })
 

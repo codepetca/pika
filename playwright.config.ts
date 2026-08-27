@@ -3,7 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 const resolvedBaseUrl = new URL(baseURL)
 const resolvedPort = resolvedBaseUrl.port || (resolvedBaseUrl.protocol === 'https:' ? '443' : '80')
-const webServerCommand = `PIKA_E2E_FIXTURES=true pnpm exec next dev --port ${resolvedPort}`
+// Most authenticated browser fixtures still use seeded local passwords. Keep
+// that compatibility explicit so ordinary `pnpm dev` remains WorkOS-first.
+const webServerCommand = `PIKA_E2E_FIXTURES=true PIKA_LEGACY_PASSWORD_AUTH=true pnpm exec next dev --port ${resolvedPort}`
 const experienceMatrixSpec = /experience-matrix\.spec\.ts/
 
 const desktop = {

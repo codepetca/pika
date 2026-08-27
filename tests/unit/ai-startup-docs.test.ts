@@ -422,12 +422,48 @@ describe('AI startup docs', () => {
     try {
       const output = execFileSync('bash', [scriptPath], {
         cwd: repoRoot,
+        env: {
+          ...process.env,
+          PIKA_LEGACY_PASSWORD_AUTH: 'false',
+          SESSION_SECRET: 'fixture-session-secret-at-least-32-characters',
+          WORKOS_CLIENT_ID: 'client_fixture',
+          WORKOS_API_KEY: 'sk_fixture',
+          WORKOS_COOKIE_PASSWORD: 'fixture-workos-cookie-password-at-least-32-characters',
+        },
         encoding: 'utf8',
       })
 
       expect(output).toContain('✅ Dependencies installed')
       expect(output).not.toContain('Running tests...')
       expect(output).toContain('Environment verified. Ready for development.')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('fails fast when default WorkOS local authentication is incomplete', () => {
+    const repoRoot = makeVerifyEnvFixture()
+    const scriptPath = resolve(testDir, '../../scripts/verify-env.sh')
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          PIKA_LEGACY_PASSWORD_AUTH: 'false',
+          SESSION_SECRET: '',
+          WORKOS_CLIENT_ID: '',
+          WORKOS_API_KEY: '',
+          WORKOS_COOKIE_PASSWORD: '',
+        },
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'WorkOS Magic Auth is the default, but local configuration is incomplete',
+      )
+      expect(result.stdout).not.toContain('Environment verified. Ready for development.')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

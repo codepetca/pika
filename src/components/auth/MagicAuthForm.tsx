@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type Ref } from 'react'
 import { navigateTo } from '@/lib/client-navigation'
 import { Button, FormField, Input } from '@/ui'
 
@@ -11,6 +11,8 @@ interface MagicAuthFormProps {
   initialEmail?: string
   hasPendingChallenge?: boolean
   nextPath?: string | null
+  emailInputRef?: Ref<HTMLInputElement>
+  emailAriaDescribedBy?: string
 }
 
 type Phase = 'email' | 'code'
@@ -20,6 +22,8 @@ export function MagicAuthForm({
   initialEmail = '',
   hasPendingChallenge = false,
   nextPath,
+  emailInputRef,
+  emailAriaDescribedBy,
 }: MagicAuthFormProps) {
   const [phase, setPhase] = useState<Phase>(hasPendingChallenge ? 'code' : 'email')
   const [email, setEmail] = useState(initialEmail)
@@ -118,8 +122,10 @@ export function MagicAuthForm({
       <form onSubmit={handleEmailSubmit}>
         <FormField label="School Email" error={error} required>
           <Input
+            ref={emailInputRef}
             type="email"
             autoComplete="email"
+            aria-describedby={emailAriaDescribedBy}
             placeholder="email@gapps.yrdsb.ca"
             value={email}
             onChange={event => setEmail(event.target.value)}

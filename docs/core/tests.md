@@ -72,15 +72,17 @@ Test the `isOnTime()` function:
 
 **TDD Flow**: Write tests first, then implement timezone logic.
 
-### 3.3 Authentication (`src/lib/auth.ts`, `src/lib/crypto.ts`)
+### 3.3 Authentication (`src/lib/auth.ts`, WorkOS server helpers)
 
-Test password-based flows:
+Test the default WorkOS flow and session boundary:
 
-- `generateVerificationCode()` length/charset
-- `hashPassword`/`verifyPassword` bcrypt behavior
+- Complete/incomplete WorkOS configuration and explicit legacy override
+- Magic Auth start/verify, pending challenge expiry, resend, and safe return paths
+- Exact WorkOS subject/email binding to the Pika identity mapping
+- WorkOS and Pika session coexistence, restoration, and logout invalidation
 - `isTeacherEmail` domains and `DEV_TEACHER_EMAILS`
 - Session cookie options (secure/sameSite/httpOnly)
-- `validatePassword` rules
+- Legacy-only `generateVerificationCode`, password hashing, validation, and lockout fixtures
 
 **TDD Flow**: Write tests for each function before implementation.
 
@@ -91,12 +93,12 @@ Test password-based flows:
 **Location**: `tests/api/` (mirrors `src/app/api/`)
 
 ### 4.1 Authentication Routes (primary)
-- `/api/auth/signup` → stores verification code, respects per-hour limit
-- `/api/auth/verify-signup` → attempts/expiry checks, role selection
-- `/api/auth/create-password` → hashes password, creates session
-- `/api/auth/login` → validates credentials, returns session cookie
-- `/api/auth/forgot-password` → reset code issuance
-- `/api/auth/reset-password/verify` + `/confirm` → code checks + password update
+- `/api/auth/workos/magic/start` → validates complete configuration, creates a challenge, and stores only pending server state
+- `/api/auth/workos/magic/verify` → verifies the code, binds the exact identity, and creates both sessions
+- `/api/auth/workos/magic/pending` → reads/clears an unexpired challenge without exposing provider details
+- `/api/auth/workos/session/restore` → restores only an exact existing WorkOS/Pika mapping
+- `/api/auth/workos/logout` and `/api/auth/logout` → invalidate both authorities
+- Legacy signup/login/reset routes → return 404 by default and retain behavior only under `PIKA_LEGACY_PASSWORD_AUTH=true`
 - Session cookie behavior (httpOnly, secure in prod, SameSite=Lax)
 
 ### 4.2 Student Routes
@@ -196,14 +198,14 @@ Test password-based flows:
 Focus on **critical user flows**:
 
 1. **Student flow**:
-   - Signup → verify email → create password → login
+   - Enter email → receive and verify WorkOS six-digit code → open Pika
    - Join classroom via code
    - Submit journal entry
    - Open assignment, autosave content, submit, unsubmit
    - Verify attendance status updates
 
 2. **Teacher flow**:
-   - Login with password
+   - Login with a WorkOS email verification code
    - View attendance dashboard
    - Upload roster CSV, see students appear
    - Create assignment and see student statuses update after submit/unsubmit
@@ -232,10 +234,10 @@ For visual UI verification during development, AI agents use the Playwright CLI 
 **Quick Start:**
 
 ```bash
-# 1. Start the dev server (in one terminal)
-pnpm dev
+# 1. Start the password-backed browser fixture server (in one terminal)
+PIKA_LEGACY_PASSWORD_AUTH=true pnpm dev
 
-# 2. Generate auth states (if needed)
+# 2. Generate auth states from the seeded password fixtures
 pnpm e2e:auth
 
 # 3. Take screenshot as teacher or student

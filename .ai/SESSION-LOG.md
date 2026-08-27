@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Reconcile attendance rollout documentation
-
-**Risk profile:** none — documentation consistency only; no migration,
-deployment, configuration, entitlement, smoke, or hosted data changed.
-
-- Reconciled the adapter status, control runbooks, native-attendance roadmap,
-  canary boundary, and completion audit with the verified production state:
-  migrations through 132, enabled `teacher_entitlements`, and the passing 4/4
-  deployed smoke.
-- Preserved the exact pair as the signed-smoke scope, retained separate
-  authorization for future changes, and replaced completed pre-enable steps
-  with the remaining entitled-teacher workflow, UI, isolation, and pilot gates.
-- Review remediation rewrote the operational-recovery procedure from the
-  current enabled state and extended the rollout regression to cover the
-  compact handoff plus production smoke instructions.
-- Final remediation made the regression pin the runbook's dated 4/4 status and
-  complete enabled production command, preventing a partial command or stale
-  pre-enable block from satisfying the rollout-continuity gate.
-- Rebased onto current `main`, retained its assignment timestamp work and
-  canonical continuity history, then corrected the v1 guide's production
-  preflight example to the enabled entitlement state and pinned the full command
-  in regression coverage.
-- Rereview hardened that regression to inspect fenced preflight commands
-  independent of option order while allowing historical prose and preview-only
-  pre-enable examples.
-- Final parser remediation reconstructs individual continued commands across
-  common shell fence labels, preventing cross-command false positives and
-  catching reordered or equals-form stale production flags.
-- With an explicitly extended review budget, replaced the growing shell parser
-  with an exact single-purpose preflight-fence contract and labeled the
-  migration-132 rollout sequence as completed audit history rather than future
-  operator instructions.
-
 ## 2026-08-25 — Pin the student Pal companion on iPhone
 
 **Risk profile:** none — student-only Pal companion placement; no academic
@@ -1008,3 +975,51 @@ hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for a contained test-harness
 compatibility correction and exact-workflow verification.
+
+## 2026-08-27 — Align local authentication with WorkOS Magic Auth
+
+**Risk profile:** runtime-platform — authentication defaults, middleware and API
+gating, local configuration diagnostics, test harness compatibility, and auth
+UI only; no database migration, dependency, hosted configuration, or production
+credential mutation.
+
+- Made WorkOS email plus six-digit verification code the default login and
+  signup experience in every environment. Legacy password pages and API routes
+  now require the explicit `PIKA_LEGACY_PASSWORD_AUTH=true` override.
+- Added one shared auth-mode/config contract, fail-closed behavior when WorkOS
+  credentials are missing, local environment diagnostics, and explicit legacy
+  mode for the existing password-backed Playwright fixtures and CLI workflow.
+- Updated the auth architecture, tests, environment example, WorkOS rollout
+  guidance, and feature inventory to replace the retired pilot flag. The auth
+  epic remains incomplete until dedicated development credentials and the
+  required real-code smokes exist.
+- Review remediation made `SESSION_SECRET` part of WorkOS readiness so login,
+  signup, and code-start requests fail before contacting WorkOS when pending
+  state cannot be stored. Environment verification now fails fast on incomplete
+  default WorkOS configuration instead of reporting the checkout ready.
+- Independent security/architecture review remediation added full coverage for
+  incomplete WorkOS authorization, made the local Pika/Bara configurator abort
+  without writing either environment unless Pika WorkOS auth is complete, and
+  replaced password/mock-email-first setup, deployment, troubleshooting, and
+  test-plan guidance across the README and core docs. A source-doc regression
+  now prevents those retired primary-auth claims from returning.
+- Password-backed browser fixtures now require explicit legacy mode in both the
+  local quick start and controlled-preview workflow. The docs prohibit using
+  that fixture flow against default WorkOS previews or Production, and a
+  source-doc regression keeps the server, credentials, and selector aligned.
+- Runtime verification covers the default login/signup pages, password-page
+  redirects, disabled legacy API, and unavailable unconfigured WorkOS send.
+  Visual verification covers login, signup, and code entry on desktop/mobile in
+  light/dark with no horizontal overflow. Teacher/student role variants are n/a
+  because these are shared unauthenticated screens.
+
+**Verification:** full Vitest (5,159/5,159), production build, lint,
+full coverage (including 100% for `src/lib/auth.ts`),
+architecture/design/UI policy checks, Pika audit, configuration fail-fast
+regressions, and responsive Playwright capture review pass. Synthetic complete
+WorkOS and explicit legacy configurations pass environment verification; the
+shared default correctly fails because it still needs dedicated development
+WorkOS credentials. Production credentials were intentionally not reused.
+
+**Model recommendation:** GPT-5.6 Sol for authentication and runtime-platform
+changes with broad regression and responsive browser verification.

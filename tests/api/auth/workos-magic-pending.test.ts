@@ -12,7 +12,7 @@ import { DELETE } from '@/app/api/auth/workos/magic/pending/route'
 describe('DELETE /api/auth/workos/magic/pending', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
   })
 
   afterEach(() => vi.unstubAllEnvs())
@@ -28,8 +28,8 @@ describe('DELETE /api/auth/workos/magic/pending', () => {
     expect(clearPending).toHaveBeenCalledOnce()
   })
 
-  it('is unavailable while the pilot is disabled', async () => {
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+  it('is unavailable while the explicit legacy password override is on', async () => {
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
 
     const response = await DELETE(new NextRequest(
       'http://localhost:3000/api/auth/workos/magic/pending',

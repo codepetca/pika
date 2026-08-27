@@ -2,7 +2,7 @@
 
 Overview of **Pika**: daily journals, attendance, classrooms, and assignments for online high school courses. Students submit work; teachers track attendance and assignments. America/Toronto timezone is authoritative.
 
-**Status**: Classrooms, assignments, password-based auth, and dashboards are implemented. Working toward full test coverage and polish.
+**Status**: Classrooms, assignments, WorkOS Magic Auth, and dashboards are implemented. Working toward full test coverage and polish.
 
 ---
 
@@ -63,7 +63,10 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
 5. Optional: `pnpm seed`
    - To wipe + reseed against a specific env file: `ENV_FILE=.env.custom.local ALLOW_DB_WIPE=true pnpm seed:fresh`
 
-Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). For production email setup, see [`docs/deployment/BREVO-SETUP.md`](../deployment/BREVO-SETUP.md).
+WorkOS sends Magic Auth codes by default. The Brevo alternative is allowed only
+after WorkOS default Magic Auth email is disabled for that environment; follow
+[`docs/guidance/workos-magic-auth-pilot.md`](../guidance/workos-magic-auth-pilot.md).
+`ENABLE_MOCK_EMAIL` applies only to explicit legacy password fixtures.
 
 ---
 
@@ -123,7 +126,12 @@ cleanup-disabled procedure in `docs/guidance/classroom-lifecycle-archives.md`.
 - `SUPABASE_SECRET_KEY`
 - `SESSION_SECRET` (>=32 chars for iron-session)
 - `DEV_TEACHER_EMAILS` (comma-separated)
-- `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
+- `PIKA_LEGACY_PASSWORD_AUTH=false` (default WorkOS mode; `true` is rollback/test only)
+- `WORKOS_CLIENT_ID` (environment-specific `client_...` value)
+- `WORKOS_API_KEY` (server-only, environment-specific `sk_...` value)
+- `WORKOS_COOKIE_PASSWORD` (>=32 chars and distinct per environment)
+- `WORKOS_COOKIE_NAME=pika-wos-session`
+- `WORKOS_MAGIC_AUTH_EMAIL_DELIVERY=workos` (default provider delivery)
 - `NEXT_PUBLIC_APP_URL`
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in `vercel.json` or the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
 - `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
@@ -154,7 +162,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ## Feature Overview
 
-1) **Authentication**: Email verification + password. Endpoints for signup, verify-signup, create-password, login, forgot/reset password.
+1) **Authentication**: WorkOS Magic Auth email plus six-digit verification code. Legacy password signup/login/reset routes remain available only with the explicit rollback/development override.
 
 2) **Daily Journal**: Per-classroom entry with Toronto midnight cutoff; present/absent attendance; history view.
 
@@ -168,7 +176,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ## Deployment
 
-- Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
+- Host on Vercel; configure dedicated WorkOS credentials for each environment and keep provider delivery on `workos` unless the documented Brevo gate is satisfied.
 - Supabase Cloud for DB; enable connection pooling; treat migrations as a separately authorized deploy step.
 - If using cron, configure schedules in `vercel.json` or the Vercel dashboard for production. On the Hobby plan, Vercel cron jobs must run at most once per day, so do not add sub-daily schedules. Current repo-managed schedules: nightly log summaries at `0 6 * * *` (06:00 UTC) and history cleanup at `0 7 * * *` (07:00 UTC).
 
@@ -190,7 +198,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
   - `corepack prepare pnpm@10.25.0 --activate`
   - Re-open the terminal and re-check: `node -v`, `pnpm -v`, `pnpm exec node -v`
 - **Supabase issues**: verify keys, ensure migrations applied, review RLS if access errors.
-- **Emails not arriving**: ensure mock mode expected; otherwise implement provider in `email.ts`.
+- **WorkOS codes not arriving**: confirm the target environment's WorkOS credentials and provider delivery setting, then inspect WorkOS delivery evidence. Do not use the legacy mock logger as a fallback.
 - **Timezone/attendance**: ensure server runs with America/Toronto assumptions; tests cover DST via `date-fns-tz`.
 
 ---

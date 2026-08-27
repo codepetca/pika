@@ -26,7 +26,7 @@ function request(body: unknown) {
 describe('POST /api/auth/workos/session/restore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
     mocks.withAuth.mockResolvedValue({
       user: {
         id: 'user_workos_1',

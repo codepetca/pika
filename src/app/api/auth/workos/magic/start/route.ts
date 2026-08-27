@@ -3,10 +3,10 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { startWorkOSMagicAuthSchema } from '@/lib/validations/auth'
 import { startWorkOSMagicAuth } from '@/lib/server/workos-magic-auth'
 import { savePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
-import { requireWorkOSMagicAuthPilot, safePikaPath } from '@/lib/server/workos-pilot'
+import { requireWorkOSMagicAuth, safePikaPath } from '@/lib/server/workos-config'
 
 export const POST = withErrorHandler('StartWorkOSMagicAuth', async (request: NextRequest) => {
-  requireWorkOSMagicAuthPilot()
+  requireWorkOSMagicAuth()
   const input = startWorkOSMagicAuthSchema.parse(await request.json())
   const challenge = await startWorkOSMagicAuth(input.email, request)
 

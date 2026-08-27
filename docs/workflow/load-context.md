@@ -36,7 +36,7 @@ Loaded AI instructions and core documentation:
 - AI orchestrator with reading order and constraints
 - System architecture patterns & data flow
 - UI/UX design guidelines (mobile-first, Tailwind, accessibility)
-- Project context (Next.js 14, Supabase, email verification + password auth)
+- Project context (Next.js 14, Supabase, WorkOS Magic Auth email-code login)
 - Multi-agent collaboration (6 specialized agents)
 - TDD requirements (100% core coverage, test-first workflow)
 - Current roadmap (MVP complete, tests in progress)

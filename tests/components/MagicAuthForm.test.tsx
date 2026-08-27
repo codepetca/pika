@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -15,6 +16,24 @@ describe('MagicAuthForm', () => {
   afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
+  })
+
+  it('forwards focus and accessible-description wiring to the email input', () => {
+    const emailInputRef = createRef<HTMLInputElement>()
+
+    render(
+      <MagicAuthForm
+        intent="sign-in"
+        emailInputRef={emailInputRef}
+        emailAriaDescribedBy="session-expired-message"
+      />,
+    )
+
+    const emailInput = screen.getByLabelText(/school email/i)
+    expect(emailInput).toHaveAttribute('aria-describedby', 'session-expired-message')
+    expect(emailInputRef.current).toBe(emailInput)
+    emailInputRef.current?.focus()
+    expect(emailInput).toHaveFocus()
   })
 
   it('stays on Pika while moving from email to six-digit code', async () => {

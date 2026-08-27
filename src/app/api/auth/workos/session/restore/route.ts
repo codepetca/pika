@@ -3,12 +3,12 @@ import { withAuth } from '@workos-inc/authkit-nextjs'
 import { createSession } from '@/lib/auth'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { findLinkedPikaUserFromWorkOS } from '@/lib/server/workos-identity'
-import { requireWorkOSMagicAuthPilot, safePikaPath } from '@/lib/server/workos-pilot'
+import { requireWorkOSMagicAuth, safePikaPath } from '@/lib/server/workos-config'
 import { restoreWorkOSSessionSchema } from '@/lib/validations/auth'
 
 export const POST = withErrorHandler('RestoreWorkOSSession', async (request: NextRequest) => {
   const input = restoreWorkOSSessionSchema.parse(await request.json())
-  requireWorkOSMagicAuthPilot()
+  requireWorkOSMagicAuth()
 
   const { user: workosUser } = await withAuth()
   if (!workosUser?.emailVerified) {

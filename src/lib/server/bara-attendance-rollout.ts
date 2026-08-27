@@ -8,7 +8,7 @@ export interface BaraAttendanceRolloutEnvironment {
   SUPABASE_SECRET_KEY?: string
   SESSION_SECRET?: string
   NEXT_PUBLIC_APP_URL?: string
-  WORKOS_MAGIC_AUTH_PILOT?: string
+  PIKA_LEGACY_PASSWORD_AUTH?: string
   WORKOS_CLIENT_ID?: string
   WORKOS_API_KEY?: string
   WORKOS_COOKIE_PASSWORD?: string
@@ -133,7 +133,7 @@ export function auditBaraAttendanceRolloutEnvironment(
     ],
     ['pika_origin', exactHttpsOrigin(environment.NEXT_PUBLIC_APP_URL, target.expectedPikaOrigin)],
     ['session_secret', hasSecret(environment.SESSION_SECRET)],
-    ['workos_pilot_enabled', environment.WORKOS_MAGIC_AUTH_PILOT === 'true'],
+    ['workos_magic_auth_enabled', environment.PIKA_LEGACY_PASSWORD_AUTH !== 'true'],
     [
       target.stage === 'preview'
         ? 'workos_staging_credentials'

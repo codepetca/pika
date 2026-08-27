@@ -1,13 +1,17 @@
 import { Suspense } from 'react'
 import { LoginClient } from './LoginClient'
 import { Spinner } from '@/components/Spinner'
-import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import {
+  isLegacyPasswordAuthEnabled,
+  shouldUseWorkOSAuthKit,
+} from '@/lib/auth-mode'
 import { hasActivePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
 import { withAuth } from '@workos-inc/authkit-nextjs'
 
 export default async function LoginPage() {
-  const magicAuthEnabled = isWorkOSMagicAuthPilotEnabled()
-  const [hasPendingChallenge, hasActiveWorkOSSession] = magicAuthEnabled
+  const legacyPasswordAuthEnabled = isLegacyPasswordAuthEnabled()
+  const workOSAuthKitConfigured = shouldUseWorkOSAuthKit()
+  const [hasPendingChallenge, hasActiveWorkOSSession] = workOSAuthKitConfigured
     ? await Promise.all([
         hasActivePendingWorkOSMagicAuth('sign-in'),
         withAuth().then(({ user }) => Boolean(user?.emailVerified)),
@@ -23,7 +27,7 @@ export default async function LoginPage() {
       }
     >
       <LoginClient
-        magicAuthEnabled={magicAuthEnabled}
+        legacyPasswordAuthEnabled={legacyPasswordAuthEnabled}
         hasPendingMagicAuthChallenge={hasPendingChallenge}
         hasActiveWorkOSSession={hasActiveWorkOSSession}
       />

@@ -6,7 +6,7 @@ Phase-based tracking for **Pika**.
 
 ## Current Status
 
-✅ Classrooms, roster upload, assignments, and password-based auth are live.  
+✅ Classrooms, roster upload, assignments, and WorkOS Magic Auth are live.
 🔄 Expanding test coverage and polishing docs/security.
 
 ---

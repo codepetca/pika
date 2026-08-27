@@ -5,11 +5,13 @@ import { sendSignupCode } from '@/lib/email'
 import { isTeacherEmail } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { signupSchema } from '@/lib/validations/auth'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-config'
 
 const MAX_CODES_PER_HOUR = 5
 const CODE_EXPIRY_MINUTES = 10
 
 export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const { email: normalizedEmail } = signupSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

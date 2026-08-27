@@ -8,7 +8,10 @@ import {
   AUTH_SESSION_VERSION,
 } from '@/lib/auth-session-policy'
 import { recordPalAuthenticatedSession } from '@/lib/server/pal-signals'
-import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
+import {
+  isLegacyPasswordAuthEnabled,
+  isWorkOSAuthKitConfigured,
+} from '@/lib/auth-mode'
 
 /**
  * Custom error class for authentication failures (401)
@@ -108,7 +111,7 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
     return null
   }
 
-  if (!isWorkOSMagicAuthPilotEnabled()) {
+  if (isLegacyPasswordAuthEnabled()) {
     // Only current sessions explicitly issued by the password flow remain
     // credentials during rollback. WorkOS mappings and ambiguous legacy seals
     // fail closed rather than being promoted into independent credentials.
@@ -119,7 +122,11 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
     ) ? pikaUser : null
   }
 
-  // During the pilot, the Pika cookie is only an internal identity/role
+  if (!isWorkOSAuthKitConfigured()) {
+    return null
+  }
+
+  // In the WorkOS flow, the Pika cookie is only an internal identity/role
   // mapping. WorkOS remains the credential and browser-session authority.
   // Requiring both prevents an older Pika-only cookie from authorizing native
   // attendance commands after its WorkOS credential is gone.

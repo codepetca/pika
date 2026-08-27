@@ -1,6 +1,6 @@
 # Architecture
 
-Defines the system architecture, patterns, and technical details for **Pika**. Primary flow is email verification + password.
+Defines the system architecture, patterns, and technical details for **Pika**. Primary authentication is WorkOS Magic Auth with an emailed six-digit code.
 
 ---
 
@@ -119,12 +119,12 @@ tests/                             # Vitest unit + API suites
   `border-border`, `text-primary`, `text-danger`, `text-success`, `text-warning`
 - Full token reference: `src/ui/README.md` | Design rules: `DESIGN.md`
 
-### Authentication (Current And WorkOS-Ready)
-- **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session.
-- **Login**: `/api/auth/login` with email/password.
-- **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` issues a short-lived one-time handoff token; `/confirm` requires that token before updating the password.
-- **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
-- **WorkOS migration posture**: keep `public.users.id` as Pika's internal UUID user id. Store the external WorkOS AuthKit id in `public.users.workos_user_id` and map WorkOS sessions to local users before authorization checks.
+### Authentication
+- **Signup and login**: `/login` and `/signup` use WorkOS Magic Auth. WorkOS creates, emails, expires, and verifies the six-digit one-time code.
+- **Identity mapping**: `public.users.id` remains Pika's internal UUID. The verified external identity is stored in `public.users.workos_user_id` and mapped to the local user before authorization.
+- **Sessions**: the encrypted WorkOS cookie is the credential/session authority. The HTTP-only `pika_session` cookie is a compatibility mapping containing the local UUID, role, normalized email, and exact WorkOS user id; protected requests require both identities to match.
+- **Local default**: absence of an auth-mode flag selects WorkOS. Missing WorkOS credentials fail authentication requests closed instead of exposing password login.
+- **Legacy rollback/development override**: `PIKA_LEGACY_PASSWORD_AUTH=true` explicitly enables the retired signup, password login, and password-reset pages and APIs. Password-origin sessions are accepted only in that mode; WorkOS-bound sessions fail closed during rollback.
 
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
@@ -292,19 +292,13 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 ## API Surface (non-exhaustive)
 
 **Auth**
-- `POST /api/auth/signup`
-- `POST /api/auth/verify-signup`
-- `POST /api/auth/create-password`
-- `POST /api/auth/login`
-- `POST /api/auth/forgot-password`
-- `POST /api/auth/reset-password/verify`
-- `POST /api/auth/reset-password/confirm`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
 - `POST /api/auth/workos/magic/start`
 - `POST /api/auth/workos/magic/verify`
 - `POST /api/auth/workos/session/restore` (exact linked WorkOS subject only)
 - `POST /api/auth/workos/logout` (same-origin Pika + WorkOS browser-session logout)
+- Legacy override only: `POST /api/auth/signup`, `/verify-signup`, `/create-password`, `/login`, `/forgot-password`, `/reset-password/verify`, and `/reset-password/confirm`
 
 **Student**
 - `GET /api/student/classrooms`

@@ -45,7 +45,7 @@ function request(
 describe('POST /api/auth/logout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'false')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'true')
     vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://pika.example.test')
     workOSMocks.withAuth.mockResolvedValue({ sessionId: 'session_workos_1' })
   })
@@ -76,8 +76,8 @@ describe('POST /api/auth/logout', () => {
       })
     })
 
-    it('clears WorkOS and pending-challenge cookies when the pilot is enabled', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    it('clears WorkOS and pending-challenge cookies in the default WorkOS mode', async () => {
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       vi.stubEnv('WORKOS_COOKIE_NAME', 'pika-wos-session')
 
       const response = await POST(request(), { params: Promise.resolve({}) })
@@ -92,7 +92,7 @@ describe('POST /api/auth/logout', () => {
     })
 
     it('clears local state but does not report success when WorkOS revocation fails', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
       workOSMocks.revokeSession.mockRejectedValueOnce(new Error('WorkOS unavailable'))
 
       const response = await POST(request(), { params: Promise.resolve({}) })
@@ -106,7 +106,7 @@ describe('POST /api/auth/logout', () => {
     })
 
     it('rejects cross-origin requests before changing authentication state', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
 
       const response = await POST(request('https://evil.example'), {
         params: Promise.resolve({}),
@@ -120,7 +120,7 @@ describe('POST /api/auth/logout', () => {
     })
 
     it('accepts the origin serving a Preview request when the canonical URL differs', async () => {
-      vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+      vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
 
       const response = await POST(request(
         'https://pika-preview.example.test',

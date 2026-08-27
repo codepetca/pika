@@ -50,7 +50,7 @@ describe('POST /api/auth/workos/magic/verify', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('WORKOS_MAGIC_AUTH_PILOT', 'true')
+    vi.stubEnv('PIKA_LEGACY_PASSWORD_AUTH', 'false')
     mocks.readPending.mockResolvedValue({
       email: 'student@example.com',
       expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
