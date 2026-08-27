@@ -670,12 +670,39 @@ describe('assessment drafts', () => {
     const questionDelete: any = { eq: vi.fn(() => questionDelete) }
     const questionUpdateFn = vi.fn(() => questionUpdate)
     const questionDeleteFn = vi.fn(() => questionDelete)
-    const questionSelectFn = vi.fn((columns: string) => ({
-      eq: vi.fn().mockResolvedValue({
-        data: columns === 'id' ? rows.map(({ id }) => ({ id })) : rows,
-        error: null,
-      }),
-    }))
+    const questionSelectFn = vi.fn((columns: string) => {
+      if (columns.includes('question_type')) {
+        const inspectionSelect: any = {
+          eq: vi.fn(() => inspectionSelect),
+          order: vi.fn().mockResolvedValue({
+            data: rows.map((row, position) => ({
+              ...row,
+              question_type: 'open_response',
+              question_text: position === 0 ? 'Existing row' : 'Portable identity wins',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+              position,
+            })),
+            error: null,
+          }),
+        }
+        return inspectionSelect
+      }
+      return {
+        eq: vi.fn().mockResolvedValue({
+          data: columns === 'id' ? rows.map(({ id }) => ({ id })) : rows,
+          error: null,
+        }),
+      }
+    })
+    const usageSelect = {
+      eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    }
     const testUpdate: any = {
       eq: vi.fn(() => testUpdate),
       select: vi.fn(() => ({
@@ -685,6 +712,7 @@ describe('assessment drafts', () => {
         }),
       })),
     }
+    const testUpdateFn = vi.fn(() => testUpdate)
     const rpc = vi.fn().mockResolvedValue({
       data: null,
       error: { code: 'PGRST202', message: 'activate_test_from_draft_atomic is missing' },
@@ -703,7 +731,10 @@ describe('assessment drafts', () => {
             delete: questionDeleteFn,
           }
         }
-        return { update: vi.fn(() => testUpdate) }
+        if (table === 'test_attempts' || table === 'test_responses') {
+          return { select: vi.fn(() => usageSelect) }
+        }
+        return { update: testUpdateFn }
       }),
     }
 
@@ -718,6 +749,8 @@ describe('assessment drafts', () => {
     })
 
     expect(questionUpdateFn).toHaveBeenCalledWith(expect.any(Object))
+    expect(testUpdateFn).toHaveBeenNthCalledWith(1, { status: 'closed' })
+    expect(testUpdateFn).toHaveBeenNthCalledWith(2, expect.objectContaining({ status: 'active' }))
     expect(questionUpdate.eq).toHaveBeenCalledWith('id', secondRowId)
     expect(questionDelete.eq).toHaveBeenCalledWith('id', TEST_ID_1)
   })

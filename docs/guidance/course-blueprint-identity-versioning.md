@@ -158,10 +158,13 @@ Roll out the contract as a finite cutover:
    exact legacy row IDs before persistence and activation, while returning the
    portable representation to the client. Draft-only UUIDs remain unchanged
    and are materialized with that same UUID in both the legacy row-ID and
-   artifact-ID slots. For active or closed Tests without student work, the
-   fallback synchronizes edit/add/remove/reorder changes into the authoritative
-   question rows before reporting success; after student work, only
-   metadata/document saves whose question graph is unchanged are accepted. A
+   artifact-ID slots. Migration 133 cannot transactionally fence student entry
+   across application-side question synchronization, so active and closed Tests
+   accept only metadata/document saves whose question graph is unchanged;
+   question edits require reopening the Test as a draft. Pre-migration
+   activation atomically claims that draft as closed, checks existing student
+   work, synchronizes authoritative rows while student entry is impossible,
+   then activates it. A
    draft-only portable UUID that already exists anywhere as an internal
    question row ID is rejected before writing because the legacy single-ID
    format cannot represent that namespace collision safely. This narrow

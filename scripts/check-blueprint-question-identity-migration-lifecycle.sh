@@ -22,6 +22,10 @@ insert into public.users (id, email, role) values (
   'b1349000-0000-4000-8000-000000000001',
   'blueprint-question-migration-lifecycle@example.test',
   'teacher'
+), (
+  'b1349000-0000-4000-8000-000000000002',
+  'blueprint-question-migration-student@example.test',
+  'student'
 );
 insert into public.classrooms (
   id, teacher_id, title, class_code
@@ -41,6 +45,10 @@ insert into public.tests (
   false,
   2,
   'b1349000-0000-4000-8000-000000000001'
+);
+insert into public.classroom_enrollments (classroom_id, student_id) values (
+  'b1349000-0000-4000-8000-000000000010',
+  'b1349000-0000-4000-8000-000000000002'
 );
 insert into public.test_questions (
   id, test_id, artifact_id, source_artifact_id, question_type,
@@ -196,7 +204,10 @@ $contract$;
 delete from public.classrooms
 where id = 'b1349000-0000-4000-8000-000000000010';
 delete from public.users
-where id = 'b1349000-0000-4000-8000-000000000001';
+where id in (
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000002'
+);
 SQL
 
 echo "Migration 134 production-shaped lifecycle contract passed."

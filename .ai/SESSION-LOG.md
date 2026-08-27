@@ -1166,16 +1166,20 @@ and no hosted state changed.
 - Replaced the missing-migration 503 with a narrow pre-134 fallback that maps
   marked portable question IDs back to exact legacy row IDs for persistence and
   activation while continuing to return the portable API contract. Active and
-  closed saves now synchronize the authoritative question rows when no student
-  work exists, preserve a draft-only UUID as its artifact identity, and reject
-  a draft-only/internal-row namespace collision before writing. After student
-  work, an unchanged question graph still permits metadata/document saves.
-  The fallback becomes unreachable when migration 134's atomic RPCs exist.
+  closed saves accept metadata/document changes only when the question graph is
+  unchanged; question edits require reopening as draft because migration 133
+  cannot hold a student-entry fence across multiple application writes.
+  Activation claims the draft as closed while checking student work and
+  synchronizing rows, preserves a draft-only UUID as its artifact identity, and
+  rejects a draft-only/internal-row namespace collision before writing. The
+  fallback becomes unreachable when migration 134's atomic RPCs exist.
 - Added a real pre-migration integration contract to the disposable CI lifecycle:
   it runs closed-Test save and activation against migration 133, covers the
   production-shaped row-ID/portable-ID collision plus draft-only collision
-  rejection and edit/add/remove/reorder/reopen behavior, then applies migration
-  134 and verifies the same Test through the portable-only path.
+  rejection, active/closed refusal, edit/add/remove/reorder/reopen behavior,
+  sequential student-work rejection, and a concurrent student-attempt race;
+  it then applies migration 134 and verifies the same Test through the
+  portable-only path.
 - Wrapped student attempt save and submission so both acquire Classroom before
   Test, matching Test authoring, archive, Blueprint reuse, and child mutations.
   The original migration-088 implementations moved behind non-callable private
