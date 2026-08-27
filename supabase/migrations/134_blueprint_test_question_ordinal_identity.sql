@@ -332,14 +332,15 @@ begin
     raise exception using errcode = 'P0002', message = 'test_not_found';
   end if;
 
-  -- Keep archive and authoring mutually exclusive through commit. Classroom
-  -- archive updates this same row, so evaluating authorization under a share
-  -- lock prevents a save from crossing the active-to-archived boundary.
+  -- Keep archive and authoring mutually exclusive through commit. Draft and
+  -- question triggers update this Classroom's structural revision, so take the
+  -- update lock now instead of upgrading a shared lock after another Test save
+  -- in the same Classroom has acquired it.
   select classroom.teacher_id, classroom.archived_at
     into v_owner_id, v_archived_at
   from public.classrooms classroom
   where classroom.id = v_test.classroom_id
-  for share;
+  for update;
 
   if not found then
     raise exception using errcode = 'P0002', message = 'test_classroom_not_found';
@@ -603,13 +604,14 @@ begin
   end if;
 
   -- Activation uses the same Test -> Classroom -> draft -> questions lock
-  -- order as saving. Holding the Classroom share lock through commit prevents
-  -- activation from completing after a concurrent archive wins.
+  -- order as saving. The update lock both prevents activation from completing
+  -- after a concurrent archive wins and serializes structural-revision writes
+  -- from different Tests in the same Classroom.
   select classroom.teacher_id, classroom.archived_at
     into v_owner_id, v_archived_at
   from public.classrooms classroom
   where classroom.id = v_test.classroom_id
-  for share;
+  for update;
 
   if not found then
     raise exception using errcode = 'P0002', message = 'test_classroom_not_found';
@@ -831,6 +833,7 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_operation public.course_blueprint_operations;
   v_result jsonb;
   v_blueprint_id uuid;
   v_item jsonb;
@@ -844,6 +847,11 @@ declare
   v_error_sqlstate text;
   v_resource_counts jsonb := '{}'::jsonb;
 begin
+  if p_operation_type not in ('import', 'capture') then
+    raise exception 'Invalid blueprint creation operation type'
+      using errcode = '22023';
+  end if;
+
   -- The base RPC owns its own domain-write savepoint, but this wrapper performs
   -- additional identity writes after the base RPC returns. Seed the ledger
   -- outside a wider savepoint so a wrapper failure can roll back the complete
@@ -865,6 +873,35 @@ begin
     p_source_classroom_id
   )
   on conflict (id) do nothing;
+
+  -- This wrapper has a wider exception savepoint than the base RPC. Hold the
+  -- ledger lock outside that savepoint so an identity-mapping rollback cannot
+  -- release it before the failure handler records its result. Otherwise two
+  -- retries of the same failed capture can overwrite a completed operation.
+  select *
+  into v_operation
+  from public.course_blueprint_operations
+  where id = p_operation_id
+  for update;
+
+  if v_operation.teacher_id <> p_teacher_id
+    or v_operation.operation_type <> p_operation_type
+    or v_operation.request_sha256 <> p_request_sha256
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'operation_type', p_operation_type,
+      'error_code', 'idempotency_conflict',
+      'error', 'Idempotency key was already used for a different blueprint request',
+      'retryable', false
+    );
+  end if;
+
+  if v_operation.status = 'completed' and v_operation.result is not null then
+    return jsonb_set(v_operation.result, '{replayed}', 'true'::jsonb, true);
+  end if;
 
   begin
   perform set_config('pika.identity_mapping', 'on', true);

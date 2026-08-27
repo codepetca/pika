@@ -130,7 +130,7 @@ for update;
 select teacher_id
 from public.classrooms
 where id = 'b1348000-0000-4000-8000-000000000010'
-for share;
+for update;
 select id
 from public.assessment_drafts
 where id = 'b1348000-0000-4000-8000-000000000012'
@@ -270,7 +270,7 @@ for update;
 select teacher_id
 from public.classrooms
 where id = 'b1348000-0000-4000-8000-000000000010'
-for share;
+for update;
 select id
 from public.assessment_drafts
 where id = 'b1348000-0000-4000-8000-000000000012'
@@ -333,14 +333,187 @@ end;
 $$;
 SQL
 
+# Two Test saves in one Classroom both advance the shared structural revision.
+# They must serialize at the Classroom row instead of each holding a shared lock
+# and deadlocking when their Draft triggers upgrade it.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values
+  (
+    'b1348000-0000-4000-8000-000000000021',
+    'b1348000-0000-4000-8000-000000000010',
+    'Concurrent draft save A',
+    'draft',
+    false,
+    1,
+    'b1348000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1348000-0000-4000-8000-000000000031',
+    'b1348000-0000-4000-8000-000000000010',
+    'Concurrent draft save B',
+    'draft',
+    false,
+    1,
+    'b1348000-0000-4000-8000-000000000001'
+  );
+
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values
+  (
+    'b1348000-0000-4000-8000-000000000022',
+    'test',
+    'b1348000-0000-4000-8000-000000000021',
+    'b1348000-0000-4000-8000-000000000010',
+    '{"title":"Concurrent draft save A","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1348000-0000-4000-8000-000000000001',
+    'b1348000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1348000-0000-4000-8000-000000000032',
+    'test',
+    'b1348000-0000-4000-8000-000000000031',
+    'b1348000-0000-4000-8000-000000000010',
+    '{"title":"Concurrent draft save B","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1348000-0000-4000-8000-000000000001',
+    'b1348000-0000-4000-8000-000000000001'
+  );
+
+create or replace function public.b134_hold_concurrent_draft_save()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.id in (
+    'b1348000-0000-4000-8000-000000000022'::uuid,
+    'b1348000-0000-4000-8000-000000000032'::uuid
+  ) then
+    perform pg_sleep(3);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger b134_hold_concurrent_draft_save
+before update of content on public.assessment_drafts
+for each row execute function public.b134_hold_concurrent_draft_save();
+SQL
+
+docker exec -e PGAPPNAME=b134_concurrent_draft_save_a -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+set statement_timeout = '15s';
+select public.save_test_draft_atomic(
+  'b1348000-0000-4000-8000-000000000001',
+  'b1348000-0000-4000-8000-000000000021',
+  1,
+  '{"title":"Concurrent draft save A","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Question A updated","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+SQL
+concurrent_save_a_pid=$!
+concurrent_save_a_ready=false
+for _attempt in {1..40}; do
+  concurrent_save_a_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_concurrent_draft_save_a' and wait_event = 'PgSleep'")"
+  if [[ "$concurrent_save_a_sleeping" == "1" ]]; then
+    concurrent_save_a_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$concurrent_save_a_ready" != "true" ]]; then
+  kill "$concurrent_save_a_pid" 2>/dev/null || true
+  wait "$concurrent_save_a_pid" 2>/dev/null || true
+  echo "First concurrent draft save did not reach its trigger checkpoint." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_concurrent_draft_save_b -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+set statement_timeout = '15s';
+select public.save_test_draft_atomic(
+  'b1348000-0000-4000-8000-000000000001',
+  'b1348000-0000-4000-8000-000000000031',
+  1,
+  '{"title":"Concurrent draft save B","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Question B updated","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+SQL
+concurrent_save_b_pid=$!
+concurrent_save_b_waited=false
+for _attempt in {1..40}; do
+  concurrent_save_b_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_concurrent_draft_save_b' and wait_event_type = 'Lock'")"
+  if [[ "$concurrent_save_b_waiting" == "1" ]]; then
+    concurrent_save_b_waited=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$concurrent_save_b_waited" != "true" ]]; then
+  kill "$concurrent_save_a_pid" 2>/dev/null || true
+  kill "$concurrent_save_b_pid" 2>/dev/null || true
+  wait "$concurrent_save_a_pid" 2>/dev/null || true
+  wait "$concurrent_save_b_pid" 2>/dev/null || true
+  echo "Concurrent Test saves did not serialize at the Classroom row." >&2
+  exit 1
+fi
+
+wait "$concurrent_save_a_pid"
+wait "$concurrent_save_b_pid"
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+drop trigger b134_hold_concurrent_draft_save on public.assessment_drafts;
+drop function public.b134_hold_concurrent_draft_save();
+
+do $$
+begin
+  if (
+    select count(*)
+    from public.assessment_drafts
+    where id in (
+      'b1348000-0000-4000-8000-000000000022'::uuid,
+      'b1348000-0000-4000-8000-000000000032'::uuid
+    )
+      and version = 2
+      and content->>'question_identity_version' = '1'
+  ) <> 2 then
+    raise exception 'Concurrent Test saves did not both commit';
+  end if;
+end;
+$$;
+SQL
+
 docker exec -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 delete from public.assessment_drafts
-where id = 'b1348000-0000-4000-8000-000000000012';
+where id in (
+  'b1348000-0000-4000-8000-000000000012',
+  'b1348000-0000-4000-8000-000000000022',
+  'b1348000-0000-4000-8000-000000000032'
+);
 delete from public.test_questions
 where id = 'b1348000-0000-4000-8000-000000000013';
 delete from public.tests
-where id = 'b1348000-0000-4000-8000-000000000011';
+where id in (
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000021',
+  'b1348000-0000-4000-8000-000000000031'
+);
 delete from public.classrooms
 where id = 'b1348000-0000-4000-8000-000000000010';
 delete from public.users
@@ -2463,6 +2636,24 @@ begin
   ) then
     raise exception 'Version rematerialization retry did not complete its ledger';
   end if;
+
+  -- A completed instantiate key belongs to a different RPC family. The outer
+  -- capture wrapper must preserve the base function's allowed-type boundary
+  -- before considering any completed ledger replay.
+  begin
+    perform public.create_course_blueprint_atomic_v2(
+      v_instantiation_operation_id,
+      v_teacher_id,
+      'instantiate',
+      repeat('d', 64),
+      null,
+      null,
+      '{}'::jsonb
+    );
+    raise exception 'Capture RPC replayed a completed instantiate operation';
+  exception when sqlstate '22023' then
+    null;
+  end;
 
   v_replay := public.instantiate_course_blueprint_atomic_v2(
     v_instantiation_operation_id,

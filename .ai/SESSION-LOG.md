@@ -1014,6 +1014,11 @@ unapplied migration 134 backfill; no database was reset or migrated.
   the marker. Blueprint capture, immutable Versions, and classroom
   instantiation also retain or introduce the portable marker at their format
   boundaries.
+- Moved the Blueprint-capture operation-row lock outside the wrapper's failure
+  savepoint so concurrent retries cannot overwrite a completed ledger result.
+  Test save and activation now take the Classroom update lock up front, avoiding
+  shared-lock upgrades when two Tests advance the same structural revision; the
+  disposable database contract exercises concurrent saves.
 - Added collision regressions across draft GET/PATCH projection, Blueprint
   detail GET overlay, Blueprint capture, migration replay, save, activation,
   and Version instantiation. The known row-ID/artifact-ID collision remains

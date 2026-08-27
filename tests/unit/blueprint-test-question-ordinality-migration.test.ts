@@ -78,8 +78,19 @@ function expectDurableIdentityFailureLedger(definition: string) {
   const ledgerSeed = definition.indexOf('insert into public.course_blueprint_operations (')
   const savepoint = definition.indexOf('\n  begin\n', ledgerSeed)
   expect(ledgerSeed).toBeGreaterThanOrEqual(0)
-  expect(definition.slice(ledgerSeed, savepoint)).toContain('on conflict (id) do nothing;')
+  const outsideSavepoint = definition.slice(ledgerSeed, savepoint)
+  expect(outsideSavepoint).toContain('on conflict (id) do nothing;')
   expect(savepoint).toBeGreaterThan(ledgerSeed)
+  expect(outsideSavepoint).toMatch(
+    /select \*\s+into v_operation\s+from public\.course_blueprint_operations\s+where id = p_operation_id\s+for update;/,
+  )
+  expect(outsideSavepoint).toContain(
+    'v_operation.request_sha256 <> p_request_sha256',
+  )
+  expect(outsideSavepoint).toContain("'error_code', 'idempotency_conflict'")
+  expect(outsideSavepoint).toMatch(
+    /v_operation\.status = 'completed'[\s\S]{0,160}'\{replayed\}'/,
+  )
   expect(definition).toContain(
     "v_error_code := 'test_question_identity_ambiguous'",
   )
@@ -118,7 +129,7 @@ describe('Blueprint test-question identity migration', () => {
       expect(classroomLock).toBeGreaterThan(testLock)
       expect(draftLock).toBeGreaterThan(classroomLock)
       expect(definition.slice(testLock, classroomLock)).toContain('for update;')
-      expect(definition.slice(classroomLock, draftLock)).toContain('for share;')
+      expect(definition.slice(classroomLock, draftLock)).toContain('for update;')
       expect(definition.slice(classroomLock, draftLock)).toContain(
         'classroom.id = v_test.classroom_id',
       )
@@ -211,6 +222,9 @@ describe('Blueprint test-question identity migration', () => {
     expect(databaseContract).toContain(
       'AI reference cache changed the Classroom structural revision',
     )
+    expect(databaseContract).toContain(
+      'Concurrent Test saves did not serialize at the Classroom row',
+    )
   })
 
   it('maps active classroom capture questions by stable identity', () => {
@@ -220,6 +234,11 @@ describe('Blueprint test-question identity migration', () => {
 
     expect(definition).toContain('security definer')
     expect(definition).toContain("set search_path = ''")
+    expect(definition.slice(0, definition.indexOf(
+      'insert into public.course_blueprint_operations (',
+    ))).toMatch(
+      /p_operation_type not in \('import', 'capture'\)[\s\S]{0,120}errcode = '22023'/,
+    )
     expectReadOnlyStableQuestionIdentityValidation(definition, 'Captured')
     expectDurableIdentityFailureLedger(definition)
     expect(definition).toMatch(
