@@ -4,6 +4,7 @@ import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
 const BLUEPRINT_ID = '10000000-0000-4000-8000-000000000101'
+const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -131,6 +132,89 @@ async function mockBlueprintRollover(page: Page) {
     })
   })
 }
+
+test('keeps Attendance hours reachable across the responsive context bar', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/attendance/session?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        classDate: '2026-08-17',
+        integration: 'ready',
+        session: {
+          state: 'open',
+          opensAt: '2026-08-17T12:45:00.000Z',
+          closesAt: '2026-08-17T13:15:00.000Z',
+          revision: 1,
+          commandFailed: false,
+        },
+        sync: { state: 'current', confirmedAt: '2026-08-17T12:45:00.000Z' },
+        students: [
+          {
+            studentId: '40000000-0000-4000-8000-000000000001',
+            firstName: 'Ada',
+            lastName: 'Lovelace',
+            status: 'present',
+            source: 'student_qr',
+            revision: 1,
+            pendingCommand: false,
+            commandFailed: false,
+          },
+        ],
+      }),
+    })
+  })
+  await page.route('**/api/teacher/attendance/policy?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        policy: {
+          classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+          timezone: 'America/Toronto',
+          opensLocal: '08:45',
+          closesLocal: '15:15',
+          closeDayOffset: 0,
+          enabled: true,
+          revision: 1,
+          updatedAt: '2026-08-17T12:00:00.000Z',
+        },
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-live-attendance', { waitUntil: 'domcontentloaded' })
+
+  const trailingActions = page.getByTestId('attendance-trailing-actions')
+  await expect(trailingActions).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-context-bar.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+
+  if (viewport === 'mobile') {
+    const attendanceMenu = trailingActions.getByRole('button', { name: 'Attendance actions' })
+    await expect(attendanceMenu).toBeVisible()
+    await attendanceMenu.click()
+    await expect(page.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
+    await page.getByRole('menuitem', { name: 'Attendance hours' }).click()
+  } else {
+    await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
+    await trailingActions.getByRole('button', { name: 'Attendance hours' }).click()
+  }
+  await expect(page.getByRole('dialog', { name: 'Attendance hours' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
+    fullPage: true,
+    animations: 'disabled',
+  })
+})
 
 test.describe('teacher experience matrix', () => {
   test.use({ storageState: TEACHER_STORAGE })

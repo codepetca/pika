@@ -383,7 +383,7 @@ responsibility belongs to feature composition.
 | Motion | `duration-fast`, `duration-standard`, `duration-deliberate`, `ease-standard` |
 | Page width | `max-w-reading`, `max-w-standard`, `max-w-wide` |
 | Density rhythm | `*-density-compact-*`, `*-density-comfortable-*` |
-| Layers | `z-local-menu`, `z-floating`, `z-app-chrome`, `z-popover`, `z-modal`, `z-app-message` |
+| Layers | `z-sticky-table`, `z-local-menu`, `z-floating`, `z-app-chrome`, `z-popover`, `z-modal`, `z-app-message` |
 | Overlay scrim | `bg-overlay-scrim` |
 
 The motion duration variables resolve to `0ms` under

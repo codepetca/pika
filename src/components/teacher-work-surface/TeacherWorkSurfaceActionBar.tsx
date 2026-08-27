@@ -30,6 +30,12 @@ export function TeacherWorkSurfaceFloatingActionCluster({
   )
 }
 
+/**
+ * @deprecated Transitional compatibility for teacher pages that have not yet
+ * adopted TeacherWorkSurfaceContextBar. Do not add new consumers; migrate an
+ * existing page when its surrounding workflow is deliberately refreshed and
+ * visually verified.
+ */
 export function TeacherWorkSurfaceActionBar({
   label,
   center,

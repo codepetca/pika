@@ -12,6 +12,18 @@ import {
 } from '@/ui'
 
 describe('TableCard', () => {
+  it('can keep the header visible inside a long table scroll region', () => {
+    const { container } = render(
+      <DataTable>
+        <DataTableHead sticky>
+          <tr><th>Student</th></tr>
+        </DataTableHead>
+      </DataTable>,
+    )
+
+    expect(container.querySelector('thead')).toHaveClass('sticky', 'top-0', 'z-sticky-table')
+  })
+
   it('renders default chrome for standard tables', () => {
     const { container } = render(
       <TableCard>
