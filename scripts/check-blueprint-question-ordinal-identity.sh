@@ -2926,13 +2926,14 @@ declare
   v_count integer;
 begin
   insert into public.classrooms (
-    id, teacher_id, title, class_code, start_date
+    id, teacher_id, title, class_code, start_date, end_date
   ) values (
     v_classroom_id,
     v_teacher_id,
     'Captured proposal membership',
     'B134P4',
-    '2026-09-01'
+    '2026-09-01',
+    '2027-06-30'
   );
   insert into public.tests (
     id, classroom_id, artifact_id, title, status, show_results,
