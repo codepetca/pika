@@ -19,6 +19,17 @@ active scope, sortable rows, status triage, and optional batch actions.
 Attendance is the approved visual and interaction reference. Reuse its design
 language; do not copy its attendance-specific states or business logic.
 
+## Migration direction
+
+`TeacherWorkSurfaceContextBar` is the target top-control composition for
+teacher pages as they are refreshed. Existing uses of
+`TeacherWorkSurfaceActionBar` are transitional: do not add new uses, and when a
+consuming page is materially updated, replace it with the context bar when the
+adoption checklist below fits. Migrate one page or coherent workflow at a time
+so its responsive hierarchy, scroll behavior, and interaction states can be
+visually verified; do not perform an unreviewed mechanical replacement across
+unrelated surfaces.
+
 ## Product hierarchy
 
 Use one compact row directly above the table:

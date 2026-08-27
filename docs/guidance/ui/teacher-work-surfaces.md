@@ -195,6 +195,12 @@ Attendance is the approved reference implementation. The stable composition,
 adoption criteria, and Classwork/Tests mappings are documented in
 [`teacher-operational-tables.md`](./teacher-operational-tables.md).
 
+Migration rule: `TeacherWorkSurfaceContextBar` is the target for refreshed
+teacher top-control rows. Treat existing `TeacherWorkSurfaceActionBar` usage as
+transitional, do not introduce new consumers, and replace it page by page when
+the surrounding workflow is updated and visually verified. Use the adoption
+criteria rather than mechanically changing unrelated authoring surfaces.
+
 ### Long operational tables and selection
 
 - Use an internal table scroll region so page-level context remains stable.
@@ -393,6 +399,7 @@ Stable structural primitives:
 | Component | Use for | Do not put here |
 |---|---|---|
 | `TeacherWorkSurfaceShell` | page layout, summary/workspace state, action bar placement, feedback placement, selected-workspace frame | data loading, routing/query behavior, selection state, grading state, assessment status, return behavior |
+| `TeacherWorkSurfaceContextBar` | one-line quiet context, mathematically centered primary controls, and subordinate trailing utilities | feature statuses, commands, mutations, or row-derived totals that belong in a table header |
 | `TeacherWorkSurfaceModeBar<TMode>` | selected-workspace mode tabs with tab semantics and keyboard movement | domain-specific mode state machines, assessment-specific labels baked into the primitive |
 | `TeacherWorkspaceSplit` | bounded primary/inspector split panes when both panes are active work surfaces | grading behavior, student selection, assignment-specific width policy beyond generic min/max constraints |
 

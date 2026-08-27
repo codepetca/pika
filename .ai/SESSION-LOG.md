@@ -11,6 +11,88 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-22 — Move attendance rollout preflight into deployed runtimes
+
+**Risk profile:** runtime-platform — production cross-service authentication
+and rollout gating; no hosted configuration, flags, deployment, or data changed.
+
+- Made the Pika operator smoke run the complete pinned production environment
+  audit inside Vercel before creating any smoke state, avoiding false evidence
+  from locally downloaded Sensitive values that Vercel intentionally redacts.
+- Bound each operator invocation to an explicit pre-enable or enabled mode and
+  made Bara verify that mode against its deployed Convex integration flag before
+  consuming nonce or callback state.
+- Kept the proof aggregate-only, exact-canary scoped, authenticated, replay
+  resistant, and non-mutating; updated rollout documentation and regression
+  coverage for target drift, mode mismatch, and fail-before-smoke behavior.
+
+## 2026-08-22 — Expose authenticated aggregate preflight diagnostics
+
+**Risk profile:** runtime-platform — operator-only production rollout
+diagnostics; no hosted configuration, flags, deployment, credential, attendance
+event, or production data changed.
+
+- Returned only fixed failed-check identifiers and aggregate pass/total counts
+  after successful dedicated operator authentication when the deployed
+  attendance environment preflight fails.
+- Kept unauthorized responses diagnostic-free and preserved fail-before-state
+  behavior, `no-store`, and `no-referrer` response controls.
+- Normalized missing, short, overlapping, and incorrect operator credentials to
+  the same private unauthorized response, preventing authentication-configuration
+  disclosure before the deployed audit.
+- Aligned the migration gate with hosted evidence that migration 131 is already
+  recorded as applied: operators verify it and stop for fresh authorization if
+  it is absent, but never dry-run or reapply it from this rollout flow.
+- Swept every sibling attendance status, canary, roadmap, completion-audit, and
+  recovery runbook so none still instructs operators to authorize or apply the
+  already-recorded production migration 131; 42 focused documentation and
+  startup guard tests pass.
+- Added route and deployed-runtime regression coverage. The focused 24-test
+  surface and the full 5,008-test suite, typecheck, production build, lint,
+  architecture guard, and diff check pass.
+
+## 2026-08-23 — Add teacher-scoped attendance entitlements
+
+**Risk profile:** runtime-platform — service-only authorization, schedule
+deactivation, cross-service rollout gating, and additive database schema; no
+hosted migration, deployment, flag, entitlement, requeue, or production state
+changed.
+
+- Added an audited, idempotent teacher entitlement boundary keyed by stable
+  Pika user ID. The global attendance flags remain kill switches, while the UI,
+  teacher APIs, workers, outbox, reconciliation, and event ingress share the
+  same fail-closed authorization predicate.
+- Added stateful classroom deactivation: a higher-revision empty schedule
+  cancels future intent, preserves open and historical sessions, and remains
+  resumable until Bara acknowledges it. Expiry clamps future schedule delivery.
+- Kept the existing exact Codepet Labs canary as the non-mutating deployed
+  credential smoke and made the requested rollout scope an authenticated,
+  audited preflight expectation instead of broadening the smoke payload.
+- Added a dry-run-first, operation-id-bound service operator command and rollout
+  documentation for enablement, revocation, rollback, Preview skip behavior,
+  release order, and the production authorization boundary.
+- Bara's 166-test suite, typecheck, and production build pass. Pika's full
+  5,029-test suite, TypeScript check, production build, architecture guard,
+  design guard, UI guard, and diff check pass. Local execution of migration 132
+  and generated-type parity remain intentionally pending exact local-only
+  authorization.
+
+## 2026-08-23 — Repair attendance entitlement operator launch
+
+**Risk profile:** runtime-platform — service-only entitlement operator
+availability; no authorization binding, RPC payload, hosted entitlement, flag,
+credential, or attendance state changed.
+
+- Wrapped the existing operator body in an async entrypoint so the documented
+  CommonJS `tsx` package command no longer fails compilation on top-level await.
+- Added a subprocess regression that invokes the exact package script and proves
+  it reaches argument validation instead of the transform failure.
+- Verified the documented command against production in dry-run mode only; it
+  read the current active revision 1 entitlement and emitted a disposable exact
+  binding without executing an RPC.
+- Focused tests, the full Vitest suite, lint, architecture guard, production
+  build, and diff check pass.
+
 ## 2026-08-23 — Make student mobile attendance state obvious
 
 **Risk profile:** student-facing attendance read UX — private tenant-scoped
@@ -1176,3 +1258,22 @@ changed.
 
 **Model recommendation:** current GPT-5 coding model for a localized semantic
 contrast remediation with responsive visual verification.
+
+## 2026-08-27 — Set the Attendance context bar as the migration target
+
+**Risk profile:** none — design governance and a source-level deprecation notice
+only; no rendered UI, behavior, API, schema, persistence, dependency, or hosted
+state changed.
+
+- Made `TeacherWorkSurfaceContextBar` the explicit target for teacher
+  top-control rows as Classwork, Tests, and nearby pages are deliberately
+  refreshed.
+- Marked `TeacherWorkSurfaceActionBar` as transitional compatibility: new
+  consumers are prohibited, while existing pages migrate one coherent workflow
+  at a time with responsive and interaction-state visual verification.
+- Kept the operational-table adoption checklist as the guard against a blind
+  mechanical replacement on unrelated authoring surfaces.
+
+**Verification:** documentation and source guidance only; lint, continuity, and
+diff checks pass. Visual verification is n/a because rendered output is
+unchanged.
