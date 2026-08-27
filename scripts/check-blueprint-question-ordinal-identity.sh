@@ -2277,6 +2277,11 @@ begin
     to_jsonb('Archived identity rollback'::text)
   );
 
+  -- As in the active-source case above, bypass the canonical write-time fence
+  -- only long enough to exercise the archived capture RPC's defense-in-depth
+  -- against legacy or manually corrupted rows.
+  execute 'drop index public.test_questions_test_portable_identity_unique';
+
   update public.test_questions
   set source_artifact_id = v_archived_question_two_id
   where id = v_archived_question_one_row_id;
@@ -2347,6 +2352,15 @@ begin
   update public.test_questions
   set source_artifact_id = null
   where id = v_archived_question_one_row_id;
+
+  execute $index$
+    create unique index test_questions_test_portable_identity_unique
+      on public.test_questions (
+        test_id,
+        (coalesce(source_artifact_id, artifact_id))
+      )
+  $index$;
+
   select blueprint_source_revision
   into v_archived_revision
   from public.classrooms
