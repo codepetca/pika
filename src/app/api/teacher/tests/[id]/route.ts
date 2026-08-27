@@ -13,7 +13,7 @@ import {
   isMissingAssessmentDraftsError,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
-import { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
+import { getPortableTestQuestionIdentity, projectPortableTestQuestionIds } from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
@@ -46,7 +46,11 @@ function toTestQuestionResponse(
     source_artifact_id: _sourceArtifactId,
     ...responseQuestion
   } = question
-  return responseQuestion
+  // Report the portable identity, not the internal row id, so this field
+  // means the same thing regardless of Test lifecycle stage (draft tests
+  // below return the portable id via projectPortableTestQuestionIds; the
+  // database row id must stay internal per the canonical identity contract).
+  return { ...responseQuestion, id: getPortableTestQuestionIdentity(question) }
 }
 
 function isMissingCloseTestRpcError(error: {

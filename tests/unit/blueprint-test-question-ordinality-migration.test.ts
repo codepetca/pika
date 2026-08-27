@@ -43,6 +43,21 @@ function expectReadOnlyStableQuestionIdentityValidation(
       `raise exception '${failurePrefix} Test question identity mapping is ambiguous'\\s+using errcode = '22023'`,
     ),
   )
+  // Zero matches is only tolerated for a source Test still in draft status
+  // (its questions live in draft JSON, not yet materialized as rows); an
+  // active/closed Test's captured question must resolve to a real row.
+  expect(definition).toMatch(
+    /select source_test\.status into v_source_test_status\s+from public\.tests as source_test\s+where source_test\.id = v_parent_id/,
+  )
+  expect(definition).toMatch(
+    /coalesce\(cardinality\(v_question_row_ids\), 0\) = 0\s+and v_source_test_status is distinct from 'draft'/,
+  )
+  expect(definition).toContain(
+    `raise exception '${failurePrefix} Test question identity mapping failed'`,
+  )
+  expect(definition).toContain(
+    "v_error_code := 'test_question_identity_not_found'",
+  )
   expect(definition).not.toMatch(
     /source_question\.id = \(v_child->>'id'\)::uuid/,
   )
@@ -64,8 +79,8 @@ function expectDurableIdentityFailureLedger(definition: string) {
   expect(definition).toContain(
     "v_error_code := coalesce(v_error_code, 'blueprint_identity_mapping_failed')",
   )
-  expect(definition).toContain(
-    "'status', case when v_error_code = 'test_question_identity_ambiguous' then 409 else 500 end",
+  expect(definition).toMatch(
+    /'status', case\s+when v_error_code in \('test_question_identity_ambiguous', 'test_question_identity_not_found'\)\s+then 409\s+else 500\s+end,/,
   )
   expect(definition).toContain("'error_code', v_error_code")
   expect(definition).toMatch(
@@ -103,6 +118,13 @@ describe('Blueprint test-question identity migration', () => {
       )
       expect(definition).toContain('v_draft.version is distinct from p_expected_draft_version')
       expect(definition).toContain("message = 'draft_version_conflict'")
+      // Two distinct incoming question ids can each independently resolve to
+      // the same physical row (one via artifact_id, the other via
+      // source_artifact_id) and pass the ambiguity check individually. Guard
+      // against a second id silently reusing an already-claimed row.
+      expect(definition).toMatch(
+        /v_matched_row_id := v_matched_row_ids\[1\];\s*(?:--.*\s*)*if v_matched_row_id is not null and v_matched_row_id = any\(v_retained_row_ids\) then\s+raise exception using errcode = '22023', message = 'question_identity_ambiguous';\s+end if;/,
+      )
     }
 
     expect(saveDefinition).toMatch(

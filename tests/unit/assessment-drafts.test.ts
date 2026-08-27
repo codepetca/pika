@@ -442,6 +442,59 @@ describe('assessment drafts', () => {
     })
   })
 
+  it('maps invalid draft content to a 400 validation error, not an identity conflict', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '22023', message: 'invalid_draft_content' },
+    })
+
+    await expect(saveTestDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content: { title: '', show_results: false, questions: [] },
+    })).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'Draft content is invalid',
+    })
+  })
+
+  it('maps an invalid draft version to a 400 validation error, not an identity conflict', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '22023', message: 'invalid_draft_version' },
+    })
+
+    await expect(activateTestFromDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+    })).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'A valid draft version is required',
+    })
+  })
+
+  it('still maps a real question-identity conflict to a reviewable 409', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: '22023', message: 'duplicate_question_identity' },
+    })
+
+    await expect(saveTestDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 3,
+      content: { title: 'Test', show_results: false, questions: [] },
+    })).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Test draft question identity is invalid or ambiguous',
+    })
+  })
+
   it('creates a Tests-only baseline draft when none exists', async () => {
     const createdDraft = {
       id: 'draft-1',

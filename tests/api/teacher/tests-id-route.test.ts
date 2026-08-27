@@ -188,6 +188,11 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(data.questions[0].sample_solution).toBe('canonical sample solution')
     expect(data.questions[0]).not.toHaveProperty('artifact_id')
     expect(data.questions[0]).not.toHaveProperty('source_artifact_id')
+    // The response id must be the portable identity, matching what draft-status
+    // Tests already return here (and what Blueprint capture/activation treat as
+    // canonical) — never the internal row id — so this field means the same
+    // thing regardless of Test lifecycle stage.
+    expect(data.questions[0].id).toBe('30000000-0000-4000-8000-000000000001')
   })
 
   it('returns 400 when activating with an incomplete question', async () => {

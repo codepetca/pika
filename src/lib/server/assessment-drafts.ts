@@ -304,9 +304,20 @@ function mapTestDraftRpcError(
   if (details.includes('test_not_found') || details.includes('test_draft_not_found')) {
     return { ok: false, status: 404, error: 'Test draft not found' }
   }
+  // Check the specific invalid_draft_* codes before the identity-ambiguity
+  // bucket below: a naive `includes('invalid_draft')` also matches
+  // invalid_draft_version and invalid_draft_content, which are plain
+  // validation failures (missing draft_version, empty title, etc.), not an
+  // identity conflict, and must not surface the "changed elsewhere" /
+  // merge-conflict UI that a 409 with a `draft` payload triggers client-side.
+  if (details.includes('invalid_draft_version')) {
+    return { ok: false, status: 400, error: 'A valid draft version is required' }
+  }
+  if (details.includes('invalid_draft_content')) {
+    return { ok: false, status: 400, error: 'Draft content is invalid' }
+  }
   if (
-    details.includes('invalid_draft')
-    || details.includes('duplicate_question_identity')
+    details.includes('duplicate_question_identity')
     || details.includes('question_identity_')
   ) {
     return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }

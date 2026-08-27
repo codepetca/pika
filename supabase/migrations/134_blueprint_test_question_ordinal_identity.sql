@@ -320,6 +320,15 @@ begin
       end if;
 
       v_matched_row_id := v_matched_row_ids[1];
+      -- Two distinct incoming ids (one matching a row's artifact_id, the
+      -- other its source_artifact_id) can each independently resolve to a
+      -- single row and pass the ambiguity check above. Reject that here,
+      -- mirroring resolveTestQuestionIdentities' matchedRowIds guard, so a
+      -- second question can't silently collapse into an already-claimed row.
+      if v_matched_row_id is not null and v_matched_row_id = any(v_retained_row_ids) then
+        raise exception using errcode = '22023', message = 'question_identity_ambiguous';
+      end if;
+
       if v_matched_row_id is null then
         insert into public.test_questions (
           test_id,
@@ -538,6 +547,15 @@ begin
     end if;
 
     v_matched_row_id := v_matched_row_ids[1];
+    -- Two distinct incoming ids (one matching a row's artifact_id, the
+    -- other its source_artifact_id) can each independently resolve to a
+    -- single row and pass the ambiguity check above. Reject that here,
+    -- mirroring resolveTestQuestionIdentities' matchedRowIds guard, so a
+    -- second question can't silently collapse into an already-claimed row.
+    if v_matched_row_id is not null and v_matched_row_id = any(v_retained_row_ids) then
+      raise exception using errcode = '22023', message = 'question_identity_ambiguous';
+    end if;
+
     if v_matched_row_id is null then
       insert into public.test_questions (
         test_id,
@@ -666,6 +684,7 @@ declare
   v_parent_id uuid;
   v_position integer;
   v_question_row_ids uuid[];
+  v_source_test_status text;
   v_updated integer;
   v_error_code text;
   v_error_sqlstate text;
@@ -811,6 +830,15 @@ begin
       end if;
       v_parent_id := v_question_row_ids[1];
 
+      -- Draft-status Tests have no materialized test_questions rows yet
+      -- (activation is what writes them); their content comes from the draft
+      -- JSON instead. Zero matches is expected there. For an active/closed
+      -- Test, every captured question must resolve to a real row, matching
+      -- how every sibling artifact type in this function treats zero matches.
+      select source_test.status into v_source_test_status
+      from public.tests as source_test
+      where source_test.id = v_parent_id;
+
       for v_child in
         select question.value
         from jsonb_array_elements(
@@ -829,6 +857,12 @@ begin
         if coalesce(cardinality(v_question_row_ids), 0) > 1 then
           v_error_code := 'test_question_identity_ambiguous';
           raise exception 'Captured Test question identity mapping is ambiguous'
+            using errcode = '22023';
+        elsif coalesce(cardinality(v_question_row_ids), 0) = 0
+          and v_source_test_status is distinct from 'draft'
+        then
+          v_error_code := 'test_question_identity_not_found';
+          raise exception 'Captured Test question identity mapping failed'
             using errcode = '22023';
         end if;
       end loop;
@@ -979,13 +1013,19 @@ begin
     v_error_code := coalesce(v_error_code, 'blueprint_identity_mapping_failed');
     v_result := jsonb_build_object(
       'ok', false,
-      'status', case when v_error_code = 'test_question_identity_ambiguous' then 409 else 500 end,
+      'status', case
+        when v_error_code in ('test_question_identity_ambiguous', 'test_question_identity_not_found')
+          then 409
+        else 500
+      end,
       'operation_id', p_operation_id,
       'operation_type', p_operation_type,
       'error_code', v_error_code,
       'error', case
         when v_error_code = 'test_question_identity_ambiguous'
           then 'Test question identity mapping is ambiguous'
+        when v_error_code = 'test_question_identity_not_found'
+          then 'Test question identity mapping failed'
         else 'Blueprint identity mapping failed'
       end,
       'retryable', true
@@ -1264,6 +1304,7 @@ declare
   v_parent_id uuid;
   v_position integer;
   v_question_row_ids uuid[];
+  v_source_test_status text;
   v_updated integer;
   v_error_code text;
   v_error_sqlstate text;
@@ -1491,6 +1532,15 @@ begin
     end if;
     v_parent_id := v_question_row_ids[1];
 
+    -- Draft-status Tests have no materialized test_questions rows yet
+    -- (activation is what writes them); their content comes from the draft
+    -- JSON instead. Zero matches is expected there. For an active/closed
+    -- Test, every captured question must resolve to a real row, matching
+    -- how every sibling artifact type in this function treats zero matches.
+    select source_test.status into v_source_test_status
+    from public.tests as source_test
+    where source_test.id = v_parent_id;
+
     for v_child in
       select question.value
       from jsonb_array_elements(
@@ -1509,6 +1559,12 @@ begin
       if coalesce(cardinality(v_question_row_ids), 0) > 1 then
         v_error_code := 'test_question_identity_ambiguous';
         raise exception 'Archived Test question identity mapping is ambiguous'
+          using errcode = '22023';
+      elsif coalesce(cardinality(v_question_row_ids), 0) = 0
+        and v_source_test_status is distinct from 'draft'
+      then
+        v_error_code := 'test_question_identity_not_found';
+        raise exception 'Archived Test question identity mapping failed'
           using errcode = '22023';
       end if;
     end loop;
@@ -1719,13 +1775,19 @@ begin
     v_error_code := coalesce(v_error_code, 'blueprint_identity_mapping_failed');
     v_result := jsonb_build_object(
       'ok', false,
-      'status', case when v_error_code = 'test_question_identity_ambiguous' then 409 else 500 end,
+      'status', case
+        when v_error_code in ('test_question_identity_ambiguous', 'test_question_identity_not_found')
+          then 409
+        else 500
+      end,
       'operation_id', p_operation_id,
       'operation_type', 'import',
       'error_code', v_error_code,
       'error', case
         when v_error_code = 'test_question_identity_ambiguous'
           then 'Test question identity mapping is ambiguous'
+        when v_error_code = 'test_question_identity_not_found'
+          then 'Test question identity mapping failed'
         else 'Blueprint identity mapping failed'
       end,
       'retryable', true
