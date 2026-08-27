@@ -2,8 +2,7 @@
 
 import { useId, type ReactNode, type Ref } from 'react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
-import { Button, FormField, Input, SplitButton, type SplitButtonProps } from '@/ui'
-import { cn } from '@/ui/utils'
+import { Button, FormField, Input, SplitButton, cn, type SplitButtonProps } from '@/ui'
 
 type ClassworkContentModalShellProps = {
   isOpen: boolean

@@ -2,9 +2,8 @@
 
 import { useId, useRef, type ReactNode } from 'react'
 import { DateActionBar } from '@/components/DateActionBar'
-import { ACTIONBAR_BUTTON_CLASSNAME } from '@/components/PageLayout'
 import { ClassworkModalTopLineField } from '@/components/classwork/ClassworkContentModal'
-import { cn } from '@/ui/utils'
+import { Button, Input, cn } from '@/ui'
 
 type ClassworkDueFieldsProps = {
   dueDate: string
@@ -55,7 +54,7 @@ function ClassworkTimeAction({
   return (
     <div>
       <label className="sr-only" htmlFor={timeInputId}>Time</label>
-      <input
+      <Input
         ref={timeInputRef}
         id={timeInputId}
         type="time"
@@ -65,14 +64,16 @@ function ClassworkTimeAction({
         className="sr-only"
         tabIndex={-1}
       />
-      <button
+      <Button
         type="button"
-        className={cn(ACTIONBAR_BUTTON_CLASSNAME, 'w-[6.75rem] text-center sm:w-[8.25rem]')}
+        variant="subtle"
+        size="sm"
+        className="w-[6.75rem] text-center sm:w-[8.25rem]"
         disabled={disabled}
         onClick={() => timeInputRef.current?.showPicker()}
       >
         {formatTimeLabel(value)}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -125,7 +126,7 @@ export function DateTimeFields({
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9.5rem]">
         <div>
           <label htmlFor={dateInputId} className="sr-only">{dateLabel}</label>
-          <input
+          <Input
             id={dateInputId}
             type="date"
             value={date}
@@ -137,7 +138,7 @@ export function DateTimeFields({
         </div>
         <div>
           <label htmlFor={timeInputId} className="sr-only">{timeLabel}</label>
-          <input
+          <Input
             id={timeInputId}
             type="time"
             value={time}

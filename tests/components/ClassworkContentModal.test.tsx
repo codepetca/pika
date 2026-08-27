@@ -47,7 +47,7 @@ describe('ClassworkContentModal presentation primitives', () => {
     )
 
     expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue('Weekly reflection')
-    expect(screen.getByText('Saved')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Saved')
     expect(screen.getByText('Due')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Choose classwork action' })).toHaveAttribute('aria-haspopup', 'menu')
 

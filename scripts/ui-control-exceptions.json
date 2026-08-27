@@ -61,13 +61,8 @@
       "reviewBy": "phase-3-calendar-announcements",
       "controls": [
         {
-          "kind": "button",
-          "count": 6,
-          "reason": "legacy-form-control"
-        },
-        {
           "kind": "textarea",
-          "count": 2,
+          "count": 1,
           "reason": "native-textarea"
         }
       ]

@@ -656,8 +656,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             meta={modalScheduledFor ? (
               <ClassworkModalTopLineField label="Release" tone="warning" className="lg:w-[12rem]">
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="surface"
+                    size="sm"
                     onClick={() => {
                       const { date, time } = parseDateTime(modalScheduledFor)
                       if (editingAnnouncement) {
@@ -674,7 +676,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                   >
                     <Calendar className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">{formatAnnouncementTimestamp(modalScheduledFor)}</span>
-                  </button>
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"

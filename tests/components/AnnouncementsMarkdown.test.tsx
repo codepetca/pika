@@ -240,6 +240,22 @@ describe('announcement markdown rendering', () => {
     )
   })
 
+  it('keeps the scheduled release trigger accessible in the shared edit modal', async () => {
+    mockAnnouncementFetch([{
+      ...markdownAnnouncement,
+      scheduled_for: '2099-01-01T17:00:00.000Z',
+    }])
+
+    render(teacherAnnouncementsElement(classroom))
+
+    await screen.findByRole('link', { name: 'course outline' })
+    fireEvent.click(screen.getByText('bring notes'))
+
+    const releaseTrigger = within(screen.getByRole('dialog')).getByRole('button', { name: /Jan 1/ })
+    expect(releaseTrigger).toHaveAttribute('type', 'button')
+    expect(releaseTrigger).toHaveClass('text-warning')
+  })
+
   it('shows the newest teacher announcements first', async () => {
     mockAnnouncementFetch([
       {
