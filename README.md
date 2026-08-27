@@ -254,7 +254,7 @@ pika/
 ## Deployment (Vercel)
 
 1. Push to GitHub and import into Vercel.
-2. Configure env vars (match `.env.local`); set `ENABLE_MOCK_EMAIL=false` and wire a real email provider in `email.ts` for production.
+2. Configure the Supabase, `SESSION_SECRET`, and environment-specific WorkOS values listed below. Keep `WORKOS_MAGIC_AUTH_EMAIL_DELIVERY=workos` unless the documented Brevo alternative is fully enabled.
 3. Build command `pnpm build`; output `.next`.
 
 ## Environment Variables Reference
@@ -266,18 +266,24 @@ pika/
 | `SUPABASE_SECRET_KEY` | Server key for API routes | `sb_secret_...` |
 | `SESSION_SECRET` | 32+ char secret for iron-session | random hex |
 | `DEV_TEACHER_EMAILS` | Comma-separated teacher emails (dev) | `teacher@test.com` |
-| `ENABLE_MOCK_EMAIL` | Log verification/reset codes instead of sending | `true` |
+| `WORKOS_CLIENT_ID` | Environment-specific WorkOS client ID | `client_...` |
+| `WORKOS_API_KEY` | Server-only WorkOS API key | `sk_test_...` |
+| `WORKOS_COOKIE_PASSWORD` | Environment-specific AuthKit cookie secret (32+ chars) | random secret |
+| `WORKOS_COOKIE_NAME` | Pika-specific WorkOS cookie name | `pika-wos-session` |
+| `WORKOS_MAGIC_AUTH_EMAIL_DELIVERY` | Magic Auth delivery channel | `workos` |
+| `PIKA_LEGACY_PASSWORD_AUTH` | Explicit password rollback/test override | `false` |
+| `ENABLE_MOCK_EMAIL` | Legacy password-fixture email logger only | `false` |
 | `NEXT_PUBLIC_APP_URL` | Base app URL | `http://localhost:3000` |
 
 ## Known Limitations
 
-- Email delivery is mocked; production provider not wired.
+- A real school-board email-code smoke is required in every target environment before promotion.
 - Attendance shows present/absent only (no “late” state in UI).
 - Holidays/timezone: Ontario defaults and America/Toronto timezone are hardcoded.
 
 ## Future Enhancements
 
-- Production email delivery (Resend/SendGrid/etc.)
+- Optional custom WorkOS email domain after the documented delivery canary.
 - Late status display and richer attendance analytics
 - Regional holiday configuration
 - Notifications for missing entries or upcoming due dates

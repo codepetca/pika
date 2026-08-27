@@ -1000,7 +1000,9 @@ credential mutation.
 - Independent security/architecture review remediation added full coverage for
   incomplete WorkOS authorization, made the local Pika/Bara configurator abort
   without writing either environment unless Pika WorkOS auth is complete, and
-  replaced the stale password-first README setup/authentication instructions.
+  replaced password/mock-email-first setup, deployment, troubleshooting, and
+  test-plan guidance across the README and core docs. A source-doc regression
+  now prevents those retired primary-auth claims from returning.
 - Runtime verification covers the default login/signup pages, password-page
   redirects, disabled legacy API, and unavailable unconfigured WorkOS send.
   Visual verification covers login, signup, and code entry on desktop/mobile in
