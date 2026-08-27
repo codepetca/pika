@@ -148,4 +148,52 @@ describe('HistoryGraph', () => {
     fireEvent.click(chart, { clientX: 990 })
     expect(onEntryClick).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
   })
+
+  it('does not carry a hovered position into a replacement history', () => {
+    const onEntryHover = vi.fn()
+    const { rerender } = render(
+      <HistoryGraph
+        entries={entries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        onEntryHover={onEntryHover}
+        audience="teacher"
+        lifecycle={lifecycle}
+      />
+    )
+
+    const chart = screen.getByRole('slider', { name: 'Complete save history' })
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 1000,
+      top: 0,
+      right: 1000,
+      bottom: 78,
+      height: 78,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    })
+
+    fireEvent.mouseMove(chart, { clientX: 990 })
+    expect(onEntryHover).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'third' }))
+
+    const replacementEntries = [
+      entry('replacement', '2025-01-20T02:30:00Z', 15, 90),
+    ]
+    rerender(
+      <HistoryGraph
+        entries={replacementEntries}
+        activeEntryId={null}
+        onEntryClick={vi.fn()}
+        onEntryHover={onEntryHover}
+        audience="teacher"
+        lifecycle={lifecycle}
+      />
+    )
+
+    expect(screen.queryByText('No saves yet')).not.toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: 'Complete save history' }))
+      .toHaveAttribute('aria-valuenow', '1')
+  })
 })

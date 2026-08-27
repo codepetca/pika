@@ -2817,6 +2817,9 @@ or hosted state changed.
   restored the 60-entry continuity cap, removed an accidental duplicate archive
   batch after the rebase, and clarified that visual captures are local,
   gitignored verification artifacts rather than durable repository evidence.
+- The fresh cumulative review caught history hover state keyed by array position
+  across teacher student switches. Hover selection is now keyed by save ID and
+  covered by a replacement-history rerender regression.
 
 **Model recommendation:** GPT-5.6 Sol for shared rich-text viewport state,
 scroll restoration, responsive measurement, and cross-role interaction QA.

@@ -75,10 +75,11 @@ export function HistoryGraph({
     [entries, lifecycle]
   )
   const heading = audience === 'teacher' ? 'Student activity' : 'Version history'
-  const [hoveredIndex, setHoveredIndex] = useState(-1)
-  const lastHoveredRef = useRef(-1)
+  const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
+  const lastHoveredEntryIdRef = useRef<string | null>(null)
 
   const activeIndex = diffs.findIndex((entry) => entry.entry.id === activeEntryId)
+  const hoveredIndex = diffs.findIndex((entry) => entry.entry.id === hoveredEntryId)
   const selectedIndex = hoveredIndex >= 0
     ? hoveredIndex
     : activeIndex >= 0
@@ -125,9 +126,9 @@ export function HistoryGraph({
       return
     }
 
-    if (index !== lastHoveredRef.current) {
-      lastHoveredRef.current = index
-      setHoveredIndex(index)
+    if (entry.entry.id !== lastHoveredEntryIdRef.current) {
+      lastHoveredEntryIdRef.current = entry.entry.id
+      setHoveredEntryId(entry.entry.id)
       onEntryHover?.(entry.entry)
     }
   }, [diffs, findNearestIndex, onEntryClick, onEntryHover])
@@ -171,8 +172,8 @@ export function HistoryGraph({
           preserveAspectRatio="none"
           onMouseMove={variant === 'desktop' ? (event) => handlePointer(event, false) : undefined}
           onMouseLeave={() => {
-            lastHoveredRef.current = -1
-            setHoveredIndex(-1)
+            lastHoveredEntryIdRef.current = null
+            setHoveredEntryId(null)
           }}
           onClick={(event) => handlePointer(event, true)}
           onKeyDown={(event) => {
