@@ -54,6 +54,7 @@ import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import { classroomArchiveOperationId } from '@/lib/classroom-archive-operation-id'
+import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -285,10 +286,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [loadArchived, view])
 
   useEffect(() => {
-    function clearEditMode() {
-      setIsEditingClassrooms(false)
+    function showActiveClassrooms() {
       setDraggingClassroomId(null)
       setView('active')
+    }
+
+    function clearEditMode() {
+      setIsEditingClassrooms(false)
+      showActiveClassrooms()
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -299,10 +304,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('pageshow', clearEditMode)
+    window.addEventListener(APP_HOME_SELECTED_EVENT, showActiveClassrooms)
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('pageshow', clearEditMode)
+      window.removeEventListener(APP_HOME_SELECTED_EVENT, showActiveClassrooms)
     }
   }, [])
 

@@ -955,3 +955,28 @@ no workflow, API, schema, persistence, dependency, or hosted state changed.
   shared local environment has no Supabase URL or keys.
 
 **Model recommendation:** current model for a narrow, accessible UI refinement.
+## 2026-08-27 — Return Pika logo navigation to active classrooms
+
+**Risk profile:** none — localized teacher classroom-list state transition; no
+layout, API, schema, persistence, authentication, or hosted state changed.
+
+- Added a shared app-home selection event to the existing Pika logo navigation
+  without changing its route, guarded-navigation behavior, or modifier clicks.
+- Made the teacher classrooms index switch from Archived to Active when the logo
+  selects Home while preserving Organize mode.
+- Added semantic component coverage for the header signal, blocked navigation,
+  and `aria-pressed` Active state, plus the exact interaction in the archived
+  classroom Playwright matrix.
+- Focused Vitest passes (42/42); lint, architecture, UI policy, Pika audit, and
+  diff checks pass. Playwright passed for teacher/student boundaries and the
+  teacher Archived-to-Active interaction at desktop/mobile in light/dark, with
+  no overflow or visual regression.
+- Composite-widget checklist reviewed: keyboard behavior unchanged and covered
+  by the shared control; semantic state covered by tests; remaining manual
+  follow-up none.
+- CI twice exposed the unrelated in-app test-preview callback regression racing
+  its own five-second `waitFor` under full-suite coverage load. The test keeps
+  its five-second assertion deadline but now has a ten-second outer deadline.
+
+**Model recommendation:** GPT-5.6 Terra at high reasoning for a standard-risk
+application state-transition review.

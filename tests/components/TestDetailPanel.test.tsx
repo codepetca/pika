@@ -2175,7 +2175,7 @@ _None_
       expect(patchCall).toBeTruthy()
 
       openSpy.mockRestore()
-    })
+    }, 10_000)
   })
 
   describe('Markdown tab', () => {
