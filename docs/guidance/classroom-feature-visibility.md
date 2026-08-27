@@ -12,7 +12,7 @@ Teachers can tailor each classroom's navigation from **Settings → Features**. 
 | Tests | Tests | Tests | Yes |
 | Gradebook | Gradebook | — | Yes, when Classwork or Tests is enabled |
 | Calendar | Calendar | Calendar | Yes |
-| Syllabus | Resources | Resources | Yes |
+| Course Guide | Resources | Resources | Yes |
 | Announcements | Announcements | Announcements | Yes |
 | Achievements | — | Achievements | Yes, when Pal is available |
 | Roster | Roster | — | No |

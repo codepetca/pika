@@ -3,6 +3,7 @@ import {
   applyBlueprintMergeSuggestions,
   buildMarkdownSectionContent,
   getBlueprintMergeSuggestionSet,
+  getClassroomActualCourseSite,
   getPublishedActualCourseSite,
   getPublishedPlannedCourseSite,
 } from '@/lib/server/course-sites'
@@ -115,6 +116,10 @@ function seedActualSiteSupabase(
           id: 'c-1',
           teacher_id: 'teacher-1',
           title: 'CS 11',
+          class_code: 'ICS4U',
+          term_label: 'Semester 1',
+          start_date: '2026-02-01',
+          end_date: '2026-06-30',
           actual_site_slug: 'cs11',
           actual_site_published: true,
           actual_site_config: actualSiteConfig,
@@ -149,6 +154,7 @@ function seedActualSiteSupabase(
             id: 'a-1',
             title: 'Essay',
             instructions_markdown: 'New instructions',
+            due_at: '2026-05-01T03:59:00.000Z',
             points_possible: 30,
             gradebook_weight: 10,
             include_in_final: true,
@@ -302,12 +308,34 @@ describe('course-sites server helpers', () => {
 
     if (result.ok) {
       expect(result.site.classroom).not.toHaveProperty('teacher_id')
+      expect(result.site.classroom).toEqual(expect.objectContaining({
+        class_code: 'ICS4U',
+        start_date: '2026-02-01',
+        end_date: '2026-06-30',
+      }))
       expect(result.site.assignments).toHaveLength(1)
+      expect(result.site.assignments[0]).toEqual(expect.objectContaining({
+        due_at: '2026-05-01T03:59:00.000Z',
+      }))
       expect(result.site.lesson_plans).toHaveLength(1)
       expect(result.site.announcements).toHaveLength(1)
       expect(mockSupabase.from).not.toHaveBeenCalledWith('gradebook_settings')
       expect(mockSupabase.from).not.toHaveBeenCalledWith('assessment_drafts')
     }
+  })
+
+  it('loads the current classroom site without requiring a public slug or publication state', async () => {
+    seedActualSiteSupabase()
+
+    const result = await getClassroomActualCourseSite('c-1')
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      site: expect.objectContaining({
+        classroom: expect.objectContaining({ id: 'c-1', title: 'CS 11' }),
+        assignments: [expect.objectContaining({ title: 'Essay' })],
+      }),
+    }))
   })
 
   it('builds merge suggestions and rejects classrooms from another blueprint', async () => {

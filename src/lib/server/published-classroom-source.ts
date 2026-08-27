@@ -28,7 +28,7 @@ export async function loadPublishedClassroomSource(
       .maybeSingle(),
     supabase
       .from('assignments')
-      .select('id, title, instructions_markdown, rich_instructions, description, points_possible, gradebook_weight, include_in_final, is_draft, position')
+      .select('id, title, instructions_markdown, rich_instructions, description, due_at, points_possible, gradebook_weight, include_in_final, is_draft, position')
       .eq('classroom_id', classroomId)
       .order('position', { ascending: true }),
     supabase
@@ -97,6 +97,7 @@ export async function loadPublishedClassroomSource(
             rich_instructions: assignment.rich_instructions ?? null,
             description: assignment.description ?? null,
           }).markdown,
+          due_at: assignment.due_at ?? null,
           points_possible: assignment.points_possible ?? null,
           gradebook_weight: assignment.gradebook_weight ?? null,
           include_in_final: assignment.include_in_final ?? true,
@@ -117,6 +118,7 @@ export async function loadPublishedClassroomSource(
       })),
       lesson_plans: ((lessonPlansResult.data || []) as Array<Record<string, any>>).map((plan, index) => ({
         title: `Lesson ${index + 1} (${plan.date})`,
+        date: plan.date,
         content_markdown: getLessonPlanMarkdown({
           content_markdown: plan.content_markdown ?? '',
           content: plan.content ?? null,

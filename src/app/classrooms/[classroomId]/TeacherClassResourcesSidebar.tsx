@@ -10,6 +10,7 @@ import {
   fetchTeacherClassResources,
   invalidateClassResourcesForClassroom,
 } from '@/lib/class-resources-client'
+import { invalidateCachedJSON } from '@/lib/request-cache'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 2000
@@ -21,9 +22,10 @@ type PendingResourceDraft = {
 
 interface Props {
   classroom: Classroom
+  onSaved?: (content: TiptapContent) => void
 }
 
-export function TeacherClassResourcesSidebar({ classroom }: Props) {
+export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
@@ -103,11 +105,16 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
       }
 
       invalidateClassResourcesForClassroom(saveClassroomId)
+      invalidateCachedJSON(`classroom-course-guide:${saveClassroomId}`)
+      if (classroom.actual_site_slug) {
+        invalidateCachedJSON(`public-course-guide:${classroom.actual_site_slug}`)
+      }
       if (currentClassroomIdRef.current !== saveClassroomId) {
         return
       }
 
       lastSavedContentRef.current = newContentStr
+      onSaved?.(newContent)
       const pending = pendingContentRef.current
       const pendingMatchesSavedDraft =
         pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr
@@ -121,7 +128,7 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
         setSaveStatus('unsaved')
       }
     }
-  }, [classroom.id])
+  }, [classroom.id, classroom.actual_site_slug, onSaved])
 
   const handleContentChange = useCallback((newContent: TiptapContent) => {
     setContent(newContent)
@@ -186,47 +193,37 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
   }
 
   return (
-    <div className="px-3 py-3">
-      <div className="space-y-4">
-        {isArchived && (
-          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-            This classroom is archived. Resources are read-only.
-          </div>
-        )}
-
-        {!hasContent && !isArchived && (
-          <div className="rounded-lg border border-border bg-surface-2 p-4">
-            <p className="mb-2 text-sm text-text-muted">
-              Use this area to share static resources with your students:
-            </p>
-            <ul className="list-inside list-disc space-y-1 text-sm text-text-muted">
-              <li>Contact information and office hours</li>
-              <li>Links to external resources</li>
-              <li>Rubrics and grading policies</li>
-              <li>Class expectations and rules</li>
-            </ul>
-          </div>
-        )}
-
-        <div className="rounded-lg bg-surface p-4 shadow-sm">
-          <ContentField
-            label="Class resources"
-            hint="Share reference material students can return to throughout the class."
-            saveStatus={!isArchived ? saveStatus : undefined}
-          >
-            <RichTextEditor
-              content={currentContent}
-              onChange={handleContentChange}
-              onBlur={handleBlur}
-              placeholder="Add resources for your students..."
-              editable={!isArchived}
-              toolbarPreset={isArchived ? 'none' : 'document'}
-              aria-label="Class resources"
-              className="min-h-[400px]"
-            />
-          </ContentField>
+    <div className="space-y-4">
+      {isArchived && (
+        <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+          This classroom is archived. Resources are read-only.
         </div>
-      </div>
+      )}
+
+      {!hasContent && !isArchived && (
+        <div className="rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <p className="text-sm leading-6 text-text-muted">
+            Consider contact details, external or ministry links, grading policies, and class expectations.
+          </p>
+        </div>
+      )}
+
+      <ContentField
+        label="Rules, links, and reference material"
+        hint="This appears in the Resources section of the Course Guide and saves automatically."
+        saveStatus={!isArchived ? saveStatus : undefined}
+      >
+        <RichTextEditor
+          content={currentContent}
+          onChange={handleContentChange}
+          onBlur={handleBlur}
+          placeholder="Add resources for your students..."
+          editable={!isArchived}
+          toolbarPreset={isArchived ? 'none' : 'document'}
+          aria-label="Course guide rules, links, and reference material"
+          className="min-h-24 sm:min-h-28"
+        />
+      </ContentField>
     </div>
   )
 }

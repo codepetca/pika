@@ -68,6 +68,15 @@ async function verifyProjectContract(page: Page, testInfo: TestInfo) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
 }
 
+async function captureCourseGuideState(page: Page, testInfo: TestInfo, state: string) {
+  await page.evaluate(() => document.fonts.ready)
+  await page.screenshot({
+    path: `/tmp/pika-course-guide-${testInfo.project.name}-${state}.png`,
+    fullPage: true,
+    animations: 'disabled',
+  })
+}
+
 async function verifyActiveClassroomTab(page: Page, testInfo: TestInfo, label: 'Daily' | 'Today') {
   const { viewport } = getExperienceMetadata(testInfo)
 
@@ -558,56 +567,98 @@ test.describe('teacher experience matrix', () => {
     await verifyProjectContract(page, testInfo)
   })
 
-  test('keeps failed syllabus documents unavailable', async ({ page }, testInfo) => {
+  test('shows retryable Course Guide API failures without an iframe', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'One real-browser failure pass is sufficient')
 
     const classroomId = await enterSeededClassroom(page, 'teacher')
-    const originalResponse = await page.request.get(`/api/teacher/classrooms/${classroomId}`)
-    expect(originalResponse.ok()).toBe(true)
-    const original = (await originalResponse.json() as {
-      classroom: { actual_site_slug: string | null; actual_site_published: boolean }
-    }).classroom
-    const slug = `e2e-syllabus-${classroomId}`
     let responseStatus = 404
 
-    try {
-      const publishResponse = await page.request.patch(`/api/teacher/classrooms/${classroomId}`, {
-        data: { actualSiteSlug: slug, actualSitePublished: true },
+    await page.route(`**/api/classrooms/${classroomId}/course-guide`, async (route) => {
+      await route.fulfill({
+        status: responseStatus,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: `Course Guide failure ${responseStatus}` }),
       })
-      expect(publishResponse.ok()).toBe(true)
+    })
 
-      await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
-      const preview = page.getByTitle('Test Classroom syllabus preview')
-      await expect(preview).toHaveAttribute('tabindex', '0')
-      await page.getByRole('link', { name: 'Open syllabus' }).focus()
-      await page.keyboard.press('Tab')
-      await expect(preview).toBeFocused()
+    await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
+    await expect(page.getByText('Course guide unavailable')).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('iframe')).toHaveCount(0)
 
-      await page.route(`**/actual/${slug}*`, async (route) => {
+    responseStatus = 500
+    await page.getByRole('button', { name: 'Retry' }).click()
+    await expect(page.getByText('Course guide unavailable')).toBeVisible({ timeout: 20_000 })
+    await expect(page.locator('iframe')).toHaveCount(0)
+  })
+
+  test('authors the Course Guide inside its own pane', async ({ page }, testInfo) => {
+    const classroomId = await enterSeededClassroom(page, 'teacher')
+    await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
+
+    const editGuide = page.getByRole('button', { name: 'Edit guide' })
+    await expect(editGuide).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Course Guide' })).toHaveCount(0)
+    await captureCourseGuideState(page, testInfo, 'teacher-read')
+
+    await editGuide.click()
+    await expect(page.getByRole('button', {
+      name: 'Edit curriculum overview and expectations',
+    })).toHaveAttribute('aria-pressed', 'false')
+    await captureCourseGuideState(page, testInfo, 'teacher-edit')
+
+    await page.getByRole('button', { name: 'Edit resources' }).click()
+    const resourcesEditor = page.getByRole('textbox', {
+      name: 'Rules, links, and reference material',
+    })
+    await expect(resourcesEditor).toBeVisible()
+    await page.waitForTimeout(350)
+    await expect(resourcesEditor).toBeVisible()
+    await captureCourseGuideState(page, testInfo, 'teacher-resources-editor')
+
+    await page.getByRole('button', {
+      name: 'Edit curriculum overview and expectations',
+    }).click()
+    const overviewEditor = page.getByRole('textbox', {
+      name: 'Curriculum overview and expectations',
+    })
+    await expect(overviewEditor).toBeVisible()
+    await captureCourseGuideState(page, testInfo, 'teacher-overview-editor')
+
+    const optionsButton = page.getByRole('button', { name: 'Guide options' })
+    await optionsButton.click()
+    await expect(page.getByRole('dialog', { name: 'Guide options' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
+    await captureCourseGuideState(page, testInfo, 'teacher-options')
+    await page.getByRole('button', { name: 'Share guide publicly' }).click()
+    await expect(page.getByLabel('Public page address')).toBeVisible()
+    await captureCourseGuideState(page, testInfo, 'teacher-options-public')
+    await page.keyboard.press('Escape')
+    await expect(optionsButton).toBeFocused()
+
+    if (testInfo.project.name === 'chromium-desktop') {
+      let releaseSave: (() => void) | undefined
+      const saveMayFinish = new Promise<void>((resolve) => {
+        releaseSave = resolve
+      })
+      await page.route(`**/api/teacher/classrooms/${classroomId}`, async (route) => {
+        if (route.request().method() !== 'PATCH') return route.continue()
+        await saveMayFinish
         await route.fulfill({
-          status: responseStatus,
-          contentType: 'text/html',
-          body: `<html><body>Syllabus failure ${responseStatus}</body></html>`,
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Course Guide save unavailable' }),
         })
       })
-      await page.reload({ waitUntil: 'domcontentloaded' })
-      await expect(preview).toHaveAttribute('tabindex', '-1')
-      await expect(page.getByText('Syllabus unavailable')).toBeVisible({ timeout: 20_000 })
-
-      responseStatus = 500
-      await page.getByRole('button', { name: 'Retry' }).click()
-      await expect(preview).toHaveAttribute('src', new RegExp(`^/actual/${slug}\\?previewAttempt=1$`))
-      await expect(preview).toHaveAttribute('tabindex', '-1')
-      await expect(page.getByText('Syllabus unavailable')).toBeVisible({ timeout: 20_000 })
-    } finally {
-      const restoreResponse = await page.request.patch(`/api/teacher/classrooms/${classroomId}`, {
-        data: {
-          actualSitePublished: original.actual_site_published,
-          actualSiteSlug: original.actual_site_slug,
-        },
-      })
-      expect(restoreResponse.ok()).toBe(true)
+      await overviewEditor.fill(`${await overviewEditor.textContent()} Temporary visual check`)
+      await page.getByRole('button', { name: 'Save overview' }).click()
+      await expect(page.getByRole('button', { name: 'Saving...' })).toBeDisabled()
+      await captureCourseGuideState(page, testInfo, 'teacher-saving')
+      releaseSave?.()
+      await expect(page.getByText('Course Guide save unavailable', { exact: true })).toBeVisible()
+      await captureCourseGuideState(page, testInfo, 'teacher-save-error')
     }
+
+    await verifyProjectContract(page, testInfo)
   })
 
   test('publishes and unpublishes the planned course through the Blueprint editor', async ({ page }, testInfo) => {
@@ -672,6 +723,20 @@ test.describe('student experience matrix', () => {
 
     await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
     await verifyActiveClassroomTab(page, testInfo, 'Today')
+    await verifyProjectContract(page, testInfo)
+  })
+
+  test('reads the Course Guide as a clean in-Pika document', async ({ page }, testInfo) => {
+    const classroomId = await enterSeededClassroom(page, 'student')
+    await page.goto(`/classrooms/${classroomId}?tab=resources`, { waitUntil: 'domcontentloaded' })
+
+    await expect(page.getByRole('heading', {
+      name: 'Curriculum overview and expectations',
+    })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Edit guide' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Guide options' })).toHaveCount(0)
+    await expect(page.locator('iframe')).toHaveCount(0)
+    await captureCourseGuideState(page, testInfo, 'student-read')
     await verifyProjectContract(page, testInfo)
   })
 
