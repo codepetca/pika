@@ -997,9 +997,14 @@ hosted state changed.
 - Kept the Attendance fixture closed in production unless explicitly enabled,
   while allowing it automatically on development servers so Playwright can
   reuse a normal unflagged local server.
+- Forced request-time rendering for the fixture route so `PIKA_E2E_FIXTURES`
+  is evaluated when the production server handles each request instead of being
+  frozen into the build artifact.
 - Reproduced the reported reuse workflow with `PIKA_E2E_FIXTURES` absent. The
   existing Attendance-hours regression passed on desktop/mobile in light/dark
   and opened the real dialog in all four cases.
+- Built one production artifact with the fixture flag present, then proved that
+  same artifact returns 404 when started unflagged and 200 when started flagged.
 
 **Model recommendation:** current GPT-5 coding model for a contained test-harness
 compatibility correction and exact-workflow verification.

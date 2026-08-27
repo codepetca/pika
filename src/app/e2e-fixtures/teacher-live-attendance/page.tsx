@@ -5,6 +5,8 @@ import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { Classroom } from '@/types'
 import { PageDensityProvider } from '@/ui'
 
+export const dynamic = 'force-dynamic'
+
 const classroom: Classroom = {
   id: '30000000-0000-4000-8000-000000000001',
   teacher_id: '30000000-0000-4000-8000-000000000002',
