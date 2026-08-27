@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-23 — Repair attendance entitlement operator launch
-
-**Risk profile:** runtime-platform — service-only entitlement operator
-availability; no authorization binding, RPC payload, hosted entitlement, flag,
-credential, or attendance state changed.
-
-- Wrapped the existing operator body in an async entrypoint so the documented
-  CommonJS `tsx` package command no longer fails compilation on top-level await.
-- Added a subprocess regression that invokes the exact package script and proves
-  it reaches argument validation instead of the transform failure.
-- Verified the documented command against production in dry-run mode only; it
-  read the current active revision 1 entitlement and emitted a disposable exact
-  binding without executing an RPC.
-- Focused tests, the full Vitest suite, lint, architecture guard, production
-  build, and diff check pass.
-
 ## 2026-08-23 — Make student mobile attendance state obvious
 
 **Risk profile:** student-facing attendance read UX — private tenant-scoped
@@ -981,3 +965,14 @@ no hosted state was changed.
 - Rebased the dedicated branch onto current `origin/main` and ran the canonical
   session-log trimmer, restoring chronological order and the rolling-entry cap.
   Migration 134 remains the sole branch-added migration after main's 133.
+
+## 2026-08-27 — Simplify Classwork inspector summaries
+
+**Risk profile:** UI-only — teacher Classwork inspector presentation and keyboard
+regression coverage; no data, API, or student-facing behavior changes.
+
+- Replaced the History authenticity meter and Grade color badge with compact,
+  right-aligned text summaries beside their section labels.
+- Preserved authenticity flag details in the existing tooltip and kept the
+  section headers keyboard-accessible.
+- Added focused assertions for typography, alignment, and Enter-key toggling.
