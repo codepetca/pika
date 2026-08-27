@@ -1153,3 +1153,26 @@ persistence, authentication, dependency, or hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for scoped design-system
 promotion and implementation routing.
+
+## 2026-08-27 — Resolve Attendance status-dot contrast review
+
+**Risk profile:** none — teacher Attendance status presentation, semantic token
+coverage, accessibility regressions, and stable guidance only; no attendance
+behavior, API, schema, persistence, authentication, dependency, or hosted state
+changed.
+
+- Accepted the independent PR review blocker that the exact TeachAssist status
+  fills did not always form a 3:1 boundary against light and dark row surfaces.
+  Preserved every approved fill and added a theme-adaptive semantic one-pixel
+  halo, including default, hovered, selected, and selected-hover rows.
+- Gave each compact status mark explicit image semantics and retained its
+  accessible status name and tooltip.
+- Added theme-aware non-text contrast contracts and component coverage for
+  default and selected rows. Focused remediation coverage passes 24 tests,
+  along with lint and design/UI policy checks.
+- Playwright visual review passes for teacher desktop/mobile in light/dark over
+  all four row surfaces. Student UI is n/a because Attendance is teacher-only.
+  The independent reviewer reported no other actionable findings.
+
+**Model recommendation:** current GPT-5 coding model for a localized semantic
+contrast remediation with responsive visual verification.

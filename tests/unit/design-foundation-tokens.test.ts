@@ -32,6 +32,8 @@ describe('portable design foundations', () => {
     expect(tokens).toContain('--color-attendance-late: #f1c700;')
     expect(tokens).toContain('--color-attendance-absent: #b10606;')
     expect(tokens).toContain('--color-attendance-unmarked: var(--color-border-strong);')
+    expect(tokens).toContain('--color-attendance-dot-halo: #111827;')
+    expect(tokens).toContain('--color-attendance-dot-halo: #ffffff;')
     expect(tokens).toContain('--color-attendance-present-text: #111827;')
     expect(tokens).toContain('--color-attendance-late-text: #111827;')
     expect(tokens).toContain('--color-attendance-absent-text: #ffffff;')
@@ -73,6 +75,7 @@ describe('portable design foundations', () => {
       '--color-attendance-late',
       '--color-attendance-absent',
       '--color-attendance-unmarked',
+      '--color-attendance-dot-halo',
       '--color-attendance-present-text',
       '--color-attendance-late-text',
       '--color-attendance-absent-text',

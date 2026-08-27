@@ -81,6 +81,7 @@
   --color-attendance-late: #f1c700;
   --color-attendance-absent: #b10606;
   --color-attendance-unmarked: var(--color-border-strong);
+  --color-attendance-dot-halo: #111827;
   --color-attendance-present-text: #111827;
   --color-attendance-late-text: #111827;
   --color-attendance-absent-text: #ffffff;
@@ -191,6 +192,7 @@
   --color-attendance-late: #f1c700;
   --color-attendance-absent: #b10606;
   --color-attendance-unmarked: var(--color-border-strong);
+  --color-attendance-dot-halo: #ffffff;
   --color-attendance-present-text: #111827;
   --color-attendance-late-text: #111827;
   --color-attendance-absent-text: #ffffff;

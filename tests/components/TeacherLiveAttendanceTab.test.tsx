@@ -171,15 +171,32 @@ describe('TeacherLiveAttendanceTab', () => {
     renderTab()
     await screen.findByText('Ada')
 
-    expect(screen.getByLabelText('Present')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-present')
-    expect(screen.getByLabelText('Late')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-late')
-    expect(screen.getByLabelText('Absent')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-absent')
-    expect(screen.getByLabelText('Unmarked')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-unmarked')
+    for (const status of ['Present', 'Late', 'Absent', 'Unmarked']) {
+      expect(screen.getByRole('img', { name: status })).toHaveClass(
+        'h-3',
+        'w-3',
+        'rounded-full',
+        'ring-1',
+        'ring-attendance-dot-halo',
+      )
+    }
+    expect(screen.getByRole('img', { name: 'Present' })).toHaveClass('bg-attendance-present')
+    expect(screen.getByRole('img', { name: 'Late' })).toHaveClass('bg-attendance-late')
+    expect(screen.getByRole('img', { name: 'Absent' })).toHaveClass('bg-attendance-absent')
+    expect(screen.getByRole('img', { name: 'Unmarked' })).toHaveClass('bg-attendance-unmarked')
+
     expect(screen.queryByText('Present')).not.toBeInTheDocument()
     expect(screen.queryByText('Late')).not.toBeInTheDocument()
     expect(screen.queryByText('Absent')).not.toBeInTheDocument()
     expect(screen.queryByText('Unmarked')).not.toBeInTheDocument()
     expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
+    const selectedRow = screen.getByText('Grace').closest('tr')
+    expect(selectedRow).toHaveClass('bg-info-bg')
+    expect(within(selectedRow!).getByRole('img', { name: 'Present' })).toHaveClass(
+      'ring-attendance-dot-halo',
+    )
 
     const statusGroup = screen.getByRole('group', { name: 'Sort attendance by status' })
     const statusHeader = statusGroup.closest('th')

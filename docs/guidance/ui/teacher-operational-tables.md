@@ -47,7 +47,9 @@ scope/actions and condense edge information instead of wrapping another row.
   for adjustable data columns. Persist widths with a feature-owned key when
   repeated use justifies it.
 - Keep status cells concise. Color needs an accessible name, tooltip, icon, or
-  other non-color carrier.
+  other non-color carrier, and compact color marks need a semantic boundary
+  that remains visible against default, hovered, and selected row surfaces in
+  both themes.
 
 Daily provides the column and sorting rhythm. Attendance provides the approved
 overall context/table/selection composition.

@@ -861,9 +861,10 @@ export function TeacherLiveAttendanceTab({
                       <span className="inline-flex items-center gap-2">
                         <Tooltip content={STATUS_LABELS[student.status]}>
                           <span
+                            role="img"
                             aria-label={STATUS_LABELS[student.status]}
                             className={cn(
-                              'inline-block h-3 w-3 shrink-0 rounded-full',
+                              'inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-attendance-dot-halo',
                               STATUS_DOT_CLASSES[student.status],
                             )}
                           />

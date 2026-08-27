@@ -104,6 +104,7 @@ const config: Config = {
           late: 'var(--color-attendance-late)',
           absent: 'var(--color-attendance-absent)',
           unmarked: 'var(--color-attendance-unmarked)',
+          'dot-halo': 'var(--color-attendance-dot-halo)',
           'present-text': 'var(--color-attendance-present-text)',
           'late-text': 'var(--color-attendance-late-text)',
           'absent-text': 'var(--color-attendance-absent-text)',
