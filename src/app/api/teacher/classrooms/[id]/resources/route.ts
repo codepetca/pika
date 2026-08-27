@@ -45,8 +45,10 @@ export const GET = withErrorHandler('GetClassroomResources', async (_request, co
   return NextResponse.json({ resources: resources || null })
 })
 
-// PUT /api/teacher/classrooms/[id]/resources - Upsert resources for a classroom
-export const PUT = withErrorHandler('PutUpsertClassroomResources', async (request, context) => {
+async function upsertClassroomResources(
+  request: NextRequest,
+  context: { params: Promise<Record<string, string>> },
+) {
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
@@ -95,4 +97,10 @@ export const PUT = withErrorHandler('PutUpsertClassroomResources', async (reques
   }
 
   return NextResponse.json({ resources })
-})
+}
+
+// PUT /api/teacher/classrooms/[id]/resources - Upsert resources for a classroom
+export const PUT = withErrorHandler('PutUpsertClassroomResources', upsertClassroomResources)
+
+// POST supports navigator.sendBeacon during unload using the same guarded upsert.
+export const POST = withErrorHandler('PostUpsertClassroomResources', upsertClassroomResources)

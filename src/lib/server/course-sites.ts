@@ -76,7 +76,6 @@ export type PublishedActualCourseSiteData = {
     Classroom,
     | 'id'
     | 'title'
-    | 'class_code'
     | 'actual_site_config'
     | 'course_overview_markdown'
   >
@@ -333,7 +332,6 @@ async function buildActualCourseSite(
   const classroom: PublishedActualCourseSiteData['classroom'] = {
     id: String(classroomRow.id),
     title: String(classroomRow.title || ''),
-    class_code: String(classroomRow.class_code || ''),
     actual_site_config: normalizeActualCourseSiteConfig(classroomRow.actual_site_config),
     course_overview_markdown: String(classroomRow.course_overview_markdown || ''),
   }
@@ -367,7 +365,7 @@ async function buildActualCourseSite(
 }
 
 const ACTUAL_COURSE_SITE_CLASSROOM_COLUMNS =
-  'id, title, class_code, actual_site_config, course_overview_markdown'
+  'id, title, actual_site_config, course_overview_markdown'
 
 export async function getClassroomActualCourseSite(
   classroomId: string,

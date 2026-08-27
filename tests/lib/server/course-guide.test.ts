@@ -89,7 +89,7 @@ describe('getPublishedCourseGuide', () => {
     expect(result).toEqual(expect.objectContaining({
       ok: true,
       guide: expect.objectContaining({
-        classroom: expect.objectContaining({ title: 'Computer Science', classCode: 'ICS4U' }),
+        classroom: { title: 'Computer Science' },
         assignments: [expect.objectContaining({ title: 'Portfolio', courseWeightPercent: 25 })],
         tests: [expect.objectContaining({
           title: 'Unit test',
@@ -107,6 +107,7 @@ describe('getPublishedCourseGuide', () => {
     expect(JSON.stringify(result)).not.toContain('private answer')
     expect(JSON.stringify(result)).not.toContain('private/file.pdf')
     expect(JSON.stringify(result)).not.toContain('javascript:')
+    expect(JSON.stringify(result)).not.toContain('ICS4U')
     expect(JSON.stringify(result)).not.toContain('Semester 1')
     expect(JSON.stringify(result)).not.toContain('2026-09-03')
     expect(JSON.stringify(result)).not.toContain('2027-01-29')

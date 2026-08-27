@@ -329,9 +329,7 @@ describe('course-sites server helpers', () => {
 
     if (result.ok) {
       expect(result.site.classroom).not.toHaveProperty('teacher_id')
-      expect(result.site.classroom).toEqual(expect.objectContaining({
-        class_code: 'ICS4U',
-      }))
+      expect(result.site.classroom).not.toHaveProperty('class_code')
       expect(result.site.classroom).not.toHaveProperty('term_label')
       expect(result.site.classroom).not.toHaveProperty('start_date')
       expect(result.site.classroom).not.toHaveProperty('end_date')

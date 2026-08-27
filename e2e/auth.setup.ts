@@ -36,33 +36,6 @@ async function authenticate(page: any, email: string, storagePath: string) {
 
 setup('authenticate as teacher', async ({ page }) => {
   await authenticate(page, TEACHER_EMAIL, TEACHER_STORAGE)
-
-  const classroomsResponse = await page.request.get('/api/teacher/classrooms')
-  expect(classroomsResponse.ok()).toBe(true)
-  const payload = await classroomsResponse.json() as {
-    classrooms?: Array<{ id: string; title: string }>
-  }
-  const classroom = payload.classrooms?.find((item) => item.title === 'Test Classroom')
-  if (!classroom) throw new Error('Teacher browser fixture is missing Test Classroom')
-
-  const guideResponse = await page.request.patch(`/api/teacher/classrooms/${classroom.id}`, {
-    data: {
-      courseOverviewMarkdown: 'This course develops practical problem-solving, collaboration, and communication skills through guided study and classroom work.',
-      actualSiteSlug: 'e2e-test-course-guide',
-      actualSitePublished: true,
-      actualSiteConfig: {
-        overview: true,
-        outline: false,
-        resources: true,
-        assignments: true,
-        tests: true,
-        lesson_plans: true,
-        announcements: true,
-        lesson_plan_scope: 'current_week',
-      },
-    },
-  })
-  expect(guideResponse.ok()).toBe(true)
 })
 
 setup('authenticate as student', async ({ page }) => {

@@ -38,6 +38,9 @@ vi.mock('@/components/editor', () => {
         <button type="button" disabled={!editable} onClick={() => onChange(contentDoc('Updated teacher resources'))}>
           Change teacher resources
         </button>
+        <button type="button" disabled={!editable} onClick={() => onChange(contentDoc('Newest teacher resources'))}>
+          Change teacher resources again
+        </button>
         <button type="button" disabled={!editable} onClick={() => onBlur?.()}>
           Blur resources editor
         </button>
@@ -314,6 +317,55 @@ describe('class resources sidebars', () => {
         `/api/teacher/classrooms/${classroom.id}/resources`,
         `/api/teacher/classrooms/${secondClassroom.id}/resources`,
       ])
+    })
+  })
+
+  it('serializes same-class saves so an older draft cannot overwrite the newest draft', async () => {
+    const writeBodies: TiptapContent[] = []
+    let resolveFirstSave: (() => void) | null = null
+    let resolveSecondSave: (() => void) | null = null
+    const onSaved = vi.fn()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method !== 'PUT') return resourceResponse('Teacher resources')
+
+        const body = JSON.parse(String(init.body)) as { content: TiptapContent }
+        writeBodies.push(body.content)
+        if (writeBodies.length === 1) {
+          return new Promise<Response>((resolve) => {
+            resolveFirstSave = () => resolve(resourceResponse('Updated teacher resources'))
+          })
+        }
+        return new Promise<Response>((resolve) => {
+          resolveSecondSave = () => resolve(resourceResponse('Newest teacher resources'))
+        })
+      }),
+    )
+
+    render(<TeacherClassResourcesSidebar classroom={classroom} onSaved={onSaved} />)
+    await screen.findByText('Teacher resources')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
+    await waitFor(() => expect(writeBodies).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher resources again' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur resources editor' }))
+    await act(async () => Promise.resolve())
+    expect(writeBodies).toHaveLength(1)
+    expect(resolveSecondSave).toBeNull()
+
+    await act(async () => resolveFirstSave?.())
+    await waitFor(() => expect(writeBodies).toHaveLength(2))
+    expect(writeBodies.map((body) => JSON.stringify(body))).toEqual([
+      JSON.stringify(contentDoc('Updated teacher resources')),
+      JSON.stringify(contentDoc('Newest teacher resources')),
+    ])
+
+    await act(async () => resolveSecondSave?.())
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenLastCalledWith(contentDoc('Newest teacher resources'))
     })
   })
 

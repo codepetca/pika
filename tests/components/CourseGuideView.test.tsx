@@ -10,7 +10,6 @@ vi.mock('@/components/editor/RichTextViewer', () => ({
 const guide: CourseGuideData = {
   classroom: {
     title: 'Computer Science',
-    classCode: 'ICS4U',
   },
   visibility: {
     overview: true,
@@ -63,7 +62,7 @@ describe('CourseGuideView', () => {
     render(<CourseGuideView guide={guide} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Computer Science' })).toBeInTheDocument()
-    expect(screen.getByText(/ICS4U/)).toBeInTheDocument()
+    expect(screen.queryByText(/ICS4U/)).toBeNull()
     expect(screen.queryByRole('navigation', { name: 'Course guide sections' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Assignments' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Tests' })).toBeNull()

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET, PUT } from '@/app/api/teacher/classrooms/[id]/resources/route'
+import { GET, POST, PUT } from '@/app/api/teacher/classrooms/[id]/resources/route'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
@@ -256,5 +256,44 @@ describe('PUT /api/teacher/classrooms/[id]/resources', () => {
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(500)
+  })
+})
+
+describe('POST /api/teacher/classrooms/[id]/resources', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('persists a valid unload beacon through the same guarded upsert', async () => {
+    const content = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Unload draft' }] }],
+    }
+    const upsert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'm-1', classroom_id: 'c-1', content },
+          error: null,
+        }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ upsert }))
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/resources',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      },
+    )
+    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(200)
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      classroom_id: 'c-1',
+      content,
+      updated_by: 'teacher-1',
+    }), { onConflict: 'classroom_id' })
   })
 })

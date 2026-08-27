@@ -115,7 +115,6 @@ const classroom = {
 const guide = {
   classroom: {
     title: classroom.title,
-    classCode: classroom.class_code,
   },
   visibility: classroom.actual_site_config,
   overviewMarkdown: classroom.course_overview_markdown,

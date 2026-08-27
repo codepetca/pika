@@ -150,7 +150,6 @@ export function CourseGuideView({
   resourcesEditor,
 }: CourseGuideViewProps) {
   const hasContent = hasCourseGuideContent(guide)
-  const metadata = [guide.classroom.classCode].filter(Boolean)
   const overviewVisible = guide.visibility.overview && (editMode || guide.overviewMarkdown.trim())
   const resourcesVisible = guide.visibility.resources && (editMode || guide.resourcesContent)
 
@@ -166,7 +165,6 @@ export function CourseGuideView({
             ) : null}
             <PageHeading
               title={guide.classroom.title}
-              description={metadata.length > 0 ? metadata.join(' · ') : undefined}
             />
           </PageContent>
         </PageLayout>

@@ -43,7 +43,6 @@ export type CourseGuideAnnouncement = {
 export type CourseGuideData = {
   classroom: {
     title: string
-    classCode: string
   }
   visibility: ActualCourseSiteConfig
   overviewMarkdown: string

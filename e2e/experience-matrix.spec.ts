@@ -1,4 +1,11 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import {
+  expect,
+  request as playwrightRequest,
+  test,
+  type APIRequestContext,
+  type Page,
+  type TestInfo,
+} from '@playwright/test'
 import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
@@ -8,6 +15,7 @@ const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
 const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
 const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
+const E2E_BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -957,6 +965,70 @@ test.describe('public planned course experience matrix', () => {
 test.describe('public Course Guide experience matrix', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
+  let teacherRequest: APIRequestContext | null = null
+  let originalClassroom: {
+    id: string
+    course_overview_markdown: string
+    actual_site_slug: string | null
+    actual_site_published: boolean
+    actual_site_config: Record<string, unknown>
+  } | null = null
+
+  test.beforeAll(async () => {
+    teacherRequest = await playwrightRequest.newContext({
+      baseURL: E2E_BASE_URL,
+      storageState: TEACHER_STORAGE,
+    })
+    const classroomsResponse = await teacherRequest.get('/api/teacher/classrooms')
+    expect(classroomsResponse.ok()).toBe(true)
+    const payload = await classroomsResponse.json() as {
+      classrooms?: Array<{
+        id: string
+        title: string
+        course_overview_markdown: string
+        actual_site_slug: string | null
+        actual_site_published: boolean
+        actual_site_config: Record<string, unknown>
+      }>
+    }
+    originalClassroom = payload.classrooms?.find((item) => item.title === 'Test Classroom') ?? null
+    if (!originalClassroom) throw new Error('Teacher browser fixture is missing Test Classroom')
+
+    const guideResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
+      data: {
+        courseOverviewMarkdown: 'This course develops practical problem-solving, collaboration, and communication skills through guided study and classroom work.',
+        actualSiteSlug: PUBLIC_ACTUAL_COURSE_SLUG,
+        actualSitePublished: true,
+        actualSiteConfig: {
+          overview: true,
+          outline: false,
+          resources: true,
+          assignments: true,
+          tests: true,
+          lesson_plans: true,
+          announcements: true,
+          lesson_plan_scope: 'current_week',
+        },
+      },
+    })
+    expect(guideResponse.ok()).toBe(true)
+  })
+
+  test.afterAll(async () => {
+    if (originalClassroom && teacherRequest) {
+      const restoreResponse = await teacherRequest.patch(`/api/teacher/classrooms/${originalClassroom.id}`, {
+        data: {
+          courseOverviewMarkdown: originalClassroom.course_overview_markdown,
+          actualSiteSlug: originalClassroom.actual_site_slug,
+          actualSitePublished: originalClassroom.actual_site_published,
+          actualSiteConfig: originalClassroom.actual_site_config,
+        },
+      })
+      expect(restoreResponse.ok()).toBe(true)
+    }
+    await teacherRequest?.dispose()
+  })
+
   test.beforeEach(async ({ page }, testInfo) => {
     await applyProjectTheme(page, testInfo)
   })
@@ -979,6 +1051,7 @@ test.describe('public Course Guide experience matrix', () => {
     expect(apiResponse.status()).toBe(200)
     const payload = await apiResponse.json() as { guide: Record<string, unknown> }
     const serializedGuide = JSON.stringify(payload.guide)
+    expect(serializedGuide).not.toContain('TEST01')
     for (const retiredField of ['termLabel', 'startDate', 'endDate', 'outlineMarkdown', '"date"']) {
       expect(serializedGuide).not.toContain(retiredField)
     }

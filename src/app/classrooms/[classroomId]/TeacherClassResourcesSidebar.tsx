@@ -36,6 +36,7 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
   const showLoadingSpinner = useDelayedBusy(loading)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingContentRef = useRef<PendingResourceDraft | null>(null)
   const lastSavedContentRef = useRef<string>('')
   const currentClassroomIdRef = useRef(classroom.id)
@@ -81,60 +82,74 @@ export function TeacherClassResourcesSidebar({ classroom, onSaved }: Props) {
     loadResources()
   }, [classroom.id, loadAttempt])
 
-  const saveContent = useCallback(async (newContent: TiptapContent) => {
+  const saveContent = useCallback((newContent: TiptapContent) => {
     const saveClassroomId = classroom.id
-    if (loadedClassroomIdRef.current !== saveClassroomId) return
+    if (loadedClassroomIdRef.current !== saveClassroomId) return Promise.resolve()
     const newContentStr = JSON.stringify(newContent)
-    if (newContentStr === lastSavedContentRef.current) {
-      const pending = pendingContentRef.current
-      if (pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr) {
-        pendingContentRef.current = null
-      }
-      if (currentClassroomIdRef.current === saveClassroomId) {
-        setSaveStatus('saved')
-      }
-      return
-    }
+    const publicGuideSlug = classroom.actual_site_slug
 
-    if (currentClassroomIdRef.current === saveClassroomId) {
-      setSaveStatus('saving')
-    }
-
-    try {
-      const res = await fetch(`/api/teacher/classrooms/${saveClassroomId}/resources`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Failed to save')
-      }
-
-      invalidateClassResourcesForClassroom(saveClassroomId)
-      invalidateCachedJSON(`classroom-course-guide:${saveClassroomId}`)
-      if (classroom.actual_site_slug) {
-        invalidateCachedJSON(`public-course-guide:${classroom.actual_site_slug}`)
-      }
-      if (currentClassroomIdRef.current !== saveClassroomId) {
+    const saveTask = saveQueueRef.current.then(async () => {
+      const latestPending = pendingContentRef.current
+      if (
+        latestPending?.classroomId === saveClassroomId
+        && JSON.stringify(latestPending.content) !== newContentStr
+      ) {
         return
       }
 
-      lastSavedContentRef.current = newContentStr
-      onSaved?.(newContent)
-      const pending = pendingContentRef.current
-      const pendingMatchesSavedDraft =
-        pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr
-      if (!pending || pendingMatchesSavedDraft) {
-        pendingContentRef.current = null
-        setSaveStatus('saved')
+      if (newContentStr === lastSavedContentRef.current) {
+        if (latestPending?.classroomId === saveClassroomId) {
+          pendingContentRef.current = null
+        }
+        if (currentClassroomIdRef.current === saveClassroomId) {
+          setSaveStatus('saved')
+        }
+        return
       }
-    } catch (err) {
-      console.error('Error saving resources:', err)
+
       if (currentClassroomIdRef.current === saveClassroomId) {
-        setSaveStatus('unsaved')
+        setSaveStatus('saving')
       }
-    }
+
+      try {
+        const res = await fetch(`/api/teacher/classrooms/${saveClassroomId}/resources`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: newContent }),
+        })
+
+        if (!res.ok) {
+          throw new Error('Failed to save')
+        }
+
+        invalidateClassResourcesForClassroom(saveClassroomId)
+        invalidateCachedJSON(`classroom-course-guide:${saveClassroomId}`)
+        if (publicGuideSlug) {
+          invalidateCachedJSON(`public-course-guide:${publicGuideSlug}`)
+        }
+        if (currentClassroomIdRef.current !== saveClassroomId) {
+          return
+        }
+
+        lastSavedContentRef.current = newContentStr
+        onSaved?.(newContent)
+        const pending = pendingContentRef.current
+        const pendingMatchesSavedDraft =
+          pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr
+        if (!pending || pendingMatchesSavedDraft) {
+          pendingContentRef.current = null
+          setSaveStatus('saved')
+        }
+      } catch (err) {
+        console.error('Error saving resources:', err)
+        if (currentClassroomIdRef.current === saveClassroomId) {
+          setSaveStatus('unsaved')
+        }
+      }
+    })
+
+    saveQueueRef.current = saveTask
+    return saveTask
   }, [classroom.id, classroom.actual_site_slug, onSaved])
 
   const handleContentChange = useCallback((newContent: TiptapContent) => {

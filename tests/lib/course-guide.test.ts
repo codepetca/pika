@@ -19,7 +19,6 @@ const visibleConfig = {
 const guide: CourseGuideData = {
   classroom: {
     title: 'Computer Science',
-    classCode: 'ICS4U',
   },
   visibility: visibleConfig,
   overviewMarkdown: 'Course overview',

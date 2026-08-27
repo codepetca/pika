@@ -77,7 +77,6 @@ function buildCourseGuide(site: PublishedActualCourseSiteData): CourseGuideData 
   return {
     classroom: {
       title: classroom.title,
-      classCode: classroom.class_code,
     },
     visibility,
     overviewMarkdown: visibility.overview ? classroom.course_overview_markdown : '',
