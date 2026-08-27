@@ -8,6 +8,8 @@ import type { TestDraftContent } from '@/types'
 // accept ids (v1/v2/v3/v5) the rest of the pipeline rejects.
 const UUID_RE = UUID_V4_PATTERN
 
+export const PORTABLE_TEST_QUESTION_IDENTITY_VERSION = 1 as const
+
 export type PersistedTestQuestionIdentity = {
   id: string
   artifact_id?: string | null
@@ -18,6 +20,42 @@ export type ResolvedTestQuestionIdentity = {
   inputId: string
   portableId: string
   matchingRowId?: string
+}
+
+export type TestQuestionIdentityResolutionOptions = {
+  /** Accept legacy draft JSON whose question IDs are internal row IDs. */
+  acceptInternalRowIds?: boolean
+  /** Accept a portable draft identity that has not been materialized yet. */
+  allowDraftOnly?: boolean
+}
+
+export function usesPortableTestQuestionIdentity(
+  content: Pick<TestDraftContent, 'question_identity_version'>,
+): boolean {
+  return content.question_identity_version === PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+}
+
+export function markPortableTestQuestionIdentity(
+  content: TestDraftContent,
+): TestDraftContent {
+  return {
+    ...content,
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
+  }
+}
+
+export function getTestDraftIdentityResolutionOptions(
+  content: Pick<TestDraftContent, 'question_identity_version'>,
+): TestQuestionIdentityResolutionOptions {
+  return usesPortableTestQuestionIdentity(content)
+    ? {
+        acceptInternalRowIds: false,
+        allowDraftOnly: true,
+      }
+    : {
+        acceptInternalRowIds: true,
+        allowDraftOnly: true,
+      }
 }
 
 /**
@@ -39,40 +77,30 @@ export function getPortableTestQuestionIdentity(
 /**
  * Resolve draft identities without positional or content inference.
  *
- * Portable artifact identities are canonical. An exact persisted row-id match
- * is accepted only as a temporary dual-read path for drafts written before the
- * portable-identity backfill. No source identity is assigned or rewritten.
- *
- * TODO(remove after migration 134 has been live in production for one full
- * release cycle with no `question_identity_ambiguous`/row-id-fallback hits in
- * the RPC failure ledger — see docs/guidance/course-blueprint-identity-versioning.md):
- * migration 134's one-time backfill rewrites every existing draft's question
- * ids to portable identity at deploy time, so after that point no legitimately
- * saved draft should ever exercise the row-id branch below again. Until it's
- * removed, it stays a live source of the very ambiguity this module exists to
- * eliminate (see the `matchingRowIds.size > 1` guard a few lines down, which
- * exists specifically to catch this path colliding with the
- * artifact_id/source_artifact_id path).
+ * Portable artifact identities are canonical. Internal row-id matching is off
+ * by default and must be explicitly selected for an unmarked document. Live
+ * unmarked drafts exist only during the application-before-migration rollout
+ * window; after migration 134, the same adapter remains only for cold archived
+ * Classrooms. No source identity is assigned or rewritten.
  */
 export function resolveTestQuestionIdentities(
   inputIds: string[],
   persistedQuestions: PersistedTestQuestionIdentity[],
+  options: TestQuestionIdentityResolutionOptions = {},
 ): { ok: true; identities: ResolvedTestQuestionIdentity[] } | { ok: false } {
+  const {
+    acceptInternalRowIds = false,
+    allowDraftOnly = false,
+  } = options
   const rowIdsByKnownIdentity = new Map<string, Set<string>>()
   const rowsByInternalId = new Map<string, PersistedTestQuestionIdentity>()
 
   for (const question of persistedQuestions) {
     rowsByInternalId.set(normalizeTestQuestionIdentity(question.id), question)
-
-    for (const identity of new Set([
-      question.source_artifact_id,
-      question.artifact_id,
-    ].filter(Boolean))) {
-      const normalizedIdentity = normalizeTestQuestionIdentity(identity as string)
-      const rowIds = rowIdsByKnownIdentity.get(normalizedIdentity) ?? new Set<string>()
-      rowIds.add(question.id)
-      rowIdsByKnownIdentity.set(normalizedIdentity, rowIds)
-    }
+    const portableIdentity = getPortableTestQuestionIdentity(question)
+    const rowIds = rowIdsByKnownIdentity.get(portableIdentity) ?? new Set<string>()
+    rowIds.add(question.id)
+    rowIdsByKnownIdentity.set(portableIdentity, rowIds)
   }
 
   const seenInputIds = new Set<string>()
@@ -85,9 +113,15 @@ export function resolveTestQuestionIdentities(
     if (seenInputIds.has(inputId)) return { ok: false }
     seenInputIds.add(inputId)
 
-    const matchingRowIds = new Set(rowIdsByKnownIdentity.get(inputId) ?? [])
-    const internalRow = rowsByInternalId.get(inputId)
-    if (internalRow) matchingRowIds.add(internalRow.id)
+    // Unmarked legacy drafts contractually stored internal row IDs, so an
+    // exact row match wins before portable fallback. Marked drafts disable
+    // this branch and stay entirely in the artifact/source identity domain.
+    const internalRow = acceptInternalRowIds
+      ? rowsByInternalId.get(inputId)
+      : undefined
+    const matchingRowIds = internalRow
+      ? new Set([internalRow.id])
+      : new Set(rowIdsByKnownIdentity.get(inputId) ?? [])
     if (matchingRowIds.size > 1) return { ok: false }
 
     const [matchingRowId] = matchingRowIds
@@ -113,6 +147,7 @@ export function resolveTestQuestionIdentities(
       continue
     }
 
+    if (!allowDraftOnly) return { ok: false }
     if (seenPortableIds.has(inputId)) return { ok: false }
     seenPortableIds.add(inputId)
     identities.push({ inputId, portableId: inputId })
@@ -124,17 +159,19 @@ export function resolveTestQuestionIdentities(
 export function projectPortableTestQuestionIds(
   content: TestDraftContent,
   persistedQuestions: PersistedTestQuestionIdentity[],
+  options?: TestQuestionIdentityResolutionOptions,
 ): { ok: true; content: TestDraftContent } | { ok: false } {
   const resolved = resolveTestQuestionIdentities(
     content.questions.map((question) => question.id),
     persistedQuestions,
+    options,
   )
   if (!resolved.ok) return resolved
 
   return {
     ok: true,
     content: {
-      ...content,
+      ...markPortableTestQuestionIdentity(content),
       questions: content.questions.map((question, index) => ({
         ...question,
         id: resolved.identities[index]!.portableId,

@@ -1,5 +1,6 @@
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { UUID_V4_PATTERN } from '@/lib/course-blueprint-artifact-identity'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import type {
   TestDraftContent,
   TestDraftQuestion,
@@ -63,9 +64,26 @@ function ensureUniqueQuestionIds<TQuestion extends { id: string }>(
 
 export function validateTestDraftContent(
   input: unknown,
-  options?: { allowEmptyQuestionText?: boolean },
+  options?: {
+    allowEmptyQuestionText?: boolean
+    requirePortableQuestionIdentity?: boolean
+  },
 ): AssessmentDraftValidationResult<TestDraftContent> {
   if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
+
+  if (
+    options?.requirePortableQuestionIdentity === true
+    && input.question_identity_version !== PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+  ) {
+    return { valid: false, error: 'Portable Test question identity is required' }
+  }
+
+  if (
+    input.question_identity_version !== undefined
+    && input.question_identity_version !== PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+  ) {
+    return { valid: false, error: 'Unsupported Test question identity version' }
+  }
 
   const title = parseTitle(input.title)
   if (!title) return { valid: false, error: 'Title is required' }
@@ -117,6 +135,9 @@ export function validateTestDraftContent(
       title,
       show_results: showResults,
       questions,
+      ...(input.question_identity_version === PORTABLE_TEST_QUESTION_IDENTITY_VERSION
+        ? { question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION }
+        : {}),
       ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
       ...(parseOptionalMarkdown(input.source_markdown) !== undefined
         ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }

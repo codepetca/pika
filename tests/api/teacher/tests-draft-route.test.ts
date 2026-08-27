@@ -64,6 +64,7 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         content: {
           title: 'Seed Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [],
           source_format: 'markdown',
           source_markdown: 'Title: Seed Test',
@@ -81,6 +82,7 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       content: {
         title: 'Updated Test',
         show_results: true,
+        question_identity_version: 1,
         questions: [],
         source_format: 'markdown',
         source_markdown: 'Title: Updated Test',
@@ -139,6 +141,35 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     })
   })
 
+  it('configures marked drafts to ignore coincident internal row IDs', async () => {
+    await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft'),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    const config = vi.mocked(ensureAssessmentDraft).mock.calls[0]?.[1] as any
+    const firstRowId = '10000000-0000-4000-8000-000000000001'
+    const firstPortableId = '20000000-0000-4000-8000-000000000001'
+    const secondPortableId = '30000000-0000-4000-8000-000000000001'
+    const content = {
+      title: 'Portable Test',
+      show_results: false,
+      question_identity_version: 1,
+      questions: [firstPortableId, secondPortableId].map((id) => ({ id })),
+    }
+    const rows = [{
+      id: firstRowId,
+      artifact_id: firstPortableId,
+      source_artifact_id: firstPortableId,
+    }, {
+      id: firstPortableId,
+      artifact_id: secondPortableId,
+      source_artifact_id: secondPortableId,
+    }]
+
+    expect(config.projectContent(content, rows)).toEqual({ ok: true, content })
+  })
+
   it('persists validated documents when provided', async () => {
     const documents = [
       {
@@ -160,7 +191,12 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         method: 'PATCH',
         body: JSON.stringify({
           version: 3,
-          content: { title: 'Updated Test', show_results: true, questions: [] },
+          content: {
+            title: 'Updated Test',
+            show_results: true,
+            question_identity_version: 1,
+            questions: [],
+          },
           documents,
         }),
       }),
@@ -205,7 +241,12 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         method: 'PATCH',
         body: JSON.stringify({
           version: 3,
-          content: { title: '  ', show_results: true, questions: [] },
+          content: {
+            title: '  ',
+            show_results: true,
+            question_identity_version: 1,
+            questions: [],
+          },
         }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
@@ -214,6 +255,33 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('Title is required')
+    expect(saveTestDraftAtomic).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unmarked full replacement instead of guessing its identity domain', async () => {
+    vi.mocked(buildNextDraftContent).mockImplementationOnce(
+      ((_currentContent, payload, validate) => {
+        const validation = validate(payload.content)
+        return validation.valid
+          ? { ok: true, content: validation.value }
+          : { ok: false, status: 400, error: validation.error }
+      }) as typeof buildNextDraftContent
+    )
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          version: 3,
+          content: { title: 'Legacy payload', show_results: false, questions: [] },
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Portable Test question identity is required')
     expect(saveTestDraftAtomic).not.toHaveBeenCalled()
   })
 

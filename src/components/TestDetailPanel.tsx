@@ -43,6 +43,7 @@ import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import type {
   AssessmentEditorSummaryUpdate,
   TestAssessmentQuestion,
@@ -681,6 +682,7 @@ export function TestDetailPanel({
       }
       const contentDraft = {
         ...nextDraft,
+        question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
         source_format: 'markdown' as const,
         source_markdown:
           options?.sourceMarkdown ??

@@ -374,7 +374,7 @@ describe('classroom archive restore coordinator', () => {
       'complete_classroom_archive_restore',
     ])
     expect(mock.rpc.mock.calls[1][1]).toEqual(expect.objectContaining({
-      p_target_schema_migration: '107_classroom_archive_v2_direct_source',
+      p_target_schema_migration: '134_blueprint_test_question_ordinal_identity',
       p_source_contract_version: 1,
       p_restore_contract_version: 2,
       p_source_resource_counts: archiveV1ResourceCounts(),

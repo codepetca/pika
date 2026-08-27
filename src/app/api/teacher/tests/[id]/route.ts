@@ -13,7 +13,11 @@ import {
   isMissingAssessmentDraftsError,
 } from '@/lib/server/assessment-drafts'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
-import { getPortableTestQuestionIdentity, projectPortableTestQuestionIds } from '@/lib/test-question-identity'
+import {
+  getPortableTestQuestionIdentity,
+  getTestDraftIdentityResolutionOptions,
+  projectPortableTestQuestionIds,
+} from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
@@ -136,6 +140,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
       const projected = projectPortableTestQuestionIds(
         validated.value,
         questions || [],
+        getTestDraftIdentityResolutionOptions(validated.value),
       )
       if (!projected.ok) {
         return NextResponse.json(
@@ -256,6 +261,11 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
       )
     }
 
+    // Before migration 134, an unmarked persisted draft still follows the
+    // legacy activation RPC contract. Migration 134 marks every live draft and
+    // its replacement RPC enforces the marker inside the activation
+    // transaction, so this rollout read can remain compatible without
+    // weakening the post-migration boundary.
     const validatedDraft = validateTestDraftContent(draft.content)
     if (!validatedDraft.valid) {
       return NextResponse.json({ error: validatedDraft.error }, { status: 400 })

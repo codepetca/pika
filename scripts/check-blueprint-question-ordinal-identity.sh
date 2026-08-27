@@ -6,6 +6,7 @@ if [[ -z "$DB_CONTAINER" ]]; then
   DB_CONTAINER="$(docker ps --filter 'name=supabase_db_' --format '{{.Names}}' | head -n 1)"
 fi
 DATABASE_NAME="${BLUEPRINT_ORDINAL_DATABASE_NAME:-postgres}"
+MIGRATION_FILE="${BLUEPRINT_ORDINAL_MIGRATION_FILE:-supabase/migrations/134_blueprint_test_question_ordinal_identity.sql}"
 if [[ -z "$DB_CONTAINER" ]]; then
   echo "Supabase database container is not running." >&2
   exit 2
@@ -17,8 +18,8 @@ fi
 docker exec -e PGAPPNAME=b134_backfill_lock_contract -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
+lock table public.assessment_drafts in exclusive mode;
 lock table public.test_questions in share row exclusive mode;
-lock table public.assessment_drafts in share row exclusive mode;
 select pg_sleep(5);
 rollback;
 SQL
@@ -27,7 +28,7 @@ backfill_lock_ready=false
 for _attempt in {1..40}; do
   held_backfill_locks="$(docker exec -i "$DB_CONTAINER" psql \
     -U postgres -d "$DATABASE_NAME" -X -Atqc \
-    "select count(distinct c.relname) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation join pg_catalog.pg_stat_activity a on a.pid = l.pid where a.application_name = 'b134_backfill_lock_contract' and l.granted and l.mode = 'ShareRowExclusiveLock' and c.relname in ('assessment_drafts', 'test_questions')")"
+    "select count(*) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation join pg_catalog.pg_stat_activity a on a.pid = l.pid where a.application_name = 'b134_backfill_lock_contract' and l.granted and ((c.relname = 'assessment_drafts' and l.mode = 'ExclusiveLock') or (c.relname = 'test_questions' and l.mode = 'ShareRowExclusiveLock'))")"
   if [[ "$held_backfill_locks" == "2" ]]; then
     backfill_lock_ready=true
     break
@@ -57,6 +58,716 @@ if [[ "$blocked_writer_status" -eq 0 ]] \
   echo "$blocked_writer_output" >&2
   exit 1
 fi
+
+# Rehearse the application save lock order against the migration fence. A save
+# may already hold Classroom/Test/Draft row locks before its first table write.
+# The migration must wait at the Draft table before it holds the question fence,
+# allowing the save to finish without a lock-upgrade deadlock.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.users (id, email, role) values (
+  'b1348000-0000-4000-8000-000000000001',
+  'blueprint-question-migration-lock-order@example.test',
+  'teacher'
+);
+insert into public.classrooms (
+  id, teacher_id, title, class_code
+) values (
+  'b1348000-0000-4000-8000-000000000010',
+  'b1348000-0000-4000-8000-000000000001',
+  'Migration lock order',
+  'B134L8'
+);
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values (
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000010',
+  'Migration lock order',
+  'active',
+  false,
+  1,
+  'b1348000-0000-4000-8000-000000000001'
+);
+insert into public.test_questions (
+  id, test_id, artifact_id, question_type, question_text, options,
+  correct_option, points, response_max_chars, response_monospace, position
+) values (
+  'b1348000-0000-4000-8000-000000000013',
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000014',
+  'open_response',
+  'Migration lock order question',
+  '[]'::jsonb,
+  null,
+  1,
+  5000,
+  false,
+  0
+);
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values (
+  'b1348000-0000-4000-8000-000000000012',
+  'test',
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000010',
+  '{"title":"Migration lock order","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000014","question_type":"open_response","question_text":"Migration lock order question","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  1,
+  'b1348000-0000-4000-8000-000000000001',
+  'b1348000-0000-4000-8000-000000000001'
+);
+SQL
+
+docker exec -e PGAPPNAME=b134_save_before_migration_fence -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select teacher_id
+from public.classrooms
+where id = 'b1348000-0000-4000-8000-000000000010'
+for update;
+select id
+from public.tests
+where id = 'b1348000-0000-4000-8000-000000000011'
+for update;
+select id
+from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012'
+for update;
+select pg_sleep(5);
+update public.test_questions
+set position = position
+where id = 'b1348000-0000-4000-8000-000000000013';
+update public.assessment_drafts
+set version = version
+where id = 'b1348000-0000-4000-8000-000000000012';
+commit;
+SQL
+save_before_fence_pid=$!
+save_before_fence_ready=false
+for _attempt in {1..40}; do
+  save_before_fence_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_save_before_migration_fence' and wait_event = 'PgSleep'")"
+  if [[ "$save_before_fence_sleeping" == "1" ]]; then
+    save_before_fence_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$save_before_fence_ready" != "true" ]]; then
+  kill "$save_before_fence_pid" 2>/dev/null || true
+  wait "$save_before_fence_pid" 2>/dev/null || true
+  echo "In-flight draft save did not reach the migration-fence checkpoint." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_migration_fence_waits_for_save -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+lock table public.assessment_drafts in exclusive mode;
+lock table public.test_questions in share row exclusive mode;
+select id
+from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012'
+for update;
+rollback;
+SQL
+migration_fence_pid=$!
+migration_fence_waited=false
+for _attempt in {1..40}; do
+  migration_fence_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_migration_fence_waits_for_save' and wait_event_type = 'Lock'")"
+  if [[ "$migration_fence_waiting" == "1" ]]; then
+    migration_fence_waited=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$migration_fence_waited" != "true" ]]; then
+  kill "$migration_fence_pid" 2>/dev/null || true
+  kill "$save_before_fence_pid" 2>/dev/null || true
+  wait "$migration_fence_pid" 2>/dev/null || true
+  wait "$save_before_fence_pid" 2>/dev/null || true
+  echo "Migration fence did not wait behind the in-flight draft save." >&2
+  exit 1
+fi
+wait "$save_before_fence_pid"
+wait "$migration_fence_pid"
+
+# Prove the inverse order is also safe. When the migration owns both table
+# fences first, a save may hold Test and Classroom while waiting on Draft. The
+# identity-only draft rewrite must not ask the structural-revision trigger to
+# update that Classroom, or PostgreSQL can deadlock the two sessions.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+update public.assessment_drafts
+set
+  content = jsonb_set(
+    content,
+    '{questions,0,id}',
+    to_jsonb('b1348000-0000-4000-8000-000000000013'::text),
+    false
+  ),
+  version = version + 1
+where id = 'b1348000-0000-4000-8000-000000000012';
+
+update public.classrooms
+set blueprint_source_revision = 17
+where id = 'b1348000-0000-4000-8000-000000000010';
+SQL
+
+docker exec -e PGAPPNAME=b134_migration_before_save_fence -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+set local statement_timeout = '15s';
+lock table public.assessment_drafts in exclusive mode;
+lock table public.test_questions in share row exclusive mode;
+select pg_sleep(5);
+select set_config('pika.identity_mapping', 'on', true);
+update public.assessment_drafts
+set
+  content = jsonb_set(
+    content,
+    '{questions,0,id}',
+    to_jsonb('b1348000-0000-4000-8000-000000000014'::text),
+    false
+  ),
+  version = version + 1
+where id = 'b1348000-0000-4000-8000-000000000012';
+select set_config('pika.identity_mapping', 'off', true);
+commit;
+SQL
+migration_before_save_pid=$!
+migration_before_save_ready=false
+for _attempt in {1..40}; do
+  migration_before_save_state="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity a where a.application_name = 'b134_migration_before_save_fence' and a.wait_event = 'PgSleep' and 2 = (select count(*) from pg_catalog.pg_locks l join pg_catalog.pg_class c on c.oid = l.relation where l.pid = a.pid and l.granted and ((c.relname = 'assessment_drafts' and l.mode = 'ExclusiveLock') or (c.relname = 'test_questions' and l.mode = 'ShareRowExclusiveLock')))")"
+  if [[ "$migration_before_save_state" == "1" ]]; then
+    migration_before_save_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$migration_before_save_ready" != "true" ]]; then
+  kill "$migration_before_save_pid" 2>/dev/null || true
+  wait "$migration_before_save_pid" 2>/dev/null || true
+  echo "Migration-first rehearsal did not acquire both source-table locks." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_save_waits_for_migration_fence -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+set local statement_timeout = '15s';
+select id
+from public.tests
+where id = 'b1348000-0000-4000-8000-000000000011'
+for update;
+select teacher_id
+from public.classrooms
+where id = 'b1348000-0000-4000-8000-000000000010'
+for update;
+select id
+from public.assessment_drafts
+where id = 'b1348000-0000-4000-8000-000000000012'
+for update;
+rollback;
+SQL
+save_waits_for_migration_pid=$!
+save_waited_for_migration=false
+for _attempt in {1..40}; do
+  save_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_save_waits_for_migration_fence' and wait_event_type = 'Lock'")"
+  if [[ "$save_waiting" == "1" ]]; then
+    save_waited_for_migration=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$save_waited_for_migration" != "true" ]]; then
+  kill "$migration_before_save_pid" 2>/dev/null || true
+  kill "$save_waits_for_migration_pid" 2>/dev/null || true
+  wait "$migration_before_save_pid" 2>/dev/null || true
+  wait "$save_waits_for_migration_pid" 2>/dev/null || true
+  echo "Draft save did not wait behind the migration-first fence." >&2
+  exit 1
+fi
+
+set +e
+wait "$migration_before_save_pid"
+migration_before_save_status=$?
+wait "$save_waits_for_migration_pid"
+save_waits_for_migration_status=$?
+set -e
+if [[ "$migration_before_save_status" -ne 0 ]] \
+  || [[ "$save_waits_for_migration_status" -ne 0 ]]; then
+  echo "Migration-first draft identity rewrite deadlocked with a draft save." >&2
+  exit 1
+fi
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $$
+begin
+  if (
+    select blueprint_source_revision
+    from public.classrooms
+    where id = 'b1348000-0000-4000-8000-000000000010'
+  ) <> 17 then
+    raise exception 'Migration identity backfill advanced the Classroom structural revision';
+  end if;
+
+  if (
+    select content #>> '{questions,0,id}'
+    from public.assessment_drafts
+    where id = 'b1348000-0000-4000-8000-000000000012'
+  ) <> 'b1348000-0000-4000-8000-000000000014' then
+    raise exception 'Migration-first draft identity rewrite did not complete';
+  end if;
+end;
+$$;
+SQL
+
+# Two Test saves in one Classroom both advance the shared structural revision.
+# They must serialize at the Classroom row instead of each holding a shared lock
+# and deadlocking when their Draft triggers upgrade it.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values
+  (
+    'b1348000-0000-4000-8000-000000000021',
+    'b1348000-0000-4000-8000-000000000010',
+    'Concurrent draft save A',
+    'draft',
+    false,
+    1,
+    'b1348000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1348000-0000-4000-8000-000000000031',
+    'b1348000-0000-4000-8000-000000000010',
+    'Concurrent draft save B',
+    'draft',
+    false,
+    1,
+    'b1348000-0000-4000-8000-000000000001'
+  );
+
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values
+  (
+    'b1348000-0000-4000-8000-000000000022',
+    'test',
+    'b1348000-0000-4000-8000-000000000021',
+    'b1348000-0000-4000-8000-000000000010',
+    '{"title":"Concurrent draft save A","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1348000-0000-4000-8000-000000000001',
+    'b1348000-0000-4000-8000-000000000001'
+  ),
+  (
+    'b1348000-0000-4000-8000-000000000032',
+    'test',
+    'b1348000-0000-4000-8000-000000000031',
+    'b1348000-0000-4000-8000-000000000010',
+    '{"title":"Concurrent draft save B","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    1,
+    'b1348000-0000-4000-8000-000000000001',
+    'b1348000-0000-4000-8000-000000000001'
+  );
+
+create or replace function public.b134_hold_concurrent_draft_save()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.id in (
+    'b1348000-0000-4000-8000-000000000022'::uuid,
+    'b1348000-0000-4000-8000-000000000032'::uuid
+  ) then
+    perform pg_sleep(3);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger b134_hold_concurrent_draft_save
+before update of content on public.assessment_drafts
+for each row execute function public.b134_hold_concurrent_draft_save();
+SQL
+
+docker exec -e PGAPPNAME=b134_concurrent_draft_save_a -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+set statement_timeout = '15s';
+select public.save_test_draft_atomic(
+  'b1348000-0000-4000-8000-000000000001',
+  'b1348000-0000-4000-8000-000000000021',
+  1,
+  '{"title":"Concurrent draft save A","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Question A updated","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+SQL
+concurrent_save_a_pid=$!
+concurrent_save_a_ready=false
+for _attempt in {1..40}; do
+  concurrent_save_a_sleeping="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_concurrent_draft_save_a' and wait_event = 'PgSleep'")"
+  if [[ "$concurrent_save_a_sleeping" == "1" ]]; then
+    concurrent_save_a_ready=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$concurrent_save_a_ready" != "true" ]]; then
+  kill "$concurrent_save_a_pid" 2>/dev/null || true
+  wait "$concurrent_save_a_pid" 2>/dev/null || true
+  echo "First concurrent draft save did not reach its trigger checkpoint." >&2
+  exit 1
+fi
+
+docker exec -e PGAPPNAME=b134_concurrent_draft_save_b -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+set statement_timeout = '15s';
+select public.save_test_draft_atomic(
+  'b1348000-0000-4000-8000-000000000001',
+  'b1348000-0000-4000-8000-000000000031',
+  1,
+  '{"title":"Concurrent draft save B","show_results":false,"question_identity_version":1,"questions":[{"id":"b1348000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Question B updated","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+SQL
+concurrent_save_b_pid=$!
+concurrent_save_b_waited=false
+for _attempt in {1..40}; do
+  concurrent_save_b_waiting="$(docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -Atqc \
+    "select count(*) from pg_catalog.pg_stat_activity where application_name = 'b134_concurrent_draft_save_b' and wait_event_type = 'Lock'")"
+  if [[ "$concurrent_save_b_waiting" == "1" ]]; then
+    concurrent_save_b_waited=true
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$concurrent_save_b_waited" != "true" ]]; then
+  kill "$concurrent_save_a_pid" 2>/dev/null || true
+  kill "$concurrent_save_b_pid" 2>/dev/null || true
+  wait "$concurrent_save_a_pid" 2>/dev/null || true
+  wait "$concurrent_save_b_pid" 2>/dev/null || true
+  echo "Concurrent Test saves did not serialize at the Classroom row." >&2
+  exit 1
+fi
+
+wait "$concurrent_save_a_pid"
+wait "$concurrent_save_b_pid"
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+drop trigger b134_hold_concurrent_draft_save on public.assessment_drafts;
+drop function public.b134_hold_concurrent_draft_save();
+
+do $$
+begin
+  if (
+    select count(*)
+    from public.assessment_drafts
+    where id in (
+      'b1348000-0000-4000-8000-000000000022'::uuid,
+      'b1348000-0000-4000-8000-000000000032'::uuid
+    )
+      and version = 2
+      and content->>'question_identity_version' = '1'
+  ) <> 2 then
+    raise exception 'Concurrent Test saves did not both commit';
+  end if;
+end;
+$$;
+SQL
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+delete from public.assessment_drafts
+where id in (
+  'b1348000-0000-4000-8000-000000000012',
+  'b1348000-0000-4000-8000-000000000022',
+  'b1348000-0000-4000-8000-000000000032'
+);
+delete from public.test_questions
+where id = 'b1348000-0000-4000-8000-000000000013';
+delete from public.tests
+where id in (
+  'b1348000-0000-4000-8000-000000000011',
+  'b1348000-0000-4000-8000-000000000021',
+  'b1348000-0000-4000-8000-000000000031'
+);
+delete from public.classrooms
+where id = 'b1348000-0000-4000-8000-000000000010';
+delete from public.users
+where id = 'b1348000-0000-4000-8000-000000000001';
+SQL
+
+# Re-run the migration's exact backfill statement against the production
+# collision shape left by migrations 112/114. Legacy drafts stored row IDs,
+# while the broken ordinal mapper could stamp question zero with a later row's
+# ID as portable identity. The row-ID match must win without reading content or
+# position, and the backfill must not mutate either persisted question row.
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+alter table public.assessment_drafts
+  drop constraint assessment_drafts_test_question_identity_version_check;
+
+insert into public.users (id, email, role) values (
+  'b1349000-0000-4000-8000-000000000001',
+  'blueprint-question-legacy-backfill@example.test',
+  'teacher'
+);
+insert into public.classrooms (
+  id, teacher_id, title, class_code
+) values (
+  'b1349000-0000-4000-8000-000000000010',
+  'b1349000-0000-4000-8000-000000000001',
+  'Legacy question identity backfill',
+  'B134L1'
+);
+insert into public.tests (
+  id, classroom_id, title, status, show_results, points_possible, created_by
+) values (
+  'b1349000-0000-4000-8000-000000000011',
+  'b1349000-0000-4000-8000-000000000010',
+  'Legacy row-ID precedence',
+  'closed',
+  false,
+  2,
+  'b1349000-0000-4000-8000-000000000001'
+);
+insert into public.test_questions (
+  id, test_id, artifact_id, source_artifact_id, question_type,
+  question_text, options, correct_option, points,
+  response_max_chars, response_monospace, position
+) values
+  (
+    'b1349000-0000-4000-8000-000000000020',
+    'b1349000-0000-4000-8000-000000000011',
+    'b1349000-0000-4000-8000-000000000021',
+    'b1349000-0000-4000-8000-000000000021',
+    'open_response',
+    'Question zero carrying the later row ID',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    0
+  ),
+  (
+    'b1349000-0000-4000-8000-000000000021',
+    'b1349000-0000-4000-8000-000000000011',
+    'b1349000-0000-4000-8000-000000000031',
+    'b1349000-0000-4000-8000-000000000031',
+    'open_response',
+    'Later question whose row ID was reused',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    7
+  );
+insert into public.assessment_drafts (
+  id, assessment_type, assessment_id, classroom_id, content, version,
+  created_by, updated_by
+) values (
+  'b1349000-0000-4000-8000-000000000012',
+  'test',
+  'b1349000-0000-4000-8000-000000000011',
+  'b1349000-0000-4000-8000-000000000010',
+  '{"title":"Legacy row-ID precedence","show_results":false,"questions":[{"id":"b1349000-0000-4000-8000-000000000020","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  7,
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000001'
+);
+SQL
+
+sed -n '1,/^\$\$;$/p' "$MIGRATION_FILE" \
+  | docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+alter table public.assessment_drafts
+  add constraint assessment_drafts_test_question_identity_version_check
+  check (
+    assessment_type <> 'test'
+    or content->'question_identity_version' is not distinct from '1'::jsonb
+  );
+
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.id = 'b1349000-0000-4000-8000-000000000012'
+      and draft.version = 8
+      and draft.content->'questions'->0->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000031'
+  ) then
+    raise exception 'Legacy row-ID precedence did not resolve the question-zero identity collision';
+  end if;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.id = 'b1349000-0000-4000-8000-000000000012'
+      and draft.content->>'question_identity_version' = '1'
+  ) then
+    raise exception 'Backfill did not mark the canonical portable draft identity version';
+  end if;
+
+  if (
+    select jsonb_agg(
+      jsonb_build_object(
+        'id', question.id,
+        'artifact_id', question.artifact_id,
+        'source_artifact_id', question.source_artifact_id,
+        'position', question.position,
+        'question_text', question.question_text
+      ) order by question.position
+    )
+    from public.test_questions question
+    where question.test_id = 'b1349000-0000-4000-8000-000000000011'
+  ) is distinct from jsonb_build_array(
+    jsonb_build_object(
+      'id', 'b1349000-0000-4000-8000-000000000020',
+      'artifact_id', 'b1349000-0000-4000-8000-000000000021',
+      'source_artifact_id', 'b1349000-0000-4000-8000-000000000021',
+      'position', 0,
+      'question_text', 'Question zero carrying the later row ID'
+    ),
+    jsonb_build_object(
+      'id', 'b1349000-0000-4000-8000-000000000021',
+      'artifact_id', 'b1349000-0000-4000-8000-000000000031',
+      'source_artifact_id', 'b1349000-0000-4000-8000-000000000031',
+      'position', 7,
+      'question_text', 'Later question whose row ID was reused'
+    )
+  ) then
+    raise exception 'Legacy row-ID precedence mutated persisted question rows';
+  end if;
+end;
+$contract$;
+SQL
+
+# A successfully marked draft is already in the portable namespace. Replaying
+# the backfill must validate it strictly without treating a coincident row UUID
+# as a legacy alias or advancing its optimistic-lock version again.
+sed -n '1,/^\$\$;$/p' "$MIGRATION_FILE" \
+  | docker exec -i "$DB_CONTAINER" psql \
+    -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql \
+  -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.id = 'b1349000-0000-4000-8000-000000000012'
+      and draft.version = 8
+      and draft.content->>'question_identity_version' = '1'
+      and draft.content->'questions'->0->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000031'
+  ) then
+    raise exception 'Portable draft replay re-entered the legacy row-ID namespace';
+  end if;
+end;
+$contract$;
+
+select public.save_test_draft_atomic(
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000011',
+  8,
+  '{"title":"Legacy row-ID precedence","show_results":false,"question_identity_version":1,"questions":[{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  false,
+  '[]'::jsonb,
+  '[]'::jsonb
+);
+
+update public.tests
+set status = 'draft'
+where id = 'b1349000-0000-4000-8000-000000000011';
+
+select public.activate_test_from_draft_atomic(
+  'b1349000-0000-4000-8000-000000000001',
+  'b1349000-0000-4000-8000-000000000011',
+  9
+);
+
+do $contract$
+begin
+  if not exists (
+    select 1
+    from public.tests test
+    join public.assessment_drafts draft
+      on draft.assessment_type = 'test'
+      and draft.assessment_id = test.id
+    where test.id = 'b1349000-0000-4000-8000-000000000011'
+      and test.status = 'active'
+      and draft.version = 9
+      and draft.content->'questions'->0->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000031'
+      and draft.content->>'question_identity_version' = '1'
+      and (
+        select count(*)
+        from public.test_questions question
+        where question.test_id = test.id
+          and (
+            (
+              question.id = 'b1349000-0000-4000-8000-000000000020'
+              and question.artifact_id = 'b1349000-0000-4000-8000-000000000021'
+            )
+            or (
+              question.id = 'b1349000-0000-4000-8000-000000000021'
+              and question.artifact_id = 'b1349000-0000-4000-8000-000000000031'
+            )
+          )
+      ) = 2
+  ) then
+    raise exception 'Post-backfill save and activation did not preserve canonical question identity';
+  end if;
+end;
+$contract$;
+
+delete from public.assessment_drafts
+where id = 'b1349000-0000-4000-8000-000000000012';
+delete from public.test_questions
+where test_id = 'b1349000-0000-4000-8000-000000000011';
+delete from public.tests
+where id = 'b1349000-0000-4000-8000-000000000011';
+delete from public.classrooms
+where id = 'b1349000-0000-4000-8000-000000000010';
+delete from public.users
+where id = 'b1349000-0000-4000-8000-000000000001';
+SQL
 
 # Prove the application ordering contract with two real sessions. The saver
 # owns the Test lock first and deliberately keeps its transaction open;
@@ -121,7 +832,7 @@ insert into public.assessment_drafts (
   'test',
   'b1341000-0000-4000-8000-000000000011',
   'b1341000-0000-4000-8000-000000000010',
-  '{"title":"Question A","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Question A","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question A","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   1,
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000001'
@@ -130,7 +841,7 @@ insert into public.assessment_drafts (
   'test',
   'b1341000-0000-4000-8000-000000000021',
   'b1341000-0000-4000-8000-000000000010',
-  '{"title":"Rollback Test","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000123","question_type":"open_response","question_text":"Partially changed question","options":[],"correct_option":null,"answer_key":"changed","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false},{"id":"b1341000-0000-4000-8000-000000000124","question_type":"multiple_choice","question_text":"Invalid second question","options":["only one"],"correct_option":0,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Rollback Test","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000123","question_type":"open_response","question_text":"Partially changed question","options":[],"correct_option":null,"answer_key":"changed","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false},{"id":"b1341000-0000-4000-8000-000000000124","question_type":"multiple_choice","question_text":"Invalid second question","options":["only one"],"correct_option":0,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   1,
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000001'
@@ -145,7 +856,7 @@ begin
       'b1341000-0000-4000-8000-000000000001',
       'b1341000-0000-4000-8000-000000000011',
       1,
-      '{"title":"Invalid legacy identity","show_results":false,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      '{"title":"Invalid legacy identity","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
       false,
       '[]'::jsonb,
       '[]'::jsonb
@@ -185,7 +896,7 @@ select public.save_test_draft_atomic(
   'b1341000-0000-4000-8000-000000000001',
   'b1341000-0000-4000-8000-000000000011',
   1,
-  '{"title":"Question B","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Question B","show_results":true,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question B","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -285,7 +996,7 @@ begin
       'b1341000-0000-4000-8000-000000000001',
       'b1341000-0000-4000-8000-000000000011',
       2,
-      '{"title":"Question C","show_results":false,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      '{"title":"Question C","show_results":false,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
       false,
       '[]'::jsonb,
       '[]'::jsonb
@@ -363,7 +1074,7 @@ begin
     'b1341000-0000-4000-8000-000000000001',
     'b1341000-0000-4000-8000-000000000011',
     3,
-    '{"title":"Metadata only","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Metadata only","show_results":true,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question C","options":[],"correct_option":null,"answer_key":"C","sample_solution":null,"points":3,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     false,
     '[]'::jsonb,
     '[]'::jsonb
@@ -374,7 +1085,7 @@ begin
       'b1341000-0000-4000-8000-000000000001',
       'b1341000-0000-4000-8000-000000000011',
       4,
-      '{"title":"Unsafe question edit","show_results":true,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question D","options":[],"correct_option":null,"answer_key":"D","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      '{"title":"Unsafe question edit","show_results":true,"question_identity_version":1,"questions":[{"id":"b1341000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Question D","options":[],"correct_option":null,"answer_key":"D","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
       false,
       '[]'::jsonb,
       '[]'::jsonb
@@ -497,7 +1208,7 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000011',
     'b1342000-0000-4000-8000-000000000010',
-    '{"title":"Save-first seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Save-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Save-first seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Save-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
@@ -507,7 +1218,7 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000021',
     'b1342000-0000-4000-8000-000000000020',
-    '{"title":"Archive-first save seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Archive-first save question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Archive-first save seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Archive-first save question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
@@ -517,7 +1228,7 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000031',
     'b1342000-0000-4000-8000-000000000030',
-    '{"title":"Activation-first seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Activation-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Activation-first seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000033","question_type":"open_response","question_text":"Activation-first question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
@@ -527,11 +1238,59 @@ insert into public.assessment_drafts (
     'test',
     'b1342000-0000-4000-8000-000000000041',
     'b1342000-0000-4000-8000-000000000040',
-    '{"title":"Archive-first activation seed","show_results":false,"questions":[{"id":"b1342000-0000-4000-8000-000000000043","question_type":"open_response","question_text":"Archive-first activation question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+    '{"title":"Archive-first activation seed","show_results":false,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000043","question_type":"open_response","question_text":"Archive-first activation question","options":[],"correct_option":null,"answer_key":"A","sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
     1,
     'b1342000-0000-4000-8000-000000000001',
     'b1342000-0000-4000-8000-000000000001'
   );
+
+create function public.b134_archived_reuse_plan(p_test_id uuid)
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $plan$
+  select jsonb_build_object(
+    'blueprint', jsonb_build_object(
+      'title', test.title || ' Blueprint',
+      'subject', '',
+      'grade_level', '',
+      'course_code', '',
+      'term_template', '',
+      'overview_markdown', '',
+      'outline_markdown', '',
+      'resources_markdown', '',
+      'gradebook_use_weights', false,
+      'gradebook_assignments_weight', 70,
+      'gradebook_tests_weight', 30,
+      'planned_site_slug', null,
+      'planned_site_published', false,
+      'planned_site_config', '{}'::jsonb
+    ),
+    'assignments', '[]'::jsonb,
+    'assessments', jsonb_build_array(jsonb_build_object(
+      'artifact_id', coalesce(test.source_artifact_id, test.artifact_id),
+      'assessment_type', 'test',
+      'title', test.title,
+      'content', draft.content,
+      'documents', coalesce(test.documents, '[]'::jsonb),
+      'points_possible', test.points_possible,
+      'gradebook_weight', coalesce(test.gradebook_weight, 10),
+      'include_in_final', test.include_in_final,
+      'position', test.position
+    )),
+    'lesson_templates', '[]'::jsonb,
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb,
+    'manifest_version', '3',
+    'source_package_exported_at', null
+  )
+  from public.tests test
+  join public.assessment_drafts draft
+    on draft.assessment_type = 'test'
+    and draft.assessment_id = test.id
+  where test.id = p_test_id;
+$plan$;
 SQL
 
 docker exec -e PGAPPNAME=b134_save_holds_classroom -i "$DB_CONTAINER" psql \
@@ -541,7 +1300,7 @@ select public.save_test_draft_atomic(
   'b1342000-0000-4000-8000-000000000001',
   'b1342000-0000-4000-8000-000000000011',
   1,
-  '{"title":"Saved before archive","show_results":true,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Saved before archive","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Saved before archive","show_results":true,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000013","question_type":"open_response","question_text":"Saved before archive","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -570,9 +1329,33 @@ fi
 
 docker exec -e PGAPPNAME=b134_archive_waits_for_save -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000010';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000010';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000051',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('1', 64),
+    'b1342000-0000-4000-8000-000000000010',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000011')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse after save failed: %', v_result;
+  end if;
+end;
+$contract$;
+commit;
 SQL
 archive_after_save_pid=$!
 archive_waited_for_save=false
@@ -600,9 +1383,31 @@ wait "$archive_after_save_pid"
 docker exec -e PGAPPNAME=b134_archive_holds_before_save -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000020';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000020';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000052',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('2', 64),
+    'b1342000-0000-4000-8000-000000000020',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000021')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse before save failed: %', v_result;
+  end if;
+end;
+$contract$;
 select pg_sleep(3);
 commit;
 SQL
@@ -632,7 +1437,7 @@ select public.save_test_draft_atomic(
   'b1342000-0000-4000-8000-000000000001',
   'b1342000-0000-4000-8000-000000000021',
   1,
-  '{"title":"Must not save","show_results":true,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Must not save","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  '{"title":"Must not save","show_results":true,"question_identity_version":1,"questions":[{"id":"b1342000-0000-4000-8000-000000000023","question_type":"open_response","question_text":"Must not save","options":[],"correct_option":null,"answer_key":"B","sample_solution":null,"points":2,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -681,9 +1486,33 @@ fi
 
 docker exec -e PGAPPNAME=b134_archive_waits_for_activation -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
+begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000030';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000030';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000053',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('3', 64),
+    'b1342000-0000-4000-8000-000000000030',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000031')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse after activation failed: %', v_result;
+  end if;
+end;
+$contract$;
+commit;
 SQL
 archive_after_activation_pid=$!
 archive_waited_for_activation=false
@@ -711,9 +1540,31 @@ wait "$archive_after_activation_pid"
 docker exec -e PGAPPNAME=b134_archive_holds_before_activation -i "$DB_CONTAINER" psql \
   -U postgres -d "$DATABASE_NAME" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
+select set_config('request.jwt.claim.role', 'service_role', true);
 update public.classrooms
 set archived_at = clock_timestamp()
 where id = 'b1342000-0000-4000-8000-000000000040';
+do $contract$
+declare
+  v_result jsonb;
+  v_revision bigint;
+begin
+  select blueprint_source_revision into v_revision
+  from public.classrooms
+  where id = 'b1342000-0000-4000-8000-000000000040';
+  v_result := public.create_archived_classroom_blueprint_atomic(
+    'b1342000-0000-4000-8000-000000000054',
+    'b1342000-0000-4000-8000-000000000001',
+    repeat('4', 64),
+    'b1342000-0000-4000-8000-000000000040',
+    v_revision,
+    public.b134_archived_reuse_plan('b1342000-0000-4000-8000-000000000041')
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Archived reuse before activation failed: %', v_result;
+  end if;
+end;
+$contract$;
 select pg_sleep(3);
 commit;
 SQL
@@ -835,6 +1686,8 @@ begin
   end if;
 end;
 $contract$;
+
+drop function public.b134_archived_reuse_plan(uuid);
 
 delete from public.classrooms
 where teacher_id = 'b1342000-0000-4000-8000-000000000001';
@@ -1110,6 +1963,7 @@ begin
       'content', jsonb_build_object(
         'title', 'Active multi-question Test',
         'show_results', false,
+        'question_identity_version', 1,
         'questions', jsonb_build_array(
           jsonb_build_object(
             'id', v_active_question_two_id,
@@ -1155,6 +2009,12 @@ begin
     '{blueprint,title}',
     to_jsonb('Active identity rollback'::text)
   );
+
+  -- The canonical unique index normally prevents this corruption at write
+  -- time. Suspend it only inside this rolled-back fixture to prove capture's
+  -- defense-in-depth still fails closed if pre-constraint or manually
+  -- corrupted data reaches the RPC.
+  execute 'drop index public.test_questions_test_portable_identity_unique';
 
   -- Duplicate portable identity is ambiguous even though row IDs and positions
   -- are distinct. Capture must fail without rewriting either source row.
@@ -1233,6 +2093,15 @@ begin
   update public.test_questions
   set source_artifact_id = null
   where id = v_active_question_one_row_id;
+
+  execute $index$
+    create unique index test_questions_test_portable_identity_unique
+      on public.test_questions (
+        test_id,
+        (coalesce(source_artifact_id, artifact_id))
+      )
+  $index$;
+
   select blueprint_source_revision
   into v_active_revision
   from public.classrooms
@@ -1372,6 +2241,7 @@ begin
     jsonb_build_object(
       'title', 'Archived multi-question Test',
       'show_results', false,
+      'question_identity_version', 1,
       'questions', jsonb_build_array(
         jsonb_build_object(
           'id', v_archived_question_two_id,
@@ -1406,6 +2276,11 @@ begin
     '{blueprint,title}',
     to_jsonb('Archived identity rollback'::text)
   );
+
+  -- As in the active-source case above, bypass the canonical write-time fence
+  -- only long enough to exercise the archived capture RPC's defense-in-depth
+  -- against legacy or manually corrupted rows.
+  execute 'drop index public.test_questions_test_portable_identity_unique';
 
   update public.test_questions
   set source_artifact_id = v_archived_question_two_id
@@ -1477,6 +2352,15 @@ begin
   update public.test_questions
   set source_artifact_id = null
   where id = v_archived_question_one_row_id;
+
+  execute $index$
+    create unique index test_questions_test_portable_identity_unique
+      on public.test_questions (
+        test_id,
+        (coalesce(source_artifact_id, artifact_id))
+      )
+  $index$;
+
   select blueprint_source_revision
   into v_archived_revision
   from public.classrooms
@@ -1936,6 +2820,24 @@ begin
     raise exception 'Version rematerialization retry did not complete its ledger';
   end if;
 
+  -- A completed instantiate key belongs to a different RPC family. The outer
+  -- capture wrapper must preserve the base function's allowed-type boundary
+  -- before considering any completed ledger replay.
+  begin
+    perform public.create_course_blueprint_atomic_v2(
+      v_instantiation_operation_id,
+      v_teacher_id,
+      'instantiate',
+      repeat('d', 64),
+      null,
+      null,
+      '{}'::jsonb
+    );
+    raise exception 'Capture RPC replayed a completed instantiate operation';
+  exception when sqlstate '22023' then
+    null;
+  end;
+
   v_replay := public.instantiate_course_blueprint_atomic_v2(
     v_instantiation_operation_id,
     v_teacher_id,
@@ -1980,8 +2882,360 @@ begin
   ) then
     raise exception 'Version instantiation reused portable identity as row identity';
   end if;
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    join public.tests test
+      on test.id = draft.assessment_id
+      and draft.assessment_type = 'test'
+    where test.classroom_id = v_instantiated_classroom_id
+      and test.source_artifact_id = v_instantiation_test_id
+      and draft.content->>'question_identity_version' = '1'
+  ) then
+    raise exception 'Instantiated Test draft did not retain the portable identity discriminator';
+  end if;
 end;
 $contract$;
+
+-- A captured origin Test is a Blueprint member even though capture leaves its
+-- source identity null. Its immutable Version provenance must let a later
+-- Blueprint proposal update the same Test row while preserving a genuinely
+-- new Classroom-only Test.
+do $proposal$
+declare
+  v_teacher_id constant uuid := 'b1340000-0000-4000-8000-000000000001';
+  v_classroom_id constant uuid := 'b1344000-0000-4000-8000-000000000010';
+  v_test_row_id constant uuid := 'b1344000-0000-4000-8000-000000000011';
+  v_question_row_id constant uuid := 'b1344000-0000-4000-8000-000000000012';
+  v_test_artifact_id constant uuid := 'b1344000-0000-4000-8000-000000000111';
+  v_question_artifact_id constant uuid := 'b1344000-0000-4000-8000-000000000112';
+  v_local_test_row_id constant uuid := 'b1344000-0000-4000-8000-000000000021';
+  v_capture_operation_id constant uuid := 'b1344000-0000-4000-8000-000000000201';
+  v_proposal_idempotency_key constant uuid := 'b1344000-0000-4000-8000-000000000202';
+  v_blueprint_id uuid;
+  v_blueprint_revision bigint;
+  v_classroom_revision bigint;
+  v_capture_plan jsonb;
+  v_classroom_plan jsonb;
+  v_result jsonb;
+  v_snapshot jsonb;
+  v_snapshot_sha256 text;
+  v_plan_sha256 text;
+  v_version public.course_blueprint_versions;
+  v_proposal public.course_blueprint_change_proposals;
+  v_count integer;
+begin
+  insert into public.classrooms (
+    id, teacher_id, title, class_code, start_date, end_date
+  ) values (
+    v_classroom_id,
+    v_teacher_id,
+    'Captured proposal membership',
+    'B134P4',
+    '2026-09-01',
+    '2027-06-30'
+  );
+  insert into public.tests (
+    id, classroom_id, artifact_id, title, status, show_results,
+    points_possible, created_by, position
+  ) values (
+    v_test_row_id,
+    v_classroom_id,
+    v_test_artifact_id,
+    'Captured origin Test',
+    'active',
+    false,
+    1,
+    v_teacher_id,
+    0
+  );
+  insert into public.test_questions (
+    id, test_id, artifact_id, question_type, question_text, options,
+    correct_option, points, response_max_chars, response_monospace, position
+  ) values (
+    v_question_row_id,
+    v_test_row_id,
+    v_question_artifact_id,
+    'open_response',
+    'Captured origin question',
+    '[]'::jsonb,
+    null,
+    1,
+    5000,
+    false,
+    0
+  );
+
+  v_capture_plan := jsonb_build_object(
+    'blueprint', jsonb_build_object(
+      'title', 'Captured proposal Blueprint',
+      'subject', '',
+      'grade_level', '',
+      'course_code', '',
+      'term_template', '',
+      'overview_markdown', '',
+      'outline_markdown', '',
+      'resources_markdown', '',
+      'gradebook_use_weights', false,
+      'gradebook_assignments_weight', 70,
+      'gradebook_tests_weight', 30,
+      'planned_site_slug', null,
+      'planned_site_published', false,
+      'planned_site_config', '{}'::jsonb
+    ),
+    'assignments', '[]'::jsonb,
+    'assessments', jsonb_build_array(jsonb_build_object(
+      'artifact_id', v_test_artifact_id,
+      'assessment_type', 'test',
+      'title', 'Captured origin Test',
+      'content', jsonb_build_object(
+        'title', 'Captured origin Test',
+        'show_results', false,
+        'question_identity_version', 1,
+        'questions', jsonb_build_array(jsonb_build_object(
+          'id', v_question_artifact_id,
+          'question_type', 'open_response',
+          'question_text', 'Captured origin question',
+          'options', '[]'::jsonb,
+          'correct_option', null,
+          'answer_key', null,
+          'sample_solution', null,
+          'points', 1,
+          'response_max_chars', 5000,
+          'response_monospace', false
+        ))
+      ),
+      'documents', '[]'::jsonb,
+      'points_possible', 1,
+      'gradebook_weight', 10,
+      'include_in_final', true,
+      'position', 0
+    )),
+    'lesson_templates', '[]'::jsonb,
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb,
+    'manifest_version', '3',
+    'source_package_exported_at', null
+  );
+
+  select blueprint_source_revision
+  into v_classroom_revision
+  from public.classrooms
+  where id = v_classroom_id;
+  v_result := public.create_course_blueprint_atomic_v2(
+    v_capture_operation_id,
+    v_teacher_id,
+    'capture',
+    repeat('4', 64),
+    v_classroom_id,
+    v_classroom_revision,
+    v_capture_plan
+  );
+  if not coalesce((v_result->>'ok')::boolean, false) then
+    raise exception 'Captured proposal membership seed failed: %', v_result;
+  end if;
+  v_blueprint_id := (v_result->>'blueprint_id')::uuid;
+
+  if not exists (
+    select 1
+    from public.tests test
+    join public.course_blueprint_versions source_version
+      on source_version.id = test.source_blueprint_version_id
+    where test.id = v_test_row_id
+      and test.artifact_id = v_test_artifact_id
+      and test.source_artifact_id is null
+      and source_version.course_blueprint_id = v_blueprint_id
+  ) then
+    raise exception 'Capture did not record Version membership without rewriting Test identity';
+  end if;
+
+  -- This Test was authored after capture and must remain Classroom-only.
+  insert into public.tests (
+    id, classroom_id, title, status, show_results, points_possible,
+    created_by, position
+  ) values (
+    v_local_test_row_id,
+    v_classroom_id,
+    'Local Test after capture',
+    'draft',
+    false,
+    1,
+    v_teacher_id,
+    1
+  );
+
+  v_capture_plan := jsonb_set(
+    jsonb_set(
+      v_capture_plan,
+      '{assessments,0,title}',
+      to_jsonb('Updated from Blueprint'::text)
+    ),
+    '{assessments,0,content,title}',
+    to_jsonb('Updated from Blueprint'::text)
+  );
+  v_capture_plan := jsonb_set(
+    v_capture_plan,
+    '{assessments,0,content,questions,0,question_text}',
+    to_jsonb('Updated Blueprint question'::text)
+  );
+  update public.course_blueprint_assessments
+  set
+    title = 'Updated from Blueprint',
+    content = v_capture_plan->'assessments'->0->'content'
+  where course_blueprint_id = v_blueprint_id
+    and artifact_id = v_test_artifact_id;
+
+  select content_revision
+  into v_blueprint_revision
+  from public.course_blueprints
+  where id = v_blueprint_id;
+  v_snapshot := public.archived_classroom_blueprint_snapshot_from_plan(
+    v_blueprint_id,
+    v_blueprint_revision,
+    v_capture_plan
+  );
+  v_snapshot_sha256 := encode(
+    extensions.digest(
+      convert_to(public.course_blueprint_canonical_jsonb_text(v_snapshot), 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  );
+  select *
+  into v_version
+  from public.save_course_blueprint_version_atomic(
+    v_teacher_id,
+    v_blueprint_id,
+    v_blueprint_revision,
+    2,
+    v_snapshot,
+    v_snapshot_sha256,
+    'pika',
+    jsonb_build_object('reason', 'captured_membership_contract')
+  );
+
+  v_classroom_plan := jsonb_build_object(
+    'calendar_guard', jsonb_build_object(
+      'start_date', '2026-09-01',
+      'class_day_dates', '[]'::jsonb
+    ),
+    'sections', jsonb_build_object(
+      'overview_markdown', '',
+      'outline_markdown', ''
+    ),
+    'site_visibility_defaults', '{}'::jsonb,
+    'resources_content', null,
+    'grading', jsonb_build_object(
+      'use_weights', false,
+      'assignments_weight', 70,
+      'tests_weight', 30
+    ),
+    'assignments', '[]'::jsonb,
+    'tests', jsonb_build_array(jsonb_build_object(
+      'artifact_id', v_test_artifact_id,
+      'title', 'Updated from Blueprint',
+      'position', 0,
+      'show_results', false,
+      'documents', '[]'::jsonb,
+      'points_possible', 1,
+      'gradebook_weight', 10,
+      'include_in_final', true,
+      'questions', jsonb_build_array(jsonb_build_object(
+        'artifact_id', v_question_artifact_id,
+        'question_type', 'open_response',
+        'question_text', 'Updated Blueprint question',
+        'options', '[]'::jsonb,
+        'correct_option', null,
+        'answer_key', null,
+        'sample_solution', null,
+        'points', 1,
+        'response_max_chars', 5000,
+        'response_monospace', false,
+        'position', 0
+      )),
+      'draft_content', v_capture_plan->'assessments'->0->'content'
+    )),
+    'materials', '[]'::jsonb,
+    'surveys', '[]'::jsonb,
+    'lesson_plans', '[]'::jsonb
+  );
+  v_plan_sha256 := encode(
+    extensions.digest(
+      convert_to(
+        public.course_blueprint_canonical_jsonb_text(v_classroom_plan),
+        'UTF8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  );
+  select blueprint_source_revision
+  into v_classroom_revision
+  from public.classrooms
+  where id = v_classroom_id;
+
+  select *
+  into v_proposal
+  from public.create_course_blueprint_classroom_proposal_atomic(
+    v_teacher_id,
+    v_blueprint_id,
+    v_version.id,
+    v_classroom_id,
+    v_blueprint_revision,
+    v_classroom_revision,
+    v_proposal_idempotency_key,
+    jsonb_build_array(jsonb_build_object(
+      'action', 'update',
+      'collection', 'assessments',
+      'artifact_id', v_test_artifact_id
+    )),
+    jsonb_build_object('classroom_plan_sha256', v_plan_sha256),
+    repeat('5', 64)
+  );
+  select *
+  into v_proposal
+  from public.apply_course_blueprint_classroom_proposal_atomic(
+    v_teacher_id,
+    v_proposal.id,
+    v_classroom_plan,
+    v_plan_sha256
+  );
+  if v_proposal.status <> 'applied' then
+    raise exception 'Captured origin Test proposal did not apply: %', v_proposal.status;
+  end if;
+
+  if not exists (
+    select 1
+    from public.tests
+    where id = v_test_row_id
+      and title = 'Updated from Blueprint'
+      and source_artifact_id is null
+      and source_blueprint_version_id = v_version.id
+      and blueprint_archived_at is null
+  ) then
+    raise exception 'Proposal did not update the captured origin Test in place';
+  end if;
+  if not exists (
+    select 1
+    from public.tests
+    where id = v_local_test_row_id
+      and source_artifact_id is null
+      and source_blueprint_version_id is null
+      and blueprint_archived_at is null
+  ) then
+    raise exception 'Proposal archived or adopted the local-only Test';
+  end if;
+  select count(*)
+  into v_count
+  from public.tests
+  where classroom_id = v_classroom_id
+    and coalesce(source_artifact_id, artifact_id) = v_test_artifact_id
+    and blueprint_archived_at is null;
+  if v_count <> 1 then
+    raise exception 'Proposal duplicated the captured portable Test identity';
+  end if;
+end;
+$proposal$;
 
 drop trigger b134_fail_question_rematerialization_once on public.test_questions;
 drop function public.b134_fail_question_rematerialization_once();

@@ -11,131 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-08-25 — Reconcile attendance rollout documentation
-
-**Risk profile:** none — documentation consistency only; no migration,
-deployment, configuration, entitlement, smoke, or hosted data changed.
-
-- Reconciled the adapter status, control runbooks, native-attendance roadmap,
-  canary boundary, and completion audit with the verified production state:
-  migrations through 132, enabled `teacher_entitlements`, and the passing 4/4
-  deployed smoke.
-- Preserved the exact pair as the signed-smoke scope, retained separate
-  authorization for future changes, and replaced completed pre-enable steps
-  with the remaining entitled-teacher workflow, UI, isolation, and pilot gates.
-- Review remediation rewrote the operational-recovery procedure from the
-  current enabled state and extended the rollout regression to cover the
-  compact handoff plus production smoke instructions.
-- Final remediation made the regression pin the runbook's dated 4/4 status and
-  complete enabled production command, preventing a partial command or stale
-  pre-enable block from satisfying the rollout-continuity gate.
-- Rebased onto current `main`, retained its assignment timestamp work and
-  canonical continuity history, then corrected the v1 guide's production
-  preflight example to the enabled entitlement state and pinned the full command
-  in regression coverage.
-- Rereview hardened that regression to inspect fenced preflight commands
-  independent of option order while allowing historical prose and preview-only
-  pre-enable examples.
-- Final parser remediation reconstructs individual continued commands across
-  common shell fence labels, preventing cross-command false positives and
-  catching reordered or equals-form stale production flags.
-- With an explicitly extended review budget, replaced the growing shell parser
-  with an exact single-purpose preflight-fence contract and labeled the
-  migration-132 rollout sequence as completed audit history rather than future
-  operator instructions.
-
-## 2026-08-25 — Pin the student Pal companion on iPhone
-
-**Risk profile:** none — student-only Pal companion placement; no academic
-state, API contract, authentication, schema, or reward behavior changed.
-
-**Model recommendation:** GPT-5.6 — localized host-layout work with
-cross-browser verification and a bounded independent review.
-
-- Made the Pika-owned companion host explicitly use a non-interactive
-  bottom-right placement contract backed by Pika spacing/layer tokens and iOS
-  safe-area insets.
-- Added component and stylesheet contract coverage for the placement invariant
-  while preserving the existing test-surface suppression and Pal failure
-  boundary behavior.
-- The focused suites pass (19/19), the full Vitest suite passes
-  (5,081/5,081), and lint, TypeScript, architecture, design, UI, and diff gates
-  are clean after rebasing onto current `main`.
-- Playwright visual verification passed for student desktop/mobile in light and
-  dark themes and for an iPhone 13 WebKit profile; teacher desktop/mobile were
-  checked as unaffected. Chromium and WebKit pointer-drag probes both retained
-  the same bottom-right rectangle at 16px from the viewport edges.
-
-## 2026-08-25 — Verify entitled-teacher active-class readiness
-
-**Risk profile:** runtime-platform — read-only production UI and aggregate
-database verification; no production migration, deployment, entitlement,
-configuration, flag, cleanup, or attendance-data mutation was performed.
-
-- Confirmed the entitled teacher sees Attendance in the sole active production
-  classroom and that its enabled policy plus opaque roster/schedule mapping are
-  fully synced.
-- Added the target-pinned, aggregate-only `attendance:pilot:readiness` operator.
-  It emits no teacher, classroom, roster, or student identifiers and fails
-  closed unless configured and unconfigured active classrooms both exist.
-- The production run correctly reported
-  `requires_at_least_two_active_classrooms` and
-  `requires_unconfigured_active_classroom`; the save-isolation gate therefore
-  remains open until a second intended active classroom exists or an exact
-  temporary setup and restoration is separately authorized.
-- Added focused readiness, service-role read-path, and operator-contract
-  coverage. The full suite passes (5,085/5,085); lint, TypeScript, and the
-  production build pass with only the existing WorkOS Edge-runtime warnings.
-- Independent review found that separate REST reads could observe inconsistent
-  states, an unconfigured Class mapping could mask a missing configured-Class
-  mapping, the service-role transport was not operation-read-only, and output
-  could expose unstable error or revision detail.
-- Remediated those findings with proposed, unapplied migration 133: one stable
-  aggregate SQL RPC, configured-Class mapping association, an exact RPC/teacher
-  transport allowlist, stable operator failure codes, and database regression
-  coverage. The final suite passes (5,089/5,089); lint, TypeScript, architecture
-  boundaries, and the production build pass. Production remains through
-  migration 132 and was not modified.
-- Targeted re-review caught and fixed a database-test false positive where the
-  allowed `roster_mappings` key matched a broad `roster_` leak substring. The
-  assertion now requires exactly the eight aggregate keys with numeric values;
-  migration 133 remains unapplied pending exact authorization.
-
-## 2026-08-25 — Repair Blueprint Test question identity mapping
-
-**Risk profile:** runtime-platform — the initial database RPC replacement was
-applied locally; its review revision awaits authorized local reapplication. No
-staging or production migration was applied.
-
-- Traced production Blueprint capture operation
-  `33a23284-60e1-492a-8409-cf316e79eebf` to a `23505` uniqueness failure and
-  confirmed Test draft questions intentionally use JSON array order rather than
-  a persisted `position` field.
-- Added proposed migration 134 so active Classroom capture and archived
-  Classroom reuse map Test question identities by zero-based JSON ordinality,
-  preserving the managed-storage wrapper, RPC signatures, privileges, and all
-  unrelated function behavior.
-- Added rollback/replay database coverage and CI wiring. The new rollback-only
-  harness reproduces the production `23505` artifact-identity collision against
-  the pre-134 schema; the local dry run contains only migration 134.
-- After exact one-time authorization, migration 134 applied locally as the sole
-  pending migration. The post-migration database harness passes active capture,
-  archived reuse, rollback, identity order, and replay; adjacent atomic
-  Blueprint, versioned Blueprint, and managed-storage contracts also pass.
-- Initial PR review found that valid source positions can contain gaps after a
-  question deletion. Fix batch 1 now maps each JSON question to the nth source
-  row ordered by `(position, id)` and gives both active and archived fixtures
-  positions `0,2`; the strengthened harness failed against the installed
-  pre-review function as expected.
-- After exact destructive-reset authorization, local was reset without seeding
-  and migrations 001-134 replayed from the reviewed branch. The strengthened
-  active/archived gap-position harness, adjacent atomic and versioned Blueprint
-  contracts, managed-storage contract, generated types, lint, architecture,
-  audit, and 48 focused tests all pass.
-- Lint, architecture boundaries, generated database types, focused Blueprint
-  tests, and the full Vitest suite pass (5,093/5,093). Staging and production
-  remain unchanged, and the worktree has no production project binding.
-
 ## 2026-08-25 — Repair Blueprint Test question identity mapping
 
 **Risk profile:** runtime-platform — the initial database RPC replacement was
@@ -1008,3 +883,150 @@ hosted state changed.
 
 **Model recommendation:** current GPT-5 coding model for a contained test-harness
 compatibility correction and exact-workflow verification.
+
+## 2026-08-27 — Resolve legacy Test-question backfill collisions
+
+**Risk profile:** runtime-platform — production Test draft identity backfill;
+no production data was changed by migration 134 and no migration retry occurred.
+
+- Production already contained migration 133. The first authorized attempt to
+  apply migration 134 failed atomically because 12 legacy draft questions each
+  matched both their historical row ID and a question-zero row carrying that ID
+  as corrupted portable lineage from migrations 112/114. Migration 134 remains
+  unapplied in production.
+- Changed the unapplied migration to resolve the exact historical row ID first,
+  then use a unique artifact/source identity only when no row-ID match exists.
+  The precedence is contractual and does not infer identity from position or
+  content; genuine multiple portable matches still fail closed.
+- Added static coverage and a fresh disposable-database regression that replays
+  the migration's exact backfill statement against the production collision
+  shape, proves both draft IDs resolve to distinct portable identities, and
+  proves neither persisted question row is mutated. Extended that fixture
+  through post-backfill save and activation so the installed RPCs cannot
+  reintroduce row-ID ambiguity after the one-time conversion.
+- Removed internal row-ID matching from migration 134's post-backfill save and
+  activation functions. Materialized Blueprint capture now validates in a
+  portable-only mode while the temporary dual reader remains scoped to actual
+  legacy draft JSON.
+- Reordered migration 134's write fence to acquire an `EXCLUSIVE` Draft-table
+  lock before the question-table fence. This makes the migration wait behind an
+  in-flight save before holding a lock that save must upgrade, preventing a
+  Draft-row/question-table deadlock; the database harness now rehearses that
+  two-session ordering.
+- Scoped the legacy draft rewrite under the transaction-local identity-mapping
+  guard. The identity-only update no longer advances Classroom structural
+  revision or waits on a Classroom held by a save that is waiting at the Draft
+  fence; the database harness now rehearses both migration/save arrival orders.
+- A privacy-minimized read-only production rehearsal resolved all 351 questions
+  across 28 drafts: 212 persisted questions would receive portable draft IDs,
+  139 remain valid draft-only questions, and zero invalid IDs, ambiguous
+  portable matches, row reuse, or duplicate portable identities remain.
+- Rebased onto current `origin/main`. The focused 56-test identity/draft suite,
+  full 5,142-test suite, TypeScript, lint, architecture/design/UI policies,
+  shell syntax, diff validation, and production build pass. Fresh-database CI
+  remains authoritative for the migration replay; migration 134 was not applied
+  or reset locally and no hosted state changed.
+
+**Model recommendation:** GPT-5.6 Sol for deterministic legacy backfill logic
+that preserves student-linked row identity.
+
+## 2026-08-27 — Version portable Test draft question identity
+
+**Risk profile:** runtime-platform — Test draft identity compatibility and the
+unapplied migration 134 backfill; no database was reset or migrated.
+
+- Added `question_identity_version: 1` as the explicit discriminator for
+  canonical Test draft question IDs. Marked drafts resolve only portable
+  artifact/source identity; unmarked legacy drafts retain exact historical row
+  ID precedence before portable fallback.
+- Migration 134 now marks every successfully converted legacy draft, validates
+  already-marked drafts strictly on replay, and makes Test draft saves preserve
+  the marker. Blueprint capture, immutable Versions, and classroom
+  instantiation also retain or introduce the portable marker at their format
+  boundaries.
+- Moved the Blueprint-capture operation-row lock outside the wrapper's failure
+  savepoint so concurrent retries cannot overwrite a completed ledger result.
+  Test save and activation now take the Classroom update lock up front, avoiding
+  shared-lock upgrades when two Tests advance the same structural revision; the
+  disposable database contract exercises concurrent saves.
+- Archived-Classroom reuse normalizes pre-marker immutable Version snapshots in
+  memory before semantic comparison. The persisted Version stays unchanged, and
+  adding the discriminator alone cannot create a false Blueprint/Classroom
+  divergence or unnecessary review flow.
+- Added collision regressions across draft GET/PATCH projection, Blueprint
+  detail GET overlay, Blueprint capture, migration replay, save, activation,
+  and Version instantiation. The known row-ID/artifact-ID collision remains
+  distinct after conversion instead of re-entering the legacy dual-identity
+  reader.
+- The focused identity suites, full 5,147-test suite, TypeScript, lint,
+  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
+  validation, session-log validation, and production build pass. The disposable
+  database CI job remains authoritative; migration 134 was not applied locally.
+
+**Model recommendation:** GPT-5.6 Sol for the migration and runtime identity
+boundary change, with an independent compatibility review.
+
+## 2026-08-27 — Complete the canonical Test-question identity cutover
+
+**Risk profile:** runtime-platform — Test draft, activation, Blueprint capture,
+archive reuse, and migration concurrency contracts; no database was reset or
+migrated and no hosted state changed.
+
+- Defined one persisted portable question identity,
+  `coalesce(source_artifact_id, artifact_id)`, while keeping
+  `test_questions.id` internal. Post-backfill save, activation, and Blueprint
+  capture no longer union portable identity with internal row identity.
+- Made `question_identity_version: 1` mandatory for new and updated Test drafts.
+  The pre-migration application can still project unmarked live drafts with
+  exact internal-row precedence; migration 134 marks every live Test draft and
+  installs an at-rest constraint that makes that compatibility branch
+  unreachable after commit.
+- Added uniqueness constraints for active Tests and Test questions at their
+  portable identity boundaries. Capture selects only the active Test generation
+  and remains read-only with respect to Test and question identity.
+- Standardized write locking as Classroom, Test, Draft, then questions,
+  including the shared question-mutation trigger. The database contract now
+  runs save and activation against the real archived-Classroom reuse operation
+  in both arrival orders.
+- Preserved immutable Blueprint Versions byte-for-byte and kept legacy identity
+  translation at the explicit cold-archive restore boundary. Restored resources
+  are normalized in memory into the canonical marked format before reuse.
+- Added a CI-only lifecycle contract that resets an ephemeral database to
+  migration 133, seeds the known production row-ID/artifact-ID collision,
+  applies 134, and continues through save and activation. It was syntax-checked
+  locally but intentionally not executed outside CI.
+- The focused 44-test identity/archive/capture suite, full 5,150-test suite,
+  TypeScript, lint, architecture/design/UI policies, managed-storage lineage,
+  shell syntax, diff validation, and production build pass.
+
+**Model recommendation:** GPT-5.6 Sol for the finite compatibility cutover,
+database concurrency review, and migration lifecycle verification.
+
+## 2026-08-27 — Separate captured Test membership from source identity
+
+**Risk profile:** runtime-platform — Classroom capture and Blueprint proposal
+application contracts in unapplied migration 134; no database was reset or
+migrated and no hosted state changed.
+
+- Stopped treating `source_artifact_id` as both portable lineage and Blueprint
+  membership. A captured origin Test now keeps `source_artifact_id = null` and
+  records membership through the immutable capture Version.
+- Active and archived Classroom capture record
+  `source_blueprint_version_id` on participating Tests and materialized
+  questions. The application layer only classifies a source-null Test as
+  tracked when its Version matches the Classroom's current Blueprint Version.
+- Replaced the migration 112 classroom-proposal apply RPC in migration 134 so
+  Test matching and removal use source-first portable identity plus Version
+  provenance. Classroom-only Tests without that provenance remain untouched.
+- Added unit coverage for Version-based counting and snapshot filtering, plus a
+  disposable-database capture → Blueprint edit → apply regression that updates
+  the original Test row, creates no duplicate portable identity, and preserves
+  an unrelated local Test.
+- The focused 39-test identity/proposal suite, TypeScript, lint,
+  architecture/design/UI policies, managed-storage lineage, shell syntax, diff
+  validation, and production build pass. The full suite passed 5,150 of 5,151
+  tests; its single unrelated Test-editor timing failure passed immediately in
+  isolation. CI remains authoritative for the ephemeral migration replay.
+
+**Model recommendation:** GPT-5.6 Sol for the Version-provenance database
+contract and final migration replay review.

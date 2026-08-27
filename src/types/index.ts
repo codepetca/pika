@@ -876,6 +876,7 @@ export type TestDraftContent = {
   title: string
   show_results: boolean
   questions: TestDraftQuestion[]
+  question_identity_version?: 1
   source_format?: 'markdown'
   source_markdown?: string
 }

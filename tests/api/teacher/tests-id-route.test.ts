@@ -195,6 +195,111 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(data.questions[0].id).toBe('30000000-0000-4000-8000-000000000001')
   })
 
+  it('keeps marked portable draft IDs out of the legacy row-ID namespace', async () => {
+    const rowAId = '10000000-0000-4000-8000-000000000001'
+    const portableAId = '20000000-0000-4000-8000-000000000001'
+    const portableBId = '30000000-0000-4000-8000-000000000001'
+
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        content: {
+          title: 'Migrated Test',
+          show_results: false,
+          question_identity_version: 1,
+          questions: [
+            {
+              id: portableAId,
+              question_type: 'open_response',
+              question_text: 'Question A',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+            },
+            {
+              id: portableBId,
+              question_type: 'open_response',
+              question_text: 'Question B',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: null,
+              points: 1,
+              response_max_chars: 5000,
+              response_monospace: false,
+            },
+          ],
+        },
+      } as any,
+      error: null,
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: rowAId,
+                  test_id: 'test-1',
+                  artifact_id: portableAId,
+                  source_artifact_id: null,
+                  question_type: 'open_response',
+                  question_text: 'Question A',
+                  options: [],
+                  correct_option: null,
+                  answer_key: null,
+                  sample_solution: null,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                  position: 0,
+                },
+                {
+                  id: portableAId,
+                  test_id: 'test-1',
+                  artifact_id: portableBId,
+                  source_artifact_id: null,
+                  question_type: 'open_response',
+                  question_text: 'Question B',
+                  options: [],
+                  correct_option: null,
+                  answer_key: null,
+                  sample_solution: null,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                  position: 1,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1'),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.questions.map((question: { id: string }) => question.id)).toEqual([
+      portableAId,
+      portableBId,
+    ])
+  })
+
   it('returns 400 when activating with an incomplete question', async () => {
     vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
       draft: {
@@ -203,6 +308,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         content: {
           title: 'Unit Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [{
             id: '20000000-0000-4000-8000-000000000001',
             question_type: 'multiple_choice',
@@ -242,6 +348,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         content: {
           title: 'Unit Test',
           show_results: false,
+          question_identity_version: 1,
           questions: [{
             id: '20000000-0000-4000-8000-000000000001',
             question_type: 'multiple_choice',

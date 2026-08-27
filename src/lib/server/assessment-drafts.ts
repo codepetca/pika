@@ -2,7 +2,10 @@ import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
 import { removeQueuedTestDocumentSnapshotPath } from '@/lib/server/test-document-snapshot-storage-cleanup'
 import { parseCleanupPaths } from '@/lib/server/test-document-authoring'
-import { getPortableTestQuestionIdentity } from '@/lib/test-question-identity'
+import {
+  getPortableTestQuestionIdentity,
+  PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
+} from '@/lib/test-question-identity'
 import type { AssessmentDraftValidationResult } from '@/lib/validations/assessment-drafts'
 import type {
   AssessmentDraftType,
@@ -107,6 +110,7 @@ export function buildTestDraftContentFromRows(
   return {
     title: test.title,
     show_results: test.show_results,
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
     questions: (questions || []).map((question) => ({
       // Draft question IDs are portable artifact identities. Persisted row IDs
       // are an internal database contract and must not escape into draft JSON.
