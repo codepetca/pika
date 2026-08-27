@@ -793,6 +793,79 @@ database was reset or migrated and no hosted state was changed.
   and two bounded independent re-reviews pass. Local generated-type parity is
   intentionally deferred to fresh CI because the installed local database has
   the earlier migration-134 definition and applying/resetting it was prohibited.
+## 2026-08-26 — Generalize the Attendance work-surface hierarchy
+
+**Risk profile:** none — teacher UI composition, reusable layout primitives,
+and guidance only; no attendance business logic, API, schema, persistence,
+authentication, dependency, or hosted state changed.
+
+- Replaced Attendance's floating date cluster plus separate session-summary row
+  with one anchored context bar: quiet session context on the left, an exactly
+  centered date navigator, and compact counts/actions on the right.
+- Added shared `TeacherWorkSurfaceContextBar`, `TeacherSelectionBar`, and
+  `TeacherWorkSurfaceTableFrame` primitives. Attendance now uses a sticky table
+  header and reserves bottom scroll clearance only while selection actions are
+  visible, keeping more names on screen during normal use.
+- Added the reusable change brief, expanded teacher work-surface canon, and AI
+  routing so later Classwork and Tests passes can adopt the hierarchy without
+  moving feature business logic into shared components.
+- Full Vitest passes (5,102/5,102); lint, production build, startup-doc budget,
+  and diff checks pass. The build retains existing WorkOS Edge-runtime warnings.
+- Playwright verification passed for the teacher surface at desktop/mobile in
+  light/dark, including default, long-scroll, and selected states; the date was
+  programmatically checked for exact centering and captures had no horizontal
+  overflow. At the prior 1280×659 audit size the denser layout shows roughly
+  three additional compact rows. A temporary local verification route was
+  removed after capture because the shared env lacks Supabase configuration.
+  Student UI is n/a because these primitives and their first consumer are
+  teacher-only.
+
+**Model recommendation:** GPT-5.6 Sol for shared UI architecture plus visual
+verification and reusable AI guidance.
+
+## 2026-08-26 — Restore the Attendance center-action affordance
+
+**Risk profile:** none — refinement of the pending teacher Attendance layout
+and its reusable guidance only; no business logic, API, schema, persistence,
+authentication, dependency, or hosted state changed.
+
+- Responded to visual review by grouping the date navigator, QR action, and
+  open/close command into one elevated center action cluster. Removed the outer
+  card chrome so session state and counts read as quiet information rather than
+  controls; hours and refresh remain subordinate utilities.
+- Updated the reusable component contract, canon, change brief, and regressions
+  so later Classwork/Tests adoption preserves the distinction between immediate
+  centered actions and peripheral information.
+- Focused component coverage and lint pass. The production build passes.
+  Playwright review covers teacher desktop/mobile in light/dark plus default,
+  selected, and scrolled states; the center cluster is exactly centered, all
+  five immediate controls are present, and captures have no horizontal overflow.
+  Student UI is n/a because the revised component and consumer are teacher-only.
+
+**Model recommendation:** GPT-5.6 Sol for judgment-sensitive shared UI
+hierarchy and responsive visual verification.
+
+## 2026-08-26 — Tighten Attendance spacing and scroll hierarchy
+
+**Risk profile:** none — refinement of the pending teacher Attendance layout
+and shared operational-table guidance only; no business logic, API, schema,
+persistence, authentication, dependency, or hosted state changed.
+
+- Reduced the operational context-to-roster gap to 4px so the center action
+  cluster and table read as one compact work surface.
+- Removed the redundant `overflow-hidden` table wrapper that captured the
+  sticky header. The operational context remains outside the internal roster
+  scroller, the column header stays pinned, and only student rows scroll.
+- Increased selected-state bottom scroll clearance on mobile, where the bulk
+  action bar wraps to two rows, so the final student remains fully reachable.
+- Full Vitest (5,102/5,102), lint, and the production build pass. Playwright verification covers
+  teacher desktop/mobile in light/dark, default, deep-scroll, and selected
+  states; it measures a 4px gap, confirms the context position is stable, the
+  header is pinned, the final row clears the toolbar, and no horizontal
+  overflow appears. Student UI is n/a because this surface is teacher-only.
+
+**Model recommendation:** current GPT-5 coding model for a contained teacher
+UI and scroll-behavior refinement.
 
 ## 2026-08-27 — Replace archived Classroom action labels with icons
 
@@ -976,3 +1049,107 @@ regression coverage; no data, API, or student-facing behavior changes.
 - Preserved authenticity flag details in the existing tooltip and kept the
   section headers keyboard-accessible.
 - Added focused assertions for typography, alignment, and Enter-key toggling.
+## 2026-08-27 — Simplify Attendance status presentation
+
+**Risk profile:** none — teacher Attendance presentation and pending guidance
+only; no attendance behavior, API, schema, persistence, authentication,
+dependency, or hosted state changed.
+
+- Removed aggregate present/late/absent/unmarked counts from the operational
+  context bar so the center action cluster and utilities retain the hierarchy.
+- Replaced visible roster status labels and dots with accessible icon-only
+  states: green check for present, yellow clock for late, red X for absent, and
+  a neutral dash for unmarked. Pending and failure text remains available when
+  relevant.
+- Full Vitest (5,103/5,103), lint, and the production build pass. Playwright verification covers
+  teacher desktop/mobile in light/dark plus default, scrolled, and selected
+  states; each state has the expected accessible icon count, no visible row
+  labels or aggregate context counts remain, the header stays sticky, and no
+  horizontal overflow appears. Student UI is n/a because this surface is
+  teacher-only.
+
+**Model recommendation:** current GPT-5 coding model for a localized status
+language and responsive-density refinement.
+
+## 2026-08-27 — Match Attendance status dots to Daily and TeachAssist
+
+**Risk profile:** none — teacher Attendance presentation, semantic color
+tokens, regression coverage, and pending guidance only; no attendance behavior,
+API, schema, persistence, authentication, dependency, or hosted state changed.
+
+- Replaced the interim check/clock/X/dash roster icons with Daily's 12px
+  accessible status-dot geometry. Visible status labels and aggregate context
+  counts remain removed; tooltip and screen-reader names preserve meaning.
+- Added attendance-specific semantic tokens using the exact colors inspected in
+  the connected TeachAssist teacher view: present `#2DBF00`, late `#F1C700`,
+  absent `#B10606`, and the shared neutral border token for unmarked. The
+  source colors remain stable in dark mode without changing Pika's global
+  success, warning, or danger palette.
+- Full Vitest (5,103/5,103), lint, and the production build pass. Playwright
+  verification covers the teacher surface at desktop/mobile in light/dark
+  across default, scrolled, and selected states; it programmatically confirms
+  ten dots per status, 12px geometry, and the exact TeachAssist RGB values.
+  Visual review confirms the compact roster, sticky header, and mobile
+  selection-bar clearance. Student UI is n/a because this surface is
+  teacher-only.
+
+**Model recommendation:** current GPT-5 coding model for a localized
+cross-product visual-language match and responsive verification.
+
+## 2026-08-27 — Align Attendance table sorting with Daily
+
+**Risk profile:** none — teacher Attendance table presentation, sorting,
+accessibility semantics, shared table tokens, regression coverage, and pending
+guidance only; no attendance writes, API, schema, authentication, dependency,
+or hosted state changed.
+
+- Added three numbered Present, Late, and Absent chips to the Status header.
+  They retain the exact TeachAssist colors, expose pressed state and descriptive
+  names, and sort the selected status to the top. Unmarked remains a neutral row
+  dot and intentionally has no fourth summary chip.
+- Matched Daily's tight roster anatomy with separate sortable First and Last
+  columns, a sortable Source column in Daily's metadata position, a trailing
+  Status column, shared sort indicators, and resizable persisted data columns.
+  The compact operational context, sticky table header, row selection, and
+  bottom bulk-action clearance remain intact.
+- Added semantic foreground tokens for the filled attendance chips and a
+  semantic sticky-table layer. Composite-widget accessibility was reviewed:
+  all chip and header controls are keyboard reachable, sorting state is
+  conveyed through `aria-pressed`/`aria-sort`, and regression tests cover the
+  interactions. No manual accessibility follow-up is required.
+- Full Vitest (5,104/5,104), lint, design/UI policy checks, and the production
+  build pass. Playwright verification covers teacher desktop/mobile in
+  light/dark across default, status-sorted, column-sorted, scrolled, and
+  selected states; it confirms the exact chip colors, 44px targets, sticky
+  header, resize handles, correct sort ordering, and no mobile wrapping.
+  Student UI is n/a because this surface is teacher-only.
+
+**Model recommendation:** current GPT-5 coding model for this contained
+teacher-table interaction and responsive visual verification.
+
+## 2026-08-27 — Promote Attendance operational-table design to stable canon
+
+**Risk profile:** none — design governance, AI routing, and reusable teacher
+work-surface guidance only; no rendered UI, business logic, API, schema,
+persistence, authentication, dependency, or hosted state changed.
+
+- Promoted the human-approved Attendance composition from experimental guidance
+  into Pika's stable design contract. Attendance is now the named reference for
+  scan-heavy teacher operational tables with quiet edge information, an
+  obvious centered action cluster, row-derived status sorting in the table
+  header, sticky long-list behavior, and selection-triggered bottom actions.
+- Added a durable operational-table guide with executable owners, composition
+  example, status-chip rules, adoption checklist, must-not-add constraints, and
+  explicit mappings for Attendance, Classwork, Tests summary, and selected-Test
+  grading rosters. Domain statuses, colors, columns, comparisons, permissions,
+  and mutations remain feature-owned.
+- Updated `DESIGN.md`, stable guidance, teacher work-surface canon, audit, UI
+  index, and AI routing so future agents load the pattern directly. Retired the
+  superseded experimental draft after promotion.
+- Focused behavior/design coverage passes (37/37), along with design policy, UI
+  policy, lint, and diff checks. Visual dimensions are n/a because this was a
+  documentation-only promotion; the unchanged approved Attendance captures
+  remain the reference evidence.
+
+**Model recommendation:** current GPT-5 coding model for scoped design-system
+promotion and implementation routing.

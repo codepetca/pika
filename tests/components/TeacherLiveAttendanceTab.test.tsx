@@ -107,7 +107,7 @@ describe('TeacherLiveAttendanceTab', () => {
 
     expect(await screen.findByRole('heading', { name: 'Attendance is not enabled' })).toBeInTheDocument()
     expect(screen.getByText(/still using Daily/i)).toBeInTheDocument()
-    expect(screen.queryByText('Lovelace, Ada')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
 
   it('renders the projected roster and enables accessible bulk corrections while open', async () => {
@@ -115,14 +115,19 @@ describe('TeacherLiveAttendanceTab', () => {
 
     renderTab()
 
-    expect(await screen.findByText('Lovelace, Ada')).toBeInTheDocument()
-    expect(screen.getByText('Hopper, Grace')).toBeInTheDocument()
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    expect(screen.getByText('Lovelace')).toBeInTheDocument()
+    expect(screen.getByText('Grace')).toBeInTheDocument()
+    expect(screen.getByText('Hopper')).toBeInTheDocument()
     expect(screen.getByText('QR check-in')).toBeInTheDocument()
-    const centerFab = screen.getByTestId('attendance-center-fab')
-    const showQr = within(centerFab).getByRole('button', { name: 'Show QR' })
-    const closeAttendance = within(centerFab).getByRole('button', { name: 'Close attendance' })
+    const contextBar = screen.getByTestId('attendance-context-bar')
+    const primaryControl = screen.getByTestId('attendance-primary-control')
+    const showQr = within(contextBar).getByRole('button', { name: 'Show QR' })
+    const closeAttendance = within(contextBar).getByRole('button', { name: 'Close attendance' })
     expect(showQr).toBeEnabled()
     expect(closeAttendance).toBeEnabled()
+    expect(within(primaryControl).getByRole('button', { name: 'Show QR' })).toBe(showQr)
+    expect(within(primaryControl).getByRole('button', { name: 'Close attendance' })).toBe(closeAttendance)
     expect(screen.getByRole('button', { name: 'Attendance hours' })).toBeEnabled()
 
     fireEvent.focus(closeAttendance)
@@ -130,12 +135,139 @@ describe('TeacherLiveAttendanceTab', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
 
-    expect(screen.getByRole('toolbar', { name: 'Bulk attendance actions' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Present/ })).toBeEnabled()
-    expect(screen.getByRole('button', { name: /Absent/ })).toBeEnabled()
+    const bulkActions = screen.getByRole('toolbar', { name: 'Bulk attendance actions' })
+    expect(bulkActions).toBeInTheDocument()
+    expect(within(bulkActions).getByRole('button', { name: /Present/ })).toBeEnabled()
+    expect(within(bulkActions).getByRole('button', { name: /Absent/ })).toBeEnabled()
   })
 
-  it('groups the date selector and icon-only open action in the center FAB', async () => {
+  it('uses Daily-style status dots and sortable count chips without adding context-bar counts', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      students: [
+        ...attendanceView().students,
+        {
+          studentId: '20000000-0000-4000-8000-000000000003',
+          firstName: 'Katherine',
+          lastName: 'Johnson',
+          status: 'late',
+          source: 'staff',
+          revision: 1,
+          pendingCommand: false,
+          commandFailed: false,
+        },
+        {
+          studentId: '20000000-0000-4000-8000-000000000004',
+          firstName: 'Dorothy',
+          lastName: 'Vaughan',
+          status: 'absent',
+          source: 'staff',
+          revision: 1,
+          pendingCommand: false,
+          commandFailed: false,
+        },
+      ],
+    })))
+
+    renderTab()
+    await screen.findByText('Ada')
+
+    expect(screen.getByLabelText('Present')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-present')
+    expect(screen.getByLabelText('Late')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-late')
+    expect(screen.getByLabelText('Absent')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-absent')
+    expect(screen.getByLabelText('Unmarked')).toHaveClass('h-3', 'w-3', 'rounded-full', 'bg-attendance-unmarked')
+    expect(screen.queryByText('Present')).not.toBeInTheDocument()
+    expect(screen.queryByText('Late')).not.toBeInTheDocument()
+    expect(screen.queryByText('Absent')).not.toBeInTheDocument()
+    expect(screen.queryByText('Unmarked')).not.toBeInTheDocument()
+    expect(screen.getByTestId('attendance-context-bar')).not.toHaveTextContent(/\d+ present/i)
+
+    const statusGroup = screen.getByRole('group', { name: 'Sort attendance by status' })
+    const statusHeader = statusGroup.closest('th')
+    const presentSort = within(statusGroup).getByRole('button', {
+      name: 'Sort Present first, 1 student',
+    })
+    const lateSort = within(statusGroup).getByRole('button', {
+      name: 'Sort Late first, 1 student',
+    })
+    const absentSort = within(statusGroup).getByRole('button', {
+      name: 'Sort Absent first, 1 student',
+    })
+
+    expect(statusHeader).toHaveAttribute('aria-sort', 'none')
+    expect(presentSort.firstElementChild).toHaveClass(
+      'bg-attendance-present',
+      'text-attendance-present-text',
+    )
+    expect(lateSort.firstElementChild).toHaveClass(
+      'bg-attendance-late',
+      'text-attendance-late-text',
+    )
+    expect(absentSort.firstElementChild).toHaveClass(
+      'bg-attendance-absent',
+      'text-attendance-absent-text',
+    )
+
+    fireEvent.click(lateSort)
+    expect(lateSort).toHaveAttribute('aria-pressed', 'true')
+    expect(statusHeader).toHaveAttribute('aria-sort', 'other')
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('KatherineJohnson')
+
+    fireEvent.click(absentSort)
+    expect(absentSort).toHaveAttribute('aria-pressed', 'true')
+    expect(lateSort).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('DorothyVaughan')
+
+    fireEvent.click(presentSort)
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('GraceHopper')
+  })
+
+  it('matches Daily sortable identity columns, source sorting, and resize semantics', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      students: [
+        ...attendanceView().students,
+        {
+          studentId: '20000000-0000-4000-8000-000000000003',
+          firstName: 'Katherine',
+          lastName: 'Johnson',
+          status: 'late',
+          source: 'staff',
+          revision: 1,
+          pendingCommand: false,
+          commandFailed: false,
+        },
+      ],
+    })))
+
+    renderTab()
+    await screen.findByText('Ada')
+
+    const firstHeader = screen.getByRole('columnheader', { name: 'First' })
+    const lastHeader = screen.getByRole('columnheader', { name: 'Last' })
+    const sourceHeader = screen.getByRole('columnheader', { name: 'Source' })
+    expect(lastHeader).toHaveAttribute('aria-sort', 'ascending')
+
+    fireEvent.click(within(firstHeader).getByRole('button', { name: 'First' }))
+    expect(firstHeader).toHaveAttribute('aria-sort', 'ascending')
+    expect(lastHeader).toHaveAttribute('aria-sort', 'none')
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('AdaLovelace')
+
+    fireEvent.click(within(firstHeader).getByRole('button', { name: 'First' }))
+    expect(firstHeader).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('KatherineJohnson')
+
+    fireEvent.click(within(sourceHeader).getByRole('button', { name: 'Source' }))
+    expect(sourceHeader).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('GraceHopper')
+
+    expect(screen.getByRole('separator', { name: 'Resize First column' })).toHaveAttribute(
+      'aria-valuenow',
+      '72',
+    )
+    expect(screen.getByRole('separator', { name: 'Resize Last column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Source column' })).toBeInTheDocument()
+  })
+
+  it('groups the date and immediate session command in the center action cluster', async () => {
     const scheduledView = attendanceView({
       session: {
         state: 'scheduled',
@@ -157,16 +289,18 @@ describe('TeacherLiveAttendanceTab', () => {
       })))
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
 
-    const centerFab = screen.getByTestId('attendance-center-fab')
-    expect(within(centerFab).getByRole('button', { name: 'Previous day' })).toBeEnabled()
-    expect(within(centerFab).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
-    expect(within(centerFab).getByRole('button', { name: 'Next day' })).toBeEnabled()
+    const contextBar = screen.getByTestId('attendance-context-bar')
+    const primaryControl = screen.getByTestId('attendance-primary-control')
+    expect(within(primaryControl).getByRole('button', { name: 'Previous day' })).toBeEnabled()
+    expect(within(primaryControl).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
+    expect(within(primaryControl).getByRole('button', { name: 'Next day' })).toBeEnabled()
 
-    const openAttendance = within(centerFab).getByRole('button', { name: 'Open attendance' })
+    const openAttendance = within(contextBar).getByRole('button', { name: 'Open attendance' })
     expect(openAttendance).toBeEnabled()
     expect(openAttendance).toHaveTextContent('')
+    expect(within(primaryControl).getByRole('button', { name: 'Open attendance' })).toBe(openAttendance)
     expect(screen.queryByText('Open attendance')).not.toBeInTheDocument()
 
     fireEvent.focus(openAttendance)
@@ -193,7 +327,7 @@ describe('TeacherLiveAttendanceTab', () => {
       }))
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
@@ -229,7 +363,7 @@ describe('TeacherLiveAttendanceTab', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(screen.getByText('Lovelace, Ada')).toBeInTheDocument()
+    expect(screen.getByText('Ada')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
     await act(async () => {
       await Promise.resolve()
@@ -255,7 +389,7 @@ describe('TeacherLiveAttendanceTab', () => {
       }))
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
     fireEvent.click(screen.getByRole('button', { name: 'Show QR' }))
 
     expect(await screen.findByText('This QR code has expired')).toBeInTheDocument()
@@ -277,13 +411,15 @@ describe('TeacherLiveAttendanceTab', () => {
       .mockResolvedValueOnce(jsonResponse(confirmed))
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
-    fireEvent.click(screen.getByRole('button', { name: /Present/ }))
+    fireEvent.click(within(
+      screen.getByRole('toolbar', { name: 'Bulk attendance actions' }),
+    ).getByRole('button', { name: /Present/ }))
 
     await waitFor(() => {
-      const adaRow = screen.getByText('Lovelace, Ada').closest('tr')
-      expect(adaRow).toHaveTextContent('Present')
+      const adaRow = screen.getByText('Ada').closest('tr')
+      expect(within(adaRow!).getByLabelText('Present')).toHaveClass('bg-attendance-present')
       expect(adaRow).toHaveTextContent('Teacher')
     })
     expect(screen.queryByRole('toolbar', { name: 'Bulk attendance actions' })).not.toBeInTheDocument()
@@ -314,7 +450,7 @@ describe('TeacherLiveAttendanceTab', () => {
     })))
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
 
     expect(screen.queryByRole('button', { name: /reopen attendance/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
@@ -331,11 +467,24 @@ describe('TeacherLiveAttendanceTab', () => {
     })))
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
 
-    expect(screen.getAllByText(/previous session update failed/i)).toHaveLength(2)
+    expect(screen.getAllByText(/previous session update failed/i)).toHaveLength(1)
     expect(screen.getByText('Previous update failed')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeEnabled()
+  })
+
+  it('keeps an unconfirmed projection warning visible in the quiet context slot', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      sync: { state: 'stale', confirmedAt: '2026-08-17T12:45:00.000Z' },
+    })))
+
+    renderTab()
+    await screen.findByText('Ada')
+
+    const contextBar = screen.getByTestId('attendance-context-bar')
+    expect(within(contextBar).getByText('Last confirmed')).toBeInTheDocument()
+    expect(within(contextBar).getByText(/Open/)).toHaveClass('hidden')
   })
 
   it('does not let a command response for one date replace the newly selected date', async () => {
@@ -362,9 +511,11 @@ describe('TeacherLiveAttendanceTab', () => {
     })
 
     renderTab()
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
-    fireEvent.click(screen.getByRole('button', { name: /Present/ }))
+    fireEvent.click(within(
+      screen.getByRole('toolbar', { name: 'Bulk attendance actions' }),
+    ).getByRole('button', { name: /Present/ }))
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true))
 
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
@@ -383,7 +534,7 @@ describe('TeacherLiveAttendanceTab', () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView()))
 
     renderTab({ ...classroom, archived_at: '2026-08-18T00:00:00Z' })
-    await screen.findByText('Lovelace, Ada')
+    await screen.findByText('Ada')
 
     expect(screen.queryByRole('button', { name: 'Close attendance' })).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).toBeDisabled()

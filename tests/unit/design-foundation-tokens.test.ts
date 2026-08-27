@@ -24,9 +24,17 @@ describe('portable design foundations', () => {
     expect(tokens).toContain('--page-width-wide: 80rem;')
     expect(tokens).toContain('--density-compact-gutter: 0.75rem;')
     expect(tokens).toContain('--density-comfortable-gutter: 1rem;')
+    expect(tokens).toContain('--layer-sticky-table: 10;')
     expect(tokens).toContain('--layer-local-menu: 20;')
     expect(tokens).toContain('--layer-floating: 40;')
     expect(tokens).toContain('--layer-app-message: 80;')
+    expect(tokens).toContain('--color-attendance-present: #2dbf00;')
+    expect(tokens).toContain('--color-attendance-late: #f1c700;')
+    expect(tokens).toContain('--color-attendance-absent: #b10606;')
+    expect(tokens).toContain('--color-attendance-unmarked: var(--color-border-strong);')
+    expect(tokens).toContain('--color-attendance-present-text: #111827;')
+    expect(tokens).toContain('--color-attendance-late-text: #111827;')
+    expect(tokens).toContain('--color-attendance-absent-text: #ffffff;')
   })
 
   it('defines light and dark overlay scrims without widget-specific aliases', () => {
@@ -53,6 +61,7 @@ describe('portable design foundations', () => {
       '--page-width-wide',
       '--density-compact-gutter',
       '--density-comfortable-gutter',
+      '--layer-sticky-table',
       '--layer-local-menu',
       '--layer-floating',
       '--layer-app-chrome',
@@ -60,6 +69,13 @@ describe('portable design foundations', () => {
       '--layer-modal',
       '--layer-app-message',
       '--color-overlay-scrim',
+      '--color-attendance-present',
+      '--color-attendance-late',
+      '--color-attendance-absent',
+      '--color-attendance-unmarked',
+      '--color-attendance-present-text',
+      '--color-attendance-late-text',
+      '--color-attendance-absent-text',
     ]) {
       expect(tailwind).toContain(`var(${variable})`)
     }

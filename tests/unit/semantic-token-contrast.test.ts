@@ -49,6 +49,9 @@ const solidFillContracts = [
   ['color-text-inverse', 'color-success-solid-hover'],
   ['color-text-inverse', 'color-danger-solid'],
   ['color-text-inverse', 'color-danger-solid-hover'],
+  ['color-attendance-present-text', 'color-attendance-present'],
+  ['color-attendance-late-text', 'color-attendance-late'],
+  ['color-attendance-absent-text', 'color-attendance-absent'],
 ] as const
 
 function parseThemeTokens(theme: Theme) {

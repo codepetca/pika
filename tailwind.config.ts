@@ -99,6 +99,15 @@ const config: Config = {
             hover: 'var(--color-info-bg-hover)',
           },
         },
+        attendance: {
+          present: 'var(--color-attendance-present)',
+          late: 'var(--color-attendance-late)',
+          absent: 'var(--color-attendance-absent)',
+          unmarked: 'var(--color-attendance-unmarked)',
+          'present-text': 'var(--color-attendance-present-text)',
+          'late-text': 'var(--color-attendance-late-text)',
+          'absent-text': 'var(--color-attendance-absent-text)',
+        },
         focus: 'var(--focus-ring-color)',
         overlay: {
           scrim: 'var(--color-overlay-scrim)',
@@ -156,6 +165,7 @@ const config: Config = {
         standard: 'var(--motion-easing-standard)',
       },
       zIndex: {
+        'sticky-table': 'var(--layer-sticky-table)',
         'local-menu': 'var(--layer-local-menu)',
         floating: 'var(--layer-floating)',
         'app-chrome': 'var(--layer-app-chrome)',

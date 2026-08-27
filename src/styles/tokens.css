@@ -76,6 +76,15 @@
   --color-info-bg: #dbeafe;
   --color-info-bg-hover: #bfdbfe;
 
+  /* Attendance statuses mirror the connected TeachAssist source. */
+  --color-attendance-present: #2dbf00;
+  --color-attendance-late: #f1c700;
+  --color-attendance-absent: #b10606;
+  --color-attendance-unmarked: var(--color-border-strong);
+  --color-attendance-present-text: #111827;
+  --color-attendance-late-text: #111827;
+  --color-attendance-absent-text: #ffffff;
+
   /* Shadows */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-panel: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.08);
@@ -107,6 +116,7 @@
   --density-comfortable-stack-gap: 1rem;
 
   /* Shared layer responsibilities */
+  --layer-sticky-table: 10;
   --layer-local-menu: 20;
   --layer-floating: 40;
   --layer-app-chrome: 50;
@@ -177,6 +187,13 @@
   --color-info: #60a5fa;
   --color-info-bg: rgba(30, 58, 138, 0.3);
   --color-info-bg-hover: rgba(30, 58, 138, 0.4);
+  --color-attendance-present: #2dbf00;
+  --color-attendance-late: #f1c700;
+  --color-attendance-absent: #b10606;
+  --color-attendance-unmarked: var(--color-border-strong);
+  --color-attendance-present-text: #111827;
+  --color-attendance-late-text: #111827;
+  --color-attendance-absent-text: #ffffff;
   --color-overlay-scrim: rgb(0 0 0 / 0.7);
 
   /* Shadows - dark mode */
