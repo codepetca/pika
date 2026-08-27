@@ -1234,3 +1234,32 @@ database was reset or migrated and no hosted state was changed.
   and two bounded independent re-reviews pass. Local generated-type parity is
   intentionally deferred to fresh CI because the installed local database has
   the earlier migration-134 definition and applying/resetting it was prohibited.
+
+## 2026-08-27 — Complete the canonical Test-question identity path
+
+**Risk profile:** runtime-platform — Test authoring API retirement, portable
+identity enforcement, Version instantiation, migration backfill, and archived
+operation recovery; no database was reset or migrated and no hosted state was
+changed.
+
+- Retired direct question-row create/edit/delete/reorder writes. Those endpoints
+  now preserve authentication and ownership checks but direct teachers to the
+  version-fenced Test draft contract, keeping the saved document as the single
+  authoring source activation consumes.
+- Enforced UUIDv4 portable identity at draft validation, save, activation, and
+  migration backfill. Legacy input is resolved only through exact row/artifact/
+  source identity; collisions and non-v4 identities fail the migration atomically
+  rather than receiving inferred or newly generated lineage.
+- Prevented the compatibility instantiator from creating Test-question rows by
+  position. Migration 134 now passes Tests without questions through that layer
+  and materializes Version questions exactly once with explicit artifact identity.
+- Made archived-Classroom winner replay reserve and validate every operation key,
+  retain stale-revision failures durably, reject same-key/different-hash reuse,
+  and reconcile compatible failed or fresh operations to the established winner.
+- Added static/API/unit and fresh-database regressions for direct-write retirement,
+  identity collisions, non-v4 rejection without partial writes, positional-path
+  bypass, post-winner replay, stale failure recovery, and result-count parity.
+  The full Vitest suite passes 5,120 tests across 586 files; the focused surface,
+  TypeScript, architecture/design/UI policies, shell syntax, diff checks, and the
+  production build pass. Fresh-database CI remains authoritative for the SQL
+  harness because applying or resetting migration 134 was explicitly prohibited.

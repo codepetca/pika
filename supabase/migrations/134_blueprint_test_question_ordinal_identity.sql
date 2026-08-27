@@ -48,6 +48,12 @@ begin
       ) with ordinality as question(value, ordinal)
       order by question.ordinal
     loop
+      if coalesce(v_question->>'id', '') !~*
+        '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      then
+        raise exception 'Legacy Test draft question identity is not UUIDv4'
+          using errcode = '22023';
+      end if;
       v_question_id := (v_question->>'id')::uuid;
       v_portable_id := v_question_id;
       select array_agg(source_question.id order by source_question.id)
@@ -78,6 +84,13 @@ begin
         into v_portable_id
         from public.test_questions as source_question
         where source_question.id = v_question_row_ids[1];
+
+        if v_portable_id::text !~*
+          '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        then
+          raise exception 'Legacy Test draft resolved portable identity is not UUIDv4'
+            using errcode = '22023';
+        end if;
 
         if v_question_id is distinct from v_portable_id then
           v_question := jsonb_set(
@@ -313,6 +326,11 @@ begin
         with ordinality as question(value, ordinality)
       order by question.ordinality
     loop
+      if coalesce(v_question->>'id', '') !~*
+        '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      then
+        raise exception using errcode = '22023', message = 'invalid_draft_content';
+      end if;
       v_question_id := (v_question->>'id')::uuid;
       if v_question_id = any(v_seen_question_ids) then
         raise exception using errcode = '22023', message = 'duplicate_question_identity';
@@ -543,6 +561,11 @@ begin
       with ordinality as question(value, ordinality)
     order by question.ordinality
   loop
+    if coalesce(v_question->>'id', '') !~*
+      '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    then
+      raise exception using errcode = '22023', message = 'invalid_draft_content';
+    end if;
     v_question_id := (v_question->>'id')::uuid;
     if v_question_id = any(v_seen_question_ids) then
       raise exception using errcode = '22023', message = 'duplicate_question_identity';
@@ -1512,7 +1535,7 @@ begin
   end if;
 
   if v_classroom.blueprint_source_revision <> p_expected_source_revision then
-    return jsonb_build_object(
+    v_result := jsonb_build_object(
       'ok', false,
       'status', 409,
       'operation_id', p_operation_id,
@@ -1521,6 +1544,21 @@ begin
       'error', 'The archived classroom changed while preparing this course',
       'retryable', true
     );
+    update public.course_blueprint_operations
+    set
+      status = 'failed',
+      attempt_count = case when status = 'failed' then attempt_count + 1 else attempt_count end,
+      source_classroom_id = p_source_classroom_id,
+      result_blueprint_id = null,
+      result_classroom_id = null,
+      result = v_result,
+      resource_counts = '{}'::jsonb,
+      error_code = 'source_classroom_changed',
+      error_sqlstate = null,
+      completed_at = now(),
+      updated_at = now()
+    where id = p_operation_id;
+    return v_result;
   end if;
 
   begin

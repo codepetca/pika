@@ -127,7 +127,10 @@ Roll out the contract in compatibility order:
    drafts by artifact identity, and fails closed on ambiguity.
 2. Apply the identity migration as one transaction. It resolves legacy draft
    IDs by exact row/artifact/source UUID matches, aborts on multiple matches,
-   and leaves draft-only UUIDs unchanged.
+   and leaves draft-only UUIDv4 identities unchanged. Any legacy draft input or
+   resolved portable identity that is not UUIDv4 aborts the whole migration;
+   reconcile that source record explicitly before retrying instead of silently
+   generating a replacement identity that could sever immutable lineage.
 3. Verify capture, activation, recapture, Version creation, classroom
    instantiation, and archived reuse before removing the legacy read path.
 

@@ -271,6 +271,43 @@ begin
     raise exception 'Post-activation authoring did not synchronize materialized rows';
   end if;
 
+  begin
+    perform public.save_test_draft_atomic(
+      'b1341000-0000-4000-8000-000000000001',
+      'b1341000-0000-4000-8000-000000000011',
+      3,
+      '{"title":"Invalid legacy identity","show_results":false,"questions":[{"id":"b1341000-0000-1000-8000-000000000013","question_type":"open_response","question_text":"Legacy UUIDv1 question","options":[],"correct_option":null,"answer_key":"legacy","sample_solution":null,"points":4,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+      false,
+      '[]'::jsonb,
+      '[]'::jsonb
+    );
+    raise exception 'Non-UUIDv4 question identity unexpectedly saved';
+  exception when invalid_parameter_value then
+    get stacked diagnostics v_error_message = message_text;
+    if v_error_message is distinct from 'invalid_draft_content' then
+      raise;
+    end if;
+  end;
+
+  if not exists (
+    select 1
+    from public.assessment_drafts draft
+    where draft.assessment_type = 'test'
+      and draft.assessment_id = 'b1341000-0000-4000-8000-000000000011'
+      and draft.version = 3
+      and draft.content->>'title' = 'Question C'
+  ) or not exists (
+    select 1
+    from public.test_questions question
+    where question.test_id = 'b1341000-0000-4000-8000-000000000011'
+      and question.artifact_id = 'b1341000-0000-4000-8000-000000000013'
+      and question.question_text = 'Question C'
+      and question.answer_key = 'C'
+      and question.points = 3
+  ) then
+    raise exception 'Rejected non-UUIDv4 identity changed persisted Test state';
+  end if;
+
   insert into public.test_attempts (test_id, student_id)
   values (
     'b1341000-0000-4000-8000-000000000011',
@@ -980,6 +1017,7 @@ declare
   v_archived_question_one_row_id constant uuid := 'b1340000-0000-4000-8000-000000000022';
   v_archived_winner_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000221';
   v_archived_fresh_replay_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000222';
+  v_archived_stale_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000223';
   v_instantiation_blueprint_id constant uuid := 'b1340000-0000-4000-8000-000000000301';
   v_instantiation_version_id constant uuid := 'b1340000-0000-4000-8000-000000000302';
   v_instantiation_operation_id constant uuid := 'b1340000-0000-4000-8000-000000000303';
@@ -1404,9 +1442,45 @@ begin
     raise exception 'Archived identity repair did not advance the source revision';
   end if;
 
+  -- A stale request must retain durable failed evidence instead of leaving a
+  -- running operation behind. Operation B then wins, after which the stale
+  -- request can retry with the current revision and reconcile to that winner.
+  v_replay := public.create_archived_classroom_blueprint_atomic(
+    v_archived_stale_operation_id,
+    v_teacher_id,
+    repeat('0', 64),
+    v_archived_classroom_id,
+    v_archived_revision - 1,
+    v_archived_failure_plan
+  );
+  if coalesce((v_replay->>'ok')::boolean, true)
+    or v_replay->>'status' is distinct from '409'
+    or v_replay->>'error_code' is distinct from 'source_classroom_changed'
+    or not coalesce((v_replay->>'retryable')::boolean, false)
+  then
+    raise exception 'Stale archived request did not return a retryable conflict: %', v_replay;
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_archived_stale_operation_id
+      and request_sha256 = repeat('0', 64)
+      and status = 'failed'
+      and attempt_count = 1
+      and source_classroom_id = v_archived_classroom_id
+      and result_blueprint_id is null
+      and result_classroom_id is null
+      and result = v_replay
+      and resource_counts = '{}'::jsonb
+      and error_code = 'source_classroom_changed'
+      and completed_at is not null
+  ) then
+    raise exception 'Stale archived request did not retain its failed ledger';
+  end if;
+
   -- Operation B wins after the source repair while failed operation A remains
   -- retained. A mismatched replay must conflict before the classroom winner
-  -- shortcut, then a compatible retry of A must reconcile its failed ledger.
+  -- shortcut, then compatible retries must reconcile both failed ledgers.
   v_result := public.create_archived_classroom_blueprint_atomic(
     v_archived_winner_operation_id,
     v_teacher_id,
@@ -1434,6 +1508,37 @@ begin
     and completed_at is not null;
   if v_count <> 1 then
     raise exception 'Archived winner operation did not complete its ledger';
+  end if;
+
+  v_replay := public.create_archived_classroom_blueprint_atomic(
+    v_archived_stale_operation_id,
+    v_teacher_id,
+    repeat('0', 64),
+    v_archived_classroom_id,
+    v_archived_revision,
+    v_archived_failure_plan
+  );
+  if not coalesce((v_replay->>'ok')::boolean, false)
+    or not coalesce((v_replay->>'replayed')::boolean, false)
+    or v_replay->>'blueprint_id' is distinct from v_blueprint_id::text
+  then
+    raise exception 'Stale archived operation did not reconcile to the winner: %', v_replay;
+  end if;
+  if not exists (
+    select 1
+    from public.course_blueprint_operations
+    where id = v_archived_stale_operation_id
+      and request_sha256 = repeat('0', 64)
+      and status = 'completed'
+      and attempt_count = 2
+      and result_blueprint_id = v_blueprint_id
+      and result_classroom_id = v_archived_classroom_id
+      and result = v_replay
+      and error_code is null
+      and error_sqlstate is null
+      and completed_at is not null
+  ) then
+    raise exception 'Stale archived winner retry did not reconcile its failed ledger';
   end if;
 
   v_replay := public.create_archived_classroom_blueprint_atomic(

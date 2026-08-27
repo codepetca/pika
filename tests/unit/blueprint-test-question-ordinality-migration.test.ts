@@ -13,6 +13,13 @@ const ciWorkflow = readFileSync(
   resolve(process.cwd(), '.github/workflows/ci.yml'),
   'utf8',
 )
+const databaseContract = readFileSync(
+  resolve(
+    process.cwd(),
+    'scripts/check-blueprint-question-ordinal-identity.sh',
+  ),
+  'utf8',
+)
 
 function functionDefinition(name: string): string {
   const start = migration.indexOf(`create or replace function public.${name}(`)
@@ -120,6 +127,9 @@ describe('Blueprint test-question identity migration', () => {
       )
       expect(definition).toContain('v_draft.version is distinct from p_expected_draft_version')
       expect(definition).toContain("message = 'draft_version_conflict'")
+      expect(definition).toMatch(
+        /coalesce\(v_question->>'id', ''\) !~\*[\s\S]{0,180}\[0-9a-f\]\{4\}-4\[0-9a-f\]\{3\}/,
+      )
       // Two distinct incoming question ids can each independently resolve to
       // the same physical row (one via artifact_id, the other via
       // source_artifact_id) and pass the ambiguity check individually. Guard
@@ -235,6 +245,9 @@ describe('Blueprint test-question identity migration', () => {
     expect(definition.slice(winnerReplay)).toMatch(
       /update public\.course_blueprint_operations\s+set\s+status = 'completed',[\s\S]{0,500}attempt_count = case when status = 'failed' then attempt_count \+ 1 else attempt_count end[\s\S]{0,500}result_blueprint_id = v_classroom\.source_blueprint_id[\s\S]{0,500}where id = p_operation_id/,
     )
+    expect(definition).toMatch(
+      /v_classroom\.blueprint_source_revision <> p_expected_source_revision[\s\S]{0,500}status = 'failed'[\s\S]{0,500}error_code = 'source_classroom_changed'/,
+    )
     expect(migration).toContain(
       'grant execute on function public.create_archived_classroom_blueprint_atomic(',
     )
@@ -311,6 +324,12 @@ describe('Blueprint test-question identity migration', () => {
       "raise exception 'Legacy Test draft question identity backfill is ambiguous'",
     )
     expect(migration).toContain(
+      "raise exception 'Legacy Test draft question identity is not UUIDv4'",
+    )
+    expect(migration).toContain(
+      "raise exception 'Legacy Test draft resolved portable identity is not UUIDv4'",
+    )
+    expect(migration).toContain(
       "raise exception 'Legacy Test draft question identity backfill reuses one row'",
     )
     expect(migration).toContain(
@@ -330,6 +349,18 @@ describe('Blueprint test-question identity migration', () => {
   it('runs the rollback and replay database contract in CI', () => {
     expect(ciWorkflow).toContain(
       'bash scripts/check-blueprint-question-ordinal-identity.sh',
+    )
+    expect(databaseContract).toContain(
+      'Non-UUIDv4 question identity unexpectedly saved',
+    )
+    expect(databaseContract).toContain(
+      'Rejected non-UUIDv4 identity changed persisted Test state',
+    )
+    expect(databaseContract).toContain(
+      'Stale archived request did not retain its failed ledger',
+    )
+    expect(databaseContract).toContain(
+      'Stale archived operation did not reconcile to the winner',
     )
   })
 })
