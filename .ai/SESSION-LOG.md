@@ -2813,6 +2813,10 @@ or hosted state changed.
 - Playwright visual verification covered teacher and student at desktop/mobile
   widths in light/dark, including hover and locked states. The visual matrix
   and ignored screenshot artifacts are recorded in `design-qa.md`.
+- Opened PR #1089 and ran the bounded independent review loop. Remediation
+  restored the 60-entry continuity cap, removed an accidental duplicate archive
+  batch after the rebase, and clarified that visual captures are local,
+  gitignored verification artifacts rather than durable repository evidence.
 
 **Model recommendation:** GPT-5.6 Sol for shared rich-text viewport state,
 scroll restoration, responsive measurement, and cross-role interaction QA.
