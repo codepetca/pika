@@ -103,16 +103,17 @@ final result: passed
 
 ## Source and corrected target
 
-- Visual source: `/Users/stew/.codex/generated_images/01a04365-9db0-7262-9354-812a99bbfd74/exec-abee179a-fe6b-470a-be25-3c17705fdc2b.png` (1536 × 1024 px).
+- Visual source: the user-provided 1536 × 1024 concept image reviewed during
+  this task. It is not stored in the repository.
 - Corrected user direction: retain the source's full-lifecycle work-footprint idea, but show the whole history in one chart at the existing 240–256 px sidebar size. Do not include the source's second session-detail chart.
 - Intended state: a teacher or student can immediately see whether work began late or happened in one clump, then inspect the individual saves from that same chart.
 
 ## Implementation evidence
 
-- Desktop light, final typography: `artifacts/history-compact-final.jpg`.
-- Desktop dark: `artifacts/history-compact-desktop-dark.jpg`.
-- Mobile light: `artifacts/history-compact-mobile-light.jpg`.
-- Mobile dark: `artifacts/history-compact-mobile-dark.jpg`.
+- Playwright captures were reviewed locally for desktop/mobile and light/dark.
+  Generated screenshots live under the repository's intentionally gitignored
+  `artifacts/` directory, so this note records the verified matrix rather than
+  presenting those local files as durable repository evidence.
 - Teacher target width: 256 px.
 - Student target width: 240 px, matching the original desktop history column.
 
@@ -161,16 +162,9 @@ different pinned save returns that save to the top. The fit calculation responds
 to viewport resizing and image loading.
 
 Playwright evidence was reviewed for teacher and student roles at 1440 × 900 and
-390 × 844 in light and dark themes. The affected hover and pinned states are in:
-
-- `artifacts/history-preview-teacher-desktop-light-hover.png`
-- `artifacts/history-preview-teacher-desktop-dark-locked.png`
-- `artifacts/history-preview-student-desktop-light-hover.png`
-- `artifacts/history-preview-student-desktop-dark-locked.png`
-- `artifacts/history-preview-teacher-mobile-light-hover.png`
-- `artifacts/history-preview-teacher-mobile-dark-locked.png`
-- `artifacts/history-preview-student-mobile-light-hover.png`
-- `artifacts/history-preview-student-mobile-dark-locked.png`
+390 × 844 in light and dark themes, including both hover and pinned states. The
+captures are intentionally local and gitignored; the durable evidence here is
+the explicit matrix and review result.
 
 The whole-document signal is clear at desktop size, pinned text remains readable,
 the narrow layout contains both panes without horizontal overflow, and semantic
