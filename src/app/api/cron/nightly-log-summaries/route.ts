@@ -9,6 +9,7 @@ import {
   buildSummaryPrompt,
   callOpenAIForSummary,
   getSummaryModel,
+  LOG_SUMMARY_POLICY_VERSION,
 } from '@/lib/log-summary'
 import {
   extractAndStoreDeveloperFeedbackCandidates,
@@ -274,10 +275,11 @@ async function generateSummaryForClassroom(
     return false
   }
 
-  const { system, user } = buildSummaryPrompt(date, sanitizedLogs)
-  const rawResponse = await callOpenAIForSummary(system, user)
+  const { system, user, sourceMap } = buildSummaryPrompt(date, sanitizedLogs)
+  const rawResponse = await callOpenAIForSummary(system, user, sourceMap)
 
   const summaryItemsForStorage = {
+    policy_version: LOG_SUMMARY_POLICY_VERSION,
     overview: rawResponse.overview,
     action_items: rawResponse.action_items.map((item) => ({
       text: item.text,

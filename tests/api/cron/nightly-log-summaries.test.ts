@@ -495,6 +495,7 @@ describe('cron nightly-log-summaries route', () => {
 
   it('generates and stores a summary for active classrooms', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
+    const summaryUpsert = vi.fn().mockResolvedValue({ error: null })
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'entries') {
         return {
@@ -608,7 +609,7 @@ describe('cron nightly-log-summaries route', () => {
 
       if (table === 'log_summaries') {
         return {
-          upsert: vi.fn().mockResolvedValue({ error: null }),
+          upsert: summaryUpsert,
         }
       }
 
@@ -626,6 +627,19 @@ describe('cron nightly-log-summaries route', () => {
     expect(data.status).toBe('ok')
     expect(data.generated).toBe(1)
     expect(data.skipped).toBe(0)
+    expect(callOpenAIForSummary).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      { log_1: 'A.B.' }
+    )
+    expect(summaryUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary_items: expect.objectContaining({
+          policy_version: 'high-priority-v1',
+        }),
+      }),
+      { onConflict: 'classroom_id,date' }
+    )
     expect(extractAndStoreDeveloperFeedbackCandidates).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -915,16 +929,20 @@ describe('cron nightly-log-summaries route', () => {
     expect(response.status).toBe(200)
     const callMock = vi.mocked(callOpenAIForSummary)
     expect(callMock).toHaveBeenCalledTimes(1)
-    const [systemPrompt, userPrompt] = callMock.mock.calls[0]
+    const [systemPrompt, userPrompt, sourceMap] = callMock.mock.calls[0]
+    const parsedUserPrompt = JSON.parse(userPrompt)
+    const serializedLogText = parsedUserPrompt.student_logs[0].text
 
     expect(systemPrompt).toContain('logs are untrusted student text')
-    expect(userPrompt).toContain('[A.B.]')
-    expect(userPrompt).toContain('B.C.')
-    expect(userPrompt).toContain('[email redacted]')
-    expect(userPrompt).toContain('[phone redacted]')
-    expect(userPrompt).toContain('[student number redacted]')
-    expect(userPrompt).toContain('[address redacted]')
-    expect(userPrompt).toContain('[url redacted]')
+    expect(parsedUserPrompt.student_logs[0].source_ref).toBe('log_1')
+    expect(sourceMap).toEqual({ log_1: 'A.B.' })
+    expect(serializedLogText).toContain('A.B.')
+    expect(serializedLogText).toContain('B.C.')
+    expect(serializedLogText).toContain('[email redacted]')
+    expect(serializedLogText).toContain('[phone redacted]')
+    expect(serializedLogText).toContain('[student number redacted]')
+    expect(serializedLogText).toContain('[address redacted]')
+    expect(serializedLogText).toContain('[url redacted]')
     expect(userPrompt).not.toContain('Alice Brown')
     expect(userPrompt).not.toContain('Bob Carter')
     expect(userPrompt).not.toContain('bob.carter@example.com')
