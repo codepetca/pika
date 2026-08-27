@@ -23842,3 +23842,20 @@ changed.
   design guard, UI guard, and diff check pass. Local execution of migration 132
   and generated-type parity remain intentionally pending exact local-only
   authorization.
+
+<!-- pika-session-log-archive-batch:ef529a0a4c4b8479f74c078cdaf78d66b1e89cea5149023c12138d812491bc6a -->
+## 2026-08-23 — Repair attendance entitlement operator launch
+
+**Risk profile:** runtime-platform — service-only entitlement operator
+availability; no authorization binding, RPC payload, hosted entitlement, flag,
+credential, or attendance state changed.
+
+- Wrapped the existing operator body in an async entrypoint so the documented
+  CommonJS `tsx` package command no longer fails compilation on top-level await.
+- Added a subprocess regression that invokes the exact package script and proves
+  it reaches argument validation instead of the transform failure.
+- Verified the documented command against production in dry-run mode only; it
+  read the current active revision 1 entitlement and emitted a disposable exact
+  binding without executing an RPC.
+- Focused tests, the full Vitest suite, lint, architecture guard, production
+  build, and diff check pass.
