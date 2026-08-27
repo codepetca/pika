@@ -2564,7 +2564,7 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
-  const selectedStudentUtilityActions: TeacherWorkSurfaceActionItem[] = [
+  const selectedStudentUtilityActions: Array<TeacherWorkSurfaceActionItem & { label: string }> = [
     {
       id: 'ai-grade-selected',
       label: 'AI Grade',

@@ -1143,8 +1143,8 @@ changed.
   semantic state covered by tests: yes; remaining manual follow-up: none.
 
 **Verification:** full Vitest suite (5,139/5,139), responsive long-roster
-Playwright matrix (4/4), lint, architecture/design/UI policies, Pika audit, and
-diff checks pass. Visual review covers selected desktop/mobile states in
+Playwright matrix (4/4), TypeScript, lint, architecture/design/UI policies, Pika
+audit, and diff checks pass. Visual review covers selected desktop/mobile states in
 light/dark and the desktop tooltip hover state. Student UI is n/a because this
 is a teacher-only surface.
 

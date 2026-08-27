@@ -1757,9 +1757,11 @@ describe('TeacherTestsTab', () => {
     })
     expect(contextBar).toContainElement(selectedStudentToolbar)
     expect(selectedStudentToolbar).toHaveTextContent('1 selected')
-    const aiGradeButton = within(selectedStudentToolbar).getByRole('button', { name: 'AI Grade' })
-    expect(aiGradeButton).toHaveAttribute('aria-label', 'AI Grade')
-    expect(aiGradeButton).toHaveTextContent('')
+    for (const actionLabel of ['AI Grade', 'Unsubmit', 'Return', 'Delete Work']) {
+      const actionButton = within(selectedStudentToolbar).getByRole('button', { name: actionLabel })
+      expect(actionButton).toHaveAttribute('aria-label', actionLabel)
+      expect(actionButton).toHaveTextContent('')
+    }
     expect(within(selectedStudentToolbar).getByRole('button', {
       name: 'More selected student actions',
     })).toHaveAttribute('aria-haspopup', 'menu')
