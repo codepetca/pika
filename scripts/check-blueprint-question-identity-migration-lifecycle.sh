@@ -112,11 +112,13 @@ begin
     select 1
     from public.assessment_drafts draft
     where draft.id = 'b1349000-0000-4000-8000-000000000012'
-      and draft.version = 9
+      and draft.version = 10
       and draft.content->>'question_identity_version' = '1'
       and draft.content->'questions'->0->>'id'
-        = 'b1349000-0000-4000-8000-000000000021'
+        = 'b1349000-0000-4000-8000-000000000041'
       and draft.content->'questions'->1->>'id'
+        = 'b1349000-0000-4000-8000-000000000021'
+      and draft.content->'questions'->2->>'id'
         = 'b1349000-0000-4000-8000-000000000031'
   ) then
     raise exception 'Actual 133-to-134 migration did not backfill the collision';
@@ -144,8 +146,8 @@ $contract$;
 select public.save_test_draft_atomic(
   'b1349000-0000-4000-8000-000000000001',
   'b1349000-0000-4000-8000-000000000011',
-  9,
-  '{"title":"Legacy row-ID precedence","show_results":false,"question_identity_version":1,"questions":[{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Question zero carrying the later row ID","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Later question whose row ID was reused","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
+  10,
+  '{"title":"Legacy row-ID precedence","show_results":false,"question_identity_version":1,"questions":[{"id":"b1349000-0000-4000-8000-000000000041","question_type":"open_response","question_text":"Draft-only addition retained","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000021","question_type":"open_response","question_text":"Edited original question retained","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false},{"id":"b1349000-0000-4000-8000-000000000031","question_type":"open_response","question_text":"Moved collision question retained","options":[],"correct_option":null,"answer_key":null,"sample_solution":null,"points":1,"response_max_chars":5000,"response_monospace":false}]}'::jsonb,
   false,
   '[]'::jsonb,
   '[]'::jsonb
@@ -158,7 +160,7 @@ where id = 'b1349000-0000-4000-8000-000000000011';
 select public.activate_test_from_draft_atomic(
   'b1349000-0000-4000-8000-000000000001',
   'b1349000-0000-4000-8000-000000000011',
-  10
+  11
 );
 
 do $contract$
@@ -171,7 +173,7 @@ begin
       and draft.assessment_id = test.id
     where test.id = 'b1349000-0000-4000-8000-000000000011'
       and test.status = 'active'
-      and draft.version = 10
+      and draft.version = 11
       and draft.content->>'question_identity_version' = '1'
       and (
         select array_agg(
@@ -181,6 +183,7 @@ begin
         from public.test_questions question
         where question.test_id = test.id
       ) = array[
+        'b1349000-0000-4000-8000-000000000041'::uuid,
         'b1349000-0000-4000-8000-000000000021'::uuid,
         'b1349000-0000-4000-8000-000000000031'::uuid
       ]

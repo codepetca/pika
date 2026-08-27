@@ -156,10 +156,17 @@ Roll out the contract as a finite cutover:
    unmarked live draft during this pre-migration window. When the migration RPC
    is not installed yet, the server projects marked portable IDs back to the
    exact legacy row IDs before persistence and activation, while returning the
-   portable representation to the client. Draft-only UUIDs remain unchanged.
-   This narrow fallback preserves the existing pre-migration write behavior and
-   keeps Test save and activation usable while migration application remains a
-   separate human action; it is never selected after the RPC exists.
+   portable representation to the client. Draft-only UUIDs remain unchanged
+   and are materialized with that same UUID in both the legacy row-ID and
+   artifact-ID slots. For active or closed Tests without student work, the
+   fallback synchronizes edit/add/remove/reorder changes into the authoritative
+   question rows before reporting success; after student work, only
+   metadata/document saves whose question graph is unchanged are accepted. A
+   draft-only portable UUID that already exists anywhere as an internal
+   question row ID is rejected before writing because the legacy single-ID
+   format cannot represent that namespace collision safely. This narrow
+   fallback keeps Test save and activation usable while migration application
+   remains a separate human action; it is never selected after the RPC exists.
 2. Apply the identity migration as one transaction. It resolves an exact
    historical row-ID match first because legacy drafts stored row IDs. Only
    when no row-ID match exists does it fall back to the one source-first

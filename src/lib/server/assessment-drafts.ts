@@ -291,6 +291,27 @@ async function buildLegacyTestDraftContent(
     return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }
   }
 
+  const draftOnlyIds = resolved.identities
+    .filter((identity) => !identity.matchingRowId)
+    .map((identity) => identity.inputId)
+  if (draftOnlyIds.length > 0) {
+    // The legacy format has only one UUID slot. Persisting a new portable UUID
+    // that is already any question's internal row ID would make legacy
+    // activation/backfill resolve the wrong row. Fail before writing instead of
+    // crossing the two identity namespaces.
+    const { data: rowIdCollisions, error: collisionError } = await supabase
+      .from('test_questions')
+      .select('id')
+      .in('id', draftOnlyIds)
+      .limit(1)
+    if (collisionError) {
+      return { ok: false, status: 500, error: 'Failed to validate Test question identity' }
+    }
+    if ((rowIdCollisions || []).length > 0) {
+      return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }
+    }
+  }
+
   const { question_identity_version: _identityVersion, ...legacyContent } = content
   return {
     ok: true,
@@ -311,7 +332,8 @@ async function buildLegacyTestDraftContent(
 async function syncLegacyTestQuestionsFromDraft(
   supabase: SupabaseLike,
   testId: string,
-  content: TestDraftContent,
+  legacyContent: TestDraftContent,
+  portableContent: TestDraftContent,
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const { data: existingRows, error: existingError } = await supabase
     .from('test_questions')
@@ -325,9 +347,13 @@ async function syncLegacyTestQuestionsFromDraft(
   const existingIds = new Set<string>(
     (existingRows || []).map((row: { id: string }) => row.id),
   )
-  const nextIds = new Set(content.questions.map((question) => question.id))
+  const nextIds = new Set(legacyContent.questions.map((question) => question.id))
 
-  for (const [position, question] of content.questions.entries()) {
+  for (const [position, question] of legacyContent.questions.entries()) {
+    const portableQuestion = portableContent.questions[position]
+    if (!portableQuestion) {
+      return { ok: false, status: 409, error: 'Test draft question identity is invalid or ambiguous' }
+    }
     const payload = {
       question_type: question.question_type,
       question_text: question.question_text,
@@ -355,6 +381,9 @@ async function syncLegacyTestQuestionsFromDraft(
     const { error } = await supabase.from('test_questions').insert({
       id: question.id,
       test_id: testId,
+      // Migration 112 otherwise generates a fresh artifact UUID here, severing
+      // the draft-created identity before migration 134 can canonicalize it.
+      artifact_id: portableQuestion.id,
       ...payload,
     })
     if (error) {
@@ -375,6 +404,82 @@ async function syncLegacyTestQuestionsFromDraft(
   }
 
   return { ok: true }
+}
+
+async function canSynchronizeMaterializedLegacyQuestions(
+  supabase: SupabaseLike,
+  testId: string,
+  content: TestDraftContent,
+): Promise<
+  | { ok: true; synchronize: boolean }
+  | { ok: false; status: number; error: string }
+> {
+  const { data: rows, error: rowsError } = await supabase
+    .from('test_questions')
+    .select(`
+      id,
+      question_type,
+      question_text,
+      options,
+      correct_option,
+      answer_key,
+      sample_solution,
+      points,
+      response_max_chars,
+      response_monospace,
+      position
+    `)
+    .eq('test_id', testId)
+    .order('position')
+  if (rowsError) {
+    return { ok: false, status: 500, error: 'Failed to load Test questions for save' }
+  }
+
+  const [{ count: attemptCount, error: attemptError }, { count: responseCount, error: responseError }] = await Promise.all([
+    supabase
+      .from('test_attempts')
+      .select('id', { count: 'exact', head: true })
+      .eq('test_id', testId),
+    supabase
+      .from('test_responses')
+      .select('id', { count: 'exact', head: true })
+      .eq('test_id', testId),
+  ])
+  if (attemptError || responseError) {
+    return { ok: false, status: 500, error: 'Failed to check Test question usage' }
+  }
+  if ((attemptCount || 0) === 0 && (responseCount || 0) === 0) {
+    return { ok: true, synchronize: true }
+  }
+
+  const graphMatches = (rows || []).length === content.questions.length
+    && content.questions.every((question, position) => {
+      const row = rows?.[position]
+      return Boolean(row)
+        && row.id === question.id
+        && row.question_type === question.question_type
+        && row.question_text === question.question_text
+        && JSON.stringify(row.options ?? []) === JSON.stringify(question.options)
+        && row.correct_option === question.correct_option
+        && row.answer_key === question.answer_key
+        && row.sample_solution === question.sample_solution
+        && Number(row.points) === question.points
+        && Number(row.response_max_chars) === question.response_max_chars
+        && row.response_monospace === question.response_monospace
+        && row.position === position
+    })
+  if (!graphMatches) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Test questions cannot be changed after student work exists',
+    }
+  }
+
+  // Metadata/document-only saves remain valid after student work; avoid any
+  // question write so the pre-134 path enforces the same freeze as migration
+  // 134's child trigger.
+  return { ok: true, synchronize: false }
 }
 
 async function saveTestDraftBeforeIdentityMigration(
@@ -403,6 +508,29 @@ async function saveTestDraftBeforeIdentityMigration(
   const legacy = await buildLegacyTestDraftContent(supabase, input.testId, input.content)
   if (!legacy.ok) return legacy
 
+  const { data: currentTest, error: testLoadError } = await supabase
+    .from('tests')
+    .select('status')
+    .eq('id', input.testId)
+    .single()
+  if (testLoadError || !currentTest) {
+    return { ok: false, status: 404, error: 'Test not found' }
+  }
+
+  let synchronization: { ok: true; synchronize: boolean } | null = null
+  if (currentTest.status === 'active' || currentTest.status === 'closed') {
+    const candidate = await canSynchronizeMaterializedLegacyQuestions(
+      supabase,
+      input.testId,
+      legacy.content,
+    )
+    // Reject an unsafe graph edit before incrementing the draft version. The
+    // remaining legacy writes cannot be made transactional without migration
+    // 134, but a failed materialization is never reported as a successful save.
+    if (!candidate.ok) return candidate
+    synchronization = candidate
+  }
+
   const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
     supabase,
     draft.id,
@@ -414,13 +542,14 @@ async function saveTestDraftBeforeIdentityMigration(
     return { ok: false, status: 409, error: 'Draft updated elsewhere' }
   }
 
-  const { data: currentTest, error: testLoadError } = await supabase
-    .from('tests')
-    .select('status')
-    .eq('id', input.testId)
-    .single()
-  if (testLoadError || !currentTest) {
-    return { ok: false, status: 404, error: 'Test not found' }
+  if (synchronization?.synchronize) {
+    const synchronized = await syncLegacyTestQuestionsFromDraft(
+      supabase,
+      input.testId,
+      legacy.content,
+      input.content,
+    )
+    if (!synchronized.ok) return synchronized
   }
 
   let test: Record<string, unknown> | null = null
@@ -512,6 +641,7 @@ async function activateTestBeforeIdentityMigration(
     supabase,
     input.testId,
     legacy.content,
+    draft.content,
   )
   if (!synchronized.ok) return synchronized
 
