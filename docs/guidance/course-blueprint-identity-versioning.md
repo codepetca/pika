@@ -104,6 +104,12 @@ rubrics, and named resources must adopt the same contract.
   are retired so row state cannot diverge from the draft activation consumes.
 - `test_questions.id` is an internal database row ID and is never written into
   Blueprint, Version, package, or draft content as logical identity.
+- Student attempts and responses are classroom-instance runtime state, not
+  reusable content. Their `question_id` foreign keys and the corresponding
+  classroom student/teacher API keys may use `test_questions.id` so existing
+  attempts and grading history remain attached to the exact materialized row;
+  those row IDs must never cross into drafts, Blueprints, Versions, packages,
+  or cross-classroom lineage.
 - An origin row stores the draft UUID in `artifact_id`. An instantiated row has
   a new row `id` and stores the originating UUID in `source_artifact_id` (and in
   `artifact_id` where the existing persistence contract requires it).

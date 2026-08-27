@@ -45,7 +45,7 @@ export function getPortableTestQuestionIdentity(
  *
  * TODO(remove after migration 134 has been live in production for one full
  * release cycle with no `question_identity_ambiguous`/row-id-fallback hits in
- * the RPC failure ledger — see docs/architecture/course-blueprint-identity-versioning.md):
+ * the RPC failure ledger — see docs/guidance/course-blueprint-identity-versioning.md):
  * migration 134's one-time backfill rewrites every existing draft's question
  * ids to portable identity at deploy time, so after that point no legitimately
  * saved draft should ever exercise the row-id branch below again. Until it's
